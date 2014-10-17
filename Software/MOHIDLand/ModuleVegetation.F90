@@ -4135,7 +4135,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             enddo
 
             nProperties = nProperties + 1
-            PropertyList(nProperties) = "VegetationID"           
+            PropertyList(nProperties) = "Vegetation_ID"           
             nProperties = nProperties + 1
             PropertyList(nProperties) = "Water Uptake m3/s"
             nProperties = nProperties + 1
@@ -13132,8 +13132,9 @@ do3:        do FertApp = 1, FertilizerApps
                 FertilizerApplied    = .false.
                 AccFertilizationDays = 0
                                 
-                !if not check if it will start a unique or continuous fertilization
-                if (.not. PlantBeingContFert) then
+                !if not continuous fertilization check if it will occur a unique fertilization
+                !if continuous fertilization but still not active at this time, check if it will start a continuous fertilization
+                if ((.not. FertilizationContinuous) .or. (.not. PlantBeingContFert)) then
                 
                     call JulianDay(Me%ExternalVar%Now, JulDay)
                     JulDay_Old = Me%ExternalVar%JulianDay_Old
@@ -13164,7 +13165,7 @@ if6:                    if(PotentialHU .ge. FertilizerAppHU .and. PotentialHU_Ol
                         endif if6
                     
                     endif if3
-               
+                ! continuous fertilization and active at the moment
                 ! continue to apply the daily amount and check if is over
                 else
                     AccFertilizationDays      = &
@@ -14379,35 +14380,47 @@ do4:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (Me%ComputeOptions%ModelNitrogen) then
         
             !KgN/ha
-            Me%Fluxes%FertilNitrateInSurface(i,j)     = FertilizerFracApplyedInSurface * FertilizerAmount                      &
+            Me%Fluxes%FertilNitrateInSurface(i,j)     = Me%Fluxes%FertilNitrateInSurface(i,j)                                    &
+                                                        + FertilizerFracApplyedInSurface * FertilizerAmount                      &
                                                         * MineralNFracInFertilizer * (1. - AmmoniaFracInMineralN)
-            Me%Fluxes%FertilNitrateInSubSurface(i,j)  = (1. - FertilizerFracApplyedInSurface) * FertilizerAmount               &
+            Me%Fluxes%FertilNitrateInSubSurface(i,j)  = Me%Fluxes%FertilNitrateInSubSurface(i,j)                                 &
+                                                        + (1. - FertilizerFracApplyedInSurface) * FertilizerAmount               &
                                                         * MineralNFracInFertilizer * (1. - AmmoniaFracInMineralN)
-            Me%Fluxes%FertilAmmoniaInSurface(i,j)     = FertilizerFracApplyedInSurface * FertilizerAmount                      &
+            Me%Fluxes%FertilAmmoniaInSurface(i,j)     = Me%Fluxes%FertilAmmoniaInSurface(i,j)                                    &
+                                                        + FertilizerFracApplyedInSurface * FertilizerAmount                      &
                                                         * MineralNFracInFertilizer * AmmoniaFracInMineralN
-            Me%Fluxes%FertilAmmoniaInSubSurface(i,j)  = (1. - FertilizerFracApplyedInSurface) * FertilizerAmount               &
+            Me%Fluxes%FertilAmmoniaInSubSurface(i,j)  = Me%Fluxes%FertilAmmoniaInSubSurface(i,j)                                 &
+                                                        + (1. - FertilizerFracApplyedInSurface) * FertilizerAmount               &
                                                         * MineralNFracInFertilizer * AmmoniaFracInMineralN
-            Me%Fluxes%FertilOrganicNParticInFluff(i,j) = FertilizerAmount * OrganicNFracInFertilizer * OrganicFracParticulate
+            Me%Fluxes%FertilOrganicNParticInFluff(i,j) = Me%Fluxes%FertilOrganicNParticInFluff(i,j)                              &
+                                                        + FertilizerAmount * OrganicNFracInFertilizer * OrganicFracParticulate
                                                                     
-            Me%Fluxes%FertilOrganicNInSurface(i,j)    = FertilizerFracApplyedInSurface * FertilizerAmount                      &
+            Me%Fluxes%FertilOrganicNInSurface(i,j)    = Me%Fluxes%FertilOrganicNInSurface(i,j)                                   &
+                                                        + FertilizerFracApplyedInSurface * FertilizerAmount                      &
                                                         * OrganicNFracInFertilizer * (1. - OrganicFracParticulate)
-            Me%Fluxes%FertilOrganicNInSubSurface(i,j) = (1. - FertilizerFracApplyedInSurface) * FertilizerAmount               &
+            Me%Fluxes%FertilOrganicNInSubSurface(i,j) = Me%Fluxes%FertilOrganicNInSubSurface(i,j)                                &
+                                                        + (1. - FertilizerFracApplyedInSurface) * FertilizerAmount               &
                                                         * OrganicNFracInFertilizer * (1. - OrganicFracParticulate)
         endif
         
         if (Me%ComputeOptions%ModelPhosphorus) then
             !KgP/ha
-            Me%Fluxes%FertilOrganicPParticInFluff(i,j) = FertilizerAmount * OrganicPFracInFertilizer * OrganicFracParticulate
+            Me%Fluxes%FertilOrganicPParticInFluff(i,j) = Me%Fluxes%FertilOrganicPParticInFluff(i,j)                              &
+                                                         + FertilizerAmount * OrganicPFracInFertilizer * OrganicFracParticulate
             
-            Me%Fluxes%FertilOrganicPInSurface(i,j)    = FertilizerFracApplyedInSurface * FertilizerAmount          &
+            Me%Fluxes%FertilOrganicPInSurface(i,j)    = Me%Fluxes%FertilOrganicPInSurface(i,j)                                   &
+                                                        + FertilizerFracApplyedInSurface * FertilizerAmount                      &
                                                         * OrganicPFracInFertilizer * (1. - OrganicFracParticulate)
-            Me%Fluxes%FertilOrganicPInSubSurface(i,j) = (1. - FertilizerFracApplyedInSurface) * FertilizerAmount   &
+            Me%Fluxes%FertilOrganicPInSubSurface(i,j) = Me%Fluxes%FertilOrganicPInSubSurface(i,j)                                &
+                                                        + (1. - FertilizerFracApplyedInSurface) * FertilizerAmount               &
                                                         * OrganicPFracInFertilizer * (1. - OrganicFracParticulate)
            
             !KgP/ha
-            Me%Fluxes%FertilMineralPInSurface(i,j)    =  FertilizerFracApplyedInSurface * FertilizerAmount          &
+            Me%Fluxes%FertilMineralPInSurface(i,j)    = Me%Fluxes%FertilMineralPInSurface(i,j)                                   &
+                                                         + FertilizerFracApplyedInSurface * FertilizerAmount                     &
                                                          * MineralPFracInFertilizer 
-            Me%Fluxes%FertilMineralPInSubSurface(i,j) =  (1. - FertilizerFracApplyedInSurface) * FertilizerAmount   &
+            Me%Fluxes%FertilMineralPInSubSurface(i,j) = Me%Fluxes%FertilMineralPInSubSurface(i,j)                                &
+                                                         + (1. - FertilizerFracApplyedInSurface) * FertilizerAmount              &
                                                          * MineralPFracInFertilizer 
         endif
         
@@ -14731,7 +14744,7 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
         do j = Me%Size%JLB, Me%Size%JUB
         do i = Me%Size%ILB, Me%Size%IUB
             if (Me%ExternalVar%MappingPoints(i,j) == 1) then
-                VegetationIDReal(i,j) = REAL(Me%VegetationID(i,j))
+                VegetationIDReal(i,j) = REAL(Me%VegetationTypes(Me%VegetationID(i,j))%VegetationID)
             endif
         end do
         end do

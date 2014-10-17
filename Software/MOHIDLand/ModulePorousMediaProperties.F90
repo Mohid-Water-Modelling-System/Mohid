@@ -73,7 +73,7 @@ Module ModulePorousMediaProperties
     use ModuleEnterData
     use ModuleProfile,            only : StartProfile, WriteProfile, KillProfile
     use ModuleGridData,           only : ConstructGridData, GetGridData, UngetGridData,    &
-                                         KillGridData
+                                         KillGridData, WriteGridData
     use ModuleTimeSerie,          only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,    &
                                          GetNumberOfTimeSeries, GetTimeSerieLocation,      &
                                          TryIgnoreTimeSerie, CorrectsCellsTimeSerie,       &
@@ -86,7 +86,7 @@ Module ModulePorousMediaProperties
                                          KillFillMatrix, ModifyFillMatrix
     use ModuleGeometry
     use ModuleMap
-    use ModuleBoxDif,               only: StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif,     &
+    use ModuleBoxDif,             only : StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif,     &
                                           BoxDif, KillBoxDif        
     use ModulePorousMedia,        only : GetOldWaterContent, GetWaterContent, GetFluxU,    &
                                          GetFluxV, GetFluxW, GetUnsatW, GetUnsatV,         &
@@ -385,7 +385,8 @@ Module ModulePorousMediaProperties
         logical                                 :: RestartOverwrite     = .false.
         integer                                 :: NextRestartOutput    = 1  
         logical                                 :: AverageConc_ON       = .false.
-        logical                                 :: AverageDecay_ON      = .false.      
+        logical                                 :: AverageDecay_ON      = .false. 
+        logical                                 :: IntegratedDecay_ON   = .false.     
     end type T_OutPut
 
     type T_AdvectionDiffusion   
@@ -507,7 +508,9 @@ Module ModulePorousMediaProperties
         real, dimension(:,:  ), pointer         :: AverageAquiferConc       => null()
         real, dimension(:,:  ), pointer         :: AverageVadozeConc        => null()
         real, dimension(:,:  ), pointer         :: AverageAquiferDecay      => null()
-        real, dimension(:,:  ), pointer         :: AverageVadozeDecay       => null()        
+        real, dimension(:,:  ), pointer         :: AverageVadozeDecay       => null()  
+        real, dimension(:,:  ), pointer         :: IntegratedDecay          => null() 
+        character(PathLength)                   :: IntegratedDecayFile      = null_str     
         real, dimension(:,:),   pointer         :: PesticideFlux            => null()
         logical, pointer, dimension(:,:,:)      :: UptakeActive             => null()
         real, pointer, dimension(:,:,:)         :: Mass_Created             => null()
@@ -530,7 +533,8 @@ Module ModulePorousMediaProperties
         logical                                 :: BoxTimeSerie2D           = .false.
         logical                                 :: OutputHDF                = .false. 
         logical                                 :: OutputAverageConc        = .false. 
-        logical                                 :: OutputAverageDecay       = .false. 
+        logical                                 :: OutputAverageDecay       = .false.
+        logical                                 :: OutputIntegratedDecay    = .false. 
         logical                                 :: UseToCalcECw             = .false.
         real                                    :: ECwFactor                = 0.0
         real, pointer, dimension(:,:,:)         :: PropertyDecay            => null()
@@ -3593,6 +3597,36 @@ do1:    do while(associated(Property))
                     NewProperty%AverageAquiferDecay(:,:) = FillValueReal 
                 
                 endif
+                
+                !integrate decay (all column) over the simulation period
+                call GetData(NewProperty%OutputIntegratedDecay,                                  &
+                             Me%ObjEnterData, iflag,                                             &
+                             Keyword      = 'OUTPUT_INTEGRATED_DECAY',                           &
+                             ClientModule = 'ModulePorousMediaProperties',                       &
+                             Default      = .false.,                                             &
+                             SearchType   = FromBlock,                                           &
+                             STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR060'            
+                
+                if (NewProperty%OutputIntegratedDecay) then
+                
+                    Me%Output%IntegratedDecay_ON = .true.
+                
+                    allocate(NewProperty%IntegratedDecay(Me%WorkSize%ILB:Me%WorkSize%IUB,        &
+                                                            Me%WorkSize%JLB:Me%WorkSize%JUB),    &
+                                                            STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)stop 'Construct_PropertyOutPut - ModulePorousMediaProperties - ERR40'
+                    NewProperty%IntegratedDecay(:,:) = 0.0  
+                   
+                    !Gets the root path from the file nomfich.dat
+                    call ReadFileName("ROOT_SRT", NewProperty%IntegratedDecayFile, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0750'
+                    NewProperty%IntegratedDecayFile = trim(adjustl(NewProperty%IntegratedDecayFile))   &
+                                                     //trim(NewProperty%ID%Name)//"_IntegratedDecay.dat"              
+                
+                endif                
+                
             endif
             
         !endif
@@ -3634,6 +3668,9 @@ do1:    do while(associated(Property))
                     nProperties = nProperties + 1
                     if (PropertyX%OutputAverageDecay) then
                         nProperties = nProperties + 2
+                    endif
+                    if (PropertyX%OutputIntegratedDecay) then
+                        nProperties = nProperties + 1
                     endif
                 endif
                 if (PropertyX%OutputAverageConc) then
@@ -3677,6 +3714,10 @@ do1:    do while(associated(Property))
                         PropertyList(n)  = trim(PropertyX%ID%Name)//'_AvrgVadozeDecay['//trim(PropertyX%ID%Units)//'.day-1]'
                         n=n+1                                          
                     endif
+                    if (PropertyX%OutputIntegratedDecay) then
+                        PropertyList(n)  = trim(PropertyX%ID%Name)//'_IntegratedDecay[kg/ha]'
+                        n=n+1                                        
+                    endif                    
                 endif
                 if (PropertyX%OutputAverageConc) then
                     PropertyList(n)  = trim(PropertyX%ID%Name)//'_AvrgAquiferConc['//trim(PropertyX%ID%Units)//']'
@@ -5627,8 +5668,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 call AverageConcentration
             endif
             !Compute average decay for each soil column
-            if (Me%Coupled%Decay .and. Me%Output%AverageDecay_ON) then
-                call AverageDecay
+            if (Me%Coupled%Decay .and. (Me%Output%AverageDecay_ON .or. Me%Output%IntegratedDecay_ON)) then
+                call DecayProcessing
             endif            
 
             if (Me%Output%Timeserie_ON) then
@@ -5702,7 +5743,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !-----------------------------------------------------------------------------
 
-    subroutine AverageDecay
+    subroutine DecayProcessing
 
         !Arguments----------------------------------------------------------------
         !Local--------------------------------------------------------------------
@@ -5718,13 +5759,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 call ComputeAverageDecay (PropertyX)
             
             endif
+
+            if (PropertyX%OutputIntegratedDecay) then
+            
+                call ComputeIntegratedDecay (PropertyX)
+            
+            endif
             
             PropertyX => PropertyX%Next
             
         end do                        
 
     
-    end subroutine AverageDecay
+    end subroutine DecayProcessing
 
     !-----------------------------------------------------------------------------
 
@@ -11615,7 +11662,16 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
                         if (STAT_CALL /= SUCCESS_)                                    &
                             stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR047'                              
                                              
-                    endif                       
+                    endif  
+                    
+                    if (PropertyX%OutputIntegratedDecay) then
+                        call WriteTimeSerie(Me%ObjTimeSerie,                          &
+                                            Data2D = PropertyX%IntegratedDecay,       &
+                                            STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                    &
+                            stop 'OutPut_TimeSeries - ModulePorousMediaProperties - ERR047.5'                     
+                    endif
+                                         
                 endif 
 
                 if (PropertyX%OutputAverageConc) then
@@ -11774,7 +11830,7 @@ First:          if (LastTime.LT.Actual) then
                                 call HDF5WriteData   (Me%ObjHDF5,                                                 &
                                                       "/Results/"//trim(PropertyX%ID%Name)//"_AvrgAquiferDecay",  &
                                                       trim(PropertyX%ID%Name)//"_AvrgAquiferDecay",               &
-                                                      trim(PropertyX%ID%Units),                                   &
+                                                      trim(PropertyX%ID%Units)//".day-1",                         &
                                                       Array2D = PropertyX%AverageAquiferDecay,                    &
                                                       OutputNumber = OutPutNumber,                                &
                                                       STAT = STAT_CALL)
@@ -11783,13 +11839,33 @@ First:          if (LastTime.LT.Actual) then
                                 call HDF5WriteData   (Me%ObjHDF5,                                                 &
                                                       "/Results/"//trim(PropertyX%ID%Name)//"_AvrgVadozeDecay",   &
                                                       trim(PropertyX%ID%Name)//"_AvrgVadozeDecay",                &
-                                                      trim(PropertyX%ID%Units),                                   &
+                                                      trim(PropertyX%ID%Units)//".day-1",                         &
                                                       Array2D = PropertyX%AverageVadozeDecay,                     &
                                                       OutputNumber = OutPutNumber,                                &
                                                       STAT = STAT_CALL)
                                 if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR0100'  
                             
-                            endif                            
+                            endif    
+                            
+                            if (PropertyX%OutputIntegratedDecay) then        
+                                !Sets limits for next write operations
+                                call HDF5SetLimits   (Me%ObjHDF5,                                &
+                                                      Me%WorkSize%ILB,                           &
+                                                      Me%WorkSize%IUB,                           &
+                                                      Me%WorkSize%JLB,                           &
+                                                      Me%WorkSize%JUB,                           &
+                                                      STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR0101'
+                                
+                                call HDF5WriteData   (Me%ObjHDF5,                                                 &
+                                                      "/Results/"//trim(PropertyX%ID%Name)//"_IntegratedDecay",   &
+                                                      trim(PropertyX%ID%Name)//"_IntegratedDecay",                &
+                                                      "kg/ha",                                                    &
+                                                      Array2D = PropertyX%IntegratedDecay,                        &
+                                                      OutputNumber = OutPutNumber,                                &
+                                                      STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'OutPutHDF - ModulePorousMediaproperties - ERR0102'
+                            endif                                            
                             
                         endif
                     
@@ -12092,6 +12168,104 @@ First:          if (LastTime.LT.Actual) then
     end subroutine ComputeAverageDecay
     
     !----------------------------------------------------------------------------
+    
+    !the routimne goes vertically (K) from bottom to top integrating decay per cell column for all simulation
+    subroutine ComputeIntegratedDecay(PropertyX)
+    
+        !Arguments---------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        !Local-------------------------------------------------------------------
+        type (T_Property), pointer                  :: SoilDryDensity
+        integer                                     :: STAT_CALL, CHUNK, i, j, k
+        real(8)                                     :: SumDecay, SoilMass, WaterVolume, DT
+        !Begin-------------------------------------------------------------------
+        
+        if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "ComputeIntegratedDecay")
+                
+        DT = Me%ExtVar%DT/86400.
+
+        if (Check_Particulate_Property(PropertyX%ID%IDNumber)) then
+
+            call SearchProperty(SoilDryDensity, SoilDryDensity_        , .false., STAT = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeIntegratedDecay - ModulePorousMediaProperties - ERR003'
+
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            !$OMP PARALLEL PRIVATE(I,J,K,SumDecay,SoilMass)
+                        
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+            SumDecay = 0.
+            
+            !integrate in vertical
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                
+                if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then        
+                    
+                    ! [kgsoil] = [kgsoil/m3cell] * [m3cell]) 
+                    SoilMass  = SoilDryDensity%Concentration(i,j,k) * Me%ExtVar%CellVolume(i,j,k) 
+                                                                    
+                    ![mg]     =            [mg/kgsoil.day] * [kgsoil] * [day]
+                    SumDecay  = SumDecay + PropertyX%PropertyDecay(i,j,k) * SoilMass * DT    
+                   
+                endif
+                
+            enddo
+            
+            !integrate in time
+            ![kg/ha]                       =                                    [mg] * 1E-6 [kg/mg] / ( [m2] * 1E-4 [ha/m2] )
+            PropertyX%IntegratedDecay(i,j) = PropertyX%IntegratedDecay(i,j) + (SumDecay * 1E-6 / (Me%ExtVar%Area(i,j) * 1E-4))
+            
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL                       
+
+        else
+        
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            !$OMP PARALLEL PRIVATE(I,J,K,WaterVolume,SumDecay)
+                        
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+            SumDecay     = 0.   
+            
+            !integrate in vertical
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                
+                if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then        
+ 
+                    ![m3]        = [m3H20/m3cell] * [m3cell]) 
+                    WaterVolume  = Me%ExtVar%WaterContent(i,j,k) * Me%ExtVar%Cellvolume(i,j,k) 
+                   
+                    ![mg]    =            [g/m3.day-1].[m3].[day]
+                    SumDecay = SumDecay + (PropertyX%PropertyDecay(i,j,k) * WaterVolume * DT)
+                       
+                endif
+                
+            enddo
+            
+            !integrate in time
+            ![kg/ha]                       =                                  [mg] * 1E-6 [kg/mg] / ( [m2] * 1E-4 [ha/m2] )
+            PropertyX%IntegratedDecay(i,j) = PropertyX%IntegratedDecay(i,j) + (SumDecay * 1E-6 / (Me%ExtVar%Area(i,j) * 1E-4))
+            
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL         
+            
+        endif
+    
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMediaProperties", "ComputeIntegratedDecay")
+    
+    end subroutine ComputeIntegratedDecay
+    
+    !----------------------------------------------------------------------------    
+    
     
     subroutine Output_Boxes_Mass
 
@@ -12632,6 +12806,34 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             nUsers = DeassociateInstance(mPorousMediaProperties_,  Me%InstanceID)
             
             call WriteFinalFile
+
+            if (Me%Output%IntegratedDecay_ON) then
+            
+                PropertyX => Me%FirstProperty
+
+                do while(associated(PropertyX))
+                    
+
+                    if (PropertyX%OutputIntegratedDecay) then
+                    
+                        call WriteGridData  (PropertyX%IntegratedDecayFile,        &
+                             COMENT1          = "IntegratedDecayFile",             &
+                             COMENT2          = "IntegratedDecayFile",             &
+                             HorizontalGridID = Me%ObjHorizontalGrid,              &
+                             FillValue        = -99.0,                             &
+                             OverWrite        = .true.,                            &
+                             GridData2D_Real  = PropertyX%IntegratedDecay,         &
+                             STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillPorousMediaProperties - ModulePorousMediaProperties - ERR001'
+                    
+                    endif
+                    
+                    PropertyX => PropertyX%Next
+                    
+                end do                       
+            
+
+            endif
 
             PropertyX => Me%FirstProperty
             
