@@ -115,6 +115,7 @@ Module ModuleFillMatrix
     private ::          ModifyHDFInput3DGeneric4D
     private ::      ModifyProfileTimeSerie
 
+
     !Destructor
     public  :: KillFillMatrix                                                     
     private ::      DeAllocateInstance
@@ -318,7 +319,8 @@ Module ModuleFillMatrix
         integer                                     :: ObjField4D           = 0
         logical                                     :: Field4D              = .false.
         logical                                     :: HarmonicsON          = .false.
-        logical                                     :: SpatialInterpolON    = .false. 
+        logical                                     :: SpatialInterpolON    = .false.
+        logical                                     :: GenericYear          = .false.
         integer                                     :: Ncells
         real,    dimension(:), pointer              :: X                    => null()
         real,    dimension(:), pointer              :: Y                    => null()        
@@ -3506,7 +3508,8 @@ i2:     if (Me%Dim == Dim2D) then
         real                                            :: LatDefault, LongDefault
         type (T_Size2D)                                 :: WindowLimitsJI
         logical                                         :: MasterOrSlave
-
+        real                                            :: StartTimeYear, EndTimeYear
+        
         !Begin-----------------------------------------------------------------
 
         nullify(Me%HDF%PreviousField2D, Me%HDF%NextField2D)
@@ -3687,6 +3690,15 @@ i0:     if(Me%Dim == Dim2D)then
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR135'        
+        
+        call GetData(Me%HDF%GenericYear,                                                &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'GENERIC_YEAR',                                     &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR135'        
 
         
         if (MasterOrSlave) then
@@ -3853,62 +3865,74 @@ i2a:            if (Me%PredictDTMethod == 2) then
                         Me%HDF%NextInstant      = Me%HDF%PreviousInstant
                     endif
                     
-                    Me%HDF%PreviousTime     = HDF5TimeInstant(Me%HDF%PreviousInstant) 
+                    Me%HDF%PreviousTime     = HDF5TimeInstant(Me%HDF%PreviousInstant)
                     
-                    call CheckCyclicMonths(Me%HDF%PreviousTime, RefTime = Now, CyclicTimeON = Me%HDF%CyclicTimeON)
+                    if(Me%HDF%GenericYear)then
+                        call SetHDFGenericYear(Me%HDF%PreviousTime, RefTime = Now)
+                    endif
 
-i3:                 if (Me%HDF%CyclicTimeON) then
-                
-                        if (Me%HDF%NumberOfInstants /= 12) stop 'ConstructHDFInput - ModuleFillMatrix - ERR213'
-
-                    else i3
-                    
 ib:                 if (Me%BackTracking) then  
                             
-                            if(Me%HDF%PreviousTime .lt. Now)then
-                                write(*,*)
-                                write(*,*)'----------Backtracking mode-----------'
-                                write(*,*)'Could not read solution from HDF5 file'
-                                write(*,*)'Last file instant greater than current time'
-                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR220'
-                            end if
+                        if(Me%HDF%PreviousTime .lt. Now)then
+                            write(*,*)
+                            write(*,*)'----------Backtracking mode-----------'
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'Last file instant greater than current time'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR220'
+                        end if
 
-                            if(Me%TimeEvolution .ne. None)then                        
-                                if(Me%HDF%StartTime .gt. Me%BeginTime)then
-                                    write(*,*)
-                                    write(*,*)'----------Backtracking mode-----------'                                
-                                    write(*,*)'Could not read solution from HDF5 file'
-                                    write(*,*)'First instant in file lower than simulation starting time'
-                                    write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                    stop      'ConstructHDFInput - ModuleFillMatrix - ERR230'
-                                end if
+                        if(Me%TimeEvolution .ne. None)then                        
+                            if(Me%HDF%StartTime .gt. Me%BeginTime)then
+                                write(*,*)
+                                write(*,*)'----------Backtracking mode-----------'                                
+                                write(*,*)'Could not read solution from HDF5 file'
+                                write(*,*)'First instant in file lower than simulation starting time'
+                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR230'
+                            end if
+                        endif
+                        
+                    else   ib
+                    
+                        if(Me%HDF%PreviousTime .gt. Now)then
+                            write(*,*)
+                            write(*,*)'Could not read solution from HDF5 file'
+                            write(*,*)'First file instant greater than current time'
+                            write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                            stop      'ConstructHDFInput - ModuleFillMatrix - ERR240'
+                        end if
+
+                        if(Me%HDF%GenericYear)then
+                        
+                            call SetHDFGenericYear(Me%HDF%EndTime,   RefTime = Me%EndTime)
+                            call SetHDFGenericYear(Me%HDF%StartTime, RefTime = Me%BeginTime)
+                            
+                            call ExtractDate(Me%HDF%StartTime, Year = StartTimeYear)
+                            call ExtractDate(Me%HDF%EndTime,   Year = EndTimeYear  )
+                            
+                            if(StartTimeYear .ne. EndTimeYear)then
+                                write(*,*)
+                                write(*,*)'When using a generic year HDF5 file'
+                                write(*,*)'The year of the start time has to be the same as'
+                                write(*,*)'the year of the end time'
+                                write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR245'
                             endif
-                        
-                        else   ib
-                            if(Me%HDF%PreviousTime .gt. Now)then
+                            
+                        endif
+
+
+                        if(Me%TimeEvolution .ne. None)then
+                            if(Me%HDF%EndTime .lt. Me%EndTime)then
                                 write(*,*)
                                 write(*,*)'Could not read solution from HDF5 file'
-                                write(*,*)'First file instant greater than current time'
+                                write(*,*)'Last instant in file lower than simulation ending time'
                                 write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR240'
+                                stop      'ConstructHDFInput - ModuleFillMatrix - ERR250'
                             end if
-                        
-                            call CheckCyclicMonths(Me%HDF%EndTime, RefTime = Me%EndTime)
-
-
-                            if(Me%TimeEvolution .ne. None)then
-                                if(Me%HDF%EndTime .lt. Me%EndTime)then
-                                    write(*,*)
-                                    write(*,*)'Could not read solution from HDF5 file'
-                                    write(*,*)'Last instant in file lower than simulation ending time'
-                                    write(*,*)'Matrix name: '//trim(Me%HDF%FieldName)
-                                    stop      'ConstructHDFInput - ModuleFillMatrix - ERR250'
-                                end if
-                            end if
-                        endif ib
-
-                    endif i3
+                        end if
+                    endif ib
 
                     FoundSecondInstant = .false.
                 
@@ -3929,9 +3953,10 @@ d2:                 do while(.not. FoundSecondInstant)
 
 
                         Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
-
-                        call CheckCyclicMonths(Me%HDF%NextTime, RefTime = Now,              &
-                                               CyclicTimeON = Me%HDF%CyclicTimeON)
+                        
+                        if(Me%HDF%GenericYear)then
+                            call SetHDFGenericYear(Me%HDF%NextTime, Now)
+                        endif
 
                         if (Me%Backtracking) then
                             if(Me%HDF%PreviousTime .ge. Now .and. Me%HDF%NextTime .le. Now) then
@@ -3975,9 +4000,10 @@ d2:                 do while(.not. FoundSecondInstant)
                 Me%HDF%NextInstant      = Me%HDF%PreviousInstant
 
                 Me%HDF%PreviousTime     = HDF5TimeInstant(Me%HDF%PreviousInstant)
-
-                call CheckCyclicMonths(Me%HDF%PreviousTime, RefTime = Now)
-
+                
+                if(Me%HDF%GenericYear)then
+                    call SetHDFGenericYear(Me%HDF%PreviousTime, Now)
+                endif
 
                 Me%HDF%NextTime         = Me%HDF%PreviousTime
 
@@ -4388,7 +4414,9 @@ if4D:   if (Me%HDF%Field4D) then
 
         call ExtractDate(TimeInstant, Year = Year, Month  = Month,  Day    = Day,                &
                                       Hour = Hour, Minute = Minute, Second = Second)
-
+                                      
+        if(Me%HDF%GenericYear)Year = CyclicTime
+        
         if (Year == CyclicTime) then
 
             if (present(CyclicTimeON)) CyclicTimeON = .true.
@@ -4420,6 +4448,39 @@ if4D:   if (Me%HDF%Field4D) then
     end subroutine CheckCyclicMonths
     
     !--------------------------------------------------------------------------
+    
+    subroutine SetHDFGenericYear(TimeInstant, RefTime, AddYear)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time)                            :: TimeInstant
+        type(T_Time)                            :: RefTime
+        logical, optional                       :: AddYear
+
+        !Local-----------------------------------------------------------------
+        real                                    :: Year, Month, Day, Hour, Minute, Second
+        logical                                 :: AddYear_
+
+        !Begin-----------------------------------------------------------------
+
+        call ExtractDate(TimeInstant, Year = Year, Month  = Month,  Day    = Day,                &
+                                      Hour = Hour, Minute = Minute, Second = Second)
+ 
+        call ExtractDate(RefTime, Year = Year)
+        
+        if(present(AddYear))then
+            AddYear_ = AddYear
+        else
+            AddYear_ = .false.
+        end if
+        
+        if(AddYear_)Year = Year + 1
+
+        call SetDate(TimeInstant, Year = Year, Month  = Month,  Day    = Day,     &
+                                  Hour = Hour, Minute = Minute, Second = Second)
+
+
+    end subroutine SetHDFGenericYear
+    
     !--------------------------------------------------------------------------
 
     real function HDF5Generic4DInstant(Instant)
@@ -6714,11 +6775,6 @@ i2:         if (Me%PredictDTMethod == 2) then
                 
                 Me%HDF%PreviousInstant  = Me%HDF%NextInstant
                     
-                if (Me%HDF%CyclicTimeON) then 
-                    Me%HDF%NextInstant  = 1
-                    exit
-                endif
-                
                 if (Me%BackTracking) then
                     if(Me%HDF%NextInstant .gt. 1)then
                         Me%HDF%NextInstant  = Me%HDF%NextInstant - 1
@@ -6729,12 +6785,24 @@ i2:         if (Me%PredictDTMethod == 2) then
                     if(Me%HDF%NextInstant .lt. Me%HDF%NumberOfInstants)then
                         Me%HDF%NextInstant  = Me%HDF%NextInstant + 1
                     else
-                        exit
+                        if (Me%HDF%GenericYear) then 
+                            Me%HDF%NextInstant  = 1
+                        else
+                            exit
+                        endif
                     endif
                 endif
                 
                 Me%HDF%PreviousTime     = Me%HDF%NextTime
                 Me%HDF%NextTime         = HDF5TimeInstant(Me%HDF%NextInstant)
+                
+                if (Me%HDF%GenericYear) then
+                    if(Me%HDF%NextInstant > 1)then
+                        call SetHDFGenericYear(Me%HDF%NextTime, Now)
+                    else
+                        call SetHDFGenericYear(Me%HDF%NextTime, Now, AddYear = .true.)
+                    endif
+                endif
 
                 n = n + 1
                 

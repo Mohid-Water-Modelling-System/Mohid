@@ -424,7 +424,8 @@ Module ModuleLagrangianGlobal
                                        SegIntersectPolygon
     use ModuleWaterQuality,     only : StartWaterQuality, WaterQuality, GetDTWQM,           &
                                        GetWQPropIndex, KillWaterQuality
-    use ModuleGridData,         only : GetGridData, GetMaximumValue, ModifyGridData, UngetGridData
+    use ModuleGridData,         only : GetGridData, GetMaximumValue, ModifyGridData,        &
+                                       UngetGridData, WriteGridData
     use ModuleTimeSerie,        only : StartTimeSerie, StartTimeSerieInput, WriteTimeSerie, &
                                        GetNumberOfTimeSeries, GetTimeSerieLocation,         &
                                        CorrectsCellsTimeSerie, GetTimeSerieIntegral,        &
@@ -1160,6 +1161,8 @@ Module ModuleLagrangianGlobal
          logical                                :: WriteRestartFile     = .false. 
          logical                                :: RestartOverwrite     = .false.
          logical                                :: DummyParticleStartDate = .false.
+         logical                                :: ExportArrvlBeachTimes= .false. 
+         character(len=PathLength)              :: RootPath
     end type T_OutPut
 
   
@@ -3743,8 +3746,21 @@ d2:     do em =1, Me%EulerModelNumber
                      Default      = .false.,                                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR45'
-
-
+        
+        !Write arrival and beaching times in grid data format 
+        call GetData(Me%OutPut%ExportArrvlBeachTimes,                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='EXPORT_ARRIVAL_BEACH_TIMES',                        &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR46'
+        if(Me%OutPut%ExportArrvlBeachTimes)then
+            call ReadFileName("ROOT_SRT", Me%OutPut%RootPath, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR47'
+        endif
 
         call GetComputeTimeStep(Me%ExternalVar%ObjTime, DT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR70'
@@ -4127,6 +4143,7 @@ BF:         if (BlockFound) then
         integer                                     :: em
         real                                        :: OdourConcThreshold
         logical                                     :: FindWaterLocation, FoundWater
+        real                                        :: EmissionDuration
 
         !Begin-----------------------------------------------------------------
 
@@ -4257,29 +4274,51 @@ ET:     if (NewOrigin%EmissionTemporal == Continuous_) then
                          Default      = Me%DT_Partic,                            &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR325'
-
-            !Gets the interval between emissions
-            call GetData(NewOrigin%StartEmission,                                &
+            
+            !Gets the duration of the emission starting from the simulation initial time
+            call GetData(EmissionDuration,                                       &
                          Me%ObjEnterData,                                        &
                          flag,                                                   &
                          SearchType   = FromBlock,                               &
-                         keyword      ='START_PARTIC_EMIT',                      &
+                         keyword      ='EMISSION_DURATION',                      &
                          ClientModule ='ModuleLagrangianGlobal',                 &
-                         Default      = Me%ExternalVar%BeginTime,                &
+                         Default      = null_real,                               &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR330'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR326'
 
-            !Gets the interval between emissions
-            call GetData(NewOrigin%StopEmission,                                 &
-                         Me%ObjEnterData,                                        &
-                         flag,                                                   &
-                         SearchType   = FromBlock,                               &
-                         keyword      ='STOP_PARTIC_EMIT',                       &
-                         ClientModule ='ModuleLagrangianGlobal',                 &
-                         Default      = Me%ExternalVar%EndTime,                  &
-                         STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR340'
+            if(flag == 1)then
+            
+                if(EmissionDuration < 0.) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR327'
+            
+                NewOrigin%StartEmission = Me%ExternalVar%BeginTime
+                NewOrigin%StopEmission  = Me%ExternalVar%BeginTime + EmissionDuration
 
+            
+            elseif(flag == 0)then
+            
+                !Gets the interval between emissions
+                call GetData(NewOrigin%StartEmission,                            &
+                             Me%ObjEnterData,                                    &
+                             flag,                                               &
+                             SearchType   = FromBlock,                           &
+                             keyword      ='START_PARTIC_EMIT',                  &
+                             ClientModule ='ModuleLagrangianGlobal',             &
+                             Default      = Me%ExternalVar%BeginTime,            &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR330'
+
+                !Gets the interval between emissions
+                call GetData(NewOrigin%StopEmission,                             &
+                             Me%ObjEnterData,                                    &
+                             flag,                                               &
+                             SearchType   = FromBlock,                           &
+                             keyword      ='STOP_PARTIC_EMIT',                   &
+                             ClientModule ='ModuleLagrangianGlobal',             &
+                             Default      = Me%ExternalVar%EndTime,              &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR340'
+                
+            endif
 
             !Gets flow associated to a continuous emission
 iP:         if (NewOrigin%EmissionSpatial == Point_) then
@@ -26409,6 +26448,9 @@ d1:         do em = 1, Me%EulerModelNumber
             enddo d1
 
             if (Me%State%Oil)  then
+                if(Me%OutPut%ExportArrvlBeachTimes)then
+                    call WriteArrivalBeachingTimes
+                endif
                 call DeAllocateOil
             endif
 
@@ -27171,6 +27213,74 @@ d2:         do ig = 1, Me%NGroups
     end subroutine DeAllocateOil
 
     !------------------------------------------------------------------------------
+    
+    subroutine WriteArrivalBeachingTimes
+    
+    
+        !Local---------------------------------------------------------------------
+        integer                             :: em,ig, STAT_CALL  
+        character(len=PathLength)           :: ArrivalTimesFileName, BeachingTimesFileName   
+        real, dimension(:, :), pointer      :: Aux2D 
+        character(len=1)                    :: iGroupStr
+        integer                             :: ILB, IUB, JLB, JUB, KUB, i, j
+
+        !Begin---------------------------------------------------------------------
+        
+        ILB = Me%EulerModel(em)%WorkSize%ILB
+        JLB = Me%EulerModel(em)%WorkSize%JLB
+        IUB = Me%EulerModel(em)%WorkSize%IUB
+        JUB = Me%EulerModel(em)%WorkSize%JUB
+        KUB = Me%EulerModel(em)%WorkSize%KUB
+
+d1:     do em =1, Me%EulerModelNumber 
+
+d2:         do ig = 1, Me%NGroups
+
+                write(iGroupStr, ('(i1)'))ig
+
+                ArrivalTimesFileName = trim(adjustl(Me%OutPut%RootPath))//"OilArrivalTimes_"//iGroupStr//".dat"
+                
+                do j  = JLB, JUB
+                do i  = ILB, IUB
+                    if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) .ne. WaterPoint) then
+                        Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime(i, j) = -99.0
+                        Me%EulerModel(em)%Lag2Euler%GridBeachingTime(i,j,ig)        = -99.0
+                    endif
+                enddo
+                enddo
+
+                call WriteGridData (FileName            = ArrivalTimesFileName,                                     &
+                                    COMENT1             = "Oil Arrival Times",                                      &
+                                    COMENT2             = "",                                                       &
+                                    HorizontalGridID    = Me%EulerModel(em)%ObjHorizontalGrid,                      &
+                                    FillValue           = -99.,                                                     &
+                                    Overwrite           = ON,                                                       &
+                                    GridData2D_Real     = Me%EulerModel(em)%OilSpreading(ig)%GridOilArrivalTime,    &
+                                    STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteArrivalBeachingTimes - ModuleLagrangianGlobal - ERR10'
+                
+                
+                Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(:,:,ig)
+
+                BeachingTimesFileName = trim(adjustl(Me%OutPut%RootPath))//"OilBeachingTimes_"//iGroupStr//".dat"
+
+                call WriteGridData (FileName            = BeachingTimesFileName,                                    &
+                                    COMENT1             = "Oil Beaching Times",                                     &
+                                    COMENT2             = "",                                                       &
+                                    HorizontalGridID    = Me%EulerModel(em)%ObjHorizontalGrid,                      &
+                                    FillValue           = -99.,                                                     &
+                                    Overwrite           = ON,                                                       &
+                                    GridData2D_Real     = Aux2D,                                                    &
+                                    STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteArrivalBeachingTimes - ModuleLagrangianGlobal - ERR20'
+                
+                nullify(Aux2D)
+
+            enddo d2
+        enddo d1
+    
+    
+    end subroutine WriteArrivalBeachingTimes 
 
     !------------------------------------------------------------------------------
 
