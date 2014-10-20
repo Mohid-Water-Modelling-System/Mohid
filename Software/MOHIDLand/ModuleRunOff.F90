@@ -56,7 +56,7 @@ Module ModuleRunOff
                                         GetChannelsBottomLevel, UnGetDrainageNetwork,    &
                                         GetChannelsID,GetChannelsVolume,                 &
                                         GetChannelsMaxVolume, GetChannelsActiveState,    &
-                                        GetChannelsTopArea
+                                        GetChannelsTopArea, GetChannelsVelocity
     use ModuleDischarges        ,only : Construct_Discharges, GetDischargesNumber,       &
                                         GetDischargesGridLocalization,                   &
                                         GetDischargeWaterFlow, GetDischargesIDName,      &
@@ -163,7 +163,24 @@ Module ModuleRunOff
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
         integer                                     :: NextRestartOutput    = 1 
-        logical                                     :: BoxFluxes        
+        logical                                     :: BoxFluxes            = .false.
+        logical                                     :: OutputFloodRisk      = .false.
+        
+        logical                                     :: WriteMaxFlowModulus  = .false.
+        character(Pathlength)                       :: MaxFlowModulusFile   = null_str
+        real, dimension(:,:), pointer               :: MaxFlowModulus       => null()
+
+        logical                                     :: WriteMaxWaterColumn  = .false.        
+        character(Pathlength)                       :: MaxWaterColumnFile   = null_str
+        real, dimension(:,:), pointer               :: MaxWaterColumn       => null()
+
+        logical                                     :: WriteVelocityAtMaxWaterColumn  = .false.        
+        character(Pathlength)                       :: VelocityAtMaxWaterColumnFile   = null_str
+        real, dimension(:,:), pointer               :: VelocityAtMaxWaterColumn       => null()        
+
+        logical                                     :: WriteMaxFloodRisk              = .false.        
+        character(Pathlength)                       :: MaxFloodRiskFile               = null_str
+        real, dimension(:,:), pointer               :: MaxFloodRisk                   => null()            
     end type T_OutPut
 
 
@@ -358,15 +375,7 @@ Module ModuleRunOff
         real(8)                                     :: BoundaryFlowVolume        = 0.0 !m3 => positive if flow is towards boundary.          
         real(8)                                     :: VolumeStoredInSurface     = 0.0
         real(8)                                     :: VolumeStoredInStormSystem = 0.0
-        real(8)                                     :: TotalDischargeFlowVolume  = 0.0
-
-        logical                                     :: WriteMaxFlowModulus  = .false.
-        character(Pathlength)                       :: MaxFlowModulusFile   = null_str
-        real, dimension(:,:), pointer               :: MaxFlowModulus       => null()
-
-        logical                                     :: WriteMaxWaterColumn  = .false.        
-        character(Pathlength)                       :: MaxWaterColumnFile   = null_str
-        real, dimension(:,:), pointer               :: MaxWaterColumn       => null()
+        real(8)                                     :: TotalDischargeFlowVolume  = 0.0        
         
         logical                                     :: Continuous          = .false.
         logical                                     :: StopOnWrongDate     = .true.
@@ -1508,8 +1517,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
 
         !Write Max Flow Modulus File 
-        call GetData(Me%WriteMaxFlowModulus,                                    &
-                     Me%ObjEnterData, iflag,                                       &
+        call GetData(Me%Output%WriteMaxFlowModulus,                             &
+                     Me%ObjEnterData, iflag,                                    &
                      SearchType   = FromFile,                                   &
                      keyword      = 'WRITE_MAX_FLOW_FILE',                      &
                      default      = .false.,                                    &
@@ -1517,37 +1526,110 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR720'
 
-        if(Me%WriteMaxFlowModulus) then
+        if(Me%Output%WriteMaxFlowModulus) then
             !Gets the root path from the file nomfich.dat
-            call ReadFileName("ROOT_SRT", Me%MaxFlowModulusFile, STAT = STAT_CALL)
+            call ReadFileName("ROOT_SRT", Me%Output%MaxFlowModulusFile, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR730'
-            Me%MaxFlowModulusFile = trim(adjustl(Me%MaxFlowModulusFile))//"MaxRunOff.dat"
+            Me%Output%MaxFlowModulusFile = trim(adjustl(Me%Output%MaxFlowModulusFile))//"MaxRunOff.dat"
         end if
+              
 
-        !Write Max Channels Level  
-        call GetData(Me%WriteMaxWaterColumn,                                    &
-                     Me%ObjEnterData, iflag,                                       &
+        !Write all 3 flood layers
+        call GetData(Me%Output%OutputFloodRisk,                                 &
+                     Me%ObjEnterData, iflag,                                    &
                      SearchType   = FromFile,                                   &
-                     keyword      = 'WRITE_MAX_WATER_COLUMN',                   &
-                     default      = .true.,                                     &
+                     keyword      = 'OUTPUT_FLOOD_RISK',                        &
+                     default      = .false.,                                    &
                      ClientModule = 'ModuleRunOff',                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR740'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR775'          
+        
+        if (Me%Output%OutputFloodRisk) then
+            Me%Output%WriteMaxWaterColumn           = .true.
+            Me%Output%WriteVelocityAtMaxWaterColumn = .true.
+            Me%Output%WriteMaxFloodRisk             = .true.  
 
-        if(Me%WriteMaxWaterColumn) then
             !Gets the root path from the file nomfich.dat
-            call ReadFileName("ROOT_SRT", Me%MaxWaterColumnFile, STAT = STAT_CALL)
+            call ReadFileName("ROOT_SRT", Me%Output%MaxWaterColumnFile, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0750'
-            Me%MaxWaterColumnFile = trim(adjustl(Me%MaxWaterColumnFile))//"MaxWaterColumn.dat"
-        end if
+            Me%Output%MaxWaterColumnFile = trim(adjustl(Me%Output%MaxWaterColumnFile))//"MaxWaterColumn.dat"
+            
+            !Gets the root path from the file nomfich.dat
+            call ReadFileName("ROOT_SRT", Me%Output%VelocityAtMaxWaterColumnFile, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0750'
+            Me%Output%VelocityAtMaxWaterColumnFile = trim(adjustl(Me%Output%VelocityAtMaxWaterColumnFile))&
+                                                        &//"VelocityAtMaxWaterColumn.dat"            
 
+            !Gets the root path from the file nomfich.dat
+            call ReadFileName("ROOT_SRT", Me%Output%MaxFloodRiskFile, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0770'
+            Me%Output%MaxFloodRiskFile = trim(adjustl(Me%Output%MaxFloodRiskFile))//"MaxFloodRisk.dat"   
+            
+        else        
+        
+            !Write Max water column 
+            call GetData(Me%Output%WriteMaxWaterColumn,                             &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType   = FromFile,                                   &
+                         keyword      = 'WRITE_MAX_WATER_COLUMN',                   &
+                         default      = .true.,                                     &
+                         ClientModule = 'ModuleRunOff',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR740'
+
+            if(Me%Output%WriteMaxWaterColumn) then
+                !Gets the root path from the file nomfich.dat
+                call ReadFileName("ROOT_SRT", Me%Output%MaxWaterColumnFile, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0750'
+                Me%Output%MaxWaterColumnFile = trim(adjustl(Me%Output%MaxWaterColumnFile))//"MaxWaterColumn.dat"
+            
+                !Write velocity at maximum water column 
+                call GetData(Me%Output%WriteVelocityAtMaxWaterColumn,                   &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromFile,                                   &
+                             keyword      = 'WRITE_VELOCITY_AT_MAX_WATER_COLUMN',       &
+                             default      = .false.,                                    &
+                             ClientModule = 'ModuleRunOff',                             &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR760'            
+
+                if(Me%Output%WriteVelocityAtMaxWaterColumn) then
+                    !Gets the root path from the file nomfich.dat
+                    call ReadFileName("ROOT_SRT", Me%Output%VelocityAtMaxWaterColumnFile, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0750'
+                    Me%Output%VelocityAtMaxWaterColumnFile = trim(adjustl(Me%Output%VelocityAtMaxWaterColumnFile))&
+                                                             &//"VelocityAtMaxWaterColumn.dat"
+            
+                end if
+            endif
+
+            !Write max water column * velocity
+            call GetData(Me%Output%WriteMaxFloodRisk,                               &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType   = FromFile,                                   &
+                         keyword      = 'WRITE_MAX_FLOOD_RISK',                     &
+                         default      = .false.,                                    &
+                         ClientModule = 'ModuleRunOff',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR760'          
+
+        
+            if(Me%Output%WriteMaxFloodRisk) then
+                !Gets the root path from the file nomfich.dat
+                call ReadFileName("ROOT_SRT", Me%Output%MaxFloodRiskFile, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0770'
+                Me%Output%MaxFloodRiskFile = trim(adjustl(Me%Output%MaxFloodRiskFile))//"MaxFloodRisk.dat"   
+            
+            endif
+        endif
+        
         call ReadConvergenceParameters
         
         call StartOutputBoxFluxes
                 
         !Closes Data File
         call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR760'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR780'
 
 
     end subroutine ReadDataFile
@@ -2589,11 +2671,18 @@ do4:            do di = -1, 1
         allocate (Me%CenterVelocityY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         allocate (Me%VelocityModulus(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
-        allocate (Me%MaxFlowModulus (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        allocate (Me%MaxWaterColumn (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))      
+        allocate (Me%Output%MaxFlowModulus (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate (Me%Output%MaxWaterColumn (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB)) 
+        
+        Me%Output%MaxFlowModulus = null_real
+        Me%Output%MaxWaterColumn = null_real
+        
+        allocate (Me%Output%VelocityAtMaxWaterColumn (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB)) 
+        Me%Output%VelocityAtMaxWaterColumn = null_real
 
-        Me%MaxFlowModulus = null_real
-        Me%MaxWaterColumn = null_real
+        allocate (Me%Output%MaxFloodRisk (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB)) 
+        Me%Output%MaxFloodRisk = null_real
+      
 
         allocate (Me%LowestNeighborI (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         allocate (Me%LowestNeighborJ (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -4108,9 +4197,10 @@ doIter:         do while (iter <= Niter)
                 call ComputeBoxesWaterFluxes
             endif
 
-            if (Me%WriteMaxWaterColumn) &
-                call OutputMaxWaterColumn
-
+            if (Me%Output%WriteMaxWaterColumn .or. Me%Output%WriteMaxFloodRisk) then
+                call OutputFlooding
+            endif
+            
             call CalculateTotalStoredVolume
 
             !Restart Output
@@ -7869,9 +7959,9 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     Me%myWaterColumn (i,j) = 0.0
                 end if
 
-                if(Me%WriteMaxFlowModulus) then
-                    if (Me%FlowModulus(i, j) > Me%MaxFlowModulus(i, j)) then
-                        Me%MaxFlowModulus(i, j) = Me%FlowModulus(i, j)
+                if(Me%Output%WriteMaxFlowModulus) then
+                    if (Me%FlowModulus(i, j) > Me%Output%MaxFlowModulus(i, j)) then
+                        Me%Output%MaxFlowModulus(i, j) = Me%FlowModulus(i, j)
                     end if
                 end if
 
@@ -8303,12 +8393,14 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
     !--------------------------------------------------------------------------
 
-    subroutine OutputMaxWaterColumn
+    subroutine OutputFlooding
 
         !Locals----------------------------------------------------------------
         integer                                 :: ILB,IUB, JLB, JUB, i, j
         integer                                 :: STAT_CALL
-        real, dimension(:,:), pointer           :: ChannelsWaterLevel
+        real, dimension(:,:), pointer           :: ChannelsWaterLevel, ChannelsVelocity
+        real, dimension(:,:), pointer           :: ChannelsTopArea
+        real                                    :: SumArea, WeightedVelocity
         
 
         ILB = Me%WorkSize%ILB
@@ -8320,11 +8412,19 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = ILB, IUB
    
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-
+                
                 !Water Column of overland flow
-                if (Me%myWaterColumn(i, j) > Me%MaxWaterColumn(i, j)) then
-                    Me%MaxWaterColumn(i, j) = Me%myWaterColumn(i, j)
+                if (Me%myWaterColumn(i, j) > Me%Output%MaxWaterColumn(i, j)) then
+                    Me%Output%MaxWaterColumn(i, j) = Me%myWaterColumn(i, j)
+                    
+                    !Velocity at MaxWater column
+                    Me%Output%VelocityAtMaxWaterColumn(i,j) =  Me%VelocityModulus (i, j)
+                   
                 endif
+                if (Me%myWaterColumn(i, j) * Me%VelocityModulus (i, j) > Me%Output%MaxFloodRisk(i,j)) then
+                    Me%Output%MaxFloodRisk(i,j) = Me%myWaterColumn(i, j) * Me%VelocityModulus (i, j)
+                endif
+
             endif
 
         enddo
@@ -8333,29 +8433,53 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         if (Me%ObjDrainageNetwork /= 0) then
 
             call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutputMaxWaterColumn - ModuleRunOff - ERR01'     
+            if (STAT_CALL /= SUCCESS_) stop 'OutputFlooding - ModuleRunOff - ERR01' 
+            
+            call GetChannelsTopArea  (Me%ObjDrainageNetwork, ChannelsTopArea, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputFlooding - ModuleRunOff - ERR02'              
 
+            call GetChannelsVelocity  (Me%ObjDrainageNetwork, ChannelsVelocity, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputFlooding - ModuleRunOff - ERR03'             
+            
             do j = JLB, JUB
             do i = ILB, IUB
        
                 !Water Column of River Network
                 if (Me%ExtVar%RiverPoints(i, j) == BasinPoint) then
-                    if (ChannelsWaterLevel(i, j) - Me%ExtVar%Topography(i, j) > Me%MaxWaterColumn(i, j)) then
-                        Me%MaxWaterColumn(i, j) = ChannelsWaterLevel(i, j) - Me%ExtVar%Topography(i, j)
-                    endif
+                    if (ChannelsWaterLevel(i, j) - Me%ExtVar%Topography(i, j) > Me%Output%MaxWaterColumn(i, j)) then
+                        Me%Output%MaxWaterColumn(i, j) = ChannelsWaterLevel(i, j) - Me%ExtVar%Topography(i, j)
+                        
+                        SumArea = Me%ExtVar%GridCellArea(i,j) + ChannelsTopArea(i,j)
+                        
+                        WeightedVelocity = (Me%VelocityModulus (i, j) * Me%ExtVar%GridCellArea(i,j) +   &
+                                            ChannelsVelocity(i,j) * ChannelsTopArea(i,j) ) / SumArea
+                        
+                        !weighted velocity with river
+                        Me%Output%VelocityAtMaxWaterColumn(i,j) = WeightedVelocity
+                        
+                        if (Me%Output%MaxWaterColumn(i, j) *  WeightedVelocity > Me%Output%MaxFloodRisk(i,j)) then
+                            Me%Output%MaxFloodRisk(i,j) = Me%Output%MaxWaterColumn(i, j) *  WeightedVelocity
+                        endif
+                    endif                                        
+                    
                 endif
 
             enddo
             enddo
 
+            call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsVelocity, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputFlooding - ModuleRunOff - ERR04'
 
             call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutputMaxWaterColumn - ModuleRunOff - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'OutputFlooding - ModuleRunOff - ERR05'
 
+            call UnGetDrainageNetwork  (Me%ObjDrainageNetwork, ChannelsTopArea, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputFlooding - ModuleRunOff - ERR06'                
+            
         endif
 
 
-    end subroutine OutputMaxWaterColumn
+    end subroutine OutputFlooding
 
     !---------------------------------------------------------------------------
 
@@ -8602,32 +8726,55 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                      OverWrite        = .true.,                                &
                      GridData2D_Real  = Me%MassError,                          &
                      STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR00'
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR001'
         
-                if(Me%WriteMaxFlowModulus) then
-                    call WriteGridData  (Me%MaxFlowModulusFile,                &
+                if(Me%Output%WriteMaxFlowModulus) then
+                    call WriteGridData  (Me%Output%MaxFlowModulusFile,         &
                          COMENT1          = "MaxFlowModulusFile",              &
                          COMENT2          = "MaxFlowModulusFile",              &
                          HorizontalGridID = Me%ObjHorizontalGrid,              &
                          FillValue        = -99.0,                             &
                          OverWrite        = .true.,                            &
-                         GridData2D_Real  = Me%MaxFlowModulus,                 &
+                         GridData2D_Real  = Me%Output%MaxFlowModulus,          &
                          STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR00'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR002'
                 endif
                 
-                if (Me%WriteMaxWaterColumn) then
-                    call WriteGridData  (Me%MaxWaterColumnFile,                &
+                if (Me%Output%WriteMaxWaterColumn) then
+                    call WriteGridData  (Me%Output%MaxWaterColumnFile,         &
                          COMENT1          = "MaxWaterColumnFile",              &
                          COMENT2          = "MaxWaterColumnFile",              &
                          HorizontalGridID = Me%ObjHorizontalGrid,              &
                          FillValue        = -99.0,                             &
                          OverWrite        = .true.,                            &
-                         GridData2D_Real  = Me%MaxWaterColumn,                 &
+                         GridData2D_Real  = Me%Output%MaxWaterColumn,          &
                          STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR00'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR003'
+                    
+                    if (Me%Output%WriteVelocityAtMaxWaterColumn) then
+                        call WriteGridData  (Me%Output%VelocityAtMaxWaterColumnFile, &
+                             COMENT1          = "VelocityAtMaxWaterColumnFile",    &
+                             COMENT2          = "VelocityAtMaxWaterColumnFile",    &
+                             HorizontalGridID = Me%ObjHorizontalGrid,              &
+                             FillValue        = -99.0,                             &
+                             OverWrite        = .true.,                            &
+                             GridData2D_Real  = Me%Output%VelocityAtMaxWaterColumn, &
+                             STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR004'                    
+                    endif
                 endif
 
+                if (Me%Output%WriteMaxFloodRisk) then
+                    call WriteGridData  (Me%Output%MaxFloodRiskFile,           &
+                         COMENT1          = "MaxFloodRisk",                    &
+                         COMENT2          = "MaxFloodRisk",                    &
+                         HorizontalGridID = Me%ObjHorizontalGrid,              &
+                         FillValue        = -99.0,                             &
+                         OverWrite        = .true.,                            &
+                         GridData2D_Real  = Me%Output%MaxFloodRisk,            &
+                         STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR003'
+                endif
 
                 if (Me%ObjDrainageNetwork /= 0) then
  

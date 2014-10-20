@@ -377,6 +377,8 @@ Module ModuleLagrangianGlobal
 !   VEL_THRESHOLD            : m/s                        [0.4]
 !   WAVE_THRESHOLD            : m                            [0.6]
 !   FILENAME                : char                        []
+!   BOOM_HAS_BUFFER         : 0/1                         [0]
+!     BOOM_BUFFER_DIST      : real                        [0]
 !<<EndIndividualBoom>>
 !<EndBooms>
 
@@ -421,7 +423,8 @@ Module ModuleLagrangianGlobal
                                        GetBlockSize, KillEnterData
     use ModuleDrawing,          only : T_Polygon, T_PointF, PointDistanceToPolygon, New,    &
                                        Add, SetLimits, T_Lines, IsVisible, SegIntersectLine,&
-                                       SegIntersectPolygon
+                                       SegIntersectPolygon, IsPointInsidePolygon,           &
+                                       IsPointInsideCircle
     use ModuleWaterQuality,     only : StartWaterQuality, WaterQuality, GetDTWQM,           &
                                        GetWQPropIndex, KillWaterQuality
     use ModuleGridData,         only : GetGridData, GetMaximumValue, ModifyGridData,        &
@@ -1134,8 +1137,11 @@ Module ModuleLagrangianGlobal
     
     type T_IndividualBoom
         type (T_Lines),          pointer        :: Lines                => null()
+        type (T_Polygon),        pointer        :: Polygon              => null()
         real                                    :: VelLimit             = null_real
         real                                    :: WaveLimit            = null_real
+        logical                                 :: BoomHasBuffer        = .false.     !to create a buffer around boom
+        real                                    :: BoomBufferDist       = null_real
         character(Len=StringLength)             :: Name                 = null_str
         character(Len=StringLength)             :: Description          = null_str
     end type T_IndividualBoom
@@ -2972,11 +2978,35 @@ i1:         if (BoomFound) then
                 
                 nullify(Me%Booms%Individual(nBoom)%Lines)
                 
-                call New(Me%Booms%Individual(nBoom)%Lines, LinesFileName)
-
+                call New(Me%Booms%Individual(nBoom)%Lines, LinesFileName)                                
+               
+                !testing - boom is defined by a buffer for the case of boom moving 
+                !to trap the particles and do not pass over them
+                call GetData(Me%Booms%Individual(nBoom)%BoomHasBuffer,              &
+                             Me%ObjEnterData,                                       &
+                             flag,                                                  &
+                             SearchType   = FromBlockInBlock,                       &
+                             keyword      ='BOOM_HAS_BUFFER',                       &
+                             default      = .false.,                                &
+                             ClientModule ='ModuleLagrangianGlobal',                &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualBooms - ModuleLagrangianGlobal - ERR70'
+                
+                if (Me%Booms%Individual(nBoom)%BoomHasBuffer) then
+                    call GetData(Me%Booms%Individual(nBoom)%BoomBufferDist,             &
+                                 Me%ObjEnterData,                                       &
+                                 flag,                                                  &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      ='BOOM_BUFFER_DISTANCE',                  &
+                                 default      = 0.,                                     &
+                                 ClientModule ='ModuleLagrangianGlobal',                &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualBooms - ModuleLagrangianGlobal - ERR80'                 
+                endif
+                
             else i1
             
-                stop 'ReadIndividualBooms - ModuleLagrangianGlobal - ERR80'
+                stop 'ReadIndividualBooms - ModuleLagrangianGlobal - ERR90'
 
             endif i1
             
@@ -14724,7 +14754,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: AngFrequency, WaveNumber, VelStokesDrift, Depth
         real                                        :: WaterDensity, UDrift = 0., VDrift = 0.
         logical                                     :: InterpolVel3D
-        integer                                     :: nn, Npi, Npj, ts 
+        integer                                     :: nn, Npi, Npj, ts, lp
         real                                        :: LineAngle, AuxAngle, IntersectVel, DXn, DYn
         !new method for stokes drift
         real                                        :: WaveLength
@@ -14736,6 +14766,9 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: C_Term
         real                                        :: OilViscCin, OWInterfacialTension
         real                                        :: Wind
+        type (T_PointF),   pointer                  :: ParticPoint, LinePoint
+        type (T_Lines),    pointer                  :: CurrLine
+        logical                                     :: ParticleInsideBuffer
         !Begin-----------------------------------------------------------------------------------------
         
         if (Me%State%Oil) then
@@ -15528,8 +15561,7 @@ dts:        do ts = 1, 2
                             stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR60'
                         endif
                     endif         
-                    
-                
+                                     
                     if (MovePartic) then
 
                         if ((Me%Booms%ON .and. CurrentPartic%Position%Surface) .or. Me%ThinWallsON) then
@@ -15538,27 +15570,81 @@ dts:        do ts = 1, 2
 
                                 if (Me%Booms%ON .and. CurrentPartic%Position%Surface) then
                         
-                                    do nn = 1, Me%Booms%Number
-                                        if (SegIntersectLine(                               &
-                                            x1      = CurrentPartic%Position%CoordX,        &
-                                            y1      = CurrentPartic%Position%CoordY,        &
-                                            x2      = NewPosition%CoordX,                   &
-                                            y2      = NewPosition%CoordY,                   &
-                                            LineX   = Me%Booms%Individual(nn)%Lines,        &    
-                                            LineAng = LineAngle)) then
+donn:                               do nn = 1, Me%Booms%Number
+                                        !if has buffer check if particle movement intersects buffer around boom points
+                                        !this is usefull if boom moves and/or between time steps particles go trough the boom
+ifbuf:                                  if (Me%Booms%Individual(nn)%BoomHasBuffer) then
                                             
-                                            AuxAngle = atan2(CurrentPartic%CurrentY,CurrentPartic%CurrentX) - (LineAngle+Pi/2.)
+                                            ParticleInsideBuffer = .false.
+                                            allocate(ParticPoint)
+                                            allocate(LinePoint)
+                                 
+                                            CurrLine => Me%Booms%Individual(nn)%Lines
                                             
-                                            IntersectVel = abs(cos(AuxAngle) * sqrt(CurrentPartic%CurrentX**2+ &
-                                                                                    CurrentPartic%CurrentY**2))
+                                            !go for all line points and check if particle is inside the buffer
+dolp:                                       do lp = 1, CurrLine%nNodes
+                                                
+                                                LinePoint%X = CurrLine%X(lp)
+                                                LinePoint%Y = CurrLine%Y(lp)
+                                                ParticPoint%X = CurrentPartic%Position%CoordX
+                                                ParticPoint%Y = CurrentPartic%Position%CoordY
+                                                
+                                                if(IsPointInsideCircle(ParticPoint, LinePoint, Me%Booms%Individual(nn)%BoomBufferDist)) then 
+                                                    ParticleInsideBuffer = .true.
+                                                    exit dolp                                               
+                                                else
+                                                    
+                                                    ParticPoint%X = NewPosition%CoordX
+                                                    ParticPoint%Y = NewPosition%CoordY
+                                                    
+                                                    if(IsPointInsideCircle(ParticPoint, LinePoint, Me%Booms%Individual(nn)%BoomBufferDist)) then
+                                                        ParticleInsideBuffer = .true.
+                                                        exit dolp                                                   
+                                                    endif                                                
+                                                
+                                                endif
+                                                
+                                            enddo dolp
+                                                                                 
+                                            deallocate(ParticPoint)
+                                            deallocate(LinePoint)
+                                            nullify(CurrLine)
                                             
-                                            if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit .and. &
-                                                IntersectVel             < Me%Booms%Individual(nn)%VelLimit) then
-                                                MovePartic = .false.
-                                                exit
-                                            endif                                            
-                                        endif
-                                    enddo
+                                            if (ParticleInsideBuffer) then
+
+                                                IntersectVel = sqrt(CurrentPartic%CurrentX**2 +  &
+                                                                    CurrentPartic%CurrentY**2)
+                                            
+                                                if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit .and. &
+                                                    IntersectVel             < Me%Booms%Individual(nn)%VelLimit) then
+                                                    MovePartic = .false.
+                                                    exit donn
+                                                endif   
+                                            endif
+                                                
+                                        else !intersect old and new particle position segment with boom segments                                               
+                                            
+                                            if (SegIntersectLine(                               &
+                                                x1      = CurrentPartic%Position%CoordX,        &
+                                                y1      = CurrentPartic%Position%CoordY,        &
+                                                x2      = NewPosition%CoordX,                   &
+                                                y2      = NewPosition%CoordY,                   &
+                                                LineX   = Me%Booms%Individual(nn)%Lines,        &    
+                                                LineAng = LineAngle)) then                                            
+                                                
+                                                AuxAngle = atan2(CurrentPartic%CurrentY,CurrentPartic%CurrentX) - (LineAngle+Pi/2.)
+                                            
+                                                IntersectVel = abs(cos(AuxAngle) * sqrt(CurrentPartic%CurrentX**2+ &
+                                                                                        CurrentPartic%CurrentY**2))
+                                            
+                                                if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit .and. &
+                                                    IntersectVel             < Me%Booms%Individual(nn)%VelLimit) then
+                                                    MovePartic = .false.
+                                                    exit donn
+                                                endif 
+                                           endif
+                                        endif ifbuf
+                                    enddo donn
                                 endif
                                 
                                 if (MovePartic .and. Me%ThinWallsON) then
@@ -27937,6 +28023,7 @@ em1:    do em =1, Me%EulerModelNumber
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_SETBOOMLOCATION"::SetBoomLocation
     !DEC$ ENDIF
+    !logical function SetBoomLocation(LagrangianID, nPoints, boomCoordsX, boomCoordsY, boomHasBuffer)
     logical function SetBoomLocation(LagrangianID, nPoints, boomCoordsX, boomCoordsY)
     
         !Arguments-------------------------------------------------------------
@@ -27944,11 +28031,13 @@ em1:    do em =1, Me%EulerModelNumber
         integer                                     :: nPoints
         real(8), dimension(nPoints)                 :: boomCoordsX
         real(8), dimension(nPoints)                 :: boomCoordsY
+        !logical, optional                           :: boomHasBuffer
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
         integer                                     :: iPoint
+        type(T_Polygon), pointer                    :: CurrPolygon
         type(T_Lines), pointer                      :: CurrLine
 
         call Ready(LagrangianID, ready_)    
@@ -27956,9 +28045,9 @@ em1:    do em =1, Me%EulerModelNumber
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
             !Deallocates current boom
-            if (associated(Me%Booms%Individual)) then
-                deallocate(Me%Booms%Individual)
-            endif
+            !if (associated(Me%Booms%Individual)) then
+            !    deallocate(Me%Booms%Individual)
+            !endif
 
             
             if (nPoints == 0) then
@@ -27966,18 +28055,57 @@ em1:    do em =1, Me%EulerModelNumber
                 Me%Booms%Number = 0
                 
             else
+                               
+                !Me%Booms%Number = 1
+                !allocate(Me%Booms%Individual(Me%Booms%Number))
+                !
+                !Me%Booms%Individual(1)%Name = "External Imposed Boom"
+                !
+                !Me%Booms%Individual(1)%Description = "Description"
+                !
+                !Me%Booms%Individual(1)%VelLimit = 0.4
+                !
+                !Me%Booms%Individual(1)%WaveLimit = 0.6
+                
+                !!check if in the openMI is sent a line or a polygon
+                !if (present (boomHasBuffer)) then                
+                !    Me%Booms%Individual(1)%BoomHasBuffer = boomHasBuffer
+                !else
+                !    Me%Booms%Individual(1)%BoomHasBuffer = .false.
+                !endif
+                
+                !Me%Booms%Individual(1)%BoomHasBuffer = .true.
+                
+                !will be using a polygon - defined now in data file
+                !if (Me%Booms%Individual(1)%BoomHasBuffer) then
+                !    
+                !    nullify(Me%Booms%Individual(1)%Polygon)
+                !
+                !    call Add(Me%Booms%Individual(1)%Polygon, CurrPolygon)
+                !
+                !    CurrPolygon%Count = nPoints
+                !
+                !    allocate(CurrPolygon%VerticesF(1:CurrPolygon%Count))
+                !
+                !    do iPoint = 1, nPoints
+                !        CurrPolygon%VerticesF(iPoint)%X = boomCoordsX(iPoint)
+                !        CurrPolygon%VerticesF(iPoint)%Y = boomCoordsY(iPoint)
+                !    enddo
+                !                        
+                !    call SetLimits(CurrPolygon)                    
+                !
+                !else !will be using a line
                     
+                !will use the associated (the first) boom defined in Lagrangian data file
+                if (.not. associated(Me%Booms%Individual)) then
+                    write(*,*) 'Need to have one Boom associated in Langrangian data file.'
+                    stop 'Module LagrangianGlobal - SetBoomLocation - ERR001'
+                endif
+                
+                !use only one boom (the first)
                 Me%Booms%Number = 1
-                allocate(Me%Booms%Individual(Me%Booms%Number))
-
-                Me%Booms%Individual(1)%Name = "External Imposed Boom"
-                
-                Me%Booms%Individual(1)%Description = "Description"
-                
-                Me%Booms%Individual(1)%VelLimit = 0.4
-                
-                Me%Booms%Individual(1)%WaveLimit = 0.6
-                
+                    
+                !it will overwrite the first boom line and use all other info
                 nullify(Me%Booms%Individual(1)%Lines)
 
                 call Add(Me%Booms%Individual(1)%Lines, CurrLine)
@@ -27995,6 +28123,7 @@ em1:    do em =1, Me%EulerModelNumber
                                         
                 call SetLimits(CurrLine)     
                 
+                !endif
                 
             endif
                 

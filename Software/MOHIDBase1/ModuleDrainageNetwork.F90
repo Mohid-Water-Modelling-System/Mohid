@@ -238,6 +238,7 @@ Module ModuleDrainageNetwork
     public  :: GetDrainageSize    
     public  :: GetChannelsID
     public  :: GetChannelsWaterLevel
+    public  :: GetChannelsVelocity
     public  :: GetChannelsBottomLevel
     public  :: GetChannelsSurfaceWidth
     public  :: GetChannelsBottomWidth
@@ -936,6 +937,7 @@ Module ModuleDrainageNetwork
         real,    dimension(:,:), pointer            :: ChannelsVolume       => null()
         real,    dimension(:,:), pointer            :: ChannelsTopArea      => null()
         real,    dimension(:,:), pointer            :: ChannelsMaxVolume    => null()
+        real,    dimension(:,:), pointer            :: ChannelsVelocity     => null()
         integer, dimension(:,:), pointer            :: ChannelsOpenProcess  => null()
         integer, dimension(:,:), pointer            :: ChannelsActiveState  => null()
         real,    dimension(:)  , pointer            :: ShortWaveExtinction  => null()
@@ -5478,6 +5480,7 @@ if1:    if (Me%HasGrid) then
             allocate(Me%ChannelsSurfaceWidth  (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))            
             allocate(Me%ChannelsBankSlope     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsNodeLength    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsVelocity      (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsOpenProcess   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsActiveState   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsID            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -5494,6 +5497,7 @@ if1:    if (Me%HasGrid) then
             Me%ChannelsID           = null_int
             Me%ChannelsVolume       = null_real
             Me%ChannelsMaxVolume    = null_real
+            Me%ChannelsVelocity     = 0.0
 
             call UpdateChannelsDynamicMatrix
             
@@ -7510,6 +7514,41 @@ if0:    if (Me%HasProperties) then
     end subroutine GetChannelsWaterLevel
 
     !---------------------------------------------------------------------------
+
+        subroutine GetChannelsVelocity (DrainageNetworkID, ChannelsVelocity, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsVelocity
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsVelocity => Me%ChannelsVelocity                              
+
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsVelocity
+    
+    
     !---------------------------------------------------------------------------
 
     subroutine GetChannelsBottomLevel (DrainageNetworkID, ChannelsBottomLevel, STAT)
@@ -11832,8 +11871,10 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
     subroutine UpdateChannelsDynamicMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                     :: NodeID
+        integer                                     :: NodeID, i
         type (T_Node), pointer                      :: CurrNode
+        type (T_Reach), pointer                     :: UpReach, DownReach
+        real(8)                                     :: AvrgVelocity, sumVerticalArea
 
         !----------------------------------------------------------------------
        
@@ -11844,7 +11885,31 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             Me%ChannelsWaterLevel       (CurrNode%GridI, CurrNode%GridJ) = CurrNode%WaterLevel
             Me%ChannelsVolume           (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeNew
             Me%ChannelsMaxVolume        (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeMax
-                    
+            
+            !compute average velocity
+            AvrgVelocity = 0.
+            sumVerticalArea = 0.
+            !go to upstream reaches
+            do i = 1, CurrNode%nUpstreamReaches
+                nullify (UpReach)
+                UpReach => Me%Reaches (CurrNode%UpstreamReaches (i))            
+                if (Me%ComputeFaces(UpReach%ID) == OpenPoint) then
+                    sumVerticalArea = sumVerticalArea + UpReach%VerticalArea
+                    AvrgVelocity = (AvrgVelocity + (UpReach%Velocity * UpReach%VerticalArea))/sumVerticalArea  
+                endif
+            end do
+            !go to downstream reaches
+            do i = 1, CurrNode%nDownstreamReaches
+                nullify (DownReach)
+                DownReach => Me%Reaches (CurrNode%DownstreamReaches (i))            
+                if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+                    sumVerticalArea = sumVerticalArea + DownReach%VerticalArea
+                    AvrgVelocity = (AvrgVelocity + (DownReach%Velocity * DownReach%VerticalArea))/sumVerticalArea
+                endif
+            end do
+            
+            Me%ChannelsVelocity        (CurrNode%GridI, CurrNode%GridJ) = AvrgVelocity
+            
         enddo
 
     end subroutine UpdateChannelsDynamicMatrix 
