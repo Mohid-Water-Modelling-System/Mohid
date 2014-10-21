@@ -358,6 +358,7 @@ Module ModuleBasin
         type (T_PropertyB)                          :: AccInf               
         type (T_PropertyB)                          :: ImpFrac
         type (T_PropertyB)                          :: TimeWithNoWC
+        real                                        :: SecondsToResetAccInf
     end type T_SimpleInfiltration
     
     type T_SCSCNRunOffModel
@@ -1305,6 +1306,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR310'
+        
+        if (Me%Coupled%SimpleInfiltration) then
+            call GetData(Me%SI%SecondsToResetAccInf,                                         &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'SECONDS_TO_RESET_ACC_INF',                          &
+                         default      = 3600.0 * 3.0,                                        &
+                         ClientModule = 'ModuleBasin',                                       &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR310.1'        
+        endif
+        
 
         !Verifies if the user wants to use simple 
         call GetData(Me%Coupled%SCSCNRunOffModel,                                        &
@@ -5089,7 +5102,7 @@ cd2 :           if (BlockFound) then
 
                     Me%SI%TimeWithNoWC%Field(i, j)  = Me%SI%TimeWithNoWC%Field(i, j) + Me%CurrentDT
                     
-                    if (Me%SI%TimeWithNoWC%Field(i, j) > 3600.0 * 3.0) then
+                    if (Me%SI%TimeWithNoWC%Field(i, j) > Me%SI%SecondsToResetAccInf) then
                    
                         !Resets accumulated infiltration
                         Me%SI%AccInf%Field(i, j) = AllmostZero
