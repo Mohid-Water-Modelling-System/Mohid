@@ -219,9 +219,11 @@ Module ModuleBasin
     integer, parameter                              :: NoEvaporation            = 3
     !Initial or Final time instant, used on Basin Water Balance
     integer, parameter                              :: InitialInstant = 1
-    integer, parameter                              :: FinalInstant   = 2    
+    integer, parameter                              :: FinalInstant   = 2
     !Gw link between porous media and drainage network
 !    integer, parameter                              :: Layer_ = 2
+    integer, parameter                              :: DormantVegetation = 1
+    integer, parameter                              :: GrowingVegetation = 2
 
     !Types---------------------------------------------------------------------
     type T_OutPut
@@ -245,6 +247,7 @@ Module ModuleBasin
         logical                                     :: PorousMediaProperties = .false.
         logical                                     :: Vegetation           = .false.
         logical                                     :: SimpleInfiltration   = .false.
+        logical                                     :: SCSCNRunOffModel     = .false.
         logical                                     :: Snow                 = .false.
     end type T_Coupling
 
@@ -357,6 +360,24 @@ Module ModuleBasin
         type (T_PropertyB)                          :: TimeWithNoWC
     end type T_SimpleInfiltration
     
+    type T_SCSCNRunOffModel
+        type (T_PropertyB)                          :: CurveNumber
+        real                                        :: IAFactor = 0.2 !Initial Abstraction Factor = 0.2 or 0.05
+        logical                                     :: ConvertIAFactor = .false.
+        type (T_PropertyB)                          :: VegGrowthStage
+        type (T_PropertyB)                          :: ImpFrac
+        real, dimension (:,:,:), pointer            :: Last5DaysAccRain => null ()
+        real, dimension (:,:), pointer              :: Last5DaysAccRainTotal => null ()
+        real, dimension (:,:), pointer              :: AccRain => null ()
+        real, dimension (:,:), pointer              :: ActualCurveNumber => null ()
+        real, dimension (:,:), pointer              :: S => null ()
+        type (T_Time)                               :: NextRainAccStart 
+        real                                        :: CIDormThreshold = 12.70,         &
+                                                       CIIIDormThreshold = 27.94,       &
+                                                       CIGrowthThreshold = 35.56,       &
+                                                       CIIIGrowthThreshold = 53.34
+    end type T_SCSCNRunOffModel
+    
     type T_WaterMassBalance
         !Initial Mass
         real(8)                                     :: IniVolumeRunoff      = 0.
@@ -439,7 +460,8 @@ Module ModuleBasin
         type (T_Files)                              :: Files
         type (T_ExtVar)                             :: ExtVar
         type (T_ExtUpdate)                          :: ExtUpdate
-        type (T_SimpleInfiltration)                 :: SI                                       
+        type (T_SimpleInfiltration)                 :: SI          
+        type (T_SCSCNRunOffModel)                   :: SCSCNRunOffModel
         type (T_BasinProperty), pointer             :: FirstProperty        => null()
         logical                                     :: Continuous           = .false.
         logical                                     :: StopOnWrongDate      = .true.
@@ -1284,7 +1306,71 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR310'
 
+        !Verifies if the user wants to use simple 
+        call GetData(Me%Coupled%SCSCNRunOffModel,                                        &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'SCSCN_RUNOFF_MODEL',                                &
+                     default      = OFF,                                                 &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311'
 
+        if (Me%Coupled%SCSCNRunOffModel) then
+            call GetData(Me%SCSCNRunOffModel%IAFactor,                                       &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'IA_FACTOR',                                         &
+                         default      = 0.2,                                                 &
+                         ClientModule = 'ModuleBasin',                                       &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.0'
+            
+            if (Me%SCSCNRunOffModel%IAFactor == 0.05) then
+                Me%SCSCNRunOffModel%ConvertIAFactor = .true.
+            else if (Me%SCSCNRunOffModel%IAFactor /= 0.2) then
+                stop 'ReadDataFile - ModuleBasin - ERR311.0.1'
+            else
+                Me%SCSCNRunOffModel%ConvertIAFactor = .false.
+            endif
+            
+            call GetData(Me%SCSCNRunOffModel%CIDormThreshold,                                &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'SCSCN_CI_DORM_THRESHOLD',                           &
+                         default      = 12.7,                                                &
+                         ClientModule = 'ModuleBasin',                                       &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.1' 
+            
+            call GetData(Me%SCSCNRunOffModel%CIIIDormThreshold,                              &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'SCSCN_CIII_DORM_THRESHOLD',                         &
+                         default      = 27.94,                                               &
+                         ClientModule = 'ModuleBasin',                                       &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.2'
+            
+            call GetData(Me%SCSCNRunOffModel%CIGrowthThreshold,                              &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'SCSCN_CI_GROWTH_THRESHOLD',                         &
+                         default      = 35.56,                                               &
+                         ClientModule = 'ModuleBasin',                                       &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.3' 
+            
+            call GetData(Me%SCSCNRunOffModel%CIIIGrowthThreshold,                            &
+                         Me%ObjEnterData, iflag,                                             &
+                         SearchType   = FromFile,                                            &
+                         keyword      = 'SCSCN_CIII_GROWTH_THRESHOLD',                       &
+                         default      = 53.34,                                               &
+                         ClientModule = 'ModuleBasin',                                       &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.4'             
+        endif
+        
         !Gets Output Time 
         call GetOutPutTime(Me%ObjEnterData,                                              &
                            CurrentTime = Me%CurrentTime,                                 &
@@ -1494,6 +1580,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 stop 'VerifyOptions - ModuleBasin - ERR03'
             endif
 
+            if (Me%Coupled%PorousMedia .and. Me%Coupled%SCSCNRunOffModel) then
+                write(*,*)'You can not use SCS CN RunOff model and PorousMedia at the same time'
+                stop 'VerifyOptions - ModuleBasin - ERR03.1'
+            endif
+            
+            if (Me%Coupled%SimpleInfiltration .and. Me%Coupled%SCSCNRunOffModel) then
+                write(*,*)'You can not use SCS CN RunOff model and SimpleInfiltration at the same time'
+                stop 'VerifyOptions - ModuleBasin - ERR03.2'
+            endif             
+            
             if (Me%Coupled%Vegetation) then
                 
                 if (.not. Me%Coupled%PorousMedia .or. .not. Me%Coupled%Evapotranspiration) then
@@ -1546,9 +1642,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 stop 'VerifyOptions - ModuleBasin - ERR08'  
             endif   
             
-            if (Me%Coupled%PorousMedia .or. Me%Coupled%SimpleInfiltration) then
+            if (Me%Coupled%PorousMedia .or. Me%Coupled%SimpleInfiltration .or. ME%Coupled%SCSCNRunOffModel) then
                 if (.not. Me%Coupled%Runoff) then
-                    write(*,*)'If using Porous Media model than need to link RUN_OFF '
+                    write(*,*)'If using Porous Media/simple Infiltration/SCS CN Run Off model than need to link RUN_OFF '
                     write(*,*)'Because Runoff is now the module responsible for the'
                     write(*,*)'water column. Module Basin is now only an updater'
                     stop 'VerifyOptions - ModuleBasin - ERR08' 
@@ -1687,7 +1783,46 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ConstructSimpleInfiltration    
 
     !--------------------------------------------------------------------------
+    
+    subroutine ConstructSCSCNRunOffModel
+    
+        !Arguments-------------------------------------------------------------
 
+        !Local-----------------------------------------------------------------
+        
+        allocate(Me%SCSCNRunOffModel%VegGrowthStage%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        call ConstructOneProperty (Me%SCSCNRunOffModel%VegGrowthStage, "VegGrowthStage", "<BeginVegGrowthStage>", "<EndVegGrowthStage>")
+        
+        allocate(Me%SCSCNRunOffModel%ImpFrac%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        call ConstructOneProperty (Me%SCSCNRunOffModel%ImpFrac, "ImpFrac", "<BeginImpFrac>", "<EndImpFrac>")
+        
+        allocate(Me%SCSCNRunOffModel%CurveNumber%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        call ConstructOneProperty (Me%SCSCNRunOffModel%CurveNumber, "CurveNumber", "<BeginCurveNumber>", "<EndCurveNumber>")
+        if (Me%SCSCNRunOffModel%ConvertIAFactor) then
+            Me%SCSCNRunOffModel%CurveNumber%Field = 100.0 / ((1.879 * (100.0 / Me%SCSCNRunOffModel%CurveNumber%Field) - 1.0)**1.15 + 1.0)
+        endif
+        
+        Me%SCSCNRunOffModel%NextRainAccStart = Me%BeginTime + 86400
+        
+        allocate (Me%SCSCNRunOffModel%Last5DaysAccRain (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB, 1:5))
+        Me%SCSCNRunOffModel%Last5DaysAccRain = 0.0
+        
+        allocate (Me%SCSCNRunOffModel%Last5DaysAccRainTotal (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%Last5DaysAccRainTotal = 0.0
+        
+        allocate (Me%SCSCNRunOffModel%AccRain (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%AccRain = 0.0
+        
+        allocate (Me%SCSCNRunOffModel%ActualCurveNumber (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%ActualCurveNumber = 0.0
+        
+        allocate (Me%SCSCNRunOffModel%S (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%S = 0.0
+        
+    end subroutine ConstructSCSCNRunOffModel
+    
+    !--------------------------------------------------------------------------    
+    
     subroutine ConstructOneProperty (NewProperty, PropertyName, BlockBegin, BlockEnd)
     
         !Arguments-------------------------------------------------------------
@@ -1701,7 +1836,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: STAT_CALL
 
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)       
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructSimpleInfiltration - ModuleBasin - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR01'
         
         call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                   &
                                     BlockBegin, BlockEnd, BlockFound,                &
@@ -1711,7 +1846,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write(*,*)BlockBegin, BlockEnd
             write(*,*)BlockFound
             write(*,*)STAT_CALL
-            stop 'ConstructSimpleInfiltration - ModuleBasin - ERR02'
+            stop 'ConstructOneProperty - ModuleBasin - ERR02'
         endif
                                     
         if (.not. BlockFound) then
@@ -1734,9 +1869,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                  STAT               = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR04'
 
-        call KillFillMatrix (NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR05'
-
+        if (.not. NewProperty%ID%SolutionFromFile) then
+            call KillFillMatrix (NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR05'
+        endif
+        
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneProperty - ModuleBasin - ERR06'
 
@@ -2801,6 +2938,10 @@ i1:         if (CoordON) then
             call ConstructSimpleInfiltration ()
         endif
         
+        if (Me%Coupled%SCSCNRunoffModel) then
+            call ConstructSCSCNRunOffModel ()
+        endif
+        
         !Constructs Diffuse Water Source
         if (Me%DiffuseWaterSource) then
             call ConstructDiffuseWaterSource ()
@@ -3336,6 +3477,18 @@ cd2 :           if (BlockFound) then
                     call ActualizeWaterColumnConc(WarningString) 
                 endif                
             endif
+            
+            if (Me%Coupled%SCSCNRunOffModel) then
+                call SCSCNRunOffModel
+
+                !Actualizes the WaterColumn
+                call ActualizeWaterColumn  
+                
+                if (Me%Coupled%RunoffProperties) then
+                    WarningString = 'SimpleInfiltration'
+                    call ActualizeWaterColumnConc(WarningString) 
+                endif                
+            endif            
             
             !Overland Flow
             if (Me%Coupled%RunOff) then
@@ -4977,6 +5130,173 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
+    subroutine SCSCNRunOffModel
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: I, J
+
+        integer, parameter                          :: ChunkSize = 10
+        integer                                     :: Chunk
+        
+        real                                        :: previousInDayRain, rain, accRain
+        
+        integer                                     :: STAT_CALL
+        
+        !Begin-----------------------------------------------------------------
+        
+        if (MonitorPerformance) call StartWatch ("ModuleBasin", "SCSCNRunoffModel")
+        
+        CHUNK = ChunkJ
+                 
+        if (Me%SCSCNRunOffModel%VegGrowthStage%ID%SolutionFromFile) then
+            call ModifyFillMatrix (FillMatrixID   = Me%SCSCNRunOffModel%VegGrowthStage%ID%ObjFillMatrix,            &
+                                   Matrix2D       = Me%SCSCNRunOffModel%VegGrowthStage%Field,                       &
+                                   PointsToFill2D = Me%ExtVar%BasinPoints,                                          &
+                                   STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'SCSCNRunOffModel - ModuleBasin - ERR010'
+        endif
+        
+        if (Me%SCSCNRunOffModel%ImpFrac%ID%SolutionFromFile) then
+            call ModifyFillMatrix (FillMatrixID   = Me%SCSCNRunOffModel%ImpFrac%ID%ObjFillMatrix,                   &
+                                   Matrix2D       = Me%SCSCNRunOffModel%ImpFrac%Field,                              &
+                                   PointsToFill2D = Me%ExtVar%BasinPoints,                                          &
+                                   STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'SCSCNRunOffModel - ModuleBasin - ERR020'
+        endif
+        
+        if (Me%SCSCNRunOffModel%CurveNumber%ID%SolutionFromFile) then
+            call ModifyFillMatrix (FillMatrixID   = Me%SCSCNRunOffModel%CurveNumber%ID%ObjFillMatrix,               &
+                                   Matrix2D       = Me%SCSCNRunOffModel%CurveNumber%Field,                          &
+                                   PointsToFill2D = Me%ExtVar%BasinPoints,                                          &
+                                   STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'SCSCNRunOffModel - ModuleBasin - ERR030'
+        endif 
+        
+        if (Me%CurrentTime > Me%SCSCNRunOffModel%NextRainAccStart) then
+            Me%SCSCNRunOffModel%NextRainAccStart = Me%CurrentTime + 86400
+                    
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC)
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 1) = Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 2)
+                Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 2) = Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 3)
+                Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 3) = Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 4)
+                Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 4) = Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 5)
+                Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 5) = Me%SCSCNRunOffModel%AccRain (i, j)
+                    
+                Me%SCSCNRunOffModel%Last5DaysAccRainTotal (i, j) =      &
+                    Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 1) +    &
+                    Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 2) +    &
+                    Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 3) +    &
+                    Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 4) +    &
+                    Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 5)
+                    
+                Me%SCSCNRunOffModel%AccRain (i, j) = 0.0
+            
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL            
+        endif
+        
+        !$OMP PARALLEL PRIVATE(I,J, rain, accRain, previousInDayRain)
+        !$OMP DO SCHEDULE(DYNAMIC)
+        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                            
+                if (Me%ThroughFall (i, j) > 0.0) then
+                    !       mm        =                mm
+                    previousInDayRain = Me%SCSCNRunOffModel%AccRain (i, j) 
+                    
+                    !mm  =              m                  * mm/m
+                    rain = Me%ThroughFall (i, j) * 1000
+                    
+                    !               mm                 =                 mm                 +  mm
+                    Me%SCSCNRunOffModel%AccRain (i, j) = Me%SCSCNRunOffModel%AccRain (i, j) + rain
+        
+                    !mm  =        mm         +                     mm
+                    accRain = previousInDayRain + Me%SCSCNRunOffModel%Last5DaysAccRainTotal (i, j)
+                    
+                    if (Me%SCSCNRunOffModel%VegGrowthStage%Field (i, j) == DormantVegetation) then
+                        if (accRain < Me%SCSCNRunOffModel%CIDormThreshold) then
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
+                        elseif (accRain > Me%SCSCNRunOffModel%CIIIDormThreshold) then
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 - 0.0059 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
+                        else
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j)
+                        endif
+                    else
+                        if (accRain < Me%SCSCNRunOffModel%CIGrowthThreshold) then
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
+                        elseif (accRain > Me%SCSCNRunOffModel%CIIIGrowthThreshold) then
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 - 0.0059 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
+                        else
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j)
+                        endif                        
+                    endif
+                    
+                    Me%SCSCNRunOffModel%S (i, j) = 25400.0 / Me%SCSCNRunOffModel%ActualCurveNumber (i, j) - 254
+                    if (Me%SCSCNRunOffModel%ConvertIAFactor) then
+                        Me%SCSCNRunOffModel%S (i, j) = (1.33 * Me%SCSCNRunOffModel%S (i, j)**1.15)
+                    endif 
+                    
+                    if (rain > (Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / 86400)) then
+                        
+                        !mm /hour = (mm - (mm - []mm)**2 / (mm + []mm))/s * s/hour
+                        Me%InfiltrationRate (i, j) = (rain -                                                                        &
+                            (rain - Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j))**2 /                               & 
+                            (rain + (1.0 - Me%SCSCNRunOffModel%IAFactor) * Me%SCSCNRunOffModel%S (i, j))) / Me%CurrentDT * 3600 
+                        
+                    else
+                        
+                        !mm /hour
+                        Me%InfiltrationRate (i, j) = 0.0
+                        
+                    endif
+                    
+                    !mm /hour
+                    Me%EVTPRate         (i, j)    = 0.0
+                
+                    !m - Accumulated Infiltration of the entite area
+                    Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%InfiltrationRate(i, j) *     &
+                                                    (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                
+                    !m                            = m - mm/hour * s / s/hour / mm/m
+                    Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%InfiltrationRate(i, j) * &
+                                                    (1.0 - Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                    
+                    !m
+                    Me%AccEVTP          (i, j)    = 0.0                    
+                    
+                else
+                    
+                    Me%EVTPRate         (i, j)    = 0.0
+                    
+                    Me%AccInfiltration  (i, j)    = 0.0
+                    
+                    Me%AccEVTP          (i, j)    = 0.0
+                    
+                endif
+                           
+            endif
+            
+        enddo
+        enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModuleBasin", "SCSCNRunoffModel")
+        
+    end subroutine SCSCNRunOffModel
+    
+    !--------------------------------------------------------------------------
+    
     subroutine OverLandProcesses
 
         !Arguments-------------------------------------------------------------
@@ -8527,6 +8847,29 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Coupled%Snow) then
                     call KillSnow (Me%ObjSnow, STAT=STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR085'
+                endif
+                
+                if (Me%Coupled%SCSCNRunoffModel) then
+                    if (Me%SCSCNRunOffModel%VegGrowthStage%ID%ObjFillMatrix /= 0) then
+                        call KillFillMatrix (Me%SCSCNRunOffModel%VegGrowthStage%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR91'                        
+                    endif
+                    
+                    if (Me%SCSCNRunOffModel%ImpFrac%ID%ObjFillMatrix /= 0) then
+                        call KillFillMatrix (Me%SCSCNRunOffModel%ImpFrac%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR92'                         
+                    endif
+                    
+                    if (Me%SCSCNRunOffModel%CurveNumber%ID%ObjFillMatrix /= 0) then
+                        call KillFillMatrix (Me%SCSCNRunOffModel%CurveNumber%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR93'                         
+                    endif
+                    
+                    deallocate (Me%SCSCNRunOffModel%Last5DaysAccRain)
+                    deallocate (Me%SCSCNRunOffModel%Last5DaysAccRainTotal)
+                    deallocate (Me%SCSCNRunOffModel%AccRain)
+                    deallocate (Me%SCSCNRunOffModel%ActualCurveNumber)
+                    deallocate (Me%SCSCNRunOffModel%S)
                 endif
                
                 PropertyX => Me%FirstProperty
