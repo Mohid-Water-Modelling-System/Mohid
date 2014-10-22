@@ -5246,17 +5246,17 @@ cd2 :           if (BlockFound) then
                     
                     if (Me%SCSCNRunOffModel%VegGrowthStage%Field (i, j) == DormantVegetation) then
                         if (accRain < Me%SCSCNRunOffModel%CIDormThreshold) then
-                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         elseif (accRain > Me%SCSCNRunOffModel%CIIIDormThreshold) then
-                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 - 0.0059 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         else
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j)
                         endif
                     else
                         if (accRain < Me%SCSCNRunOffModel%CIGrowthThreshold) then
-                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         elseif (accRain > Me%SCSCNRunOffModel%CIIIGrowthThreshold) then
-                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         else
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j)
                         endif                        
