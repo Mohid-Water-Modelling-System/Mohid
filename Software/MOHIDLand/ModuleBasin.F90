@@ -358,7 +358,7 @@ Module ModuleBasin
         type (T_PropertyB)                          :: AccInf               
         type (T_PropertyB)                          :: ImpFrac
         type (T_PropertyB)                          :: TimeWithNoWC
-        real                                        :: SecondsToResetAccInf
+        real                                        :: HoursToResetAccInf
     end type T_SimpleInfiltration
     
     type T_SCSCNRunOffModel
@@ -1308,12 +1308,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR310'
         
         if (Me%Coupled%SimpleInfiltration) then
-            call GetData(Me%SI%SecondsToResetAccInf,                                         &
-                         Me%ObjEnterData, iflag,                                             &
-                         SearchType   = FromFile,                                            &
-                         keyword      = 'SECONDS_TO_RESET_ACC_INF',                          &
-                         default      = 3600.0 * 3.0,                                        &
-                         ClientModule = 'ModuleBasin',                                       &
+            call GetData(Me%SI%HoursToResetAccInf,                                       &
+                         Me%ObjEnterData, iflag,                                         &
+                         SearchType   = FromFile,                                        &
+                         keyword      = 'HOURS_TO_RESET_ACC_INF',                        &
+                         default      = 24.0,                                            &
+                         ClientModule = 'ModuleBasin',                                   &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR310.1'        
         endif
@@ -5102,7 +5102,7 @@ cd2 :           if (BlockFound) then
 
                     Me%SI%TimeWithNoWC%Field(i, j)  = Me%SI%TimeWithNoWC%Field(i, j) + Me%CurrentDT
                     
-                    if (Me%SI%TimeWithNoWC%Field(i, j) > Me%SI%SecondsToResetAccInf) then
+                    if (Me%SI%TimeWithNoWC%Field(i, j) / 3600.0 > Me%SI%HoursToResetAccInf) then
                    
                         !Resets accumulated infiltration
                         Me%SI%AccInf%Field(i, j) = AllmostZero
@@ -5154,6 +5154,7 @@ cd2 :           if (BlockFound) then
         integer                                     :: Chunk
         
         real                                        :: previousInDayRain, rain, accRain
+        real                                        :: qInTimeStep, sInTimeStep
         
         integer                                     :: STAT_CALL
         
@@ -5216,7 +5217,7 @@ cd2 :           if (BlockFound) then
             !$OMP END PARALLEL            
         endif
         
-        !$OMP PARALLEL PRIVATE(I,J, rain, accRain, previousInDayRain)
+        !$OMP PARALLEL PRIVATE(I,J, rain, accRain, previousInDayRain, qInTimeStep, sInTimeStep)
         !$OMP DO SCHEDULE(DYNAMIC)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5259,12 +5260,20 @@ cd2 :           if (BlockFound) then
                         Me%SCSCNRunOffModel%S (i, j) = (1.33 * Me%SCSCNRunOffModel%S (i, j)**1.15)
                     endif 
                     
-                    if (rain > (Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / 86400)) then
+                    sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / 86400.0
+                    if (rain > Me%SCSCNRunOffModel%IAFactor * sInTimeStep) then
+                        
+                        !mm         = (mm - mm)**2 / (mm + mm)
+                        qInTimeStep = (rain - Me%SCSCNRunOffModel%IAFactor * sInTimeStep)**2.0 / &
+                                      (rain + (1.0-Me%SCSCNRunOffModel%IAFactor)*sInTimeStep)
+                        
+                        !mm/hour                   = mm / s  * s/hour
+                        Me%InfiltrationRate (i, j) = (rain - qInTimeStep) / Me%CurrentDT * 3600.0
                         
                         !mm /hour = (mm - (mm - []mm)**2 / (mm + []mm))/s * s/hour
-                        Me%InfiltrationRate (i, j) = (rain -                                                                        &
-                            (rain - Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j))**2 /                               & 
-                            (rain + (1.0 - Me%SCSCNRunOffModel%IAFactor) * Me%SCSCNRunOffModel%S (i, j))) / Me%CurrentDT * 3600 
+!                        Me%InfiltrationRate (i, j) = (rain -                                                                        &
+!                            (rain - Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j))**2 /                               & 
+!                            (rain + (1.0 - Me%SCSCNRunOffModel%IAFactor) * Me%SCSCNRunOffModel%S (i, j))) / Me%CurrentDT * 3600 
                         
                     else
                         
@@ -5282,7 +5291,7 @@ cd2 :           if (BlockFound) then
                 
                     !m                            = m - mm/hour * s / s/hour / mm/m
                     Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%InfiltrationRate(i, j) * &
-                                                    (1.0 - Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                                                    (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
                     
                     !m
                     Me%AccEVTP          (i, j)    = 0.0                    
@@ -9387,7 +9396,7 @@ end module ModuleBasin
 !Copyright (C) 1985, 1998, 2002, 2006. MARETEC, Instituto Superior Técnico, Technical University of Lisbon. 
 
 
-
+    
 
 
 
