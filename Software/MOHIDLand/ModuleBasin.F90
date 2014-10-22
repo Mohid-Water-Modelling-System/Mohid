@@ -2074,6 +2074,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !Time Serie of properties variable in the Basin 
         i = 7
+        if (Me%Coupled%SCSCNRunoffModel) then
+             i = i + 1
+        endif
         if (Me%Coupled%Vegetation) then
             i = i + 4
         
@@ -2109,6 +2112,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         PropertyList(6)  = 'EvapoTranspiration Rate [mm/hour]'
         PropertyList(7)  = 'Water Column Removed [m]'
         i = 8
+        if (Me%Coupled%SCSCNRunoffModel) then
+            PropertyList(i) = 'Actual Curve Vumber [-]' 
+            i = i + 1
+        endif        
         if (Me%Coupled%Vegetation) then
             PropertyList(i) = 'Canopy Capacity [m]'
             i = i + 1
@@ -7313,6 +7320,13 @@ cd2 :           if (BlockFound) then
                              STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR070'
 
+        if (Me%Coupled%SCSCNRunoffModel) then 
+            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                       &
+                                 Data2D_8    = Me%SCSCNRunOffModel%ActualCurveNumber, &                             
+                                 STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR075'            
+        endif
+        
         if (Me%Coupled%Vegetation) then
 
            
@@ -7632,13 +7646,22 @@ cd2 :           if (BlockFound) then
 
             !Writes the Acc EVTP
             call HDF5WriteData   (Me%ObjHDF5, "//Results/AccEVTP",              &
-                                  "AccEVTP", "m",                       &
+                                  "AccEVTP", "m",                               &
                                   Array2D      = Me%AccEVTP,                    &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR100'
 
                 
+            if (Me%Coupled%SCSCNRunoffModel) then
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/ActualCurveNumber",   &
+                                        "ActualCurveNumber", "-",                  &
+                                        Array2D      = Me%SCSCNRunOffModel%ActualCurveNumber,       &
+                                        OutputNumber = Me%OutPut%NextOutPut,       &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR105'  
+            endif
+
             if (Me%Coupled%Snow) then
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/AccSnowMelting",   &
                                         "AccSnowMelting", "m",                  &
@@ -7646,8 +7669,8 @@ cd2 :           if (BlockFound) then
                                         OutputNumber = Me%OutPut%NextOutPut,    &
                                         STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR110'  
-            endif
-                
+            endif            
+            
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR120'
