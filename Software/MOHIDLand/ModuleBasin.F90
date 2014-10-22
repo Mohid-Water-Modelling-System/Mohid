@@ -1827,7 +1827,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%SCSCNRunOffModel%AccRain = 0.0
         
         allocate (Me%SCSCNRunOffModel%ActualCurveNumber (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        Me%SCSCNRunOffModel%ActualCurveNumber = 0.0
+        Me%SCSCNRunOffModel%ActualCurveNumber = Me%SCSCNRunOffModel%CurveNumber%Field
         
         allocate (Me%SCSCNRunOffModel%S (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%SCSCNRunOffModel%S = 0.0
@@ -5256,7 +5256,7 @@ cd2 :           if (BlockFound) then
                         if (accRain < Me%SCSCNRunOffModel%CIGrowthThreshold) then
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
                         elseif (accRain > Me%SCSCNRunOffModel%CIIIGrowthThreshold) then
-                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 - 0.0059 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%ActualCurveNumber (i, j))
                         else
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j)
                         endif                        
@@ -5285,34 +5285,33 @@ cd2 :           if (BlockFound) then
                     else
                         
                         !mm /hour
-                        Me%InfiltrationRate (i, j) = 0.0
+                        Me%InfiltrationRate (i, j) = rain / Me%CurrentDT * 3600.0
                         
                     endif
                     
-                    !mm /hour
-                    Me%EVTPRate         (i, j)    = 0.0
-                
-                    !m - Accumulated Infiltration of the entite area
-                    Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%InfiltrationRate(i, j) *     &
-                                                    (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
-                
-                    !m                            = m - mm/hour * s / s/hour / mm/m
-                    Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%InfiltrationRate(i, j) * &
-                                                    (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
-                    
-                    !m
-                    Me%AccEVTP          (i, j)    = 0.0                    
                     
                 else
                     
-                    Me%EVTPRate         (i, j)    = 0.0
-                    
-                    Me%AccInfiltration  (i, j)    = 0.0
-                    
-                    Me%AccEVTP          (i, j)    = 0.0
-                    
+                    !mm /hour
+                    Me%InfiltrationRate (i, j) = 0.0
+
                 endif
-                           
+                     
+                !mm /hour
+                Me%EVTPRate         (i, j)    = 0.0
+
+                !m
+                Me%AccEVTP          (i, j)    = 0.0                    
+                
+                !m - Accumulated Infiltration of the entite area
+                Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%InfiltrationRate(i, j) *     &
+                                                (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                
+                !m                            = m - mm/hour * s / s/hour / mm/m
+                Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%InfiltrationRate(i, j) * &
+                                                (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                    
+                
             endif
             
         enddo
