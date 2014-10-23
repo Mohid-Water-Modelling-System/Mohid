@@ -369,7 +369,8 @@ Module ModuleBasin
         type (T_PropertyB)                          :: ImpFrac
         real, dimension (:,:,:), pointer            :: Last5DaysAccRain => null ()
         real, dimension (:,:), pointer              :: Last5DaysAccRainTotal => null ()
-        real, dimension (:,:), pointer              :: AccRain => null ()
+        real, dimension (:,:), pointer              :: DailyAccRain => null ()
+        real, dimension (:,:), pointer              :: Current5DayAccRain => null ()
         real, dimension (:,:), pointer              :: ActualCurveNumber => null ()
         real, dimension (:,:), pointer              :: S => null ()
         type (T_Time)                               :: NextRainAccStart 
@@ -1812,7 +1813,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%SCSCNRunOffModel%CurveNumber%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         call ConstructOneProperty (Me%SCSCNRunOffModel%CurveNumber, "CurveNumber", "<BeginCurveNumber>", "<EndCurveNumber>")
         if (Me%SCSCNRunOffModel%ConvertIAFactor) then
-            Me%SCSCNRunOffModel%CurveNumber%Field = 100.0 / ((1.879 * (100.0 / Me%SCSCNRunOffModel%CurveNumber%Field) - 1.0)**1.15 + 1.0)
+            !where(Me%SCSCNRunOffModel%CurveNumber%Field(:,:)>0.0 .and. Me%ExtVar%BasinPoints(:,:) == BasinPoint)
+            where(Me%ExtVar%BasinPoints(:,:) == BasinPoint)
+            Me%SCSCNRunOffModel%CurveNumber%Field(:,:) = 100.0 / (1.879 * (100.0 / Me%SCSCNRunOffModel%CurveNumber%Field(:,:) - 1.0)**1.15 + 1.0)
+            end where
         endif
         
         Me%SCSCNRunOffModel%NextRainAccStart = Me%BeginTime + 86400
@@ -1823,8 +1827,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate (Me%SCSCNRunOffModel%Last5DaysAccRainTotal (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%SCSCNRunOffModel%Last5DaysAccRainTotal = 0.0
         
-        allocate (Me%SCSCNRunOffModel%AccRain (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        Me%SCSCNRunOffModel%AccRain = 0.0
+        allocate (Me%SCSCNRunOffModel%DailyAccRain (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%DailyAccRain = 0.0
+
+        allocate (Me%SCSCNRunOffModel%Current5DayAccRain (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%Current5DayAccRain = 0.0
         
         allocate (Me%SCSCNRunOffModel%ActualCurveNumber (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%SCSCNRunOffModel%ActualCurveNumber = Me%SCSCNRunOffModel%CurveNumber%Field
@@ -2075,7 +2082,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Time Serie of properties variable in the Basin 
         i = 7
         if (Me%Coupled%SCSCNRunoffModel) then
-             i = i + 1
+             i = i + 2
         endif
         if (Me%Coupled%Vegetation) then
             i = i + 4
@@ -2115,6 +2122,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%Coupled%SCSCNRunoffModel) then
             PropertyList(i) = 'Actual Curve Vumber [-]' 
             i = i + 1
+            PropertyList(i) = '5 Day Accumulated Rain [mm]' 
+            i = i + 1            
         endif        
         if (Me%Coupled%Vegetation) then
             PropertyList(i) = 'Canopy Capacity [m]'
@@ -5160,7 +5169,7 @@ cd2 :           if (BlockFound) then
         integer, parameter                          :: ChunkSize = 10
         integer                                     :: Chunk
         
-        real                                        :: previousInDayRain, rain, accRain
+        real                                        :: previousInDayRain, rain !, accRain
         real                                        :: qInTimeStep, sInTimeStep
         
         integer                                     :: STAT_CALL
@@ -5207,7 +5216,7 @@ cd2 :           if (BlockFound) then
                 Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 2) = Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 3)
                 Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 3) = Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 4)
                 Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 4) = Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 5)
-                Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 5) = Me%SCSCNRunOffModel%AccRain (i, j)
+                Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 5) = Me%SCSCNRunOffModel%DailyAccRain (i, j)
                     
                 Me%SCSCNRunOffModel%Last5DaysAccRainTotal (i, j) =      &
                     Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 1) +    &
@@ -5216,7 +5225,7 @@ cd2 :           if (BlockFound) then
                     Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 4) +    &
                     Me%SCSCNRunOffModel%Last5DaysAccRain (i, j, 5)
                     
-                Me%SCSCNRunOffModel%AccRain (i, j) = 0.0
+                Me%SCSCNRunOffModel%DailyAccRain (i, j) = 0.0
             
             enddo
             enddo
@@ -5224,7 +5233,7 @@ cd2 :           if (BlockFound) then
             !$OMP END PARALLEL            
         endif
         
-        !$OMP PARALLEL PRIVATE(I,J, rain, accRain, previousInDayRain, qInTimeStep, sInTimeStep)
+        !$OMP PARALLEL PRIVATE(I,J, rain, previousInDayRain, qInTimeStep, sInTimeStep)
         !$OMP DO SCHEDULE(DYNAMIC)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -5233,29 +5242,29 @@ cd2 :           if (BlockFound) then
                             
                 if (Me%ThroughFall (i, j) > 0.0) then
                     !       mm        =                mm
-                    previousInDayRain = Me%SCSCNRunOffModel%AccRain (i, j) 
+                    previousInDayRain = Me%SCSCNRunOffModel%DailyAccRain (i, j) 
                     
                     !mm  =              m                  * mm/m
                     rain = Me%ThroughFall (i, j) * 1000
                     
                     !               mm                 =                 mm                 +  mm
-                    Me%SCSCNRunOffModel%AccRain (i, j) = Me%SCSCNRunOffModel%AccRain (i, j) + rain
+                    Me%SCSCNRunOffModel%DailyAccRain (i, j) = Me%SCSCNRunOffModel%DailyAccRain (i, j) + rain
         
                     !mm  =        mm         +                     mm
-                    accRain = previousInDayRain + Me%SCSCNRunOffModel%Last5DaysAccRainTotal (i, j)
+                    Me%SCSCNRunOffModel%Current5DayAccRain(i,j) = previousInDayRain + Me%SCSCNRunOffModel%Last5DaysAccRainTotal (i, j)
                     
                     if (Me%SCSCNRunOffModel%VegGrowthStage%Field (i, j) == DormantVegetation) then
-                        if (accRain < Me%SCSCNRunOffModel%CIDormThreshold) then
+                        if (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) < Me%SCSCNRunOffModel%CIDormThreshold) then
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
-                        elseif (accRain > Me%SCSCNRunOffModel%CIIIDormThreshold) then
+                        elseif (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) > Me%SCSCNRunOffModel%CIIIDormThreshold) then
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         else
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j)
                         endif
                     else
-                        if (accRain < Me%SCSCNRunOffModel%CIGrowthThreshold) then
+                        if (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) < Me%SCSCNRunOffModel%CIGrowthThreshold) then
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
-                        elseif (accRain > Me%SCSCNRunOffModel%CIIIGrowthThreshold) then
+                        elseif (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) > Me%SCSCNRunOffModel%CIIIGrowthThreshold) then
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         else
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j)
@@ -7323,7 +7332,12 @@ cd2 :           if (BlockFound) then
             call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                       &
                                  Data2D_8    = Me%SCSCNRunOffModel%ActualCurveNumber, &                             
                                  STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR075'            
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR075'      
+            
+            call WriteTimeSerie (TimeSerieID = Me%ObjTimeSerie,                       &
+                                 Data2D_8    = Me%SCSCNRunOffModel%Current5DayAccRain, &                             
+                                 STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TimeSerieOutput - ModuleBasin - ERR076'               
         endif
         
         if (Me%Coupled%Vegetation) then
@@ -7659,6 +7673,13 @@ cd2 :           if (BlockFound) then
                                         OutputNumber = Me%OutPut%NextOutPut,       &
                                         STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR105'  
+                
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/Acc5DayRain",         &
+                                        "Acc5DayRain", "-",                        &
+                                        Array2D      = Me%SCSCNRunOffModel%Current5DayAccRain,       &
+                                        OutputNumber = Me%OutPut%NextOutPut,       &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR106'                  
             endif
 
             if (Me%Coupled%Snow) then
@@ -8911,7 +8932,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     
                     deallocate (Me%SCSCNRunOffModel%Last5DaysAccRain)
                     deallocate (Me%SCSCNRunOffModel%Last5DaysAccRainTotal)
-                    deallocate (Me%SCSCNRunOffModel%AccRain)
+                    deallocate (Me%SCSCNRunOffModel%DailyAccRain)
+                    deallocate (Me%SCSCNRunOffModel%Current5DayAccRain)
                     deallocate (Me%SCSCNRunOffModel%ActualCurveNumber)
                     deallocate (Me%SCSCNRunOffModel%S)
                 endif
