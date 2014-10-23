@@ -1803,6 +1803,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
+        integer                                       :: i, j
         
         allocate(Me%SCSCNRunOffModel%VegGrowthStage%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         call ConstructOneProperty (Me%SCSCNRunOffModel%VegGrowthStage, "VegGrowthStage", "<BeginVegGrowthStage>", "<EndVegGrowthStage>")
@@ -1812,10 +1813,29 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate(Me%SCSCNRunOffModel%CurveNumber%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         call ConstructOneProperty (Me%SCSCNRunOffModel%CurveNumber, "CurveNumber", "<BeginCurveNumber>", "<EndCurveNumber>")
+        
+        !verify input
+        do j = Me%Size%JLB, Me%Size%JUB
+        do i = Me%Size%ILB, Me%Size%IUB
+            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
+                if (Me%SCSCNRunOffModel%CurveNumber%Field(i,j) < 30) then
+                    write(*,*)
+                    write(*,*)'CNII in cell',i,j
+                    write(*,*)'is lower than 30. Please Correct it'
+                    stop 'Module Basin - ConstructSCSCNRunOffModel - ERR01'
+                elseif (Me%SCSCNRunOffModel%CurveNumber%Field(i,j) > 98) then
+                    write(*,*)
+                    write(*,*)'CNII in cell',i,j
+                    write(*,*)'is higher than 98. Please Correct it'
+                    stop 'Module Basin - ConstructSCSCNRunOffModel - ERR02'                                        
+                endif
+            endif
+        enddo
+        enddo        
+        
         if (Me%SCSCNRunOffModel%ConvertIAFactor) then
-            !where(Me%SCSCNRunOffModel%CurveNumber%Field(:,:)>0.0 .and. Me%ExtVar%BasinPoints(:,:) == BasinPoint)
             where(Me%ExtVar%BasinPoints(:,:) == BasinPoint)
-            Me%SCSCNRunOffModel%CurveNumber%Field(:,:) = 100.0 / (1.879 * (100.0 / Me%SCSCNRunOffModel%CurveNumber%Field(:,:) - 1.0)**1.15 + 1.0)
+                Me%SCSCNRunOffModel%CurveNumber%Field(:,:) = 100.0 / (1.879 * (100.0 / Me%SCSCNRunOffModel%CurveNumber%Field(:,:) - 1.0)**1.15 + 1.0)
             end where
         endif
         
@@ -7675,7 +7695,7 @@ cd2 :           if (BlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleBasin - ERR105'  
                 
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/Acc5DayRain",         &
-                                        "Acc5DayRain", "-",                        &
+                                        "Acc5DayRain", "mm",                       &
                                         Array2D      = Me%SCSCNRunOffModel%Current5DayAccRain,       &
                                         OutputNumber = Me%OutPut%NextOutPut,       &
                                         STAT = STAT_CALL)
