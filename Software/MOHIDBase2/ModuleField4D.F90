@@ -144,9 +144,6 @@ Module ModuleField4D
     integer, parameter                              :: AccumulatedValues  = 2
     integer, parameter                              :: OriginalValues     = 3
     
-    !File formats
-    integer, parameter                              :: HDF5_            = 1
-    integer, parameter                              :: NetCDF_          = 2
     
     !Property types
     integer, parameter                              :: Scalar_          = 1
@@ -1299,11 +1296,11 @@ wwd1:       if (Me%WindowWithData) then
             if (Exist) then
                                         
                 call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
-                                  GroupName     = "/Grid/VerticalZ",                    &
-                                  Name          = "Vertical_00001",                     &
-                                  Array3D       = SZZ,                                  &
-                                  OffSet3       = 0,                                    &       
-                                  STAT          = STAT_CALL)
+                                    GroupName     = "/Grid/VerticalZ",                  &
+                                    Name          = "Vertical_00001",                   &
+                                    Array3D       = SZZ,                                &
+                                    OffSet3       = 0,                                  &       
+                                    STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR30'
                 
             else

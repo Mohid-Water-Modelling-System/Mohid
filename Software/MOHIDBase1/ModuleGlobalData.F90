@@ -137,7 +137,12 @@ Module ModuleGlobalData
     !Space units
     integer,            parameter :: meters_      = 1
     integer,            parameter :: centimeters_ = 2
-   
+    
+    !File formats
+    integer,            parameter :: HDF5_        = 1
+    integer,            parameter :: NetCDF_      = 2
+    integer,            parameter :: Binary_      = 3  
+       
     !character
     character(LEN = 1), parameter :: space      = char(32)   !" "
     character(LEN = 1), parameter :: dot        = char(46)   !"."

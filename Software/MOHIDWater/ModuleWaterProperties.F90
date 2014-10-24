@@ -211,7 +211,7 @@ Module ModuleWaterProperties
                                           GetDDecompParameters,                                 &
                                           GetDDecompMPI_ID, GetDDecompON,                       &
                                           WindowIntersectDomain, ReturnsIntersectionCorners,    &
-                                          GetGridOutBorderPolygon
+                                          GetGridOutBorderPolygon, GetDDecompWorkSize2D
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,   &
                                           GetGeometryKFloor, GetGeometryWaterColumn,            &
                                           GetGeometryDistances, GetLayer4Level
@@ -6055,8 +6055,6 @@ subroutine Construct_Discharges_Tracking
         call ReadFileName('EUL_INI', Me%Files%InitialWaterProperties,                   &
                            Message = Message, TIME_END = Me%ExternalVar%Now,            &
                            Extension = 'elf',                                           &
-                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),          &
-                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),          &
                            STAT      = STAT_CALL)                           
 
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
@@ -9668,30 +9666,25 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         !Local-----------------------------------------------------------------
         logical                                     :: EXIST
         character (Len = StringLength)              :: PropertyName
-        integer                                     :: WorkILB, WorkIUB
-        integer                                     :: WorkJLB, WorkJUB
-        integer                                     :: WorkKLB, WorkKUB
         integer                                     :: STAT_CALL
         integer                                     :: ObjHDF5
         integer(4)                                  :: HDF5_READ
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                     :: ILW, IUW, JLW, JUW
+        type (T_Size2D)                             :: WindowLimitsJI
+        integer                                     :: Imax, Jmax, Kmax
+        real,    dimension(:,:,:), pointer          :: Aux3D
+        logical                                     :: MasterOrSlave
+        
 
         !----------------------------------------------------------------------
         
-        ILB = Me%Size%ILB 
-        IUB = Me%Size%IUB 
-        JLB = Me%Size%JLB 
-        JUB = Me%Size%JUB 
-        KLB = Me%Size%KLB 
-        KUB = Me%Size%KUB 
-
-        WorkILB = Me%WorkSize%ILB 
-        WorkIUB = Me%WorkSize%IUB 
-        WorkJLB = Me%WorkSize%JLB 
-        WorkJUB = Me%WorkSize%JUB 
-        WorkKLB = Me%WorkSize%KLB 
-        WorkKUB = Me%WorkSize%KUB 
-
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KLB = Me%WorkSize%KLB 
+        KUB = Me%WorkSize%KUB 
 
         inquire (FILE=trim(Me%Files%InitialWaterProperties)//"5", EXIST = EXIST)
 
@@ -9709,7 +9702,36 @@ cd0:    if (EXIST) then
                                 HDF5_READ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadOldConcBoundariesHDF - ModuleWaterProperties - ERR01.'
+                
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      MasterOrSlave    = MasterOrSlave,                 &
+                                      STAT             = STAT_CALL)
+                                                  
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR10'
+                
+                
+ifMS:       if (MasterOrSlave) then
+                    
+                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                          WorkSize         = WindowLimitsJI,       &
+                                          STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR40'
+                
+                ILW = WindowLimitsJI%ILB
+                IUW = WindowLimitsJI%IUB
 
+                JLW = WindowLimitsJI%JLB
+                JUW = WindowLimitsJI%JUB
+                                                      
+            else ifMS
+
+                ILW = ILB 
+                IUW = IUB
+
+                JLW = JLB 
+                JUW = JUB 
+
+            endif ifMS                                            
 
             PropertyName = trim(adjustl(NewProperty%ID%name))
 
@@ -9723,35 +9745,38 @@ cd1 :       if (associated(NewProperty%Assimilation%Field)) then
 
 
             ! Reads from HDF file the Property concentration and open boundary values
-            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                              &
-                                 WorkJLB, WorkJUB, WorkKLB, WorkKUB,                     &
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
+            call HDF5SetLimits  (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ReadOldConcBoundariesHDF - ModuleWaterProperties - ERR02.'
+                
+            allocate(Aux3D(ILW:IUW, JLW:JUW, KLB:KUB))       
+            
 
-            call HDF5ReadData   (ObjHDF5, "/Concentration/"//NewProperty%ID%Name,        &
-                                 NewProperty%ID%Name,                                    &
-                                 Array3D = NewProperty%Concentration,                    &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
+                                GroupName     = "/Concentration/"//NewProperty%ID%Name, &
+                                Name          = NewProperty%ID%Name,                    &
+                                Array3D       = Aux3D,                                  &
+                                STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'ReadOldConcBoundariesHDF - ModuleWaterProperties - ERR03.'
+                
+            NewProperty%Concentration(ILB:IUB, JLB:JUB, KLB:KUB) = Aux3D(ILW:IUW, JLW:JUW, KLB:KUB)
 
 cd2 :       if (associated(NewProperty%Assimilation%Field)) then
 
-                call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                          &
-                                     WorkJLB, WorkJUB, WorkKLB, WorkKUB,                 &
-                                     STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadOldConcBoundariesHDF - ModuleWaterProperties - ERR04.'
-
-                call HDF5ReadData   (ObjHDF5, "/Assimilation/"//NewProperty%ID%Name,     &
-                                     NewProperty%ID%Name,                                &
-                                     Array3D = NewProperty%Assimilation%Field,           &
-                                     STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadOldConcBoundariesHDF - ModuleWaterProperties - ERR05.'
+                call HDF5ReadWindow(HDF5ID     = ObjHDF5,                               &
+                                    GroupName  = "/Assimilation/"//NewProperty%ID%Name, &
+                                    Name       = NewProperty%ID%Name,                   &
+                                    Array3D    = Aux3D,                                 &
+                                    STAT       = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'ReadOldConcBoundariesHDF - ModuleWaterProperties - ERR05.'
+                    
+                NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB) = Aux3D(ILW:IUW, JLW:JUW, KLB:KUB)                    
 
             end if cd2
+            
+            deallocate(Aux3D)
 
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
@@ -24915,6 +24940,21 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                             HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR10'
+            
+        !call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionX", "m",                      &
+        !                      Array2D = Me%ExternalVar%XX_IE,                            &
+        !                      STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                                                       &
+        !    stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR60'
+
+        !call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionY", "m",                      &
+        !                      Array2D = Me%ExternalVar%YY_IE,                            &
+        !                      STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                                                       &
+        !    stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR70'
+        
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR70'
 
 
         !Sets limits for next write operations
@@ -24942,17 +24982,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR50'
 
-        call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionX", "m",                      &
-                              Array2D = Me%ExternalVar%XX_IE,                            &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR60'
 
-        call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionY", "m",                      &
-                              Array2D = Me%ExternalVar%YY_IE,                            &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR70'
 
         !Writes SZZ
         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                         &

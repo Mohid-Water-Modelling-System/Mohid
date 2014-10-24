@@ -235,14 +235,17 @@ Module ModuleTurbulence
 
 
     type       T_TurbOptions
-         integer                                    :: MODTURB        = null_int
-         integer                                    :: MODVISH        = null_int
-         integer                                    :: MLD_Method     = null_int !inicialization: Carina
-         logical                                    :: Continuous_Compute = .false. !inicialization: Carina
-         logical                                    :: MLD_Calc       = .false. !inicialization: Carina
-         logical                                    :: MLD_Calc_Bot   = .false. !inicialization: Carina
-         integer                                    :: DensityMethod  = null_int !inicialization: Carina
-         logical                                    :: PressureCorrec = .false. !inicialization: Carina
+         integer                                    :: MODTURB               = null_int
+         integer                                    :: MODVISH               = null_int
+         integer                                    :: MLD_Method            = null_int
+         logical                                    :: Continuous_Compute    = .false. 
+         logical                                    :: MLD_Calc              = .false. 
+         logical                                    :: MLD_Calc_Bot          = .false. 
+         integer                                    :: DensityMethod         = null_int
+         logical                                    :: PressureCorrec        = .false. 
+         integer                                    :: ReadContinuousFormat  = null_int
+         integer                                    :: WriteContinuousFormat = null_int
+         integer                                    :: ContinuousFormat      = null_int        
     end type T_TurbOptions
 
     type       T_Statistics
@@ -1218,17 +1221,18 @@ case1 : select case  (Me%TurbOptions%MODTURB)
             case (TurbulenceEquation_   )   
 
 
-                call StartTurbGOTM( Me%ObjTurbGOTM,                     &
-                                    Me%ObjTime,                         &
-                                    Me%ObjGridData,                     &
-                                    Me%ObjMap,                          &
-                                    Me%ObjHorizontalMap,                &
-                                    Me%ObjHorizontalGrid,               &
-                                    Me%ObjGeometry,                     & 
-                                    Me%TurbOptions%Continuous_Compute,  &
+                call StartTurbGOTM( Me%ObjTurbGOTM,                                     &
+                                    Me%ObjTime,                                         &
+                                    Me%ObjGridData,                                     &
+                                    Me%ObjMap,                                          &
+                                    Me%ObjHorizontalMap,                                &
+                                    Me%ObjHorizontalGrid,                               &
+                                    Me%ObjGeometry,                                     & 
+                                    Me%TurbOptions%Continuous_Compute,                  &
+                                    Me%TurbOptions%ReadContinuousFormat,                &
                                     STAT = STAT_CALL    )
                 
-                if (STAT_CALL .NE. SUCCESS_)                            &
+                if (STAT_CALL .NE. SUCCESS_)                                            &
                    stop 'Subroutine InicVerticalModels - ModuleTurbulence. ERR03'
         
 
@@ -1602,6 +1606,96 @@ cd2 :   if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_, "TurbulenceOptions - Turbulence - ERR16")
+
+        !<BeginKeyword>
+            !Keyword          : READ_CONTINUOUS_FORMAT
+            !<BeginDescription>       
+               ! 
+               ! Checks what format the user wants to use in reading hotstart files
+               ! 
+            !<EndDescription>
+            !Type             : Integer 
+            !Default          : HDF5_
+            !File keyword     : IN_DAD3D
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%TurbOptions%ReadContinuousFormat,                               &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'READ_CONTINUOUS_FORMAT',                             &
+                     Default    = HDF5_,                                                &                                           
+                     ClientModule ='Turbulence',                                        &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR200.')
+
+        !<BeginKeyword>
+            !Keyword          : WRITE_CONTINUOUS_FORMAT
+            !<BeginDescription>       
+               ! 
+               ! Checks what format the user wants to use in writting hotstart files
+               ! 
+            !<EndDescription>
+            !Type             : Integer 
+            !Default          : HDF5_
+            !File keyword     : IN_DAD3D
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%TurbOptions%WriteContinuousFormat,                              &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'WRITE_CONTINUOUS_FORMAT',                            &
+                     Default    = HDF5_,                                                &                                           
+                     ClientModule ='Turbulence',                                        &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR250.')
+            
+            
+
+
+        !<BeginKeyword>
+            !Keyword          : CONTINUOUS_FORMAT
+            !<BeginDescription>       
+               ! 
+               ! Checks what format the user wants to use in the hotstart 
+               ! 
+            !<EndDescription>
+            !Type             : Integer 
+            !Default          : HDF5_
+            !File keyword     : IN_DAD3D
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%TurbOptions%ContinuousFormat,                                   &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'CONTINUOUS_FORMAT',                                  &
+                     Default    = HDF5_,                                                &                                           
+                     ClientModule ='Turbulence',                                        &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR270.')
+            
+        if (flag == 1) then
+            Me%TurbOptions%ReadContinuousFormat  = Me%TurbOptions%ContinuousFormat
+            Me%TurbOptions%WriteContinuousFormat = Me%TurbOptions%ContinuousFormat
+        endif
+        
+        if (Me%TurbOptions%ReadContinuousFormat /= Binary_ .and.                        &
+            Me%TurbOptions%ReadContinuousFormat /= HDF5_) then
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR290.')
+        endif
+            
+        if (Me%TurbOptions%WriteContinuousFormat /= Binary_ .and.                       &
+            Me%TurbOptions%WriteContinuousFormat /= HDF5_) then
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR300.')
+        endif
 
     end subroutine TurbulenceOptions   
 
@@ -3535,10 +3629,11 @@ do1 :           do K = kbottom, Me%WorkSize%KUB+1
 
             if(Me%ExternalVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
 
-                call Write_Final_Turbulence_File(Me%ObjTurbGOTM,                            &
+                call Write_Final_Turbulence_File(Me%TurbOptions%WriteContinuousFormat,      &
+                                                 Me%ObjTurbGOTM,                            &
                                                  Overwrite = Me%Output%RestartOverwrite,    &
-                                                 STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'OutPut_Results_HDF - ModuleTurbulence - ERR40'
+                                                 STAT      = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'OutPut_Results_HDF - ModuleTurbulence - ERR40'
 
                 Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
 
@@ -5981,7 +6076,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
 cd7 :           if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
               
-                    call KillTurbGOTM(Me%ObjTurbGOTM, STAT = STAT_CALL)
+                    call KillTurbGOTM(Me%ObjTurbGOTM, Me%TurbOptions%WriteContinuousFormat, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                &
                         stop 'Kill_Turbulence - ModuleTurbulence - ERR01'
 

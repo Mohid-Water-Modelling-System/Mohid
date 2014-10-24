@@ -60,6 +60,7 @@ Module ModuleHDF5
     private ::      UpdateMinMaxAttribute
     private ::      ConstructDSName
     public  ::  HDF5WriteGlobalAttribute
+    public  ::  HDF5ReadGlobalAttribute
     public  ::  HDF5ReadData
     public  ::  HDF5ReadHyperSlab
     public  ::  HDF5ReadWindow 
@@ -153,6 +154,13 @@ Module ModuleHDF5
         module procedure HDF5WriteGlobalAttribute_Int
         module procedure HDF5WriteGlobalAttribute_R4
         module procedure HDF5WriteGlobalAttribute_R8   
+    end interface
+
+    interface HDF5ReadGlobalAttribute
+        module procedure HDF5ReadGlobalAttribute_Char
+        module procedure HDF5ReadGlobalAttribute_Int
+        module procedure HDF5ReadGlobalAttribute_R4
+        module procedure HDF5ReadGlobalAttribute_R8   
     end interface
 
     !Parameter
@@ -669,6 +677,241 @@ Module ModuleHDF5
     end subroutine UpdateMinMaxAttribute
 
     !--------------------------------------------------------------------------
+    
+
+    subroutine HDF5ReadGlobalAttribute_Char(HDF5ID, GroupName, AttributeName, Att_Char, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                   , intent(in)      :: HDF5ID
+        character(len=*)          , intent(in)      :: GroupName
+        character(len=*)          , intent(in)      :: AttributeName
+        character(len=*)          , intent(out)     :: Att_Char
+        integer         , optional, intent(out)     :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: space_id
+        integer(HID_T)                              :: attr_id1
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer(HID_T)                              :: gr_id, attr_id
+        integer                                     :: STAT_, ready_, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            call CheckGroupExistence(Me%FileID, GroupName, .false.)
+
+            !Opens the group
+            call h5gopen_f (Me%FileID, trim(GroupName), gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Char - ModuleHDF5 - ERR10'
+
+            !Reads Real Value
+            call h5aopen_name_f     (gr_id, trim(AttributeName), attr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Char - ModuleHDF5 - ERR20'
+            
+            call h5aread_f          (attr_id, H5T_NATIVE_CHARACTER, Att_Char, dims, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Char - ModuleHDF5 - ERR30'
+            
+            call h5aclose_f         (attr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Char - ModuleHDF5 - ERR40'
+
+            !Closes the Group
+            call h5gclose_f         (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Char - ModuleHDF5 - ERR50'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine HDF5ReadGlobalAttribute_Char
+
+    !--------------------------------------------------------------------------
+    
+
+    subroutine HDF5ReadGlobalAttribute_Int(HDF5ID, GroupName, AttributeName, Att_Int, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                   , intent(in)      :: HDF5ID
+        character(len=*)          , intent(in)      :: GroupName
+        character(len=*)          , intent(in)      :: AttributeName
+        integer                   , intent(out)     :: Att_Int
+        integer         , optional, intent(out)     :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: space_id
+        integer(HID_T)                              :: attr_id1
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer(HID_T)                              :: gr_id, attr_id
+        integer                                     :: STAT_, ready_, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            call CheckGroupExistence(Me%FileID, GroupName, .false.)
+
+            !Opens the group
+            call h5gopen_f (Me%FileID, trim(GroupName), gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Int - ModuleHDF5 - ERR10'
+
+            !Reads Real Value
+            call h5aopen_name_f     (gr_id, trim(AttributeName), attr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Int - ModuleHDF5 - ERR20'
+            
+            call h5aread_f          (attr_id, H5T_NATIVE_INTEGER, Att_Int, dims, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Int - ModuleHDF5 - ERR30'
+            
+            call h5aclose_f         (attr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Int - ModuleHDF5 - ERR40'
+
+            !Closes the Group
+            call h5gclose_f         (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_Int - ModuleHDF5 - ERR50'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine HDF5ReadGlobalAttribute_Int
+
+    !--------------------------------------------------------------------------
+
+
+    subroutine HDF5ReadGlobalAttribute_R4(HDF5ID, GroupName, AttributeName, Att_Real, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                   , intent(in)      :: HDF5ID
+        character(len=*)          , intent(in)      :: GroupName
+        character(len=*)          , intent(in)      :: AttributeName
+        real(4)                   , intent(out)     :: Att_Real
+        integer         , optional, intent(out)     :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: space_id
+        integer(HID_T)                              :: attr_id1
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer(HID_T)                              :: gr_id, attr_id
+        integer                                     :: STAT_, ready_, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            call CheckGroupExistence(Me%FileID, GroupName, .false.)
+
+            !Opens the group
+            call h5gopen_f (Me%FileID, trim(GroupName), gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R4 - ModuleHDF5 - ERR10'
+
+            !Reads Real Value
+            call h5aopen_name_f     (gr_id, trim(AttributeName), attr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R4 - ModuleHDF5 - ERR20'
+            
+            call h5aread_f          (attr_id, H5T_NATIVE_REAL, Att_Real, dims, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R4 - ModuleHDF5 - ERR30'
+            
+            call h5aclose_f         (attr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R4 - ModuleHDF5 - ERR40'
+
+            !Closes the Group
+            call h5gclose_f         (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R4 - ModuleHDF5 - ERR50'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine HDF5ReadGlobalAttribute_R4
+
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5ReadGlobalAttribute_R8(HDF5ID, GroupName, AttributeName, Att_Real, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                   , intent(in)      :: HDF5ID
+        character(len=*)          , intent(in)      :: GroupName
+        character(len=*)          , intent(in)      :: AttributeName
+        real(8)                   , intent(out)     :: Att_Real
+        integer         , optional, intent(out)     :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer(HID_T)                              :: space_id
+        integer(HID_T)                              :: attr_id1
+        integer(HSIZE_T), dimension(7)              :: dims
+        integer(HID_T)                              :: gr_id, attr_id
+        integer                                     :: STAT_, ready_, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (HDF5ID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+
+            call CheckGroupExistence(Me%FileID, GroupName, .false.)
+
+            !Opens the group
+            call h5gopen_f (Me%FileID, trim(GroupName), gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R8 - ModuleHDF5 - ERR10'
+
+            !Reads Real Value
+            call h5aopen_name_f     (gr_id, trim(AttributeName), attr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R8 - ModuleHDF5 - ERR20'
+            
+            call h5aread_f          (attr_id, H5T_NATIVE_DOUBLE, Att_Real, dims, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R8 - ModuleHDF5 - ERR30'
+            
+            call h5aclose_f         (attr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R8 - ModuleHDF5 - ERR40'
+
+            !Closes the Group
+            call h5gclose_f         (gr_id, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadGlobalAttribute_R8 - ModuleHDF5 - ERR50'
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine HDF5ReadGlobalAttribute_R8
+
+    !--------------------------------------------------------------------------    
 
     subroutine HDF5WriteGlobalAttribute_Char(HDF5ID, GroupName, AttributeName, Att_Char, STAT)
 

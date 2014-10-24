@@ -137,14 +137,16 @@ Module ModuleHydrodynamic
                                        GetDDecompParameters,                             &
                                        WindowIntersectDomain,                            &
                                        ReturnsIntersectionCorners,                       &                                       
-                                       GetGridOutBorderPolygon
+                                       GetGridOutBorderPolygon,                          &
+                                       GetDDecompWorkSize2D
                                        
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,          &
                                        GetGeometryDistances, GetGeometryKFloor,          &
                                        GetGeometryMinWaterColumn, UnGetGeometry,         &
-                                       ReadGeometry, ComputeInitialGeometry,             &
-                                       ComputeVerticalGeometry, WriteGeometry,           &
-                                       GetGeometryVolumes, GetGeometryAreas, GetLayer4Level
+                                       ReadGeometryBin, ComputeInitialGeometry,          &
+                                       ComputeVerticalGeometry, WriteGeometryBin,        &
+                                       GetGeometryVolumes, GetGeometryAreas,             &
+                                       GetLayer4Level, WriteGeometryHDF, ReadGeometryHDF
     use ModuleMap,              only : GetWaterPoints3D, GetOpenPoints3D,                &
                                        GetComputeFaces3D, GetImposedTangentialFaces,     &
                                        GetImposedNormalFaces, UnGetMap,                  &
@@ -248,6 +250,8 @@ Module ModuleHydrodynamic
     private ::          ConstructMatrixesOutput
     private ::          ConstructHydrodynamicProperties
     private ::              Read_Final_Hydrodynamic_File
+    private ::                  Read_Final_HDF5
+    private ::                  Read_Final_Bin    
     private ::          ReadInitialImposedSolution
     private ::          Initial_Geometry
 
@@ -463,6 +467,8 @@ Module ModuleHydrodynamic
     public  :: KillHydrodynamic
     private ::      KillHydroStatistics
     private ::      Write_Final_Hydrodynamic_File
+    private ::          Write_Final_Bin
+    private ::          Write_Final_HDF5    
     private ::      Deassociate_External_Modules               
     private ::      Kill_Sub_Modules
     private ::          KillEnergy
@@ -674,6 +680,7 @@ Module ModuleHydrodynamic
     !Ways of computing the tide potential phase of each constituint using the doodson numbers
     integer, parameter     :: Kantha = 1, Lefevre=2
     
+
 
     !Types---------------------------------------------------------------------
 
@@ -1379,6 +1386,10 @@ Module ModuleHydrodynamic
         logical                         :: XZFlow   = .false.
         
         logical                         :: ExternalBarotropicVel2D  = .true. 
+        
+        integer                         :: ReadContinuousFormat  = null_int
+        integer                         :: WriteContinuousFormat = null_int
+        integer                         :: ContinuousFormat      = null_int        
         
     end type T_HydroOptions
 
@@ -3463,13 +3474,10 @@ cd1:    if (Evolution == Solve_Equations_) then
         ! ---> Hydrodynamic properties initial values in HDF format
         Message   ='Water properties initial values in HDF format.'
         Message   = trim(Message)
-
         call ReadFileName('IN_CNDI', Me%Files%InitialHydrodynamic,                      &
                            Message   = Message, TIME_END = Me%BeginTime,                &
-                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
-
+                           
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
             stop 'Subroutine Read_Hydrodynamic_Files_Name - ModuleHydrodynamic. ERR06'
@@ -3568,7 +3576,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         
         integer :: VelTangentialBoundary, VelNormalBoundary, ComputeWind
 
-        integer :: ClientNumber, WorkKUB, AuxInt
+        integer :: ClientNumber, WorkKUB, AuxInt, DefaultFormat
 
         character(LEN = StringLength)  :: BeginBlock, EndBlock, String
         
@@ -3622,8 +3630,6 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             !Search Type      : FromFile
         !<EndKeyword>
 
-
-
         call GetData(Continuous_Compute,                                                &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
@@ -3635,7 +3641,104 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR20.')
 
         Me%ComputeOptions%Continuous = Continuous_Compute
+        
+#ifdef _USE_MPI        
 
+        DefaultFormat = Binary_    
+#else
+
+        DefaultFormat = HDF5_
+
+#endif
+
+        !<BeginKeyword>
+            !Keyword          : READ_CONTINUOUS_FORMAT
+            !<BeginDescription>       
+               ! 
+               ! Checks what format the user wants to use in reading hotstart files
+               ! 
+            !<EndDescription>
+            !Type             : Integer 
+            !Default          : HDF5_
+            !File keyword     : IN_DAD3D
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%ComputeOptions%ReadContinuousFormat,                            &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'READ_CONTINUOUS_FORMAT',                             &
+                     Default    = DefaultFormat,                                        &                                           
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR23.')
+
+        !<BeginKeyword>
+            !Keyword          : WRITE_CONTINUOUS_FORMAT
+            !<BeginDescription>       
+               ! 
+               ! Checks what format the user wants to use in writting hotstart files
+               ! 
+            !<EndDescription>
+            !Type             : Integer 
+            !Default          : HDF5_
+            !File keyword     : IN_DAD3D
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%ComputeOptions%WriteContinuousFormat,                           &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'WRITE_CONTINUOUS_FORMAT',                            &
+                     Default    = DefaultFormat,                                        &                                           
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR24.')
+
+
+        !<BeginKeyword>
+            !Keyword          : CONTINUOUS_FORMAT
+            !<BeginDescription>       
+               ! 
+               ! Checks what format the user wants to use in the hotstart 
+               ! 
+            !<EndDescription>
+            !Type             : Integer 
+            !Default          : Binary_
+            !File keyword     : IN_DAD3D
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%ComputeOptions%ContinuousFormat,                                &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'CONTINUOUS_FORMAT',                                  &
+                     Default    = HDF5_,                                                &                                           
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR25.')
+            
+        if (iflag == 1) then
+            Me%ComputeOptions%ReadContinuousFormat  = Me%ComputeOptions%ContinuousFormat
+            Me%ComputeOptions%WriteContinuousFormat = Me%ComputeOptions%ContinuousFormat
+        endif
+        
+        if (Me%ComputeOptions%ReadContinuousFormat /= Binary_ .and.                     &
+            Me%ComputeOptions%ReadContinuousFormat /= HDF5_) then
+            stop 'Construct_Numerical_Options - Hydrodynamic - ERR27.'
+        endif
+        
+        if (Me%ComputeOptions%WriteContinuousFormat /= Binary_ .and.                     &
+            Me%ComputeOptions%WriteContinuousFormat /= HDF5_) then
+            stop 'Construct_Numerical_Options - Hydrodynamic - ERR27.'
+        endif
+        
 
         !<BeginKeyword>
             !Keyword          : TIDE
@@ -8740,8 +8843,8 @@ do3:        do  k=KLB, KUB
 
 cd1:    if (Me%ComputeOptions%Continuous) then
 
-            call Read_Final_Hydrodynamic_File
-
+                call Read_Final_Hydrodynamic_File
+            
         else cd1
 
 
@@ -9347,425 +9450,7 @@ cd1:    if (Evolution == Read_File_) then
 
     end subroutine NewEqualsOld
 
-
-    !--------------------------------------------------------------------------
-    !If the user want's to use the values of a previous   
-    ! run the read the property values form the final      
-    ! results file of a previous run. By default this      
-    ! file is in HDF format                                
-
-    subroutine Read_Final_Hydrodynamic_File
-
-        !Arguments-------------------------------------------------------------
-
-         
-
-        !External--------------------------------------------------------------
-
-        integer :: STAT_CALL
-
-        !Local-----------------------------------------------------------------
-        real   , dimension(:,:  ), pointer :: Aux2D
-        real   , dimension(:,:,:), pointer :: Aux3D
-        real(8), dimension(:,:,:), pointer :: Aux3DDouble
-
-        type (T_Time)                      :: BeginTime, EndTimeFile, EndTime
-
-        real                               :: Year_File, Month_File, Day_File,           &
-                                              Hour_File, Minute_File, Second_File,       &
-                                              DT_error
-        real                               :: Previous_Discretization
-
-        integer                            :: IUB, JUB, KUB, ILB, JLB, KLB
-        integer                            :: InitialFile, i, j, k, Evolution
-        integer                            :: BaroclinicRadia
-        logical                            :: EXT, Residual
-        !----------------------------------------------------------------------
-
-        ILB = Me%Size%ILB 
-        IUB = Me%Size%IUB
-
-        JLB = Me%Size%JLB 
-        JUB = Me%Size%JUB 
-
-        KLB = Me%Size%KLB 
-        KUB = Me%Size%KUB 
-
-
-        inquire (FILE=Me%Files%InitialHydrodynamic, EXIST=EXT) 
-
-        if (.not.EXT)                                                                    &
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR01.')
-
-
-        call UnitsManager(InitialFile, FileOpen, STAT = STAT_CALL) 
-
-        if (STAT_CALL /= SUCCESS_)                                                          &
-             call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR02.')
-
-        open(Unit = InitialFile, File = Me%Files%InitialHydrodynamic,       &
-             Form = 'UNFORMATTED', status = 'OLD', IOSTAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                          &
-             call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR03.')
-
-        !Start reading the end file of the previous run 
-        read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
-
-
-        call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
-
-
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
-                                  EndTime = EndTime, STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                          &
-             call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR04.')
-        
-        DT_error = EndTimeFile - BeginTime
-
-        !Avoid rounding erros - Frank 08-2001
-        if (abs(DT_error) >= 0.01) then
-            
-            write(*,*) 'The end time of the previous run is different from the start time of this run'
-            write(*,*) 'Date in the file'
-            write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
-            write(*,*) 'DT_error', DT_error
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR05.')
-
-
-        endif
-
-        read(InitialFile) Previous_Discretization
-        
-        if (Previous_Discretization /= Me%ComputeOptions%Num_Discretization) then
-
-            write(*,*) 'previous run time discretization is different from this one'
-
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR06.')
-
-
-        endif
-
-
-        read(InitialFile) Residual
-
-        !Read the last direction computed implicit by the model
-        read(InitialFile) Me%Direction%XY 
-        
-
-        !Water level
-
-        read(InitialFile) ((Me%WaterLevel%New(i, j), &
-                           i = ILB, IUB), j = JLB, JUB)
-
-        Me%WaterLevel%Old (:,:) = Me%WaterLevel%New(:,:)
-
-
-        !Horizontal velocity Old
-        read(InitialFile) (((Me%Velocity%Horizontal%U%Old(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-
-        read(InitialFile) (((Me%Velocity%Horizontal%V%Old(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-        !Horizontal velocity New
-        read(InitialFile) (((Me%Velocity%Horizontal%U%New(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-        read(InitialFile) (((Me%Velocity%Horizontal%V%New(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-
-        !Water fluxes
-        read(InitialFile) (((Me%WaterFluxes%X(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-        read(InitialFile) (((Me%WaterFluxes%Y(i, j, k) , &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-                            
-        read(InitialFile) (((Me%WaterFluxes%Z(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-
-        Evolution = Me%ComputeOptions%Evolution
-
-        
-        if (Evolution == Residual_hydrodynamic_ .and. .not. Residual) then
-
-            write(*,*) 'Can not have a residual evolution with out a initial file with residual values'
-                        
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR07.')
-
-
-        endif 
-
-      
-cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
-   
-            write(*,*)  
-            write(*,*)  
-            write(*,*)  
-            write(*,*) 'Warning: YOU HAVE STOPPED THE RESIDUAL CALCULATION, '                   
-            write(*,*) 'In the run before this one you have compute residual currents, '                   
-            write(*,*) 'In this run you dont want to compute residual currents ? '                   
-            write(*,*) '                        '
-            write(*,*) 'SUBROUTINE Read_Final_Hydrodynamic_File - ModuleHydrodynamic. WRN01.'
-            write(*,*)  
-            write(*,*)  
-            write(*,*)  
-
-            allocate (Aux2D         (ILB:IUB, JLB:JUB))
-            allocate (Aux3D         (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Aux3DDouble   (ILB:IUB, JLB:JUB, KLB:KUB))
-
-            read(InitialFile) Me%Residual%ResidualTime
-
-            !Average water level 
-            read(InitialFile) ((Aux2D(i, j), i = ILB, IUB), j = JLB, JUB)
-
-            !Residual horizontal velocities
-            read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !Residual vertical velocity  
-            read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !Residual Water specific fluxes 
-            read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-
-            deallocate (Aux2D)
-            deallocate (Aux3D)
-            deallocate (Aux3DDouble)
-       
-        else if (Residual .and. Me%ComputeOptions%Residual) then cd1
-
-           
-            read(InitialFile) Me%Residual%ResidualTime
-
-            !Average water level 
-            read(InitialFile) ((Me%Residual%WaterLevel(i, j),               &
-                               i = ILB, IUB), j = JLB, JUB)
-
-            !Residual horizontal velocities
-            read(InitialFile) (((Me%Residual%Velocity_U(i, j, k),           &
-                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            read(InitialFile) (((Me%Residual%Velocity_V(i, j, k),           &
-                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !Residual vertical velocity  
-            read(InitialFile) (((Me%Residual%Vertical_Velocity(i, j, k),    &
-                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !Residual Water specific fluxes 
-            read(InitialFile) (((Me%Residual%WaterFlux_X(i, j, k),          &
-                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            read(InitialFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,         &
-                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            
-cd2:        if (Evolution == Residual_hydrodynamic_) then
-
-                Me%WaterLevel%Old(:,:) = Me%Residual%WaterLevel(:,:)
-
-                Me%WaterLevel%New(:,:) = Me%Residual%WaterLevel(:,:)
-
-
-                Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Residual%Velocity_U(:,:,:)
-
-                Me%Velocity%Horizontal%U%New(:,:,:) = Me%Residual%Velocity_U(:,:,:)
-
-
-                Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Residual%Velocity_V(:,:,:)
-
-                Me%Velocity%Horizontal%V%New(:,:,:) = Me%Residual%Velocity_V(:,:,:)
-
-                !Module - ModuleHorizontalGrid
-                !Horizontal Grid properties
-                 call GetHorizontalGrid(Me%ObjHorizontalGrid,                           &
-                                        DXX  = Me%External_Var%DXX,                     &
-                                        DYY  = Me%External_Var%DYY,                     &
-                                        STAT = STAT_CALL)
-
-                if (STAT_CALL /= SUCCESS_)                                              &
-                     call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR40.')
-
-                do k = KLB, KUB
-                do j = JLB, JUB
-                do i = ILB, IUB
-
-                    ![m3/s]                 = [m2/s] * [m]
-                    Me%WaterFluxes%X(i,j,k) = Me%Residual%WaterFlux_X(i,j,k) * Me%External_Var%DYY(i, J)
-                    Me%WaterFluxes%Y(i,j,k) = Me%Residual%WaterFlux_Y(i,j,k) * Me%External_Var%DXX(i, J)
-
-                enddo
-                enddo
-                enddo
-                    
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DXX,     &
-                                         STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                     call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR50.')
-
-
-
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY,     &
-                                         STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                     call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR60.')
-
-
-
-
-            endif cd2
-
-
-        else if (.not. Residual .and. Me%ComputeOptions%Residual) then cd1
-
-                Me%Residual%ResidualTime    =  0
-
-
-                do  j = JLB, JUB 
-                do  i = ILB, IUB
-
-                    Me%Residual%WaterLevel(i, j)    =  0.
-
-                    do  k = KLB, KUB
-
-                        !Residual horizontal velocity
-                        Me%Residual%Velocity_U(i, j, k) =  0.
-                        Me%Residual%Velocity_V(i, j, k) =  0.
-
-                        !Residual vertical velocity
-                        Me%Residual%Vertical_Velocity(i, j, k) =  0.              
-
-                        !Residual Water fluxes
-                        Me%Residual%WaterFlux_X(i, j, k) = 0.
-                        Me%Residual%WaterFlux_Y(i, j, k) = 0.
-
-                        !Read residual layer thickness
-                        Me%Residual%DWZ(i, j, k) = 0
-
-                    enddo
-
-                enddo
-                enddo
-     
-        endif cd1
-
-        call ReadGeometry(Me%ObjGeometry, InitialFile, STAT = STAT_CALL) 
-
-        if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR70.')
-
-cd3:    if (Residual .and. Me%ComputeOptions%Residual) then 
-            !Read residual layer thickness
-            read(InitialFile, END = 10) (((Me%Residual%DWZ(i, j, k),        &
-                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-10          continue  
-
-        endif cd3
-
-
-        read(InitialFile, END = 20) BaroclinicRadia
-
-
-cd4:    if (.not. BaroclinicRadia                                == NoRadiation_ .and.   &
-            .not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
-
-
-            !Horizontal baroclinic velocity Old
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%U%Old(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%V%Old(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !Horizontal baroclinic velocity New
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%U%New(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%V%New(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !vertical baroclinic velocity 
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%W_New(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%W_Old(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-        endif cd4
-
-20      continue 
-
-        !NonHydrostatic
-        if (Me%NonHydrostatic%ON) then
-
-            read(InitialFile, IOSTAT = STAT_CALL)                                       &  
-                (((Me%Velocity%Vertical%CartesianOld(i, j, k),                          &
-                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            if (STAT_CALL /= SUCCESS_) then
-                call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR80.')
-            endif
-
-        endif
-        
-        !Submodel
-        if (Me%SubModel%ON) then
-        
-            Me%SubModel%HotStartData = .false. 
-
-            read(InitialFile, END = 30, IOSTAT = STAT_CALL)                             &  
-                (((Me%SubModel%qX(i, j, k),                                             &
-                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            if (STAT_CALL /= SUCCESS_) then
-                call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR90.')
-            endif
-
-            read(InitialFile, END = 30, IOSTAT = STAT_CALL)                                       &  
-                (((Me%SubModel%qY(i, j, k),                                             &
-                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            if (STAT_CALL /= SUCCESS_) then
-                call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR100.')
-            endif
-            
-            Me%SubModel%HotStartData = .true. 
-            
-30          continue
-
-            if (.not. Me%SubModel%HotStartData) then 
-                write(*,*) 'you are doing a hot start based in a old version of MOHID'
-                write(*,*) 'version before Nov 2010'
-                write(*,*) 'in this case in the first iteration if the South/North boundaries are open'
-                write(*,*) 'and the follow options are on (RADIATION : 2; LOCAL_SOLUTION : 2)'
-                write(*,*) 'the mpodel will generate a perturbation that might take some type to dissipate'
-                write(*,*) 'in less dissipative enviroments like the Ocean'
-            endif 
-
-        endif        
-
-        call UnitsManager(InitialFile, FileClose, STAT = STAT_CALL) 
-
-        if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR110.')
-
-
-
-    end subroutine Read_Final_Hydrodynamic_File
-
-    !--------------------------------------------------------------------------
-
+!-----------------------------------------------------------------------------
 
     subroutine Initial_Geometry( ExternalWaterLevel)
 
@@ -44162,9 +43847,24 @@ cd3:            if (Me%OutPut%hdf5ON) then
 
 
     !--------------------------------------------------------------------------
-    ! The model writes the final hydrodynamic properties in a binary file
+    ! The model writes the final hydrodynamic properties
 
     subroutine Write_Final_Hydrodynamic_File
+
+        !Arguments-------------------------------------------------------------
+        
+        if      (Me%ComputeOptions%WriteContinuousFormat == Binary_) then
+            call Write_Final_Bin
+        elseif  (Me%ComputeOptions%WriteContinuousFormat == HDF5_  ) then
+            call Write_Final_HDF5
+        endif 
+        
+    end subroutine Write_Final_Hydrodynamic_File
+
+    !--------------------------------------------------------------------------
+    ! The model writes the final hydrodynamic properties in a binary file
+
+    subroutine Write_Final_Bin
 
         !Arguments-------------------------------------------------------------
 
@@ -44198,7 +43898,7 @@ cd3:            if (Me%OutPut%hdf5ON) then
 
         call UnitsManager(FinalFile, FileOpen, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR10.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR10.')
 
         !Checks if it's at the end of the run 
         !or !if it's supposed to overwrite the final HDF file
@@ -44217,12 +43917,12 @@ cd3:            if (Me%OutPut%hdf5ON) then
              Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR20.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR20.')
 
         !Time Properties - Actualizes CurrentTime
         call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR30.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR30.')
 
 
 
@@ -44302,9 +44002,10 @@ cd1:    if (Me%ComputeOptions%Residual) then
                               
         endif cd1
 
-        call WriteGeometry(Me%ObjGeometry, FinalFile, STAT = STAT_CALL) 
+        call WriteGeometryBin(Me%ObjGeometry, FinalFile, STAT = STAT_CALL) 
+        
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR40.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR40.')
 
 cd2:    if (Me%ComputeOptions%Residual) then 
 
@@ -44358,7 +44059,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                    i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
             if (STAT_CALL /= SUCCESS_) then
-                call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR50.')
+                call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR50.')
             endif
 
             write(FinalFile, IOSTAT = STAT_CALL)                                        &  
@@ -44366,7 +44067,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                    i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
             if (STAT_CALL /= SUCCESS_) then
-                call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR60.')
+                call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR60.')
             endif
 
         endif        
@@ -44374,12 +44075,1675 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
         call UnitsManager(FinalFile, FileClose, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                                        &
-            call SetError (FATAL_, INTERNAL_,'Write_Final_Hydrodynamic_File; ModuleHydrodynamic. ERR70.')
+            call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR70.')
 
 
-    end subroutine Write_Final_Hydrodynamic_File
+    end subroutine Write_Final_Bin
 
     !End--------------------------------------------------------------------------
+    
+    
+    !--------------------------------------------------------------------------
+    ! The model writes the final hydrodynamic properties in a HDF5 
+    subroutine Write_Final_HDF5
+
+        !Arguments-------------------------------------------------------------
+
+         
+
+        !External--------------------------------------------------------------
+
+        integer :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        real,       dimension(:,:),     pointer     :: Bathymetry
+        integer,    dimension(:,:,:),   pointer     :: WaterPoints3D        
+        real,       dimension(6), target            :: AuxTime
+        real,       dimension(:),       pointer     :: TimePtr        
+        integer                                     :: IUB, JUB, KUB, ILB, JLB, KLB
+        integer                                     :: FinalFile, i, j, k, HDF5_CREATE, ObjHDF5
+        integer,    dimension(:),       pointer     :: AuxInt
+        real,       dimension(:),       pointer     :: AuxReal
+        character (Len = Pathlength)                :: filename
+        
+
+        !----------------------------------------------------------------------
+
+        allocate(AuxReal(1), AuxInt(1))
+        
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+
+        KLB = Me%WorkSize%KLB 
+        KUB = Me%WorkSize%KUB 
+
+
+        !Checks if it's at the end of the run 
+        !or !if it's supposed to overwrite the final HDF file
+        if (Me%Output%Run_End .or. Me%Output%RestartOverwrite) then
+
+            filename = trim(Me%Files%FinalHydrodynamic)
+
+        else
+
+            filename =  ChangeSuffix(Me%Files%FinalHydrodynamic,                         &
+                            "_"//trim(TimeToString(Me%CurrentTime))//".fin")
+
+        endif
+
+
+        !Gets a pointer to Bathymetry
+        call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR20'
+
+        !Gets WaterPoints3D
+        call GetWaterPoints3D   (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR30'
+
+
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        ObjHDF5 = 0
+
+        !Opens HDF File
+        call ConstructHDF5      (ObjHDF5,                                               &
+                                 trim(FileName),                                        &
+                                 HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR40'
+        
+
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
+                                 WorkSize = Me%WorkSize2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR50'
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR60'
+
+        !Writes the Grid
+        call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
+                              Array2D = Bathymetry,                                     &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR70'
+
+        call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                   &  
+                              Array3D = WaterPoints3D,                                  &
+                              STAT    = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR80'
+
+
+        !Writes everything to disk
+        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR90'
+
+
+        !Ungets the Bathymetry
+        call UngetGridData (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR110'
+
+        !Ungets the WaterPoints
+        call UnGetMap        (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR120'
+
+
+        !Time Properties - Actualizes CurrentTime
+        call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError (FATAL_, INTERNAL_,'Write_Final_HDF5; ModuleHydrodynamic. ERR130.')
+
+        !Start writting the final hydrodynamic conditions file
+        call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2), AuxTime(3),         &
+                                            AuxTime(4), AuxTime(5), AuxTime(6))
+        TimePtr => AuxTime
+        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR140'
+
+        !write(FinalFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
+        call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",           &
+                             Array1D = TimePtr, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR150'
+        
+        !!!!!!!!!!!!!!!!!start hydrodynamic options!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5, 1, 1, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR155'
+
+        !Write the discretization Method used
+        
+        AuxReal(1) = Me%ComputeOptions%Num_Discretization
+
+        !write(FinalFile) Me%ComputeOptions%Num_Discretization
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Time",                                  &
+                             Name           = "discretization method",                  & 
+                             Units          = "-",                                      &
+                             Array1D        = AuxReal,                                  &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR160'
+
+
+        !write(FinalFile) Me%ComputeOptions%Residual
+        !Convert logical in int 
+        if (Me%ComputeOptions%Residual) then
+            AuxInt(1) = 1
+        else
+            AuxInt(1) = 0
+        endif            
+
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Time",                                  &
+                             Name           = "residual ON",                            & 
+                             Units          = "0/1",                                    &
+                             Array1D        = AuxInt,                                   &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR170'                             
+        
+        AuxInt(1) = Me%Direction%XY
+
+        !Write the last direction computed implicit by the model
+        !write(FinalFile) Me%Direction%XY 
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Time",                                  &
+                             Name           = "direction XY",                           & 
+                             Units          = "-",                                      &
+                             Array1D        = AuxInt,                                   &
+                             STAT           = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR180'
+        
+cd2:    if (Me%ComputeOptions%Residual) then
+
+            AuxReal(1) = Me%Residual%ResidualTime
+                   
+            !write(FinalFile) Me%Residual%ResidualTime
+            call HDF5WriteData(HDF5ID        = ObjHDF5,                                 &
+                               GroupName     = "/Time",                                 &
+                               Name          = "residual time",                         &
+                               Units         = "-",                                     &
+                               Array1D       = AuxReal,                                 &
+                               STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR270'        
+
+        endif cd2
+        
+        AuxInt(1) = Me%ComputeOptions%BaroclinicRadia
+
+        !write(FinalFile) Me%ComputeOptions%BaroclinicRadia
+        call HDF5WriteData (HDF5ID        = ObjHDF5,                                    &
+                            GroupName     = "/Time",                                    &        
+                            Name          = "baroclinc radiation",                      &
+                            Units         = "-",                                        &
+                            Array1D       = AuxInt,                                     &
+                            STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR350'       
+        
+        !!!!!!!!!!!!!!!!!end hydrodynamic options!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                 
+        
+        !!!!!!!!!!!!!!!!!start hydrodynamic matrixes!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                         
+                    
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR155'
+
+        !Water level
+        !write(FinalFile) ((Me%WaterLevel%New(i, j),                         &
+        !                   i = ILB, IUB), j = JLB, JUB)
+                                            
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Results",                               &        
+                             Name           = "Water Level New",                        & 
+                             Units          = "m",                                      &
+                             Array2D        = Me%WaterLevel%New,                        &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR190'
+
+
+
+        !Horizontal velocity Old
+        !write(FinalFile) (((Me%Velocity%Horizontal%U%Old(i, j, k),          &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Results",                               &        
+                             Name           = "Velocity U Old",                         &  
+                             Units          = "m/s",                                    &
+                             Array3D        = Me%Velocity%Horizontal%U%Old,             &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR200'        
+
+
+        !write(FinalFile) (((Me%Velocity%Horizontal%V%Old(i, j, k),          &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Results",                               &        
+                             Name           = "Velocity V Old",                         &  
+                             Units          = "m/s",                                    &
+                             Array3D        = Me%Velocity%Horizontal%V%Old,             &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR210'        
+        
+
+
+        !Horizontal velocity New
+        !write(FinalFile) (((Me%Velocity%Horizontal%U%New(i, j, k),          &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Results",                               &        
+                             Name           = "Velocity U New",                         &  
+                             Units          = "m/s",                                    &
+                             Array3D        = Me%Velocity%Horizontal%U%New,             &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR220'
+
+        !write(FinalFile) (((Me%Velocity%Horizontal%V%New(i, j, k),          &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Results",                               &        
+                             Name           = "Velocity V New",                         &  
+                             Units          = "m/s",                                    &
+                             Array3D        = Me%Velocity%Horizontal%V%New,             &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR230'
+
+        !Water fluxes
+        !write(FinalFile) (((Me%WaterFluxes%X(i, j, k),                      &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Results",                               &        
+                             Name           = "Water Fluxes X",                         &  
+                             Units          = "m3/s",                                   &
+                             Array3D        = Me%WaterFluxes%X,                         &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR240'
+        
+
+        !write(FinalFile) (((Me%WaterFluxes%Y(i, j, k) ,                     &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Results",                               &        
+                             Name           = "Water Fluxes Y",                         &  
+                             Units          = "m3/s",                                   &
+                             Array3D        = Me%WaterFluxes%Y,                         &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR250'
+        
+                            
+        !write(FinalFile) (((Me%WaterFluxes%Z(i, j, k),                      &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Results",                               &        
+                             Name           = "Water Fluxes Z",                         &  
+                             Units          = "m3/s",                                   &
+                             Array3D        = Me%WaterFluxes%Z,                         &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR260'        
+       
+cd1:    if (Me%ComputeOptions%Residual) then
+
+            !Average water level 
+            !write(FinalFile) ((Me%Residual%WaterLevel(i, j),                &
+            !                   i = ILB, IUB), j = JLB, JUB)
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Water Level",               &
+                                 Units          = "m",                                  &
+                                 Array2D        = Me%Residual%WaterLevel,               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR280'
+
+            !Residual horizontal velocities
+            !write(FinalFile) (((Me%Residual%Velocity_U(i, j, k),            &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Velocity U",                &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%Residual%Velocity_U,               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR290'
+                        
+            !write(FinalFile) (((Me%Residual%Velocity_V(i, j, k),            &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Velocity V",                &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%Residual%Velocity_V,               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR300'
+            
+
+            !Residual vertical velocity  
+            !write(FinalFile) (((Me%Residual%Vertical_Velocity(i, j, k),     &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Velocity W",                &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%Residual%Vertical_Velocity,        &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR310'            
+
+            !Residual Water specific fluxes 
+            !write(FinalFile) (((Me%Residual%WaterFlux_X(i, j, k),           &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Water Flux X",              &
+                                 Units          = "m3/s",                               &
+                                 Array3D        = Me%Residual%WaterFlux_X,              &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR320'                  
+
+            !write(FinalFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,          &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+ 
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Water Flux Y",              &
+                                 Units          = "m3/s",                               &
+                                 Array3D        = Me%Residual%WaterFlux_Y,              &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR330'
+                              
+        endif cd1
+
+        call WriteGeometryHDF (Me%ObjGeometry, ObjHDF5, STAT = STAT_CALL) 
+        
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            call SetError (FATAL_, INTERNAL_,'Write_Final_HDF5; ModuleHydrodynamic. ERR40.')
+
+cd23:   if (Me%ComputeOptions%Residual) then 
+
+            !Residual layer thickness 
+            !write(FinalFile) (((Me%Residual%DWZ(i, j, k),                   &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual DWZ",                       &
+                                 Units          = "m",                                  &
+                                 Array3D        = Me%Residual%DWZ,                      &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR340'            
+
+        endif cd23
+
+
+
+cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
+
+
+            !Horizontal baroclinic velocity Old
+            !write(FinalFile) (((Me%VelBaroclinic%U%Old(i, j, k),            &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic U Old",          &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%VelBaroclinic%U%Old,               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR360'
+
+
+            !write(FinalFile) (((Me%VelBaroclinic%V%Old(i, j, k),            &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic V Old",          &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%VelBaroclinic%V%Old,               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR370'
+            
+
+            !Horizontal baroclinic velocity New
+            !write(FinalFile) (((Me%VelBaroclinic%U%New(i, j, k),            &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+           !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic U New",          &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%VelBaroclinic%U%New,               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR380'            
+
+            !write(FinalFile) (((Me%VelBaroclinic%V%New(i, j, k),            &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic V New",          &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%VelBaroclinic%V%New,               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR390'
+
+            !vertical baroclinic velocity 
+            !write(FinalFile) (((Me%VelBaroclinic%W_New(i, j, k),            &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            !write(FinalFile) (((Me%VelBaroclinic%W_Old(i, j, k),            &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic W New",          &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%VelBaroclinic%W_New,               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR400'
+            
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic W Old",          &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%VelBaroclinic%W_Old,               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR410'
+
+
+        endif cd4
+
+
+        if (Me%NonHydrostatic%ON) then
+
+            !write(FinalFile) (((Me%Velocity%Vertical%CartesianOld(i, j, k), &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Vertical Cartesian Old",    &
+                                 Units          = "m/s",                                &
+                                 Array3D        = Me%Velocity%Vertical%CartesianOld,    &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR410'
+            
+        endif
+
+        !Submodel
+        if (Me%SubModel%ON) then
+
+            !write(FinalFile, IOSTAT = STAT_CALL)                                        &  
+            !    (((Me%SubModel%qX(i, j, k),                                             &
+            !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            !if (STAT_CALL /= SUCCESS_) then
+            !    call SetError (FATAL_, INTERNAL_,'Write_Final_HDF5; ModuleHydrodynamic. ERR50.')
+            !endif
+            
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Submodel qX",                        &
+                                 Units          = "m2/s",                               &
+                                 Array3D        = Me%SubModel%qX,                       &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR420'
+            
+
+            !write(FinalFile, IOSTAT = STAT_CALL)                                        &  
+            !    (((Me%SubModel%qY(i, j, k),                                             &
+            !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            !if (STAT_CALL /= SUCCESS_) then
+            !    call SetError (FATAL_, INTERNAL_,'Write_Final_HDF5; ModuleHydrodynamic. ERR60.')
+            !endif
+            
+            call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Submodel qY",                        &
+                                 Units          = "m2/s",                               &
+                                 Array3D        = Me%SubModel%qY,                       &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR430'
+            
+
+        endif        
+
+
+        call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR440'
+        
+        deallocate(AuxReal, AuxInt)
+
+    end subroutine Write_Final_HDF5
+
+    !End--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    ! The model writes the final hydrodynamic properties
+
+    subroutine Read_Final_Hydrodynamic_File
+
+        !Arguments-------------------------------------------------------------
+        
+        if      (Me%ComputeOptions%ReadContinuousFormat == Binary_) then
+            call Read_Final_Bin
+        elseif  (Me%ComputeOptions%ReadContinuousFormat == HDF5_  ) then
+            call Read_Final_HDF5
+        endif 
+        
+    end subroutine Read_Final_Hydrodynamic_File
+
+    !--------------------------------------------------------------------------
+
+    !Final hydrodynamic properties in binary format                      
+    subroutine Read_Final_Bin
+
+        !Arguments-------------------------------------------------------------
+
+         
+
+        !External--------------------------------------------------------------
+
+        integer :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        real   , dimension(:,:  ), pointer :: Aux2D
+        real   , dimension(:,:,:), pointer :: Aux3D
+        real(8), dimension(:,:,:), pointer :: Aux3DDouble
+
+        type (T_Time)                      :: BeginTime, EndTimeFile, EndTime
+
+        real                               :: Year_File, Month_File, Day_File,           &
+                                              Hour_File, Minute_File, Second_File,       &
+                                              DT_error
+        real                               :: Previous_Discretization
+
+        integer                            :: IUB, JUB, KUB, ILB, JLB, KLB
+        integer                            :: InitialFile, i, j, k, Evolution
+        integer                            :: BaroclinicRadia
+        logical                            :: EXT, Residual
+        !----------------------------------------------------------------------
+
+        ILB = Me%Size%ILB 
+        IUB = Me%Size%IUB
+
+        JLB = Me%Size%JLB 
+        JUB = Me%Size%JUB 
+
+        KLB = Me%Size%KLB 
+        KUB = Me%Size%KUB 
+
+
+        inquire (FILE=Me%Files%InitialHydrodynamic, EXIST=EXT) 
+
+        if (.not.EXT)                                                                    &
+            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR01.')
+
+
+        call UnitsManager(InitialFile, FileOpen, STAT = STAT_CALL) 
+
+        if (STAT_CALL /= SUCCESS_)                                                          &
+             call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR02.')
+
+        open(Unit = InitialFile, File = Me%Files%InitialHydrodynamic,       &
+             Form = 'UNFORMATTED', status = 'OLD', IOSTAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                                          &
+             call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR03.')
+
+        !Start reading the end file of the previous run 
+        read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
+
+
+        call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
+
+
+        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
+                                  EndTime = EndTime, STAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)                                                          &
+             call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR04.')
+        
+        DT_error = EndTimeFile - BeginTime
+
+        !Avoid rounding erros - Frank 08-2001
+        if (abs(DT_error) >= 0.01) then
+            
+            write(*,*) 'The end time of the previous run is different from the start time of this run'
+            write(*,*) 'Date in the file'
+            write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
+            write(*,*) 'DT_error', DT_error
+            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR05.')
+
+
+        endif
+
+        read(InitialFile) Previous_Discretization
+        
+        if (Previous_Discretization /= Me%ComputeOptions%Num_Discretization) then
+
+            write(*,*) 'previous run time discretization is different from this one'
+
+            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR06.')
+
+
+        endif
+
+
+        read(InitialFile) Residual
+
+        !Read the last direction computed implicit by the model
+        read(InitialFile) Me%Direction%XY 
+        
+
+        !Water level
+
+        read(InitialFile) ((Me%WaterLevel%New(i, j), &
+                           i = ILB, IUB), j = JLB, JUB)
+
+        Me%WaterLevel%Old (:,:) = Me%WaterLevel%New(:,:)
+
+
+        !Horizontal velocity Old
+        read(InitialFile) (((Me%Velocity%Horizontal%U%Old(i, j, k), &
+                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+
+        read(InitialFile) (((Me%Velocity%Horizontal%V%Old(i, j, k), &
+                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+        !Horizontal velocity New
+        read(InitialFile) (((Me%Velocity%Horizontal%U%New(i, j, k), &
+                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+        read(InitialFile) (((Me%Velocity%Horizontal%V%New(i, j, k), &
+                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+
+        !Water fluxes
+        read(InitialFile) (((Me%WaterFluxes%X(i, j, k), &
+                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+        read(InitialFile) (((Me%WaterFluxes%Y(i, j, k) , &
+                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                            
+        read(InitialFile) (((Me%WaterFluxes%Z(i, j, k), &
+                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+
+        Evolution = Me%ComputeOptions%Evolution
+
+        
+        if (Evolution == Residual_hydrodynamic_ .and. .not. Residual) then
+
+            write(*,*) 'Can not have a residual evolution with out a initial file with residual values'
+                        
+            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR07.')
+
+
+        endif 
+
+      
+cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
+   
+            write(*,*)  
+            write(*,*)  
+            write(*,*)  
+            write(*,*) 'Warning: YOU HAVE STOPPED THE RESIDUAL CALCULATION, '                   
+            write(*,*) 'In the run before this one you have compute residual currents, '                   
+            write(*,*) 'In this run you dont want to compute residual currents ? '                   
+            write(*,*) '                        '
+            write(*,*) 'SUBROUTINE Read_Final_Bin - ModuleHydrodynamic. WRN01.'
+            write(*,*)  
+            write(*,*)  
+            write(*,*)  
+
+            allocate (Aux2D         (ILB:IUB, JLB:JUB))
+            allocate (Aux3D         (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Aux3DDouble   (ILB:IUB, JLB:JUB, KLB:KUB))
+
+            read(InitialFile) Me%Residual%ResidualTime
+
+            !Average water level 
+            read(InitialFile) ((Aux2D(i, j), i = ILB, IUB), j = JLB, JUB)
+
+            !Residual horizontal velocities
+            read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            !Residual vertical velocity  
+            read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            !Residual Water specific fluxes 
+            read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+
+            deallocate (Aux2D)
+            deallocate (Aux3D)
+            deallocate (Aux3DDouble)
+       
+        else if (Residual .and. Me%ComputeOptions%Residual) then cd1
+
+           
+            read(InitialFile) Me%Residual%ResidualTime
+
+            !Average water level 
+            read(InitialFile) ((Me%Residual%WaterLevel(i, j),               &
+                               i = ILB, IUB), j = JLB, JUB)
+
+            !Residual horizontal velocities
+            read(InitialFile) (((Me%Residual%Velocity_U(i, j, k),           &
+                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            read(InitialFile) (((Me%Residual%Velocity_V(i, j, k),           &
+                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            !Residual vertical velocity  
+            read(InitialFile) (((Me%Residual%Vertical_Velocity(i, j, k),    &
+                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            !Residual Water specific fluxes 
+            read(InitialFile) (((Me%Residual%WaterFlux_X(i, j, k),          &
+                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            read(InitialFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,         &
+                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            
+cd2:        if (Evolution == Residual_hydrodynamic_) then
+
+                Me%WaterLevel%Old(:,:) = Me%Residual%WaterLevel(:,:)
+
+                Me%WaterLevel%New(:,:) = Me%Residual%WaterLevel(:,:)
+
+
+                Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Residual%Velocity_U(:,:,:)
+
+                Me%Velocity%Horizontal%U%New(:,:,:) = Me%Residual%Velocity_U(:,:,:)
+
+
+                Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Residual%Velocity_V(:,:,:)
+
+                Me%Velocity%Horizontal%V%New(:,:,:) = Me%Residual%Velocity_V(:,:,:)
+
+                !Module - ModuleHorizontalGrid
+                !Horizontal Grid properties
+                 call GetHorizontalGrid(Me%ObjHorizontalGrid,                           &
+                                        DXX  = Me%External_Var%DXX,                     &
+                                        DYY  = Me%External_Var%DYY,                     &
+                                        STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_)                                              &
+                     call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR40.')
+
+                do k = KLB, KUB
+                do j = JLB, JUB
+                do i = ILB, IUB
+
+                    ![m3/s]                 = [m2/s] * [m]
+                    Me%WaterFluxes%X(i,j,k) = Me%Residual%WaterFlux_X(i,j,k) * Me%External_Var%DYY(i, J)
+                    Me%WaterFluxes%Y(i,j,k) = Me%Residual%WaterFlux_Y(i,j,k) * Me%External_Var%DXX(i, J)
+
+                enddo
+                enddo
+                enddo
+                    
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DXX,     &
+                                         STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                     call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR50.')
+
+
+
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY,     &
+                                         STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                     call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR60.')
+
+
+
+
+            endif cd2
+
+
+        else if (.not. Residual .and. Me%ComputeOptions%Residual) then cd1
+
+                Me%Residual%ResidualTime    =  0
+
+
+                do  j = JLB, JUB 
+                do  i = ILB, IUB
+
+                    Me%Residual%WaterLevel(i, j)    =  0.
+
+                    do  k = KLB, KUB
+
+                        !Residual horizontal velocity
+                        Me%Residual%Velocity_U(i, j, k) =  0.
+                        Me%Residual%Velocity_V(i, j, k) =  0.
+
+                        !Residual vertical velocity
+                        Me%Residual%Vertical_Velocity(i, j, k) =  0.              
+
+                        !Residual Water fluxes
+                        Me%Residual%WaterFlux_X(i, j, k) = 0.
+                        Me%Residual%WaterFlux_Y(i, j, k) = 0.
+
+                        !Read residual layer thickness
+                        Me%Residual%DWZ(i, j, k) = 0
+
+                    enddo
+
+                enddo
+                enddo
+     
+        endif cd1
+
+        call ReadGeometryBin(Me%ObjGeometry, InitialFile, STAT = STAT_CALL) 
+
+        if (STAT_CALL /= SUCCESS_)                                                          &
+            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR70.')
+
+cd3:    if (Residual .and. Me%ComputeOptions%Residual) then 
+            !Read residual layer thickness
+            read(InitialFile, END = 10) (((Me%Residual%DWZ(i, j, k),        &
+                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+10          continue  
+
+        endif cd3
+
+
+        read(InitialFile, END = 20) BaroclinicRadia
+
+cd4:    if (.not. BaroclinicRadia                                == NoRadiation_ .and.   &
+            .not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
+
+
+            !Horizontal baroclinic velocity Old
+            read(InitialFile, END = 20) (((Me%VelBaroclinic%U%Old(i, j, k), &
+                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+
+            read(InitialFile, END = 20) (((Me%VelBaroclinic%V%Old(i, j, k), &
+                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            !Horizontal baroclinic velocity New
+            read(InitialFile, END = 20) (((Me%VelBaroclinic%U%New(i, j, k), &
+                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            read(InitialFile, END = 20) (((Me%VelBaroclinic%V%New(i, j, k), &
+                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            !vertical baroclinic velocity 
+            read(InitialFile, END = 20) (((Me%VelBaroclinic%W_New(i, j, k), &
+                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            read(InitialFile, END = 20) (((Me%VelBaroclinic%W_Old(i, j, k), &
+                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+        endif cd4
+
+20      continue 
+
+        !NonHydrostatic
+        if (Me%NonHydrostatic%ON) then
+
+            read(InitialFile, IOSTAT = STAT_CALL)                                       &  
+                (((Me%Velocity%Vertical%CartesianOld(i, j, k),                          &
+                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            if (STAT_CALL /= SUCCESS_) then
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR80.')
+            endif
+
+        endif
+        
+        !Submodel
+        if (Me%SubModel%ON) then
+        
+            Me%SubModel%HotStartData = .false. 
+
+            read(InitialFile, END = 30, IOSTAT = STAT_CALL)                             &  
+                (((Me%SubModel%qX(i, j, k),                                             &
+                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            if (STAT_CALL /= SUCCESS_) then
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR90.')
+            endif
+
+            read(InitialFile, END = 30, IOSTAT = STAT_CALL)                                       &  
+                (((Me%SubModel%qY(i, j, k),                                             &
+                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            if (STAT_CALL /= SUCCESS_) then
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR100.')
+            endif
+            
+            Me%SubModel%HotStartData = .true. 
+            
+30          continue
+
+            if (.not. Me%SubModel%HotStartData) then 
+                write(*,*) 'you are doing a hot start based in a old version of MOHID'
+                write(*,*) 'version before Nov 2010'
+                write(*,*) 'in this case in the first iteration if the South/North boundaries are open'
+                write(*,*) 'and the follow options are on (RADIATION : 2; LOCAL_SOLUTION : 2)'
+                write(*,*) 'the mpodel will generate a perturbation that might take some type to dissipate'
+                write(*,*) 'in less dissipative enviroments like the Ocean'
+            endif 
+
+        endif        
+
+        call UnitsManager(InitialFile, FileClose, STAT = STAT_CALL) 
+
+        if (STAT_CALL /= SUCCESS_)                                                          &
+            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR110.')
+
+
+
+    end subroutine Read_Final_Bin
+
+    !--------------------------------------------------------------------------
+
+
+    !Final hydrodynamic properties in hdf5 format
+    subroutine Read_Final_HDF5
+
+        !Arguments-------------------------------------------------------------
+
+
+        !External--------------------------------------------------------------
+
+        integer :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        real,    dimension(:), pointer     :: TimeVector
+        type (T_Time)                      :: BeginTime, EndTimeFile, EndTime
+
+        real                               :: Year_File, Month_File, Day_File,           &
+                                              Hour_File, Minute_File, Second_File,       &
+                                              DT_error
+        real                               :: Previous_Discretization
+
+        integer                            :: IUB, JUB, KUB, ILB, JLB, KLB, HDF5_READ
+        integer                            :: IUW, JUW, ILW, JLW
+        integer                            :: InitialFile, i, j, k, Evolution
+        integer                            :: BaroclinicRadia
+        logical                            :: EXT, Residual
+        integer                            :: ObjHDF5
+        type (T_Size2D)                    :: WindowLimitsJI
+        integer                            :: Imax, Jmax, Kmax
+        real,    dimension(:),     pointer :: AuxReal
+        integer, dimension(:),     pointer :: AuxInt
+        real,    dimension(:,:),   pointer :: Aux2DReal
+        real,    dimension(:,:,:), pointer :: Aux3DReal
+        real(8), dimension(:,:,:), pointer :: Aux3DR8
+
+        !----------------------------------------------------------------------
+        
+        allocate(AuxInt(1), AuxReal(1))
+        
+        inquire (FILE=Me%Files%InitialHydrodynamic, EXIST=EXT) 
+
+        if (.not.EXT)                                                                    &
+            call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR10.')
+            
+
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        ObjHDF5 = 0
+
+        !Opens HDF File
+        call ConstructHDF5      (ObjHDF5,                                               &
+                                 trim(Me%Files%InitialHydrodynamic),                    &
+                                 HDF5_READ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR20'
+        
+        call GetHDF5ArrayDimensions (HDF5ID = ObjHDF5, GroupName = "/Grid",     &
+                                    ItemName = "WaterPoints3D",                    &
+                                    Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR30'
+                                    
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB
+        
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        
+        KLB = Me%WorkSize%KLB 
+        KUB = Me%WorkSize%KUB 
+        
+        
+ifMS:   if (Me%DDecomp%MasterOrSlave) then
+                
+            call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                      WorkSize         = WindowLimitsJI,       &
+                                      STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR40'
+            
+            ILW = WindowLimitsJI%ILB
+            IUW = WindowLimitsJI%IUB
+
+            JLW = WindowLimitsJI%JLB
+            JUW = WindowLimitsJI%JUB
+                                                  
+        else ifMS
+
+            ILW = ILB 
+            IUW = IUB
+
+            JLW = JLB 
+            JUW = JUB 
+
+        endif ifMS                                            
+        
+        
+        if (ILW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR50'
+        if (IUW > Imax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR60'
+        
+        if (JLW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR70'
+        if (JUW > Jmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR80'
+
+        if (KLB < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR90'
+        if (KUB > Kmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR100'
+        
+        allocate(Aux2DReal(ILW:IUW,JLW:JUW        ))
+        allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
+        allocate(Aux3DR8  (ILW:IUW,JLW:JUW,KLB:KUB))
+        
+        !Start reading the end file of the previous run 
+
+        !read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
+        !call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
+        
+        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR110'
+
+        allocate(TimeVector(6))
+
+        call HDF5ReadData   (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Time",                                  &
+                             Name           = "Time",                                   &
+                             Array1D        = TimeVector,                               &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR120'
+        
+        
+        call SetDate(EndTimeFile,     Year     = TimeVector(1), Month  = TimeVector(2), &
+                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                      Minute   = TimeVector(5), Second = TimeVector(6))
+
+        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
+                                  EndTime = EndTime, STAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR130'
+        
+        DT_error = EndTimeFile - BeginTime
+
+        !Avoid rounding erros - Frank 08-2001
+        if (abs(DT_error) >= 0.01) then
+            
+            write(*,*) 'The end time of the previous run is different from the start time of this run'
+            write(*,*) 'Date in the file'
+            write(*,*) int(TimeVector(1:5)), TimeVector(6)
+            write(*,*) 'DT_error', DT_error
+            call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR140.')
+
+        endif
+
+        deallocate(TimeVector)        
+        
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5, 1, 1, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
+        
+        
+        !read(InitialFile) Previous_Discretization
+        call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
+                           GroupName     = "/Time",                                     &
+                           Name          = "discretization method",                     &
+                           Array1D       = AuxReal,                                     &
+                           STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR160'
+        
+        Previous_Discretization = AuxReal(1)
+        
+        if (Previous_Discretization /= Me%ComputeOptions%Num_Discretization) then
+
+            write(*,*) 'previous run time discretization is different from this one'
+
+            stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR170'
+
+        endif
+
+
+        !read(InitialFile) Residual
+
+        !Convert logical in int 
+        call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
+                           GroupName     = "/Time",                                     &        
+                           Name          = "residual ON",                               &
+                           Array1D       = AuxInt,                                      &
+                           STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR180'
+        
+        if (AuxInt(1) == 1) then
+            Residual = .true.
+        else
+            Residual = .false.
+        endif            
+
+        !Read the last direction computed implicit by the model
+        !read(InitialFile) Me%Direction%XY 
+        call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
+                           GroupName     = "/Time",                                     &        
+                           Name          = "direction XY",                              &
+                           Array1D       = AuxInt,                                      &
+                           STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR190'
+        
+        Me%Direction%XY = AuxInt(1)
+        
+        if (Residual .and. Me%ComputeOptions%Residual) then 
+
+           
+            !read(InitialFile) Me%Residual%ResidualTime
+            call HDF5ReadData (HDF5ID        = ObjHDF5,                                 &
+                               GroupName     = "/Time",                                 &        
+                               Name          = "residual time",                         &
+                               Array1D       = AuxReal,                                 &
+                               STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR290'
+            
+            Me%Residual%ResidualTime = AuxReal(1)
+            
+        endif   
+        
+        !read(InitialFile, END = 20) BaroclinicRadia
+        call HDF5ReadData (HDF5ID        = ObjHDF5,                          &
+                           GroupName     = "/Time",                          &        
+                           Name          = "baroclinc radiation",            &
+                           Array1D       = AuxInt,                           &
+                           STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR410'
+        
+        BaroclinicRadia = AuxInt(1)
+        
+        !Sets limits for next ead operations (2D matrixes)
+        call HDF5SetLimits   (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
+        
+        !Water level
+
+        !read(InitialFile) ((Me%WaterLevel%New(i, j), &
+    !                   i = ILB, IUB), j = JLB, JUB)
+        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = "/Results",                               &
+                             Name           = "Water Level New",                        &
+                             Array2D        = Aux2DReal,                                &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR200'
+        
+        Me%WaterLevel%New (ILB:IUB,JLB:JUB) = Aux2DReal(ILW:IUW,JLW:JUW)
+
+        Me%WaterLevel%Old (:,:)             = Me%WaterLevel%New(:,:)
+        
+        !Horizontal velocity Old
+        !read(InitialFile) (((Me%Velocity%Horizontal%U%Old(i, j, k), &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                             GroupName      = "/Results",                           &
+                             Name           = "Velocity U Old",                     &
+                             Array3D        = Aux3DReal,                            &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR210'        
+        
+        Me%Velocity%Horizontal%U%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+
+        !read(InitialFile) (((Me%Velocity%Horizontal%V%Old(i, j, k), &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                             GroupName      = "/Results",                           &
+                             Name           = "Velocity V Old",                     &
+                             Array3D        = Aux3DReal,                            &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR220'
+        
+        Me%Velocity%Horizontal%V%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+        
+        !Horizontal velocity New
+        !read(InitialFile) (((Me%Velocity%Horizontal%U%New(i, j, k), &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                             GroupName      = "/Results",                           &
+                             Name           = "Velocity U New",                     &
+                             Array3D        = Aux3DReal,                            &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR230'    
+        
+        Me%Velocity%Horizontal%U%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)        
+        
+        !read(InitialFile) (((Me%Velocity%Horizontal%V%New(i, j, k), &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                             GroupName      = "/Results",                           &
+                             Name           = "Velocity V New",                     &
+                             Array3D        = Aux3DReal,                            &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR240'    
+        
+        Me%Velocity%Horizontal%V%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+        
+        !Water fluxes
+        !read(InitialFile) (((Me%WaterFluxes%X(i, j, k), &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                             GroupName      = "/Results",                           &
+                             Name           = "Water Fluxes X",                     &
+                             Array3D        = Aux3DR8,                              &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR250'   
+        
+        Me%WaterFluxes%X(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+        
+        !read(InitialFile) (((Me%WaterFluxes%Y(i, j, k) , &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                             GroupName      = "/Results",                           &
+                             Name           = "Water Fluxes Y",                     &
+                             Array3D        = Aux3DR8,                              &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR260'    
+        
+        Me%WaterFluxes%Y(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)        
+        
+        !read(InitialFile) (((Me%WaterFluxes%Z(i, j, k), &
+        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                             GroupName      = "/Results",                           &
+                             Name           = "Water Fluxes Z",                     &
+                             Array3D        = Aux3DR8,                              &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR270'    
+        
+        Me%WaterFluxes%Z(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+
+
+        Evolution = Me%ComputeOptions%Evolution
+
+        
+        if (Evolution == Residual_hydrodynamic_ .and. .not. Residual) then
+
+            write(*,*) 'Can not have a residual evolution with out a initial file with residual values'
+                        
+            stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR280'
+
+
+        endif 
+
+      
+cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
+   
+            write(*,*)  
+            write(*,*)  
+            write(*,*)  
+            write(*,*) 'Warning: YOU HAVE STOPPED THE RESIDUAL CALCULATION, '                   
+            write(*,*) 'In the run before this one you have compute residual currents, '                   
+            write(*,*) 'In this run you dont want to compute residual currents ? '                   
+            write(*,*) '                        '
+            write(*,*) 'SUBROUTINE Read_Final_HDF5 - ModuleHydrodynamic. WRN01.'
+            write(*,*)  
+            write(*,*)  
+            write(*,*)  
+
+       
+        else if (Residual .and. Me%ComputeOptions%Residual) then cd1
+
+            !Average water level 
+            !read(InitialFile) ((Me%Residual%WaterLevel(i, j),               &
+            !                   i = ILB, IUB), j = JLB, JUB)
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Water Level",               &
+                                 Array2D        = Aux2DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR300'             
+            
+            Me%Residual%WaterLevel(ILB:IUB,JLB:JUB) = Aux2DReal(ILW:IUW,JLW:JUW)
+
+            !Residual horizontal velocities
+            !read(InitialFile) (((Me%Residual%Velocity_U(i, j, k),           &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Velocity U",                &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR310'  
+            
+            Me%Residual%Velocity_U(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+            !read(InitialFile) (((Me%Residual%Velocity_V(i, j, k),           &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Velocity V",                &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR320'  
+            
+            Me%Residual%Velocity_V(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+            !Residual vertical velocity  
+            !read(InitialFile) (((Me%Residual%Vertical_Velocity(i, j, k),    &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Velocity W",                &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR330'  
+            
+            Me%Residual%Vertical_Velocity(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+            !Residual Water specific fluxes 
+            !read(InitialFile) (((Me%Residual%WaterFlux_X(i, j, k),          &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Water Flux X",              &
+                                 Array3D        = Aux3DR8,                              &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR340'   
+            
+            Me%Residual%WaterFlux_X(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+            !read(InitialFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,         &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual Water Flux Y",              &
+                                 Array3D        = Aux3DR8,                              &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR350'              
+
+            Me%Residual%WaterFlux_Y(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+cd2:        if (Evolution == Residual_hydrodynamic_) then
+
+                Me%WaterLevel%Old(:,:) = Me%Residual%WaterLevel(:,:)
+
+                Me%WaterLevel%New(:,:) = Me%Residual%WaterLevel(:,:)
+
+
+                Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Residual%Velocity_U(:,:,:)
+
+                Me%Velocity%Horizontal%U%New(:,:,:) = Me%Residual%Velocity_U(:,:,:)
+
+
+                Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Residual%Velocity_V(:,:,:)
+
+                Me%Velocity%Horizontal%V%New(:,:,:) = Me%Residual%Velocity_V(:,:,:)
+
+                !Module - ModuleHorizontalGrid
+                !Horizontal Grid properties
+                call GetHorizontalGrid(Me%ObjHorizontalGrid,                            &
+                                       DXX  = Me%External_Var%DXX,                      &
+                                       DYY  = Me%External_Var%DYY,                      &
+                                       STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR360'
+
+                do k = KLB, KUB
+                do j = JLB, JUB
+                do i = ILB, IUB
+
+                    ![m3/s]                 = [m2/s] * [m]
+                    Me%WaterFluxes%X(i,j,k) = Me%Residual%WaterFlux_X(i,j,k) * Me%External_Var%DYY(i, J)
+                    Me%WaterFluxes%Y(i,j,k) = Me%Residual%WaterFlux_Y(i,j,k) * Me%External_Var%DXX(i, J)
+
+                enddo
+                enddo
+                enddo
+                    
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DXX,     &
+                                         STAT = STAT_CALL)
+                
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR370'
+
+
+
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY,     &
+                                         STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR380'
+
+
+
+            endif cd2
+
+
+        else if (.not. Residual .and. Me%ComputeOptions%Residual) then cd1
+
+                Me%Residual%ResidualTime    =  0
+
+
+                do  j = JLB, JUB 
+                do  i = ILB, IUB
+
+                    Me%Residual%WaterLevel(i, j)    =  0.
+
+                    do  k = KLB, KUB
+
+                        !Residual horizontal velocity
+                        Me%Residual%Velocity_U(i, j, k) =  0.
+                        Me%Residual%Velocity_V(i, j, k) =  0.
+
+                        !Residual vertical velocity
+                        Me%Residual%Vertical_Velocity(i, j, k) =  0.              
+
+                        !Residual Water fluxes
+                        Me%Residual%WaterFlux_X(i, j, k) = 0.
+                        Me%Residual%WaterFlux_Y(i, j, k) = 0.
+
+                        !Read residual layer thickness
+                        Me%Residual%DWZ(i, j, k) = 0
+
+                    enddo
+
+                enddo
+                enddo
+     
+        endif cd1
+        
+        call ReadGeometryHDF(GeometryID     = Me%ObjGeometry,                           & 
+                             HDF5FileName   = Me%Files%InitialHydrodynamic,             &
+                             MasterOrSlave  = Me%DDecomp%MasterOrSlave,                 &
+                             STAT           = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR390'
+        
+        !Sets limits for next ead operations (3D matrixes)
+        call HDF5SetLimits   (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
+        
+
+cd3:    if (Residual .and. Me%ComputeOptions%Residual) then 
+
+            !Read residual layer thickness
+            !read(InitialFile, END = 10) (((Me%Residual%DWZ(i, j, k),        &
+            !                    i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Residual DWZ",                       &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR400'
+            
+            Me%Residual%DWZ(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+
+        endif cd3
+        
+
+cd4:    if (.not. BaroclinicRadia                                == NoRadiation_ .and.   &
+            .not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
+
+            !Horizontal baroclinic velocity Old
+            !read(InitialFile, END = 20) (((Me%VelBaroclinic%U%Old(i, j, k), &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic U Old",          &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR420'
+            
+            Me%VelBaroclinic%U%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+
+            !read(InitialFile, END = 20) (((Me%VelBaroclinic%V%Old(i, j, k), &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic V Old",          &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR430'
+            
+            Me%VelBaroclinic%V%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+            !Horizontal baroclinic velocity New
+            !read(InitialFile, END = 20) (((Me%VelBaroclinic%U%New(i, j, k), &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic U New",          &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR440'
+            
+            Me%VelBaroclinic%U%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+            !read(InitialFile, END = 20) (((Me%VelBaroclinic%V%New(i, j, k), &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic V New",          &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR450'
+            
+            Me%VelBaroclinic%V%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+            !vertical baroclinic velocity 
+            !read(InitialFile, END = 20) (((Me%VelBaroclinic%W_New(i, j, k), &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic W New",          &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR460'
+            
+            Me%VelBaroclinic%W_New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+            !read(InitialFile, END = 20) (((Me%VelBaroclinic%W_Old(i, j, k), &
+            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Baroclinic W Old",          &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR470'
+            
+            Me%VelBaroclinic%W_Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)            
+
+        endif cd4
+
+20      continue 
+
+        !NonHydrostatic
+        if (Me%NonHydrostatic%ON) then
+        
+            !read(InitialFile, IOSTAT = STAT_CALL)                                       &  
+            !    (((Me%Velocity%Vertical%CartesianOld(i, j, k),                          &
+            !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            !if (STAT_CALL /= SUCCESS_) then
+            !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR80.')
+            !endif
+
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Velocity Vertical Cartesian Old",    &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR480'
+            
+            Me%Velocity%Vertical%CartesianOld(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+
+        endif
+        
+        !Submodel
+        if (Me%SubModel%ON) then
+        
+            Me%SubModel%HotStartData = .false. 
+            
+            !read(InitialFile, END = 30, IOSTAT = STAT_CALL)                             &  
+            !    (((Me%SubModel%qX(i, j, k),                                             &
+            !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            !if (STAT_CALL /= SUCCESS_) then
+            !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR90.')
+            !endif
+
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Submodel qX",                        &
+                                 Array3D        = Aux3DR8,                              &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR490'
+            
+            Me%SubModel%qX(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+            
+            !read(InitialFile, END = 30, IOSTAT = STAT_CALL)                                       &  
+            !    (((Me%SubModel%qY(i, j, k),                                             &
+            !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            !if (STAT_CALL /= SUCCESS_) then
+            !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR100.')
+            !endif
+            
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Submodel qY",                        &
+                                 Array3D        = Aux3DR8,                              &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR500'
+            
+            Me%SubModel%qY(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)            
+            
+            Me%SubModel%HotStartData = .true. 
+            
+            if (.not. Me%SubModel%HotStartData) then 
+                write(*,*) 'you are doing a hot start based in a old version of MOHID'
+                write(*,*) 'version before Nov 2010'
+                write(*,*) 'in this case in the first iteration if the South/North boundaries are open'
+                write(*,*) 'and the follow options are on (RADIATION : 2; LOCAL_SOLUTION : 2)'
+                write(*,*) 'the mpodel will generate a perturbation that might take some type to dissipate'
+                write(*,*) 'in less dissipative enviroments like the Ocean'
+            endif 
+
+        endif        
+
+        call KillHDF5(ObjHDF5, STAT = STAT_CALL) 
+        
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR510'
+
+        deallocate(AuxInt, AuxReal)
+        deallocate(Aux2DReal)
+        deallocate(Aux3DReal)
+        deallocate(Aux3DR8  )
+        
+
+    end subroutine Read_Final_HDF5
+
+    !--------------------------------------------------------------------------
+    
+    
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
     !                                                                                      !

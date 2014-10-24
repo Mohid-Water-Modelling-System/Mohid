@@ -69,7 +69,8 @@ Module ModuleGeometry
                                       GetGridCoordType, GetGridAngle, GetGridZone,      &
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       GetGridLatitudeLongitude, GetCoordTypeList,       &
-                                      GetCheckDistortion, UnGetHorizontalGrid
+                                      GetCheckDistortion, UnGetHorizontalGrid,          &
+                                      GetDDecompWorkSize2D
     use ModuleFunctions,        only: SetMatrixValue, SetMatrixValueAllocatable,        &
                                       Chunk_J, Chunk_K, GetPointer
     use ModuleHDF5
@@ -124,8 +125,10 @@ Module ModuleGeometry
 #endif _USE_SEQASSIMILATION
 
     !Input / Output
-    public  :: ReadGeometry
-    public  :: WriteGeometry
+    public  :: ReadGeometryBin
+    public  :: WriteGeometryBin
+    public  :: ReadGeometryHDF
+    public  :: WriteGeometryHDF
 
     !Selector
     public  :: GetGeometryDistances                 !SZZ, DZZ, DWZ, ZCellCenter, DUZ, DVZ, DWZ_Xgrad, DWZ_Ygrad, 
@@ -177,22 +180,6 @@ Module ModuleGeometry
         module procedure UnGetGeometry3Dreal8
         module procedure UnGetGeometry2Dinteger
     end interface  UnGetGeometry
-
-    private :: ReadGeometryHDF
-    private :: ReadGeometryBin
-    interface  ReadGeometry
-        module procedure ReadGeometryBin
-        module procedure ReadGeometryHDF
-    end interface
-
-    private :: WriteGeometryHDF
-    private :: WriteGeometryBin
-    interface  WriteGeometry
-        module procedure WriteGeometryBin
-        module procedure WriteGeometryHDF
-    end interface 
-
-    
 
     private :: ConstructGeometryV1
     private :: ConstructGeometryV2
@@ -271,13 +258,13 @@ Module ModuleGeometry
 
     type T_Areas
         real, dimension(:, :, :), allocatable       :: AreaU, AreaV
-        logical                                 :: Impermeability = .false.
+        logical                                     :: Impermeability = .false.
         real, dimension(      :), allocatable       :: Coef_U, CoefX_U, Coef_V, CoefX_V  
     end type T_Areas
 
     type T_Volumes
         real(8), dimension(:, :, :), allocatable    :: VolumeZ, VolumeU, VolumeV, VolumeW, VolumeZOld
-        logical                                 :: FirstVolW = .true.
+        logical                                     :: FirstVolW = .true.
     end type T_Volumes
 
     type T_KFloor
@@ -4930,12 +4917,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !--------------------------------------------------------------------------
     !Reads SZZ and VolumeZOld
 
-    subroutine WriteGeometryHDF(GeometryID, ObjHDF5, WriteHDF, STAT)
+    subroutine WriteGeometryHDF(GeometryID, ObjHDF5, STAT)
 
         !Parameter-------------------------------------------------------------
         integer                                     :: GeometryID
         integer, intent(in)                         :: ObjHDF5
-        logical                                     :: WriteHDF
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -4962,47 +4948,43 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             KLB = Me%WorkSize%KLB
             KUB = Me%WorkSize%KUB
             
-            if (WriteHDF) then
+        
+            !Sets limits for next write operations
+            call HDF5SetLimits(ObjHDF5, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR01'
+
+            call HDF5WriteData(ObjHDF5,"/Geometry", "VerticalZ", "m",               &
+                               Array3D = GetPointer(Me%Distances%SZZ),              &
+                               STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR02'
+
+            call HDF5WriteData(ObjHDF5,"/Geometry", "InitialSZZ", "m",              &
+                               Array3D = GetPointer(Me%Distances%InitialSZZ),       &
+                               STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR03'
+
+            !Sets limits for next write operations
+            call HDF5SetLimits(ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR01'
+
+
+            call HDF5WriteData(ObjHDF5,"/Geometry", "DWZ", "m",                     &
+                               Array3D = GetPointer(Me%Distances%DWZ),              &
+                               STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR04'
+
+            call HDF5WriteData(ObjHDF5,"/Geometry", "VolumeZ", "m3",                &
+                               Array3D = GetPointer(Me%Volumes%VolumeZOld),         &
+                               STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR05'
             
-                !Sets limits for next write operations
-                call HDF5SetLimits(ObjHDF5, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR01'
+            call HDF5WriteData(ObjHDF5,"/Geometry", "KTop", "-",                    &
+                               Array2D = GetPointer(Me%KTop%Z),                     &
+                               STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR06'
 
-                call HDF5WriteData(ObjHDF5,"/Geometry", "VerticalZ", "m",               &
-                                   Array3D = GetPointer(Me%Distances%SZZ),              &
-                                   STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR02'
-
-                call HDF5WriteData(ObjHDF5,"/Geometry", "InitialSZZ", "m",              &
-                                   Array3D = GetPointer(Me%Distances%InitialSZZ),       &
-                                   STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR03'
-
-                !Sets limits for next write operations
-                call HDF5SetLimits(ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR01'
-
-
-                call HDF5WriteData(ObjHDF5,"/Geometry", "DWZ", "m",                     &
-                                   Array3D = GetPointer(Me%Distances%DWZ),              &
-                                   STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR04'
-
-                call HDF5WriteData(ObjHDF5,"/Geometry", "VolumeZ", "m3",                &
-                                   Array3D = GetPointer(Me%Volumes%VolumeZOld),         &
-                                   STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR05'
-                
-                call HDF5WriteData(ObjHDF5,"/Geometry", "KTop", "-",                    &
-                                   Array2D = GetPointer(Me%KTop%Z),                     &
-                                   STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR06'
-
-                call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR07'
-
-            end if
-
+            call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR07'
 
             STAT_ = SUCCESS_
 
@@ -5020,20 +5002,28 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     
     !----------------------------------------------------------------------------
 
-    subroutine ReadGeometryHDF(GeometryID, HDF5FileName, STAT)
+    subroutine ReadGeometryHDF(GeometryID, HDF5FileName, MasterOrSlave, STAT)
 
         !Parameter-------------------------------------------------------------
         integer                                 :: GeometryID
         character(len=*)                        :: HDF5FileName
+        logical, intent(in ), optional          :: MasterOrSlave
         integer, intent(out), optional          :: STAT
 
         !Local-----------------------------------------------------------------
+        type (T_Size2D)                         :: WindowLimitsJI
         integer                                 :: ready_   
         integer                                 :: STAT_
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: IUW, JUW, ILW, JLW        
+        integer                                 :: Imax, Jmax, Kmax 
         integer                                 :: STAT_CALL
         integer                                 :: ObjHDF5 = 0
         integer                                 :: HDF5_READ
+        logical                                 :: MasterOrSlave_
+        integer, dimension(:,:  ), pointer      :: Aux2DInt
+        real,    dimension(:,:,:), pointer      :: Aux3DReal
+        real(8), dimension(:,:,:), pointer      :: Aux3DR8        
 
         !----------------------------------------------------------------------
 
@@ -5044,62 +5034,136 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-            !WorkSize
-            ILB = Me%WorkSize%ILB
-            IUB = Me%WorkSize%IUB
-
-            JLB = Me%WorkSize%JLB
-            JUB = Me%WorkSize%JUB
-
-            KLB = Me%WorkSize%KLB
-            KUB = Me%WorkSize%KUB
+            if (present(MasterOrSlave)) then
+                MasterOrSlave_ = MasterOrSlave
+            else
+                MasterOrSlave_ = .false.
+            endif
             
             !Gets File Access Code
             call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
-
+            
             !Opens HDF File
             call ConstructHDF5      (ObjHDF5,                                            &
                                      trim(HDF5FileName),                                 &
                                      HDF5_READ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR10'
+            
+            call GetHDF5ArrayDimensions (HDF5ID = ObjHDF5, GroupName = "/Grid",     &
+                                        ItemName = "WaterPoints3D",                    &
+                                        Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR20'
+                                        
+            ILB = Me%WorkSize%ILB 
+            IUB = Me%WorkSize%IUB 
+            
+            JLB = Me%WorkSize%JLB 
+            JUB = Me%WorkSize%JUB 
+
+            KLB = Me%WorkSize%KLB 
+            KUB = Me%WorkSize%KUB 
+            
+            
+    ifMS:   if (MasterOrSlave) then
+    
+                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                          WorkSize         = WindowLimitsJI,       &
+                                          STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR30'
+                
+                ILW = WindowLimitsJI%ILB
+                IUW = WindowLimitsJI%IUB
+
+                JLW = WindowLimitsJI%JLB
+                JUW = WindowLimitsJI%JUB
+                                                      
+            else ifMS
+
+                ILW = ILB 
+                IUW = IUB
+
+                JLW = JLB 
+                JUW = JUB 
+
+            endif ifMS                                            
+            
+            if (ILB < 1   ) stop 'ReadGeometryHDF - Geometry - ERR40'
+            if (IUB > Imax) stop 'ReadGeometryHDF - Geometry - ERR50'
+            
+            if (JLB < 1   ) stop 'ReadGeometryHDF - Geometry - ERR60'
+            if (JUB > Jmax) stop 'ReadGeometryHDF - Geometry - ERR70'
+
+            if (KLB < 1   ) stop 'ReadGeometryHDF - Geometry - ERR80'
+            if (KUB > Kmax) stop 'ReadGeometryHDF - Geometry - ERR90'
+            
+            allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB-1:KUB))
             
             !Sets limits for next read operations
-            call HDF5SetLimits(ObjHDF5, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR02'
+            call HDF5SetLimits(ObjHDF5, ILW, IUW, JLW, JUW, KLB-1, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR100'
+            
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &                    
+                                GroupName     = "/Geometry",                            &
+                                Name          = "VerticalZ",                            &
+                                Array3D       = Aux3DReal,                              &
+                                OffSet3       = 0,                                      &
+                                STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR110'
+            
+            Me%Distances%SZZ(ILB:IUB,JLB:JUB,KLB-1:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB-1:KUB)
 
-            call HDF5ReadData(ObjHDF5,"/Geometry", "VerticalZ",                         &
-                               Array3D = GetPointer(Me%Distances%SZZ),                  &
-                               STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR03'
-
-            call HDF5ReadData(ObjHDF5,"/Geometry", "InitialSZZ",                        &
-                               Array3D = GetPointer(Me%Distances%InitialSZZ),           &
-                               STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR04'
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &                    
+                                GroupName     = "/Geometry",                            &
+                                Name          = "InitialSZZ",                           &
+                                Array3D       = Aux3DReal,                              &
+                                OffSet3       = 0,                                      &
+                                STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR120'
+            
+            Me%Distances%InitialSZZ(ILB:IUB,JLB:JUB,KLB-1:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB-1:KUB)
 
             !Sets limits for next read operations
-            call HDF5SetLimits(ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR05'
+            call HDF5SetLimits(ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR130'
+            
+            deallocate(Aux3DReal)            
+            allocate  (Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
+            allocate  (Aux3DR8  (ILW:IUW,JLW:JUW,KLB:KUB))
+            allocate  (Aux2DInt (ILW:IUW,JLW:JUW))
 
-            call HDF5ReadData(ObjHDF5,"/Geometry", "DWZ",                               &
-                               Array3D = GetPointer(Me%Distances%DWZ),                  &
-                               STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR06'
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
+                                GroupName     = "/Geometry",                            &
+                                Name          = "DWZ",                                  &
+                                Array3D       = Aux3DReal,                              &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR140'
+            
+            Me%Distances%DWZ(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            call HDF5ReadData(ObjHDF5,"/Geometry", "VolumeZ",                           &
-                               Array3D = GetPointer(Me%Volumes%VolumeZOld),             &
-                               STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR07'
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
+                                GroupName     = "/Geometry",                            &
+                                Name          = "VolumeZ",                              &
+                                Array3D       = Aux3DR8,                                &
+                                STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR150'
+            
+            Me%Volumes%VolumeZOld(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)            
 
-
-            call HDF5ReadData(ObjHDF5,"/Geometry", "KTop",                              &
-                               Array2D = GetPointer(Me%KTop%Z),                         &
-                               STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR08'
-
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
+                                GroupName     = "/Geometry",                            &
+                                Name          = "KTop",                                 &
+                                Array2D       = Aux2DInt,                               &
+                                STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR160'
+            
+            Me%KTop%Z(ILB:IUB,JLB:JUB) = Aux2DInt(ILW:IUW,JLW:JUW)
 
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR09'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR170'
+            
+            deallocate  (Aux3DReal)
+            deallocate  (Aux3DR8  )
+            deallocate  (Aux2DInt )
 
             STAT_ = SUCCESS_
 

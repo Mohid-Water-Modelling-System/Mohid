@@ -75,8 +75,9 @@ Module ModuleConsolidation
                                       WriteHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID,        &
                                       GetDDecompON, GetGridOutBorderPolygon
     use ModuleGeometry,         only: GetGeometrySize, UnGetGeometry, ComputeInitialGeometry,   &
-                                      GetGeometryVolumes, ReadGeometry, ComputeVerticalGeometry,& 
-                                      WriteGeometry, GetGeometryAreas, GetGeometryDistances,    &
+                                      GetGeometryVolumes, ReadGeometryHDF,                      &
+                                      ComputeVerticalGeometry,                                  & 
+                                      WriteGeometryHDF, GetGeometryAreas, GetGeometryDistances, &
                                       GetGeometryKTop       
     use ModuleMap,              only: GetWaterPoints3D, GetOpenPoints3D, UngetMap,              & 
                                       GetComputeFaces3D, UpdateComputeFaces3D          
@@ -1166,7 +1167,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         if(Me%ContinuesCompute)then
             
-            call ReadGeometry(Me%ObjGeometry, trim(Me%Files%Initial)//"5", STAT = STAT_CALL)
+            call ReadGeometryHDF(Me%ObjGeometry, trim(Me%Files%Initial)//"5", STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleConsolidation - ERR01'
 
         end if
@@ -3795,9 +3796,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             stop 'Write_Final_Consolidation_HDF - Consolidation - ERR03'
 
         !Writes geometry
-        call WriteGeometry(Me%ObjGeometry,                                               &
-                           ObjHDF5, ON,                                                  &
-                           STAT = STAT_CALL)
+        call WriteGeometryHDF(Me%ObjGeometry,                                            &
+                              ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Write_Final_Consolidation_HDF - Consolidation - ERR04'
         
