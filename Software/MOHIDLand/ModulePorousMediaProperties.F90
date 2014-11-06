@@ -6094,7 +6094,7 @@ dk:                 do k=kmin, kmax
         call SetMatrixValue (Me%FluxWCorr, Me%Size, Me%ExtVar%FluxW)
          
          CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !$OMP PARALLEL PRIVATE(I,J)
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
