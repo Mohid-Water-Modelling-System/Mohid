@@ -564,7 +564,7 @@ Module ModuleAssimilation
     subroutine ConstructTimeSerie
 
         !External--------------------------------------------------------------
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
         integer, dimension(:,:,:), pointer                  :: WaterPoints3D
         integer                                             :: STAT_CALL, iflag
        
@@ -1853,7 +1853,6 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
         integer                                     :: VectorX_ID, VectorY_ID
         real, dimension(:,:  ), pointer, optional   :: VectorX_2D, VectorY_2D
         real, dimension(:,:,:), pointer, optional   :: VectorX_3D, VectorY_3D
-        integer                                     :: ID
         integer, optional, intent(OUT)              :: STAT
 
         !External--------------------------------------------------------------

@@ -1077,7 +1077,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
     subroutine ConstructTimeSerie
 
         !External--------------------------------------------------------------
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
         integer                                             :: STAT_CALL, iflag
 
         !Local-----------------------------------------------------------------
@@ -2475,7 +2475,7 @@ cd0:    if (EXIST) then
 
     subroutine ComputeFluxes
         !Local-----------------------------------------------------------------
-        integer             :: i, j, icount
+        integer             :: i, j
         real                :: SandThickness, Xaux, Yaux, XYMod, FluxX, FluxY
         !----------------------------------------------------------------------
 
@@ -3641,7 +3641,7 @@ cd0:    if (EXIST) then
 
         !Local-----------------------------------------------------------------
         real                               :: DT_Area1, DT_Area2, RunPeriod
-        integer                            :: i, j, di, dj
+        integer                            :: i, j
         !----------------------------------------------------------------------
 
         Me%DZ%Field2D(:,:) = 0.

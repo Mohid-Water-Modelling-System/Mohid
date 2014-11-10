@@ -15589,7 +15589,8 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                                                 ParticPoint%X = CurrentPartic%Position%CoordX
                                                 ParticPoint%Y = CurrentPartic%Position%CoordY
                                                 
-                                                if(IsPointInsideCircle(ParticPoint, LinePoint, Me%Booms%Individual(nn)%BoomBufferDist)) then 
+                                                if(IsPointInsideCircle(ParticPoint, LinePoint, &
+                                                                       Me%Booms%Individual(nn)%BoomBufferDist))then 
                                                     ParticleInsideBuffer = .true.
                                                     exit dolp                                               
                                                 else
@@ -15597,7 +15598,8 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                                                     ParticPoint%X = NewPosition%CoordX
                                                     ParticPoint%Y = NewPosition%CoordY
                                                     
-                                                    if(IsPointInsideCircle(ParticPoint, LinePoint, Me%Booms%Individual(nn)%BoomBufferDist)) then
+                                                    if(IsPointInsideCircle(ParticPoint, LinePoint, &
+                                                                           Me%Booms%Individual(nn)%BoomBufferDist))then
                                                         ParticleInsideBuffer = .true.
                                                         exit dolp                                                   
                                                     endif                                                
@@ -16062,7 +16064,6 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         real                                        :: DT_Vert        
         integer                                     :: Light_Index 
         real                                        :: BottomDepth, SurfaceDepth
-        real                                        :: BreakingWaveHeight
         type(T_Larvae), pointer                     :: LarvaePtr
         real                                        :: SPMDensity, WaterDensity
         integer                                     :: STAT_CALL
@@ -19260,7 +19261,6 @@ CurrOr: do while (associated(CurrentOrigin))
 
         !Local-----------------------------------------------------------------
         real                                        :: r2
-        real                                        :: BreakingWaveHeight
         !----------------------------------------------------------------------
         
         if ((HNSParticleStateOld .EQ. Surface_) .AND. (HNSParticleStateNew .EQ. WaterColumn_Droplet_)) then
@@ -25440,7 +25440,6 @@ CurrOr:     do while (associated(CurrentOrigin))
         type (T_Origin), pointer                    :: CurrentOrigin
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: ig
-        real, dimension(:, :, :), pointer           :: OilGridConc3D 
         character(StringLength)                     :: AuxChar
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB
@@ -27312,13 +27311,16 @@ d2:         do ig = 1, Me%NGroups
 
         !Begin---------------------------------------------------------------------
         
-        ILB = Me%EulerModel(em)%WorkSize%ILB
-        JLB = Me%EulerModel(em)%WorkSize%JLB
-        IUB = Me%EulerModel(em)%WorkSize%IUB
-        JUB = Me%EulerModel(em)%WorkSize%JUB
-        KUB = Me%EulerModel(em)%WorkSize%KUB
-
 d1:     do em =1, Me%EulerModelNumber 
+
+            call GetWaterPoints3D(Me%EulerModel(em)%ObjMap, Me%EulerModel(em)%WaterPoints3D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteArrivalBeachingTimes - ModuleLagrangianGlobal - ERR00'
+
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
 
 d2:         do ig = 1, Me%NGroups
 
@@ -27345,6 +27347,7 @@ d2:         do ig = 1, Me%NGroups
                                     STAT                = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteArrivalBeachingTimes - ModuleLagrangianGlobal - ERR10'
                 
+                nullify(Aux2D)
                 
                 Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(:,:,ig)
 
@@ -27363,6 +27366,10 @@ d2:         do ig = 1, Me%NGroups
                 nullify(Aux2D)
 
             enddo d2
+            
+            call UnGetMap (Me%EulerModel(em)%ObjMap, Me%EulerModel(em)%Waterpoints3D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteArrivalBeachingTimes - ModuleLagrangianGlobal - ERR30'
+            
         enddo d1
     
     

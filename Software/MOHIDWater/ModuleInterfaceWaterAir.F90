@@ -1543,7 +1543,7 @@ do1 :   do while (associated(PropertyX))
         integer                                             :: dn, Id, Jd, TimeSerieNumber  
         type(T_Property), pointer                           :: PropertyX
         integer                                             :: nProperties
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
         character(len=StringLength), dimension(:), pointer  :: PropertyList
         character(len=StringLength)                         :: TimeSerieName
         type (T_Polygon), pointer                           :: ModelDomainLimit
@@ -4114,7 +4114,6 @@ do4:    do i=ILB, IUB
         !Local------------------------------------------------------------------
         real,    dimension(:,:  ),    pointer   :: AtmospDepositionR
         integer                            :: i, j
-        integer                            :: CHUNK
         integer                            :: ILB, IUB, JLB, JUB
         !Begin------------------------------------------------------------------
        
@@ -4164,7 +4163,6 @@ do4:    do i=ILB, IUB
         !Local------------------------------------------------------------------
         real,    dimension(:,:  ),    pointer   :: AtmospDepositionO
         integer                            :: i, j
-        integer                            :: CHUNK
         integer                            :: ILB, IUB, JLB, JUB
         !Begin------------------------------------------------------------------
 

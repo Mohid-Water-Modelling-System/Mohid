@@ -1404,7 +1404,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                                             :: STAT_CALL
         integer, dimension(:,:,:), pointer                  :: WaterPoints3D
         integer                                             :: iflag
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
         character(len=StringLength)                         :: TimeSerieName
         character(len=StringLength), dimension(:), pointer  :: PropertyList
         type (T_Polygon), pointer                           :: ModelDomainLimit

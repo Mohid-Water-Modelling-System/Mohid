@@ -636,7 +636,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                             :: dn, Id, Jd, TimeSerieNumber 
         integer                                             :: nProperties,pl
         integer                                             :: STAT_CALL, iflag
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
         character(len=StringLength)                         :: TimeSerieName
         type (T_Polygon), pointer                           :: ModelDomainLimit
         !Begin-----------------------------------------------------------------
@@ -786,7 +786,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Local-----------------------------------------------------------------
         integer                                             :: STAT_CALL, iflag
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
         integer                                             :: nProperties
         character(len=StringLength), dimension(:,:), pointer:: PropertyList
 

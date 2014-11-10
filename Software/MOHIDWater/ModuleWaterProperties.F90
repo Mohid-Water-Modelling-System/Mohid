@@ -3687,7 +3687,8 @@ i1:     if (OutputOk) then
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
         integer                                             :: dn, Id, Jd, TimeSerieNumber
-        character(len=StringLength)                         :: TimeSerieLocationFile, TimeSerieName
+        character(len=PathLength)                           :: TimeSerieLocationFile
+        character(len=StringLength)                         :: TimeSerieName
         type (T_Polygon), pointer                           :: ModelDomainLimit
 
         !----------------------------------------------------------------------
@@ -9672,7 +9673,6 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: ILW, IUW, JLW, JUW
         type (T_Size2D)                             :: WindowLimitsJI
-        integer                                     :: Imax, Jmax, Kmax
         real,    dimension(:,:,:), pointer          :: Aux3D
         logical                                     :: MasterOrSlave
         
@@ -13956,7 +13956,7 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         character(len=StringLength)        :: PropertyName_N, PropertyName_L, PropertyName_MH
         character(len=StringLength)        :: PropertyName_MV, PropertyName_ME, PropertyName_MR 
         integer                            :: STAT_CALL
-        real                               :: NewTotalN, AuxN
+        real                               :: NewTotalN
 
         !Begin-----------------------------------------------------------------
         

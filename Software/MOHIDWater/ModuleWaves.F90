@@ -1036,7 +1036,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                             :: PositionInList = 0
         integer                                             :: STATUS
         integer                                             :: iflag
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
         character(len=StringLength)                         :: TimeSerieName
         type (T_Polygon), pointer                           :: ModelDomainLimit
         

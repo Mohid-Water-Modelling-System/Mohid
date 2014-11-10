@@ -105,7 +105,7 @@ Module ModuleHydrodynamic
     use ModuleFunctions         
     use ModuleTime              
     use ModuleEnterData           
-    use ModuleGridData,         only : GetGridData, UngetGridData 
+    use ModuleGridData,         only : GetGridData, WriteGridData, UngetGridData 
     use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile
     use ModuleDischarges,       only : Construct_Discharges, GetDischargesNumber,        &
                                        GetDischargesGridLocalization, GetDischargeON,    &
@@ -377,6 +377,8 @@ Module ModuleHydrodynamic
     private ::              Statistics_OutPut
     private ::          OutPut_TimeSeries
     private ::          ModifyMatrixesOutput
+    
+    private ::          ComputeFloodRisk
 
 #ifdef _USE_SEQASSIMILATION
     !Copy subroutines usable in sequential data assimilation to change variables' value
@@ -469,6 +471,7 @@ Module ModuleHydrodynamic
     private ::      Write_Final_Hydrodynamic_File
     private ::          Write_Final_Bin
     private ::          Write_Final_HDF5    
+    private ::      OutputFloodRisk
     private ::      Deassociate_External_Modules               
     private ::      Kill_Sub_Modules
     private ::          KillEnergy
@@ -1436,6 +1439,13 @@ Module ModuleHydrodynamic
          
          integer, dimension(:),   pointer         :: TimeSerieDischID   => null()     
          real,    dimension(:,:), pointer         :: TimeSerieDischProp => null()
+         
+         logical                                  :: FloodRisk                = .false.
+         real,    dimension(:,:), pointer         :: MaxWaterColumn           => null()
+         real,    dimension(:,:), pointer         :: VelocityAtMaxWaterColumn => null()
+         real,    dimension(:,:), pointer         :: MaxFloodRisk             => null()
+         character(Pathlength)                    :: FloodRiskRootPath        = null_str
+         
     end type T_OutPut
 
     type      T_OutW
@@ -2360,7 +2370,6 @@ cd11:   if (Me%ComputeOptions%Recording) then
         integer, dimension(:,:,:), pointer :: PointsToFill3D
         character(len = StringLength)      :: BeginBlock, EndBlock, Char_TypeZUV
         integer                            :: STAT_CALL, ClientNumber, i, j, k, iflag 
-        integer                            :: JLB, ILB, JUB, IUB
         logical                            :: BlockFound
         logical                            :: RotateX, RotateY       
         real                               :: MinWaterColumn
@@ -4312,6 +4321,42 @@ case2 : select case(String)
             Me%OutPut%WaterLevelUnits = 100.
 
         endif
+        
+        !<BeginKeyword>
+            !Keyword          : OUTPUT_FLOOD_RISK
+            !<BeginDescription>       
+               ! 
+               !Checks if outputs related with flood risk are to be made
+               ! 
+            !<EndDescription>
+            !Type             : integer
+            !Default          : meters_
+            !File keyword     : IN_DAD3D 
+            !Multiple Options : .true. , .false.
+            !Search Type      : From File
+        !<EndKeyword>
+        call GetData(Me%Output%FloodRisk,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     keyword    = 'OUTPUT_FLOOD_RISK',                                  &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)                                            
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR205.')
+        
+        if(Me%Output%FloodRisk .and. Me%WorkSize%KUB > 1)then
+            write(*,*)"OUTPUT_FLOOD_RISK is only available for depth integrated simulations (KUB = 1)"
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR206.')
+        endif
+        
+        if(Me%Output%FloodRisk)then
+            call ReadFileName("ROOT_SRT", Me%Output%FloodRiskRootPath, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                 &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR207.')
+        endif
+        
+        
 
         !<BeginKeyword>
             !Keyword          : EVOLUTION
@@ -8633,10 +8678,18 @@ cd5 :           if (opened) then
         if (Me%OutPut%HDF5ON) then 
 
             Me%OutPut%NextOutPut = 1
+            
+        else
+            
+            if(Me%OutPut%FloodRisk)then
+                write(*,*)"Please activate HDF Hydrodynamic outputs in order to compute flood risk"
+                call SetError(FATAL_, INTERNAL_, 'Construct_OutPutTime - Hydrodynamic - ERR11')
+            endif
 
         endif
-
-
+        
+        
+        
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime  = Me%CurrentTime,                               &
                            EndTime      = Me%EndTime,                                   &
@@ -10222,6 +10275,34 @@ i1:         if (CoordON) then
         Me%OutPut%Aux2D         (:,:  ) = 0. 
         Me%OutPut%WaterLevelMax (:,:  ) = 0. 
         Me%OutPut%WaterLevelMin (:,:  ) = 0. 
+        
+        if(Me%OutPut%FloodRisk)then
+        
+              
+        
+            nullify  (Me%OutPut%MaxWaterColumn          )
+            nullify  (Me%OutPut%VelocityAtMaxWaterColumn)
+            nullify  (Me%OutPut%MaxFloodRisk            )
+
+            allocate(Me%OutPut%MaxWaterColumn          (ILB:IUB, JLB:JUB),                     &
+                     Me%OutPut%VelocityAtMaxWaterColumn(ILB:IUB, JLB:JUB),                     &
+                     Me%OutPut%MaxFloodRisk            (ILB:IUB, JLB:JUB),                     &
+                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR20'
+            
+            Me%OutPut%MaxWaterColumn          (:,:) = -99. 
+            Me%OutPut%VelocityAtMaxWaterColumn(:,:) = -99. 
+            Me%OutPut%MaxFloodRisk            (:,:) = -99. 
+            
+            call ReadLock_ModuleHorizontalMap
+            
+            call SetMatrixValue(Me%OutPut%MaxWaterColumn,           Me%WorkSize2D, 0., Me%External_Var%WaterPoints2D)
+            call SetMatrixValue(Me%OutPut%VelocityAtMaxWaterColumn, Me%WorkSize2D, 0., Me%External_Var%WaterPoints2D)
+            call SetMatrixValue(Me%OutPut%MaxFloodRisk,             Me%WorkSize2D, 0., Me%External_Var%WaterPoints2D)
+            
+            call ReadUnLock_ModuleHorizontalMap
+
+        endif
     
     end subroutine ConstructMatrixesOutput
 
@@ -21089,7 +21170,6 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         integer                              :: i, j, k   ! counters
         integer                              :: ILB, IUB, JLB, JUB, KLB, KUB !bounds
         integer                              :: status 
-        integer                              :: kbottom, ii, jj
         ! integer                              :: CHUNK
         
         !Begin----------------------------------------------------------------------
@@ -41309,8 +41389,14 @@ do5:            do i = ILB, IUB
             Me%OutW%OutPutWindowsON)then
 
             call ModifyMatrixesOutput
+            
+            if(Me%OutPut%FloodRisk)then
+                call ComputeFloodRisk
+            endif
 
         end if
+        
+        
         
         !! $OMP PARALLEL SECTIONS
                 
@@ -41483,7 +41569,42 @@ do5:            do i = ILB, IUB
     end subroutine Hydrodynamic_OutPut
 
     !End------------------------------------------------------------------------------
+    
+    
+    subroutine ComputeFloodRisk
 
+        !Locals----------------------------------------------------------------
+        integer                                 :: ILB,IUB, JLB, JUB, KUB, i, j
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KUB = Me%WorkSize%KUB
+        
+        do j = JLB, JUB
+        do i = ILB, IUB
+   
+            if (Me%External_Var%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+
+                if (Me%External_Var%WaterColumn(i, j) > Me%Output%MaxWaterColumn(i, j)) then
+                    Me%Output%MaxWaterColumn(i, j) = Me%External_Var%WaterColumn(i, j)
+                    
+                    !Velocity at MaxWater column
+                    Me%Output%VelocityAtMaxWaterColumn(i,j) =  Me%OutPut%ModulusH(i, j, KUB) 
+                   
+                endif
+                
+                if (Me%Output%MaxWaterColumn(i, j) * Me%OutPut%ModulusH(i, j, KUB) > Me%Output%MaxFloodRisk(i,j)) then
+                    Me%Output%MaxFloodRisk(i,j) = Me%Output%MaxWaterColumn(i, j) * Me%OutPut%ModulusH(i, j, KUB)
+                endif
+
+            endif
+
+        enddo
+        enddo
+
+    end subroutine ComputeFloodRisk
 
     !--------------------------------------------------------------------------
     ! This subroutine is responsable for computing fluxes between boxes      
@@ -43761,6 +43882,11 @@ cd3:            if (Me%OutPut%hdf5ON) then
                         !Output in HDF
                         Me%OutPut%Run_End = .true.
                         call Write_HDF5_Format
+                        
+                    endif
+                    
+                    if(Me%OutPut%FloodRisk)then
+                        call OutputFloodRisk
                     endif
 
                     call ReadUnLock_External_Modules
@@ -44101,7 +44227,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         real,       dimension(6), target            :: AuxTime
         real,       dimension(:),       pointer     :: TimePtr        
         integer                                     :: IUB, JUB, KUB, ILB, JLB, KLB
-        integer                                     :: FinalFile, i, j, k, HDF5_CREATE, ObjHDF5
+        integer                                     :: HDF5_CREATE, ObjHDF5
         integer,    dimension(:),       pointer     :: AuxInt
         real,       dimension(:),       pointer     :: AuxReal
         character (Len = Pathlength)                :: filename
@@ -44325,7 +44451,7 @@ cd2:    if (Me%ComputeOptions%Residual) then
                              Units          = "m/s",                                    &
                              Array3D        = Me%Velocity%Horizontal%V%Old,             &
                              STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR210'        
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR210'        
         
 
 
@@ -45056,14 +45182,12 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
         real,    dimension(:), pointer     :: TimeVector
         type (T_Time)                      :: BeginTime, EndTimeFile, EndTime
 
-        real                               :: Year_File, Month_File, Day_File,           &
-                                              Hour_File, Minute_File, Second_File,       &
-                                              DT_error
+        real                               :: DT_error
         real                               :: Previous_Discretization
 
         integer                            :: IUB, JUB, KUB, ILB, JLB, KLB, HDF5_READ
         integer                            :: IUW, JUW, ILW, JLW
-        integer                            :: InitialFile, i, j, k, Evolution
+        integer                            :: i, j, k, Evolution
         integer                            :: BaroclinicRadia
         logical                            :: EXT, Residual
         integer                            :: ObjHDF5
@@ -45743,7 +45867,55 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
 
     !--------------------------------------------------------------------------
     
+    subroutine OutputFloodRisk
     
+        
+        !Local-----------------------------------------------------------------
+        character(len = PathLength)     :: MaxWaterColumnFile
+        character(len = PathLength)     :: VelocityAtMaxWaterColumnFile
+        character(len = PathLength)     :: MaxWaterFloodRiskFile
+        integer                         :: STAT_CALL
+        
+        !----------------------------------------------------------------------
+        MaxWaterColumnFile           = trim(adjustl(Me%Output%FloodRiskRootPath))//"MaxWaterColumn.dat"       
+        VelocityAtMaxWaterColumnFile = trim(adjustl(Me%Output%FloodRiskRootPath))//"VelocityAtMaxWaterColumn.dat"       
+        MaxWaterFloodRiskFile        = trim(adjustl(Me%Output%FloodRiskRootPath))//"MaxFloodRisk.dat"       
+             
+        call WriteGridData  (MaxWaterColumnFile,                                   &
+                             COMENT1          = "MaxWaterColumnFile",              &
+                             COMENT2          = "MaxWaterColumnFile",              &
+                             HorizontalGridID = Me%ObjHorizontalGrid,              &
+                             FillValue        = -99.0,                             &
+                             OverWrite        = .true.,                            &
+                             GridData2D_Real  = Me%Output%MaxWaterColumn,          &
+                             STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR10'
+
+        call WriteGridData  (VelocityAtMaxWaterColumnFile,                         &
+                             COMENT1          = "VelocityAtMaxWaterColumn",        &
+                             COMENT2          = "VelocityAtMaxWaterColumn",        &
+                             HorizontalGridID = Me%ObjHorizontalGrid,              &
+                             FillValue        = -99.0,                             &
+                             OverWrite        = .true.,                            &
+                             GridData2D_Real  = Me%Output%VelocityAtMaxWaterColumn,&
+                             STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR20'
+
+
+        call WriteGridData  (MaxWaterFloodRiskFile,                                &
+                             COMENT1          = "MaxFloodRisk",                    &
+                             COMENT2          = "MaxFloodRisk",                    &
+                             HorizontalGridID = Me%ObjHorizontalGrid,              &
+                             FillValue        = -99.0,                             &
+                             OverWrite        = .true.,                            &
+                             GridData2D_Real  = Me%Output%MaxFloodRisk,            &
+                             STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR30'
+    
+    end subroutine OutputFloodRisk
+    
+    !--------------------------------------------------------------------------
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
     !                                                                                      !
@@ -47100,6 +47272,21 @@ ic1:    if (Me%CyclicBoundary%ON) then
         if (Me%ThinWalls%ON) then
             call KillThinWalls
         endif        
+        
+        
+        if(Me%Output%FloodRisk)then
+        
+            deallocate(Me%Output%MaxWaterColumn, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR160'
+            
+            deallocate(Me%Output%VelocityAtMaxWaterColumn, STAT = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR170'
+            
+            deallocate(Me%Output%MaxFloodRisk, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR180'
+           
+        endif
+
        !----------------------------------------------------------------------
 
     end subroutine DeallocateVariables   

@@ -3028,7 +3028,7 @@ do1 :   do while (associated(PropertyX))
     subroutine Construct_Time_Serie
 
         !External--------------------------------------------------------------
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
         integer                                             :: STAT_CALL, iflag
 
         !Local-----------------------------------------------------------------

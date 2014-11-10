@@ -1170,7 +1170,7 @@ do1 :   do
         type (T_Property), pointer                          :: PropertyX
         integer                                             :: nProperties, STAT_CALL
         integer                                             :: iflag
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
 
         !----------------------------------------------------------------------
 
