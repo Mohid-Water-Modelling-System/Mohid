@@ -95,7 +95,8 @@ Module ModuleRunoffProperties
                                         GetDischargeWaterFlow, GetDischargesIDName,      &
                                         TryIgnoreDischarge, GetDischargeSpatialEmission, &
                                         CorrectsCellsDischarges, Kill_Discharges,        &
-                                        GetDischargeConcentration
+                                        GetDischargeConcentration, GetDischargeFlowDistribuiton, &
+                                        UnGetDischarges
     
     use ModuleBoxDif,               only: StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif,     &
                                           BoxDif, KillBoxDif        
@@ -5099,16 +5100,21 @@ cd0:    if (Exist) then
         !Arguments--------------------------------------------------------------
         !Local------------------------------------------------------------------
         integer                                 :: iDis, nDischarges
-        integer                                 :: i, j, k
+        integer                                 :: i, j, k, n
         integer                                 :: STAT_CALL
         real, dimension(:, :), pointer          :: FlowDischarge
         real,    dimension(:,:), pointer        :: DischargesConc
         type (T_Property), pointer              :: Property
         integer                                 :: iProp
         real(8)                                 :: VolumeOld
-
+        integer, dimension(:),   pointer        :: VectorI, VectorJ
+        integer                                 :: nCells
+        integer                                 :: FlowDistribution
 
         !Get integrated flow from runoff to be sure using same values
+        !ATTENTION - DIFFERENT DISCHARGES CAN NOT OCCUR AT THE SAME CELL
+        !Test this here in RP because is only problem if properties are used
+        !or create duplications of integrated discharge (per discharge) in runoff        
         call GetFlowDischarge (Me%ObjRunoff, FlowDischarge, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOffProperties - ModifyDischarges - ERR01'
         
@@ -5131,61 +5137,83 @@ cd0:    if (Exist) then
             if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOffProperties - ModifyDischarges - ERR020'
             
             if (k == 0) then
-                
-                nullify (Property)
-                Property => Me%FirstProperty
-                iProp = 0
-                do while (associated (Property))
+
+                call GetDischargeFlowDistribuiton(Me%ObjDischarges, iDis, nCells, FlowDistribution, &
+                                                  VectorI, VectorJ, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_) stop 'ModulePorousMediaProperties - ModifyDischarges - ERR040'             
+               
+ dn:            do n=1, nCells
+ 
+                    if (nCells > 1) then
+                        i         = VectorI(n)
+                        j         = VectorJ(n)                      
+                    endif
+
+                    if (Me%ExtVar%BasinPoints(i, j) /= WaterPoint)  Cycle                
+                    nullify (Property)
+                    Property => Me%FirstProperty
+                    iProp = 0
+                    do while (associated (Property))
                     
-                    if (Property%Evolution%Discharges) then 
+                        if (Property%Evolution%Discharges) then 
                         
-                        iProp = iProp + 1
+                            iProp = iProp + 1
 
-                        !Gets Discharge Concentration for this cycle of iter
-                        call GetDischargeConcentration (Me%ObjDischarges,                           &
-                                                        Me%ExtVar%Now,                              &
-                                                        iDis, DischargesConc(iDis, iProp),          &
-                                                        Property%ID%IDNumber,                       &
-                                                        STAT = STAT_CALL)
-                        if (STAT_CALL/=SUCCESS_) then
-                            if (STAT_CALL == NOT_FOUND_ERR_) then 
-                                !When a property is not found associated to a discharge
-                                !by default is consider that the concentration is zero
-                                DischargesConc(iDis, iProp) = 0.
-                            else
-                                stop 'ModuleRunOffProperties - ModifyDischarges - ERR030'
+                            !Gets Discharge Concentration for this cycle of iter
+                            call GetDischargeConcentration (Me%ObjDischarges,                           &
+                                                            Me%ExtVar%Now,                              &
+                                                            iDis, DischargesConc(iDis, iProp),          &
+                                                            Property%ID%IDNumber,                       &
+                                                            STAT = STAT_CALL)
+                            if (STAT_CALL/=SUCCESS_) then
+                                if (STAT_CALL == NOT_FOUND_ERR_) then 
+                                    !When a property is not found associated to a discharge
+                                    !by default is consider that the concentration is zero
+                                    DischargesConc(iDis, iProp) = 0.
+                                else
+                                    stop 'ModuleRunOffProperties - ModifyDischarges - ERR030'
+                                endif
                             endif
-                        endif
                         
-                        !In case of negative discharge flux for mass balance is done using old concentration
-                        !and before concentration is updated in routine DischargeProperty
-                        !Do not move this computation to after DischargeProperty
-                        !In case of positive use dicharge concentration
-                        if (Me%CheckGlobalMass) then
-                            if (FlowDischarge(i,j) .lt. 0.0) then                        
-                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
-                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j)   &
-                                                                 * Me%ExtVar%DT * Property%ConcentrationOld(i,j))
-                            else
-                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
-                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j)  &
-                                                                 * Me%ExtVar%DT * DischargesConc(iDis, iProp))
+                            !In case of negative discharge flux for mass balance is done using old concentration
+                            !and before concentration is updated in routine DischargeProperty
+                            !Do not move this computation to after DischargeProperty
+                            !In case of positive use dicharge concentration
+                            if (Me%CheckGlobalMass) then
+                                if (FlowDischarge(i,j) .lt. 0.0) then                        
+                                    !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                    Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j)   &
+                                                                     * Me%ExtVar%DT * Property%ConcentrationOld(i,j))
+                                else
+                                    !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                    Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (FlowDischarge(i,j)  &
+                                                                     * Me%ExtVar%DT * DischargesConc(iDis, iProp))
                             
+                                endif
                             endif
-                        endif
                         
-                        !initial volume in runoff - no discarge
-                        VolumeOld = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j)
+                            !initial volume in runoff - no discarge
+                            VolumeOld = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j)
                         
-                        !Update old concentration (same as doing new concentrarion and then old = new before other processes)
-                        call DischargeProperty (FlowDischarge(i,j), DischargesConc(iDis, iProp),        &
-                                                i, j, VolumeOld,   Property, Me%ExtVar%DT, .false.)
+                            !Update old concentration (same as doing new concentrarion and then old = new before other processes)
+                            call DischargeProperty (FlowDischarge(i,j), DischargesConc(iDis, iProp),        &
+                                                    i, j, VolumeOld,   Property, Me%ExtVar%DT, .false.)
                         
-                    end if
+                        end if
                                     
-                    Property => Property%Next
+                        Property => Property%Next
 
-                enddo
+                    enddo
+                    
+                enddo dn
+ 
+                call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'ModuleRunOffProperties - ModifyDischarges - ERR070'
+
+                call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'ModuleRunOffProperties - ModifyDischarges - ERR080'
            
            endif
            

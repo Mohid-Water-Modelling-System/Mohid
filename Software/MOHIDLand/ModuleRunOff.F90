@@ -62,10 +62,12 @@ Module ModuleRunOff
                                         GetDischargeWaterFlow, GetDischargesIDName,      &
                                         TryIgnoreDischarge, GetDischargeSpatialEmission, &
                                         CorrectsCellsDischarges, Kill_Discharges,        &
-                                        GetByPassON
+                                        GetByPassON, GetDischargeFlowDistribuiton,       &
+                                        UnGetDischarges
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif, &
                                        BoxDif, KillBoxDif                                                      
-                                        
+    use ModuleDrawing
+    
     implicit none
 
     private 
@@ -266,6 +268,9 @@ Module ModuleRunOff
         real(8), dimension(:,:), pointer            :: myWaterLevel             => null()
         real(8), dimension(:,:), pointer            :: myWaterColumn            => null()
         real,    dimension(:,:), pointer            :: InitialWaterColumn       => null()
+        real,    dimension(:,:), pointer            :: InitialWaterLevel        => null()
+        logical                                     :: PresentInitialWaterColumn = .false.
+        logical                                     :: PresentInitialWaterLevel  = .false.
         real(8), dimension(:,:), pointer            :: myWaterVolume            => null() 
         real(8), dimension(:,:), pointer            :: myWaterColumnOld         => null() !OldColumn from Basin
         real(8), dimension(:,:), pointer            :: myWaterColumnAfterTransport => null() !for property transport
@@ -596,7 +601,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Local-----------------------------------------------------------------        
         integer                                     :: STAT_CALL
-        type(T_PropertyID)                          :: InitialWaterColumnID
+        type(T_PropertyID)                          :: InitialWaterColumnID, InitialWaterLevelID
         type(T_PropertyID)                          :: OverLandCoefficientDeltaID
         type(T_PropertyID)                          :: StormWaterDrainageID
         type(T_PropertyID)                          :: BuildingsHeightID
@@ -641,15 +646,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif        
 
         !Gets Block 
-        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                    &
                                     '<BeginInitialWaterColumn>',                      &
                                     '<EndInitialWaterColumn>', BlockFound,            &
                                     STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR070'
 
         if (BlockFound) then
-            call ConstructFillMatrix  ( PropertyID       = InitialWaterColumnID,      &
-                                        EnterDataID      = Me%ObjEnterData,                 &
+            call ConstructFillMatrix  ( PropertyID       = InitialWaterColumnID,         &
+                                        EnterDataID      = Me%ObjEnterData,              &
                                         TimeID           = Me%ObjTime,                   &
                                         HorizontalGridID = Me%ObjHorizontalGrid,         &
                                         ExtractType      = FromBlock,                    &
@@ -661,10 +666,40 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call KillFillMatrix(InitialWaterColumnID%ObjFillMatrix, STAT = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR090'
+            
+            Me%PresentInitialWaterColumn = .true.
 
         else
-            write(*,*)'Missing Block <BeginInitialWaterColumn> / <EndInitialWaterColumn>' 
-            stop      'ReadDataFile - ModuleRunOff - ERR100'
+
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                    &
+                                        '<BeginInitialWaterLevel>',                       &
+                                        '<EndInitialWaterLevel>', BlockFound,             &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR091'
+
+            if (BlockFound) then
+                call ConstructFillMatrix  ( PropertyID       = InitialWaterLevelID,          &
+                                            EnterDataID      = Me%ObjEnterData,              &
+                                            TimeID           = Me%ObjTime,                   &
+                                            HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                            ExtractType      = FromBlock,                    &
+                                            PointsToFill2D   = Me%ExtVar%BasinPoints,        &
+                                            Matrix2D         = Me%InitialWaterLevel,         &
+                                            TypeZUV          = TypeZ_,                       &
+                                            STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR092'
+
+                call KillFillMatrix(InitialWaterLevelID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR093'  
+                
+                Me%PresentInitialWaterLevel = .true.
+                
+            else
+                write(*,*)
+                write(*,*)'Missing Block <BeginInitialWaterColumn> / <EndInitialWaterColumn>' 
+                write(*,*)'or <BeginInitialWaterLevel> / <EndInitialWaterLevel>' 
+                stop      'ReadDataFile - ModuleRunOff - ERR100'
+            endif
         endif
 
          !Gets Minimum Slope 
@@ -2228,19 +2263,39 @@ do4:            do di = -1, 1
         
         !Begin-----------------------------------------------------------------       
         
-        !Initializes Water Column
-        do j = Me%Size%JLB, Me%Size%JUB
-        do i = Me%Size%ILB, Me%Size%IUB
+        if (Me%PresentInitialWaterColumn) then
+            !Initializes Water Column
+            do j = Me%Size%JLB, Me%Size%JUB
+            do i = Me%Size%ILB, Me%Size%IUB
 
-            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-                Me%myWaterLevel(i, j)       = Me%InitialWaterColumn(i,j) + Me%ExtVar%Topography(i, j)
-                Me%MyWaterColumn(i, j)      = Me%InitialWaterColumn(i,j)
-                Me%MyWaterColumnOld(i, j)   = Me%MyWaterColumn(i,j)
-                Me%StabilityPoints(i, j)    = 1
-            endif
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    Me%myWaterLevel(i, j)       = Me%InitialWaterColumn(i,j) + Me%ExtVar%Topography(i, j)
+                    Me%MyWaterColumn(i, j)      = Me%InitialWaterColumn(i,j)
+                    Me%MyWaterColumnOld(i, j)   = Me%MyWaterColumn(i,j)
+                    Me%StabilityPoints(i, j)    = 1
+                endif
 
-        enddo
-        enddo
+            enddo
+            enddo
+        elseif (Me%PresentInitialWaterLevel) then            
+            do j = Me%Size%JLB, Me%Size%JUB
+            do i = Me%Size%ILB, Me%Size%IUB
+
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    if (Me%InitialWaterLevel(i,j) > Me%ExtVar%Topography(i, j)) then
+                        Me%myWaterLevel(i, j)   = Me%InitialWaterLevel(i,j)
+                        Me%MyWaterColumn(i, j)  = Me%InitialWaterLevel(i,j) - Me%ExtVar%Topography(i, j)
+                    else
+                        Me%myWaterLevel(i, j)   = Me%ExtVar%Topography(i, j)
+                        Me%MyWaterColumn(i, j)  = 0.0
+                    endif
+                    Me%MyWaterColumnOld(i, j)   = Me%MyWaterColumn(i,j)
+                    Me%StabilityPoints(i, j)    = 1
+                endif
+
+            enddo
+            enddo            
+        endif
         
                
         if (Me%Buildings) then
@@ -2446,6 +2501,10 @@ do4:            do di = -1, 1
         logical                                     :: CoordinatesON, IgnoreOK
         integer                                     :: Id, Jd, dn, DischargesNumber
         integer                                     :: STAT_CALL
+        type (T_Lines),   pointer                   :: LineX
+        type (T_Polygon), pointer                   :: PolygonX
+        integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
+        integer                                     :: SpatialEmission, nCells       
 
         call Construct_Discharges(Me%ObjDischarges, Me%ObjTime, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR01' 
@@ -2489,89 +2548,87 @@ do4:            do di = -1, 1
                     
             endif
 
-            !
-            !FROM HERE TO THE END NOT TESTED CODE
-            !
+            !ATTENTION - NEED TO VERIFY IF DISCHARGES ARE COLLINEAR.
+            !Do not allow with properties since the flow used in PMP is not distributed by discharges
+            !and will be accounted with flow duplicating
+            call GetDischargeSpatialEmission(Me%ObjDischarges, dn, LineX, PolygonX, &
+                                             SpatialEmission, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR08' 
+                    
+            if (SpatialEmission == DischPoint_) then
+ 
+                call GetDischargesGridLocalization(Me%ObjDischarges, dn,            &
+                                                   Igrid         = Id,              &
+                                                   JGrid         = Jd,              &
+                                                   STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR09' 
 
-!
-!            call GetDischargeSpatialEmission(Me%ObjDischarges, dn, LineX, PolygonX, &
-!                                             SpatialEmission, STAT = STAT_CALL)
-!            if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR08' 
-!                    
-!            if (SpatialEmission == DischPoint_) then
-! 
-!                call GetDischargesGridLocalization(Me%ObjDischarges, dn,            &
-!                                                   Igrid         = Id,              &
-!                                                   JGrid         = Jd,              &
-!                                                   STAT          = STAT_CALL)
-!                if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR09' 
-!
-!                if (Me%ExtVar%BasinPoints(Id,Jd) /= WaterPoint) then
-!                    call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
-!                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR10' 
-!
-!                    write(*,*) 'Discharge outside the domain I=',Id,' J=',Jd,'Model name=',trim(Me%ModelName)
-!
-!                    if (IgnoreOK) then
-!                        write(*,*) 'Discharge in a land cell - ',trim(DischargeName),' - ',trim(Me%ModelName)
-!                        cycle
-!                    else
-!                        stop 'ModuleRunOff - ConstructDischarges - ERR11' 
-!                    endif
-!                endif
-!
-!                nCells    = 1
-!                allocate(VectorI(nCells), VectorJ(nCells))
-!                VectorJ(nCells) = Jd
-!                VectorI(nCells) = Id
-!
-!            else
-!
-!                if (SpatialEmission == DischLine_) then
-!                    call GetCellZInterceptByLine(Me%ObjHorizontalGrid, LineX,       &
-!                                                 Me%ExtVar%BasinPoints, VectorI, VectorJ,   &
-!                                                 nCells, STAT = STAT_CALL)
-!                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR12' 
-!
-!                    if (nCells < 1) then
-!                        write(*,*) 'Discharge line intercept 0 cells'       
-!                        stop 'ModuleRunOff - ConstructDischarges - ERR13' 
-!                    endif
-!
-!                endif 
-!
-!
-!                if (SpatialEmission == DischPolygon_) then
-!                    call GetCellZInterceptByPolygon(Me%ObjHorizontalGrid, PolygonX, &
-!                                                 Me%ExtVar%BasinPoints, VectorI, VectorJ,   &
-!                                                 nCells, STAT = STAT_CALL)
-!                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR14' 
-!
-!                    if (nCells < 1) then
-!                        write(*,*) 'Discharge contains 0 center cells'       
-!                        write(*,*) 'Or the polygon is to small and is best to a discharge in a point or'
-!                        write(*,*) 'the polygon not define properly'
-!                        stop 'ModuleRunOff - ConstructDischarges - ERR15' 
-!                    endif
-!
-!                endif
-!
-!
-!            endif
+                if (Me%ExtVar%BasinPoints(Id,Jd) /= WaterPoint) then
+                    call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR10' 
+
+                    write(*,*) 'Discharge outside the domain I=',Id,' J=',Jd,'Model name=',trim(Me%ModelName)
+
+                    if (IgnoreOK) then
+                        write(*,*) 'Discharge in a land cell - ',trim(DischargeName),' - ',trim(Me%ModelName)
+                        cycle
+                    else
+                        stop 'ModuleRunOff - ConstructDischarges - ERR11' 
+                    endif
+                endif
+
+                nCells    = 1
+                allocate(VectorI(nCells), VectorJ(nCells))
+                VectorJ(nCells) = Jd
+                VectorI(nCells) = Id
+
+            else
+
+                if (SpatialEmission == DischLine_) then
+                    call GetCellZInterceptByLine(Me%ObjHorizontalGrid, LineX,       &
+                                                 Me%ExtVar%BasinPoints, VectorI, VectorJ, VectorK,   &
+                                                 nCells, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR12' 
+
+                    if (nCells < 1) then
+                        write(*,*) 'Discharge line intercept 0 cells'       
+                        stop 'ModuleRunOff - ConstructDischarges - ERR13' 
+                    endif
+
+                endif 
+
+
+                if (SpatialEmission == DischPolygon_) then
+                    call GetCellZInterceptByPolygon(Me%ObjHorizontalGrid, PolygonX, &
+                                                 Me%ExtVar%BasinPoints, VectorI, VectorJ, VectorK,   &
+                                                 nCells, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR14' 
+
+                    if (nCells < 1) then
+                        write(*,*) 'Discharge contains 0 center cells'       
+                        write(*,*) 'Or the polygon is to small and is best to a discharge in a point or'
+                        write(*,*) 'the polygon not define properly'
+                        stop 'ModuleRunOff - ConstructDischarges - ERR15' 
+                    endif
+
+                endif
+
+
+            endif
                         
-!            if (SpatialEmission /= DischPoint_) then
-!
-!
-!                call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
-!                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR16' 
-!
-!            else  i4
-!                if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
-!                    call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
-!                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR220' 
-!                endif
-!                deallocate(VectorI, VectorJ, VectorK)
-!            endif i4
+            !if (SpatialEmission /= DischPoint_) then
+            !
+            !
+            !    call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
+            !        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR16' 
+            !
+            !else  i4
+            !    if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
+            !        call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
+            !        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR220' 
+            !    endif
+            !    deallocate(VectorI, VectorJ, VectorK)
+            !endif i4
 
         enddo
 
@@ -2613,6 +2670,7 @@ do4:            do di = -1, 1
         allocate(Me%myWaterVolumePred   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%myWaterVolumePred = null_real
         allocate(Me%InitialWaterColumn   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%InitialWaterLevel    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterVolume        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterColumnOld     (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterVolumeOld     (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -2620,6 +2678,7 @@ do4:            do di = -1, 1
         Me%myWaterLevel            = null_real
         Me%myWaterColumn           = null_real
         Me%InitialWaterColumn      = null_real
+        Me%InitialWaterLevel       = null_real
         Me%myWaterVolume           = 0.0        !For OpenMI
         Me%myWaterColumnOld        = null_real
         Me%myWaterVolumeOld        = null_real
@@ -4233,12 +4292,14 @@ doIter:         do while (iter <= Niter)
         real                                    :: LocalDT
 
         !Local------------------------------------------------------------------
-        integer                                 :: iDis, nDischarges
-        integer                                 :: i, j, k, ib, jb
+        integer                                 :: iDis, nDischarges, nCells
+        integer                                 :: i, j, k, ib, jb, n, FlowDistribution
         real                                    :: SurfaceElevation, SurfaceElevationByPass    
-        real                                    :: Flow, MaxFlow   
+        real                                    :: MaxFlow, DischargeFlow, AuxFlowIJ
         integer                                 :: STAT_CALL
         logical                                 :: ByPassON
+        integer, dimension(:    ), pointer      :: VectorI, VectorJ
+        real,    dimension(:    ), pointer      :: DistributionCoef
 
         !Sets to 0
         call SetMatrixValue(Me%lFlowDischarge, Me%Size, 0.0)
@@ -4276,33 +4337,85 @@ doIter:         do while (iter <= Niter)
                 call GetDischargeWaterFlow(Me%ObjDischarges,                            &
                                         Me%ExtVar%Now, iDis,                            &
                                         SurfaceElevation,                               &
-                                        Flow,                                           &
+                                        DischargeFlow,                                  &
                                         SurfaceElevation2 = SurfaceElevationByPass,     &
                                         STAT = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR04'
+
                 
-                !each additional flow can remove all water column left
-                if (Flow .lt. 0.0) then
-                    !m3/s = m3 /s
-                    MaxFlow = - Me%myWaterVolume(i, j) / LocalDT
-                  
-                    if (abs(Flow) .gt. abs(MaxFlow)) then
-                        Flow = MaxFlow 
+                call GetDischargeFlowDistribuiton(Me%ObjDischarges, iDis, nCells, FlowDistribution, &
+                                                  VectorI, VectorJ, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR040'
+
+                !Horizontal distribution
+i1:             if (nCells > 1) then
+                    allocate(DistributionCoef(1:nCells))
+i2:                 if      (FlowDistribution == DischByCell_ ) then
+                    
+                        DistributionCoef(1:nCells) = 1./float(nCells)
+
+                    else i2
+                    
+                        stop 'ModuleRunOff - ModifyWaterDischarges - ERR050'
+
+                    endif i2
+                endif i1
+                
+                AuxFlowIJ = DischargeFlow
+                
+ dn:            do n=1, nCells
+ 
+                    if (nCells > 1) then
+                        i         = VectorI(n)
+                        j         = VectorJ(n)
+                        
+                        !For every cell get the total flow and multiply it by distribution coef
+                        call GetDischargeWaterFlow(Me%ObjDischarges,                            &
+                                                Me%ExtVar%Now, iDis,                            &
+                                                SurfaceElevation,                               &
+                                                AuxFlowIJ,                                      &
+                                                FlowDistribution  = DistributionCoef(n),        &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR070'
+
+
                     endif
-                endif
+                    
+                    !each additional flow can remove all water column left
+                    if (AuxFlowIJ .lt. 0.0) then
+                        !m3/s = m3 /s
+                        MaxFlow = - Me%myWaterVolume(i, j) / LocalDT
+                  
+                        if (abs(AuxFlowIJ) .gt. abs(MaxFlow)) then
+                            AuxFlowIJ = MaxFlow 
+                        endif
+                    endif
 
-                Me%lFlowDischarge(i, j)     = Me%lFlowDischarge(i, j) + Flow
+                    Me%lFlowDischarge(i, j)     = Me%lFlowDischarge(i, j) + AuxFlowIJ
 
-                !Updates Water Volume
-                Me%myWaterVolume(i, j)      = Me%myWaterVolume(i, j) + Flow * LocalDT
+                    !Updates Water Volume
+                    Me%myWaterVolume(i, j)      = Me%myWaterVolume(i, j) + AuxFlowIJ * LocalDT
 
-                !Updates Water Column
-                Me%myWaterColumn  (i, j)    = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
+                    !Updates Water Column
+                    Me%myWaterColumn  (i, j)    = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
 
-                !Updates Water Level
-                Me%myWaterLevel (i, j)      = Me%myWaterColumn (i, j) + Me%ExtVar%Topography(i, j)
+                    !Updates Water Level
+                    Me%myWaterLevel (i, j)      = Me%myWaterColumn (i, j) + Me%ExtVar%Topography(i, j)
 
-                !if (Me%CheckMass) Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
+                    !if (Me%CheckMass) Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT                    
+                    
+
+                enddo dn
+
+                if (nCells > 1) deallocate(DistributionCoef)
+
+                call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'ModuleRunOff - ModifyWaterDischarges - ERR070'
+
+                call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'ModuleRunOff - ModifyWaterDischarges - ERR080'                               
  
             endif
            
