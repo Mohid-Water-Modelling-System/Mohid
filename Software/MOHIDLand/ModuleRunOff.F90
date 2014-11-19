@@ -167,6 +167,7 @@ Module ModuleRunOff
         integer                                     :: NextRestartOutput    = 1 
         logical                                     :: BoxFluxes            = .false.
         logical                                     :: OutputFloodRisk      = .false.
+        real                                        :: FloodRiskVelCoef     = null_real
         
         logical                                     :: WriteMaxFlowModulus  = .false.
         character(Pathlength)                       :: MaxFlowModulusFile   = null_str
@@ -1577,7 +1578,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                    &
                      ClientModule = 'ModuleRunOff',                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR775'          
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR731'          
         
         if (Me%Output%OutputFloodRisk) then
             Me%Output%WriteMaxWaterColumn           = .true.
@@ -1586,19 +1587,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Gets the root path from the file nomfich.dat
             call ReadFileName("ROOT_SRT", Me%Output%MaxWaterColumnFile, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0750'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0732'
             Me%Output%MaxWaterColumnFile = trim(adjustl(Me%Output%MaxWaterColumnFile))//"MaxWaterColumn.dat"
             
             !Gets the root path from the file nomfich.dat
             call ReadFileName("ROOT_SRT", Me%Output%VelocityAtMaxWaterColumnFile, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0750'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0733'
             Me%Output%VelocityAtMaxWaterColumnFile = trim(adjustl(Me%Output%VelocityAtMaxWaterColumnFile))&
                                                         &//"VelocityAtMaxWaterColumn.dat"            
 
             !Gets the root path from the file nomfich.dat
             call ReadFileName("ROOT_SRT", Me%Output%MaxFloodRiskFile, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0770'
-            Me%Output%MaxFloodRiskFile = trim(adjustl(Me%Output%MaxFloodRiskFile))//"MaxFloodRisk.dat"   
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0734'
+            Me%Output%MaxFloodRiskFile = trim(adjustl(Me%Output%MaxFloodRiskFile))//"MaxFloodRisk.dat"                             
             
         else        
         
@@ -1631,7 +1632,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if(Me%Output%WriteVelocityAtMaxWaterColumn) then
                     !Gets the root path from the file nomfich.dat
                     call ReadFileName("ROOT_SRT", Me%Output%VelocityAtMaxWaterColumnFile, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0750'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0770'
                     Me%Output%VelocityAtMaxWaterColumnFile = trim(adjustl(Me%Output%VelocityAtMaxWaterColumnFile))&
                                                              &//"VelocityAtMaxWaterColumn.dat"
             
@@ -1646,25 +1647,37 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = .false.,                                    &
                          ClientModule = 'ModuleRunOff',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR760'          
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR780'          
 
         
             if(Me%Output%WriteMaxFloodRisk) then
                 !Gets the root path from the file nomfich.dat
                 call ReadFileName("ROOT_SRT", Me%Output%MaxFloodRiskFile, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0770'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0790'
                 Me%Output%MaxFloodRiskFile = trim(adjustl(Me%Output%MaxFloodRiskFile))//"MaxFloodRisk.dat"   
-            
+                                          
             endif
         endif
         
+        !factor for velocity in flood risk
+        if (Me%Output%OutputFloodRisk .or. Me%Output%WriteMaxFloodRisk) then
+                call GetData(Me%Output%FloodRiskVelCoef,                                &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromFile,                                   &
+                             keyword      = 'FLOOD_RISK_VEL_COEF',                      &
+                             default      = 0.5,                                        &
+                             ClientModule = 'ModuleRunOff',                             &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR795'            
+        endif
+                
         call ReadConvergenceParameters
         
         call StartOutputBoxFluxes
                 
         !Closes Data File
         call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR780'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR800'
 
 
     end subroutine ReadDataFile
@@ -8534,8 +8547,10 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     Me%Output%VelocityAtMaxWaterColumn(i,j) =  Me%VelocityModulus (i, j)
                    
                 endif
-                if (Me%myWaterColumn(i, j) * Me%VelocityModulus (i, j) > Me%Output%MaxFloodRisk(i,j)) then
-                    Me%Output%MaxFloodRisk(i,j) = Me%myWaterColumn(i, j) * Me%VelocityModulus (i, j)
+                if ((Me%myWaterColumn(i, j) * (Me%VelocityModulus (i, j) + Me%Output%FloodRiskVelCoef))        &
+                     > Me%Output%MaxFloodRisk(i,j)) then
+                    Me%Output%MaxFloodRisk(i,j) = Me%myWaterColumn(i, j)                                       &
+                                                  * (Me%VelocityModulus (i, j) + Me%Output%FloodRiskVelCoef)
                 endif
 
             endif
@@ -8570,8 +8585,10 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                         !weighted velocity with river
                         Me%Output%VelocityAtMaxWaterColumn(i,j) = WeightedVelocity
                         
-                        if (Me%Output%MaxWaterColumn(i, j) *  WeightedVelocity > Me%Output%MaxFloodRisk(i,j)) then
-                            Me%Output%MaxFloodRisk(i,j) = Me%Output%MaxWaterColumn(i, j) *  WeightedVelocity
+                        if ((Me%Output%MaxWaterColumn(i, j) *  (WeightedVelocity + Me%Output%FloodRiskVelCoef))     &
+                              > Me%Output%MaxFloodRisk(i,j)) then
+                            Me%Output%MaxFloodRisk(i,j) = Me%Output%MaxWaterColumn(i, j)                            &
+                                                          * (WeightedVelocity + Me%Output%FloodRiskVelCoef)
                         endif
                     endif                                        
                     

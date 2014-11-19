@@ -1441,6 +1441,7 @@ Module ModuleHydrodynamic
          real,    dimension(:,:), pointer         :: TimeSerieDischProp => null()
          
          logical                                  :: FloodRisk                = .false.
+         real                                     :: FloodRiskVelCoef         = null_real
          real,    dimension(:,:), pointer         :: MaxWaterColumn           => null()
          real,    dimension(:,:), pointer         :: VelocityAtMaxWaterColumn => null()
          real,    dimension(:,:), pointer         :: MaxFloodRisk             => null()
@@ -4354,6 +4355,29 @@ case2 : select case(String)
             call ReadFileName("ROOT_SRT", Me%Output%FloodRiskRootPath, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                 &
                 call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR207.')
+
+            !<BeginKeyword>
+                !Keyword          : FLOOD_RISK_VEL_COEF
+                !<BeginDescription>       
+                   ! 
+                   !flood risk velocity coeficient
+                   ! 
+                !<EndDescription>
+                !Type             : real
+                !Default          : 0.5
+                !File keyword     : IN_DAD3D 
+                !Multiple Options : Do not Have 
+                !Search Type      : From File
+            !<EndKeyword>            
+            call GetData(Me%Output%FloodRiskVelCoef,                                   &
+                            Me%ObjEnterData, iflag,                                    &
+                            keyword      = 'FLOOD_RISK_VEL_COEF',                      &
+                            default      = 0.5,                                        &
+                            SearchType   = FromFile,                                   &            
+                            ClientModule = 'ModuleHydrodynamic',                       &
+                            STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Numerical_Options - Hydrodynamic - ERR208'               
+            
         endif
         
         
@@ -41595,8 +41619,10 @@ do5:            do i = ILB, IUB
                    
                 endif
                 
-                if (Me%Output%MaxWaterColumn(i, j) * Me%OutPut%ModulusH(i, j, KUB) > Me%Output%MaxFloodRisk(i,j)) then
-                    Me%Output%MaxFloodRisk(i,j) = Me%Output%MaxWaterColumn(i, j) * Me%OutPut%ModulusH(i, j, KUB)
+                if ((Me%Output%MaxWaterColumn(i, j) * (Me%OutPut%ModulusH(i, j, KUB) + Me%Output%FloodRiskVelCoef))   &
+                      > Me%Output%MaxFloodRisk(i,j)) then
+                    Me%Output%MaxFloodRisk(i,j) = Me%Output%MaxWaterColumn(i, j)                                      &
+                                                  * (Me%OutPut%ModulusH(i, j, KUB) + Me%Output%FloodRiskVelCoef)
                 endif
 
             endif
