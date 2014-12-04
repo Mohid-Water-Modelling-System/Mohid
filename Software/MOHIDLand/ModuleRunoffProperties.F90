@@ -3604,15 +3604,21 @@ cd0:    if (Exist) then
                                  STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR03'
-
             
             if (NewProperty%Evolution%BottomFluxes) then
                 call HDF5ReadData   (ObjHDF5, "/Results/"//trim(adjustl(NewProperty%ID%Name))//" Bottom",   &
                                      trim(adjustl(NewProperty%ID%Name))//" Bottom",                         &
-                                     Array2D = NewProperty%Concentration,                    &
+                                     Array2D = NewProperty%BottomConcentration,                             &
                                      STAT    = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
+                if (STAT_CALL /= SUCCESS_) &           
                     stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR03'
+                    
+                !call HDF5ReadData   (ObjHDF5, "/Results/"//trim(adjustl(NewProperty%ID%Name))//" Bottom",   &
+                !                     trim(adjustl(NewProperty%ID%Name))//" Bottom",                         &
+                !                     Array2D = NewProperty%Concentration,                    &
+                !                     STAT    = STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_)                                                   &
+                !    stop 'ReadOldConcBoundariesHDF - ModuleRunoffProperties - ERR03'
             endif
 
 
@@ -3635,7 +3641,6 @@ cd0:    if (Exist) then
         end if cd0
 
     end subroutine ReadOldConcBoundariesHDF
-
 
     !--------------------------------------------------------------------------
 
