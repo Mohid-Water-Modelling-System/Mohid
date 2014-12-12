@@ -530,8 +530,7 @@ cd3:        if (NGauges < 3) then
 
 cd4:            if (.not.Me%TriangGaugesON) then
              
-                    call GetIJReferenceLevel(Me%ObjGauge, Me%ObjHorizontalGrid,         &
-                                             Me%BoundaryReferenceLevel,                 &
+                    call GetIJReferenceLevel(Me%ObjGauge, Me%BoundaryReferenceLevel,                 &
                                              STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) then
                         stop 'ComputeReferenceLevel - ModuleOpenBoundary - ERR40'
@@ -993,11 +992,11 @@ cd3:            if (NGauges < 3) then
                 
 cd4:                if (.not. Me%TriangGaugesON) then
                 
-                        call GetIJWaterLevel(Me%ObjGauge, Me%ObjHorizontalGrid,         &
-                                             Me%ImposedElevation, Coef, STAT = STAT_CALL)
+                        call GetIJWaterLevel(Me%ObjGauge, Me%ImposedElevation, Coef,    &
+                                             STAT = STAT_CALL)
 
-                        call GetIJReferenceLevel(Me%ObjGauge, Me%ObjHorizontalGrid,     &
-                                             Me%ImposedElevation, STAT = STAT_CALL)
+                        call GetIJReferenceLevel(Me%ObjGauge, Me%ImposedElevation,      &
+                                                 STAT = STAT_CALL)
 
                     else cd4
                 

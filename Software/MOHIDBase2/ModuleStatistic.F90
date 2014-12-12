@@ -1093,7 +1093,7 @@ cd2 :            if (BlockFound) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine ModifyStatistic (StatisticID, Value2D, Value3D, WaterPoints2D,            &
-                                WaterPoints3D, STAT)
+                                WaterPoints3D, Now, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                        :: StatisticID
@@ -1101,6 +1101,7 @@ cd2 :            if (BlockFound) then
         real,    dimension(:, :, :), pointer, optional :: Value3D
         integer, dimension(:, :   ), pointer, optional :: WaterPoints2D
         integer, dimension(:, :, :), pointer, optional :: WaterPoints3D
+        type (T_Time    ),                    optional :: Now
         integer,    optional                           :: STAT
 
         !Local-------------------------------------------------------------------
@@ -1115,10 +1116,14 @@ cd2 :            if (BlockFound) then
         call Ready (StatisticID, ready_)
 
         if (ready_ .EQ. IDLE_ERR_) then
-
-            call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)              
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyStatistic - ModuleStatistic - ERR01'
-
+            
+            if (present(Now)) then
+                Me%ExternalVar%Now = Now
+            else                
+                call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)              
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyStatistic - ModuleStatistic - ERR01'
+            endif
+                            
             if (Me%Methodology == Value2DStat2D_) then
             
                 if (present(Value2D)) then
@@ -1186,7 +1191,7 @@ cd2 :            if (BlockFound) then
             
     subroutine AddStatisticLayers (StatisticID, Value3D, WaterPoints3D, DZ3D,            &
                                    LayerNumber, UpperDepth, LowerDepth, UpperLayer,      &
-                                   LowerLayer, STAT)
+                                   LowerLayer, Now, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: StatisticID
@@ -1196,15 +1201,15 @@ cd2 :            if (BlockFound) then
         integer                                         :: LayerNumber
         real,    dimension(:, :   ), pointer, optional  :: UpperDepth, LowerDepth
         integer, dimension(:, :   ), pointer, optional  :: UpperLayer, LowerLayer
-
-        integer,    optional                            :: STAT
+        type (T_Time    ),                    optional  :: Now
+        integer,                              optional  :: STAT
 
         !Local-------------------------------------------------------------------
         integer                                         :: STAT_, ready_    
         integer                                         :: STAT_CALL
 
         !Monitores Performance
-        if (MonitorPerformance) call StartWatch ("ModuleStatistic", "ModifyStatistic")
+        if (MonitorPerformance) call StartWatch ("ModuleStatistic", "AddStatisticLayers")
 
         STAT_ = UNKNOWN_
 
@@ -1212,8 +1217,12 @@ cd2 :            if (BlockFound) then
 
         if (ready_ .EQ. IDLE_ERR_) then
 
-            call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)              
-            if (STAT_CALL /= SUCCESS_) stop 'AddStatisticLayers - ModuleStatistic - ERR01'
+            if (present(Now)) then
+                Me%ExternalVar%Now = Now 
+            else
+                call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)              
+                if (STAT_CALL /= SUCCESS_) stop 'AddStatisticLayers - ModuleStatistic - ERR01'
+            endif                
 
             if (Me%Methodology == Value3DStatLayers_) then
 
@@ -1252,7 +1261,7 @@ cd2 :            if (BlockFound) then
 
         endif
 
-        if (MonitorPerformance) call StopWatch ("ModuleStatistic", "ModifyStatistic")
+        if (MonitorPerformance) call StopWatch ("ModuleStatistic", "AddStatisticLayers")
         if (present(STAT)) STAT = STAT_
 
 

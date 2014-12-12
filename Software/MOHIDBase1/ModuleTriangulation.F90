@@ -1260,11 +1260,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                     allocate (TmpY(Me%Nodes(iN)%nNeighbor+1))
                     nPoints = Me%Nodes(iN)%nNeighbor
                     CurrentEdge => Me%Nodes(iN)%FirstEdge
-                    iP = 0
                     do iE = 1, Me%Nodes(iN)%nNeighbor
-                        iP = iP + 1
-                        TmpX (iP) = CurrentEdge%VoronoiX
-                        TmpY (iP) = CurrentEdge%VoronoiY
+                        TmpX (iE) = CurrentEdge%VoronoiX
+                        TmpY (iE) = CurrentEdge%VoronoiY
                         CurrentEdge => CurrentEdge%CounterClockEdge
                     enddo
 
@@ -2109,7 +2107,7 @@ CurReach:   do while (associated(CurrentReach))
             (ready_ .EQ. READ_LOCK_ERR_)) then                       
 
             if (associated(Me%Nodes)) then
-                if (size(Me%Nodes) > iN) then 
+                if (size(Me%Nodes) >= iN) then 
                 
 
                     CurrentEdge => Me%Nodes(iN)%FirstEdge

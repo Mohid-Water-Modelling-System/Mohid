@@ -1583,7 +1583,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 case ('MINUTES')
                     Conversion_Seconds = 60.
-                    if (Me%TimeCycle) then
+                    if (Me%TimeCycle  .and. Me%DataValues /= 1440) then
                         write(*,*)'Time Units MINUTES cant be an a cycle'
                         stop 'StartTimeSerieInput - ModuleTimeSerie - ERR11'
                     endif
@@ -3347,6 +3347,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
                 TimeCycle = .true.
                 select case (trim(Me%CharTimeUnits))
+                    case ('MINUTES')
+                        !Hours range from   0 h - 23h59 m
+                        !Minutes range from 0 m -  1439 m
+                        Value1 = Me%DataMatrix(int(Hour)*60+int(Minute+1), StoredColumn)
                     case ('HOURS')
                         !Hours range from 0 - 23
                         Value1 = Me%DataMatrix(int(Hour+1), StoredColumn)
@@ -3358,6 +3362,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                         !Month range from 1- 12
                         Value1 = Me%DataMatrix(int(Month),  StoredColumn)
                     case default
+                        write(*,*) 'CharTimeUnits =', Me%CharTimeUnits
                         stop 'GetTimeSerieValue - ModuleTimeSerie - ERR01'
                 end select
 
@@ -3804,6 +3809,10 @@ i1:             if (StartIndex == EndIndex) then
             call ExtractDate(CurrentTime, Year, Month, Day, Hour, Minute, Second)            
             
             select case (trim(Me%CharTimeUnits))
+                case ('MINUTES')
+                    !Hours range from   0 h - 23h59 m
+                    !Minutes range from 0 m -  1439 m
+                    Value1 = Me%DataMatrix(int(Hour)*60+int(Minute+1), StoredColumn)            
                 case ('HOURS')
                     !Hours range from 0 - 23
                     Value1 = Me%DataMatrix(int(Hour+1), StoredColumn)
@@ -3815,7 +3824,7 @@ i1:             if (StartIndex == EndIndex) then
                     !Month range from 1- 12
                     Value1 = Me%DataMatrix(int(Month),  StoredColumn)
                 case default
-                    stop 'GetTimeSerieValue - ModuleTimeSerie - ERR01'
+                    stop 'TimeSerieCycleIntegral - ModuleTimeSerie - ERR01'
             end select
 
             IntegAux = IntegAux + Value1 * DTaux            

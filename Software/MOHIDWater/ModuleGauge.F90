@@ -234,11 +234,10 @@ Module ModuleGauge
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: NWaves, iflag
-        logical                                     :: BlockFound
         character(LEN = WaveNameLength), pointer, dimension(:) :: WaveName
         type(T_TideGauge), pointer                  :: PresentGauge
         type(T_TidalWave), pointer                  :: PresentWave
-        integer                                     :: I, ClientNumber
+        integer                                     :: I
         integer                                     :: STAT_, ready_
         character(LEN = StringLength   )            :: GaugesLocationFile
         character(LEN = StringLength   ), parameter :: block_begin = '<begingauge>'
@@ -443,10 +442,8 @@ do5 :               do while (associated(PresentWave))
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: iflag
         logical                                     :: BlockFound
         type(T_TideGauge), pointer                  :: PresentGauge
-        type(T_TidalWave), pointer                  :: PresentWave
         integer                                     :: ClientNumber
         character(LEN = StringLength   ), parameter :: block_begin = '<begingauge>'
         character(LEN = StringLength   ), parameter :: block_end   = '<endgauge>'
@@ -512,7 +509,6 @@ if6 :           if (BlockFound) then
         real                                                    :: West, East, South, North
         real                                                    :: LatDefault, LongDefault
         integer                                                 :: STAT_CALL
-        integer                                                 :: iflag
         logical                                                 :: BlockFound, Field4DHarmonicsON
         type(T_TideGauge), pointer                              :: PresentGauge
         integer                                                 :: ClientNumber, FromBlock
@@ -2201,11 +2197,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     
     !--------------------------------------------------------------------------
 
-    subroutine GetIJReferenceLevel(GaugeID, HorizontalGridID, ImposedElevation, STAT)
+    subroutine GetIJReferenceLevel(GaugeID, ImposedElevation, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                          intent(IN)    :: GaugeID
-        integer,                          intent(IN)    :: HorizontalGridID
         real,    dimension(:,:), pointer, intent(INOUT) :: ImposedElevation
         integer, optional,                intent(OUT)   :: STAT
 
@@ -2256,11 +2251,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetIJWaterLevel(GaugeID, HorizontalGridID, ImposedElevation, Coef, STAT)
+    subroutine GetIJWaterLevel(GaugeID, ImposedElevation, Coef, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                          intent(IN)    :: GaugeID
-        integer,                          intent(IN)    :: HorizontalGridID
         real,    dimension(:,:), pointer, intent(INOUT) :: ImposedElevation
         real,                             intent(IN)    :: Coef
         integer, optional,                intent(OUT)   :: STAT

@@ -135,8 +135,6 @@ Module ModuleIHRadarFormat
     character(LEN = StringLength), parameter    :: data_begin   = '%TableStart'
     character(LEN = StringLength), parameter    :: data_end     = '%TableEnd'
     integer, parameter                          :: no_output_       = -99
-    integer, parameter                          :: hdf5_       = 1
-    integer, parameter                          :: netcdf_     = 2
 
     !Types---------------------------------------------------------------------
     private :: T_Netcdf_Global_Attributes

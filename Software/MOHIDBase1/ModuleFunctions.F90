@@ -4870,7 +4870,6 @@ d5:                 do while (np<10)
         integer,      dimension(:,:),   pointer     :: ComputePoints2D
 
         !Local-----------------------------------------------------------------
-        integer,      dimension(:,:  ), pointer     :: Map2D
         real                                        :: SumVal, AverageVal
         integer                                     :: i, j, NumberOfCells
 
@@ -5702,19 +5701,31 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
         !Begin-----------------------------------------------------------------
 
-        if (present(FoundBottom )) FoundBottom  = .false.
-        if (present(FoundSurface)) FoundSurface = .false.
+        if (present(FoundBottom )) then
+            if ((CellDepth - Depth(1)) >  - 1e-6) then
+                FoundBottom  = .true.
+            else
+                FoundBottom  = .false.
+            endif 
+        endif     
+        
+        if (present(FoundSurface )) then
+            if ((CellDepth - Depth(NDEPTHS)) <  + 1e-6) then
+                FoundSurface  = .true.
+            else
+                FoundSurface  = .false.
+            endif 
+        endif                                                            
+        
 
         if (CellDepth >= Depth(1)) then
 
             InterpolateProfileR8 = Values(1)
 
-            if (present(FoundBottom ))  FoundBottom = .true.
-
         else if (CellDepth <= Depth(NDEPTHS)) then
     
             InterpolateProfileR8 = Values(NDEPTHS)
-            if (present(FoundSurface))  FoundSurface = .true.
+
         else  
 
             do i = 1 , NDEPTHS

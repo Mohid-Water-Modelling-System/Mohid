@@ -142,6 +142,10 @@ Module ModuleGlobalData
     integer,            parameter :: HDF5_        = 1
     integer,            parameter :: NetCDF_      = 2
     integer,            parameter :: Binary_      = 3  
+    
+    !Vertical referentials
+    integer,            parameter :: Hydrographic_  = 1
+    integer,            parameter :: Topographic_   = 2
        
     !character
     character(LEN = 1), parameter :: space      = char(32)   !" "
@@ -853,6 +857,9 @@ Module ModuleGlobalData
     integer, parameter :: SnowWaterEquivalent_              = 30005
     integer, parameter :: SurfaceDownLatentHeat_            = 30006
     integer, parameter :: SurfaceDownSensibleHeat_          = 30007
+    
+    !Percentage of a cell occupied by particles 
+    integer, parameter :: CellPercentContamin_              = 40000
 
     !Spatial emission discharge
     integer, parameter :: DischPoint_                       = 1
@@ -1486,6 +1493,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_GenericPartPesticide_3       = 'generic particulate pesticide 3'
     character(StringLength), private, parameter :: Char_GenericPartPesticide_4       = 'generic particulate pesticide 4'
     character(StringLength), private, parameter :: Char_IndividualsPerCell           = 'individuals per cell' 
+    character(StringLength), private, parameter :: Char_CellPercentContamin          = 'cell percentage contaminated'
     
     !Snow
     character(StringLength), private, parameter :: Char_SnowPack                     = 'snow pack' 
@@ -1867,7 +1875,7 @@ Module ModuleGlobalData
         T_Module(mSEAGRASSWATERINTERAC_  , "SeagrassWaterInteraction"),                                                            &
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
         T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics"),     &
-        T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     ,  T_Module(mAnalytical_LDS_      , "Analytical_LDS"),        &  
+        T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     ,  T_Module(mAnalytical_LDS_      , "Analytical_LDS"),        &
         T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS"           ),        &
         T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"                                                                            ) /)
         
@@ -2856,7 +2864,8 @@ Module ModuleGlobalData
             call AddPropList (SnowPrecipitation_,       Char_SnowPrecipitation,          ListNumber)
             call AddPropList (SnowWaterEquivalent_,     Char_SnowWaterEquivalent,        ListNumber)
             call AddPropList (SurfaceDownLatentHeat_,   Char_SurfaceDownLatentHeat,      ListNumber)
-            call AddPropList (SurfaceDownSensibleHeat_, Char_SurfaceDownSensibleHeat,    ListNumber)                        
+            call AddPropList (SurfaceDownSensibleHeat_, Char_SurfaceDownSensibleHeat,    ListNumber)     
+            call AddPropList (CellPercentContamin_,     Char_CellPercentContamin,        ListNumber)                  
             !Place to add new properties to the names list
         
             !Ends building the property name list
@@ -3044,7 +3053,8 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == SeagrassesN_           ) .OR.  (Property == SeagrassesP_           ) .OR.          &
             (Property == SeagrassesLeaves_      ) .OR.  (Property == SeagrassesRoots_       ) .OR.          &
             (Property == DepositFeedersN_       ) .OR.  (Property == DepositFeedersP_       ) .OR.          &
-            (Property == DepositFeedersC_       ) .OR.  (Property == Zooplankton_           )) then
+            (Property == DepositFeedersC_       ) .OR.  (Property == Zooplankton_           ) .OR.          &
+            (Property == CellPercentContamin_   )) then
 
             Check_Particulate_Property = .TRUE.    
         

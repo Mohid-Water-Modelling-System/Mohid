@@ -827,7 +827,7 @@ iE:         if  (Exist) then
                 write(*,*) "Decomposition domains is inconsistent with the grid data input - Lines "
                 write(*,*) 'WorkSize ILB,IUB, =',Me%WorkSize%ILB,Me%WorkSize%IUB
                 write(*,*) 'HaloMap  ILB,IUB, =',Me%DDecomp%HaloMap%ILB,Me%DDecomp%HaloMap%IUB
-                stop "ConstructDDecomp - ModuleHydrodynamic - ERR40"
+                stop "ConstructDDecomp - ModuleHorizontalGrid - ERR40"
 
             endif          
             
@@ -862,7 +862,7 @@ iE:         if  (Exist) then
                 write(*,*) "Decomposition domains is inconsistent with the grid data input - Columns "
                 write(*,*) 'WorkSize JLB,JUB, =',Me%WorkSize%JLB,Me%WorkSize%JUB
                 write(*,*) 'HaloMap  JLB,JUB, =',Me%DDecomp%HaloMap%JLB,Me%DDecomp%HaloMap%JUB
-                stop "ConstructDDecomp - ModuleHydrodynamic - ERR50"
+                stop "ConstructDDecomp - ModuleHorizontalGrid - ERR50"
 
             endif            
             
@@ -912,20 +912,9 @@ iE:         if  (Exist) then
         !Begin----------------------------------------------------------------
 
         
-        call GetData(Value          = Me%DDecomp%Halo_Points,                           &
-                     EnterDataID    = Me%ObjEnterData2,                                 & 
-                     flag           = iflag,                                            &
-                     keyword        = 'HALOPOINTS',                                     &
-                     SearchType     = FromFile,                                         &
-                     ClientModule   = 'ModuleHydrodynamic',                             &
-                     default        = 2,                                                &
-                     STAT           = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR10'
-        
-        
 
         call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR120'
+        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR120'
         
 
         Me%DDecomp%Auto = .false.
@@ -936,10 +925,10 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
             call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                &
                                          BeginBlock1, EndBlock1,                        &
                                          BlockFound, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR130'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR130'
             if (.not. BlockFound     ) then
                 Me%DDecomp%Auto = .true.
-                write(*,*) 'OptionsDDecomp  - ModuleHydrodynamic - WRN140' 
+                write(*,*) 'OptionsDDecomp  - ModuleHorizontalGrid - WRN140' 
                 write(*,*) 'Domain Decomposition in automatic mode' 
                 exit
             endif
@@ -949,10 +938,10 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
                          flag           = iflag,                                        &
                          keyword        = 'MPI_ID',                                     &
                          SearchType     = FromBlock,                                    &
-                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         ClientModule   = 'ModuleHorizontalGrid',                         &
                          STAT           = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR150'
-            if (iflag     == 0       ) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR160' 
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR150'
+            if (iflag     == 0       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR160' 
             
             MissMatchID = .true. 
                                     
@@ -968,7 +957,7 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
 
             if (MissMatchID) then
                 write(*,*) 'Domain -', MPI_ID, ' is not one of decomposition domains' 
-                stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR165'            
+                stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR165'            
             endif
             
             if (MPI_ID == Me%DDecomp%MPI_ID) then
@@ -982,17 +971,17 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
                              flag           = iflag,                                        &
                              keyword        = 'ILB_IUB',                                    &
                              SearchType     = FromBlock,                                    &
-                             ClientModule   = 'ModuleHydrodynamic',                         &
+                             ClientModule   = 'ModuleHorizontalGrid',                         &
                              STAT           = STAT_CALL)            
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= KEYWORD_NOT_FOUND_ERR_) then
-                    stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR170'
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR170'
                 endif                    
                 if (iflag     /= 2) then
                     if (iflag == 0) then
                         Aux1D(1) = Me%DDecomp%Global%ILB
                         Aux1D(2) = Me%DDecomp%Global%IUB
                     else                        
-                        stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR180'
+                        stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR180'
                     endif
                 endif                                            
                 
@@ -1004,17 +993,17 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
                              flag           = iflag,                                        &
                              keyword        = 'JLB_JUB',                                    &
                              SearchType     = FromBlock,                                    &
-                             ClientModule   = 'ModuleHydrodynamic',                         &
+                             ClientModule   = 'ModuleHorizontalGrid',                         &
                              STAT           = STAT_CALL)            
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= KEYWORD_NOT_FOUND_ERR_) then
-                    stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR190'
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR190'
                 endif                    
                 if (iflag     /= 2) then
                     if (iflag == 0) then
                         Aux1D(1) = Me%DDecomp%Global%JLB
                         Aux1D(2) = Me%DDecomp%Global%JUB
                     else                        
-                        stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR200'
+                        stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR200'
                     endif
                 endif
 
@@ -1031,12 +1020,8 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
         enddo iSl
 
         call Block_Unlock(Me%ObjEnterData2, ClientNumber, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR210'
-        
+        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR210'
 
-        call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR220'
-        
 iAuto:  if (.not. Me%DDecomp%Auto) then
         
             call GetData(Value          = Me%DDecomp%NInterfaces,               &
@@ -1044,20 +1029,29 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
                          flag           = iflag,                                            &
                          keyword        = 'INTERFACES_NUMBER',                              &
                          SearchType     = FromFile,                                         &
-                         ClientModule   = 'ModuleHydrodynamic',                             &
+                         ClientModule   = 'ModuleHorizontalGrid',                             &
                          STAT           = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR230'
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
             
             allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
 
             allocate(Aux1D(1:2))                                                  
-
+            
+            call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR220'
+            
             !Searches sub-domains blocks
             call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
                                          BeginBlock2, EndBlock2, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR240'        
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR240'
+            
+            if (.not. BlockFound) then
+                SN_N_Interfaces = 0
+            endif  
+            
+            in = 0
             
             if (BlockFound) then
 
@@ -1068,22 +1062,20 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
                 endif                
                 
                 if (SN_N_Interfaces > Me%DDecomp%NInterfaces) then
-                    stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR250'
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR250'
                 endif
                 
-                in = 0
-
                 do line = FirstLine + 1, LastLine - 1   
                     
                     call GetData(Vector         = Aux1D,                                            &
                                  EnterDataID    = Me%ObjEnterData2,                                 & 
                                  flag           = iflag,                                            &
                                  SearchType     = FromBlock,                                        &
-                                 ClientModule   = 'ModuleHydrodynamic',                             &
+                                 ClientModule   = 'ModuleHorizontalGrid',                             &
                                  Buffer_Line    = line,                                             &
                                  STAT           = STAT_CALL)            
-                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR260'
-                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR270'
+                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR260'
+                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR270'
                     
                     in = in + 1
                     
@@ -1102,7 +1094,7 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
 
                         if (MissMatchID) then
                             write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains' 
-                            stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR275'
+                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR275'
                         endif                        
                     enddo
                                     
@@ -1122,13 +1114,20 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
                 enddo
 
              endif              
+             
+            call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR275'
                                          
             !Searches sub-domains blocks
             call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
                                          BeginBlock3, EndBlock3, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR280'        
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR280'        
+            
+            if (.not. BlockFound) then
+                WE_N_Interfaces = 0
+            endif  
             
             if (BlockFound) then
 
@@ -1139,7 +1138,7 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
                 endif                     
                 
                 if (SN_N_Interfaces + WE_N_Interfaces /= Me%DDecomp%NInterfaces) then
-                    stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR290'
+                    stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR290'
                 endif
                 
 
@@ -1149,11 +1148,11 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
                                  EnterDataID    = Me%ObjEnterData2,                                 & 
                                  flag           = iflag,                                            &
                                  SearchType     = FromBlock,                                        &
-                                 ClientModule   = 'ModuleHydrodynamic',                             &
+                                 ClientModule   = 'ModuleHorizontalGrid',                             &
                                  Buffer_Line    = line,                                             &
                                  STAT           = STAT_CALL)            
-                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR300'
-                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR310'
+                    if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR300'
+                    if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR310'
                     
                     in = in + 1
 
@@ -1172,7 +1171,7 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
 
                         if (MissMatchID) then
                             write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains' 
-                            stop 'OptionsDDecomp  - ModuleHydrodynamic - ERR315'
+                            stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR315'
                         endif                        
                     enddo
                     
@@ -1215,9 +1214,6 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
         !Begin----------------------------------------------------------------
 
         
-        if (Me%DDecomp%Halo_Points == null_int) then
-            Me%DDecomp%Halo_Points = 2
-        endif
         write(*,*) 'halo_points', Me%DDecomp%Halo_Points        
         
 iAuto:  if (Me%DDecomp%Auto) then
@@ -2250,7 +2246,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         integer                             :: flag, flag1, flag2
         integer                             :: ClientNumber
         logical                             :: BlockFound, ConstantSpacingX, ConstantSpacingY
-        integer                             :: FirstLine, LastLine, line, i, j, ii, jj
+        integer                             :: FirstLine, LastLine, line, i, j, ii, jj, iflag
 
         !----------------------------------------------------------------------
 
@@ -2303,7 +2299,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         Me%GlobalWorkSize%IUB = AuxInt(2)
         
         !Reads JLB_JUB
-        call GetData(AuxInt,Me%ObjEnterData, flag,                                         &
+        call GetData(AuxInt,Me%ObjEnterData, flag,                                      &
                      keyword      = 'JLB_JUB',                                          &
                      ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)           
@@ -2312,6 +2308,16 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
 
         Me%GlobalWorkSize%JLB = AuxInt(1)
         Me%GlobalWorkSize%JUB = AuxInt(2)        
+        
+        call GetData(Value          = Me%DDecomp%Halo_Points,                           &
+                     EnterDataID    = Me%ObjEnterData,                                  & 
+                     flag           = iflag,                                            &
+                     keyword        = 'HALOPOINTS',                                     &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'HorizontalGrid',                                 &
+                     default        = 3,                                                &
+                     STAT           = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR440'        
         
         !Intialization of domain decomposition procedure
         call ConstructDDecomp                         
@@ -2965,10 +2971,9 @@ BF1:    if (Me%ReadCartCorners) then
         endif BF1
 
 
-
         !Closes Data File
         call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR440'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR450'
         
      
         !Allocates variables common to the module

@@ -1326,7 +1326,7 @@ cd1 :   if (flag .EQ. 0) then
 
         !Local-----------------------------------------------------------------
         integer                             :: STAT_CALL
-        integer                             :: flag
+        integer                             :: flag, DefaultFormat
         character(LEN = StringLength)       :: String
         !----------------------------------------------------------------------
 
@@ -1606,6 +1606,15 @@ cd2 :   if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_, "TurbulenceOptions - Turbulence - ERR16")
+            
+#ifdef _USE_MPI        
+
+        DefaultFormat = HDF5_ 
+#else
+
+        DefaultFormat = Binary_
+
+#endif            
 
         !<BeginKeyword>
             !Keyword          : READ_CONTINUOUS_FORMAT
@@ -1625,7 +1634,7 @@ cd2 :   if (flag .EQ. 0) then
                      Me%ObjEnterData, flag,                                             &
                      SearchType = FromFile,                                             &
                      keyword    = 'READ_CONTINUOUS_FORMAT',                             &
-                     Default    = HDF5_,                                                &                                           
+                     Default    = DefaultFormat,                                        &                                           
                      ClientModule ='Turbulence',                                        &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -1649,7 +1658,7 @@ cd2 :   if (flag .EQ. 0) then
                      Me%ObjEnterData, flag,                                             &
                      SearchType = FromFile,                                             &
                      keyword    = 'WRITE_CONTINUOUS_FORMAT',                            &
-                     Default    = HDF5_,                                                &                                           
+                     Default    = DefaultFormat,                                        &                                           
                      ClientModule ='Turbulence',                                        &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -1676,7 +1685,7 @@ cd2 :   if (flag .EQ. 0) then
                      Me%ObjEnterData, flag,                                             &
                      SearchType = FromFile,                                             &
                      keyword    = 'CONTINUOUS_FORMAT',                                  &
-                     Default    = HDF5_,                                                &                                           
+                     Default    = DefaultFormat,                                        &                                           
                      ClientModule ='Turbulence',                                        &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -2014,8 +2023,8 @@ cd1 :   if (iflag .EQ. 0) then
 
             if (Me%ExternalVar%WaterPoints3D (i, j, k) == WaterPoint) then
                 Me%Viscosity%HorizontalCenter(i, j, k)  = Me%TurbVar%MINHorizontalViscosity
-                Me%Viscosity%Vertical(i, j, k)          = Me%TurbVar%MINHorizontalViscosity
-                Me%Diffusivity%Vertical(i, j, k)        = Me%TurbVar%MINHorizontalViscosity                
+                Me%Viscosity%Vertical        (i, j, k)  = Me%TurbVar%MINHorizontalViscosity
+                Me%Diffusivity%Vertical      (i, j, k)  = Me%TurbVar%MINHorizontalViscosity                
             end if
 
         enddo
@@ -3536,21 +3545,19 @@ do1 :           do K = kbottom, Me%WorkSize%KUB+1
         call GetOpenPoints3D (Me%ObjMap, Me%ExternalVar%OpenPoints3D, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Turbulence - ModuleTurbulence - ERR06'
 
-            call GetGeometryDistances (Me%ObjGeometry,                                  &
-                                       SZZ  = Me%ExternalVar%SZZ,                       &
-                                       STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)stop 'Turbulence - ModuleTurbulence - ERR02'
+        call GetGeometryDistances (Me%ObjGeometry,                                  &
+                                   SZZ  = Me%ExternalVar%SZZ,                       &
+                                   STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'Turbulence - ModuleTurbulence - ERR02'
 
-            call GetGeometryWaterColumn(Me%ObjGeometry,                                 &
-                                        WaterColumn = Me%ExternalVar%HT,                &
-                                        STAT        = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)stop 'Turbulence - ModuleTurbulence - ERR03'
-
- 
-            call GetGeometryKFloor(Me%ObjGeometry, Z = Me%ExternalVar%KFloorZ, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)stop 'Turbulence - ModuleTurbulence - ERR04'
+        call GetGeometryWaterColumn(Me%ObjGeometry,                                 &
+                                    WaterColumn = Me%ExternalVar%HT,                &
+                                    STAT        = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'Turbulence - ModuleTurbulence - ERR03'
 
 
+        call GetGeometryKFloor(Me%ObjGeometry, Z = Me%ExternalVar%KFloorZ, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'Turbulence - ModuleTurbulence - ERR04'
 
         if((Me%TurbOptions%MODTURB .eq. TurbulenceEquation_) .and.    &
            ((Me%Output%TimeSerie).or.(Me%OutPut%ON).or.(Me%OutPut%ProfileON)))then
@@ -3736,10 +3743,7 @@ do1 :           do K = kbottom, KUB+1
 
                     Me%TurbVar%VertPrandtlNumber(I,J,K) = GAMA * Exp(-GAMA2 *  Aux) ! Nihoul, 1984 
 
-                    Z_H =Me%ExternalVar%Bathymetry(I,J) -     &
-                          Me%ExternalVar%SZZ(I,J,K)                              
-    !                     &- Me%ExternalVar%DWZ(I,J,K)/2.)        & !Z_H nas faces , nao e?
-    !                    / Me%ExternalVar%HT(I,J)
+                    Z_H =Me%ExternalVar%Bathymetry(I,J) - Me%ExternalVar%SZZ(I,J,K)
 
                     CMIST = CVK * (Z_H + Me%ExternalVar%BottomRugosity) &
                                   * SQRT(1.0 - Z_H/ Me%ExternalVar%HT(I,J))  
@@ -3748,8 +3752,7 @@ do1 :           do K = kbottom, KUB+1
 
                     Me%TurbVar%MixingLengthZ(I,J,K) = MIN(CMIST, Me%TurbVar%MAXMixingLength)
 
-                    VISC_V =(Me%TurbVar%MixingLengthZ(I,J,K) * Me%TurbVar%MixingLengthZ(I,J,K)) &
-                           * SQRT(Me%TurbVar%FPRANDTL(I,J,K))
+                    VISC_V =Me%TurbVar%MixingLengthZ(I,J,K)** 2 * SQRT(Me%TurbVar%FPRANDTL(I,J,K))
                     
                     Me%Viscosity%Vertical(I,J,K) = VISC_V * Me%TurbVar%VertPrandtlNumber(i,j,k)
 
@@ -3998,20 +4001,15 @@ do1 :           do K = kbottom, KUB+1
                     Me%TurbVar%VertPrandtlNumber(I,J,K) = GAMA * Exp(-GAMA2 *  Aux) ! Nihoul, 1984 
 
 
-                    !Z_H computed at centers
                     !Z_H distance to bottom
-                    Z_H =(Me%ExternalVar%Bathymetry(I,J) -    &
-                          Me%ExternalVar%SZZ(I,J,K-1))
-    !                      Me%ExternalVar%DWZ(I,J,K)/2.)       &   !Manolo. Comentar? Z_H deberia estar nas faces??
-    !                    / Me%ExternalVar%HT(I,J)
+                    Z_H =(Me%ExternalVar%Bathymetry(I,J) - Me%ExternalVar%SZZ(I,J,K-1))
 
                     CMIST = CVK * (Z_H+ Me%ExternalVar%BottomRugosity) * (1.0 - DELTA * Z_H / Me%ExternalVar%HT(I,J))
                     CMIST = CMIST * EXP(CNH * Aux)  
                     Me%TurbVar%MixingLengthZ(I,J,K) = MIN(CMIST, Me%TurbVar%MAXMixingLength)
 
 
-                    VISC_V =(Me%TurbVar%MixingLengthZ(I,J,K) * Me%TurbVar%MixingLengthZ(I,J,K)) &
-                           * SQRT(Me%TurbVar%FPRANDTL(I,J,K))
+                    VISC_V =Me%TurbVar%MixingLengthZ(I,J,K) **2 * SQRT(Me%TurbVar%FPRANDTL(I,J,K))
                     
                     Me%Viscosity%Vertical  (I,J,K) = VISC_V * Me%TurbVar%VertPrandtlNumber(i,j,k)
                     
@@ -4104,59 +4102,68 @@ cd1 :   if (Me%ExternalVar%WaterPoints3D(i, j, KUB)   == WaterPoint)         the
             
 do1 :       do k = kbottom, KUB-1                         
 
-                U1  =(VelocityX(i,  j+1,k  ) * ComputeFacesU3D(i,  j+1,k  )  + &
-                      VelocityX(i,  j,  k  ) * ComputeFacesU3D(i,  j,  k  )) / 2.0
+                !U1  =(VelocityX(i,  j+1,k  ) * ComputeFacesU3D(i,  j+1,k  )  + &
+                !      VelocityX(i,  j,  k  ) * ComputeFacesU3D(i,  j,  k  )) / 2.0
 
-                V1  =(VelocityY(i+1,j,  k  ) * ComputeFacesV3D(i+1,j,  k  )  + &
-                      VelocityY(i,  j,  k  ) * ComputeFacesV3D(i,  j,  k  )) / 2.0    
+                !V1  =(VelocityY(i+1,j,  k  ) * ComputeFacesV3D(i+1,j,  k  )  + &
+                !      VelocityY(i,  j,  k  ) * ComputeFacesV3D(i,  j,  k  )) / 2.0    
 
-                U2  =(VelocityX(i,  j+1,k+1) * ComputeFacesU3D(i,  j+1,k+1)  + &
-                      VelocityX(i,  j,  k+1) * ComputeFacesU3D(i,  j,  k+1)) / 2.0
+                !U2  =(VelocityX(i,  j+1,k+1) * ComputeFacesU3D(i,  j+1,k+1)  + &
+                !      VelocityX(i,  j,  k+1) * ComputeFacesU3D(i,  j,  k+1)) / 2.0
 
-                V2  =(VelocityY(i+1,j,  k+1) * ComputeFacesV3D(i+1,j,  k+1)  + &
-                      VelocityY(i,  j,  k+1) * ComputeFacesV3D(i,  j,  k+1)) / 2.0
+                !V2  =(VelocityY(i+1,j,  k+1) * ComputeFacesV3D(i+1,j,  k+1)  + &
+                !      VelocityY(i,  j,  k+1) * ComputeFacesV3D(i,  j,  k+1)) / 2.0
 
-                 !griflet: bypass the sigma density calculation
-                 if (Me%ExternalVar%CorrecPress .and. associated(Temperature) .and. associated(Salinity)) then
-                     Depth   = -1.0 * ZCellCenter(i,j,k+1)                 
-                     
-                     RO      = Sigma(Me%ExternalVar%DensMethod, Me%ExternalVar%CorrecPress, &
-                                     Temperature(i, j, k+1), Salinity(i, j, k+1), Depth)
-                                     
-                     RO_PERT = Sigma(Me%ExternalVar%DensMethod, Me%ExternalVar%CorrecPress, &
-                                     Temperature(i, j, k  ), Salinity(i, j, k  ), Depth)
-                 else
-                     RO      = SigmaNoPressure(i, j, k+1)
-                     RO_PERT = SigmaNoPressure(i, j, k  )
-                 endif                 
-                 !griflet: end of bypass
-                 
-                 DRODZ = (RO - RO_PERT) / DZZ(i,j,k)
 
-!MAnolo          AUXDENS1 = (Density(I,J,K) * DWZ(I,J,K+1) + Density(I,J,K+1) * DWZ(I,J,K))/(DWZ(I,J,K+1)+DWZ(I,J,K))
+                U1  =(VelocityX(i,  j+1,k  ) + VelocityX(i,  j,  k  )) / 2.0
 
-                 !Calculo do quadrado da frequencia de Prandtl. 
-                 ! Fprandtl in the bottom face has index Kbottom.
-                 Me%TurbVar%FPRANDTL(i,j,k+1) = ((U2 - U1) / DZZ(i,j,k))**2.0 + &
-                                                ((V2 - V1) / DZZ(i,j,k))**2.0
-                                                         
-                 !Calculo do quadrado da frequencia de Brunt-Vaisalla
-                 Me%TurbVar%FBRUNTV(i,j,k+1) = -1.0 * G * DRODZ / SigmaDensityReference
-                   
-                 RICH = Me%TurbVar%FBRUNTV(i,j,k+1) / (Me%TurbVar%FPRANDTL(i,j,k+1)+1.e-10)
+                V1  =(VelocityY(i+1,j,  k  ) + VelocityY(i,  j,  k  )) / 2.0    
 
-                 Me%TurbVar%Richardson(i,j,k+1) = MIN(RICH,RichardsonMAX)
+                U2  =(VelocityX(i,  j+1,k+1) + VelocityX(i,  j,  k+1)) / 2.0
 
-                 if (Me%TurbOptions%MODTURB == backhaus_) then 
-                     
-                     VMODK1 = ABS(CMPLX(U1*U1,V1*V1))  
-                     VMODK2 = ABS(CMPLX(U2*U2,V2*V2))  
-                     !Calculo do modulo da velocidade
-                     Me%TurbVar%VMOD(i,j,k) = (VMODK1 * DWZ(i,j,k+1) + &
-                                               VMODK2 * DWZ(i,j,k )) / &
-                                              (DWZ(i,j,k+1) + DWZ(i,j,k))
-                 
-                 end if
+                V2  =(VelocityY(i+1,j,  k+1) + VelocityY(i,  j,  k+1)) / 2.0
+                
+                !griflet: bypass the sigma density calculation
+                if (Me%ExternalVar%CorrecPress .and. associated(Temperature) .and. associated(Salinity)) then
+                    Depth   = -1.0 * ZCellCenter(i,j,k+1)                 
+
+                    RO      = Sigma(Me%ExternalVar%DensMethod, Me%ExternalVar%CorrecPress, &
+                                 Temperature(i, j, k+1), Salinity(i, j, k+1), Depth)
+                                 
+                    RO_PERT = Sigma(Me%ExternalVar%DensMethod, Me%ExternalVar%CorrecPress, &
+                                 Temperature(i, j, k  ), Salinity(i, j, k  ), Depth)
+                else
+                    RO      = SigmaNoPressure(i, j, k+1)
+                    RO_PERT = SigmaNoPressure(i, j, k  )
+                endif                 
+                !griflet: end of bypass
+
+                DRODZ = (RO - RO_PERT) / DZZ(i,j,k)
+
+
+                !Calculo do quadrado da frequencia de Prandtl. 
+                ! Fprandtl in the bottom face has index Kbottom.
+
+                Me%TurbVar%FPRANDTL(i,j,k+1) = ((U2 - U1) / DZZ(i,j,k))**2.0 + &
+                                               ((V2 - V1) / DZZ(i,j,k))**2.0
+                                                     
+                !Calculo do quadrado da frequencia de Brunt-Vaisalla
+                Me%TurbVar%FBRUNTV(i,j,k+1) = -1.0 * G * DRODZ / SigmaDensityReference
+
+                RICH = Me%TurbVar%FBRUNTV(i,j,k+1) / (Me%TurbVar%FPRANDTL(i,j,k+1)+1.e-10)
+
+                Me%TurbVar%Richardson(i,j,k+1) = MIN(RICH,RichardsonMAX)
+
+                if (Me%TurbOptions%MODTURB == backhaus_) then 
+                                 
+                    VMODK1 = ABS(CMPLX(U1*U1,V1*V1))  
+                    VMODK2 = ABS(CMPLX(U2*U2,V2*V2))  
+                    !Calculo do modulo da velocidade
+                    Me%TurbVar%VMOD(i,j,k) = (VMODK1 * DWZ(i,j,k+1) + &
+                                           VMODK2 * DWZ(i,j,k )) / &
+                                          (DWZ(i,j,k+1) + DWZ(i,j,k))
+
+                end if
  
              end do do1
                 

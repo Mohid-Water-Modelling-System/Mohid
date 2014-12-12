@@ -3654,10 +3654,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         
 #ifdef _USE_MPI        
 
-        DefaultFormat = Binary_    
+        DefaultFormat = HDF5_ 
 #else
 
-        DefaultFormat = HDF5_
+        DefaultFormat = Binary_
 
 #endif
 
@@ -3718,7 +3718,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                ! 
             !<EndDescription>
             !Type             : Integer 
-            !Default          : Binary_
+            !Default          : HDF5_
             !File keyword     : IN_DAD3D
             !Multiple Options : Do not have
             !Search Type      : FromFile
@@ -3728,7 +3728,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
                      keyword    = 'CONTINUOUS_FORMAT',                                  &
-                     Default    = HDF5_,                                                &                                           
+                     Default    = DefaultFormat,                                        &                                           
                      ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -9776,7 +9776,7 @@ iStart: if (OutputOk) then
                 Me%ObjHDF5          = ObjHDF5
 
                 !Write the Horizontal Grid
-                call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
+                call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                 &
                                          WorkSize = WorkSize2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR410'
 
@@ -13635,12 +13635,20 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 if (Me%External_Var%ComputeFaces3D_W(i, j, k) == Compute .and. &
                     Me%WaterFluxes%Z(i, j, k) < 0.0) then
+                    TotalFlux = TotalFlux - Me%WaterFluxes%Z(i, j, k+1)                    
                 endif
 
                 if (Me%External_Var%ComputeFaces3D_W(i, j, k+1) == Compute .and. &
                     Me%WaterFluxes%Z(i, j, k+1) > 0.0) then
                     TotalFlux = TotalFlux + Me%WaterFluxes%Z(i, j, k+1)
                 endif
+                
+                if (Me%External_Var%OpenPoints3D (i, j, k) == OpenPoint) then
+                    if (Me%WaterFluxes%Discharges(i, j, k)< 0) then
+                        TotalFlux = TotalFlux - Me%WaterFluxes%Discharges(i, j, k)
+                    endif
+                endif
+                
 
                 if (TotalFlux > 0.0 .and. Me%External_Var%Volume_Z_New(i, j, k) > 0. ) then   !To avoid division by zero. 
                     AuxDT = Me%External_Var%Volume_Z_New(i, j, k) / TotalFlux
@@ -35839,6 +35847,7 @@ do6:                do  k=KUB, kbottom,-1
                 enddo   
 
                 NLeft  = KUB - kbLeft + 1
+                
 
 do27:           do  k=KUB, kbottom,-1
 
@@ -35852,6 +35861,7 @@ do27:           do  k=KUB, kbottom,-1
                         DensZLeft  = InterpolateProfileR8 (Hcenter(k), NLeft , HLeft (kbleft :KUB),  &
                                                            DensLeft (kbleft :KUB), FoundBottomLeft , &
                                                            FoundSurfaceLeft )
+                                                           
 
                         if (.not. FoundBottomRight .and. .not. FoundBottomLeft                       &
                             .and. .not.FoundSurfaceRight .and. .not. FoundSurfaceLeft) then
@@ -35905,8 +35915,9 @@ do27:           do  k=KUB, kbottom,-1
                     endif
 
                     Rox3XY(i,j,k) = Rox3XY(i,j,k+1) + DAux
-
+                    
                 enddo do27
+                
 
             endif
 
@@ -38696,8 +38707,8 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         !$OMP PRIVATE(BottomCell_BottomFace,CenterCell_BottomFace) &
         !$OMP PRIVATE(TopCell_TopFace,CenterCell_TopFace)
   
-        allocate(BottomCell_BottomFace(KUB), CenterCell_BottomFace(KUB), &
-         CenterCell_TopFace(KUB), TopCell_TopFace(KUB))  
+        allocate(BottomCell_BottomFace(KUB), CenterCell_BottomFace(KUB))
+        allocate(CenterCell_TopFace(KUB),    TopCell_TopFace(KUB))  
   
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doi: do j=JLB, JUB
@@ -38716,8 +38727,6 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
                 
     dok1:       do k = Kbottom, KUB
-                    
-
 
                     !This formulation assumes that AreaUV / VolumeUV = DZX_ZY, because
                     !is the only way of cancel the vertical diffusion and advection terms 
@@ -38728,25 +38737,12 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
                     ![s/m]                   =   [s] /  [m]
                     DT_Z                     =   DT_Velocity / DUZ_VZ(i, j, k)
 
-                    !When the faces area is compute using the average thickness metodology
-                    !(See ModuleGeometry) then this relation and the above one are equal.  
-
-                    ![s/m]                   =   [s] / [m^3] * [m] * [m]
-!                    DT_Z                     =   DT_Velocity / Volume_UV(i, j, k) *      &
-!                                                 DZX_ZY(iSouth, jWest) * DYY_XX(i, j)
-
-
-
-
-! Manuel RV 2001 Changed!!! Vertical viscosities are calculated at faces with the notation that viscosity at bottom face 
-!                           corresponds to viscosity (k)
-
                     BottomFaceViscosity      =   TopFaceViscosity
 
                     !Horizontal viscosity faces interpolation
-                    TopFaceViscosity         =   (Vertical_Viscosity(i, j, k+1) * DUX_VY(iSouth, jWest)  + &
-                                                 Vertical_Viscosity(iSouth, jWest, k+1) * DUX_VY(i, j)) /  &
-                                                (DUX_VY(iSouth, jWest) + DUX_VY(i, j))
+                    TopFaceViscosity         =   (Vertical_Viscosity(i     , j    , k+1) * DUX_VY(iSouth, jWest)  + &
+                                                  Vertical_Viscosity(iSouth, jWest, k+1) * DUX_VY(i     , j    )) / &
+                                                 (DUX_VY(iSouth, jWest) + DUX_VY(i, j))
 
                     !Distance in vertical between adjacent velocity compute points.
                     DUZ_Bottom               =   DUZ_Top
@@ -38761,8 +38757,6 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
                     end if     
 
-!MRV New     
-      
                    ![ ]                      =   [s/m]* [m^2/s] / [m]
                     BottomCell_BottomFace(k) = - DT_Z * BottomFaceViscosity / DUZ_Bottom
 
@@ -38775,7 +38769,6 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
                     CenterCell_TopFace(k)    = - TopCell_TopFace(k) 
      
                 enddo dok1
-
 
                 !The bottom boundary conditions are imposed in another subroutine
                 !see VelVerticalDiffusionBoundaries
@@ -38813,8 +38806,8 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         enddo doi
         !$OMP END DO
         
-        Deallocate(BottomCell_BottomFace, CenterCell_BottomFace, &
-           CenterCell_TopFace,    TopCell_TopFace)
+        deallocate(BottomCell_BottomFace, CenterCell_BottomFace)
+        deallocate(CenterCell_TopFace,    TopCell_TopFace      )
         
         !$OMP END PARALLEL
 
@@ -38841,12 +38834,8 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         nullify(Volume_UV)
         nullify(DUZ_VZ   )
 
-
         nullify(ComputeFaces3D_UV)
         nullify(KFloor_UV)
-
-
-
 
     End Subroutine Velocity_VerticalDiffusion
 

@@ -33,6 +33,9 @@ program MohidTidePreview
     use ModuleEnterData
     use ModuleFunctions
     use ModuleGauge
+    !use lsq
+	USE nrtype; USE nrutil, ONLY : arth,assert,poly
+	USE nr, ONLY : lubksb,ludcmp
 
     implicit none
 
@@ -55,9 +58,10 @@ program MohidTidePreview
         real                            :: Longitude, Latitude
         real, dimension(:), pointer     :: ReferenceLevel
         type(T_TidePrev), pointer       :: Next
-        real                            :: Aux1,Aux2,Aux3
+        real                            :: Aux1,Aux2,Aux3,Aux4,Aux5
         integer                         :: counter
         real                            :: PreviousTime
+        logical                         :: SmoothTimeSerie = .true. 
     end type T_TidePrev
     
 
@@ -161,7 +165,15 @@ program MohidTidePreview
                                  default      = 'TidePrevHighLowTide.srh',                  &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR70'
+                    
 
+                    call GetData(NewTidePrev%SmoothTimeSerie,                               &
+                                 ObjEnterData,  iflag,                                      &
+                                 SearchType   = FromBlock,                                  &
+                                 keyword      = 'SMOOTH_TIME_SERIE',                        &
+                                 default      = .true.,                                     &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidTidePreview - MohidTidePreview - ERR75'
 
                     call GetData(NewTidePrev%GaugeFile,                                     &
                                  ObjEnterData,  iflag,                                      &
@@ -212,7 +224,6 @@ program MohidTidePreview
                 stop 'ConstructMohidTidePreview - MohidTidePreview - ERR150'
             end if
         end do
-
 
         if(ExportToXYZ) call ExportGaugeLocations
 
@@ -275,8 +286,9 @@ program MohidTidePreview
         integer                                     :: STAT_CALL
         real                                        :: TotalTime, PreviousTime, AuxDT
         real,       dimension(:), pointer           :: OpenPoints, WaterLevel
+        real                                        :: WL
         type(T_TidePrev), pointer                   :: TidePrev
-        real                                        :: DTAux
+        real                                        :: DTAux, WL_out
 
         !Begin-----------------------------------------------------------------
 
@@ -346,25 +358,23 @@ program MohidTidePreview
                                 ReferenceLevel = TidePrev%ReferenceLevel,   &
                                 STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR30'
+                
+                WL = WaterLevel(1) + TidePrev%ReferenceLevel(1)
 
-                write(TidePrev%OutPutFileUnit, *) TotalTime, WaterLevel(1) + TidePrev%ReferenceLevel(1)
+
+                if (TidePrev%SmoothTimeSerie) then
+
+                    call FindLowAndHighTideSmoothTS(TidePrev, WL, PreviousTime)
                 
-                TidePrev%counter    = TidePrev%counter + 1
-                TidePrev%Aux3       = TidePrev%Aux2
-                TidePrev%Aux2       = TidePrev%Aux1
-                TidePrev%Aux1       = WaterLevel(1) + TidePrev%ReferenceLevel(1)
+                else
                 
-                DTAux = PreviousTime - TidePrev%PreviousTime
+                    call FindLowAndHighTideNoisyTS(TidePrev, WL, PreviousTime, TotalTime, WL_Out)  
+                    
+                    WL = WL_Out
                 
-                if (TidePrev%counter > 3 .and. DTAux > 10800.) then
-                    !low tide 
-                    if ((TidePrev%Aux2 <= TidePrev%Aux1 .and. TidePrev%Aux2 <= TidePrev%Aux3) .or. &
-                    !high tide 
-                        (TidePrev%Aux2 >= TidePrev%Aux1 .and. TidePrev%Aux2 >= TidePrev%Aux3)) then
-                        write(TidePrev%OutPutHighLowUnit, *) PreviousTime, TidePrev%Aux2
-                        TidePrev%PreviousTime = PreviousTime
-                    endif
                 endif
+                
+                write(TidePrev%OutPutFileUnit, *) TotalTime, WL                
                 
                 TidePrev => TidePrev%Next
 
@@ -420,6 +430,230 @@ program MohidTidePreview
     end subroutine ModifyMohidTidePreview
     
     !--------------------------------------------------------------------------
+    
+    subroutine FindLowAndHighTideSmoothTS(TidePrev, WaterLevel, PreviousTime)
+
+        !Arguments-------------------------------------------------------------
+        real                                        :: PreviousTime
+        real                                        :: WaterLevel
+        type(T_TidePrev), pointer                   :: TidePrev
+        
+        !Local-----------------------------------------------------------------
+        real                                        :: DTAux
+
+        !Begin-----------------------------------------------------------------
+
+        TidePrev%counter    = TidePrev%counter + 1
+        TidePrev%Aux3       = TidePrev%Aux2
+        TidePrev%Aux2       = TidePrev%Aux1
+        TidePrev%Aux1       = WaterLevel
+        
+        DTAux = PreviousTime - TidePrev%PreviousTime
+        
+        if (TidePrev%counter > 3 .and. DTAux > 10800.) then
+            !low tide 
+            if ((TidePrev%Aux2 <= TidePrev%Aux1 .and. TidePrev%Aux2 <= TidePrev%Aux3) .or. &
+            !high tide 
+                (TidePrev%Aux2 >= TidePrev%Aux1 .and. TidePrev%Aux2 >= TidePrev%Aux3)) then
+                write(TidePrev%OutPutHighLowUnit, *) PreviousTime, TidePrev%Aux2
+                TidePrev%PreviousTime = PreviousTime
+            endif
+        endif
+    
+    end subroutine FindLowAndHighTideSmoothTS                    
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine FindLowAndHighTideNoisyTS(TidePrev, WaterLevel, PreviousTime, TotalTime, WL_Out)
+
+        !Arguments-------------------------------------------------------------
+        real                                        :: PreviousTime, TotalTime
+        real                                        :: WaterLevel
+        type(T_TidePrev), pointer                   :: TidePrev
+        real                                        :: WL_Out
+        
+        !Local-----------------------------------------------------------------
+        integer,  parameter                         :: NS         = 1000
+        integer,  parameter                         :: Nx         = 20
+        real,     parameter                         :: DTanalysis = 10800
+        real,     dimension(1:NS)                   :: X    = FillValueReal
+        real,     dimension(1:NS)                   :: Y    = FillValueReal         
+        real,     dimension(1:NS)                   :: X1   = FillValueReal
+        real,     dimension(1:NS)                   :: Y1   = FillValueReal
+        REAL(SP), dimension(1:NS)                   :: C    = FillValueReal        
+	    INTEGER(I4B)                                :: nl,nrr,ld,m
+        real                                        :: DTAux
+        integer                                     :: i, iS, NxX, ii
+        
+        !Begin-----------------------------------------------------------------
+
+        X(2:NS) = X(1:NS-1) 
+        Y(2:NS) = Y(1:NS-1) 
+        X(1)     = TotalTime
+        Y(1)     = WaterLevel
+        
+        do i=2,NS
+            if (X(1) - X(i) > DTanalysis) then
+                iS = i-1
+                exit
+            else
+                iS = NS
+            endif
+        enddo
+        
+        TidePrev%counter    = TidePrev%counter + 1
+        TidePrev%Aux5       = TidePrev%Aux4
+        TidePrev%Aux4       = TidePrev%Aux3
+        TidePrev%Aux3       = TidePrev%Aux2
+        TidePrev%Aux2       = TidePrev%Aux1
+        
+        if (TidePrev%counter > 3) then
+            !call fit_poly(3,X(1:iS),Y(1:iS),iS,X(1),TidePrev%Aux1) 
+             TidePrev%Aux1 = 0
+             nl=0;nrr=iS-1;ld = 0;m = 2
+             c(1:iS) = savgol(nl=nl,nrr=nrr,ld = ld,m = m)
+             do i=1, iS
+                TidePrev%Aux1 = TidePrev%Aux1 + C(i) * Y(i)
+             enddo
+        else
+        
+            TidePrev%Aux1 = WaterLevel
+        
+        endif    
+        
+        WL_Out = TidePrev%Aux1
+        
+        DTAux = PreviousTime - TidePrev%PreviousTime
+
+        if (TidePrev%counter > 3 .and. DTAux > DTanalysis) then
+            !low tide 
+            if ((TidePrev%Aux2 <= TidePrev%Aux1 .and. TidePrev%Aux2 <= TidePrev%Aux3 .and. &
+                 TidePrev%Aux2 <= TidePrev%Aux4 .and. TidePrev%Aux2 <= TidePrev%Aux5) .or. &
+            !high tide 
+                (TidePrev%Aux2 >= TidePrev%Aux1 .and. TidePrev%Aux2 >= TidePrev%Aux3 .and. &
+                 TidePrev%Aux2 >= TidePrev%Aux4 .and. TidePrev%Aux2 >= TidePrev%Aux5)) then
+                write(TidePrev%OutPutHighLowUnit, *) PreviousTime, TidePrev%Aux2
+                TidePrev%PreviousTime = PreviousTime
+            endif
+        endif
+    
+    end subroutine FindLowAndHighTideNoisyTS                    
+    !--------------------------------------------------------------------------    
+    
+	FUNCTION savgol(nl,nrr,ld,m)
+	INTEGER(I4B), INTENT(IN) :: nl,nrr,ld,m
+	REAL(SP), DIMENSION(nl+nrr+1) :: savgol
+	INTEGER(I4B) :: imj,ipj,mm,np
+	INTEGER(I4B), DIMENSION(m+1) :: indx
+	REAL(SP) :: d,sm
+	REAL(SP), DIMENSION(m+1) :: b
+	REAL(SP), DIMENSION(m+1,m+1) :: a
+	INTEGER(I4B) :: irng(nl+nrr+1)
+	call assert(nl >= 0, nrr >= 0, ld <= m, nl+nrr >= m, 'savgol args')
+	do ipj=0,2*m
+		sm=sum(arth(1.0_sp,1.0_sp,nrr)**ipj)+&
+			sum(arth(-1.0_sp,-1.0_sp,nl)**ipj)
+		if (ipj == 0) sm=sm+1.0_sp
+		mm=min(ipj,2*m-ipj)
+		do imj=-mm,mm,2
+			a(1+(ipj+imj)/2,1+(ipj-imj)/2)=sm
+		end do
+	end do
+	call ludcmp(a(:,:),indx(:),d)
+	b(:)=0.0
+	b(ld+1)=1.0
+	call lubksb(a(:,:),indx(:),b(:))
+	savgol(:)=0.0
+	irng(:)=arth(-nl,1,nrr+nl+1)
+	np=nl+nrr+1
+	savgol(mod(np-irng(:),np)+1)=poly(real(irng(:),sp),b(:))
+	END FUNCTION savgol
+    
+    !-----------------------------------------------------------------------------------------    
+    !subroutine fit_poly(m, ArrayX, ArrayY, n, X, Y)
+    ! A simple program to fit a polynomial in one variable.
+    ! Data must be store in the form of pairs, either (x,y) or (y,x)
+    ! Polynomial to be fitted:
+
+    ! Y = a(0) + a(1).X + a(2).X^2 + ... + a(m).X^m
+    
+        !Arguments------------------------------------------------------------------
+     !   integer,               intent(IN) :: m, n
+     !   real,   dimension(:),  intent(IN) :: ArrayX, ArrayY
+     !   real,                  intent(IN) :: X         
+     !   real,                  intent(OUT):: Y
+
+        !Local----------------------------------------------------------------------
+     !   CHARACTER (LEN=50)                :: fname
+     !   CHARACTER (LEN= 1)                :: ans
+     !   REAL (dp), dimension(0:20)        :: xrow, beta, sterr
+     !   REAL (dp), dimension(231)         :: covmat
+     !   REAL (dp)                         :: wt = 1.0_dp, var, totalSS, Yaux
+     !   INTEGER                           :: i, ier, iostatus, j
+     !   LOGICAL,   dimension(0:20)        :: lindep
+     !   LOGICAL                           :: fit_const = .TRUE., xfirst
+
+        !Begin----------------------------------------------------------------------
+
+        ! Least-squares calculations
+        !CALL startup(m, fit_const)
+        !DO i = 1, n
+        !  xrow(0) = 1.0_dp
+        !  DO j = 1, m
+        !    xrow(j) = ArrayX(i) * xrow(j-1)
+        !  END DO
+        !  Yaux = ArrayY(i)
+        !  CALL includ(wt, xrow, Yaux)
+        !END DO
+
+       ! CALL sing(lindep, ier)
+       ! IF (ier /= 0) THEN
+       !   DO i = 0, m
+       !     IF (lindep(i)) WRITE(*, '(a, i3)') ' Singularity detected for power: ', i
+       !     IF (lindep(i)) WRITE(9, '(a, i3)') ' Singularity detected for power: ', i
+       !   END DO
+       ! END IF
+
+        ! Calculate progressive residual sums of squares
+      !  CALL ss()
+      !  var = rss(m+1) / (n - m - 1)
+
+        ! Calculate least-squares regn. coeffs.
+      !  CALL regcf(beta, m+1, ier)
+
+        ! Calculate covariance matrix, and hence std. errors of coeffs.
+      !  CALL cov(m+1, var, covmat, 231, sterr, ier)
+
+        !WRITE(*, *) 'Least-squares coefficients & std. errors'
+        !WRITE(9, *) 'Least-squares coefficients & std. errors'
+        !WRITE(*, *) 'Power  Coefficient          Std.error      Resid.sum of sq.'
+        !WRITE(9, *) 'Power  Coefficient          Std.error      Resid.sum of sq.'
+        !DO i = 0, m
+        !  WRITE(*, '(i4, g20.12, "   ", g14.6, "   ", g14.6)')  &
+        !        i, beta(i), sterr(i), rss(i+1)
+        !  WRITE(9, '(i4, g20.12, "   ", g14.6, "   ", g14.6)')  &
+        !        i, beta(i), sterr(i), rss(i+1)
+        !END DO
+
+        !WRITE(*, *)
+        !WRITE(9, *)
+        !WRITE(*, '(a, g20.12)') ' Residual standard deviation = ', SQRT(var)
+        !WRITE(9, '(a, g20.12)') ' Residual standard deviation = ', SQRT(var)
+        !totalSS = rss(1)
+        !WRITE(*, '(a, g20.12)') ' R^2 = ', (totalSS - rss(m+1))/totalSS
+        !WRITE(9, '(a, g20.12)') ' R^2 = ', (totalSS - rss(m+1))/totalSS
+
+     !   Y = 0.
+     !   do i = 0, m
+     !       Y = Y + beta(i) * X ** real(i)
+     !   enddo
+        !Y = a(0) + a(1).X + a(2).X^2 + ... + a(m).X^m
+
+    !end subroutine fit_poly
+    
+    !--------------------------------------------------------------------------    
+
 
     subroutine KillMohidTidePreview
 

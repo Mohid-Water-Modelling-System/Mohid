@@ -152,9 +152,9 @@ Module ModuleDischarges
     type       T_Property
         type (T_PropertyID)                     :: ID
         logical                                 :: Variable       = .false.
-        integer                                 :: ConcColumn     = null_int !initialization: Jauch
+        integer                                 :: ConcColumn     = null_int 
         real                                    :: scalar         = FillValueReal
-        logical                                 :: TimeSerieON    = .false. !initialization: Jauch
+        logical                                 :: TimeSerieON    = .false. 
         integer                                 :: TimeSerie      = 0
         logical                                 :: PropTimeSerie  = .false.
         logical                                 :: FromIntake     = .false.
@@ -165,33 +165,34 @@ Module ModuleDischarges
 
     type       T_WaterFlow
         logical                                 :: Variable      = .false.
-        integer                                 :: FlowColumn    = null_int !initialization: Jauch
+        integer                                 :: FlowColumn    = null_int 
         real                                    :: scalar        = FillValueReal
     end type T_WaterFlow
 
 
     type       T_WaterVelocity
-        logical                                 :: UVariable    = .false.  !initialization: Jauch
-        logical                                 :: VVariable    = .false.  !initialization: Jauch
-        logical                                 :: WVariable    = .false.  !initialization: Jauch
-        integer                                 :: UColumn      = null_int !initialization: Jauch
-        integer                                 :: VColumn      = null_int !initialization: Jauch
-        integer                                 :: WColumn      = null_int !initialization: Jauch
+        logical                                 :: UVariable    = .false.  
+        logical                                 :: VVariable    = .false.  
+        logical                                 :: WVariable    = .false.  
+        integer                                 :: UColumn      = null_int 
+        integer                                 :: VColumn      = null_int 
+        integer                                 :: WColumn      = null_int 
         real                                    :: Uscalar = FillValueReal
         real                                    :: Vscalar = FillValueReal
         real                                    :: Wscalar = FillValueReal        
     end type T_WaterVelocity
 
     type       T_FlowOver
-        real                                    :: WeirLength           = null_real !initialization: Jauch
-        real                                    :: DischargeCoeficient  = null_real !initialization: Jauch
-        real                                    :: CrestHeigth          = null_real !initialization: Jauch
+        real                                    :: WeirLength           = null_real 
+        real                                    :: DischargeCoeficient  = null_real 
+        real                                    :: CrestHeigth          = null_real 
     end  type T_FlowOver
 
     type       T_Valve
-        real                                    :: Diameter             = null_real !initialization: Jauch
-        real                                    :: DischargeCoeficient  = null_real !initialization: Jauch
-        real                                    :: AxisHeigth           = null_real !initialization: Jauch
+        real                                    :: Diameter             = null_real 
+        real                                    :: DischargeCoeficient  = null_real 
+        real                                    :: AxisHeigth           = null_real 
+        real                                    :: SillHeigth           = null_real
     end  type T_Valve
 
     type T_GridCoordinates
@@ -205,28 +206,28 @@ Module ModuleDischarges
     type       T_Localization 
          type (T_GridCoordinates)               :: GridCoordinates
          logical                                :: AlternativeLocations             = .false.
-         real                                   :: MinimumDischargeDepth            = null_real !initialization: Jauch
+         real                                   :: MinimumDischargeDepth            = null_real 
          logical                                :: StartFromLastDischargeLocation   = .false.
-         logical                                :: Location2D                       = .false. !initialization: Jauch
+         logical                                :: Location2D                       = .false. 
          integer                                :: DischVertical                    = FillValueInt
          real                                   :: Kdepth                           = FillValueReal
          integer                                :: NodeID                           = FillValueInt
-         logical                                :: TrackLocation                    = .false. !initialization: Jauch
-         character(len=StringLength)            :: TrackLocationFile                = null_str !initialization: Jauch
-         integer                                :: TrackLocationFileUnitNumber      = null_int !initialization: Jauch
+         logical                                :: TrackLocation                    = .false. 
+         character(len=StringLength)            :: TrackLocationFile                = null_str 
+         integer                                :: TrackLocationFileUnitNumber      = null_int 
          logical                                :: UseDischargePathFile             = .false.
-         character(len=StringLength)            :: DischargePathFile                = null_str !initialization: Jauch
-         real                                   :: CoordinateX                      = null_real, & !initialization: Jauch
-                                                   CoordinateY                      = null_real    !initialization: Jauch
-         integer                                :: XColumn                          = null_int, & !initialization: Jauch
-                                                   YColumn                          = null_int    !initialization: Jauch
-         logical                                :: VariableX                        = .false., & !initialization: Jauch
-                                                   VariableY                        = .false.    !initialization: Jauch
+         character(len=StringLength)            :: DischargePathFile                = null_str 
+         real                                   :: CoordinateX                      = null_real, & 
+                                                   CoordinateY                      = null_real    
+         integer                                :: XColumn                          = null_int, & 
+                                                   YColumn                          = null_int    
+         logical                                :: VariableX                        = .false., & 
+                                                   VariableY                        = .false.    
          logical                                :: CoordinatesON                    = .false.
          integer                                :: HorizontalType                   = FillValueInt
          logical                                :: CellCorrect                      = .false.
-         integer                                :: SpatialEmission                  = null_int    !initialization: Jauch
-         character(len=StringLength)            :: SpatialFile                      = null_str !initialization: Jauch
+         integer                                :: SpatialEmission                  = null_int    
+         character(len=StringLength)            :: SpatialFile                      = null_str 
          type (T_Polygon), pointer              :: Polygon                          => null()
          type (T_Lines),   pointer              :: Line                             => null()
          integer                                :: nCells                           = 1
@@ -263,14 +264,14 @@ Module ModuleDischarges
          type(T_ID                 )            :: ID
          type(T_Localization       )            :: Localization
          integer                                :: PropertiesNumber = FillValueInt
-         character(len=PathLength)              :: DataBaseFile     = null_str !initialization: Jauch 
-         character(len=PathLength)              :: OutPutFile       = null_str !initialization: Jauch   
-         logical                                :: TimeSerieON      = .false. !initialization: Jauch 
+         character(len=PathLength)              :: DataBaseFile     = null_str  
+         character(len=PathLength)              :: OutPutFile       = null_str    
+         logical                                :: TimeSerieON      = .false.  
          integer                                :: TimeSerie        = 0
-         logical                                :: UseOriginalValues    = .false. !initialization: Jauch 
+         logical                                :: UseOriginalValues    = .false.  
          type(T_WaterFlow          )            :: WaterFlow   
          type(T_WaterVelocity      )            :: VelocityFlow
-         integer                                :: DischargeType    = null_int !initialization: Jauch 
+         integer                                :: DischargeType    = null_int  
          type(T_Valve   )                       :: Valve
          type(T_FlowOver)                       :: FlowOver
          type(T_Property           ), pointer   :: FirstProperty    => null()
@@ -280,20 +281,21 @@ Module ModuleDischarges
          type(T_IndividualDischarge), pointer   :: Prev             => null()
          type(T_ByPass             )            :: ByPass
          type(T_FromIntake         )            :: FromIntake       
-         logical                                :: IgnoreON         = .false. !initialization: Jauch 
+         logical                                :: IgnoreON         = .false.  
     end type T_IndividualDischarge    
 
     type      T_Discharges
-         integer                                :: InstanceID       = null_int !initialization: Jauch            
+         integer                                :: InstanceID       = null_int             
          integer                                :: ObjEnterData     = 0
          integer                                :: ObjTime          = 0
-         character(len=Pathlength)              :: DataFile         = null_str !initialization: Jauch
+         character(len=Pathlength)              :: DataFile         = null_str 
          integer                                :: DischargesNumber = FillValueInt
          type (T_IndividualDischarge), pointer  :: FirstDischarge   => null()
          type (T_IndividualDischarge), pointer  :: LastDischarge    => null()
          type (T_IndividualDischarge), pointer  :: CurrentDischarge => null()
          type (T_Discharges), pointer           :: Next             => null()
-         logical                                :: IgnoreON         = .false. !initialization: Jauch
+         logical                                :: IgnoreON         = .false.
+         integer                                :: ReferentialZ     = FillValueInt          
     end type T_Discharges
 
     !Global Variables
@@ -380,6 +382,21 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
                          STAT         = STAT_CALL)        
 
             if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR40'
+
+            call GetData(Me%ReferentialZ,                                       &
+                         Me%ObjEnterData,                                       &
+                         flag,                                                  &
+                         SearchType   = FromFile,                               &
+                         keyword      ='REFERENTIAL_Z',                         &
+                         Default      = Hydrographic_,                          &
+                         ClientModule ='ModuleDischarges',                      &
+                         STAT         = STAT_CALL)        
+
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR42'
+            
+            if (Me%ReferentialZ /= Hydrographic_ .and. Me%ReferentialZ /=  Topographic_) then
+                stop 'Construct_Discharges - ModuleDischarges - ERR44'
+            endif
 
 
             ! Constructs the discharge list 
@@ -1142,7 +1159,7 @@ i1:     if (NewDischarge%TimeSerieON) then
                  NewDischarge%DischargeType /= OpenMILink) then
                  stop 'Construct_FlowValues - ModuleDischarges - ERR40'
         endif
-
+        
 i2:     if (NewDischarge%DischargeType == FlowOver) then
 
             call GetData(NewDischarge%FlowOver%WeirLength,                              &
@@ -1182,7 +1199,10 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                 write(*,*) 'Crest Height Missing'
                 stop ' Construct_FlowValues - ModuleDischarges - ERR90'
             endif
-
+            
+            if (Me%ReferentialZ == Hydrographic_) then
+                NewDischarge%FlowOver%CrestHeigth =  - NewDischarge%FlowOver%CrestHeigth
+            endif                
             
         else if (NewDischarge%DischargeType == Valve) then i2
 
@@ -1210,18 +1230,42 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR120'
 
-            call GetData(NewDischarge%Valve%AxisHeigth,                                 &
+            call GetData(NewDischarge%Valve%SillHeigth,                                 &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
                          FromBlock,                                                     &
-                         keyword      ='VALVE_AXIS_HEIGTH',                             &
+                         keyword      ='VALVE_SILL_HEIGTH',                             &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR130'
 
+            if (Me%ReferentialZ == Hydrographic_) then
+                NewDischarge%Valve%SillHeigth =  - NewDischarge%Valve%SillHeigth
+            endif                
+            
+
             if (flag /= 1) then
-                write(*,*) 'Valve axis Missing'
-                stop ' Construct_FlowValues - ModuleDischarges - ERR140'
+
+                call GetData(NewDischarge%Valve%AxisHeigth,                                 &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             FromBlock,                                                     &
+                             keyword      ='VALVE_AXIS_HEIGTH',                             &
+                             ClientModule = 'ModuleDischarges',                             &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR135'
+
+                if (Me%ReferentialZ == Hydrographic_) then
+                    NewDischarge%Valve%AxisHeigth =  - NewDischarge%Valve%AxisHeigth
+                endif  
+                
+                NewDischarge%Valve%SillHeigth  = NewDischarge%Valve%AxisHeigth - NewDischarge%Valve%Diameter / 2.
+            
+                if (flag /= 1) then
+                    write(*,*) 'Valve axis Missing'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR138'
+                endif
+                                    
             endif
 
         endif i2
@@ -2835,8 +2879,8 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                 
                 D            = DischargeX%Valve%Diameter
 
-                TopValveH    = - DischargeX%Valve%AxisHeigth + D/2.
-                BottomValveH = - DischargeX%Valve%AxisHeigth - D/2.
+                TopValveH    =   DischargeX%Valve%SillHeigth + D
+                BottomValveH =   DischargeX%Valve%SillHeigth
                 
                 H            = UpstreamH - max(DownstreamH, BottomValveH)
                 
@@ -2863,7 +2907,15 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                     
                     endif
                     
-                    C    = DischargeX%Valve%DischargeCoeficient
+                    if (H > 0.01) then
+                        C    = DischargeX%Valve%DischargeCoeficient
+                    else
+                        if (H > 0) then
+                            C = DischargeX%Valve%DischargeCoeficient * H**2  / 1e-4
+                        else
+                            C = 0.
+                        endif
+                    endif                        
 
                     Flow = sqrt(19.6) * C * A * sqrt(H)
 

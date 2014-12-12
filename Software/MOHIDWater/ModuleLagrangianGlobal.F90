@@ -92,7 +92,7 @@ Module ModuleLagrangianGlobal
 !   (next keyword is read if REMOVAL_RATE_COEF_SPATIAL = 2)
 !   REMOVAL_RATE_COEF_LIST  : real (Shore types number)                         !List of Removal rates for each shore type
 !   OUTPUT_CONC             : 1/2                       [1]                     !OutPut Integration Type
-!                                                                               1 - Maximum 2 - Mean
+!                                                                               1 - Maximum, 2 - Mean, 3 - Analytic
 !   OUTPUT_MAX_TRACER       : 0/1                       [0]                     !Checks if the users wants to output the maximum 
                                                                                 ! tracer concentration in each cell
 !   OVERLAY_VELOCITY        : 0/1                       [0]                     !If a adicional velocity field is to be added
@@ -555,6 +555,8 @@ Module ModuleLagrangianGlobal
     private ::      VerifyLandParticles
     private ::      PurgeParticles
     private ::      VolumeVariation
+    private ::          VolumeFirstOrderVariation
+    private ::          VoronoiVolume
     private ::      Dilution
     private ::          GetAmbientConcCell
     private ::          GetAmbientConcPartic    
@@ -661,6 +663,7 @@ Module ModuleLagrangianGlobal
     !OutputIntegrationType
     integer, parameter                          :: Maximum                  = 1
     integer, parameter                          :: Mean                     = 2
+    integer, parameter                          :: Analytic                 = 3
 
     !Relative position 
     integer, parameter                          :: Cells                    = 1
@@ -825,6 +828,7 @@ Module ModuleLagrangianGlobal
         real,    dimension(:, :,    :, :), pointer     :: GridBottomConc        => null()
 
         real(8), dimension(:, :, :, :   ), pointer     :: GridVolume            => null()
+        real,    dimension(:, :, :, :   ), pointer     :: PercentContamin       => null()
         real,    dimension(:, :, :, :, :), pointer     :: GridMass              => null()
         real,    dimension(:, :, :, :   ), pointer     :: GridBottomMass        => null()
                           !p, ig  
@@ -1716,6 +1720,8 @@ Module ModuleLagrangianGlobal
         integer                                 :: ObjEnterData         = 0
         integer                                 :: ObjEnterDataClone    = 0
         integer                                 :: ObjEnterDataOriginal = 0
+        
+        logical                                 :: VoronoiVolume        = .false. 
 
         type(T_Lagrangian     ), pointer        :: Next                 => null()
     end type T_Lagrangian
@@ -3444,9 +3450,11 @@ d1:     do em = 1, Me%EulerModelNumber
             !Allocate GridVolume, GridMass    
             allocate (Me%EulerModel(em)%Lag2Euler%GridVolume      (ILB:IUB, JLB:JUB, KLB:KUB         , 1:Me%NGroups))
             allocate (Me%EulerModel(em)%Lag2Euler%GridTracerNumber(ILB:IUB, JLB:JUB, KLB:KUB         , 1:Me%NGroups))
+            allocate (Me%EulerModel(em)%Lag2Euler%PercentContamin (ILB:IUB, JLB:JUB, KLB:KUB         , 1:Me%NGroups))
 
             allocate (Me%EulerModel(em)%Lag2Euler%GridMass        (ILB:IUB, JLB:JUB, KLB:KUB, 1:nProp, 1:Me%NGroups))
             allocate (Me%EulerModel(em)%Lag2Euler%GridConc        (ILB:IUB, JLB:JUB, KLB:KUB, 1:nProp, 1:Me%NGroups))
+
 
             allocate (Me%EulerModel(em)%Lag2Euler%MeanConc        (                           1:nProp, 1:Me%NGroups))
             allocate (Me%EulerModel(em)%Lag2Euler%AmbientConc     (                           1:nProp, 1:Me%NGroups))
@@ -3456,6 +3464,7 @@ d1:     do em = 1, Me%EulerModelNumber
                                                         !i,j,k,p,ig 
             Me%EulerModel(em)%Lag2Euler%GridVolume      (:,:,:,  :) = 0.
             Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:,:,:,  :) = 0.
+            Me%EulerModel(em)%Lag2Euler%PercentContamin (:,:,:,  :) = 0.            
             Me%EulerModel(em)%Lag2Euler%GridMass        (:,:,:,:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%GridConc        (:,:,:,:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%MeanConc              (:,:) = 0.
@@ -4022,6 +4031,16 @@ em4:        do em =1, Me%EulerModelNumber
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR290'
             
         endif     
+        
+        call GetData(Me%VoronoiVolume,                                                  &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='VORONOI_VOLUME',                                    &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = OFF,                                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR400'        
         
         call GetData(Me%StopWithNoPart,                                                 &
                      Me%ObjEnterData,                                                   &
@@ -6449,6 +6468,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         if (NewOrigin%State%Age) Me%State%Age = .true.
 
         if (NewOrigin%State%Age) then
+        
             !Age limit in days
             call GetData(NewOrigin%AgeLimit,                                            &
                          Me%ObjEnterData,                                               &
@@ -6470,6 +6490,12 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                          Default      = OFF,                                            &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1535'
+        else
+        
+            if (Me%OutPut%OutPutConcType == Analytic) then    
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1537'
+            endif
+                            
         endif 
         
         call GetData(NewOrigin%State%AccidentProbability,                               &
@@ -9149,13 +9175,13 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                                    STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ActualizeOrigin - ModuleLagrangianGlobal - ERR10.'
 
-            if (TimeCycle) then
-                CurrentOrigin%Flow = Value1
-                ParticleVolume = CurrentOrigin%Flow     *                                   &
-                                 CurrentOrigin%DT_EMIT  /                                   &
-                                 CurrentOrigin%NbrParticlesIteration
+            !if (TimeCycle) then
+            !    CurrentOrigin%Flow = Value1
+            !    ParticleVolume = CurrentOrigin%Flow     *                                   &
+            !                     CurrentOrigin%DT_EMIT  /                                   &
+            !                     CurrentOrigin%NbrParticlesIteration
 
-            else
+            !else
                 !Interpolates Value for current instant
     !            call InterpolateValueInTime(Me%ExternalVar%Now, Time1,               &
     !                                        Value1, Time2, Value2, CurrentOrigin%Flow)
@@ -9174,8 +9200,12 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                     if (TotalVolume == 0.) then
                         CurrentOrigin%NbrParticlesIteration = 0
                     else
-                        CurrentOrigin%NbrParticlesIteration = int (TotalVolume / CurrentOrigin%PointVolume) + 1
+                        CurrentOrigin%NbrParticlesIteration = int (TotalVolume / CurrentOrigin%PointVolume)
+                         
+                        if (CurrentOrigin%NbrParticlesIteration < 1) CurrentOrigin%NbrParticlesIteration = 1
+                        
                         ParticleVolume                      = TotalVolume / real(CurrentOrigin%NbrParticlesIteration)
+                        
                         if (ParticleVolume > CurrentOrigin%MaxVol) then
                             write(*,*) 'Particle volume ', ParticleVolume, 'larger than maximum volume allowed ', &
                                        CurrentOrigin%MaxVol
@@ -9184,7 +9214,7 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                         
                     endif
                 endif
-            endif
+            !endif
 
         endif
 
@@ -15288,8 +15318,11 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     endif
 
 
-                    MixingLength =abs(cmplx(Me%EulerModel(emp)%MixingLengthX(i, j, k),  &
-                                            Me%EulerModel(emp)%MixingLengthY(i, j, k)))
+                    !MixingLength =abs(cmplx(Me%EulerModel(emp)%MixingLengthX(i, j, k),  &
+                    !                        Me%EulerModel(emp)%MixingLengthY(i, j, k)))
+                    
+                    MixingLength =(Me%EulerModel(emp)%MixingLengthX(i, j, k)+           &
+                                   Me%EulerModel(emp)%MixingLengthY(i, j, k))/2.
 
                     if (StandardDeviation > 0.0) then
                         TlagrangeH = MixingLength / StandardDeviation
@@ -16067,6 +16100,7 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         type(T_Larvae), pointer                     :: LarvaePtr
         real                                        :: SPMDensity, WaterDensity
         integer                                     :: STAT_CALL
+        real                                        :: DistSurface, DistBottom
 
         !------------------------------------------------------------------------
 
@@ -16085,6 +16119,8 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         kFloor          =   Me%EulerModel(emp)%kFloor(i, j)
         BottomDepth     =   Me%EulerModel(emp)%WaterColumn(i, j)
         SurfaceDepth    =   Me%EulerModel(emp)%SZZ(i, j, KUB)
+        DistSurface     =   CurrentPartic%Position%Z - SurfaceDepth
+        DistBottom      =   Me%EulerModel(emp)%SZZ(i, j, kFloor) - CurrentPartic%Position%Z
 
 MD:     if (CurrentOrigin%Position%MaintainDepth) then
             NewPosition%Z = SurfaceDepth + CurrentOrigin%Position%DepthWithWaterLevel
@@ -16216,6 +16252,23 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
 
     MT:         if (CurrentOrigin%Movement%MovType .EQ. SullivanAllen_) then
+    
+                    !To avoid particles to concentrated in the surface
+                    if (AuxCompMisturaZ_Up > DistSurface) then
+                        if (DistSurface > 0.) then
+                            AuxCompMisturaZ_Up = DistSurface
+                        else
+                            AuxCompMisturaZ_Up = 0.         
+                        endif
+                    endif
+                    !To avoid particles to concentrated in the bottom                                                                           
+                     if (AuxCompMisturaZ_Down > DistBottom) then
+                        if (DistBottom > 0.) then
+                            AuxCompMisturaZ_Down = DistBottom
+                        else
+                            AuxCompMisturaZ_Down = 0.         
+                        endif
+                    endif
 
                     select case (CurrentOrigin%Movement%StandardDeviationType)
                     
@@ -16777,7 +16830,7 @@ OIL:            if (CurrentOrigin%State%Oil) then
         !Local-----------------------------------------------------------------
         real                                        :: TlagrangeZ
         real                                        :: RAND
-
+        
 
         !Calculate TlagrangeZ
         if (WStandardDeviation > 0.0) then
@@ -16816,8 +16869,217 @@ OIL:            if (CurrentOrigin%State%Oil) then
     end function WD_
 
     !--------------------------------------------------------------------------
+    
 
     subroutine VolumeVariation ()
+
+        !Arguments-------------------------------------------------------------
+   
+
+        !Local-----------------------------------------------------------------
+        if (Me%VoronoiVolume) then
+            call VoronoiVolume
+        else
+            call VolumeFirstOrderVariation    
+        endif
+      
+
+        
+
+    end subroutine VolumeVariation
+
+    !--------------------------------------------------------------------------
+
+    !This subroutine aims to be a first effort to compute particles volumes 
+    !based in their relative positions
+    !The big limitation is that use a horizontal unstructure grid (triangles) and
+    !not a full 3D unstructured grid to compute the particles volumes. 
+    !The thickness is computed based in the average distance between the 
+    !adjacent horizontal points 
+    subroutine VoronoiVolume
+
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin),    pointer                 :: CurrentOrigin
+        type (T_Partic),    pointer                 :: CurrentPartic
+        real, dimension(:), pointer                 :: NodeX, NodeY, VoronoiArea, Depth, Volume
+        integer, dimension(:), pointer              :: NeighborNodesIndex
+        real                                        :: Thickness
+        integer                                     :: j, ObjTriangulation, ip, NumberOfNodes
+        integer                                     :: STAT_CALL, NNi, NeighborNodesNumber, ni, ic
+        real                                        :: Aux, VolMax, VolMin
+
+        !Begin-----------------------------------------------------------------
+
+        iP = 0        
+
+        CurrentOrigin => Me%FirstOrigin
+
+Or1:    do while (associated(CurrentOrigin))
+
+            iP = iP + CurrentOrigin%nParticle
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo Or1
+
+        NumberOfNodes = iP
+                
+        allocate(NodeX      (NumberOfNodes), NodeY(NumberOfNodes))
+        allocate(VoronoiArea(NumberOfNodes), Depth(NumberOfNodes), Volume(NumberOfNodes))
+        VoronoiArea(:) = 0.
+
+        iP = 0
+
+        CurrentOrigin => Me%FirstOrigin
+Or2:    do while (associated(CurrentOrigin))                
+            CurrentPartic => CurrentOrigin%FirstPartic                      
+            
+            do while (associated(CurrentPartic))
+
+                iP          = iP + 1                                    
+                NodeX  (iP) = CurrentPartic%Position%CartX
+                NodeY  (iP) = CurrentPartic%Position%CartY
+                Depth  (iP) = CurrentPartic%Position%Z
+
+                CurrentPartic => CurrentPartic%Next                        
+                                            
+            enddo 
+            
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo Or2
+            
+        ObjTriangulation = 0
+        
+        call ConstructTriangulation(ObjTriangulation,                                   &
+                                    NumberOfNodes = NumberOfNodes, NodeX = NodeX,       &
+                                    NodeY = NodeY, NodeZ = Depth,                       &
+                                    Tolerance = 0., STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAreaVolume - ModuleLagrangianGlobal - ERR10'   
+        
+        call CalculateVoronoi (ObjTriangulation, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAreaVolume - ModuleLagrangianGlobal - ERR20'                     
+
+        call GetVoronoiAreaNodes (ObjTriangulation, VoronoiArea, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAreaVolume - ModuleLagrangianGlobal - ERR30' 
+        
+        VolMax =   null_real
+        VolMin = - null_real
+        
+        iP = 0
+        CurrentOrigin => Me%FirstOrigin
+Or3:    do while (associated(CurrentOrigin))                
+            CurrentPartic => CurrentOrigin%FirstPartic                      
+            
+            do while (associated(CurrentPartic))
+                iP          = iP + 1                                    
+                call  GetNeighborNodesNumber(ObjTriangulation, iP, NeighborNodesNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeAreaVolume - ModuleLagrangianGlobal - ERR40' 
+
+                allocate(NeighborNodesIndex(NeighborNodesNumber))
+                
+                call  GetNeighborNodesIndex(ObjTriangulation, iP, NeighborNodesIndex, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeAreaVolume - ModuleLagrangianGlobal - ERR40'                     
+                
+                Thickness = 0.
+                do j=1, NeighborNodesNumber
+                    Thickness = Thickness + abs(Depth(iP) - Depth(NeighborNodesIndex(j)))/ real(NeighborNodesNumber)
+                enddo
+                
+                deallocate(NeighborNodesIndex)                
+                
+                if (VoronoiArea(iP) > 0. .and. Thickness > 0.) then
+                    Volume(iP) = Thickness * VoronoiArea(iP)
+                    if (Volume(iP) > VolMax) VolMax = Volume(iP)
+                    if (Volume(iP) < VolMin) VolMin = Volume(iP)
+                else
+                    Volume(iP) = null_real
+                endif     
+                
+                CurrentPartic => CurrentPartic%Next                        
+                                            
+            enddo 
+            
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo Or3        
+                
+
+
+        iP = 0
+        CurrentOrigin => Me%FirstOrigin
+Or4:    do while (associated(CurrentOrigin))                
+            CurrentPartic => CurrentOrigin%FirstPartic                      
+            
+            do while (associated(CurrentPartic))
+                iP          = iP + 1            
+
+                if (Volume(iP) < null_real / 2.) then
+                
+                    call  GetNeighborNodesNumber(ObjTriangulation, iP, NeighborNodesNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ComputeAreaVolume - ModuleLagrangianGlobal - ERR40' 
+ 
+
+                    allocate(NeighborNodesIndex(NeighborNodesNumber))
+                    
+                    call  GetNeighborNodesIndex(ObjTriangulation, iP, NeighborNodesIndex, STAT = STAT_CALL)
+                    ic  = 0
+                    Aux = 0.
+                   ! Average volume thickness
+                    do ni=1, NeighborNodesNumber
+                        NNi   = NeighborNodesIndex(ni)
+                        if (Volume(NNi) > 0) then
+                            Aux  = Aux + Volume(NNi)
+                            ic = ic + 1
+                       endif
+                    enddo          
+                    
+                    if (ic > 0) then
+                        Volume(iP)                    = Aux / real(ic)
+                    else
+                        Volume(iP)                    = VolMax                        
+                    endif
+                    
+             
+                    
+                    deallocate(NeighborNodesIndex) 
+                
+                endif
+                
+                if (Volume(iP) > 1e6 * VolMin) then
+                    Volume(iP) = 1e6 * VolMin
+                endif
+                
+                if (Volume(iP) < CurrentPartic%Geometry%InitialVolume) then
+                    Volume(iP) = CurrentPartic%Geometry%InitialVolume
+                endif
+                
+                CurrentPartic%Geometry%VolVar = Volume(iP) - CurrentPartic%Geometry%Volume
+                CurrentPartic%Geometry%Volume = Volume(iP)                       
+                        
+                CurrentPartic => CurrentPartic%Next                        
+                                            
+            enddo 
+            
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo Or4    
+
+
+        nullify(CurrentOrigin)                                     
+        nullify(CurrentPartic)
+        
+        deallocate(NodeX, NodeY, VoronoiArea, Depth, Volume) 
+        nullify   (NodeX, NodeY, VoronoiArea, Depth, Volume) 
+        
+        call KillTriangulation(ObjTriangulation, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAreaVolume - ModuleLagrangianGlobal - ERR40'   
+
+    end subroutine VoronoiVolume                     
+    
+    !--------------------------------------------------------------------------
+
+    subroutine VolumeFirstOrderVariation ()
 
         !Arguments-------------------------------------------------------------
    
@@ -16955,9 +17217,10 @@ DB:                 if (.not. CurrentPartic%Deposited .and.                     
 
         
 
-    end subroutine VolumeVariation
+    end subroutine VolumeFirstOrderVariation
 
     !--------------------------------------------------------------------------
+    
 
     subroutine Dilution ()
 
@@ -16993,22 +17256,9 @@ DB:                     if (.not. CurrentPartic%Deposited .and.                 
 
                             call GetAmbientConcPartic (CurrentProperty, nProp, emp, CurrentPartic, Concentration)
                                                           
-                            if (CurrentPartic%Geometry%VolVar < 0) then
-
-                                stop 'Dilution - ModuleLagrangianGlobal - ERR01'
-
-                            endif
-
                             OldVolume = CurrentPartic%Geometry%Volume -                 &
                                         CurrentPartic%Geometry%VolVar
 
-                            !if (nprop <1 .or. nprop > 4 .or. CurrentPartic%Geometry%Volume <0) then
-                            !    write(*,*) CurrentOrigin%name
-                            !    write(*,*) CurrentProperty%ID
-                            !    write(*,*) CurrentPartic%ID
-                            !    write(*,*) nprop
-                            !    write(*,*) CurrentPartic%Geometry%Volume 
-                            !endif
 
                             !Calculates New Concentration
                             CurrentPartic%Concentration(nProp) =                        &
@@ -20614,7 +20864,7 @@ d23:        do Box = 1, Me%EulerModel(em)%Monitor%NumberOfBoxes
         integer                                     :: iProp, STAT_CALL, em, p, ig
         integer                                     :: ln, LayersNumber, MethodStatistic
         integer                                     :: Value3DStatLayers, Depth, Layer, LayerDefinition
-        logical                                     :: PropNumber
+        logical                                     :: PropNumber, PercentContamin
 
 
         !Begin--------------------------------------------------------------------------
@@ -20654,6 +20904,7 @@ dp:         do p=1, Me%Statistic%PropNumber
                     call ModifyStatistic (Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig), &
                                           Value2D       = AuxGrid2D,                            &
                                           WaterPoints2D = Me%EulerModel(em)%WaterPoints2D,      &
+                                          Now           = Me%Now,                               &        
                                           STAT          = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR90'
@@ -20662,21 +20913,34 @@ dp:         do p=1, Me%Statistic%PropNumber
                             
                     cycle
                     
-               endif 
-                                
+                endif 
+                                                
                                 
                                         
             
                 iProp = Me%Statistic%OptionsStat(p)%PropOrder
+
+                PropNumber      = .false.     
+                PercentContamin = .false.           
                 
-                if (IndividualsPerCell_ == Me%Statistic%OptionsStat(p)%ID%IDNumber) then
-                    PropNumber = .true.
-                else
-                    PropNumber = .false.
+                if (Me%Statistic%OptionsStat(p)%ID%IDNumber == IndividualsPerCell_)  then
+                    PropNumber      = .true.
                 endif
 
-                if (PropNumber) then
-                    AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:, :, :, ig)
+                if (Me%Statistic%OptionsStat(p)%ID%IDNumber == CellPercentContamin_) then
+                    PercentContamin = .true.
+                endif
+
+                if (PropNumber .or. PercentContamin) then
+                
+                    if (PropNumber)      then
+                        AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:, :, :, ig)
+                    endif
+
+                    if (PercentContamin) then
+                        AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%PercentContamin (:, :, :, ig)
+                    endif                        
+                    
                 else
                     AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridConc(:, :, :, iProp, ig)
                 endif
@@ -20720,10 +20984,11 @@ dp:         do p=1, Me%Statistic%PropNumber
 
 
                             call AddStatisticLayers (StatisticID    = Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig),        &
-                                                     Value3D        = AuxGrid3D,      &
+                                                     Value3D        = AuxGrid3D,        &
                                                      WaterPoints3D  = Me%EulerModel(em)%Waterpoints3D, &
                                                      DZ3D           = Me%EulerModel(em)%DWZ,           &
-                                                     LayerNumber    = ln,             &
+                                                     LayerNumber    = ln,               &
+                                                     Now            = Me%Now,           &
                                                      STAT= STAT_CALL) 
 
                             if (STAT_CALL /= SUCCESS_)                                &
@@ -20744,29 +21009,32 @@ dp:         do p=1, Me%Statistic%PropNumber
                 call ModifyStatistic    (Me%EulerModel(em)%PropStatistic(p)%Statistic1_ID(ig), &
                                          Value3D       = AuxGrid3D,                     &
                                          WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,&
+                                         Now           = Me%Now,                        &
                                          STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
                     stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR60'
 
-                if (Me%OutPut%ConcMaxTracer .and. .not. PropNumber) then
+                if (Me%OutPut%ConcMaxTracer .and. .not. PropNumber .and. .not. PercentContamin) then
 
                     AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridMaxTracer(:, :, :, iProp, ig)
 
                     call ModifyStatistic (Me%EulerModel(em)%PropStatistic(p)%Statistic2_ID(ig), &
                                           Value3D       = AuxGrid3D,                    &
                                           WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,      &
+                                          Now           = Me%Now,                       &
                                           STAT          = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR70'
                 endif 
                 
-                if (Me%OutPut%MassTracer .and. .not. PropNumber) then
+                if (Me%OutPut%MassTracer .and. .not. PropNumber .and. .not. PercentContamin) then
 
                     AuxGrid3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%GridMass(:, :, :, iProp, ig)
 
                     call ModifyStatistic (Me%EulerModel(em)%PropStatistic(p)%Statistic3_ID(ig), &
                                           Value3D       = AuxGrid3D,                    &
                                           WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,      &
+                                          Now           = Me%Now,                       &
                                           STAT          = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR80'
@@ -20778,13 +21046,14 @@ dp:         do p=1, Me%Statistic%PropNumber
                         call ModifyStatistic (Me%EulerModel(em)%PropStatistic(p)%Statistic4_ID(ig), &
                                               Value3D       = AuxGrid3D,                            &
                                               WaterPoints3D = Me%EulerModel(em)%Waterpoints3D,      &
+                                              Now           = Me%Now,                               &
                                               STAT          = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                          &
+                        if (STAT_CALL /= SUCCESS_)                                                  &
                             stop 'ModifyParticStatistic - ModuleLagrangianGlobal - ERR90'
                     endif                         
                 endif                 
 
-                if (Me%Statistic%OptionsStat(p)%Lag .and. .not. PropNumber) then
+                if (Me%Statistic%OptionsStat(p)%Lag .and. .not. PropNumber .and. .not. PercentContamin) then
 
                     call ComputeStatisticsLag(Me%Statistic%OptionsStat(p)%ID%IDNumber, p, ig, iProp)
 
@@ -24285,7 +24554,7 @@ d1:     do em =1, Me%EulerModelNumber
         type (T_Position)                               :: DummYPos    
         logical                                         :: FoundSediment, PartInside
         integer                                         :: Sediment_ID, np, em, ig, STAT_CALL
-
+        real                                            :: VolCell, VolAllPart
                                 
         !Begin----------------------------------------------------------------------
 
@@ -24306,6 +24575,7 @@ d1:     do em = 1, Me%EulerModelNumber
                                                         !i,j,k,p,ig 
             Me%EulerModel(em)%Lag2Euler%GridVolume      (:,:,:,  :) = 0.
             Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:,:,:,  :) = 0.
+            Me%EulerModel(em)%Lag2Euler%PercentContamin (:,:,:,  :) = 0.
             Me%EulerModel(em)%Lag2Euler%GridMass        (:,:,:,:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%GridConc        (:,:,:,:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%MeanConc              (:,:) = 0.
@@ -24384,6 +24654,10 @@ cd1:                if (.not. CurrentPartic%Deposited) then
 
                         Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) = &
                             Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) + 1
+                            
+                        if (Me%OutPut%OutPutConcType == Analytic) then    
+                            call AnalyticConcentration(CurrentPartic, em, i, j, k, ig, nProp)
+                        endif    
                             
 cd0:                    if (nProp > 0) then
 
@@ -24615,8 +24889,33 @@ g2:         do ig = 1, Me%NGroups
                                 Me%EulerModel(em)%Lag2Euler%MeanConc(:, ig)
 
                         endif
+                        
+                    case (Analytic)
+
+                        !Method 3
+                        !The concentration evolution of each particle is assumed equal to the analytic solution in particle center 
+                        !The concentration of the cell becomes equal to max of particles center concentration
+                        ! C = 2 * M / ((4 * pi * t)^1.5 * (2*Kh * Kv)^0.5)
+                        ! C - center particle concentration
+                        ! M - particle mass
+                        ! t - particle age
+                        ! Kh - turbulent horizontal diffusion 
+                        ! Kv - turbulent vertical diffusion
 
                     end select
+                    
+                    VolCell    = Me%EulerModel(em)%VolumeZ             (i, j, k    )
+                    VolAllPart = Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig) 
+                    
+                    if (VolAllPart > VolCell) then
+                        Me%EulerModel(em)%Lag2Euler%PercentContamin(i, j, k, ig) = 100.
+                        
+                    else
+                        if (VolCell > 0.) then
+                            Me%EulerModel(em)%Lag2Euler%PercentContamin(i, j, k, ig) = VolAllPart / VolCell * 100.
+                        endif
+                    
+                    endif
                     
                     where (Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, :, ig).lt.     &
                            Me%EulerModel(em)%Lag2Euler%MinConc(:, ig))                  &
@@ -24704,6 +25003,61 @@ g3:             do ig = 1, Me%NGroups
 
     !--------------------------------------------------------------------------
 
+    subroutine AnalyticConcentration (CurrentPartic, em, i, j, k, ig, nProp)   
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Partic), pointer                    :: CurrentPartic
+        integer                                     :: em, i, j, k, ig, nProp
+
+        !Local-----------------------------------------------------------------
+        real                                        :: ParticleCenterConc, M, t, Kh, Kv, CellConc
+        integer                                     :: nP
+        
+        !Begin-----------------------------------------------------------------        
+
+        !Method 3
+        !The concentration evolution of each particle is assumed equal to the analytic solution in particle center 
+        !The concentration of the cell becomes equal to max of particles center concentration
+        ! C = 2 * M / ((4 * pi * t)^1.5 * (2*Kh * Kv)^0.5)
+        ! C - center particle concentration
+        ! M - particle mass
+        ! t - particle age
+        ! Kh - turbulent horizontal diffusion 
+        ! Kv - turbulent vertical diffusion
+        
+        
+        do nP = 1, nProp
+            M  = CurrentPartic%Mass(nP) 
+            t  = CurrentPartic%Age
+            !10 m mixing horizontal length - Ozmidov K(L) - function
+            Kh = 4.64e-2
+            !0.1 m mixing vertical length - Ozmidov K(L) - function
+            Kv = 4.65e-4
+
+            !Analytical solution for a emisson near a no flux boundary (e.g. sea surface)
+            !Fischer, 1979 Mixing in Ilnad and Coastal Waters Academic Press, Inc., 
+            ! pag. 47 - 48
+            if (t > 0) then
+                ParticleCenterConc = 2. * M / (4. * Pi * t) ** 1.5 / sqrt(Kh*Kh*Kv)
+            else 
+                ParticleCenterConc = CurrentPartic%Concentration(nP)
+            endif       
+            
+            if (ParticleCenterConc > CurrentPartic%Concentration(nP)) then 
+                ParticleCenterConc = CurrentPartic%Concentration(nP)
+            endif
+                            
+            CellConc = Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, nP, ig)
+            
+            if (ParticleCenterConc > CellConc) then
+                Me%EulerModel(em)%Lag2Euler%GridConc(i, j, k, nP, ig) = ParticleCenterConc
+            endif                
+            
+        enddo            
+    
+    end subroutine AnalyticConcentration
+    
+    !--------------------------------------------------------------------------    
 
     subroutine WriteGridConcentration(em, OutputNumber)
 
@@ -24907,14 +25261,25 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                             "/Data_3D_Odour/Group_Odour"
             
                 !HDF 5
-                call HDF5WriteData    (Me%ObjHDF5(em),                      &
-                                        trim(AuxChar3),                     &
-                                        "Group_Odour",                      &
-                                        'odour units',                      &
-                                        Array3D = GridGroupSum3D,           &
+                call HDF5WriteData    (Me%ObjHDF5(em),                                  &
+                                        trim(AuxChar3),                                 &
+                                        "Group_Odour",                                  &
+                                        'odour units',                                  &
+                                        Array3D = GridGroupSum3D,                       &
                                         OutputNumber = OutputNumber)
             endif
                         
+            AuxChar3 = trim(AuxChar2)//"Percentage Contaminated"
+
+            GridConc3D(:,:,:) = Me%EulerModel(em)%Lag2Euler%PercentContamin(:, :, :, ig)
+
+            !HDF 5
+            call HDF5WriteData        (Me%ObjHDF5(em),                                  &
+                                       trim(AuxChar3),                                  &
+                                       "Percentage Contaminated", "%",                  &
+                                       Array3D = GridConc3D,                            &
+                                       OutputNumber = OutputNumber)        
+
             
         enddo d2
 !        enddo d1
@@ -24930,7 +25295,7 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                     OutputNumber = OutputNumber)
                     
         endif
-
+        
         deallocate  (GridConc3D     )
         nullify     (GridConc3D     )
         nullify     (WaterPoints3D  )
@@ -27191,6 +27556,7 @@ d1:     do em = 1, Me%EulerModelNumber
             !deAllocate 
             deallocate (Me%EulerModel(em)%Lag2Euler%GridVolume        )
             deallocate (Me%EulerModel(em)%Lag2Euler%GridTracerNumber  )
+            deallocate (Me%EulerModel(em)%Lag2Euler%PercentContamin   )
 
             deallocate (Me%EulerModel(em)%Lag2Euler%GridMass          )
             deallocate (Me%EulerModel(em)%Lag2Euler%GridConc          )
@@ -27316,11 +27682,11 @@ d1:     do em =1, Me%EulerModelNumber
             call GetWaterPoints3D(Me%EulerModel(em)%ObjMap, Me%EulerModel(em)%WaterPoints3D, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'WriteArrivalBeachingTimes - ModuleLagrangianGlobal - ERR00'
 
-            ILB = Me%EulerModel(em)%WorkSize%ILB
-            JLB = Me%EulerModel(em)%WorkSize%JLB
-            IUB = Me%EulerModel(em)%WorkSize%IUB
-            JUB = Me%EulerModel(em)%WorkSize%JUB
-            KUB = Me%EulerModel(em)%WorkSize%KUB
+        ILB = Me%EulerModel(em)%WorkSize%ILB
+        JLB = Me%EulerModel(em)%WorkSize%JLB
+        IUB = Me%EulerModel(em)%WorkSize%IUB
+        JUB = Me%EulerModel(em)%WorkSize%JUB
+        KUB = Me%EulerModel(em)%WorkSize%KUB
 
 d2:         do ig = 1, Me%NGroups
 

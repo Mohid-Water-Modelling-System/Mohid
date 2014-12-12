@@ -81,7 +81,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                       :: DataType = Real8_                
         integer                                       :: Dim
         integer,    dimension(:),       allocatable   :: CountDim
-        integer                                       :: x = -99, y = -99, z = -99, t = -99
+        integer                                       :: diL = 0, diU = 0, djL = 0, djU = 0
         real(4),    dimension(:),       allocatable   :: R41D
         real(4),    dimension(:,:  ),   allocatable   :: R42D        
         real(4),    dimension(:,:,:),   allocatable   :: R43D
@@ -130,8 +130,11 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     private :: T_Depth
     type       T_Depth
         character(len=StringLength)             :: NetCDFName, NetCDFDimName
+        character(len=StringLength)             :: NetCDFNameFace, NetCDFNameWL
         logical                                 :: Dim3D = .false.
         type (T_ValueIn)                        :: ValueIn        
+        type (T_ValueIn)                        :: FaceValueIn
+        type (T_ValueIn)                        :: WLValueIn        
         real, dimension(:,:,:),   pointer       :: Value3DOut
         logical                                 :: ON
         integer                                 :: GeoVert !1 - sigma 2 - z-level 3 - hybrid
@@ -139,6 +142,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real                                    :: theta_s = 0, theta_b = 0, Hc = 0
         character(len=StringLength)             :: positive = "down"
         integer                                 :: kmax
+        integer                                 :: kmaxF
         logical                                 :: Interpolate
         integer                                 :: N_ZLevels
         real(8), dimension(:),       pointer    :: Zlevels
@@ -1566,12 +1570,6 @@ BF:         if (BlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
 
                 
-                !Index 1 is time
-                Me%Date%ValueIn%t      = 1
-                
-                !call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
-
-                !if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR60'    
                 
  
         
@@ -1650,6 +1648,23 @@ BF:         if (BlockFound) then
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+
+                call GetData(Me%Depth%NetCDFNameWL,                                     &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'NETCDF_NAME_DEPTH_WL',                     &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR43'
+
+                call GetData(Me%Depth%NetCDFNameFace,                                   &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'NETCDF_NAME_DEPTH_FACE',                   &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'
+
 
                 if  (iflag == 0) then 
                     Me%Depth%Dim3D = .false.
@@ -2232,6 +2247,43 @@ BF:         if (BlockFound) then
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2650'
+                    
+
+                    call GetData(Me%Field(ip)%ValueIn%diL,                              &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'DI_LOWER',                             &
+                                 default      = 0,                                      &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2660'
+
+                    call GetData(Me%Field(ip)%ValueIn%diU,                              &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'DI_UPPER',                             &
+                                 default      = 0,                                      &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2670'
+
+                    call GetData(Me%Field(ip)%ValueIn%djL,                              &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'DJ_LOWER',                             &
+                                 default      = 0,                                      &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2680'
+
+                    call GetData(Me%Field(ip)%ValueIn%djU,                              &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'DJ_UPPER',                             &
+                                 default      = 0,                                      &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2690'
 
 
                     !call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
@@ -2403,15 +2455,15 @@ BF:         if (BlockFound) then
                     !Time
                     if (Me%OutCountProp == 0) then
                         call ReadTimeNetCDF(ncid)
-                        
-                        call deallocatevaluein(Me%Date%ValueIn)                                        
-                        
+                        call deallocatevaluein(Me%Date%ValueIn)
                         !Grid/Vertical Z
                         if (Me%Depth%Dim3D) then
-                            call WriteDepth    (iOut)
+                            call WriteDepth    (iOut, ncid)
                             
                             write(*,*) 'Write depth'
                         endif
+                        
+                        
                     
                     endif
                     
@@ -2982,9 +3034,9 @@ BF:         if (BlockFound) then
 
 
    !------------------------------------------------------------------------
-    subroutine WriteDepth(iOut)
+    subroutine WriteDepth(iOut, ncid)
         !Arguments-------------------------------------------------------------
-        integer                                         :: iOut
+        integer                                         :: iOut, ncid
         
         !Local-----------------------------------------------------------------
         real,    dimension(:,:,:), pointer              :: Vert3D
@@ -2994,7 +3046,7 @@ BF:         if (BlockFound) then
         integer                                         :: iFinal, i, j, k, iT, STAT_CALL, kin
         integer                                         :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         logical                                         :: SigmaIn
-        real                                            :: SumDepth
+        real                                            :: SumDepth, Topdepth
         !Begin-----------------------------------------------------------------
 
         allocate(Me%Depth%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
@@ -3069,57 +3121,80 @@ d3:                 do k= Me%WorkSize%KUB, Me%WorkSize%KLB,-1
             
             if (Me%Depth%Interpolate) allocate(DepthAux(1:Me%Depth%kmax+1))                                          
             
+if23:       if (Me%Depth%GeoVert == sigma_) then            
+                call ReadWaterLevelNetCDF(ncid, iT)                        
+            endif if23
+            
             do j= Me%WorkSize%JLB, Me%WorkSize%JUB
             do i= Me%WorkSize%ILB, Me%WorkSize%IUB
-            
             do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
             
-                if (Me%Mapping%Value3DOut(i,j,k) == 1) then
+if12:           if (Me%Mapping%Value3DOut(i,j,k) == 1) then
+
+if13:               if (Me%Depth%GeoVert == sigma_) then
+
+                        TopDepth = - GetNetCDFValue(Me%Depth%WLValueIn, Dim1 = j+1, Dim2 = i+1, Dim3 = 1) 
+
+if20:                   if (k==Me%WorkSize%KUB) then
+                            Me%Depth%Value3DOut(i, j, k) = GetCellInDepth(i, j, k+1,Me%WorkSize%KUB,iT, CellFace = .true., Topdepth = Topdepth)
+                            SumDepth                     = 0.
+                        endif if20
+
+                        Me%Depth%Value3DOut(i, j, k-1) = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT, CellFace = .true., Topdepth = Topdepth)
+                        
+                    else if13
                 
+if14:                   if (k==Me%WorkSize%KUB) then
+                            Me%Depth%Value3DOut(i, j, k) = 0.
+                            SumDepth                     = 0.
+                        endif if14
+                        
+if15:                   if (.not. Me%Depth%Interpolate) then
+                                                
+                            DepthC = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT)
+                            
+if16:                       if (DepthC <0 .and. k==Me%WorkSize%KUB) then
+if19:                           if (Me%Mapping%Value3DOut(i,j,k-1) == 1) then
+                                    DepthC_Below = GetCellInDepth(i, j, k-1,Me%WorkSize%KUB,iT)
+                                else if19
+                                    DepthC_Below = 0.
+                                endif if19
+                                SumDepth = (DepthC_Below - DepthC)/2. - DepthC
+                            endif if16
+                            
+if17:                       if (SumDepth > 0) then
+                                DepthC = DepthC + SumDepth
+                                Aux    = DepthC
+                            else if17
+                                Aux    = 2. * DepthC - Me%Depth%Value3DOut(i, j, k)
+                            endif if17
+                            
+if18:                       if (Aux >= DepthC) then
+                                Me%Depth%Value3DOut(i, j, k-1) = Aux 
+                            else if18
+                                 stop 'WriteDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR40' 
+                            endif if18                        
+                        else if15
+                            Me%Depth%Value3DOut(i, j, k-1) = 2*Me%Depth%ZLevels(k) - Me%Depth%Value3DOut(i, j, k)   
+                        endif if15
+                                                                              
+                    endif if13
+                 
+                 else if12
                     if (k==Me%WorkSize%KUB) then
-                        Me%Depth%Value3DOut(i, j, k) = 0.
-                        SumDepth                     = 0.
+                        Me%Depth%Value3DOut(i, j, k) = FillValueReal
                     endif                        
-
-                    if (.not. Me%Depth%Interpolate) then
-                                            
-                        DepthC = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT)
-                        
-                        if (DepthC <0 .and. k==Me%WorkSize%KUB) then
-                            if (Me%Mapping%Value3DOut(i,j,k-1) == 1) then
-                                DepthC_Below = GetCellInDepth(i, j, k-1,Me%WorkSize%KUB,iT)
-                            else
-                                DepthC_Below = 0.
-                            endif
-                            SumDepth = (DepthC_Below - DepthC)/2. - DepthC
-                        endif 
-                        
-                        if (SumDepth > 0) then
-                            DepthC = DepthC + SumDepth
-                            Aux    = DepthC
-                        else
-                            Aux    = 2. * DepthC - Me%Depth%Value3DOut(i, j, k)
-                        endif
-                        
-                        if (Aux >= DepthC) then
-                            Me%Depth%Value3DOut(i, j, k-1) = Aux 
-                        else
-                             stop 'WriteDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR40' 
-                        endif                        
-                    else
-                        Me%Depth%Value3DOut(i, j, k-1) = 2*Me%Depth%ZLevels(k) - Me%Depth%Value3DOut(i, j, k)   
-                    endif
-                                                                          
-!                    Me%Depth%Value3DOut(i, j, k-1) = Me%Depth%Value3DOut(i, j, k) * Me%Field(iP)%Multiply + Me%Field(iP)%Add
-!                                                        
-
-                else 
-                    if (k==Me%WorkSize%KUB) Me%Depth%Value3DOut(i, j, k) = FillValueReal
-                    Me%Depth%Value3DOut(i, j, k-1) = FillValueReal
-                endif                
+                    Me%Depth%Value3DOut(i, j, k-1) = FillValueReal   
+                endif if12
+                                                   
             enddo
             enddo
             enddo
+            
+                
+if32:       if (Me%Depth%GeoVert == sigma_) then            
+                call DeAllocateValueIn(Me%Depth%WLValueIn)
+            endif if32            
             
 i4:         if (Me%Bathym%FromMapping) then
                 do i= Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -3194,6 +3269,8 @@ i5:         if (Me%OutHDF5) then
         enddo d1   
 
         deallocate(Me%Depth%Value3DOut)
+
+        
 
    end subroutine WriteDepth        
                   
@@ -3455,15 +3532,19 @@ i5:         if (Me%OutHDF5) then
     end subroutine CenterProp    
 
     !Computes the depth of a cell in the original grid 
-    real function GetCellInDepth (i, j, l,lmax, iT)
+    real function GetCellInDepth (i, j, l,lmax, iT, CellFace, TopDepth)
 
         !Arguments-------------------------------------------------------------
         integer                         :: i, j, l, lmax, iT
+        logical, optional               :: CellFace
+        real,    optional               :: TopDepth
 
         !Local-----------------------------------------------------------------
         integer                         :: lin, klb, kub, klr, kur, k
         real                            :: Aux, A, B, C
         real, dimension(:), allocatable :: Thickness
+        logical                         :: CellFace_
+        real                            :: TopDepth_
         !Begin-----------------------------------------------------------------
 
         if (Me%Depth%InvertLayers) then
@@ -3471,41 +3552,62 @@ i5:         if (Me%OutHDF5) then
         else
             lin   = l
         endif              
-        if (Me%Depth%GeoVert == hybrid) then
-            if (Me%Depth%InvertLayers) then
-                klb = 1
-                kub = lin-1
-                klr = 1
-                kur = lin
-            else
-                klb = lin+1
-                kub = lmax
-                klr = lin
-                kur = lmax
-            endif           
-            allocate(Thickness(klr:kur))
-            do k=klr, kur
-                Thickness(k) = GetNetCDFValue(Me%Depth%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = k, Dim4 = iT)
-                if (Thickness(k) == 0) then
-                    Thickness(k) = 1e-2
-                endif
-            enddo
-            Aux = 0
-            do k=klb, kub
-                if (Thickness(k)>0) then
-                    Aux = Aux + Thickness(k)
-                endif
-            enddo
-            if (Thickness(lin)>0) then
-                Aux = Aux+Thickness(lin)/2.
-            else
-                !stop 'GetCellInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR05' 
-                Aux = FillValueReal
-            endif
-            deallocate(Thickness)
-        else
-            Aux = GetNetCDFValue(Me%Depth%ValueIn,  Dim1 = lin)
+        
+        TopDepth_ = 0.
+        CellFace_ = .false.        
+        
+        if (present(CellFace)) then
+            CellFace_ = CellFace
+            if (present(TopDepth)) then
+                TopDepth_ = TopDepth
+            endif                
         endif
+        
+i11:    if (CellFace_) then
+
+            Aux = GetNetCDFValue(Me%Depth%FaceValueIn,  Dim1 = lin)
+        
+        else i11
+                    
+i12:        if (Me%Depth%GeoVert == hybrid) then
+
+i13:            if (Me%Depth%InvertLayers) then
+                    klb = 1
+                    kub = lin-1
+                    klr = 1
+                    kur = lin
+                else i13
+                    klb = lin+1
+                    kub = lmax
+                    klr = lin
+                    kur = lmax
+                endif i13          
+
+                allocate(Thickness(klr:kur))
+                do k=klr, kur
+                    Thickness(k) = GetNetCDFValue(Me%Depth%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = k, Dim4 = iT)
+                    if (Thickness(k) == 0) then
+                        Thickness(k) = 1e-2
+                    endif
+                enddo
+                Aux = 0
+                do k=klb, kub
+                    if (Thickness(k)>0) then
+                        Aux = Aux + Thickness(k)
+                    endif
+                enddo
+                if (Thickness(lin)>0) then
+                    Aux = Aux+Thickness(lin)/2.
+                else
+                    !stop 'GetCellInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR05' 
+                    Aux = FillValueReal
+                endif
+                deallocate(Thickness)
+            else i12
+                Aux = GetNetCDFValue(Me%Depth%ValueIn,  Dim1 = lin)
+            endif i12
+            
+        endif i11            
 
 i1:     if (Me%Depth%GeoVert == sigma_) then
             
@@ -3537,7 +3639,7 @@ i2:         if      (Me%Depth%Positive == "up"  ) then
                     
                     C = A  + Me%Depth%theta_b * 0.5*(B-1.)
                     
-                    GetCellInDepth = - (Me%Depth%Hc * Aux + ( Me%Bathym%Value2DOut(i, j) - Me%Depth%Hc) * C)
+                    GetCellInDepth = - (Me%Depth%Hc * Aux + ( Me%Bathym%Value2DOut(i, j) - Me%Depth%Hc) * C)+ Topdepth_ 
                 
                 else i3
                     
@@ -4505,35 +4607,45 @@ i2:                 if (Me%Depth%Interpolate) then
        !Read number of layers and their depth
         if (Me%Depth%Dim3D) then
 
-            !status=NF90_INQ_DIMID(ncid,trim(Me%Depth%NetCDFDimName),dimIDs)
-            
             status = nf90_inq_varid(ncid, trim(Me%Depth%NetCDFName), dn)
-            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'            
-            write(*,*) 
+            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'            
+
             status = nf90_inquire_variable(ncid, dn, dimids = dimIDs(:Me%Depth%ValueIn%Dim))
-            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
             if (Me%Depth%GeoVert == Hybrid) then
 
                 status=NF90_INQUIRE_DIMENSION(ncid, dimIDs(3), len = Me%Depth%kmax)
-                if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
                 
                 call AllocateValueIn(Me%Depth%ValueIn, Dim1 = Me%LongLat%jmax,          &
-                                                         Dim2 = Me%LongLat%imax,        &
-                                                         Dim3 = Me%Depth%kmax,          &
-                                                         Dim4 = Me%Date%NumberInst)
+                                                       Dim2 = Me%LongLat%imax,          &
+                                                       Dim3 = Me%Depth%kmax,            &
+                                                       Dim4 = Me%Date%NumberInst)
            
             else
 
                 status=NF90_INQUIRE_DIMENSION(ncid, dimIDs(1), len = Me%Depth%kmax)
-                if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+                if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
                 
                 call AllocateValueIn(Me%Depth%ValueIn, Dim1 = Me%Depth%kmax)
-
+                
             endif    
             
-            
             call GetNetCDFMatrix(ncid, dn, Me%Depth%ValueIn) 
+            
+            if (Me%Depth%GeoVert == sigma_) then
+            
+                Me%Depth%FaceValueIn%Dim = 1
+
+                call AllocateValueIn(Me%Depth%FaceValueIn, Dim1 = Me%Depth%kmax+1)
+                
+                status = nf90_inq_varid(ncid, trim(Me%Depth%NetCDFNameFace), bn)
+                if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'                     
+
+                call GetNetCDFMatrix(ncid, bn, Me%Depth%FaceValueIn) 
+                
+            endif                
             
         else
         
@@ -4557,7 +4669,7 @@ i2:                 if (Me%Depth%Interpolate) then
             call AllocateValueIn(Me%Bathym%ValueIn, Dim1 = Me%LongLat%jmax, Dim2 = Me%LongLat%imax)
 
             status = nf90_inq_varid(ncid, trim(Me%Bathym%NetCDFName), bn)
-            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'            
+            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'            
             
             call GetNetCDFMatrix(ncid, bn, Me%Bathym%ValueIn) 
             
@@ -4646,6 +4758,41 @@ i2:                 if (Me%Depth%Interpolate) then
     end subroutine ReadFieldNetCDF
 
     !------------------------------------------------------------------------
+    
+   !---------------------------------------------------------------------------
+    subroutine ReadWaterLevelNetCDF(ncid, inst)
+        !Arguments-------------------------------------------------------------
+        integer                                 :: ncid, inst
+        
+        !Local-----------------------------------------------------------------
+        integer                                 :: status, pn, numDims
+        !Begin-----------------------------------------------------------------
+        pn = 0
+        status = nf90_inq_varid(ncid, Me%Depth%NetCDFNameWL, pn)
+
+        if (status == nf90_noerr) then
+            status = nf90_inquire_variable(ncid, pn, ndims = numDims)
+            if (status /= nf90_noerr) stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+            Me%Depth%WLValueIn%Dim = numDims
+        else 
+            write(*,*) 'possible error causes:'
+            write(*,*) '  Variable not found.=', trim(Me%Depth%NetCDFNameWL)
+            write(*,*) '  The specified netCDF ID does not refer to an open netCDF dataset.'
+            stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+        endif
+        
+
+        call AllocateValueIn(Me%Depth%WLValueIn, Dim1 = Me%LongLat%jmax,      &
+                                                 Dim2 = Me%LongLat%imax,      &
+                                                 Dim3 = 1)
+
+        if (status == nf90_noerr) then
+            call GetNetCDFMatrix(ncid, pn, Me%Depth%WLValueIn, Inst)         
+        endif
+        
+    end subroutine ReadWaterLevelNetCDF
+
+    !------------------------------------------------------------------------    
     
     subroutine AllocateValueIn(ValueIn, Dim1, Dim2, Dim3, Dim4)
         !Arguments-------------------------------------------------------------        
@@ -5228,10 +5375,19 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         !Local-----------------------------------------------------------------                
         integer, dimension(nf90_max_var_dims)   :: dimIDs
         integer             :: Dim, DataTypeIn, status, xdim, ydim, zdim
+        integer             :: ILB, IUB, JLB, JUB
+        
         !Begin-----------------------------------------------------------------        
         
         Dim         = ValueIn%Dim
         DataTypeIn  = ValueIn%DataType
+        
+        if (dim >=2) then
+            JLB = 1 + ValueIn%djL
+            JUB = ValueIn%CountDim(1) - ValueIn%djU            
+            ILB = 1 + ValueIn%diL
+            IUB = ValueIn%CountDim(2) - ValueIn%diU            
+        endif
         
         if (DataTypeIn /= Real8_ .and. DataTypeIn /= Real4_ .and. DataTypeIn /= Integer4_) then
             stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
@@ -5296,7 +5452,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             if      (DataTypeIn == Real8_   ) then
 
                 if (present(inst)) then   
-                                    
+                
                     status = nf90_get_var(ncid,n,ValueIn%R83D,                          &
                             start = (/ 1, 1, inst /),                                   &
                             count = (/ xdim, ydim, 1 /))                
@@ -5349,12 +5505,22 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 status = nf90_inquire_dimension(ncid, dimIDs(3), len = zdim)
                 if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR190'           
             endif
+            
+               
+            if (JUB-JLB+1 /= xdim) then
+                stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR192'
+            endif
+
+            if (IUB-ILB+1 /= ydim) then
+                stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR194'
+            endif
+            
 
             if      (DataTypeIn == Real8_   ) then
 
                 if (present(inst)) then   
                                     
-                    status = nf90_get_var(ncid,n,ValueIn%R84D,                          &
+                    status = nf90_get_var(ncid,n,ValueIn%R84D(JLB:JUB,ILB:IUB,1:zdim,1),&
                             start = (/    1,    1,    1, inst /),                       &
                             count = (/ xdim, ydim, zdim,    1 /))                
                     if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR200'                
@@ -5370,7 +5536,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             
                 if (present(inst)) then   
                                     
-                    status = nf90_get_var(ncid,n,ValueIn%R44D,                          &
+                    status = nf90_get_var(ncid,n,ValueIn%R44D(JLB:JUB,ILB:IUB,1:zdim,1),&
                             start = (/    1,    1,    1, inst /),                       &
                             count = (/ xdim, ydim, zdim,    1 /))                
                     if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR220'                

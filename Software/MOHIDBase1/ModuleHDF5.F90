@@ -689,8 +689,6 @@ Module ModuleHDF5
         integer         , optional, intent(out)     :: STAT
 
         !Local-----------------------------------------------------------------
-        integer(HID_T)                              :: space_id
-        integer(HID_T)                              :: attr_id1
         integer(HSIZE_T), dimension(7)              :: dims
         integer(HID_T)                              :: gr_id, attr_id
         integer                                     :: STAT_, ready_, STAT_CALL
@@ -748,8 +746,6 @@ Module ModuleHDF5
         integer         , optional, intent(out)     :: STAT
 
         !Local-----------------------------------------------------------------
-        integer(HID_T)                              :: space_id
-        integer(HID_T)                              :: attr_id1
         integer(HSIZE_T), dimension(7)              :: dims
         integer(HID_T)                              :: gr_id, attr_id
         integer                                     :: STAT_, ready_, STAT_CALL
@@ -807,8 +803,6 @@ Module ModuleHDF5
         integer         , optional, intent(out)     :: STAT
 
         !Local-----------------------------------------------------------------
-        integer(HID_T)                              :: space_id
-        integer(HID_T)                              :: attr_id1
         integer(HSIZE_T), dimension(7)              :: dims
         integer(HID_T)                              :: gr_id, attr_id
         integer                                     :: STAT_, ready_, STAT_CALL
@@ -865,8 +859,6 @@ Module ModuleHDF5
         integer         , optional, intent(out)     :: STAT
 
         !Local-----------------------------------------------------------------
-        integer(HID_T)                              :: space_id
-        integer(HID_T)                              :: attr_id1
         integer(HSIZE_T), dimension(7)              :: dims
         integer(HID_T)                              :: gr_id, attr_id
         integer                                     :: STAT_, ready_, STAT_CALL

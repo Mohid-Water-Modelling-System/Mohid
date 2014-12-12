@@ -1376,7 +1376,7 @@
    SLind=1
    do i=nlev,1,-1
       hms=hms+h(i)
-      if (tke(i).le.kml) then 
+      if (tke(i).lt.kml) then 
          SLind=i
          goto 500
       end if   
@@ -1387,7 +1387,7 @@
    BLind=nlev
    do i=1,nlev
       hmb=hmb+h(i)
-      if (tke(i).le.kml) then
+      if (tke(i).lt.kml) then
          BLind=i
          goto 501 
       end if
@@ -1530,7 +1530,7 @@
       case (2)
          rich2 = rich_cr*rich_cr
          do i=1,nlev-1 
-            if (tke(i).le.klimiw) then
+            if (tke(i).lt.klimiw) then
                rich(i)=NN(i)/(SS(i)+1.e-10)
                if (rich(i).lt.rich_cr) then
                   if (rich(i).gt.0) then
@@ -1823,7 +1823,7 @@
       do j=i+1,nlev
          buoydiff=buoydiff+NN(j-1)*0.5*(h(j)+h(j-1))
          integral=integral+buoydiff*h(j)
-         if (integral.ge.tkeo(i)) then
+         if (integral.gt.tkeo(i)) then
             if(j.ne.nlev) then
                if(j.ne.i+1) then
                   lu(i)=lu(i)-(integral-tkeo(i))/buoydiff
@@ -1853,7 +1853,7 @@
       do j=i-1,1,-1 
          buoydiff=buoydiff+NN(j)*0.5*(h(j+1)+h(j))
          integral=integral-buoydiff*h(j)
-         if (integral.ge.tkeo(i)) then
+         if (integral.gt.tkeo(i)) then
             if(j.ne.0) then
                if(j.ne.i-1) then
                   ld(i)=ld(i)-(integral-tkeo(i))/buoydiff
@@ -2680,7 +2680,7 @@
 !BOC
    do i=1,nlev-1
       Ri=NN(i)/(SS(i)+1e-8)   ! Gradient Richardson number 
-      if (Ri.ge.1e-10) then 
+      if (Ri.gt.1e-10) then 
          Prandtl=Prandtl0*(1.+3.33*Ri)**1.5/sqrt(1.+10.0*Ri)
       else
          Prandtl=Prandtl0
@@ -2821,7 +2821,7 @@
 !BOC
    do i=1,nlev-1
       Ri=NN(i)/(SS(i)+1e-8)   ! Gradient Richardson number
-      if (Ri.ge.1e-10) then
+      if (Ri.gt.1e-10) then
          Prandtl=Prandtl0*exp(-Ri/(Prandtl0*0.25))+Ri/0.25
       else
          Prandtl=Prandtl0

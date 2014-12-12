@@ -4170,11 +4170,38 @@ i4:         if(Me%Dim == Dim2D)then
         real                                            :: West, East, South, North  
         real                                            :: LatDefault, LongDefault
         integer                                         :: STAT_CALL, i, j, k, icount, NCells
+        real, dimension(4)                              :: Aux4
+        integer                                         :: iflag
         
         !Begin--------------------------------------------------------------------------      
 
-        call GetGridBorderLimits(Me%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
+        Aux4 (:) = FillValueReal
+
+        !West, East, South, North
+        call GetData(Aux4,                                                              &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'BORDER_LIMITS',                                    &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
         if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR10'
+        
+        if (iflag < 4) then
+ 
+            call GetGridBorderLimits(Me%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR20'
+
+        elseif (iflag == 4) then
+        
+            West = Aux4(1); East = Aux4(2); South = Aux4(3); North = Aux4(4);
+        
+        else
+        
+            stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR30'
+        
+        endif
+
+        write(*,*) 'Border limits', West, East, South, North
 
         WindowLimitsXY(2,1) = South
         WindowLimitsXY(2,2) = North
