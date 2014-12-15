@@ -5292,9 +5292,12 @@ cd2 :           if (BlockFound) then
                     endif
                     
                     Me%SCSCNRunOffModel%S (i, j) = 25400.0 / Me%SCSCNRunOffModel%ActualCurveNumber (i, j) - 254
-                    if (Me%SCSCNRunOffModel%ConvertIAFactor) then
-                        Me%SCSCNRunOffModel%S (i, j) = (1.33 * Me%SCSCNRunOffModel%S (i, j)**1.15)
-                    endif 
+                    
+                    !When converting Curve Numbers (at the beggining) do not need to convert also S
+                    !This conversion could be done but this one is for inches (not SI)
+                    !if (Me%SCSCNRunOffModel%ConvertIAFactor) then
+                    !    Me%SCSCNRunOffModel%S (i, j) = (1.33 * Me%SCSCNRunOffModel%S (i, j)**1.15)
+                    !endif 
                     
                     sInTimeStep = Me%SCSCNRunOffModel%S (i, j) * Me%CurrentDT / 86400.0
                     if (rain > Me%SCSCNRunOffModel%IAFactor * sInTimeStep) then
