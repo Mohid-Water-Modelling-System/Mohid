@@ -219,6 +219,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                 :: Unit, ClientNumber
         integer                                 :: FieldInType
         character(len=PathLength)               :: FileName
+        character(len=PathLength)               :: ReadingFileName
         character(len=PathLength)               :: GridFileName
         character(len=PathLength)               :: OutputFileName
         character(len=PathLength)               :: GeometryFileName
@@ -2380,6 +2381,7 @@ BF:         if (BlockFound) then
                     call GetData(InputFile, EnterDataID = Me%ObjEnterData, flag = iflag,    &
                                  Buffer_Line = line, STAT = STAT_CALL)
 
+                    Me%ReadingFileName=InputFile
                     
                     !Verifies if file exists
                     status=NF90_OPEN(trim(InputFile),NF90_NOWRITE,ncid)
@@ -2576,6 +2578,9 @@ BF:         if (BlockFound) then
                 if (Me%Date%NumberInst >1 .and. j >1) then
                     if (AuxT(j+iAux)< AuxT(j-1+iAux)) then
                         Me%Date%NumberInst = j - 1
+                        write(*,*)
+                        write(*,*)'Warning : temporal inflexion point detected in file ', trim(Me%ReadingFileName)
+                        write(*,*)
                         exit
                     endif
                 endif
