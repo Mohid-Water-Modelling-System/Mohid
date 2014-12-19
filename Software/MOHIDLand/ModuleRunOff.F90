@@ -63,7 +63,7 @@ Module ModuleRunOff
                                         TryIgnoreDischarge, GetDischargeSpatialEmission, &
                                         CorrectsCellsDischarges, Kill_Discharges,        &
                                         GetByPassON, GetDischargeFlowDistribuiton,       &
-                                        UnGetDischarges
+                                        UnGetDischarges, SetLocationCellsZ
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif, &
                                        BoxDif, KillBoxDif                                                      
     use ModuleDrawing
@@ -2629,19 +2629,18 @@ do4:            do di = -1, 1
 
             endif
                         
-            !if (SpatialEmission /= DischPoint_) then
-            !
-            !
-            !    call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
-            !        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR16' 
-            !
-            !else  i4
+            if (SpatialEmission /= DischPoint_) then            
+            
+                call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ConstructDischarges - ERR16' 
+            
+            !else
             !    if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
             !        call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
             !        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR220' 
             !    endif
             !    deallocate(VectorI, VectorJ, VectorK)
-            !endif i4
+            endif
 
         enddo
 
