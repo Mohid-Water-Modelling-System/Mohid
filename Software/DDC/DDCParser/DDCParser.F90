@@ -301,8 +301,6 @@ if5 :           if (STAT_CALL .NE. SUCCESS_) then
             endif if4
             
         endif if2            
-        
-        rename
 
         read(unit=iTree, fmt=*) Coment1
         read(unit=iTree, fmt=*) Coment2
@@ -835,6 +833,7 @@ if2 :       if (STAT_CALL .NE. SUCCESS_) then
         integer                     :: STAT_CALL    = NULL_INT
 
         nTaskFile = hash_get_first(hash_tasks)  !Picks a task to send to a worker
+print*, 'nTaskFile', nTaskFile
 if1 :   if (nTaskFile .GE. 0) then
             call MPI_SEND(nTaskFile,                                          &
                           1,                                                  &

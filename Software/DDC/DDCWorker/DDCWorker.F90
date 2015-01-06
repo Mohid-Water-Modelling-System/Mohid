@@ -17,6 +17,7 @@
 
 program DDCWorker
 
+    use IFPORT
     use mpi
     use moduleMPImanagement
 
@@ -120,7 +121,8 @@ program DDCWorker
         integer                               :: myMPI_id         = NULL_INT
         integer                               :: parser_id        = NULL_INT
 
-        character(PathLength)                 :: ConsolidatedFile = NULL_STR
+        character(PathLength)                 :: ConsolidatedFileTmp = NULL_STR
+        character(PathLength)                 :: ConsolidatedFile    = NULL_STR
         type (T_HDF5), pointer                :: outputFileHDF5
         type (T_InputFile), pointer           :: inputFile
 
@@ -290,6 +292,7 @@ if4 :   if (STAT_CALL .NE. SUCCESS_) then
         getParser_id = Me%parser_id
 
     end function getParser_id
+
     !---------------------------------------------------------------------------
 
     integer function setConsolidatedFile(Me, ConsolidatedFile)
@@ -304,6 +307,18 @@ if4 :   if (STAT_CALL .NE. SUCCESS_) then
 
     !---------------------------------------------------------------------------
 
+    integer function setConsolidatedFileTmp(Me, ConsolidatedFileTmp)
+        type (T_DDC), pointer             :: Me
+        character(PathLength), intent(IN) :: ConsolidatedFileTmp
+
+        Me%ConsolidatedFileTmp = ConsolidatedFileTmp
+
+        setConsolidatedFileTmp = SUCCESS_
+
+    end function setConsolidatedFileTmp
+
+    !---------------------------------------------------------------------------
+
     function getConsolidatedFile(Me)
         character(PathLength)       :: getConsolidatedFile
         type (T_DDC), pointer       :: Me
@@ -311,6 +326,16 @@ if4 :   if (STAT_CALL .NE. SUCCESS_) then
         getConsolidatedFile = Me%ConsolidatedFile
 
     end function getConsolidatedFile
+
+    !---------------------------------------------------------------------------
+
+    function getConsolidatedFileTmp(Me)
+        character(PathLength)       :: getConsolidatedFileTmp
+        type (T_DDC), pointer       :: Me
+
+        getConsolidatedFileTmp = Me%ConsolidatedFileTmp
+
+    end function getConsolidatedFileTmp
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -432,7 +457,6 @@ if16 :  if (STAT_CALL .NE. SUCCESS_) then
         integer                     :: STAT_CALL    = NULL_INT
         integer                     :: nTaskFile    = NULL_INT
         integer                     :: STATUS(MPI_STATUS_SIZE)
-        character(PathLength)       :: HDF5File     = NULL_STR
 
         call MPI_RECV(nTaskFile,                                                &
                       1,                                                        &
@@ -447,9 +471,18 @@ if1 :   if (STAT_CALL .NE. SUCCESS_) then
             stop "function RecvTask, program DCCWorker, error calling MPI_SEND, ERR01"
         end if if1
 
-        HDF5File = processTask(Me, nTaskFile = nTaskFile)
-        if (HDF5File .EQ. NULL_STR)                                           &
-            stop "function RecvTask, program processTask, error calling MPI_SEND, ERR05"
+        STAT_CALL = processTask(Me, nTaskFile = nTaskFile)
+if9 :   if (STAT_CALL .NE. SUCCESS_) then
+            print*, "STAT_CALL = ", STAT_CALL
+            stop "function RecvTask, program DCCWorker, error calling processTask, ERR09"
+        end if if9
+
+        STAT_CALL = renameOutputFile(consolidatedFile    = getConsolidatedFile(Me), &
+                                     consolidatedFileTmp = getConsolidatedFileTmp(Me))
+if6 :   if (STAT_CALL .NE. SUCCESS_) then
+            print*, "STAT_CALL = ", STAT_CALL
+            stop "function RecvTask, program DCCWorker, error calling renameOutputFile, ERR06"
+        end if if6
 
         STAT_CALL = SendTaskCompleted(Me, nTaskFile)
 if4 :   if (STAT_CALL .NE. SUCCESS_) then
@@ -457,7 +490,7 @@ if4 :   if (STAT_CALL .NE. SUCCESS_) then
             stop "function RecvTask, program DCCWorker, error calling SendTaskCompleted, ERR02"
         end if if4
 
-        print*, "File ", adjustl(trim(HDF5File)), " is ready"
+        print*, "File ", adjustl(trim(getConsolidatedFile(Me))), " is ready"
 
         if (associated(Me%inputFile))                                         &
             call deallocateInputFile(Me%inputFile)
@@ -474,8 +507,7 @@ if5 :   if (STAT_CALL .NE. SUCCESS_) then
 
     !---------------------------------------------------------------------------
 
-    function processTask(Me, nTaskFile)
-        character(PathLength)       :: processTask
+    integer function processTask(Me, nTaskFile)
         type (T_DDC), pointer       :: Me
         integer, intent(IN)         :: nTaskFile
         integer                     :: STAT_CALL    = NULL_INT
@@ -502,7 +534,7 @@ if6 :   if (STAT_CALL .NE. SUCCESS_) then
             stop "function processTask, program DCCWorker, error calling KillHDF5, ERR06"
         end if if6
 
-        processTask = HDF5File
+        processTask = SUCCESS_
 
     end function processTask
 
@@ -551,11 +583,17 @@ if3 :   if (STAT_CALL .NE. SUCCESS_) then
         Me%outputFileHDF5 => ConstructHDF5(FileName = adjustl(trim(HDF5File)),  &
                                            Access   = HDF5_CREATE)
 
-        STAT_CALL = setConsolidatedFile(Me, auxStr5)
+        STAT_CALL = setConsolidatedFile(Me, auxStr2)
 if5 :   if (STAT_CALL .NE. SUCCESS_) then
             print*, "STAT_CALL = ", STAT_CALL
             stop "function readInputFile, program DCCWorker, error calling setConsolidated, ERR05"
         end if if5
+
+        STAT_CALL = setConsolidatedFileTmp(Me, HDF5File)
+if8 :   if (STAT_CALL .NE. SUCCESS_) then
+            print*, "STAT_CALL = ", STAT_CALL
+            stop "function readInputFile, program DCCWorker, error calling setConsolidated, ERR08"
+        end if if8
 
         STAT_CALL = readDecomposedFilesNames(Me%inputFile, iFile = iFile)
 if4 :   if (STAT_CALL .NE. SUCCESS_) then
@@ -1723,6 +1761,123 @@ if2 :       if (STAT_CALL .NE. SUCCESS_) then
     end function getMappingValues
 
     !------------------------------------------------------------------------
+
+    integer function renameOutputFile(consolidatedFile, consolidatedFileTmp)
+        character(PathLength),      intent(IN)  :: consolidatedFile
+        character(PathLength),      intent(IN)  :: consolidatedFileTmp
+        character(StringLength)                 :: OnlyFileName
+        integer                                 :: STAT_CALL    = NULL_INT
+        integer                                 :: iFile        = NULL_INT
+        integer                                 :: iFile2       = NULL_INT
+
+        call UnitsManager(iFile, OPEN_FILE, STAT = STAT_CALL)
+if1 :   if (STAT_CALL .NE. SUCCESS_) then
+            print*, "STAT_CALL = ", STAT_CALL
+            stop "function renameOutputFile, error calling UnitsManager, ERR01"
+        end if if1
+
+        open(unit   = iFile,                                                            &
+             file   = trim(adjustl(consolidatedFile)),                                  &
+             status = 'old',                                                            &
+             iostat = STAT_CALL)
+
+if2 :   if (STAT_CALL .EQ. SUCCESS_) then
+            call UnitsManager(iFile, CLOSE_FILE, STAT = STAT_CALL)
+if4 :       if (STAT_CALL .NE. SUCCESS_) then
+                print*, "STAT_CALL = ", STAT_CALL
+                stop "function renameOutputFile, error calling UnitsManager, ERR02"
+            end if if4
+
+            call UnitsManager(iFile2, OPEN_FILE, STAT = STAT_CALL)
+if3 :       if (STAT_CALL .NE. SUCCESS_) then
+                print*, "STAT_CALL = ", STAT_CALL
+                stop "function renameOutputFile, error calling UnitsManager, ERR03"
+            end if if3
+
+            open(unit   = iFile2,                                                       &
+                 file   = trim(adjustl(consolidatedFileTmp)),                           &
+                 status = 'old',                                                        &
+                 iostat = STAT_CALL)
+            if (STAT_CALL .EQ. SUCCESS_)                                                &
+                close(unit   = iFile2,                                                  &
+                      status = 'delete')
+        else if2
+            !Linux
+            STAT_CALL = SYSTEM("mv "                                                    &
+                               // trim(adjustl(consolidatedFileTmp)) // " "             &
+                               // trim(adjustl(consolidatedFile)))
+
+if5 :       if (STAT_CALL .NE. SUCCESS_) then
+                !Windows
+                STAT_CALL = ReturnOnlyFileName(consolidatedFile, OnlyFileName)
+                
+if7:            if (STAT_CALL /= SUCCESS_) then
+                    print*, "STAT_CALL = ", STAT_CALL
+                    print*, "Error in extracting the filename  from",                   &
+                            trim(adjustl(consolidatedFile))
+                    stop "function renameOutputFile, error calling ReturnOnlyFileName, ERR04"
+                    
+                end if if7                
+                
+                STAT_CALL = SYSTEM("ren "                                               &
+                                   // trim(adjustl(consolidatedFileTmp)) // " "         &
+                                   // trim(adjustl(OnlyFileName)))
+if6 :           if (STAT_CALL .NE. SUCCESS_) then
+                    print*, "STAT_CALL = ", STAT_CALL
+                    print*, "Error renaming file",                                      &
+                            trim(adjustl(consolidatedFileTmp)), " to ",                 &
+                            trim(adjustl(consolidatedFile))
+                    stop "function renameOutputFile, error calling SYSTEM, ERR05"
+                end if if6
+            end if if5
+        end if if2
+
+        renameOutputFile = SUCCESS_
+
+    end function renameOutputFile
+
+    !------------------------------------------------------------------------
+    
+    integer function ReturnOnlyFileName(FileNamePlusPath, OnlyFileName)
+        character(*),   intent(IN)  :: FileNamePlusPath
+        character(*),   intent(OUT) :: OnlyFileName
+        integer                     :: STAT_CALL    = NULL_INT
+        integer                     :: n            = NULL_INT
+        integer                     :: j            = NULL_INT
+        integer                     :: i            = NULL_INT        
+
+
+        n = len_trim(FileNamePlusPath)
+        
+        j = 1
+        
+        do i=n,1,-1
+            if (FileNamePlusPath(i:i)=='/' .or. FileNamePlusPath(i:i)=='\') then
+                j = i+1
+                exit
+            endif
+        enddo
+        
+if1:    if (j < n) then
+        
+            OnlyFileName = FileNamePlusPath(j:n)
+            
+            STAT_CALL = SUCCESS_
+            
+        else if1
+        
+            write(*,*) "STAT_CALL = ", STAT_CALL
+            stop "function ReturnOnlyFileName, DDCWorker, ERR06"
+
+        end if if1
+        
+        ReturnOnlyFileName = STAT_CALL
+
+
+    end function ReturnOnlyFileName
+
+    !------------------------------------------------------------------------
+    
 
     integer function recvPoisonPill(Me)
         type (T_DDC), pointer       :: Me

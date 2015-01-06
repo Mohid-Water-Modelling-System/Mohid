@@ -720,8 +720,8 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
         real,      pointer, dimension(:,:)      :: LatStagW, LonStagW
         real,   pointer, dimension(:  )         :: XXDummy, YYDummy
         integer, dimension(:,:), pointer        :: WindowDomain        
-        integer                                 :: Imax, Jmax, STAT_CALL, iflag
-        integer                                 :: ILB, IUB, JLB, JUB, i, j, jj
+        integer                                 :: Imax, Jmax, STAT_CALL
+        integer                                 :: ILB, IUB, JLB, JUB, i, j
 
         !Begin-----------------------------------------------------------------
         

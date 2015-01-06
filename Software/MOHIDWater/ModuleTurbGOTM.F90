@@ -41,7 +41,7 @@ Module ModuleTurbGOTM
     use ModuleHorizontalGrid,   only : GetDDecompMPI_ID, GetDDecompON,                  &
                                        WriteHorizontalGrid, GetDDecompParameters,       &
                                        GetDDecompWorkSize2D
-    use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap
+    use ModuleHorizontalMap,    only : GetBoundaries, GetWaterPoints2D, UnGetHorizontalMap
     use ModuleGridData,         only : GetGridData, UnGetGridData
     use ModuleGeometry
     use ModuleMap
@@ -113,6 +113,11 @@ Module ModuleTurbGOTM
         !SQUARED FREQ. PRANDTL        M=dU/dZ
         real,    pointer, dimension(:,:,:) :: SS                => null()     
         integer, pointer, dimension(:,:,:) :: WaterPoints3D     => null() 
+        integer, pointer, dimension(:,:  ) :: WaterPoints2D     => null() 
+        integer, pointer, dimension(:,:,:) :: ComputeFacesU3D   => null() 
+        integer, pointer, dimension(:,:,:) :: ComputeFacesV3D   => null() 
+        integer, pointer, dimension(:,:,:) :: LandPoints        => null() 
+        integer, pointer, dimension(:,:,:) :: OpenPoints3D      => null()    
         real,    pointer, dimension(:,:  ) :: HT                => null() 
         !shear bottom velocity
         real,    pointer, dimension(:,:  ) :: u_taub            => null() 
@@ -441,13 +446,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, optional,     intent(OUT)  :: STAT
 
         !Local-----------------------------------------------------------------
+        integer,    pointer, dimension(:,:) :: BoundaryPoints2D
+        !real(8),    pointer, dimension(:)   :: h,NN_1D,SS_1D,P_1D,B_1D
+        !real(8),    pointer, dimension(:)   :: tke_1D,eps_1D,L_1D,num_1D,nuh_1D   
         real(8)                             :: depth,u_taub,u_taus,dt,z0s,z0b
         integer                             :: KBottom,nlev
         integer                             :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB                            
         integer                             :: STAT_                
         integer                             :: STAT_CALL
-        integer                             :: ready_, TID 
-
+        integer                             :: ready_, TID            
         !$ integer                             :: CHUNK
         type(T_GOTM), pointer               :: LocalObjGOTM
 
@@ -480,6 +487,33 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             call GetWaterPoints3D(Me%ObjMap, Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR02'
 
+            !ComputeFacesU3D
+            call GetComputeFaces3D(Me%ObjMap,                                           &
+                                   ComputeFacesU3D = Me%ExternalVar%ComputeFacesU3D,    &  
+                                   STAT = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR03'
+ 
+            !ComputeFacesV3D
+            call GetComputeFaces3D(Me%ObjMap,                                           &
+                                   ComputeFacesV3D = Me%ExternalVar%ComputeFacesV3D,    &
+                                   STAT = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR04'
+
+            !LandPoints
+            call GetLandPoints3D(Me%ObjMap, Me%ExternalVar%LandPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR05'
+            
+            !OpenPoints3D
+            call GetOpenPoints3D(Me%ObjMap, Me%ExternalVar%OpenPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR06'
+
+            call GetWaterPoints2D(Me%ObjHorizontalMap,                                  &
+                                  Me%ExternalVar%WaterPoints2D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR07'
+
+            call GetBoundaries(Me%ObjHorizontalMap, BoundaryPoints2D, STAT= STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR08'
+                       
             call GetGeometryKFloor(Me%ObjGeometry, Z = Me%ExternalVar%KFloorZ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR09'
 
@@ -503,8 +537,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             call Production
 
             !Call to module GOTM, 1D column model for turbulence   
-
-            !write(*,*) 'One iteration... griflet'
             
             !$ CHUNK = CHUNK_J(JLB,JUB)            
             ! We don't compute turbulence coefficients at the limits of the domain. 
@@ -512,10 +544,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !! $OMP                   Depth,u_taus,u_taub,z0b,z0s, &
             !! $OMP                   nlev,LocalObjGOTM,TID)
             !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
-doj :       do j = JLB, JUB
-doi :       do i = ILB, IUB
+doj :       do j = JLB+1, JUB-1
+doi :       do i = ILB+1, IUB-1
 
-ifwp :          if (Me%ExternalVar%WaterPoints3D(i,j,KUB) == WaterPoint) then       
+ifwp :          if (Me%ExternalVar%OpenPoints3D(i,j,KUB) .EQ. Openpoint) then       
                     
                     !griflet
                     TID = 1
@@ -534,22 +566,21 @@ ifwp :          if (Me%ExternalVar%WaterPoints3D(i,j,KUB) == WaterPoint) then
                     z0s     = Me%ExternalVar%SurfaceRugosity(i,j)
                     nlev    = KUB - Kbottom + 1
 
-
                     ! We must be careful with the limits of the matrix, as GOTM computes from 0 to nlev
                     ! KBottom face correspond to 0 in GOTM notation
                     ! Level 0 is needed for boundary confitions of turbulent magnitudes...0
 
                     !griflet: use local structure LocalObjGotm to transfer information.
 dok :               do k=Kbottom,KUB+1
-                        LocalObjGOTM%Impor%nn  (k-Kbottom) = dble(Me%ExternalVar%NN(i,j,k))
-                        LocalObjGOTM%Impor%ss  (k-Kbottom) = dble(Me%ExternalVar%SS(i,j,k))
-                        LocalObjGOTM%Impor%P   (k-Kbottom) = dble(Me%P             (i,j,k))
-                        LocalObjGOTM%Impor%B   (k-Kbottom) = dble(Me%B             (i,j,k))
-                        LocalObjGOTM%Export%tke(k-Kbottom) = dble(Me%Tke           (i,j,k))
-                        LocalObjGOTM%Export%L  (k-Kbottom) = dble(Me%L             (i,j,k))
-                        LocalObjGOTM%Export%eps(k-Kbottom) = dble(Me%eps           (i,j,k))
-                        LocalObjGOTM%Export%num(k-Kbottom) = dble(Me%num           (i,j,k))
-                        LocalObjGOTM%Export%nuh(k-Kbottom) = dble(Me%nuh           (i,j,k))
+                        LocalObjGOTM%Impor%nn(k-Kbottom) = dble(Me%ExternalVar%NN(i,j,k))
+                        LocalObjGOTM%Impor%ss(k-Kbottom) = dble(Me%ExternalVar%SS(i,j,k))
+                        LocalObjGOTM%Impor%P(k-Kbottom)  = dble(Me%P     (i,j,k))
+                        LocalObjGOTM%Impor%B(k-Kbottom)  = dble(Me%B     (i,j,k))
+                        LocalObjGOTM%Export%tke(k-Kbottom) = dble(Me%Tke   (i,j,k))
+                        LocalObjGOTM%Export%L(k-Kbottom)   = dble(Me%L     (i,j,k))
+                        LocalObjGOTM%Export%eps(k-Kbottom) = dble(Me%eps   (i,j,k))
+                        LocalObjGOTM%Export%num(k-Kbottom) = dble(Me%num   (i,j,k))
+                        LocalObjGOTM%Export%nuh(k-Kbottom) = dble(Me%nuh   (i,j,k))
                     end do dok
 
                     ! h is the distance between vertical faces (i.e. where turbulent quantities are defined)
@@ -557,74 +588,23 @@ dok :               do k=Kbottom,KUB+1
 dok2:               do k=Kbottom,KUB
                         LocalObjGOTM%Impor%h(k+1-Kbottom) = Me%ExternalVar%DWZ(i,j,k)
                     end do dok2
-                    
-!                    if (i==12.and.j==21) then
-!                        write(*,*) 'nlev,dt,Depth,u_taus,u_taub,z0s,z0b'
-!                        write(*,*) nlev,dt,Depth,u_taus,u_taub,z0s,z0b
-!                        write(*,*) 'H'
-!                        do k=0,nlev
-!                            write(*,*) k, LocalObjGOTM%Impor%h(k)
-!                        enddo      
-!                        write(*,*) 'NN'
-!                        do k=0,nlev                                                                      
-!                            write(*,*) LocalObjGOTM%Impor%nn(k)
-!                        enddo
-!                        write(*,*) 'SS'
-!                        do k=0,nlev                                                                      
-!                            write(*,*) LocalObjGOTM%Impor%ss(k)
-!                        enddo
-!                        write(*,*) 'P'
-!                        do k=0,nlev                                                                      
-!                            write(*,*) LocalObjGOTM%Impor%P(k)
-!                        enddo
-!                        write(*,*) 'B'
-!                        do k=0,nlev                                                                      
-!                            write(*,*) LocalObjGOTM%Impor%B(k)
-!                        enddo
-
-!                    endif
 
                     !The resolution of turbulence equations is done here (ModuleGOTM.f90)
-                    call do_turbulence(LocalObjGOTM, nlev,dt,Depth,u_taus,u_taub,z0s,z0b,&
-                                                   LocalObjGOTM%Impor%h ,                &
-                                                   LocalObjGOTM%Impor%nn,                &
-                                                   LocalObjGOTM%Impor%ss,                &
-                                                   LocalObjGOTM%Impor%P ,                &
-                                                   LocalObjGOTM%Impor%B )
+                    call do_turbulence(LocalObjGOTM, nlev,dt,Depth,u_taus,u_taub,z0s,z0b, &
+                                                   LocalObjGOTM%Impor%h,  &
+                                                   LocalObjGOTM%Impor%nn, &
+                                                   LocalObjGOTM%Impor%ss, &
+                                                   LocalObjGOTM%Impor%P,  &
+                                                   LocalObjGOTM%Impor%B)
 
 dok4 :              do k=Kbottom,KUB+1
                         Me%Tke   (i,j,k) = real(LocalObjGOTM%Export%tke(k-Kbottom))
-                        Me%L     (i,j,k) = real(LocalObjGOTM%Export%L  (k-Kbottom))
+                        Me%L     (i,j,k) = real(LocalObjGOTM%Export%L(k-Kbottom  ))
                         Me%eps   (i,j,k) = real(LocalObjGOTM%Export%eps(k-Kbottom))
                         Me%num   (i,j,k) = real(LocalObjGOTM%Export%num(k-Kbottom))
                         Me%nuh   (i,j,k) = real(LocalObjGOTM%Export%nuh(k-Kbottom))
                     end do dok4
-                    
- !                   if (i==12.and.j==21) then
- !                       write(*,*) 'TKE'
- !                       do k=0,nlev
- !                           write(*,*) k, LocalObjGOTM%Export%TKE(k)
- !                       enddo      
- !                       write(*,*) 'L'
- !                       do k=0,nlev                                                                      
- !                           write(*,*) LocalObjGOTM%Export%L(k)
- !                       enddo
- !                       write(*,*) 'eps'
- !                       do k=0,nlev                                                                      
- !                           write(*,*) LocalObjGOTM%Export%eps(k)
- !                       enddo
- !                       write(*,*) 'num'
- !                       do k=0,nlev                                                                      
- !                           write(*,*) LocalObjGOTM%Export%num(k)
- !                       enddo
- !                       write(*,*) 'nuh'
- !                       do k=0,nlev                                                                      
- !                           write(*,*) LocalObjGOTM%Export%nuh(k)
- !                       enddo
 
- !                   endif                    
-                    
- 
                 end if ifwp
 
             end do doi
@@ -632,9 +612,97 @@ dok4 :              do k=Kbottom,KUB+1
             !! $OMP END DO NOWAIT
             !! $OMP END PARALLEL          
 
+            !Values at open boundary points at the limits of the domain 
+            ! are set to the values of the nearest interior point. Null_gradient
+            i=IUB
+            !$OMP PARALLEL PRIVATE(j,k,Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j=JLB,JUB
+                if(BoundaryPoints2D(i,j) == 1) then
+                    Kbottom = Me%ExternalVar%KFloorZ(I,J)
+                    do k=Kbottom,KUB+1
+                        Me%num   (i,j,k) = Me%num(i-1,j,k)  
+                        Me%nuh   (i,j,k) = Me%nuh(i-1,j,k)
+                    end do
+                end if
+            end do
+            !$OMP END DO
+            !$OMP END PARALLEL          
+
+            i=ILB
+            !$OMP PARALLEL PRIVATE(j,k,Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j=JLB,JUB
+                if(BoundaryPoints2D(i,j) == 1) then
+                    Kbottom = Me%ExternalVar%KFloorZ(I,J)
+                    do k=Kbottom,KUB+1
+                        Me%num   (i,j,k) = Me%num(i+1,j,k)  
+                        Me%nuh   (i,j,k) = Me%nuh(i+1,j,k)
+                    end do 
+                end if 
+            end do
+            !$OMP END DO
+            !$OMP END PARALLEL          
+
+            j=JUB
+            !$ CHUNK = CHUNK_I(ILB,IUB)
+            !$OMP PARALLEL PRIVATE(i,k,Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i=ILB,IUB
+                if(BoundaryPoints2D(i,j) == 1) then
+                    Kbottom = Me%ExternalVar%KFloorZ(I,J)
+                    do k=Kbottom,KUB+1
+                        Me%num   (i,j,k) = Me%num(i,j-1,k)  
+                        Me%nuh   (i,j,k) = Me%nuh(i,j-1,k)
+                    end do 
+                end if 
+            end do
+            !$OMP END DO
+            !$OMP END PARALLEL          
+
+            j=JLB
+            !$OMP PARALLEL PRIVATE(i,k,Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i=ILB,IUB
+                if(BoundaryPoints2D(i,j) == 1) then
+                    Kbottom = Me%ExternalVar%KFloorZ(I,J)
+                    do k=Kbottom,KUB+1
+                        Me%num   (i,j,k) = Me%num(i,j+1,k)  
+                        Me%nuh   (i,j,k) = Me%nuh(i,j+1,k)
+                    end do 
+                end if 
+            end do
+            !$OMP END DO
+            !$OMP END PARALLEL          
+
             !WaterPoints3D
             call UngetMap(Me%ObjMap, Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR13'
+
+            !ComputeFacesU3D
+            call UngetMap(Me%ObjMap, Me%ExternalVar%ComputeFacesU3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR14'
+            
+            !ComputeFacesV3D
+            call UngetMap(Me%ObjMap, Me%ExternalVar%ComputeFacesV3D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR15'
+
+            !LandPoints
+            call UngetMap(Me%ObjMap,Me%ExternalVar%LandPoints, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR16'
+            
+            !OpenPoints3D
+            call UngetMap(Me%ObjMap,Me%ExternalVar%OpenPoints3D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR17'
+
+            !WaterPoints2D
+            call UngetHorizontalMap(Me%ObjHorizontalMap,                                &
+                                    Me%ExternalVar%WaterPoints2D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR18'
+
+            !BoundaryPoints2D
+            call UngetHorizontalMap(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'TurbGOTM - ModuleTurbGOTM - ERR19'
 
             !KFloorZ
             call UnGetGeometry(Me%ObjGeometry,Me%ExternalVar%KFloorZ, STAT = STAT_CALL)
@@ -710,8 +778,18 @@ dok4 :              do k=Kbottom,KUB+1
        !Arguments-------------------------------------------------------------
 
        !Local-----------------------------------------------------------------
+          
+ 
+!        integer :: JLB, JUB 
+!        integer :: KLB, KUB
+!        integer :: I, J, K 
+!        integer :: Kbottom
         real :: alpha
+
         real,    pointer, dimension(:,:,:) :: NUM, NUH,NN,SS, P, B
+
+!        integer, pointer, dimension(:,:  ) :: WaterPoints2D
+!        integer, pointer, dimension(:,:  ) :: KFloorZ
 
         !----------------------------------------------------------------------
 
@@ -756,8 +834,14 @@ dok4 :              do k=Kbottom,KUB+1
 
 
         !Local-----------------------------------------------------------------
+        real                    :: Year_File, Month_File, Day_File
+        real                    :: Hour_File, Minute_File, Second_File
+        real                    :: DT_error
+        type (T_Time)           :: BeginTime, EndTimeFile, EndTime
         integer                 :: IUB, JUB, KUB, ILB, JLB, KLB
+        integer                 :: InitialFile, i, j, k
         logical                 :: exists
+        integer                 :: STAT_CALL
 
         !----------------------------------------------------------------------
 
@@ -881,14 +965,23 @@ dok4 :              do k=Kbottom,KUB+1
         !Local-----------------------------------------------------------------
         real,    dimension(:), pointer     :: TimeVector
         type (T_Time)                      :: BeginTime, EndTimeFile, EndTime
-        real                               :: DT_error
+
+        real                               :: Year_File, Month_File, Day_File,           &
+                                              Hour_File, Minute_File, Second_File,       &
+                                              DT_error
         integer                            :: IUB, JUB, KUB, ILB, JLB, KLB, HDF5_READ
         integer                            :: IUW, JUW, ILW, JLW
+        integer                            :: InitialFile, i, j, k, Evolution
+        integer                            :: BaroclinicRadia
         logical                            :: MasterOrSlave
         integer                            :: ObjHDF5
         type (T_Size2D)                    :: WindowLimitsJI
         integer                            :: Imax, Jmax, Kmax
+        real,    dimension(:),     pointer :: AuxReal
+        integer, dimension(:),     pointer :: AuxInt
+        real,    dimension(:,:),   pointer :: Aux2DReal
         real,    dimension(:,:,:), pointer :: Aux3DReal
+        real(8), dimension(:,:,:), pointer :: Aux3DR8
 
         !----------------------------------------------------------------------
         
@@ -1068,6 +1161,7 @@ ifMS:   if (MasterOrSlave) then
         integer, optional, intent(OUT )             :: STAT
 
         !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
         integer                                     :: STAT_, ready_
         logical                                     :: WriteOK, Overwrite_
         character (Len = Pathlength)                :: filename
@@ -1156,7 +1250,7 @@ ifMS:   if (MasterOrSlave) then
         real,       dimension(6), target            :: AuxTime
         real,       dimension(:),       pointer     :: TimePtr        
         integer                                     :: IUB, JUB, KUB, ILB, JLB, KLB
-        integer                                     :: HDF5_CREATE, ObjHDF5
+        integer                                     :: FinalFile, i, j, k, HDF5_CREATE, ObjHDF5
         type (T_Size2D)                             :: WorkSize2D
         
 
