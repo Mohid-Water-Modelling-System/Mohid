@@ -112,11 +112,6 @@ Module ModuleHDF5Extractor
 
     !Types---------------------------------------------------------------------
 
-    type T_SkipInstants
-        logical                                     :: Skip_ON              = .false.
-        real                                        :: DT                   = 0.
-    end type T_SkipInstants
-
     ! Definition of IntervalHDF5
     type       T_IntervalHDF5
         character(len=PathLength)                   :: Name
@@ -182,7 +177,6 @@ Module ModuleHDF5Extractor
         type(T_Time)                                :: StartTime, EndTime
         type(T_SpatialWindow)                       :: SpatialWindow
         type(T_Interval)                            :: Interval
-        type(T_SkipInstants)                        :: SkipInstants
         integer                                     :: HDF5StartInstant
         integer                                     :: HDF5EndInstant
         type(T_Time), dimension(:), pointer         :: InstantsArray
@@ -414,37 +408,6 @@ Module ModuleHDF5Extractor
 
         endif
 
-        ! Checks if it wants to skip instants (selecting only at specified dt's)
-        call GetData(Me%SkipInstants%Skip_ON,                                   &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType   = FromFile,                                   &
-                     keyword      = 'SKIP_INSTANTS',                            &
-                     default      = .false.,                                    &
-                     ClientModule = 'HDF5Extractor',                            &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-        stop 'ConstructParameters - ModuleHDF5Extractor - ERR141'
-        
-        if (Me%SkipInstants%Skip_ON) then
-            ! Checks if it wants to skip instants (selecting only at specified dt's)
-            call GetData(Me%SkipInstants%DT,                                        &
-                         Me%ObjEnterData, iflag,                                    &
-                         SearchType   = FromFile,                                   &
-                         keyword      = 'DT_SKIP_INSTANTS',                         &
-                         default      = 0.,                                         &
-                         ClientModule = 'HDF5Extractor',                            &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'ConstructParameters - ModuleHDF5Extractor - ERR142'        
-            
-            if (Me%Interval%Interval_ON .and. (Me%Interval%DT .lt. Me%SkipInstants%DT)) then
-                write (*,*) 
-                write (*,*) 'DT_INTERVAL can not be lower than DT_SKIP_INSTANTS'
-                write (*,*) 'Module :','HDF5Extractor'
-                stop 'ReadKeywords - ModuleHDF5Extractor - ERR143'            
-            endif
-        endif
-              
         ! Checks if it is to convert a v3 file to v4 format
         call GetData(Me%ConvertV3toV4,                                          &
                      Me%ObjEnterData, iflag,                                    &
@@ -1814,7 +1777,7 @@ cd2 :           if (BlockFound) then
         integer                                     :: CurrentInstant
         integer                                     :: OutputNumber = 1
         type(T_Time)                                :: StartIntervalTime
-        type(T_Time)                                :: NextTime, CurrentTime, NextTimeToConsider
+        type(T_Time)                                :: NextTime
         type(T_IntervalHDF5), pointer               :: ObjHDF5
         integer                                     :: ObjEnterData
 
@@ -1850,86 +1813,73 @@ cd2 :           if (BlockFound) then
 
         endif
 
-        if (Me%SkipInstants%Skip_ON) then
-            NextTimeToConsider = Me%InstantsArray(1)
-        endif
-
         !Time cycle
-        do CurrentInstant = 1,  (Me%HDF5EndInstant -  Me%HDF5StartInstant + 1)
+        do CurrentInstant = Me%HDF5StartInstant, Me%HDF5EndInstant 
 
-            !verify if this instant is to skip or not
-            CurrentTime = Me%InstantsArray(CurrentInstant)
-            if ((.not. Me%SkipInstants%Skip_ON) .or. (CurrentTime >= NextTimeToConsider)) then
+            !1. Write time (done here to use the time cycle)
+            if (.not. Me%Interval%Interval_ON) then
 
-                !1. Write time (done here to use the time cycle)
-                if (.not. Me%Interval%Interval_ON) then
+                call OutputInstants(OutputNumber, OutputNumber, ObjEnterData)
 
-                    !call OutputInstants(OutputNumber, OutputNumber, ObjEnterData)
-                    call OutputInstants(CurrentInstant, OutputNumber, ObjEnterData)
+            else
 
-                else
-
-                    !write to the correspondent output HDF5 files
-                    call OutputInstants(CurrentInstant, OutputNumber, ObjEnterData)
+                !write to the correspondent output HDF5 files
+                call OutputInstants(CurrentInstant, OutputNumber, ObjEnterData)
+                
+                if (CurrentInstant /= Me%HDF5EndInstant) then
                     
-                    if (CurrentInstant /= Me%HDF5EndInstant) then
-                        
-                        NextTime = Me%InstantsArray(CurrentInstant + 1)
+                    NextTime = Me%InstantsArray(CurrentInstant + 1)
 
-                        !check if next time is beyond the interval
-                        if (NextTime > StartIntervalTime + Me%Interval%DT) then
+                    !check if next time is beyond the interval
+                    if (NextTime > StartIntervalTime + Me%Interval%DT) then
 
-                            !Writes times to disk
-                            call HDF5FlushMemory (ObjEnterData, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)                                              &
-                                stop 'OpenAndReadHDF5File - ModuleHDF5Extractor - ERR20'
+                        !Writes times to disk
+                        call HDF5FlushMemory (ObjEnterData, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                              &
+                            stop 'OpenAndReadHDF5File - ModuleHDF5Extractor - ERR20'
 
-                            !Set variables to next output HDF5 file
-                            ObjHDF5 => ObjHDF5%Next
+                        !Set variables to next output HDF5 file
+                        ObjHDF5 => ObjHDF5%Next
 
-                            ObjEnterData = ObjHDF5%ObjEnterData
+                        ObjEnterData = ObjHDF5%ObjEnterData
 
-                            StartIntervalTime = StartIntervalTime + Me%Interval%DT
+                        StartIntervalTime = StartIntervalTime + Me%Interval%DT
 
-                            OutputNumber = 1
-                    
-                            !write same time to next output HDF5 file
-                            call OutputInstants(CurrentInstant, OutputNumber,       &
-                                                ObjEnterData)
-
-                        endif
+                        OutputNumber = 1
+                
+                        !write same time to next output HDF5 file
+                        call OutputInstants(CurrentInstant, OutputNumber,       &
+                                            ObjEnterData)
 
                     endif
 
                 endif
 
-                !2. Read time dependent grid items fields
-                ObjItem => Me%FirstDependentItem
-
-                do while(associated(ObjItem))
-
-                    call ReadTimeDependentFields(ObjItem, CurrentInstant)
-
-                    ObjItem => ObjItem%Next
-
-                end do
-
-                !3. Read parameter fields
-                ObjParameter => Me%FirstParameter
-
-                do while(associated(ObjParameter))
-
-                    call ReadTimeDependentFields(ObjParameter, CurrentInstant)
-
-                    ObjParameter => ObjParameter%Next
-
-                end do
-                
-                OutputNumber = OutputNumber + 1
-                
-                if (Me%SkipInstants%Skip_ON) NextTimeToConsider = NextTimeToConsider + Me%SkipInstants%DT
-            
             endif
+
+            !2. Read time dependent grid items fields
+            ObjItem => Me%FirstDependentItem
+
+            do while(associated(ObjItem))
+
+                call ReadTimeDependentFields(ObjItem, CurrentInstant)
+
+                ObjItem => ObjItem%Next
+
+            end do
+
+            !3. Read parameter fields
+            ObjParameter => Me%FirstParameter
+
+            do while(associated(ObjParameter))
+
+                call ReadTimeDependentFields(ObjParameter, CurrentInstant)
+
+                ObjParameter => ObjParameter%Next
+
+            end do
+            
+            OutputNumber = OutputNumber + 1
 
         end do
 
@@ -2074,8 +2024,7 @@ cd2 :           if (BlockFound) then
         integer                                     :: ObjEnterData
         type(T_IntervalHDF5), pointer               :: ObjOutputFile
         type(T_Time)                                :: StartIntervalTime
-        type(T_Time)                                :: NextTime, CurrentTime
-        type(T_Time)                                :: NextTimeToConsider
+        type(T_Time)                                :: NextTime
 
         !Begin-----------------------------------------------------------------
 
@@ -2118,10 +2067,6 @@ cd2 :           if (BlockFound) then
 
         endif
         
-        if (Me%SkipInstants%Skip_ON) then
-            NextTimeToConsider = Me%InstantsArray(1)
-        endif
-        
         select case (ObjItem%Rank)
             case (1)
 
@@ -2140,96 +2085,83 @@ cd2 :           if (BlockFound) then
 
                 !(select the field)
 do1:            do while(associated(CurrentField))
-                    
-                    !verify if this field is to skip or not
-                    CurrentTime = Me%InstantsArray(InstantNumber)
-                    if ((.not. Me%SkipInstants%Skip_ON) .or. (CurrentTime >= NextTimeToConsider)) then
-                                                
-                        !(write field according to number type)
-                        if (ObjItem%NumType == Me%HDFNativeReal) then
 
-                            call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
-                                               ObjItem%Name,                        & 
-                                               ObjItem%Units,                       &
-                                               Array1D = CurrentField%Values1D,     &
-                                               OutputNumber = OutputNumber,         &
-                                               STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'OutputField - ModuleHDF5Extractor - ERR20'            
+                    !(write field according to number type)
+                    if (ObjItem%NumType == Me%HDFNativeReal) then
 
-                        else if (ObjItem%NumType == Me%HDFNativeInteger) then
+                        call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
+                                           ObjItem%Name,                        & 
+                                           ObjItem%Units,                       &
+                                           Array1D = CurrentField%Values1D,     &
+                                           OutputNumber = OutputNumber,         &
+                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                            stop 'OutputField - ModuleHDF5Extractor - ERR20'            
 
-                            call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
-                                               ObjItem%Name,                        &
-                                               ObjItem%Units,                       &
-                                               Array1D = CurrentField%IntValues1D,  &
-                                               OutputNumber = OutputNumber,         &
-                                               STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'WriteItemFields - ModuleHDF5Extractor - ERR30'            
+                    else if (ObjItem%NumType == Me%HDFNativeInteger) then
 
-                        endif
+                        call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
+                                           ObjItem%Name,                        &
+                                           ObjItem%Units,                       &
+                                           Array1D = CurrentField%IntValues1D,  &
+                                           OutputNumber = OutputNumber,         &
+                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                            stop 'WriteItemFields - ModuleHDF5Extractor - ERR30'            
 
-                        if (Me%Interval%Interval_ON) then
+                    endif
 
-                            if (InstantNumber < Me%InstantsNumber) then
+                    if (Me%Interval%Interval_ON) then
 
-                                NextTime = Me%InstantsArray(InstantNumber + 1)
+                        if (InstantNumber < Me%InstantsNumber) then
 
-                                if (NextTime > StartIntervalTime + Me%Interval%DT) then
+                            NextTime = Me%InstantsArray(InstantNumber + 1)
 
-                                    !Writes everything to disk
-                                    call HDF5FlushMemory (ObjEnterData, STAT = STAT_CALL)                         
-                                    if (STAT_CALL /= SUCCESS_)                      &
-                                        stop 'WriteItemFields - ModuleHDF5Extractor - ERR40'
+                            if (NextTime > StartIntervalTime + Me%Interval%DT) then
 
-                                    !A new HDF5 file must be writen 
-                                    ObjOutputFile => ObjOutputFile%Next
+                                !Writes everything to disk
+                                call HDF5FlushMemory (ObjEnterData, STAT = STAT_CALL)                         
+                                if (STAT_CALL /= SUCCESS_)                      &
+                                    stop 'WriteItemFields - ModuleHDF5Extractor - ERR40'
 
-                                    ObjEnterData = ObjOutputFile%ObjEnterData
-                            
-                                    StartIntervalTime = StartIntervalTime + Me%Interval%DT
+                                !A new HDF5 file must be writen 
+                                ObjOutputFile => ObjOutputFile%Next
 
-                                    OutputNumber = 1
-
-                                    call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB, &
-                                        Me%WorkSize%IUB, STAT = STAT_CALL)
-                                    if (STAT_CALL .NE. SUCCESS_)                    & 
-                                        stop 'WriteItemFields - ModuleHDF5Extractor - ERR50'
-
-                                else
+                                ObjEnterData = ObjOutputFile%ObjEnterData
                         
-                                    CurrentField => CurrentField%Next
+                                StartIntervalTime = StartIntervalTime + Me%Interval%DT
 
-                                    OutputNumber = OutputNumber + 1
+                                OutputNumber = 1
 
-                                    InstantNumber = InstantNumber + 1
+                                call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB, &
+                                    Me%WorkSize%IUB, STAT = STAT_CALL)
+                                if (STAT_CALL .NE. SUCCESS_)                    & 
+                                    stop 'WriteItemFields - ModuleHDF5Extractor - ERR50'
 
-                                    !compute next instant to get field
-                                    if (Me%SkipInstants%Skip_ON) NextTimeToConsider = NextTimeToConsider + Me%SkipInstants%DT
+                            else
+                    
+                                CurrentField => CurrentField%Next
 
-                                endif
+                                OutputNumber = OutputNumber + 1
 
-                            else 
-
-                                exit do1
+                                InstantNumber = InstantNumber + 1
 
                             endif
-                        
-                        else
 
-                            CurrentField => CurrentField%Next
+                        else 
 
-                            OutputNumber = OutputNumber + 1
+                            exit do1
 
-                            if (Me%SkipInstants%Skip_ON) NextTimeToConsider = NextTimeToConsider + Me%SkipInstants%DT
-                        
                         endif
+                    
                     else
-                        !in case that is skipping and verification for the field failed, needs to go to next field
-                        !in case of not skipping or skipping and entered in interval it will not get here
-                        InstantNumber = InstantNumber + 1                        
+
+                        CurrentField => CurrentField%Next
+
+                        OutputNumber = OutputNumber + 1
+
                     endif
+
 
                 end do do1
 
@@ -2253,101 +2185,84 @@ do1:            do while(associated(CurrentField))
                 !(select the field)
 do2:            do while(associated(CurrentField))
 
-                    !verify if this field is to skip or not
-                    CurrentTime = Me%InstantsArray(InstantNumber)
-                    if ((.not. Me%SkipInstants%Skip_ON) .or. (CurrentTime >= NextTimeToConsider)) then
+                    !(write field according to number type)
+                    if (ObjItem%NumType == Me%HDFNativeReal) then
+
+                        call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
+                                           ObjItem%Name,                        & 
+                                           ObjItem%Units,                       &
+                                           Array2D = CurrentField%Values2D,     &
+                                           OutputNumber = OutputNumber,         &
+                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                            stop 'OutputField - ModuleHDF5Extractor - ERR20'            
+
+                    else if (ObjItem%NumType == Me%HDFNativeInteger) then
+
+                        call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
+                                           ObjItem%Name,                        &
+                                           ObjItem%Units,                       &
+                                           Array2D = CurrentField%IntValues2D,  &
+                                           OutputNumber = OutputNumber,         &
+                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                            stop 'WriteItemFields - ModuleHDF5Extractor - ERR30'            
+
+                    endif
+
+                    if (Me%Interval%Interval_ON) then
+
+                        if (InstantNumber < Me%InstantsNumber) then
+
+                            NextTime = Me%InstantsArray(InstantNumber + 1)
+
+                            if (NextTime > StartIntervalTime + Me%Interval%DT) then
+
+                                !Writes everything to disk
+                                call HDF5FlushMemory (ObjEnterData, STAT = STAT_CALL)                         
+                                if (STAT_CALL /= SUCCESS_)                      &
+                                    stop 'WriteItemFields - ModuleHDF5Extractor - ERR40'
+
+                                !A new HDF5 file must be writen 
+                                ObjOutputFile => ObjOutputFile%Next
+
+                                ObjEnterData = ObjOutputFile%ObjEnterData
                         
-                        !(write field according to number type)
-                        if (ObjItem%NumType == Me%HDFNativeReal) then
+                                StartIntervalTime = StartIntervalTime + Me%Interval%DT
 
-                            call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
-                                               ObjItem%Name,                        & 
-                                               ObjItem%Units,                       &
-                                               Array2D = CurrentField%Values2D,     &
-                                               OutputNumber = OutputNumber,         &
-                                               STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'OutputField - ModuleHDF5Extractor - ERR20'            
+                                OutputNumber = 1
 
-                        else if (ObjItem%NumType == Me%HDFNativeInteger) then
+                                call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB, &
+                                    Me%WorkSize%IUB, Me%WorkSize%JLB,           &
+                                    Me%WorkSize%JUB, STAT = STAT_CALL)
+                                if (STAT_CALL .NE. SUCCESS_)                    & 
+                                    stop 'WriteItemFields - ModuleHDF5Extractor - ERR50'
 
-                            call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
-                                               ObjItem%Name,                        &
-                                               ObjItem%Units,                       &
-                                               Array2D = CurrentField%IntValues2D,  &
-                                               OutputNumber = OutputNumber,         &
-                                               STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'WriteItemFields - ModuleHDF5Extractor - ERR30'            
+                            else
+                    
+                                CurrentField => CurrentField%Next
 
-                        endif
+                                OutputNumber = OutputNumber + 1
 
-                        if (Me%Interval%Interval_ON) then
-
-                            if (InstantNumber < Me%InstantsNumber) then
-
-                                NextTime = Me%InstantsArray(InstantNumber + 1)
-
-                                if (NextTime > StartIntervalTime + Me%Interval%DT) then
-
-                                    !Writes everything to disk
-                                    call HDF5FlushMemory (ObjEnterData, STAT = STAT_CALL)                         
-                                    if (STAT_CALL /= SUCCESS_)                      &
-                                        stop 'WriteItemFields - ModuleHDF5Extractor - ERR40'
-
-                                    !A new HDF5 file must be writen 
-                                    ObjOutputFile => ObjOutputFile%Next
-
-                                    ObjEnterData = ObjOutputFile%ObjEnterData
-                            
-                                    StartIntervalTime = StartIntervalTime + Me%Interval%DT
-
-                                    OutputNumber = 1
-
-                                    call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB, &
-                                        Me%WorkSize%IUB, Me%WorkSize%JLB,           &
-                                        Me%WorkSize%JUB, STAT = STAT_CALL)
-                                    if (STAT_CALL .NE. SUCCESS_)                    & 
-                                        stop 'WriteItemFields - ModuleHDF5Extractor - ERR50'
-
-                                else
-                        
-                                    CurrentField => CurrentField%Next
-
-                                    OutputNumber = OutputNumber + 1
-
-                                    InstantNumber = InstantNumber + 1
-
-                                    !compute next instant to get field
-                                    if (Me%SkipInstants%Skip_ON) NextTimeToConsider = NextTimeToConsider + Me%SkipInstants%DT
-
-
-                                endif
-
-                            else 
-
-                                exit do2
+                                InstantNumber = InstantNumber + 1
 
                             endif
-                        
-                        else
 
-                            CurrentField => CurrentField%Next
+                        else 
 
-                            OutputNumber = OutputNumber + 1
-                            
-                            !compute next instant to get field
-                            if (Me%SkipInstants%Skip_ON) NextTimeToConsider = NextTimeToConsider + Me%SkipInstants%DT
-                                                        
+                            exit do2
+
                         endif
-                        
                     
                     else
-                        !in case that is skipping and verification for the field failed, needs to go to next field
-                        !in case of not skipping or skipping and entered in interval it will not get here
-                        InstantNumber = InstantNumber + 1
+
+                        CurrentField => CurrentField%Next
+
+                        OutputNumber = OutputNumber + 1
+
                     endif
-                                       
+
+
                 end do do2
             
             case (3)
@@ -2390,102 +2305,88 @@ do2:            do while(associated(CurrentField))
                 !(select the field)
 do3:            do while(associated(CurrentField))
 
-                    !verify if this field is to skip or not
-                    CurrentTime = Me%InstantsArray(InstantNumber)
-                    if ((.not. Me%SkipInstants%Skip_ON) .or. (CurrentTime >= NextTimeToConsider)) then
+                    !(write field according to number type)
+                    if (ObjItem%NumType == Me%HDFNativeReal) then
 
-                        !(write field according to number type)
-                        if (ObjItem%NumType == Me%HDFNativeReal) then
+                        call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
+                                           ObjItem%Name,                        &
+                                           ObjItem%Units,                       &
+                                           Array3D = CurrentField%Values3D,     &
+                                           OutputNumber = OutputNumber,         &
+                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                            stop 'WriteItemFields - ModuleHDF5Extractor - ERR70'            
 
-                            call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
-                                               ObjItem%Name,                        &
-                                               ObjItem%Units,                       &
-                                               Array3D = CurrentField%Values3D,     &
-                                               OutputNumber = OutputNumber,         &
-                                               STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'WriteItemFields - ModuleHDF5Extractor - ERR70'            
+                    else if (ObjItem%NumType == Me%HDFNativeInteger) then
 
-                        else if (ObjItem%NumType == Me%HDFNativeInteger) then
+                        call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
+                                           ObjItem%Name,                        &
+                                           ObjItem%Units,                       &
+                                           Array3D =  CurrentField%IntValues3D, &
+                                           OutputNumber = OutputNumber,         &
+                                           STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                              &
+                            stop 'WriteItemFields - ModuleHDF5Extractor - ERR80'            
 
-                            call HDF5WriteData(ObjEnterData, ObjItem%Group,         & 
-                                               ObjItem%Name,                        &
-                                               ObjItem%Units,                       &
-                                               Array3D =  CurrentField%IntValues3D, &
-                                               OutputNumber = OutputNumber,         &
-                                               STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'WriteItemFields - ModuleHDF5Extractor - ERR80'            
+                    endif
 
-                        endif
+                    if (Me%Interval%Interval_ON) then
 
-                        if (Me%Interval%Interval_ON) then
+                        if (InstantNumber < Me%InstantsNumber) then
 
-                            if (InstantNumber < Me%InstantsNumber) then
+                            NextTime = Me%InstantsArray(InstantNumber+1)
 
-                                NextTime = Me%InstantsArray(InstantNumber+1)
+                            if (NextTime > StartIntervalTime +                  &
+                                Me%Interval%DT) then
 
-                                if (NextTime > StartIntervalTime +                  &
-                                    Me%Interval%DT) then
+                                !Writes everything to disk
+                                call HDF5FlushMemory (ObjEnterData, STAT = STAT_CALL)                         
+                                if (STAT_CALL /= SUCCESS_)                      &
+                                    stop 'WriteItemFields - ModuleHDF5Extractor - ERR90'
 
-                                    !Writes everything to disk
-                                    call HDF5FlushMemory (ObjEnterData, STAT = STAT_CALL)                         
-                                    if (STAT_CALL /= SUCCESS_)                      &
-                                        stop 'WriteItemFields - ModuleHDF5Extractor - ERR90'
+                                !A new HDF5 file must be writen 
+                                ObjOutputFile => ObjOutputFile%Next
 
-                                    !A new HDF5 file must be writen 
-                                    ObjOutputFile => ObjOutputFile%Next
-
-                                    ObjEnterData = ObjOutputFile%ObjEnterData
-                            
-                                    StartIntervalTime = StartIntervalTime + Me%Interval%DT
-
-                                    OutputNumber = 1
-
-                                    call HDF5SetLimits (ObjEnterData,               &
-                                                        Me%WorkSize%ILB,            &
-                                                        Me%WorkSize%IUB,            &
-                                                        Me%WorkSize%JLB,            &
-                                                        Me%WorkSize%JUB,            &
-                                                        Me%WorkSize%KLB,            &
-                                                        Me%WorkSize%KUB, STAT = STAT_CALL)        
-                                    if (STAT_CALL .NE. SUCCESS_)                    & 
-                                    stop 'WriteItemFields - ModuleHDF5Extractor - ERR100'
-
-                                else
+                                ObjEnterData = ObjOutputFile%ObjEnterData
                         
-                                    CurrentField => CurrentField%Next
+                                StartIntervalTime = StartIntervalTime + Me%Interval%DT
 
-                                    OutputNumber = OutputNumber + 1
+                                OutputNumber = 1
 
-                                    InstantNumber = InstantNumber + 1
-                                    
-                                    !compute next instant to get field
-                                    if (Me%SkipInstants%Skip_ON) NextTimeToConsider = NextTimeToConsider + Me%SkipInstants%DT
+                                call HDF5SetLimits (ObjEnterData,               &
+                                                    Me%WorkSize%ILB,            &
+                                                    Me%WorkSize%IUB,            &
+                                                    Me%WorkSize%JLB,            &
+                                                    Me%WorkSize%JUB,            &
+                                                    Me%WorkSize%KLB,            &
+                                                    Me%WorkSize%KUB, STAT = STAT_CALL)        
+                                if (STAT_CALL .NE. SUCCESS_)                    & 
+                                stop 'WriteItemFields - ModuleHDF5Extractor - ERR100'
 
-                                endif
+                            else
+                    
+                                CurrentField => CurrentField%Next
 
-                            else 
+                                OutputNumber = OutputNumber + 1
 
-                                exit do3
+                                InstantNumber = InstantNumber + 1
 
                             endif
-                        
-                        else
 
-                            CurrentField => CurrentField%Next
+                        else 
 
-                            OutputNumber = OutputNumber + 1
+                            exit do3
 
-                            if (Me%SkipInstants%Skip_ON) NextTimeToConsider = NextTimeToConsider + Me%SkipInstants%DT
-                        
                         endif
-                    else
-                        !in case that is skipping and verification for the field failed, needs to go to next field
-                        !in case of not skipping or skipping and entered in interval it will not get here
-                        InstantNumber = InstantNumber + 1                        
-                    endif
                     
+                    else
+
+                        CurrentField => CurrentField%Next
+
+                        OutputNumber = OutputNumber + 1
+
+                    endif
+
                 enddo do3
 
         end select
