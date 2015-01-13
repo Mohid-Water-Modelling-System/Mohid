@@ -10093,7 +10093,7 @@ do1:                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i,j), -1
                              
                 call HDF5WriteData (Me%ObjIntegrationHDF5, "/Results/bottom boundary volume",   &
                                     "bottom boundary volume", "m3",                             &
-                                    Array2D      = Output2D,                                    &
+                                    Array2D      = Info%Field2D,                                &
                                     OutputNumber = Me%IntegrationOutput%NextOutPut,             &
                                     STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'IntegrationOutput - ModulePorousMedia - ERR070'
