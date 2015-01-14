@@ -12657,7 +12657,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                         !endif
                         Me%TotalOutputVolume = Me%TotalOutputVolume - Evaporation * Me%ExtVar%DT
                         
-                        Me%TotalEvapFromSurfaceVolume = Me%TotalEvapFromSurfaceVolume + (Evaporation * Me%ExtVar%DT)
+                        Me%TotalEvapFromSurfaceVolume = Me%TotalEvapFromSurfaceVolume + (-Evaporation * Me%ExtVar%DT)
                     endif
 
                 endif
