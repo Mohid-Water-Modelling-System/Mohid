@@ -29,7 +29,7 @@ Module ModuleHdf2Surfer
     use ModuleMap 
     use ModuleStatistic
     use ModuleField4D
-    USE nrtype; USE nr
+    USE nrtype; USE nrutil; USE nr
 
 
     implicit none
@@ -1350,8 +1350,6 @@ i1:         if (PropertyFound) then
 
 
     subroutine estatistica(A, B, npt, rcorr, rcorr_quad, bias, rmse,z_fisher, alfa, beta_1,Am,Bm)
-
-        USE nrtype; USE nrutil; USE nr
 
 	    REAL(SP), DIMENSION(:), INTENT(IN) :: A, B
 	    INTEGER(I4B), INTENT(IN) :: npt	    
