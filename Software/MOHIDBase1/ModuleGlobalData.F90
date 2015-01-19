@@ -685,8 +685,12 @@ Module ModuleGlobalData
     integer, parameter ::  PeakDirectionX_                 = 3530    
     integer, parameter ::  PeakDirectionY_                 = 3531        
     integer, parameter ::  SignificantWaveHeightBeaufort_  = 3532
-    integer, parameter ::  MeanAbsoluteZeroCrossingPeriod_  = 3533
+    integer, parameter ::  MeanAbsoluteZeroCrossingPeriod_ = 3533
     integer, parameter ::  MeanAbsoluteWavePeriodEnergy_   = 3534
+    integer, parameter ::  WavePower_                      = 3535
+    integer, parameter ::  TransportEnergyX_               = 3536
+    integer, parameter ::  TransportEnergyY_               = 3537
+
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
 
@@ -1430,7 +1434,6 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WaveX                    = 'wave_x'
     character(StringLength), private, parameter :: Char_WaveY                    = 'wave_y'
 
-
     !!Monocromatic:
     character(StringLength), private, parameter :: Char_WaveLength               = 'wave length'
     character(StringLength), private, parameter :: Char_WaveAmplitude            = 'wave amplitude'
@@ -1453,7 +1456,9 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WaveSwellHeight          = 'wave swell height'
     character(StringLength), private, parameter :: Char_MeanAbsoluteZeroCrossingPeriod   = 'mean absolute zero-crossing period'
     character(StringLength), private, parameter :: Char_MeanAbsoluteWavePeriodEnergy     = 'mean absolute wave period energy'
-
+    character(StringLength), private, parameter :: Char_WavePower                = 'wave power'    
+    character(StringLength), private, parameter :: Char_TransportEnergyX         = 'transport energy X'
+    character(StringLength), private, parameter :: Char_TransportEnergyY         = 'transport energy Y'
 
     !Consolidation
     character(StringLength), private, parameter :: Char_ConsolidationFlux        = 'consolidation flux'
@@ -2738,7 +2743,6 @@ Module ModuleGlobalData
             call AddPropList (WaveX_,                   Char_WaveX,                      ListNumber)
             call AddPropList (WaveY_,                   Char_WaveY,                      ListNumber)
 
-
             !!Monocromatic:
             call AddPropList (WaveLength_,              Char_WaveLength,                 ListNumber)
             call AddPropList (WaveAmplitude_,           Char_WaveAmplitude,              ListNumber)
@@ -2761,6 +2765,9 @@ Module ModuleGlobalData
             call AddPropList (WaveSwellHeight_     ,    Char_WaveSwellHeight,            ListNumber)
             call AddPropList (MeanAbsoluteZeroCrossingPeriod_, Char_MeanAbsoluteZeroCrossingPeriod,      ListNumber)
             call AddPropList (MeanAbsoluteWavePeriodEnergy_, Char_MeanAbsoluteWavePeriodEnergy,          ListNumber)
+            call AddPropList (WavePower_,               Char_WavePower,                  ListNumber)
+            call AddPropList (TransportEnergyX_,        Char_TransportEnergyX,           ListNumber)
+            call AddPropList (TransportEnergyY_,        Char_TransportEnergyY,           ListNumber)
             
             call AddPropList (ConsolidationFlux_,       Char_ConsolidationFlux,          ListNumber)
             call AddPropList (Porosity_,                Char_Porosity,                   ListNumber)
