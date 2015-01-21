@@ -738,8 +738,8 @@ Global
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double|x64.ActiveCfg = Release Double|x64
-		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release OpenMP|Win32.ActiveCfg = Release|Win32
-		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release OpenMP|Win32.Build.0 = Release|Win32
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release OpenMP|Win32.ActiveCfg = Release|x64
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release OpenMP|Win32.Build.0 = Release|x64
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release OpenMP|x64.ActiveCfg = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release|Win32.ActiveCfg = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release|Win32.Build.0 = Release|Win32
