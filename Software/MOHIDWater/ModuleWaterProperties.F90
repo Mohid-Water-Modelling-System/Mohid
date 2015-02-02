@@ -12058,8 +12058,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     ! This subroutine exchange properties between decompose domains                        !
     ! coefficients of all domains                                                          !
     !                                                                                      !
-    ! Input : Velocity%UV%New halo region                                                  !
-    ! OutPut: Velocity%UV%New halo region - boundary domains                               !
+    ! Input : Property3D halo region                                                       !
+    ! OutPut: Property3D halo region - boundary domains                                    !
     ! Author: Paulo Chambel (2013/11)                                                      !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

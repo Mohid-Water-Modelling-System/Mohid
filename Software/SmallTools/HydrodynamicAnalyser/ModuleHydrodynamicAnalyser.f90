@@ -602,7 +602,7 @@ if2:    if (Me%ComputeOptions%PerturbationPE_V2) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleHydrodynamicAnalyser - ERR230'
         endif
 
-        call StartComputeTime(Me%ObjTime, Me%BeginTime, Me%EndTime, Me%DT, .false., STAT = STAT_CALL)
+        call StartComputeTime(Me%ObjTime, Me%BeginTime, Me%BeginTime, Me%EndTime, Me%DT, .false., STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleHydrodynamicAnalyser - ERR240'
 
 

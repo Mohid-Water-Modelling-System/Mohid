@@ -9884,10 +9884,12 @@ D2:     do I=imax-1,2,-1
     !--------------------------------------------------------------------------
     
 
-    character(len=19) function TimeToStringV2(Date)
+    character(len=19) function TimeToStringV2(Date, Separator)
 
         !Arguments-------------------------------------------------------------
         type(T_Time)                            :: Date
+        character(len=1), optional              :: Separator
+        !Local-----------------------------------------------------------------
         real,    dimension(6)                   :: AuxTime
         character(len=4)                        :: CharYear
         character(len=2)                        :: CharMonth
@@ -9895,8 +9897,15 @@ D2:     do I=imax-1,2,-1
         character(len=2)                        :: CharHour
         character(len=2)                        :: CharMinute
         character(len=2)                        :: CharSecond
+        character(len=1)                        :: Separator_
 
         !Begin-----------------------------------------------------------------
+        
+        if (present(Separator)) then
+            Separator_ = Separator
+        else
+            Separator_ = " "
+        endif
 
         call ExtractDate(Date, Year     = AuxTime(1), Month  = AuxTime(2), &
                                Day      = AuxTime(3), Hour   = AuxTime(4), &
@@ -9929,13 +9938,16 @@ D2:     do I=imax-1,2,-1
             CharSecond = "0"//trim(adjustl(CharSecond))
         endif
 
-        TimeToStringV2 = CharYear//"-"//CharMonth//"-"//CharDay//" "//&
+        TimeToStringV2 = CharYear//"-"//CharMonth//"-"//CharDay//Separator_//&
                          CharHour//":"//CharMinute//":"//CharSecond
 
     end function TimeToStringV2
     !--------------------------------------------------------------------------
 
+
+    !--------------------------------------------------------------------------
     
+
 !------------------------------------------------------------------------------
 
     subroutine WGS84toGoogleMaps2D(lon, lat, ILB, IUB, JLB, JUB, x, y) 

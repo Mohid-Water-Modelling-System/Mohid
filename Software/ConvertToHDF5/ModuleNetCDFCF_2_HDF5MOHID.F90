@@ -193,6 +193,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: ComputeRH
         character(len=StringLength)             :: TempRH, PressureRH, SpecificHumidityRH
         integer                                 :: ExtractFromLayer, NumberOfLayers
+        logical                                 :: AverageInDepth
+        character(len=StringLength)             :: AverageInDepthName
         
     end type  T_Field
 
@@ -314,6 +316,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         call WriteBeaufort 
         
         call WriteRelativeHumidity
+        
+        call WriteAverageInDepth
        
         if (Me%OutNetCDF) call WriteTimeNetCDF(DefDimTime=.false.)
     
@@ -741,6 +745,86 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     
     !------------------------------------------------------------------------       
 
+    !------------------------------------------------------------------------
+    
+    subroutine WriteAverageInDepth
+        !Local-----------------------------------------------------------------
+        real,   dimension(:,:,:), pointer           :: Prop3D
+        real,   dimension(:,:  ), pointer           :: AvProp
+        integer                                     :: i, iP, iPt
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+
+        nullify(Prop3D, AvProp)
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%AverageInDepth) then
+        
+                !Found property to be average in depth
+                Found = .false.
+                do iPt = 1, Me%PropNumber
+                    if (trim(Me%Field(iPt)%ID%Name)==trim(Me%Field(iP)%AverageInDepthName)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteAverageInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+
+                do i=1, Me%Date%TotalInst
+                    !Read 3D property
+
+                    if      (Me%Field(iPt)%Dim/=3) then
+                        stop 'WriteAverageInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                    endif
+
+                    allocate(Me%Field(iPt)%Value3DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+
+                    Prop3D => Me%Field(iPt)%Value3DOut
+
+                    if      (Me%Field(iP)%Dim/=2) then
+                        stop 'WriteAverageInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                    endif
+                    
+                    allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                    AvProp => Me%Field(iP)%Value2DOut                    
+                    
+                    call ReadFieldHDF5(iPt, i)
+                    
+                    call ReadVerticalZHDF5(i)
+                    
+                    !Compute prop3D average in depth
+                    call ComputeAverageInDepth(Prop3D, AvProp) 
+                    
+                    deallocate(Me%Field(iPt)%Value3DOut)
+                    nullify   (Me%Field(iPt)%Value3DOut, Prop3D)
+               
+                    deallocate(Me%Depth%Value3DOut)
+                    nullify   (Me%Depth%Value3DOut)
+
+
+                    !Write prop3D average in depth
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+
+                    deallocate(Me%Field(iP)%Value2DOut)
+
+                enddo
+            endif                
+        enddo    
+        
+    end subroutine WriteAverageInDepth
+    
+    !------------------------------------------------------------------------       
+
+
 
     !------------------------------------------------------------------------     
 
@@ -920,6 +1004,45 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         
 
     end subroutine ComputeVectorIntensity
+    
+    !------------------------------------------------------------------------    
+
+    !------------------------------------------------------------------------    
+
+
+    subroutine ComputeAverageInDepth(Prop3D, AvProp)
+    
+        !Arguments-------------------------------------------------------------
+        real, dimension(:,:,:), pointer             :: Prop3D
+        real, dimension(:,:  ), pointer             :: AvProp
+        !Local-----------------------------------------------------------------
+        real (8)                                    :: LayerTick, WaterColumn 
+        integer                                     :: i, j, k
+        !Begin-----------------------------------------------------------------
+        
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+            WaterColumn = 0.
+            AvProp(i, j)= 0.
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+
+                if(Me%Mapping%Value3DOut(i,j,k) == 1)then
+                    
+                    LayerTick    = Me%Depth%Value3DOut(i,j,k-1) - Me%Depth%Value3DOut(i,j,k)
+                    WaterColumn  = WaterColumn  + LayerTick
+                    AvProp(i, j) = AvProp(i, j) + LayerTick * Prop3D(i, j, k)
+                    
+                endif
+
+            enddo
+            if (WaterColumn > 0.) then
+                AvProp(i, j)    =  AvProp(i, j) / WaterColumn
+            endif                    
+        enddo
+        enddo
+            
+    end subroutine ComputeAverageInDepth
     
     !------------------------------------------------------------------------    
 
@@ -1650,6 +1773,15 @@ BF:         if (BlockFound) then
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
 
+                if  (iflag == 0) then 
+                    Me%Depth%Dim3D = .false.
+                    Me%Depth%kmax = -99
+                else 
+                    Me%Depth%Dim3D = .true.
+                endif
+                
+                Me%Depth%ValueIn%DataType = Real8_
+
                 call GetData(Me%Depth%NetCDFNameWL,                                     &
                              Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlockInBlock,                           &
@@ -1665,16 +1797,6 @@ BF:         if (BlockFound) then
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'
-
-
-                if  (iflag == 0) then 
-                    Me%Depth%Dim3D = .false.
-                    Me%Depth%kmax = -99
-                else 
-                    Me%Depth%Dim3D = .true.
-                endif
-                
-                Me%Depth%ValueIn%DataType = Real8_
                 
                 call GetData(Me%Bathym%NetCDFName,                                      &
                              Me%ObjEnterData, iflag,                                    &
@@ -2286,7 +2408,27 @@ BF:         if (BlockFound) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2690'
 
+                    call GetData(Me%Field(ip)%AverageInDepth,                           &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'AVERAGE_IN_DEPTH',                     &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2700'         
+                    
+                    if (Me%Field(ip)%AverageInDepth) then
+                        
+                        call GetData(Me%Field(ip)%AverageInDepthName,                   &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'AVERAGE_IN_DEPTH_NAME',            &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2710'   
 
+                    endif           
+
+                    
                     !call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
 
                     !if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
@@ -2347,9 +2489,10 @@ BF:         if (BlockFound) then
        
         do iP = 1, Me%PropNumber
         
-            if (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation  .or.          &
-                Me%Field(iP)%Beaufort         .or. Me%Field(iP)%ComputeRH .or.          &
-                Me%Field(iP)%WaveBeaufort .or. Me%Field(iP)%ComputeWindDirection ) then
+            if (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation             .or. &
+                Me%Field(iP)%Beaufort         .or. Me%Field(iP)%ComputeRH            .or. &
+                Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeWindDirection .or. &
+                Me%Field(iP)%AverageInDepth) then
             
                 Me%ReadPropNumber = Me%ReadPropNumber - 1
             
@@ -3002,9 +3145,9 @@ BF:         if (BlockFound) then
         do iP = 1, Me%PropNumber
             do iT =1, Me%Date%NumberInst
         
-                if (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation .or.        &
-                    Me%Field(iP)%Beaufort         .or. Me%Field(iP)%WaveBeaufort         &
-                    .or. Me%Field(iP)%ComputeWindDirection) then
+                if (Me%Field(iP)%ComputeIntensity     .or. Me%Field(iP)%Rotation     .or.    &
+                    Me%Field(iP)%Beaufort             .or. Me%Field(iP)%WaveBeaufort .or.    &
+                    Me%Field(iP)%ComputeWindDirection .or. Me%Field(iP)%AverageInDepth) then
                 
                     WriteProp       = .false.
                 
@@ -3025,9 +3168,9 @@ BF:         if (BlockFound) then
                     Me%OutCountProp = Me%OutCountProp + 1
                 endif
 
-                if (.not. (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation .or. &
-                           Me%Field(iP)%Beaufort .or. Me%Field(iP)%WaveBeaufort .or.     &
-                           Me%Field(iP)%ComputeWindDirection)) &
+                if (.not. (Me%Field(iP)%ComputeIntensity      .or. Me%Field(iP)%Rotation .or.     &
+                           Me%Field(iP)%Beaufort              .or. Me%Field(iP)%WaveBeaufort .or. &
+                           Me%Field(iP)%ComputeWindDirection  .or. Me%Field(iP)%AverageInDepth))  &
                     call DeAllocateValueIn(Me%Field(iP)%ValueIn)
             enddo
         enddo
@@ -4731,7 +4874,6 @@ i2:                 if (Me%Depth%Interpolate) then
         
         !Read number of layers and their depth
         if      (Me%Field(iP)%Dim == 3) then
-
             call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,          &
                                                        Dim2 = Me%LongLat%imax,          &
                                                        Dim3 = Me%Depth%kmax,            &
@@ -4915,7 +5057,6 @@ i2:                 if (Me%Depth%Interpolate) then
         else if (Dim==4) then        
 
             if      (DataTypeIn == Real8_   ) then
-                
                 allocate (ValueIn%R84D(1:Dim1_,1:Dim2_,1:Dim3_,1:Dim4_))
                 
             else if (DataTypeIn == Real4_   ) then
@@ -5378,9 +5519,11 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         type(T_ValueIn)     :: ValueIn
         integer, optional   :: inst
         !Local-----------------------------------------------------------------                
+        real(8), dimension(:,:,:,:), pointer    :: AuxR8D4
+        real(8), dimension(:,:,:,:), pointer    :: AuxR4D4        
         integer, dimension(nf90_max_var_dims)   :: dimIDs
-        integer             :: Dim, DataTypeIn, status, xdim, ydim, zdim
-        integer             :: ILB, IUB, JLB, JUB
+        integer                                 :: Dim, DataTypeIn, status, xdim, ydim, zdim, tdim
+        integer                                 :: ILB, IUB, JLB, JUB
         
         !Begin-----------------------------------------------------------------        
         
@@ -5508,27 +5651,40 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR180'
 
                 status = nf90_inquire_dimension(ncid, dimIDs(3), len = zdim)
-                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR190'           
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR190'         
+                
+                status = nf90_inquire_dimension(ncid, dimIDs(4), len = tdim)
+                if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR191'
+
+                if (JUB-JLB+1 /= xdim) then
+                    stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR192'
+                endif
+
+                if (IUB-ILB+1 /= ydim) then
+                    stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR194'
+                endif
+                  
             endif
             
                
-            if (JUB-JLB+1 /= xdim) then
-                stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR192'
-            endif
 
-            if (IUB-ILB+1 /= ydim) then
-                stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR194'
-            endif
             
 
             if      (DataTypeIn == Real8_   ) then
 
                 if (present(inst)) then   
-                                    
-                    status = nf90_get_var(ncid,n,ValueIn%R84D(JLB:JUB,ILB:IUB,1:zdim,1),&
+                    
+                    
+                    allocate(AuxR8D4(1:xdim,1:ydim,1:zdim,1:1))
+                    
+                    status = nf90_get_var(ncid,n,AuxR8D4,                               &
                             start = (/    1,    1,    1, inst /),                       &
                             count = (/ xdim, ydim, zdim,    1 /))                
                     if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR200'                
+                    
+                    ValueIn%R84D(JLB:JUB,ILB:IUB,1:zdim,1:1) = AuxR8D4(1:xdim,1:ydim,1:zdim,1:1)
+                    
+                    deallocate(AuxR8D4)                    
 
                 else
 
@@ -5541,10 +5697,16 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             
                 if (present(inst)) then   
                                     
-                    status = nf90_get_var(ncid,n,ValueIn%R44D(JLB:JUB,ILB:IUB,1:zdim,1),&
+                    allocate(AuxR4D4(1:xdim,1:ydim,1:zdim,1:1))
+                    
+                    status = nf90_get_var(ncid,n,AuxR4D4,                               &
                             start = (/    1,    1,    1, inst /),                       &
                             count = (/ xdim, ydim, zdim,    1 /))                
-                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR220'                
+                    if (status /= nf90_noerr) stop 'GetNetCDFMatrix - ModuleNetCDFCF_2_HDF5MOHID - ERR200'                
+                    
+                    ValueIn%R44D(JLB:JUB,ILB:IUB,1:zdim,1:1) = AuxR4D4(1:xdim,1:ydim,1:zdim,1:1)
+                    
+                    deallocate(AuxR4D4)                    
 
                 else
 
@@ -6015,8 +6177,73 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
     end subroutine WriteFieldHDF5
 
-
     !----------------------------------------------------------------------
+    
+    !------------------------------------------------------------------------
+        
+    subroutine ReadVerticalZHDF5(iFinal)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: iFinal
+
+        !Local-----------------------------------------------------------------
+        real,       dimension(:,:,:), pointer           :: Aux3D
+        integer                                         :: STAT_CALL, i, j
+        integer                                         :: WorkILB, WorkJLB, WorkKLB
+        integer                                         :: WorkIUB, WorkJUB, WorkKUB
+
+        !Begin-----------------------------------------------------------------
+        
+        !Bounds
+
+        WorkKLB = Me%WorkSize%KLB 
+        WorkKUB = Me%WorkSize%KUB 
+
+       if (Me%WindowOut%ON) then
+            WorkILB = 1
+            WorkIUB = Me%WindowOut%IUB - Me%WindowOut%ILB + 1
+            WorkJLB = 1
+            WorkJUB = Me%WindowOut%JUB - Me%WindowOut%JLB + 1
+        else
+            WorkILB = Me%WorkSize%ILB 
+            WorkIUB = Me%WorkSize%IUB 
+            WorkJLB = Me%WorkSize%JLB 
+            WorkJUB = Me%WorkSize%JUB 
+        endif
+        
+        call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                     &
+                             WorkJUB, WorkKLB-1, WorkKUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+        
+        if (.not. associated(Me%Depth%Value3DOut)) then
+            allocate(Me%Depth%Value3DOut(Me%Size%ILB:Me%Size%IUB,                       &
+                                         Me%Size%JLB:Me%Size%JUB,                       &
+                                         Me%Size%KLB:Me%Size%KUB))
+        endif
+        
+        if (Me%WindowOut%ON) then
+            allocate(Aux3D(WorkILB:WorkIUB, WorkJLB:WorkJUB,Me%Size%KLB:Me%Size%KUB))
+        else
+            Aux3D => Me%Depth%Value3DOut
+        endif            
+
+        call HDF5ReadData  (Me%ObjHDF5, "/Grid/VerticalZ", "Vertical",                  &
+                             Array3D = Aux3D, OutputNumber = iFinal, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+        
+        if (Me%WindowOut%ON) then            
+            do j = WorkJLB, WorkJUB
+            do i = WorkILB, WorkIUB                
+                Me%Depth%Value3DOut(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1,:)= Aux3D(i,j,:) 
+            enddo
+            enddo
+            deallocate(Aux3D)
+        endif       
+        nullify(Aux3D)     
+
+    end subroutine ReadVerticalZHDF5
+    !------------------------------------------------------------------------
+    
     !------------------------------------------------------------------------
         
     subroutine ReadFieldHDF5(iP, iFinal)
@@ -6118,12 +6345,11 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
         endif
-
-
+        
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
-
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
+        
 
     end subroutine ReadFieldHDF5
     !------------------------------------------------------------------------

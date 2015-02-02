@@ -4431,7 +4431,9 @@ cd1:    if (TimeSerieID > 0) then
             Me => Me%Next
         enddo
 
-        if (.not. associated(Me)) stop 'ModuleTimeSerie - LocateObjTimeSerie - ERR01'
+        if (.not. associated(Me)) then
+            stop 'ModuleTimeSerie - LocateObjTimeSerie - ERR01'
+        endif            
 
     end subroutine LocateObjTimeSerie
 
