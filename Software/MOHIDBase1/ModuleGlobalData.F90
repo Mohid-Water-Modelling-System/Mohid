@@ -519,6 +519,7 @@ Module ModuleGlobalData
     integer, parameter :: MethylMercaptan_                  = 621
     integer, parameter :: AtmospDeposOxidNO3_               = 622
     integer, parameter :: AtmospDeposReduNH4_               = 623
+    integer, parameter :: WindGust_                         = 624
 
     !Basin Properties
     integer, parameter :: RefEvapotrans_                    = 708
@@ -1407,6 +1408,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_MethylMercaptan          = 'methyl mercaptan'           ! or methanethiol 
     character(StringLength), private, parameter :: Char_AtmospDeposOxidNO3       = 'atmospheric deposition oxidized NO3' !LLP
     character(StringLength), private, parameter :: Char_AtmospDeposReduNH4       = 'atmospheric deposition reduced NH4'  !LLP
+    character(StringLength), private, parameter :: Char_WindGust                 = 'wind gust'  
     
 
     
@@ -2638,6 +2640,7 @@ Module ModuleGlobalData
             call AddPropList (ATMTransmitivity_ ,       Char_ATMTransmitivity       ,      ListNumber)
             call AddPropList (AtmospDeposOxidNO3_ ,     Char_AtmospDeposOxidNO3     ,      ListNumber)
             call AddPropList (AtmospDeposReduNH4_ ,     Char_AtmospDeposReduNH4     ,      ListNumber)
+            call AddPropList (WindGust_ ,               Char_WindGust               ,      ListNumber)
 
             call AddPropList (MeanSeaLevelPressure_ ,   Char_MeanSeaLevelPressure,      ListNumber)
             call AddPropList (WindModulus_ ,            Char_WindModulus         ,      ListNumber)
