@@ -520,7 +520,7 @@ Module ModuleGlobalData
     integer, parameter :: AtmospDeposOxidNO3_               = 622
     integer, parameter :: AtmospDeposReduNH4_               = 623
     integer, parameter :: WindGust_                         = 624
-
+    integer, parameter :: PBLHeight_                        = 625
     !Basin Properties
     integer, parameter :: RefEvapotrans_                    = 708
     integer, parameter :: TotalPlantBiomass_                = 709
@@ -1395,7 +1395,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_CloudCover               = 'cloud cover'
     character(StringLength), private, parameter :: Char_Irrigation               = 'irrigation'
     character(StringLength), private, parameter :: Char_SunHours                 = 'sunshine hours'
-    character(StringLength), private, parameter :: Char_ATMTransmitivity         = 'atmospheric transmitivity' 
+    character(StringLength), private, parameter :: Char_ATMTransmitivity         = 'atmospheric transmitivity'
+    character(StringLength), private, parameter :: Char_PBLHeight                = 'pbl height'
 
     character(StringLength), private, parameter :: Char_MeanSeaLevelPressure     = 'mean sea level pressure'
     character(StringLength), private, parameter :: Char_WindModulus              = 'wind modulus'
@@ -2641,7 +2642,7 @@ Module ModuleGlobalData
             call AddPropList (AtmospDeposOxidNO3_ ,     Char_AtmospDeposOxidNO3     ,      ListNumber)
             call AddPropList (AtmospDeposReduNH4_ ,     Char_AtmospDeposReduNH4     ,      ListNumber)
             call AddPropList (WindGust_ ,               Char_WindGust               ,      ListNumber)
-
+            call AddPropList (PBLHeight_ ,              Char_PBLHeight              ,      ListNumber)
             call AddPropList (MeanSeaLevelPressure_ ,   Char_MeanSeaLevelPressure,      ListNumber)
             call AddPropList (WindModulus_ ,            Char_WindModulus         ,      ListNumber)
             call AddPropList (WindModulusBeaufort_ ,    Char_WindModulusBeaufort ,      ListNumber)            

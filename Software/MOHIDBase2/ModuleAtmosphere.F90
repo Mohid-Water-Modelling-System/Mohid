@@ -78,6 +78,8 @@ Module ModuleAtmosphere
 
 
     !Selector
+    public  :: GetWindHeight
+    public  :: GetAirMeasurementHeight
     public  :: GetAtmosphereProperty
     private ::      SearchProperty
     public  :: AtmospherePropertyExists
@@ -110,6 +112,7 @@ Module ModuleAtmosphere
     private ::      ModifySunHours
     private ::      ModifyCloudCover
     private ::      ModifyRelativeHumidity
+    private ::      ModifyPBLHeight
     private ::      ModifyIrrigation
     private ::      ModifyRandom
     private ::      ModifyOutput
@@ -241,9 +244,12 @@ Module ModuleAtmosphere
         type(T_Time     )                           :: ActualTime
         type(T_Time     )                           :: NextCompute
         type(T_Time     )                           :: LastOutPutHDF5
-
+        logical                                     :: WindHeightDefined
+        logical                                     :: AirMeasurementHeightDefined
         logical                                     :: PredictDT = .true.
         integer                                     :: PredictDTMethod = 1
+        real                                        :: WindHeight
+        real                                        :: AirMeasurementHeight
 
 !        real                                        :: PredictedDT              = -null_real
 !        real                                        :: DTForNextEvent           = -null_real
@@ -509,7 +515,36 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                    WorkSize = Me%WorkSize, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR30'
 
-
+        call GetData (Me%WindHeight,                                             &
+                    Me%ObjEnterData, iflag,                                            &
+                    Keyword        = 'WIND_MEASUREMENT_HEIGHT',                        &
+                    !Default        = 10m,                                               &
+                    SearchType     = FromFile,                                         &
+                    ClientModule   = 'ModuleAtmosphere',                               &
+                    STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR40'
+        if (iflag /= 0) then
+            Me%WindHeightDefined = .true.
+        else
+            Me%WindHeightDefined = .false.
+        endif
+        
+        call GetData (Me%AirMeasurementHeight,                                         &
+                    Me%ObjEnterData, iflag,                                            &
+                    Keyword        = 'AIR_MEASUREMENT_HEIGHT',                         &
+                    !Default        = 10m,                                               &
+                    SearchType     = FromFile,                                         &
+                    ClientModule   = 'ModuleAtmosphere',                               &
+                    STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR45'
+        if (iflag /= 0) then
+            Me%AirMeasurementHeightDefined = .true.
+        else
+            Me%AirMeasurementHeightDefined = .false.
+        endif
+        
         call GetData(Me%RadiationMethod,                                                &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
@@ -921,7 +956,7 @@ cd2 :           if (BlockFound) then
         end do do1
 
 
-        !Verifies Wind conistence
+        !Verifies Wind consistence
         call SearchProperty(PropertyX, WindVelocityX_, .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
             call SearchProperty(PropertyY, WindVelocityY_, .false., STAT = STAT_CALL)
@@ -1008,7 +1043,8 @@ cd2 :           if (BlockFound) then
             if    (     PropertyX%ID%IDNumber==Precipitation_      &
                    .or. PropertyX%ID%IDNumber==SolarRadiation_     &
                    .or. PropertyX%ID%IDNumber==RelativeHumidity_   &
-                   .or. PropertyX%ID%IDNumber==WindModulus_) then
+                   .or. PropertyX%ID%IDNumber==WindModulus_        &
+                   .or. PropertyX%ID%IDNumber==PBLHeight_          ) then
                 
                 !check always in construction phase. only check in modify if the prop has solution from file
                 if (Constructing .or. PropertyX%ID%SolutionFromFile) then
@@ -1245,8 +1281,8 @@ cd2 :           if (BlockFound) then
 !                         STAT         = STAT_CALL)
 !            if (STAT_CALL /= SUCCESS_)stop 'Construct_PropertyValues - ModuleAtmosphere - ERR030'
         
-        endif          
-
+        endif
+ 
         if ((NewProperty%ID%IDNumber==Temperature_) .or. &
             (NewProperty%ID%IDNumber==WindAngle_)   .or. &
             (NewProperty%ID%IDNumber==WindDirection_)) then
@@ -1389,7 +1425,7 @@ cd2 :           if (BlockFound) then
 
 
         endif
-
+        
         !----------------------------------------------------------------------
 
     end subroutine Construct_PropertyValues
@@ -1589,8 +1625,83 @@ cd2:    if (NewProperty%Statistics%ON) then
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+!COARE
     !--------------------------------------------------------------------------
+    subroutine GetWindHeight(AtmosphereID, Height, isdefined, STAT)
+    
+        !Arguments--------------------------------------------------------------
+        integer                                     :: AtmosphereID
+        real, intent(OUT)                           :: Height
+        integer, optional, intent(OUT)              :: STAT
+        logical                                     :: isdefined
+        !External--------------------------------------------------------------
+        integer                                     :: ready_           
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+        !----------------------------------------------------------------------
+        
+        STAT_ = UNKNOWN_
+
+        call Ready(AtmosphereID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            Height = Me%WindHeight
+            isdefined = Me%WindHeightDefined
+            
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+        
+        !----------------------------------------------------------------------
+        
+    end subroutine GetWindHeight
+    
+
+   subroutine GetAirMeasurementHeight(AtmosphereID, AirHeight, isdefined, STAT)
+    
+        !Arguments--------------------------------------------------------------
+        integer                                     :: AtmosphereID
+        real, intent(OUT)                           :: AirHeight
+        integer, optional, intent(OUT)              :: STAT
+        logical                                     :: isdefined
+        !External--------------------------------------------------------------
+        integer                                     :: ready_           
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+        !----------------------------------------------------------------------
+        
+        STAT_ = UNKNOWN_
+
+        call Ready(AtmosphereID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            AirHeight = Me%AirMeasurementHeight
+            isdefined = Me%AirMeasurementHeightDefined
+            
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+        
+        !----------------------------------------------------------------------
+        
+    end subroutine GetAirMeasurementHeight
+ !COARE   
 
     subroutine GetAtmosphereProperty(AtmosphereID, Scalar, ID, STAT, ShowWarning)
                                   
@@ -2138,6 +2249,9 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
 
             call SearchProperty(PropertyX, RelativeHumidity_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_) call ModifyRelativeHumidity (PropertyX)
+
+            call SearchProperty(PropertyX, PBLHeight_, STAT = STAT_CALL) 
+            if (STAT_CALL == SUCCESS_) call ModifyPBLHeight (PropertyX)
 
             call SearchProperty(PropertyX, SunHours_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_) call ModifySunHours (PropertyX)
@@ -2897,6 +3011,31 @@ do1 :   do while (associated(PropertyX))
         endif
 
     end subroutine ModifyRelativeHumidity
+    
+    subroutine ModifyPBLHeight (PropPBLHeight)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Property), pointer                   :: PropPBLHeight
+
+        !Begin-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        if (PropPBLHeight%ID%SolutionFromFile) then
+
+            call ModifyFillMatrix (FillMatrixID   = PropPBLHeight%ID%ObjFillMatrix,&
+                                   Matrix2D       = PropPBLHeight%Field,           &
+                                   PointsToFill2D = Me%ExternalVar%MappingPoints2D,       &
+                                   STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyPBLHeight - ModuleAtmosphere - ERR01'
+            
+            if (PropPBLHeight%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropPBLHeight%ID%ObjFillMatrix, PropPBLHeight%PredictedDT,    &
+                                                PropPBLHeight%DTForNextEvent, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyPBLHeight - ModuleAtmosphere - ERR02'            
+            endif
+        endif
+
+    end subroutine ModifyPBLHeight   
 
     !------------------------------------------------------------------------------
 

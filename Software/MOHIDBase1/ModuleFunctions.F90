@@ -105,11 +105,15 @@ Module ModuleFunctions
     public  :: ComputeAdvection1D
     public  :: ComputeAdvection3D
 
+    public  :: COAREInterfaceMoistureContent
+    public  :: COAREMoistureContentAir
     public  :: SaturatedVaporPressure
+    public  :: LongWaveUpwardCOARE
     public  :: LongWaveDownward
     public  :: LongWaveUpward
     public  :: LatentHeat
     public  :: SensibleHeat
+    public  :: LatentHeatOfVaporization
 
     public  :: AerationFlux
     public  :: AerationFlux_CO2
@@ -6217,7 +6221,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
     end function LongWaveDownward
 
     !------------------------------------------------------------------------
-    !Downward Longwave Radiation (Wunderlich et. al. 1968)
+    !Upward Longwave Radiation (Wunderlich et. al. 1968)
 
     real function LongWaveUpward (WaterTemp)
 
@@ -6227,6 +6231,16 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         LongWaveUpward = -0.97 * StefanBoltzmann * (WaterTemp + 273.15) ** 4.0
 
     end function LongWaveUpward
+
+    real function LongWaveUpwardCOARE (SurfaceTemperature, Jcool)
+
+        !Arguments---------------------------------------------------------------
+        real, intent(IN)    :: SurfaceTemperature
+        real, intent(IN)    :: Jcool
+        
+        LongWaveUpwardCOARE = - 0.97 * 5.67e-8 * (SurfaceTemperature - 0.3 * Jcool + 273.16)**4.0
+
+    end function LongWaveUpwardCOARE
 
     !--------------------------------------------------------------------------
     !Clausius Clapeyron - Water Modeling Review - Central Valley 2000 eq. 2-35
@@ -6243,6 +6257,38 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         SaturatedVaporPressure = a * exp(b * Temperature / (Temperature + c))
 
     end function SaturatedVaporPressure
+    
+    real function COAREInterfaceMoistureContent(Temperature, Pressure)
+
+        !Arguments-------------------------------------------------------------
+        real                                        :: Temperature
+        real                                        :: Pressure
+
+        !Local-----------------------------------------------------------------
+        real                                        :: es   ![mb]
+
+        es = 6.112 * exp(17.502 * Temperature / (Temperature + 240.97)) * 0.98 * (1.0007 + 3.46e-6 * Pressure)
+        
+        COAREInterfaceMoistureContent = es * 621.97 / (Pressure - 0.378 * es)
+
+    end function COAREInterfaceMoistureContent
+    
+    real function COAREMoistureContentAir(Temperature, Pressure, RelativeHumidity)
+
+        !Arguments-------------------------------------------------------------
+        real                                        :: Temperature
+        real                                        :: Pressure
+        real                                        :: RelativeHumidity
+
+        !Local-----------------------------------------------------------------
+        real                                        :: ea   ![mb]
+
+        ea = (6.112 * exp(17.502 * Temperature / (Temperature + 240.97)) * 0.98 * (1.0007 + 3.46e-6 * Pressure)) &
+            * RelativeHumidity
+
+        COAREMoistureContentAir = ea * 621.97 / (Pressure - 0.378 * ea)
+
+    end function COAREMoistureContentAir
 
     !--------------------------------------------------------------------------
     !Water Modeling Review - Central Valley 2000 Table 2.6
