@@ -575,6 +575,8 @@ Module ModuleRunoffProperties
         type(T_Property_2D)                         :: Kclay
 !        type(T_Property_2D)                         :: ErosiveRain
          
+        type(T_Property_2D)                         :: SedimentGenerationRate    !Fluffy layer  formation in kg/m2.s
+
 !        real, dimension(:,:), pointer               :: ShearStressY
                
         real(8), pointer, dimension(:,:)            :: WaterVolume     => null()
@@ -591,6 +593,8 @@ Module ModuleRunoffProperties
         real                                        :: HminChezy            = null_real    !for shear stress computation
         real                                        :: HcriticSplash        = null_real    !for splash erosion
         real                                        :: Splash_ErosiveRainValue = null_real !for splash erosion
+        
+        logical                                     :: SedimentGeneration = .false.
 
     end type  T_RunoffProperties
 
@@ -1163,7 +1167,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_) stop 'ModuleRunoffProperties - ReadGlobalOptions - ERR140' 
         endif
 
-
+        !Generate sediment? to avoid fluffly layer exhaustion in long term simulations
+        call GetData(Me%SedimentGeneration,                                         &
+                     Me%ObjEnterData, iflag,                                        &
+                     SearchType   = FromFile,                                       &
+                     keyword      = 'SEDIMENT_GENERATION',                          &
+                     Default      =  .false.,                                       & 
+                     ClientModule = 'ModuleRunoffProperties',                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleRunoffProperties - ReadGlobalOptions - ERR150' 
+        
+        
     end subroutine ReadGlobalOptions        
 
     !--------------------------------------------------------------------------
@@ -2876,6 +2890,12 @@ cd2 :           if (BlockFound) then
 !                              block_end   = '<end_dispersion_long>')
 !        
         call Read_Property_2D(Me%Disper_Trans, FromBlock,  '<begin_dispersion_trans>', '<end_dispersion_trans>')            
+        
+        !sediment formation from below soil
+        if (Me%Coupled%BottomFluxes .and. Me%SedimentGeneration) then
+            call Read_Property_2D (Me%SedimentGenerationRate, FromBlock, "<begin_sediment_generation_rate>",  &
+                                   "<end_sediment_generation_rate>")
+        endif
         
         if (Me%Coupled%BottomFluxes .and. Me%Coupled%ErosionFluxes) then
             
@@ -7898,6 +7918,13 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyBottomFluxes")
 
+        !generate fluffy layer sediment (e.g. tpo soil easily eroded sediment from natural processes or from tillage)
+        if (Me%SedimentGeneration) then
+            
+            call ModifySedimentGeneration
+            
+        endif
+        
         if (Me%Coupled%SplashErosionFluxes) then
         
             call ModifySplashErosionFluxes
@@ -7930,7 +7957,74 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
     end subroutine ModifyBottomFluxes
     
     !---------------------------------------------------------------------------
+    !Sediment (easily eroded sediment on top soil) generation due to natural processes and manmade activities
+    !needed for long term simjulation to avoid exausht of initial bottom conc
+    subroutine ModifySedimentGeneration
+       
+       !Local-----------------------------------------------------------------
+        type (T_Property) , pointer                 :: Property
+        real(8), dimension(:,:), pointer            :: WaterColumn
+        real, dimension(:,:), pointer               :: BottomSedimentConc, SedimentGenerationRate      
+        real                                        :: EnrichmentRatio, GenerationConc
+        real                                        :: BottomArea,WaterVolume
+        integer                                     :: STAT_CALL, i ,j 
+        !---------------------------------------------------------------------
+    
+        call SearchProperty(Property, PropertyXIDNumber = TSS_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            call SearchProperty(Property, PropertyXIDNumber = Cohesive_Sediment_)
+        endif
+        
+        BottomSedimentConc => Property%BottomConcentration        
+        SedimentGenerationRate => Me%SedimentGenerationRate%Field
+        
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+        do while (associated (Property)) 
+ 
+if1:        if (Property%Evolution%BottomFluxes   &
+                .AND. Property%ID%IDNumber /= VSS_ .AND. Property%ID%IDNumber /= TSS_) then
+                        
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then   
+                            
+                            !generates new sediment with same property ratio as the one present (below soil is similar to top soil)
+                            EnrichmentRatio = Property%BottomConcentration (i,j) / BottomSedimentConc (i,j)
+    
+                            ![kg.m-2] = [kg.m-2.s-1] * [s]
+                            GenerationConc = SedimentGenerationRate(i,j) * Me%ExtVar%DT * EnrichmentRatio
+                           
+                            Property%BottomConcentration (i,j) = Property%BottomConcentration (i,j)       &
+                                                                 + GenerationConc                        
 
+                            BottomArea = Me%ExtVar%Area(i,j)                            
+                                                               
+                            ![m3] = [m] * [m2]
+                            WaterVolume = WaterColumn(i,j) * BottomArea                             
+
+                            ![kg/m2] = [g/m3]* [m3] * [1E-3kg/g] /[m2] + [kg/m2]
+                            Property%TotalConcentration (i,j) = Property%Concentration (i,j) * 1E-3 * WaterVolume / BottomArea &
+                                                                + Property%BottomConcentration (i,j)            
+                                                                
+ 
+                    end if if2
+ 
+                enddo
+                enddo
+            
+            endif if1
+ 
+            Property => Property%Next
+        enddo        
+                
+    
+    end subroutine ModifySedimentGeneration   
+    
+    !---------------------------------------------------------------------------    
+    
+    
     subroutine ModifySplashErosionFluxes
        
        !Local-----------------------------------------------------------------
