@@ -640,12 +640,15 @@ Module ModuleVegetation
         !Continuous application
         logical                                         :: ContFertilizationON = .false.
         integer                                         :: ContFertilizationDays = null_int !number of days with repetition
-        logical                                         :: ContFertilizationActive  = .false.
-        integer                                         :: ContFertilizationAccDays = 0
+        
+        !each fertilizer needs to know the grid that is occuring
+        logical, dimension(:,:), pointer                :: ContFertilizationActive  => null()
+        real, dimension(:,:), pointer                   :: ContFertilizationAccDays => null()
+        
         !auto fertilization - as one application method
         type(T_AutoFertilization)                       :: Auto       
         
-        logical                                         :: FertilizerAppOccurred = .false.
+        logical, dimension(:,:), pointer                :: FertilizerAppOccurred => null()
         
     end type T_FertilizerApps
 
@@ -664,10 +667,11 @@ Module ModuleVegetation
         !Continuous application
         logical                                         :: ContPesticideON      = .false.
         integer                                         :: ContPesticideDays    = null_int !number of days repetition
-        logical                                         :: ContPesticideActive  = .false.
-        integer                                         :: ContPesticideAccDays = 0
         
-        logical                                         :: PesticideAppOccurred = .false.
+        logical, dimension(:,:), pointer                :: ContPesticideActive  => null()
+        real, dimension(:,:), pointer                   :: ContPesticideAccDays => null()
+        
+        logical, dimension(:,:), pointer                :: PesticideAppOccurred => null()
         
     end type T_PesticideApps
 
@@ -3671,7 +3675,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         integer                                             :: ILB, IUB, JLB, JUB
         integer                                             :: KLB, KUB, JulDay                 
         real                                                :: InitialHUBase        
-        integer                                             :: Pest
+        integer                                             :: Pest, VegetationType, FertApp, PesticideApp
         !Begin-----------------------------------------------------------------
 
         !Bounds
@@ -3900,6 +3904,31 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             endif
         
             if (Me%ComputeOptions%Fertilization) then
+                
+                do VegetationType = 1, Me%VegetationsNumber
+                    if (Me%VegetationTypes(VegetationType)%FertilizerDatabase%NumberFertilizerApps .gt. 0) then
+                        do FertApp = 1, Me%VegetationTypes(VegetationType)%FertilizerDatabase%NumberFertilizerApps
+                            allocate(Me%VegetationTypes(VegetationType)&
+                                &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred(ILB:IUB,JLB:JUB))
+                            Me%VegetationTypes(VegetationType)&
+                                &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred(:,:) = .false.
+                            
+                            !by default continuous fertlizations can not proceed through a continuous sim. it would require to 
+                            !save all these matrixes in HDF that is not the usual structure of HDF (sub sub fields with 2D info)
+                            allocate(Me%VegetationTypes(VegetationType)&
+                                &%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationActive(ILB:IUB,JLB:JUB))  
+                            Me%VegetationTypes(VegetationType)&
+                                &%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationActive(:,:) = .false.
+                            
+                            allocate(Me%VegetationTypes(VegetationType)&
+                                &%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationAccDays(ILB:IUB,JLB:JUB))     
+                            Me%VegetationTypes(VegetationType)&
+                                &%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationAccDays(:,:) = 0.0
+                            
+                        enddo
+                    endif
+                enddo
+                
                 if (Me%ComputeOptions%AutoFertilization) then
                     allocate(Me%NitrogenYeldEstimate (ILB:IUB,JLB:JUB))
                     Me%NitrogenYeldEstimate (:,:) = 0.0
@@ -3956,6 +3985,31 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             endif
 
             if (Me%ComputeOptions%Pesticide) then
+                
+                do VegetationType = 1, Me%VegetationsNumber
+                    if (Me%VegetationTypes(VegetationType)%PesticideDatabase%NumberPesticideApps .gt. 0) then
+                        do PesticideApp = 1, Me%VegetationTypes(VegetationType)%PesticideDatabase%NumberPesticideApps
+                            allocate(Me%VegetationTypes(VegetationType)&
+                                &%PesticideDatabase%PesticideApps(PesticideApp)%PesticideAppOccurred(ILB:IUB,JLB:JUB))
+                            Me%VegetationTypes(VegetationType)&
+                                &%PesticideDatabase%PesticideApps(PesticideApp)%PesticideAppOccurred(:,:) = .false.
+                            
+                            !by default continuous pesticide can not proceed through a continuous sim. it would require to 
+                            !save all these matrixes in HDF that is not the usual structure of HDF (sub sub fields with 2D info)                            
+                            allocate(Me%VegetationTypes(VegetationType)&
+                                &%PesticideDatabase%PesticideApps(PesticideApp)%ContPesticideActive(ILB:IUB,JLB:JUB))  
+                            Me%VegetationTypes(VegetationType)&
+                                &%PesticideDatabase%PesticideApps(PesticideApp)%ContPesticideActive(:,:) = .false.
+                            
+                            allocate(Me%VegetationTypes(VegetationType)&
+                                &%PesticideDatabase%PesticideApps(PesticideApp)%ContPesticideAccDays(ILB:IUB,JLB:JUB)) 
+                            Me%VegetationTypes(VegetationType)&
+                                &%PesticideDatabase%PesticideApps(PesticideApp)%ContPesticideAccDays(:,:) = 0.0
+                            
+                        enddo
+                    endif
+                enddo
+                
                 do  Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
                     allocate (Me%Fluxes%Pesticides%Application(Pest)%Soil (ILB:IUB,JLB:JUB))
                     Me%Fluxes%Pesticides%Application(Pest)%Soil (:,:) = 0.0
@@ -9008,9 +9062,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 if (Me%ComputeOptions%Fertilization) then
                     do FertApp = 1, Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
                         if (Me%VegetationTypes(Me%VegetationID(i,j))&
-                            &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
+                            &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred(i,j)) then
                             Me%VegetationTypes(Me%VegetationID(i,j))&
-                            &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred = .false.
+                            &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred(i,j) = .false.
                         endif
                     enddo
                 endif
@@ -9028,9 +9082,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 if (Me%ComputeOptions%Pesticide) then
                     do Pest = 1, Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%NumberPesticideApps
                         if (Me%VegetationTypes(Me%VegetationID(i,j))&
-                            &%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred) then
+                            &%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred(i,j)) then
                             Me%VegetationTypes(Me%VegetationID(i,j))&
-                            &%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred = .false.
+                            &%PesticideDatabase%PesticideApps(Pest)%PesticideAppOccurred(i,j) = .false.
                         endif
                     enddo                
 !                    do Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
@@ -9088,7 +9142,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                         if (Me%ComputeOptions%Fertilization) then
                             do FertApp = 1, Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%NumberFertilizerApps
                                 if (Me%VegetationTypes(Me%VegetationID(i,j))&
-                                    &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
+                                    &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred(i,j)) then
                                     Me%SoilFluxesActive(i,j) = .true.
                                 endif
                             enddo
@@ -12982,8 +13036,8 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                         :: PestApp !, UniquePest
         logical                                         :: PesticideApplied, PesticideContinuous
         logical                                         :: PlantBeingContPest
-        integer                                         :: AccPesticideDays, TotalPesticideDays
-        real                                            :: DT_day
+        integer                                         :: TotalPesticideDays
+        real                                            :: DT_day, AccPesticideDays
         !Begin-----------------------------------------------------------------
 
         PotentialHU          = Me%HeatUnits%PotentialHUBase(i,j)
@@ -13005,8 +13059,8 @@ do3:        do PestApp = 1, PesticideApps
                 PesticideContinuous    =  &
                 Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideON
                 PlantBeingContPest      = &
-                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideActive  
-                AccPesticideDays = 0
+                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideActive(i,j)  
+                AccPesticideDays = 0.0
                 
                 !if not already continuous pesticide check if it will start a unique or continuous pesticide application
                 if (.not. PlantBeingContPest) then
@@ -13024,7 +13078,7 @@ do3:        do PestApp = 1, PesticideApps
 
                             if (PesticideContinuous) then
                                 PlantBeingContPest   = .true.
-                                AccPesticideDays     = AccPesticideDays + 1
+                                AccPesticideDays     = AccPesticideDays + (60. * 60. * 24.)
                             endif
                             
     !                        !correspondent in global pesticide list
@@ -13043,7 +13097,7 @@ do3:        do PestApp = 1, PesticideApps
 
                             if (PesticideContinuous) then
                                 PlantBeingContPest   = .true.
-                                AccPesticideDays     = AccPesticideDays + 1
+                                AccPesticideDays     = AccPesticideDays + (60. * 60. * 24.)
                             endif
                             
     !                        !correspondent in global pesticide list
@@ -13061,8 +13115,8 @@ do3:        do PestApp = 1, PesticideApps
                 ! continue to apply the daily amount and check if is over
 
                     AccPesticideDays      = &
-                    Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideAccDays
-                    DT_day                = Me%VegetationDT / (60 * 60 * 24)
+                    Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideAccDays(i,j)
+                    DT_day                = Me%VegetationDT / (60. * 60. * 24.)
                     AccPesticideDays      = AccPesticideDays + DT_day
                     TotalPesticideDays    = &
                     Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideDays 
@@ -13073,17 +13127,17 @@ do3:        do PestApp = 1, PesticideApps
                     if (AccPesticideDays .gt. TotalPesticideDays) then
                         PesticideApplied   = .false.
                         PlantBeingContPest = .false.
-                        AccPesticideDays   = 0
+                        AccPesticideDays   = 0.0
                     endif                
                 
                 endif
                 
                 !update variables - too big to use inside do loops
-                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%PesticideAppOccurred = &
+                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%PesticideAppOccurred(i,j) = &
                  PesticideApplied
-                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideActive  = &
+                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideActive(i,j)  = &
                  PlantBeingContPest
-                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideAccDays = &
+                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideAccDays(i,j) = &
                  AccPesticideDays
                 
             enddo do3
@@ -13105,8 +13159,8 @@ do3:        do PestApp = 1, PesticideApps
         integer                                         :: FertApp
         logical                                         :: FertilizationContinuous, PlantBeingContFert
         logical                                         :: FertilizerApplied
-        integer                                         :: AccFertilizationDays, TotalFertilizationDays
-        real                                            :: DT_day
+        integer                                         :: TotalFertilizationDays
+        real                                            :: DT_day, AccFertilizationDays
         !Begin-----------------------------------------------------------------
 
         PotentialHU          = Me%HeatUnits%PotentialHUBase(i,j)
@@ -13127,10 +13181,10 @@ do3:        do FertApp = 1, FertilizerApps
                 
                 !if plant is under continuous fertilization
                 PlantBeingContFert       = &
-                 Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationActive
+                 Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationActive(i,j)
                 
                 FertilizerApplied    = .false.
-                AccFertilizationDays = 0
+                AccFertilizationDays = 0.0
                                 
                 !if not continuous fertilization check if it will occur a unique fertilization
                 !if continuous fertilization but still not active at this time, check if it will start a continuous fertilization
@@ -13147,7 +13201,7 @@ if4:                    if(JulDay .ge. FertilizerAppJulianDay .and. JulDay_Old .
                             
                             if (FertilizationContinuous) then
                                 PlantBeingContFert   = .true.
-                                AccFertilizationDays = AccFertilizationDays + 1
+                                AccFertilizationDays = AccFertilizationDays + Me%VegetationDT / (60. * 60. * 24.)
                             endif
                         
                         endif if4
@@ -13159,7 +13213,7 @@ if6:                    if(PotentialHU .ge. FertilizerAppHU .and. PotentialHU_Ol
 
                             if (FertilizationContinuous) then
                                 PlantBeingContFert   = .true.
-                                AccFertilizationDays = AccFertilizationDays + 1
+                                AccFertilizationDays = AccFertilizationDays + Me%VegetationDT / (60. * 60. * 24.)
                             endif                        
                         
                         endif if6
@@ -13169,8 +13223,8 @@ if6:                    if(PotentialHU .ge. FertilizerAppHU .and. PotentialHU_Ol
                 ! continue to apply the daily amount and check if is over
                 else
                     AccFertilizationDays      = &
-                    Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationAccDays
-                    DT_day                    = Me%VegetationDT / (60 * 60 * 24)
+                  Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationAccDays(i,j)
+                    DT_day                    = Me%VegetationDT / (60. * 60. * 24.)
                     AccFertilizationDays      = AccFertilizationDays + DT_day
                     TotalFertilizationDays    = &
                     Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationDays 
@@ -13181,16 +13235,16 @@ if6:                    if(PotentialHU .ge. FertilizerAppHU .and. PotentialHU_Ol
                     if (AccFertilizationDays .gt. TotalFertilizationDays) then
                         FertilizerApplied     = .false.
                         PlantBeingContFert    = .false.
-                        AccFertilizationDays  = 0
+                        AccFertilizationDays  = 0.0
                     endif
                 endif
                 
                 !update variables - too big to use inside do loops
-                Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred   = &
+                Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred(i,j)   = &
                  FertilizerApplied
-                Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationActive = &
+                Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationActive(i,j) = &
                  PlantBeingContFert
-                Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationAccDays = &
+               Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationAccDays(i,j) = &
                  AccFertilizationDays  
                 
             enddo do3
@@ -14080,7 +14134,7 @@ do2:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             if (NeedNitrogen .or. ApplyPhosphorus .or. NeedPhosphorus) then
                             
                                 call AutoFertilization(i,j, NeedNitrogen, ApplyPhosphorus, NeedPhosphorus)
-                        Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(1)%FertilizerAppOccurred = .true.
+                 Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(1)%FertilizerAppOccurred(i,j) = .true.
 
                             endif
 
@@ -14108,7 +14162,7 @@ do4:        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         !check if any application occured
                         do FertApp = 1, NumberOfApplications
                             if (&
-                   Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred) then
+            Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred(i,j)) then
                                 
                                 call ScheduledFertilization(i,j, FertApp)
                         
@@ -14455,7 +14509,7 @@ if2:            if (NumberPestApp .gt. 0) then
 do3:                do PestApp = 1, NumberPestApp
 !do3:                do UniquePest = 1, Me%Fluxes%Pesticides%UniquePesticides
 if3:                    if (&
-                     Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%PesticideAppOccurred) then
+                Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%PesticideAppOccurred(i,j)) then
 !if3:                    if (Me%Fluxes%Pesticides%Application(UniquePest)%PesticideAppOccurred(i,j)) then
                             
                             !if application occurred check for that id in agricultural practices and put the 
@@ -15471,7 +15525,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Local------------------------------------------------------------------
         type (T_Property), pointer :: PropertyX
         integer                    :: STAT_CALL
-        integer                    :: Pest
+        integer                    :: Pest, VegetationType, FertApp, PesticideApp
         !----------------------------------------------------------------------
 
 
@@ -15670,6 +15724,21 @@ do1 :   do while(associated(PropertyX))
         
             if (Me%ComputeOptions%Fertilization) then
 !                deallocate(Me%FertilizationOccurred                               )
+                do VegetationType = 1, Me%VegetationsNumber
+                    if (Me%VegetationTypes(VegetationType)%FertilizerDatabase%NumberFertilizerApps .gt. 0) then
+                        do FertApp = 1, Me%VegetationTypes(VegetationType)%FertilizerDatabase%NumberFertilizerApps
+                            deallocate(Me%VegetationTypes(VegetationType)&
+                                &%FertilizerDatabase%FertilizerApps(FertApp)%FertilizerAppOccurred)
+                            
+                            deallocate(Me%VegetationTypes(VegetationType)&
+                                &%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationActive)  
+
+                            deallocate(Me%VegetationTypes(VegetationType)&
+                                &%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationAccDays)                            
+                        enddo
+                    endif
+                enddo
+                
                 if (Me%ComputeOptions%ModelNitrogen) then
                     deallocate(Me%Fluxes%FertilNitrateInSurface          )
                     deallocate(Me%Fluxes%FertilNitrateInSubSurface       )
@@ -15690,6 +15759,22 @@ do1 :   do while(associated(PropertyX))
             endif        
             
             if (Me%ComputeOptions%Pesticide) then
+                
+                do VegetationType = 1, Me%VegetationsNumber
+                    if (Me%VegetationTypes(VegetationType)%PesticideDatabase%NumberPesticideApps .gt. 0) then
+                        do PesticideApp = 1, Me%VegetationTypes(VegetationType)%PesticideDatabase%NumberPesticideApps
+                            deallocate(Me%VegetationTypes(VegetationType)&
+                                &%PesticideDatabase%PesticideApps(PesticideApp)%PesticideAppOccurred)
+                            
+                            deallocate(Me%VegetationTypes(VegetationType)&
+                                &%PesticideDatabase%PesticideApps(PesticideApp)%ContPesticideActive)
+
+                            deallocate(Me%VegetationTypes(VegetationType)&
+                                &%PesticideDatabase%PesticideApps(PesticideApp)%ContPesticideAccDays)                            
+                        enddo
+                    endif
+                enddo
+                
                 do  Pest = 1, Me%Fluxes%Pesticides%UniquePesticides
                     deallocate (Me%Fluxes%Pesticides%Application(Pest)%Soil       )
                     deallocate (Me%Fluxes%Pesticides%Application(Pest)%Vegetation )                        
