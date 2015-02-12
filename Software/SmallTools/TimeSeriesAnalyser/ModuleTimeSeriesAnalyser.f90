@@ -1971,13 +1971,15 @@ d3:         do i=1, Me%DataValues
     subroutine ModifyTimeSeriesCompare
     
         real    (SP), dimension(:), allocatable :: TimeCompareTS, CompareTS, DifTS, TS
-        real                                    :: ave,adev,sdev,var,skew,curt, RMSE
+        real                                    :: Bias,adev,sdev,var,skew,curt, RMSE, UB_RMSE
+        real                                    :: StdevObs, NRMSE, NUB_RMSE
         type (T_Time)                           :: Time1, Time2
         real                                    :: Value1, Value2, NewValue, AverageCompare, AverageObs
         real                                    :: Year, Month, Day, hour, minute, second
-        real                                    :: a, b, d, t1, t2, NashS, Skill
+        real                                    :: a, b, d, t1, t2, NashS, Skill, uba
         logical                                 :: TimeCycle
         integer                                 :: i, c, STAT_CALL, Ncompare
+        real                                    :: rcorr, rcorr_quad, z_fisher, alfa, beta_1, Am, Bm, dtGap
         
         !Begin-------------------------------------------------------------------------        
              
@@ -1994,10 +1996,14 @@ i1:     if (Me%CompareTimeSerieOn) then
                     if (Me%FlagTimeSerie(i) == 0) cycle
                 endif
                 
-                c = c + 1
-
                 call GetTimeSerieValue(Me%ObjTimeSerieCompare, Me%TimeTSOutPut(i), Me%CompareColumn, Time1, Value1,   &
                                        Time2, Value2, TimeCycle, STAT= STAT_CALL) 
+                                       
+                dtGap = Time2 - Time1                                       
+                                       
+                if (dtGap > Me%GapLimit) cycle
+                
+                if (Value1 == Me%FilterValue .or. Value2 == Me%FilterValue) cycle
                 
                 !Interpolates Value for current instant
                 if      (Me%InterpolInTime == LinearTS_) then
@@ -2007,9 +2013,12 @@ i1:     if (Me%CompareTimeSerieOn) then
                     NewValue = Value1
                 endif   
                 
+                c = c + 1                
+                
                 TimeCompareTS(c) =  Me%TimeTSOutPut(i) -Me%BeginTime
                 CompareTS    (c) =  NewValue
                 AverageCompare   =  AverageCompare + CompareTS    (c)
+                
                 TS           (c) =  Me%TimeSerie(i)
                 DifTS        (c) =  TS(c) - CompareTS(c)
                 
@@ -2017,26 +2026,65 @@ i1:     if (Me%CompareTimeSerieOn) then
 
             Ncompare = c        
             
-            if (Ncompare > 0)AverageCompare = AverageCompare / real(Ncompare)
-                
-            call moment (DifTS(1:Ncompare),ave,adev,sdev,var,skew,curt)
-            
-            RMSE = 0.
-            a    = 0
-            b    = 0
-            d    = 0
             if (Me%CompareObservations) then
+                sdev = 0
+                if (Ncompare > 0) then
+                    AverageCompare = AverageCompare / real(Ncompare)
+                    call moment (CompareTS(1:Ncompare),bias,adev,sdev,var,skew,curt)                     
+                endif
+                
                 AverageObs = AverageCompare
+                StdevObs   = sdev
             else
                 AverageObs = Me%ave
+                StdevObs   = Me%sdev    
+            endif            
+            
+            if (Ncompare > 0) then
+
+                call estatistica(A          = TS       (1:Ncompare),                    &
+                                 B          = CompareTS(1:Ncompare),                    &
+                                 npt        = Ncompare  ,                               &    
+                                 rcorr      = rcorr     ,                               &            
+                                 rcorr_quad = rcorr_quad,                               &            
+                                 bias       = bias      ,                               &
+                                 rmse       = rmse      ,                               &
+                                 z_fisher   = z_fisher  ,                               &    
+                                 alfa       = alfa      ,                               &
+                                 beta_1     = beta_1    ,                               &
+                                 Am         = Am        ,                               &
+                                 Bm         = Bm        )  
+                                 
+            else
+                rcorr      = FillValueReal
+                rcorr_quad = FillValueReal
+                bias       = FillValueReal
+                rmse       = FillValueReal
+                z_fisher   = FillValueReal
+                alfa       = FillValueReal
+                beta_1     = FillValueReal
+                Am         = FillValueReal
+                Bm         = FillValueReal
             endif
+            
+            UB_RMSE  = 0.            
+            
+            NRMSE    = 0.
+            NUB_RMSE = 0.            
+
+            a        = 0
+            uba      = 0.
+            b        = 0
+            d        = 0
             
             do c=1,Ncompare
             
-                a = a + DifTS(c)**2
+                a   = a + DifTS(c)**2
                 
-                t1= CompareTS(c)-AverageObs
-                t2= TS(c)       -AverageObs
+                uba = uba + (DifTS(c) - bias)**2
+                
+                t1  = CompareTS(c)-AverageObs
+                t2  = TS(c)       -AverageObs
                 
                 if (Me%CompareObservations) then
                     b = b + t1**2
@@ -2048,7 +2096,28 @@ i1:     if (Me%CompareTimeSerieOn) then
                 
             enddo
             
-            RMSE = sqrt(a/NCompare)
+            UB_RMSE = sqrt(uba/NCompare)   
+            
+            if (Me%ErrorNormalization == stdv4_) then
+            
+                if (StdevObs >0) then
+                    NRMSE    = RMSE    / (4.*StdevObs)  * 100
+                    NUB_RMSE = UB_RMSE / (4.*StdevObs)  * 100
+                else
+                    !standard deviation equal zero. Error is assume equal to 100%
+                    NRMSE    = 100. 
+                    NUB_RMSE = 100.
+                endif
+            elseif (Me%ErrorNormalization == Average_) then
+                if (AverageObs >0) then
+                    NRMSE    = RMSE    / AverageObs  * 100
+                    NUB_RMSE = UB_RMSE / AverageObs  * 100
+                else
+                    !average equal zero. Error is assume equal to 100%
+                    NRMSE    = 100. 
+                    NUB_RMSE = 100.
+                endif
+            endif      
             
             if (b>0.) then
                 NashS  = 1 - a/b
@@ -2076,15 +2145,22 @@ i1:     if (Me%CompareTimeSerieOn) then
             write(Me%iCompare,*) "COORD_X                 : ", Me%CoordX
             write(Me%iCompare,*) "COORD_Y                 : ", Me%CoordY
             
-            write(Me%iCompare,*) "BIAS                    : ",ave
+            write(Me%iCompare,*) "BIAS                    : ",Bias
             write(Me%iCompare,*) "RMSE                    : ",RMSE
-            write(Me%iCompare,*) "AVERAGE_DEVIATION       : ",adev
-            write(Me%iCompare,*) "STANDARD_DEVIATION      : ",sdev
-            write(Me%iCompare,*) "VARIANCE                : ",var
-            write(Me%iCompare,*) "SKEWNESS                : ",skew
-            write(Me%iCompare,*) "KURTOSIS                : ",curt   
+            write(Me%iCompare,*) "Normalise RMSE [%]      : ",NRMSE            
+            write(Me%iCompare,*) "Unbias RMSE             : ",UB_RMSE
+            write(Me%iCompare,*) "Normalise unbias RMSE[%]: ",NUB_RMSE            
+            write(Me%iCompare,*) "rcorr                   : ",rcorr      
             write(Me%iCompare,*) "NASH–SUTCLIFFE          : ",NashS
             write(Me%iCompare,*) "SKILL                   : ",Skill         
+            
+            write(Me%iCompare,*) "rcorr_quad              : ",rcorr_quad 
+            write(Me%iCompare,*) "z_fisher                : ",z_fisher   
+            write(Me%iCompare,*) "alfa                    : ",alfa       
+            write(Me%iCompare,*) "beta_1                  : ",beta_1     
+            write(Me%iCompare,*) "Am                      : ",Am         
+            write(Me%iCompare,*) "Bm                      : ",Bm        
+            
             
             write(Me%iCompare,'(A35)') "Time TimeSerie CompareTimeSerie Dif"
             
@@ -2107,6 +2183,53 @@ i1:     if (Me%CompareTimeSerieOn) then
     end subroutine ModifyTimeSeriesCompare
     
     !--------------------------------------------------------------------------    
+    
+    !---------------------------------------------------------------------------    
+
+
+    subroutine estatistica(A, B, npt, rcorr, rcorr_quad, bias, rmse,z_fisher, alfa, beta_1,Am,Bm)
+
+	    REAL(SP), DIMENSION(:), INTENT(IN) :: A, B
+	    INTEGER(I4B), INTENT(IN) :: npt	    
+	    REAL(SP), INTENT(OUT) :: rcorr_quad, bias, rmse
+
+	    real(SP) :: cov, var_A, var_B, sdev_A, sdev_B, beta_1,alfa, Am,Bm,Adev,skew, curt,abdev
+	    REAL(SP) :: ave,sdev,var, Rcorr, prob, z_fisher, YY, Pmin, Pmax
+	    INTEGER(I4B) :: l_min(1),l_max(1),n1,n2, nbln, i
+	    character :: nome_parametros*100, nome_recta_fit*100
+
+    !____________________________________________________________________________________________________
+    !
+    !	A --> variavel observacaoes (satelite)
+    !	B --> variavel modelo (mohid)
+    !
+    !___________________________________________________________________________________________________
+
+
+
+	    call moment(A,Am,adev,sdev_A,var_A,skew,curt)
+	    call moment(B,Bm,adev,sdev_B,var_B,skew,curt)
+
+
+	    if(.not.(var_B.eq.0.or.var_A.eq.0)) then
+
+	        call pearsn(A,B,Rcorr,prob,z_fisher)
+
+	        call medfit(B,A,alfa,beta_1,abdev) 
+	        rcorr_quad=rcorr*rcorr
+
+	        ! calculo do rms e da bias
+
+	        bias=sum((A(:)-B(:)))
+	        bias=bias/float(npt)
+	        rmse=sqrt( sum( ( (A(:)-B(:) )**2) )/float(npt))
+        
+        endif
+
+    end subroutine estatistica
+
+
+    
        
     subroutine ModifyTimeSeriesPatterns
     
