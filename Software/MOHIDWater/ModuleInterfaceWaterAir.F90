@@ -100,6 +100,7 @@ Module ModuleInterfaceWaterAir
     private ::      AllocateInstance
     private ::      ReadWaterAirFilesName
     private ::      ConstructGlobalVariables
+    private ::          AllocateCOAREVariables
     private ::      ConstructRugosity
     private ::      Construct_PropertyList
     private ::          Construct_Property
@@ -391,6 +392,7 @@ Module ModuleInterfaceWaterAir
         type(T_Local_Atm  )                         :: LocalAtm
         type(T_Rugosity   )                         :: Rugosity
         logical                                     :: COARE                    = .false.
+        real                                        :: ReflectionCoef           = FillValueReal
         real                                        :: CDWIND                   = FillValueReal
         real                                        :: WindHeight               = FillValueReal
         real                                        :: AirMeasurementHeight     = FillValueReal
@@ -409,6 +411,7 @@ Module ModuleInterfaceWaterAir
         real, pointer, dimension(:,:)               :: RainFlux
         real, pointer, dimension(:,:)               :: LastLatentHeat
         real, pointer, dimension(:,:)               :: LastSensibleHeat
+        real, pointer, dimension(:,:)               :: SurfaceAlbedo
         real(8), pointer, dimension(:,:)            :: Scalar2D                 => null()
         real   , pointer, dimension(:,:)            :: WindShearVelocity        => null()
         integer                                     :: AerationEquation         = FillValueInt
@@ -794,7 +797,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL  /= SUCCESS_)                                                     &
             stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR80'
     
-    if (Me%COARE) then
+i1:    if (Me%COARE) then
         !checks whether the user wants to compute warmlayer 
         call GetData(Me%Jwarm,                                            &
                      Me%ObjEnterData, iflag,                                            &
@@ -816,23 +819,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL  /= SUCCESS_)                                                     &
             stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR100'
 
-        !gets inversion height (m). in COARE based algorithm, default is 600m    PBLHeight
-        !call GetData(Me%BoundaryLayerDepth,                                             &
-        !             Me%ObjEnterData, iflag,                                            &
-        !             Keyword      ='BOUNDARY_LAYER_DEPTH',                              &
-        !             SearchType   = FromFile,                                           &
-        !             ClientModule = 'ModuleInterfaceWaterAir',                          &
-        !             Default      = 600.0,                                              &
-        !             STAT         = STAT_CALL)            
-        !if (STAT_CALL  /= SUCCESS_)                                                     &
-        !    stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ER110'
 
         call GetWindHeight(AtmosphereID  = Me%ObjAtmosphere,                            &
                                     Height       = Me%WindHeight,                       &
                                     isdefined    = isdefined,                           &
                                     STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR115'
-        if (isdefined /= .true.) then
+        if (.not. isdefined) then
             write(*,*) 'WIND_MEASUREMENT_HEIGHT not defined'
             stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR120'
         endif
@@ -842,13 +835,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                     isdefined    = isdefined,                           &
                                     STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR125'
-        if (isdefined /= .true.) then
+        if (.not. isdefined) then
             write(*,*) 'AIR_MEASUREMENT_HEIGHT not defined'
             stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR130'
         endif
- 
+        
 ! --------------------------------Allocation of COARE Variables--------------------------------       
     
+            call AllocateCOAREVariables
+        
+    endif i1
+       
+    end subroutine ConstructGlobalVariables
+    
+    !--------------------------------------------------------------------------
+    subroutine AllocateCOAREVariables
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_CALL
+        
+        !Begin-----------------------------------------------------------------
         
       allocate (Me%SurfaceTemperature(Me%Size2D%ILB:Me%Size2D%IUB, Me%Size2D%JLB:Me%Size2D%JUB), STAT=STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) &
@@ -902,15 +908,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     allocate (Me%LastSensibleHeat(Me%Size2D%ILB:Me%Size2D%IUB, Me%Size2D%JLB:Me%Size2D%JUB), STAT=STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) &
             stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR185'
-        call SetMatrixValue(Me%LastSensibleHeat, Me%Size2D, 0.)
+        call SetMatrixValue(Me%LastSensibleHeat, Me%Size2D, 0.)        
         
-!Coare 
-    endif
-!COARE        
-    end subroutine ConstructGlobalVariables
+        
+        
+    end subroutine AllocateCOAREVariables
     
-    !--------------------------------------------------------------------------
-
+    
     subroutine ConstructRugosity
 
         !Local------------------------------------------------------------------
@@ -1281,6 +1285,26 @@ cd2 :           if (BlockFound) then
             endif
                   
         endif
+        
+        if (NewProperty%ID%IDNumber == SurfaceRadiation_) then
+                      
+                call GetData(Me%ReflectionCoef,                                             &
+                             Me%ObjEnterData, iflag,                                        &
+                             keyword      = 'ALBEDO',                                       &  
+                             default      = 0.0,                                            &
+                             ClientModule = 'ModuleInterfaceWaterAir',                      &
+                             SearchType   = FromBlock,                                      &
+                             STAT         = STAT_CALL)
+       
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR40'
+                
+          allocate (Me%SurfaceAlbedo(Me%Size2D%ILB:Me%Size2D%IUB, Me%Size2D%JLB:Me%Size2D%JUB), STAT=STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) &
+                stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR131'
+            
+        endif
+         
 
     end subroutine Construct_PropertyValues
 
@@ -1980,21 +2004,10 @@ do1 :   do while (associated(PropertyX))
         if (STAT_CALL == SUCCESS_) Me%IntOptions%TurbulentKineticEnergy = ON
 
         call Search_Property(PropertyX, SurfaceRadiation_,       STAT = STAT_CALL)
-        
-        if (STAT_CALL == SUCCESS_) then
+        if (STAT_CALL == SUCCESS_) Me%IntOptions%SurfaceRadiation       = ON
             
-            Me%IntOptions%SurfaceRadiation                             = ON
-            
-            call Search_Property(PropertyY, Albedo_,   STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_) then
-                Me%IntOptions%Albedo                                   = ON
-            
-            elseif (.not. PropertyX%ID%SolutionFromFile .and. .not. PropertyX%Constant) then
-                write(*,*) 'albedo missing from InterfaceWaterAir'
-                stop 'CheckInternalOptions - ModuleInterfaceWaterAir - ERR10'
-            endif
-            
-        endif
+        call Search_Property(PropertyY, Albedo_,                 STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) Me%IntOptions%Albedo                 = ON
             
         call Search_Property(PropertyX, SurfaceWaterFlux_,       STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) Me%IntOptions%SurfaceWaterFlux       = ON
@@ -2105,20 +2118,20 @@ do1 :   do while (associated(PropertyX))
             endif
 
             call Search_Property(PropertyX, SurfaceRadiation_, .true., STAT = STAT_CALL)
-            !if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR100'
 
             if(.not. PropertyX%ID%SolutionFromFile .and. .not. PropertyX%Constant) then
 
                 if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, SolarRadiation_))then
                     write(*,*) 'Missing SolarRadiation in Module Atmosphere '
-                    stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR100'
+                    stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR110'
                 endif
                 
               call Search_Property(PropertyX, Albedo_, .true., STAT = STAT_CALL)
             
               if (STAT_CALL /= SUCCESS_) then
                 write(*,*) 'Missing Albedo in Module InterfaceWaterAir'
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR110'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR120'
               endif
 
             endif
@@ -2128,28 +2141,28 @@ do1 :   do while (associated(PropertyX))
         if (Me%ExtOptions%OxygenFluxYes) then
 
             call Search_Property(PropertyX, OxygenFlux_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR130'
             
         endif
 
         if (Me%ExtOptions%CarbonDioxideFluxYes) then
 
             call Search_Property(PropertyX, CarbonDioxideFlux_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR130'         
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR140'         
            
         endif
 
         if (Me%ExtOptions%AmmoniaFluxYes) then    !LLP
 
             call Search_Property(PropertyX, AmmoniaFlux_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR140'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR150'
             
         endif
 
         if (Me%ExtOptions%NitrateFluxYes) then
 
             call Search_Property(PropertyX, NitrateFlux_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR140b'         
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR150b'         
            
         endif
 
@@ -2157,7 +2170,7 @@ do1 :   do while (associated(PropertyX))
         if (Me%ExtOptions%SurfaceWaterFluxYes) then
 
             call Search_Property(PropertyX, SurfaceWaterFlux_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR150'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR160'
 
             Me%ExtOptions%Precipitation = AtmospherePropertyExists(Me%ObjAtmosphere, Precipitation_)
             Me%ExtOptions%Irrigation    = AtmospherePropertyExists(Me%ObjAtmosphere, Irrigation_   )         
@@ -2170,17 +2183,17 @@ do1 :   do while (associated(PropertyX))
         if (Me%ExtOptions%HydrodynamicWindYes) then
 
             call Search_Property(PropertyX, WindStressX_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR160'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR170'
 
 
             call Search_Property(PropertyY, WindStressY_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR170'
+            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR180'
 
             if ((      PropertyX%ID%SolutionFromFile .and. .not. PropertyY%ID%SolutionFromFile) .or. &
                 (.not. PropertyX%ID%SolutionFromFile .and.       PropertyY%ID%SolutionFromFile)) then
                 
                 write (*,*) 'wind stress X must be given in the same way as wind stress Y'
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR0170'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR0190'
 
             endif
 
@@ -2191,7 +2204,7 @@ do1 :   do while (associated(PropertyX))
 
             if (.not.AtmospherePropertyExists(Me%ObjAtmosphere, AtmosphericPressure_)) then
                 write(*,*) 'Missing AtmosphericPressure in Module Atmosphere'
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR190'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR200'
             endif
 
         endif
@@ -2201,7 +2214,7 @@ do1 :   do while (associated(PropertyX))
 
             if (.not.AtmospherePropertyExists(Me%ObjAtmosphere, MeanSeaLevelPressure_)) then
                 write(*,*) 'Missing mslp in Module Atmosphere'
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR191'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR210'
             endif
 
         endif
@@ -2215,7 +2228,7 @@ do1 :   do while (associated(PropertyX))
                 .and. .not. AtmospherePropertyExists(Me%ObjAtmosphere, MeanSeaLevelPressure_)) then
 
                 write(*,*) 'Missing AtmosphericPressure or Mslp in Module Atmosphere '
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR200'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR220'
 
             endif
 
@@ -2225,12 +2238,12 @@ do1 :   do while (associated(PropertyX))
 
             if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
                 write(*,*) 'Missing WindVelocity in Module Atmosphere '
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR210'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR230'
             endif
 
             if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
                 write(*,*) 'Missing WindVelocity in Module Atmosphere '
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR220'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR240'
             endif
 
         endif
@@ -2240,7 +2253,7 @@ do1 :   do while (associated(PropertyX))
             
             if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, SolarRadiation_))then
                 write(*,*) 'Missing SolarRadiation in Module Atmosphere '
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR230'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR250'
             endif
 
         endif
@@ -2265,7 +2278,7 @@ do1 :   do while (associated(PropertyX))
                 
             else if (STAT_CALL /= SUCCESS_) then
             
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR240'
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR260'
                 
             endif
             
@@ -2886,8 +2899,8 @@ do1 :   do while (associated(PropertyX))
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
         
-        !Local-------------------------------------------------------------Albedo
-        type(T_Property), pointer                   :: PropertyX, PropertyY, PropertyZ, PropertyD
+        !Local-------------------------------------------------------------
+        type(T_Property), pointer                   :: PropertyX, PropertyY, PropertyZ
         type(T_Property), pointer                   :: PropertyW, PropertyA, PropertyB, PropertyC
 
         !Begin-------------------------------------------------------------
@@ -2897,27 +2910,27 @@ do1 :   do while (associated(PropertyX))
             if (STAT_CALL == SUCCESS_) call ModifyAlbedo            (PropertyY)
         endif
         
-        if(Me%IntOptions%LatentHeat .and. (Me%COARE==.false.))then
+        if(Me%IntOptions%LatentHeat .and. (.not. Me%COARE))then
             call Search_Property(PropertyX, LatentHeat_,             STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) call ModifyLatentHeat            (PropertyX)
         endif
 
-        if(Me%IntOptions%SensibleHeat .and. (Me%COARE==.false.))then
+        if(Me%IntOptions%SensibleHeat .and. (.not. Me%COARE))then
             call Search_Property(PropertyX, SensibleHeat_,             STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) call ModifySensibleHeat            (PropertyX)
         endif
 
-        if(Me%IntOptions%Evaporation .and. (Me%COARE==.false.))then
+        if(Me%IntOptions%Evaporation .and. (.not. Me%COARE))then
             call Search_Property(PropertyX, Evaporation_,            STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) call ModifyEvaporation           (PropertyX)
         endif
 
-        if(Me%IntOptions%NetLongWaveRadiation .and. (Me%COARE==.false.))then
+        if(Me%IntOptions%NetLongWaveRadiation .and. (.not. Me%COARE))then
             call Search_Property(PropertyX, NetLongWaveRadiation_,      STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) call ModifyNetLongWaveRadiation     (PropertyX)
         endif
 
-        if(Me%IntOptions%NonSolarFlux .and. (Me%COARE==.false.))then
+        if(Me%IntOptions%NonSolarFlux .and. (.not. Me%COARE))then
             call Search_Property(PropertyX, NonSolarFlux_,           STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) call ModifyNonSolarFlux          (PropertyX)
         endif
@@ -2952,12 +2965,12 @@ do1 :   do while (associated(PropertyX))
         endif
 
 
-        if(Me%IntOptions%SurfaceRadiation .and. (Me%COARE==.false.))then
+        if(Me%IntOptions%SurfaceRadiation)then
             call Search_Property(PropertyX, SurfaceRadiation_,       STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_) call ModifySurfaceRadiation      (PropertyX, PropertyY)
+            if (STAT_CALL == SUCCESS_) call ModifySurfaceRadiation      (PropertyX)
         endif
 
-        if(Me%IntOptions%SurfaceWaterFlux .and. (Me%COARE==.false.))then
+        if(Me%IntOptions%SurfaceWaterFlux .and. (.not. Me%COARE))then
             call Search_Property(PropertyX, SurfaceWaterFlux_,       STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) call ModifySurfaceWaterFlux      (PropertyX)
         endif
@@ -2979,11 +2992,11 @@ do1 :   do while (associated(PropertyX))
         call Search_Property(PropertyA, DownwardLongWaveRadiation_, STAT = STAT_CALL)
         call Search_Property(PropertyB, SurfaceRadiation_,          STAT = STAT_CALL)
         call Search_Property(PropertyC, NonSolarFlux_,              STAT = STAT_CALL)
-        call Search_Property(PropertyD, Albedo_,                    STAT = STAT_CALL)
+        !call Search_Property(PropertyD, Albedo_,                    STAT = STAT_CALL)
         call CheckRadiationOptions(PropertyZ, PropertyW, PropertyA, PropertyB)
         call CheckLatentSensibleOptions (PropertyX, PropertyY)
         
-        call ComputeCOAREHeatBudget(PropertyX, PropertyY, PropertyZ, PropertyW, PropertyA, PropertyB, PropertyC, PropertyD)
+        call ComputeCOAREHeatBudget(PropertyX, PropertyY, PropertyZ, PropertyW, PropertyA, PropertyB, PropertyC)
             
             if(Me%IntOptions%Evaporation)then
                 call Search_Property(PropertyX, Evaporation_,            STAT = STAT_CALL)
@@ -3012,7 +3025,10 @@ do1 :   do while (associated(PropertyX))
                                   PointsToFill2D    = Me%ExtWater%WaterPoints2D,        &
                                   STAT              = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_) stop 'ModifyAlbedo - ModuleInterfaceWaterAir - ERR01'
-
+            
+            call SetMatrixValue(Me%SurfaceAlbedo, Me%Size2D,   &
+                                PropAlbedo%Field)
+            
         endif    
         
     end subroutine ModifyAlbedo
@@ -3239,10 +3255,10 @@ do1 :   do while (associated(PropertyX))
     !--------------------------------------------------------------------------    
 
     
-    subroutine ModifySurfaceRadiation (PropSurfaceRadiation, PropAlbedo)
+    subroutine ModifySurfaceRadiation (PropSurfaceRadiation)
         
         !Arguments-------------------------------------------------------------
-        type(T_Property), pointer                   :: PropSurfaceRadiation, PropAlbedo
+        type(T_Property), pointer                   :: PropSurfaceRadiation
 
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
@@ -3260,7 +3276,7 @@ do1 :   do while (associated(PropertyX))
 
         elseif(.not. PropSurfaceRadiation%Constant)then
 
-            call ComputeSurfaceRadiation(PropSurfaceRadiation, PropAlbedo)
+            call ComputeSurfaceRadiation(PropSurfaceRadiation)
 
         endif
 
@@ -3270,11 +3286,11 @@ do1 :   do while (associated(PropertyX))
     !--------------------------------------------------------------------------    
 
     
-    subroutine ComputeSurfaceRadiation (PropSurfaceRadiation, PropAlbedo)
+    subroutine ComputeSurfaceRadiation (PropSurfaceRadiation)
         
         !Arguments--------------------------------------------------------------
-        type(T_Property), pointer           :: PropSurfaceRadiation, PropAlbedo
-
+        type(T_Property), pointer           :: PropSurfaceRadiation
+        type(T_Property), pointer           :: PropertyX
         !External--------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB, i, j
         real, dimension(:,:), pointer       :: SolarRadiation
@@ -3295,40 +3311,43 @@ do1 :   do while (associated(PropertyX))
                                    STAT         = STAT_CALL)
         if (STAT_CALL .ne. SUCCESS_)                                        &
             stop 'ComputeSurfaceRadiation - ModuleInterfaceWaterAir - ERR02'
-
-!        if(Me%ReflectionCoef >= 0.)then
-            
-            if (MonitorPerformance) then
-                call StartWatch ("ModuleInterfaceWaterAir", "ComputeSurfaceRadiation")
+        
+        call Search_Property(PropertyX, Albedo_,                 STAT = STAT_CALL)
+                
+        if (STAT_CALL == SUCCESS_) then
+                
+            call SetMatrixValue(Me%SurfaceAlbedo, Me%Size2D,   &
+                                    PropertyX%Field)
+        else
+            if (Me%ReflectionCoef < 0 .OR. Me%ReflectionCoef > 1) then
+                    write(*,*) 'Albedo must be between 0 and 1'
+                    stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR40'
             endif
-
-            CHUNK = CHUNK_J(JLB, JUB)
-            !$OMP PARALLEL PRIVATE(i,j)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j=JLB, JUB
-            do i=ILB, IUB
             
-                if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+            call SetMatrixValue(Me%SurfaceAlbedo, Me%Size2D,   &
+                    Me%ReflectionCoef)
+        endif
+                
+                CHUNK = CHUNK_J(JLB, JUB)
+                !$OMP PARALLEL PRIVATE(i,j)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j=JLB, JUB
+                do i=ILB, IUB
+            
+                    if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
-                    !PropSurfaceRadiation%Field(i, j) = SolarRadiation(i, j) * (1 - Me%ReflectionCoef)
-                    PropSurfaceRadiation%Field(i, j) = SolarRadiation(i, j) * (1 - PropAlbedo%Field(i, j))
+                        PropSurfaceRadiation%Field(i, j) = SolarRadiation(i, j) * (1 - Me%SurfaceAlbedo(i, j))
                                                                 
-                endif
+                    endif
 
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
 
-            if (MonitorPerformance) then
-                call StopWatch ("ModuleInterfaceWaterAir", "ComputeSurfaceRadiation")
-            endif
-            
-        !else
-        !
-        !    call SetMatrixValue(PropSurfaceRadiation%Field, Me%Size2D, SolarRadiation)
-        !
-        !endif
+            !if (MonitorPerformance) then
+            !    call StopWatch ("ModuleInterfaceWaterAir", "ComputeSurfaceRadiation")
+            !endif
 
         call UnGetAtmosphere(Me%ObjAtmosphere, SolarRadiation, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeSurfaceRadiation - ModuleInterfaceWaterAir - ERR04'
@@ -3770,7 +3789,7 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
     !--------------------------------------------------------------------------
 
     subroutine ComputeCOAREHeatBudget(PropLatentHeat, PropSensibleHeat, PropNetLongWaveRadiation, PropUpLongWaveRadiation, &
-                                      PropDownLongWaveRadiation, PropSurfaceRadiation, PropNonSolarFlux, PropAlbedo)
+                                      PropDownLongWaveRadiation, PropSurfaceRadiation, PropNonSolarFlux)
     
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer                   :: PropLatentHeat
@@ -3780,14 +3799,14 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         type(T_Property), pointer                   :: PropDownLongWaveRadiation
         type(T_Property), pointer                   :: PropSurfaceRadiation
         type(T_Property), pointer                   :: PropNonSolarFlux
-        type(T_Property), pointer                   :: PropAlbedo
+        !type(T_Property), pointer                   :: PropAlbedo
     
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
     
         !Local-----------------------------------------------------------------
         real,    dimension(:,:,:), pointer          :: WaterTemperature, WaterDensity
-        real,    dimension(:,:  ), pointer          :: SolarRadiation
+        !real,    dimension(:,:  ), pointer          :: SolarRadiation
         real                                        :: CheckNightTime, WaterTemperatureDepth
         real                                        :: Year, Month, Day, Hour, Minute, Second
         Integer, dimension(6    )                   :: AuxTimeInstant
@@ -3809,11 +3828,11 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         call GetGeometryDistances (Me%ObjGeometry, DWZ = Me%ExternalVar%DWZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeCOAREHeatBudget - ModuleInterfaceWaterAir - ERR02'
 
-        call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,                 &
-                                   Scalar       = SolarRadiation,                   &
-                                   ID           = SolarRadiation_,                  &
-                                   STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Subroutine ComputeCOAREHeatBudget - ModuleInterfaceWaterAir - ERR03'
+        !call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,                 &
+        !                           Scalar       = SolarRadiation,                   &
+        !                           ID           = SolarRadiation_,                  &
+        !                           STAT         = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)stop 'Subroutine ComputeCOAREHeatBudget - ModuleInterfaceWaterAir - ERR03'
         
         call GetDensity(Me%ObjWaterProperties, Me%ExtWater%Density,                  &
                         Me%ExternalVar%Now,  STAT = STAT_CALL)       
@@ -3837,7 +3856,7 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
             if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
                 Me%SurfaceTemperature (i, j)     = WaterTemperature(i, j, KUB)    
                 !PropSurfaceRadiation%Field(i, j) = SolarRadiation(i, j) * (1 - Me%ReflectionCoef)
-                PropSurfaceRadiation%Field(i, j) = SolarRadiation(i, j) * (1 - PropAlbedo%Field(i, j))
+                !PropSurfaceRadiation%Field(i, j) = SolarRadiation(i, j) * (1 - PropAlbedo%Field(i, j))
             endif
         enddo
         enddo
@@ -3848,7 +3867,7 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         
         if (Me%Jwarm) Then
         
-            if (Me%Jump == .false.)then
+            if (.not. Me%Jump)then
             
                 call ExtractDate(Me%ExternalVar%Now,                         &
                                     Year = Year, Month  = Month,  Day    = Day, &
@@ -3934,8 +3953,8 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         call UnGetWaterProperties(Me%ObjWaterProperties, Me%ExtWater%Density, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeCOAREHeatBudget - ModuleInterfaceWaterAir - ERR07'
 
-        call UnGetAtmosphere(Me%ObjAtmosphere, SolarRadiation, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeCOAREHeatBudget - ModuleInterfaceWaterAir - ERR08'
+        !call UnGetAtmosphere(Me%ObjAtmosphere, SolarRadiation, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeCOAREHeatBudget - ModuleInterfaceWaterAir - ERR08'
         
         nullify (WaterTemperature)
         nullify (WaterDensity)
@@ -3955,7 +3974,7 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         integer                                     :: STAT_CALL
 
         !Local-----------------------------------------------------------------
-        real,    dimension(:,:,:), pointer, intent(in)  :: WaterDensity
+        real,    dimension(:,:,:), pointer              :: WaterDensity
         real                                            :: RichNumb, Ctd1, Ctd2, TotalSurfaceHeatLoss, TotalHeatAbsorbed 
         real                                            :: ModelDT, Cpw, TotalEnergyAbsorbed
         integer                                         :: ILB, IUB, JLB, JUB, KUB, i, j, n, CHUNK
@@ -4000,10 +4019,13 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
                 PropNetLongWaveRadiation%Field(i, j) = PropDownLongWaveRadiation%Field(i, j) + PropUpLongWaveRadiation%Field(i, j)
                                  
                 TotalSurfaceHeatLoss  = -PropNetLongWaveRadiation%Field(i, j) - Me%LastSensibleHeat(i, j) - &
-                                        Me%LastLatentHeat(i, j) - Me%RainFlux(i, j)   !total cooling at surface (w/m^2) RainFlux, latent and 
-                                                                                      !sensible heat are the ones calculated in the previous timestep
+                                        Me%LastLatentHeat(i, j) - Me%RainFlux(i, j) 
+                
+                !total cooling at surface (w/m^2) RainFlux, latent and 
+                !sensible heat are the ones calculated in the previous timestep
 
-                TotalHeatAbsorbed  = Me%Fxp(i, j) * PropSurfaceRadiation%Field(i, j) - TotalSurfaceHeatLoss  !total heat abs in warm layer (w/m2)                    
+                TotalHeatAbsorbed  = Me%Fxp(i, j) * PropSurfaceRadiation%Field(i, j) - TotalSurfaceHeatLoss
+                !total heat abs in warm layer (w/m2)                    
                     
                 if (TotalHeatAbsorbed .LT. 50 .and. .not. Me%EnergyThreshold) then !check for threshold       
                     
@@ -4013,16 +4035,17 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
                     Me%Tau_ac(i, j) = Me%Tau_ac(i, j) + max(0.002, Me%Tau(i, j)) * ModelDT   !momentum integral
                     
                     !          J/m2           +         (W/m2)    *    s
-                    if ((Me%AccumulatedEnergy(i, j) + TotalHeatAbsorbed * ModelDT) .GT. 0) then  !check threshold for warm layer existence.
-                                                                                           !AccumulatedEnergy in the amount of energy stored, integrated over time
+                    if ((Me%AccumulatedEnergy(i, j) + TotalHeatAbsorbed * ModelDT) .GT. 0) then  
+                        !check threshold for warm layer existence.
+                        !AccumulatedEnergy in the amount of energy stored, integrated over time
                         
 !..........................................  loop 5 times for fxp  ...............................................
                         
                         do n = 1,5
                         
-                        Me%Fxp(i, j) = 1.0 - (0.28 * 0.014 * (1 - exp(-Me%WarmLayerThickness(i, j) / 0.014)) + 0.27 * 0.357 *    &
-                        (1 - exp(-Me%WarmLayerThickness(i, j) / 0.357)) + 0.45 * 12.82 * (1 - exp(-Me%WarmLayerThickness(i, j) / 12.82))) &
-                        / Me%WarmLayerThickness(i, j)
+                        Me%Fxp(i, j) = 1.0 - (0.28 * 0.014 * (1 - exp(-Me%WarmLayerThickness(i, j) / 0.014)) + 0.27 * 0.357 * &
+                                       (1 - exp(-Me%WarmLayerThickness(i, j) / 0.357)) + 0.45 * 12.82 *                       &
+                                       (1 - exp(-Me%WarmLayerThickness(i, j) / 12.82))) / Me%WarmLayerThickness(i, j)
                         
 !                       Where fxp is the average fraction of the solar radiation absorbed in the trapping layer
                         
@@ -4031,8 +4054,8 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
                         
                                     !J/m2                      + J/m2
                                 if (Me%AccumulatedEnergy(i, j) + TotalEnergyAbsorbed .GT. 0) then
-                                    Me%WarmLayerThickness(i, j) = min(19.0, &
-                                                                  Ctd1 * Me%Tau_ac(i, j) / sqrt(Me%AccumulatedEnergy(i, j) + TotalEnergyAbsorbed)) 
+                                    Me%WarmLayerThickness(i, j) = min(19.0, Ctd1 * Me%Tau_ac(i, j) /  &
+                                                                  sqrt(Me%AccumulatedEnergy(i, j) + TotalEnergyAbsorbed)) 
                                 endif
                                 
                         enddo
@@ -4042,7 +4065,9 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
                         
                             Me%Fxp(i, j)                     = 0.75 
                             Me%WarmLayerThickness(i, j)      = 19.0 
-                            TotalEnergyAbsorbed              = (Me%Fxp(i, j) * PropSurfaceRadiation%Field(i, j) - TotalSurfaceHeatLoss) * ModelDT 
+                            TotalEnergyAbsorbed              = (Me%Fxp(i, j) *                                            &
+                                                               PropSurfaceRadiation%Field(i, j) - TotalSurfaceHeatLoss) * &
+                                                               ModelDT 
                             
                     endif !   end sign check on AccumulatedEnergy
                   
@@ -4087,11 +4112,11 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         real,    dimension(:,:), pointer            :: AirTemperature, RelativeHumidity, Precipitation, PBLHeight
         real,    dimension(:,:,:), pointer          :: WaterDensity
         real,    dimension(:,:  ), pointer          :: UWIND, VWIND
-        real                                        :: P, Rgas, Grav, Cpa, Cpw, Visw, Charn, CoolSkinThickness, COAREWindVelocity, WindVelocity
+        real                                        :: P, Rgas, Grav, Cpa, Cpw, Visw, Charn, CoolSkinThickness, COAREWindVelocity
         real                                        :: CoolSkinTempDepression, LatHeatVap, DeltaSatVapPressCorr, Bigc, AirDensity
-        real                                        :: DeltaTempInterface, WetBulbFactor
-        real                                        :: Visa
-        real                                        :: ScailingVelocityPar, CoolSkinHumDepression, DeltaSatVapPress, Tcw, ScailingTemperaturePar
+        real                                        :: DeltaTempInterface, WetBulbFactor, WindVelocity
+        real                                        :: Visa, ScailingTemperaturePar
+        real                                        :: ScailingVelocityPar, CoolSkinHumDepression, DeltaSatVapPress, Tcw
         real                                        :: MoistureContentAir, InterfaceMoistureContent, ScailingMoisturePar
         integer                                     :: ILB, IUB, JLB, JUB, KUB, i, j, Nits
         !Begin-----------------------------------------------------------------
@@ -4099,7 +4124,8 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         !Important papers used in this algorithm:
         !Coolskin paper: (Fairall, C.W., E.F. Bradley, J.S. Godfrey, G.A. Wick, J.B. Edson, and G.S. Young, 1996a:
         !The cool skin and the warm layer in bulk flux calculations.)
-        !Stability parameter paper : A. A. GRACHEV* AND C. W. FAIRALLDependence of the Monin–Obukhov Stability Parameter on the Bulk Richardson Number over the Ocean
+        !Stability parameter paper : 
+        !A. A. GRACHEV* AND C. W. FAIRALLDependence of the Monin–Obukhov Stability Parameter on the Bulk Richardson Number over the Ocean
         
         call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,                 &
                                    Scalar       = Me%ExtAtm%AirTemperature%Field,   &
@@ -4152,17 +4178,17 @@ do2: do i = ILB, IUB
 i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
             
             !Calculates wind^2
-            WindVelocity                            = sqrt(UWIND(i, j)**2. + VWIND(i, j)**2.)            
+            WindVelocity                         = sqrt(UWIND(i, j)**2. + VWIND(i, j)**2.)            
             
-            LatHeatVap                              = LatentHeatOfVaporization (Me%SurfaceTemperature(i, j))
+            LatHeatVap                           = LatentHeatOfVaporization (Me%SurfaceTemperature(i, j))
             
-            MoistureContentAir                      = COAREMoistureContentAir (AirTemperature(i, j), P, RelativeHumidity(i, j)) / 1000.
+            MoistureContentAir                   = COAREMoistureContentAir (AirTemperature(i, j), P, RelativeHumidity(i, j)) / 1000.
             
-            InterfaceMoistureContent                = COAREInterfaceMoistureContent (Me%SurfaceTemperature(i, j), P) / 1000.
+            InterfaceMoistureContent             = COAREInterfaceMoistureContent (Me%SurfaceTemperature(i, j), P) / 1000.
 
-            PropUpLongWaveRadiation%Field(i, j)     = LongWaveUpwardCOARE (Me%SurfaceTemperature(i, j), Me%Jcool)
+            PropUpLongWaveRadiation%Field(i, j)  = LongWaveUpwardCOARE (Me%SurfaceTemperature(i, j), Me%Jcool)
                     
-            PropNetLongWaveRadiation%Field(i, j)    = PropDownLongWaveRadiation%Field(i, j) + PropUpLongWaveRadiation%Field(i, j) ! alterado para ponto de vista da água
+            PropNetLongWaveRadiation%Field(i, j) = PropDownLongWaveRadiation%Field(i, j) + PropUpLongWaveRadiation%Field(i, j) 
 
 
         !*************  air constants ************
@@ -4211,22 +4237,27 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
                          PBLHeight, i, j, KUB, Nits)
            
 
-            Me%Tau(i, j)             = AirDensity * ScailingVelocityPar**2.0 * WindVelocity / COAREWindVelocity                 !stress
+            Me%Tau(i, j)             = AirDensity * ScailingVelocityPar**2.0 * WindVelocity / COAREWindVelocity  
+            !stress
             
             Me%LastSensibleHeat(i, j)= PropSensibleHeat%Field(i, j) 
             
             Me%LastLatentHeat(i, j)  = PropLatentHeat%Field(i, j)
             
-            WetBulbFactor            = 1.0 / (1.0 + (DeltaSatVapPressCorr * LatHeatVap *  WaterVapourDiffusivity(AirTemperature(i, j))) /   &
+            WetBulbFactor            = 1.0 /                                                    &
+                                       (1.0 + (DeltaSatVapPressCorr * LatHeatVap *              &
+                                       WaterVapourDiffusivity(AirTemperature(i, j))) /          &
                                        (Cpa * HeatDiffusivity(AirTemperature(i, j), AirDensity, Cpa)))
             
-            !                                                       Precipitation is converted in the beginning to m3/s , so here it is converted back to mm/h
-            Me%RainFlux(i, j)        = -1. * (Precipitation(i, j) * (1000 / Me%ExternalVar%GridCellArea(i, j)) * WetBulbFactor * Cpw * ((Me%SurfaceTemperature(i,j) - AirTemperature(i, j)    &
-                                       - CoolSkinTempDepression * Me%Jcool) + (InterfaceMoistureContent - MoistureContentAir - CoolSkinHumDepression * Me%Jcool)   &
-                                       * LatHeatVap / Cpa))
+            !Precipitation is converted in the beginning to m3/s , 
+            !so here it is converted back to mm/h
+            Me%RainFlux(i, j)        = -1. * (Precipitation(i, j) * (1000 / Me%ExternalVar%GridCellArea(i, j)) *   &
+                                       WetBulbFactor * Cpw * ((Me%SurfaceTemperature(i,j) - AirTemperature(i, j) - &
+                                       CoolSkinTempDepression * Me%Jcool) + (InterfaceMoistureContent -            &
+                                       MoistureContentAir - CoolSkinHumDepression * Me%Jcool) * LatHeatVap / Cpa))
             
-            PropNonSolarFlux%Field(i, j)    = PropLatentHeat%Field(i, j) + PropSensibleHeat%Field(i, j) + PropNetLongWaveRadiation%Field(i, j) &
-                                              + Me%RainFlux(i, j)
+            PropNonSolarFlux%Field(i, j)    = PropLatentHeat%Field(i, j) + PropSensibleHeat%Field(i, j) +          &
+                                              PropNetLongWaveRadiation%Field(i, j) + Me%RainFlux(i, j)
 
 
         endif i1  !external water point
@@ -4265,19 +4296,19 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
         !External--------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        real,    dimension(:,:), pointer                :: AirTemperature, PBLHeight
-        real                                            :: VerticalWindVelocity, COAREWindVelocity10m, WindVelocity, Beta
-        real                                            :: Grav, Charn, Von, Fdg
-        real                                            :: VelocityRoughnessLgtNeutral, VelocityTransfCoeffNeutral, MoistureTransfCoeffNeutral
-        real                                            :: TemperatureTransfCoeffNeutral, TemperatureRoughnessLgtNeutral, VelocityTransfCoeff
-        real                                            :: TemperatureTransfCoeff, CoeffC, SatRichNumb, RichNumb, StabilityParameter, MOLength
-        real, intent(OUT)                               :: ScailingVelocityPar, ScailingTemperaturePar, ScailingMoisturePar, COAREWindVelocity
-        real, intent(OUT)                               :: CoolSkinThickness, DeltaSatVapPress, DeltaTempInterface, CoolSkinTempDepression
-        real, intent(OUT)                               :: CoolSkinHumDepression
-        integer, intent(IN)                             :: i, j
-        real, intent(IN)                                :: DeltaSatVapPressCorr, Visa, InterfaceMoistureContent
-        real, intent(IN)                                :: MoistureContentAir
-        integer, intent(OUT)                            :: Nits
+        real,    dimension(:,:), pointer        :: AirTemperature, PBLHeight
+        real                                    :: VerticalWindVelocity, COAREWindVelocity10m, WindVelocity, Beta
+        real                                    :: Grav, Charn, Von, Fdg, MoistureTransfCoeffNeutral, MOLength
+        real                                    :: VelocityRoughnessLgtNeutral, VelocityTransfCoeffNeutral, VelocityTransfCoeff
+        real                                    :: TemperatureTransfCoeffNeutral, TemperatureRoughnessLgtNeutral
+        real                                    :: TemperatureTransfCoeff, CoeffC, SatRichNumb, RichNumb, StabilityParameter
+        real, intent(OUT)                       :: ScailingVelocityPar, ScailingTemperaturePar, ScailingMoisturePar
+        real, intent(OUT)                       :: CoolSkinThickness, DeltaSatVapPress, DeltaTempInterface, CoolSkinTempDepression
+        real, intent(OUT)                       :: CoolSkinHumDepression, COAREWindVelocity
+        integer, intent(IN)                     :: i, j
+        real, intent(IN)                        :: DeltaSatVapPressCorr, Visa, InterfaceMoistureContent
+        real, intent(IN)                        :: MoistureContentAir
+        integer, intent(OUT)                    :: Nits
                                                  
         !Begin-----------------------------------------------------------------
             Beta    = 1.2     ! saline contraction coeff [1/psu]   parameter evaluated from Fairall low windspeed turbulence data
@@ -4303,14 +4334,18 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
             TemperatureRoughnessLgtNeutral= 10.0 / exp(Von / TemperatureTransfCoeffNeutral) 
             VelocityTransfCoeff           = (Von / log(Me%WindHeight / VelocityRoughnessLgtNeutral))**2.0 
             TemperatureTransfCoeff        = Von / log(Me%AirMeasurementHeight / TemperatureRoughnessLgtNeutral) 
-            CoeffC                        = Von * Temperaturetransfcoeff / VelocityTransfCoeff      ! CoeffC is a analytical function of the standard bulk exchange coefficient
+            CoeffC                        = Von * Temperaturetransfcoeff / VelocityTransfCoeff      
+            ! CoeffC is a analytical function of the standard bulk exchange coefficient
             SatRichNumb                   = -Me%WindHeight / PBLHeight(i, j) / 0.004 / Beta**3.0 
-            RichNumb                      = -Grav * Me%WindHeight / (AirTemperature(i, j) + 273.16) *((DeltaTempInterface - CoolSkinTempDepression * Me%Jcool) &
-                                            + 0.61 * (AirTemperature(i, j) + 273.16) * DeltaSatVapPress) / COAREWindVelocity**2.0 
+            RichNumb                      = -Grav * Me%WindHeight / (AirTemperature(i, j) + 273.16)   *  &
+                                            ((DeltaTempInterface - CoolSkinTempDepression * Me%Jcool) +  &
+                                            0.61 * (AirTemperature(i, j) + 273.16) * DeltaSatVapPress) / &
+                                            COAREWindVelocity**2.0 
             Nits = 3
             
             if (RichNumb .LT. 0) then 
-                StabilityParameter = CoeffC * RichNumb / (1.0 + RichNumb / SatRichNumb)  ! StabilityParameter = ratio of height to Obukhov length
+                StabilityParameter = CoeffC * RichNumb / (1.0 + RichNumb / SatRichNumb)  
+                ! StabilityParameter = ratio of height to Obukhov length
             else 
                 StabilityParameter = CoeffC * RichNumb * (1.0 + 27.0 / 9.0 * RichNumb / CoeffC)
             endif 
@@ -4321,14 +4356,15 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
                 Nits = 1 
             endif 
             
-             ScailingVelocityPar    = COAREWindVelocity * Von / (log(Me%WindHeight / VelocityRoughnessLgtNeutral)-Psiu(StabilityParameter))
+             ScailingVelocityPar    = COAREWindVelocity * Von /                                                 &
+                                      (log(Me%WindHeight / VelocityRoughnessLgtNeutral)-Psiu(StabilityParameter))
              
              ScailingTemperaturePar = -(DeltaTempInterface - CoolSkinTempDepression * Me%Jcool) * Von * Fdg /  &
                                        (log(Me%AirMeasurementHeight / TemperatureRoughnessLgtNeutral) -     &
                                         Psit(Me%AirMeasurementHeight / MOLength))
              
-             ScailingMoisturePar    = -(DeltaSatVapPress - DeltaSatVapPressCorr * CoolSkinTempDepression * Me%Jcool) * Von * Fdg /     &
-                                       (log(Me%AirMeasurementHeight / TemperatureRoughnessLgtNeutral) -                             &
+             ScailingMoisturePar    = -(DeltaSatVapPress - DeltaSatVapPressCorr * CoolSkinTempDepression * Me%Jcool) * &
+                                       Von * Fdg / (log(Me%AirMeasurementHeight / TemperatureRoughnessLgtNeutral) -    &
                                         Psit(Me%AirMeasurementHeight / MOLength))
              
              CoolSkinThickness      = 0.001
@@ -4346,27 +4382,26 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
         !Arguments-------------------------------------------------------------
     
-        type(T_Property), pointer                   :: PropLatentHeat
-        type(T_Property), pointer                   :: PropSensibleHeat
-        type(T_Property), pointer                   :: PropNetLongWaveRadiation
-        type(T_Property), pointer                   :: PropSurfaceRadiation        
-
-        !External--------------------------------------------------------------
-        integer                                     :: STAT_CALL
+        type(T_Property), pointer               :: PropLatentHeat
+        type(T_Property), pointer               :: PropSensibleHeat
+        type(T_Property), pointer               :: PropNetLongWaveRadiation
+        type(T_Property), pointer               :: PropSurfaceRadiation        
 
         !Local-----------------------------------------------------------------
-        real,    dimension(:,:), pointer            :: AirTemperature, PBLHeight
-        real,    dimension(:,:,:), pointer          :: WaterDensity
-        real                                        :: Be, Visw, Grav, Von, Cpw, Tcw, Cpa, Fdg, Beta, HeatLossWithoutRainFlux
-        real                                        :: FracSolarRadAbs, MoistureRoughnessLgt, MOLength, RoughnessReynolds, SaundersCoeff
-        real                                        :: StabilityParameter, SurfaceBuoyancyFlux, TemperatureRoughnessLgt, TotalCoolingSurface
-        real                                        :: VelocityRoughnessLgt, VerticalWindVelocity, VirtualSurfaceCooling
-        real, intent(IN)                            :: DeltaTempInterface, Charn, DeltaSatVapPress, MoistureContentAir
-        real, intent(IN)                            :: Bigc, Visa, AirDensity, LatHeatVap, DeltaSatVapPressCorr, WindVelocity
-        real, intent(INOUT)                         :: ScailingVelocityPar, COAREWindVelocity, CoolSkinTempDepression, CoolSkinHumDepression
-        real, intent(INOUT)                         :: CoolSkinThickness, ScailingMoisturePar, ScailingTemperaturePar
-        integer                                     :: n
-        integer, intent(IN)                         :: i, j, KUB, Nits
+        real,    dimension(:,:), pointer        :: AirTemperature, PBLHeight
+        real,    dimension(:,:,:), pointer      :: WaterDensity
+        real                                    :: Be, Visw, Grav, Von, Cpw, Tcw, Cpa, Fdg, Beta, HeatLossWithoutRainFlux
+        real                                    :: FracSolarRadAbs, MoistureRoughnessLgt, MOLength, RoughnessReynolds
+        real                                    :: StabilityParameter, SurfaceBuoyancyFlux, TemperatureRoughnessLgt
+        real                                    :: TotalCoolingSurface, SaundersCoeff
+        real                                    :: VelocityRoughnessLgt, VerticalWindVelocity, VirtualSurfaceCooling
+        real, intent(IN)                        :: DeltaTempInterface, Charn, DeltaSatVapPress, MoistureContentAir
+        real, intent(IN)                        :: Bigc, Visa, AirDensity, LatHeatVap, DeltaSatVapPressCorr, WindVelocity
+        real, intent(INOUT)                     :: ScailingVelocityPar, COAREWindVelocity, CoolSkinTempDepression
+        real, intent(INOUT)                     :: CoolSkinHumDepression
+        real, intent(INOUT)                     :: CoolSkinThickness, ScailingMoisturePar, ScailingTemperaturePar
+        integer                                 :: n
+        integer, intent(IN)                     :: i, j, KUB, Nits
         
         !Begin-----------------------------------------------------------------
            Beta = 1.2
@@ -4383,9 +4418,10 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
       !************************************************** Begin loop *********************************************************     
            do n = 1, Nits 
      
-            StabilityParameter = (Von * Grav * Me%WindHeight / (AirTemperature(i, j) + 273.16)) *                                  &
-                                 (ScailingTemperaturePar * (1.0 + 0.61 * MoistureContentAir) + .61 * (AirTemperature(i, j) + 273.16)   &
-                                 * ScailingMoisturePar) / (ScailingVelocityPar**2.0) / (1.0 + 0.61 * MoistureContentAir) 
+            StabilityParameter = (Von * Grav * Me%WindHeight / (AirTemperature(i, j) + 273.16))    *                  &
+                                 (ScailingTemperaturePar * (1.0 + 0.61 * MoistureContentAir) + .61 *                  &
+                                 (AirTemperature(i, j) + 273.16)                                   *                  &
+                                 ScailingMoisturePar) / (ScailingVelocityPar**2.0) / (1.0 + 0.61 * MoistureContentAir) 
 
             VelocityRoughnessLgt    = Charn * ScailingVelocityPar**2.0 / Grav + 0.11 * Visa / ScailingVelocityPar  
             RoughnessReynolds       = VelocityRoughnessLgt * ScailingVelocityPar / Visa 
@@ -4398,13 +4434,15 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
                                       Psiu(Me%WindHeight / MOLength))
             
             ScailingTemperaturePar  = - (DeltaTempInterface - CoolSkinTempDepression * Me%Jcool) * Von * Fdg /     &     ! t*
-                                       (log(Me%AirMeasurementHeight / TemperatureRoughnessLgt) -                &
+                                       (log(Me%AirMeasurementHeight / TemperatureRoughnessLgt)               -     &
                                        Psit(Me%AirMeasurementHeight / MOLength))
+            !q* 
+            ScailingMoisturePar     = - (DeltaSatVapPress - DeltaSatVapPressCorr * CoolSkinTempDepression * Me%Jcool)* &
+                                      Von * Fdg / (log(Me%AirMeasurementHeight / MoistureRoughnessLgt)          - &             
+                                      Psit(Me%AirMeasurementHeight / MOLength)) 
             
-            ScailingMoisturePar     = - (DeltaSatVapPress - DeltaSatVapPressCorr * CoolSkinTempDepression * Me%Jcool) * Von * Fdg /          &  !q*
-                                    (log(Me%AirMeasurementHeight / MoistureRoughnessLgt) - Psit(Me%AirMeasurementHeight / MOLength)) 
-            
-            SurfaceBuoyancyFlux     = - Grav / (AirTemperature(i, j) + 273.16) * ScailingVelocityPar *        &   ! stability parameter paper Eq.3
+            ! stability parameter paper Eq.3
+            SurfaceBuoyancyFlux     = - Grav / (AirTemperature(i, j) + 273.16) * ScailingVelocityPar *        &
                                       (ScailingTemperaturePar + 0.61 * (AirTemperature(i, j) + 273.16) * ScailingMoisturePar)
             
             if (SurfaceBuoyancyFlux .GT. 0.0) then
@@ -4417,30 +4455,39 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
             
             endif
             
-            COAREWindVelocity               = sqrt(WindVelocity**2.0 + VerticalWindVelocity**2.0)  ! wind velocity with gustiness included
+            COAREWindVelocity               = sqrt(WindVelocity**2.0 + VerticalWindVelocity**2.0)  
+            ! wind velocity with gustiness included
             
-            PropSensibleHeat%Field(i, j)    = AirDensity * Cpa * ScailingVelocityPar * ScailingTemperaturePar ! alterado para ponto de vista da água
+            PropSensibleHeat%Field(i, j)    = AirDensity * Cpa * ScailingVelocityPar * ScailingTemperaturePar 
+            ! alterado para ponto de vista da água
             
-            PropLatentHeat%Field(i, j)      = AirDensity * LatHeatVap * ScailingVelocityPar * ScailingMoisturePar  ! alterado para ponto de vista da água
+            PropLatentHeat%Field(i, j)      = AirDensity * LatHeatVap * ScailingVelocityPar * ScailingMoisturePar  
+            ! alterado para ponto de vista da água
             
-            HeatLossWithoutRainFlux         = - PropNetLongWaveRadiation%Field(i, j) - PropSensibleHeat%Field(i, j) - PropLatentHeat%Field(i, j)
+            HeatLossWithoutRainFlux         = - PropNetLongWaveRadiation%Field(i, j) - PropSensibleHeat%Field(i, j) - &
+                                              PropLatentHeat%Field(i, j)
             
-            FracSolarRadAbs                 = PropSurfaceRadiation%Field(i, j) * (0.065 + 11.0 * CoolSkinThickness - 6.6e-5 /    &
+            FracSolarRadAbs                 = PropSurfaceRadiation%Field(i, j) * (0.065 + 11.0 * CoolSkinThickness - 6.6e-5 /  &
                                               CoolSkinThickness * (1.0 - exp(-CoolSkinThickness / 8.0e-4))) ! Eq.16 coolskin
             
             TotalCoolingSurface             = HeatLossWithoutRainFlux - FracSolarRadAbs !coolskin
             
                   ! W/m2.K                       1/k     * w/m2                -              W/m2               * (J/Kg.K) / (J/Kg)
-            VirtualSurfaceCooling          = Me%Al(i, j) * TotalCoolingSurface - Be * PropLatentHeat%Field(i, j) * Cpw / LatHeatVap  ! Eq. 7 coolskin
+            VirtualSurfaceCooling          = Me%Al(i, j) * TotalCoolingSurface - Be * PropLatentHeat%Field(i, j) * Cpw / LatHeatVap
+            ! Eq. 7 coolskin
 
             if (VirtualSurfaceCooling .GT. 0) then 
                  
-            SaundersCoeff         = 6.0 / (1.0 + (Bigc * VirtualSurfaceCooling / ScailingVelocityPar**4.0)**0.75)**0.333    ! Eq 13 coolskin
-            CoolSkinThickness     = SaundersCoeff * Visw / (sqrt(AirDensity / WaterDensity(i, j, KUB)) * ScailingVelocityPar)    !Eq.11 coolskin
+            SaundersCoeff         = 6.0 / (1.0 + (Bigc * VirtualSurfaceCooling / ScailingVelocityPar**4.0)**0.75)**0.333
+            ! Eq 13 coolskin
+            CoolSkinThickness     = SaundersCoeff * Visw / (sqrt(AirDensity / WaterDensity(i, j, KUB)) * ScailingVelocityPar)
+            !Eq.11 coolskin
 
             else
             SaundersCoeff         = 6.0 
-            CoolSkinThickness     = min(0.01, SaundersCoeff * Visw / (sqrt(AirDensity / WaterDensity(i, j, KUB)) * ScailingVelocityPar))   !Eq.11 coolskin
+            CoolSkinThickness     = min(0.01, SaundersCoeff * Visw /                                  &
+                                    (sqrt(AirDensity / WaterDensity(i, j, KUB)) * ScailingVelocityPar))
+            !Eq.11 coolskin
             endif 
      
             CoolSkinTempDepression    = TotalCoolingSurface * CoolSkinThickness / Tcw   
@@ -4452,7 +4499,8 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
     
 
-    subroutine CheckRadiationOptions (PropNetLongWaveRadiation, PropUpLongWaveRadiation, PropDownLongWaveRadiation, PropSurfaceRadiation)
+    subroutine CheckRadiationOptions (PropNetLongWaveRadiation, PropUpLongWaveRadiation, PropDownLongWaveRadiation, &
+                                      PropSurfaceRadiation)
     
         !Arguments ------------------------------------------------------------
         type(T_Property), pointer                   :: PropNetLongWaveRadiation
@@ -6132,6 +6180,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                    deallocate(Me%LocalAtm%Mslp%Field)   
                 if(associated(Me%SurfaceTemperature)) &   
                    deallocate(Me%SurfaceTemperature)
+                
+                if(associated(Me%SurfaceAlbedo))       &
+                   deallocate (Me%SurfaceAlbedo, STAT=STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) &
+                        stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR145'
+                   nullify    (Me%SurfaceAlbedo)
 
                 PropertyX => Me%FirstProperty
 
@@ -6212,7 +6266,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     nullify(Me%LastSensibleHeat)
                     
                   endif
-                  
 !***********************************************EndCoareDeallocate*****************************        
                 if (Me%Rugosity%ON) then
 
