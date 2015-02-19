@@ -400,18 +400,18 @@ Module ModuleInterfaceWaterAir
         real                                        :: BoundaryLayerDepth       = FillValueReal
         logical                                     :: DefineCDWIND             = .false.
         integer                                     :: CDWINDMethod             = FillValueInt
-        real, pointer, dimension(:,:)               :: SurfaceTemperature
-        real, pointer, dimension(:,:)               :: Fxp
-        real, pointer, dimension(:,:)               :: WarmLayerThickness
-        real, pointer, dimension(:,:)               :: Tau
-        real, pointer, dimension(:,:)               :: Tau_ac
-        real, pointer, dimension(:,:)               :: AccumulatedEnergy
-        real, pointer, dimension(:,:)               :: WarmLayerTempDiff
-        real, pointer, dimension(:,:)               :: Al
-        real, pointer, dimension(:,:)               :: RainFlux
-        real, pointer, dimension(:,:)               :: LastLatentHeat
-        real, pointer, dimension(:,:)               :: LastSensibleHeat
-        real, pointer, dimension(:,:)               :: SurfaceAlbedo
+        real, pointer, dimension(:,:)               :: SurfaceTemperature       => null()
+        real, pointer, dimension(:,:)               :: Fxp                      => null()
+        real, pointer, dimension(:,:)               :: WarmLayerThickness       => null()
+        real, pointer, dimension(:,:)               :: Tau                      => null()
+        real, pointer, dimension(:,:)               :: Tau_ac                   => null()
+        real, pointer, dimension(:,:)               :: AccumulatedEnergy        => null()
+        real, pointer, dimension(:,:)               :: WarmLayerTempDiff        => null()
+        real, pointer, dimension(:,:)               :: Al                       => null()
+        real, pointer, dimension(:,:)               :: RainFlux                 => null()
+        real, pointer, dimension(:,:)               :: LastLatentHeat           => null()
+        real, pointer, dimension(:,:)               :: LastSensibleHeat         => null()
+        real, pointer, dimension(:,:)               :: SurfaceAlbedo            => null()
         real(8), pointer, dimension(:,:)            :: Scalar2D                 => null()
         real   , pointer, dimension(:,:)            :: WindShearVelocity        => null()
         integer                                     :: AerationEquation         = FillValueInt
@@ -1288,18 +1288,19 @@ cd2 :           if (BlockFound) then
         
         if (NewProperty%ID%IDNumber == SurfaceRadiation_) then
                       
-                call GetData(Me%ReflectionCoef,                                             &
-                             Me%ObjEnterData, iflag,                                        &
-                             keyword      = 'ALBEDO',                                       &  
-                             default      = 0.0,                                            &
-                             ClientModule = 'ModuleInterfaceWaterAir',                      &
-                             SearchType   = FromBlock,                                      &
-                             STAT         = STAT_CALL)
-       
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR40'
-                
-          allocate (Me%SurfaceAlbedo(Me%Size2D%ILB:Me%Size2D%IUB, Me%Size2D%JLB:Me%Size2D%JUB), STAT=STAT_CALL)
+            call GetData(Me%ReflectionCoef,                                             &
+                         Me%ObjEnterData, iflag,                                        &
+                         keyword      = 'ALBEDO',                                       &  
+                         default      = 0.0,                                            &
+                         ClientModule = 'ModuleInterfaceWaterAir',                      &
+                         SearchType   = FromBlock,                                      &
+                         STAT         = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR40'
+            
+            nullify(Me%SurfaceAlbedo)
+            allocate (Me%SurfaceAlbedo(Me%Size2D%ILB:Me%Size2D%IUB, Me%Size2D%JLB:Me%Size2D%JUB), STAT=STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) &
                 stop 'ConstructGlobalVariables - ModuleInterfaceWaterAir - ERR131'
             
@@ -6181,12 +6182,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if(associated(Me%SurfaceTemperature)) &   
                    deallocate(Me%SurfaceTemperature)
                 
-                if(associated(Me%SurfaceAlbedo))       &
-                   deallocate (Me%SurfaceAlbedo, STAT=STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) &
-                        stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR145'
-                   nullify    (Me%SurfaceAlbedo)
-
+                if(associated(Me%SurfaceAlbedo))then
+                    deallocate (Me%SurfaceAlbedo, STAT=STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR145'
+                    nullify    (Me%SurfaceAlbedo)
+                endif
+                
                 PropertyX => Me%FirstProperty
 
                 do while(associated(PropertyX))
