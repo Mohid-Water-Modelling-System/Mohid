@@ -12845,9 +12845,11 @@ d1:     do em = 1, Me%EulerModelNumber
             KUB = Me%EulerModel(em)%WorkSize%KUB
 
 
-                  
             !Adds the mass of all particles in the every cell
-            Me%EulerModel(em)%MassSumParticCell = 0.
+            call SetMatrixValue(Me%EulerModel(em)%MassSumParticCell, Me%EulerModel(em)%Size, 0., &
+                                Me%EulerModel(em)%Waterpoints3D)
+            
+            
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
 
@@ -12939,7 +12941,10 @@ d1:     do em = 1, Me%EulerModelNumber
 
 
             !Adds the mass of all particles in the every cell
-            Me%EulerModel(em)%MassDissolvedSumParticCell = 0.
+            call SetMatrixValue(Me%EulerModel(em)%MassDissolvedSumParticCell, Me%EulerModel(em)%Size, 0.,  &
+                                Me%EulerModel(em)%Waterpoints3D) 
+            
+            
             CurrentPartic => CurrentOrigin%FirstPartic
             do while (associated(CurrentPartic))
 
@@ -13900,10 +13905,31 @@ d2:         do em = 1, Me%EulerModelNumber
       
 
         do em = 1, Me%EulerModelNumber 
-            Me%EulerModel(em)%Lag2Euler%PreviousGridBeachedVolume = Me%EulerModel(em)%Lag2Euler%GridBeachedVolume
-            Me%EulerModel(em)%Lag2Euler%GridBeachedVolumeByType(:, :, :, :) = 0.
-            Me%EulerModel(em)%Lag2Euler%GridBeachedVolume(:, :, :) = 0.
-            Me%EulerModel(em)%Lag2Euler%GridBeachedVolVar(:, :, :) = 1.
+
+            ILB    = Me%EulerModel(em)%Size%ILB
+            IUB    = Me%EulerModel(em)%Size%IUB
+            JLB    = Me%EulerModel(em)%Size%JLB
+            JUB    = Me%EulerModel(em)%Size%JUB
+            
+            do ig = 1, Me%nGroups
+            
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                Me%EulerModel(em)%Lag2Euler%GridBeachedVolumeByType(i,j,ig,:) = 0.
+                
+                Me%EulerModel(em)%Lag2Euler%PreviousGridBeachedVolume(i,j,ig) = & 
+                        Me%EulerModel(em)%Lag2Euler%GridBeachedVolume(i,j,ig)
+                
+                Me%EulerModel(em)%Lag2Euler%GridBeachedVolume(i, j, ig) = 0.
+                
+                Me%EulerModel(em)%Lag2Euler%GridBeachedVolVar(i, j, ig) = 1.
+            
+            enddo
+            enddo 
+            
+            enddo
+            
         end do
         
         CurrentOrigin => Me%FirstOrigin
@@ -24573,17 +24599,57 @@ d1:     do em = 1, Me%EulerModelNumber
 
             nProp           =  Me%OriginDefault%nProperties 
                                                         !i,j,k,p,ig 
-            Me%EulerModel(em)%Lag2Euler%GridVolume      (:,:,:,  :) = 0.
-            Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:,:,:,  :) = 0.
-            Me%EulerModel(em)%Lag2Euler%PercentContamin (:,:,:,  :) = 0.
-            Me%EulerModel(em)%Lag2Euler%GridMass        (:,:,:,:,:) = 0.
-            Me%EulerModel(em)%Lag2Euler%GridConc        (:,:,:,:,:) = 0.
+            !Me%EulerModel(em)%Lag2Euler%GridVolume      (:,:,:,  :) = 0.
+            !Me%EulerModel(em)%Lag2Euler%GridTracerNumber(:,:,:,  :) = 0.
+            !Me%EulerModel(em)%Lag2Euler%PercentContamin (:,:,:,  :) = 0.
+            !Me%EulerModel(em)%Lag2Euler%GridMass        (:,:,:,:,:) = 0.
+            !Me%EulerModel(em)%Lag2Euler%GridConc        (:,:,:,:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%MeanConc              (:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%AmbientConc           (:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%MinConc               (:,:) = 0.
             Me%EulerModel(em)%Lag2Euler%MassVolCel            (:,:) = 0.
+            
+            do ig = 1, Me%NGroups
+            do k = WS_KLB, WS_KUB
+            do j = WS_JLB, WS_JUB
+            do i = WS_ILB, WS_IUB
 
+                Me%EulerModel(em)%Lag2Euler%GridVolume       (i, j, k,  ig) = 0. 
+                Me%EulerModel(em)%Lag2Euler%GridTracerNumber (i, j, k,  ig) = 0.
 
+            enddo
+            enddo
+            enddo
+            enddo
+            
+            do ig = 1, Me%NGroups
+            do k = WS_KLB, WS_KUB
+            do j = WS_JLB, WS_JUB
+            do i = WS_ILB, WS_IUB
+
+                Me%EulerModel(em)%Lag2Euler%PercentContamin  (i, j, k,  ig) = 0. 
+
+            enddo
+            enddo
+            enddo
+            enddo
+            
+            
+            do ig = 1, Me%NGroups
+            do nP = 1, nProp
+            do k = WS_KLB, WS_KUB
+            do j = WS_JLB, WS_JUB
+            do i = WS_ILB, WS_IUB
+
+                Me%EulerModel(em)%Lag2Euler%GridMass         (i, j, k,nP,ig) = 0.
+                Me%EulerModel(em)%Lag2Euler%GridConc         (i, j, k,nP,ig) = 0.
+
+            enddo
+            enddo
+            enddo
+            enddo
+            enddo
+            
             if (Me%State%Deposition) then
                                                           !i,j,k,p,ig 
                 Me%EulerModel(em)%Lag2Euler%GridBottomMass(:,:,:,  :) = 0.
@@ -24660,10 +24726,10 @@ cd1:                if (.not. CurrentPartic%Deposited) then
                         endif    
                             
 cd0:                    if (nProp > 0) then
-
-                            do nP=1, nProp
-
-                                if (Me%OutPut%ConcMaxTracer) then
+                            
+                            if (Me%OutPut%ConcMaxTracer) then
+                            
+                                do nP=1, nProp
 
                                     !In this grid is stored the maximum concentration of all tracers present in the cell
                                     Me%EulerModel(em)%Lag2Euler%GridMaxTracer(i, j, k, nP, ig) = &
@@ -24675,18 +24741,25 @@ cd0:                    if (nProp > 0) then
                                         Me%EulerModel(em)%Lag2Euler%GridMaxMass(i, j, k, nP, ig) = &
                                             max(Me%EulerModel(em)%Lag2Euler%GridMaxMass(i, j, k, nP, ig), &
                                             CurrentPartic%Mass(nP))
-                                    endif                                        
-                                endif
+                                    endif     
+                                    
+                                enddo                                          
+                            endif
                             
-                            enddo
+                            
                             !Particle fits inside Grid Cell?    
         cd2:                if (CurrentPartic%Geometry%Volume <= Me%EulerModel(em)%VolumeZ(i, j, k)) then
+        
+                                do nP=1, nProp
 
-                                Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :, ig) = &
-                                    Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, :, ig) + CurrentPartic%Mass(:)
-                                Me%EulerModel(em)%Lag2Euler%GridVolume (i, j, k, ig)   = &
-                                    Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)    + CurrentPartic%Geometry%Volume
-
+                                    Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, nP, ig) = &
+                                        Me%EulerModel(em)%Lag2Euler%GridMass  (i, j, k, nP, ig) + CurrentPartic%Mass(nP)
+                                   
+                                enddo
+                                
+                                 Me%EulerModel(em)%Lag2Euler%GridVolume (i, j, k, ig)   = &
+                                        Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)    + CurrentPartic%Geometry%Volume
+                                
                             else  cd2
 
                                 WS_ILB = Me%EulerModel(em)%WorkSize%ILB
@@ -25454,7 +25527,7 @@ CurrOr:     do while (associated(CurrentOrigin))
                                    
                 if(Me%State%AssociateBeachProb)then                     
                                    
-                    Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(:,:,ig)
+                    Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(WS_ILB:WS_IUB,WS_JLB:WS_JUB,ig)
                     
                     call HDF5WriteData(Me%ObjHDF5(em),                          &
                                        "/Results/"//trim(CurrentOrigin%Name)    &
@@ -27715,7 +27788,7 @@ d2:         do ig = 1, Me%NGroups
                 
                 nullify(Aux2D)
                 
-                Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(:,:,ig)
+                Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(ILB:IUB,JLB:JUB,ig)
 
                 BeachingTimesFileName = trim(adjustl(Me%OutPut%RootPath))//"OilBeachingTimes_"//iGroupStr//".dat"
 
