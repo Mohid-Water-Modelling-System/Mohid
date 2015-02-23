@@ -1992,9 +1992,7 @@ i1:     if (Me%CompareTimeSerieOn) then
 
             do i=1, Me%nValues        
 
-                if (Me%FilterTimeSerie) then
-                    if (Me%FlagTimeSerie(i) == 0) cycle
-                endif
+                if (Me%FlagTimeSerie(i) == 0) cycle
                 
                 call GetTimeSerieValue(Me%ObjTimeSerieCompare, Me%TimeTSOutPut(i), Me%CompareColumn, Time1, Value1,   &
                                        Time2, Value2, TimeCycle, STAT= STAT_CALL) 
@@ -2159,7 +2157,9 @@ i1:     if (Me%CompareTimeSerieOn) then
             write(Me%iCompare,*) "alfa                    : ",alfa       
             write(Me%iCompare,*) "beta_1                  : ",beta_1     
             write(Me%iCompare,*) "Am                      : ",Am         
-            write(Me%iCompare,*) "Bm                      : ",Bm        
+            write(Me%iCompare,*) "Bm                      : ",Bm   
+            
+            write(Me%iCompare,*) "Total values compare    : ",Ncompare     
             
             
             write(Me%iCompare,'(A35)') "Time TimeSerie CompareTimeSerie Dif"
