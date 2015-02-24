@@ -70,7 +70,7 @@ Module ModuleExportHDF5ToTimeSerie
     use ModuleHDF5,              only : GetHDF5FileAccess, ConstructHDF5,              &
                                         GetHDF5GroupNumberOfItems, HDF5SetLimits,      &
                                         HDF5ReadData, GetHDF5GroupID, KillHDF5,        &
-                                        GetHDF5DataSetExist     
+                                        GetHDF5DataSetExist, GetHDF5ArrayDimensions     
     use ModuleDrawing,           only : IsPointInsidePolygon, SetLimits, T_Point,      &
                                         T_PointF, T_Polygon, GetSpecificPolygon,       &
                                         GetPolygonsNumber, New
@@ -1373,27 +1373,33 @@ cd2 :           if (BlockFound) then
                 if (Exist) then
                     Me%WaterPointsName     = "WaterPoints2D"
                     Me%ReadWaterPointsName = .false. 
-                endif            
+                endif   
                 
-                call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/BasinPoints",        &
-                                          Exist = Exist, STAT= STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR60'
-
-                if (Exist) then
-                    Me%WaterPointsName     = "BasinPoints"
-                    Me%ReadWaterPointsName = .false. 
-                endif                  
+                if (Me%ReadWaterPointsName) then
                 
+                    call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/BasinPoints",        &
+                                              Exist = Exist, STAT= STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR60'
 
-                call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/WaterPoints3D",       &
-                                          Exist = Exist, STAT= STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR70'
+                    if (Exist) then
+                        Me%WaterPointsName     = "BasinPoints"
+                        Me%ReadWaterPointsName = .false. 
+                    endif                  
 
-                if (Exist) then
-                    Me%WaterPointsName     = "WaterPoints3D"
-                    Me%ReadWaterPointsName = .false. 
-                endif    
+                endif                    
+                
+                if (Me%ReadWaterPointsName) then
 
+                    call GetHDF5DataSetExist (ObjHDF5, DataSetName ="/Grid/WaterPoints3D",       &
+                                              Exist = Exist, STAT= STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5File - ModuleExportHDF5ToTimeSerie - ERR70'
+
+                    if (Exist) then
+                        Me%WaterPointsName     = "WaterPoints3D"
+                        Me%ReadWaterPointsName = .false. 
+                    endif    
+
+                endif
 
                 !Kill HDF5 file
                 call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
@@ -2182,11 +2188,10 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        integer  , dimension(7)                     :: Dimensions
         integer                                     :: nItems, AuxPosition, item
         character(len=StringLength)                 :: AuxName
         logical                                     :: exist = ON
-        integer                                     :: HDF5_READ, STAT_CALL
+        integer                                     :: HDF5_READ, STAT_CALL, Imax, Jmax, Kmax
         
         !Begin-----------------------------------------------------------------
         
@@ -2215,37 +2220,17 @@ cd2 :           if (BlockFound) then
 
         else
     
-            !find position for data set
-            call GetHDF5GroupNumberOfItems(Me%FirstTSHDF5File%HDFID,                &
-                                           trim(Me%WaterPointsGroup), nItems, STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            & 
-                stop 'ObtainWaterPoints - ModuleExportHDF5ToTimeSerie - ERR40'
-
-do2:        do item = 1, nItems
-
-                call GetHDF5GroupID(Me%FirstTSHDF5File%HDFID,                       &
-                                    trim(Me%WaterPointsGroup), item,                &
-                                    AuxName, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                        & 
-                    stop 'ObtainWaterPoints - ModuleExportHDF5ToTimeSerie - ERR50'
-
-                if (trim(AuxName) == trim(Me%WaterPointsName)) then
-
-                    AuxPosition = item
-                    exit do2
-
-                endif
-            
-            end do do2                        
-
-            !get field rank and dimensions
-            call GetHDF5GroupID(Me%FirstTSHDF5File%HDFID, trim(Me%WaterPointsGroup),&
-                                AuxPosition, Me%WaterPointsName,                    &
-                                Rank = Me%WaterPointsRank,                          & 
-                                Dimensions = Dimensions,                            &
-                                STAT = STAT_CALL)                                
-            if (STAT_CALL .NE. SUCCESS_)                                            & 
-                stop 'ObtainWaterPoints - ModuleExportHDF5ToTimeSerie - ERR60'
+            call GetHDF5ArrayDimensions (HDF5ID         = Me%FirstTSHDF5File%HDFID,     &
+                                         GroupName      = trim(Me%WaterPointsGroup),    &
+                                         ItemName       = trim(Me%WaterPointsName),     &
+                                         NDim           = Me%WaterPointsRank,           &
+                                         Imax           = Imax,                         &
+                                         Jmax           = Jmax,                         &
+                                         Kmax           = Kmax,                         &
+                                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'ObtainWaterPoints - ModuleExportHDF5ToTimeSerie - ERR20'
+                                                     
     
             !get water points values
             select case (Me%WaterPointsRank)
@@ -2255,10 +2240,9 @@ do2:        do item = 1, nItems
 
                     !calculate Size2D
                     Me%Size2D%ILB = 1
-                    Me%Size2D%IUB = Dimensions(1)
+                    Me%Size2D%IUB = Imax
                     Me%Size2D%JLB = 1
-                    Me%Size2D%JUB = Dimensions(2)
-
+                    Me%Size2D%JUB = Jmax
                     !allocate field
                     nullify (Me%WaterPoints2D)
                     allocate(Me%WaterPoints2D(Me%Size2D%ILB:Me%Size2D%IUB,          &
@@ -2284,11 +2268,11 @@ do2:        do item = 1, nItems
 
                     !calculate Size3D
                     Me%Size3D%ILB = 1
-                    Me%Size3D%IUB = Dimensions(1)
+                    Me%Size3D%IUB = Imax
                     Me%Size3D%JLB = 1
-                    Me%Size3D%JUB = Dimensions(2)
+                    Me%Size3D%JUB = Jmax
                     Me%Size3D%KLB = 1
-                    Me%Size3D%KUB = Dimensions(3)
+                    Me%Size3D%KUB = Kmax
                 
                     !allocate field
                     nullify (Me%WaterPoints3D)
@@ -2310,6 +2294,13 @@ do2:        do item = 1, nItems
                                       STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                    &
                     stop 'ObtainWaterPoints - ModuleExportHDF5ToTimeSerie - ERR100'
+                    
+                    nullify (Me%WaterPoints2D)
+                    allocate(Me%WaterPoints2D(Me%Size3D%ILB:Me%Size3D%IUB,          &
+                                              Me%Size3D%JLB:Me%Size3D%JUB))
+                                              
+                    Me%WaterPoints2D(:, :) = Me%WaterPoints3D(:, :,Me%Size3D%KUB)                                              
+                    
 
             case default 
             
@@ -2749,7 +2740,7 @@ do_ts2:                     do while (associated(TS))
                         !Compute SD for each TS
                         TS => Me%FirstTimeSeriesData
                         do while (associated(TS))
-                            if (TS%Count > 0) then
+                            if (TS%Count > 1 .and. TS%Mean >0. ) then
                                 TS%SD = sqrt(TS%QSum / (TS%Count - 1))
                                 TS%CV = TS%SD / abs(TS%Mean)
                             else

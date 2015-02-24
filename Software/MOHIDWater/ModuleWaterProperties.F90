@@ -2228,7 +2228,7 @@ cd2 :           if (BlockFound) then
                             if(one_char == space)then
                                 NewCohortIDChar = trim(PropertyName(SpeciesNameLength+9:ichar-1))
                                 
-                                read(NewCohortIDChar, '(I)') NewCohortID
+                                read(NewCohortIDChar,*) NewCohortID
                                 
                                 allocate(NewCohort)
 
@@ -19982,6 +19982,13 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                     do i = ILB, IUB
 
                         if (WaterPoints3D(i, j, k) == 1) then
+                        
+                            if (T(i, j, k)<0. .or. T(i, j, k)>50. .or. S(i, j, k) < 0. .or. S(i, j, k)>70.) then
+                                write(*,*) Me%ModelName
+                                write(*,*) 'T,S,i,j,k'
+                                write(*,*) T(i, j, k), S(i, j, k), i,j,k
+                                stop 'T, S invalid'
+                            endif
 
                             Me%Density%Sigma(i, j, k) = SigmaUNESCO     (T(i, j, k), S(i, j, k))
                         

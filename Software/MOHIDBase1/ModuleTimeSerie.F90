@@ -1590,8 +1590,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 case ('HOURS')
                     Conversion_Seconds = 3600.
-                    if (Me%TimeCycle .and. Me%DataValues /= 24) then
-                        write(*,*)'For HOUR cycle you must supply 24 values'
+                    if (Me%TimeCycle .and. Me%DataValues /= 24 .and. Me%DataValues /= 168) then
+                        write(*,*)'For HOUR cycle you must supply 24 values (daily cycle) or 168 values weekly cycle'
                         stop 'StartTimeSerieInput - ModuleTimeSerie - ERR12'
                     endif
 
@@ -2363,7 +2363,7 @@ do2:                do IPC = 1, Me%NumberOfProperties
         !Local-----------------------------------------------------------------
         type (T_Time)                               :: CurrentTime
         integer                                     :: IPC, IBC
-        real                                        :: DT_Residual
+        real                                        :: DT_Residual, DT_Total
         real                                        :: NextDT_
         logical                                     :: CheckTime_        
 
@@ -2397,14 +2397,19 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 !Calculates the residual values
                 DT_Residual = CurrentTime - Me%TimeSerie(iTimeSerie)%LastResidual
+                
+                DT_Total    = DT_Residual + Me%TimeSerie(iTimeSerie)%ResidualTime
 
                 !Updates the Residual Values
                 do IPC = 1, Me%NumberOfProperties
-                    Me%TimeSerie(iTimeSerie)%ResidualValues(IPC) =                  &
-                        (Me%TimeSerie(iTimeSerie)%ResidualValues(IPC)               &
-                       * Me%TimeSerie(iTimeSerie)%ResidualTime                      &
-                       + DataLine(IPC) * DT_Residual)                               &
-                       / (Me%TimeSerie(iTimeSerie)%ResidualTime + DT_Residual)
+                    if (DT_Total > 0) then
+                        Me%TimeSerie(iTimeSerie)%ResidualValues(IPC) =                  &
+                            (Me%TimeSerie(iTimeSerie)%ResidualValues(IPC)               &
+                           * Me%TimeSerie(iTimeSerie)%ResidualTime                      &
+                           + DataLine(IPC) * DT_Residual) / DT_Total
+                    else
+                        Me%TimeSerie(iTimeSerie)%ResidualValues(IPC) = DataLine(IPC)
+                    endif                           
                 enddo
 
                 Me%TimeSerie(iTimeSerie)%ResidualTime =                             &

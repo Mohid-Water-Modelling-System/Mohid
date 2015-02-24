@@ -1564,7 +1564,7 @@ logical function CheckPolygonClockwise(Polygon)
 !-------------------------------------------------------------------------
 !-------------------------------------------------------------------------
 
-!Thius function check if the vertixes of a polygon A are inside of polygon B
+!This function check if the vertixes of a polygon A are inside of polygon B
 logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
 
         !Arguments-------------------------------------------------------------
