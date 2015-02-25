@@ -1973,7 +1973,7 @@ d3:         do i=1, Me%DataValues
         real    (SP), dimension(:), allocatable :: TimeCompareTS, CompareTS, DifTS, TS
         real                                    :: Bias,adev,sdev,var,skew,curt, RMSE, UB_RMSE
         real                                    :: StdevObs, NRMSE, NUB_RMSE
-        type (T_Time)                           :: Time1, Time2
+        type (T_Time)                           :: Time1, Time2, BeginCompare, EndCompare
         real                                    :: Value1, Value2, NewValue, AverageCompare, AverageObs
         real                                    :: Year, Month, Day, hour, minute, second
         real                                    :: a, b, d, t1, t2, NashS, Skill, uba
@@ -1986,7 +1986,11 @@ d3:         do i=1, Me%DataValues
 i1:     if (Me%CompareTimeSerieOn) then
 
             allocate(TimeCompareTS(1: Me%nValues), TS(1:Me%nValues),CompareTS (1:Me%nValues), DifTS(1:Me%nValues))   
-
+            
+            call GetTimeSerieTimeLimits(TimeSerieID = Me%ObjTimeSerieCompare,           &
+                                        StartTime   = BeginCompare,                     &
+                                        EndTime     = EndCompare,                       &
+                                        STAT        = STAT_CALL) 
             c = 0
             AverageCompare = 0.
 
@@ -1996,6 +2000,10 @@ i1:     if (Me%CompareTimeSerieOn) then
                 
                 call GetTimeSerieValue(Me%ObjTimeSerieCompare, Me%TimeTSOutPut(i), Me%CompareColumn, Time1, Value1,   &
                                        Time2, Value2, TimeCycle, STAT= STAT_CALL) 
+                                       
+                if (Me%TimeTSOutPut(i) < BeginCompare) cycle
+                
+                if (Me%TimeTSOutPut(i) > EndCompare  ) cycle                
                                        
                 dtGap = Time2 - Time1                                       
                                        
