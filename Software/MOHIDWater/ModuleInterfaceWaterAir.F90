@@ -2128,12 +2128,6 @@ do1 :   do while (associated(PropertyX))
                     stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR110'
                 endif
                 
-              call Search_Property(PropertyX, Albedo_, .true., STAT = STAT_CALL)
-            
-              if (STAT_CALL /= SUCCESS_) then
-                write(*,*) 'Missing Albedo in Module InterfaceWaterAir'
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR120'
-              endif
 
             endif
 
