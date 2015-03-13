@@ -1026,8 +1026,8 @@ Module ModuleVegetation
         real, dimension(:,:,:), pointer                         :: ECw                  => null()
         
         !REAL accumulated DT used for vegetation computations.
-        real                                                    :: VegetationDT = 0. 
-        real                                                    :: LastVegetationDT = 0. 
+        !real                                                    :: VegetationDT = 0. 
+        !real                                                    :: LastVegetationDT = 0. 
         
         logical                                                 :: AllowNegativeLAI   = .false.
         logical                                                 :: CorrectNegativeLAI = .false.
@@ -1110,7 +1110,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%CorrectNegativeLAI = .false.
             
             Me%ValueInsteadNegativeLAI = 0.0
-            Me%VegetationDT = 0.0
             
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
@@ -1787,7 +1786,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) &
                 stop 'ReadOptions - ModuleVegetation - ERR370'
-            Me%LastVegetationDT = Me%ComputeOptions%VegetationDT
+            !Me%LastVegetationDT = Me%ComputeOptions%VegetationDT
                                        
             call GetData(Me%ComputeOptions%IntegrationDT,   &
                          Me%ObjEnterData, iflag,            &
@@ -1860,9 +1859,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ComputeOptions%IntegrationDT = Me%ExternalVar%DT
         endif
         
-        Me%NextCompute     = Me%ExternalVar%Now + Me%ComputeOptions%VegetationDT
+        !compute at the start
+        Me%NextCompute     = Me%BeginTime ! + Me%ComputeOptions%VegetationDT
 
-        Me%NextIntegration = Me%ExternalVar%Now + Me%ComputeOptions%IntegrationDT
+        Me%NextIntegration = Me%BeginTime + Me%ComputeOptions%IntegrationDT
         
         call GetData(Me%AllowNegativeLAI,                 &
                      Me%ObjEnterData, iflag,              &
@@ -7228,6 +7228,13 @@ cd0:    if (Exist) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadInitialHDF - ModuleVegetation - ERR02'
 
+            call HDF5ReadData   (ObjHDF5, "/Results/"//"AveragePotTPDuringDT",            &
+                                 "AveragePotTPDuringDT",                                  &
+                                 Array2D = Me%ExternalVar%Integration%AveragePotTPDuringDT,  &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                stop 'ReadInitialHDF - ModuleVegetation - ERR03'   
+
             if (Me%ComputeOptions%Dormancy) then
 
                 allocate (PlantDormantInteger(Me%Worksize%ILB:Me%Worksize%IUB, Me%Worksize%JLB:Me%Worksize%JUB))
@@ -7306,7 +7313,30 @@ cd0:    if (Exist) then
                                      Array2D = Me%PlantLAIMaxFraction,                       &
                                      STAT    = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'ReadInitialHDF - ModuleVegetation - ERR05.1'
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR06'
+                    
+
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"AverageAirHumidityDuringDT",                &
+                                     "AverageAirHumidityDuringDT",                                      &
+                                     Array2D = Me%ExternalVar%Integration%AverageAirHumidityDuringDT,   &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                        &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR07'      
+                    
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"AverageAirTempDuringDT",              &
+                                     "AverageAirTempDuringDT",                                    &
+                                     Array2D = Me%ExternalVar%Integration%AverageAirTempDuringDT, &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                        &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR08'                     
+
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"AverageRadiationDuringDT",              &
+                                     "AverageRadiationDuringDT",                                    &
+                                     Array2D = Me%ExternalVar%Integration%AverageRadiationDuringDT, &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                          &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR09'   
+                                                                          
             endif
             
             if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -7320,7 +7350,7 @@ cd0:    if (Exist) then
                                              Array2D = Me%PlantNitrogenFraction,                     &
                                              STAT    = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                                   &
-                            stop 'ReadInitialHDF - ModuleVegetation - ERR05.2'
+                            stop 'ReadInitialHDF - ModuleVegetation - ERR011'
                     endif
 
 
@@ -7331,7 +7361,7 @@ cd0:    if (Exist) then
                                              Array2D = Me%PlantPhosphorusFraction,                   &
                                              STAT    = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                                   &
-                            stop 'ReadInitialHDF - ModuleVegetation - ERR05.3'
+                            stop 'ReadInitialHDF - ModuleVegetation - ERR012'
                     endif
                 endif
 
@@ -7498,8 +7528,8 @@ cd0:    if (Exist) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-!            Scalar  = Me%ComputeOptions%VegetationDT
-            Scalar  = Me%LastVegetationDT
+            Scalar  = Me%ComputeOptions%VegetationDT
+!            Scalar  = Me%LastVegetationDT
 
             STAT_ = SUCCESS_
         else 
@@ -8654,9 +8684,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             call GetComputeTimeStep(Me%ObjTime, Me%ExternalVar%DT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyVegetation - ModuleVegetation - ERR10'            
 
-            !Me%VegetationDT accumulates DT's to use on calculations that require the interval since last computation
-            Me%VegetationDT = Me%VegetationDT + Me%ExternalVar%DT
-
             !Sets External Variable
             Me%ExternalVar%MappingPoints => MappingPoints                        
             Me%Externalvar%PotentialTranspiration => PotentialTranspiration
@@ -8670,12 +8697,13 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 Me%NextCompute                  = Me%ExternalVar%Now
                 Me%ComputeOptions%VegetationDT  = Me%ExternalVar%DT
                 Me%ComputeOptions%IntegrationDT = Me%ExternalVar%DT
-                Me%VegetationDT                 = Me%ExternalVar%DT
-                Me%LastVegetationDT             = Me%ExternalVar%DT
             endif
             
             ! Transpiration is averaged during Integration DT until vegetation processes are called
             ! If vegetation growth model is used also atmosphere properties are averaged
+            ! Model estimates for next day are based on previous day atmosphere averages
+            ! If continuation, the previous day averages are saved in HDF fin file
+            ! If first day of sim (no continuation) the pervious day averages are zero (result to be ignored)
             if (Me%ExternalVar%Now >= Me%NextIntegration) then     
 
                 call AverageExtPropDuringDT
@@ -8744,8 +8772,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 call ReadUnLockExternalVar(ReadAtmosphere = .false.)
 
                 Me%NextCompute      = Me%NextCompute + Me%ComputeOptions%VegetationDT
-                Me%LastVegetationDT = Me%VegetationDT
-                Me%VegetationDT     = 0.0
             
             endif
 
@@ -9607,7 +9633,7 @@ do4:                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !! update accumulated heat units for the plant
         PlantHUVariation = 0.
         if (PlantHUatMaturity .gt. 0.1) then            
-            AccumulatedTemperature = AverageTempDuringDT * (Me%VegetationDT/86400.)
+            AccumulatedTemperature = AverageTempDuringDT * (Me%ComputeOptions%VegetationDT/86400.)
             PlantHUVariation = (AccumulatedTemperature - PlantBaseTemperature) / PlantHUatMaturity
         end if
         if (PlantHUVariation .lt. 0.) then
@@ -9807,7 +9833,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 endif
                
                 ! mm         = m/s * s * 1000mm/m                
-                PotTP        = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT * 1000.0 
+                PotTP        = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT * 1000.0 
         
 cd1:            if (.not. UptakeAllowed .or. PotTP .le. 0.01) then
 
@@ -9906,12 +9932,12 @@ do3 :               do k = KUB, KLB, -1
                         SumUptake = SumUptake + EffectiveWaterUptake
                         !    m3/s                         =          mm          *    m/mm *   m2   *     1/DT
                         Me%Fluxes%WaterUptakeLayer(i,j,k) = EffectiveWaterUptake *  (1./1000.) * GridCellArea    &
-                                                             * (1./Me%VegetationDT)                        
+                                                             * (1./Me%ComputeOptions%VegetationDT)                        
 
                     enddo do3
         
                     !    m3/s
-                    Me%Fluxes%WaterUptake(i,j) = SumUptake *  (1./1000.) * GridCellArea * (1./Me%VegetationDT)
+                    Me%Fluxes%WaterUptake(i,j) = SumUptake *  (1./1000.) * GridCellArea * (1./Me%ComputeOptions%VegetationDT)
 
             !       strsw(j) = strsa (j) * xx / ep_max
                     Me%Growth%WaterStress(i,j) = SumUptake/PotTP
@@ -9991,7 +10017,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 !Total Water Column to Remove (Potentialy) 
                 !m = m/s * s
-                TotalCol    = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT        
+                TotalCol    = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT        
                 !  m
                 RootDepth    = Me%StateVariables%RootDepth(i,j)
                 BottomDepth = 0.0                   
@@ -10203,7 +10229,7 @@ do3 :               do k = KUB, KLB, -1
                         
                             !Velocity Volume
                             if (Me%ComputeOptions%LimitTPVel) then
-                                VelocityVolume = UnSatK (i,j,k) * Me%VegetationDT * Me%ExternalVar%GridCellArea(i,j)
+                                VelocityVolume = UnSatK (i,j,k) * Me%ComputeOptions%VegetationDT * Me%ExternalVar%GridCellArea(i,j)
                                 TranspVolume    = min(WaterVolume, VelocityVolume)
                             else
                                 TranspVolume    = WaterVolume
@@ -10235,17 +10261,17 @@ do3 :               do k = KUB, KLB, -1
                         SumUptake = SumUptake + TranspVolume
     
                         !m3/s = m3  / s
-                        Me%Fluxes%WaterUptakeLayer(i,j,k) = TranspVolume / Me%VegetationDT
+                        Me%Fluxes%WaterUptakeLayer(i,j,k) = TranspVolume / Me%ComputeOptions%VegetationDT
 
                     enddo do3
 
                     !    m3/s
-                    Me%Fluxes%WaterUptake(i,j) = SumUptake / Me%VegetationDT
+                    Me%Fluxes%WaterUptake(i,j) = SumUptake / Me%ComputeOptions%VegetationDT
 
                     ! m  = m3/m2
                     ActualTranspiration = SumUptake / Me%ExternalVar%GridCellArea(i,j)
                     !m  = m/s * s
-                    PotentialTranspiration = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT
+                    PotentialTranspiration = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT
                     Me%Growth%WaterStress(i,j) = ActualTranspiration/PotentialTranspiration
         
                 endif cd1
@@ -10691,7 +10717,7 @@ do3:                do k = KUB, KLB, -1
                         !    KgN/ha             =  gN/m3H20 * 1E-3kg/g *  m3/s * s / (m2) * 10000m2/ha 
                         PotentialNitrogenUptake = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                    &
                                                   * Me%Fluxes%WaterUptakeLayer(i,j,k)                         &
-                                                  * Me%VegetationDT                                           &
+                                                  * Me%ComputeOptions%VegetationDT                            &
                                                   / (GridCellArea) * 10000                        
 !                        PotentialNitrogenUptake = Me%ExternalVar%SoilNitrate(i,j,k) * 1E-3                    &
 !                                                  * Me%Fluxes%WaterUptakeLayer(i,j,k)                         &
@@ -11201,7 +11227,7 @@ do3 :               do k = KUB, KLB, -1
                         !    KgP/ha               =   gN/m3H20 * 1E-3kg/g * m3/s * s / (m2) * 10000m2/ha 
                         PotentialPhosphorusUptake = Me%ExternalVar%SoilPhosphorus(i,j,k) * 1E-3                    &
                                                     * Me%Fluxes%WaterUptakeLayer(i,j,k)                            &
-                                                    * Me%VegetationDT                                              &
+                                                    * Me%ComputeOptions%VegetationDT                               &
                                                     / (GridCellArea) * 10000                        
 !                        PotentialPhosphorusUptake = Me%ExternalVar%SoilPhosphorus(i,j,k) * 1E-3                    &
 !                                                    * Me%Fluxes%WaterUptakeLayer(i,j,k)                            &
@@ -11431,7 +11457,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     LAI                    =   Me%StateVariables%LeafAreaIndex(i,j)
                     !  MJ/m2               =   W/m2 * s * 1e-6MJ/J
                     SolarRadiation         =   Me%ExternalVar%Integration%AverageRadiationDuringDT(i,j)  &
-                                               * Me%VegetationDT * 1e-6                    
+                                               * Me%ComputeOptions%VegetationDT * 1e-6                    
                     PlantType              =   Me%VegetationTypes(VegetationID)%GrowthDatabase%PlantType
        
                     !! calculate optimal biomass
@@ -12157,10 +12183,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         HarvestIndex         = OptimalHarvestIndex * 100. * HUAcc / (100. * HUAcc + exp(11.1 - 10. * HUAcc))
         
         ! mm       =   m/s * mm/m * s
-        PotTP      = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT * 1000.0
+        PotTP      = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT * 1000.0
 
         !  mm      =   m/s * mm/m * s
-        ActualTP   = Me%Fluxes%WaterUptake(i,j) * Me%VegetationDT * 1000. 
+        ActualTP   = Me%Fluxes%WaterUptake(i,j) * Me%ComputeOptions%VegetationDT * 1000. 
 
         !!Actualize Harvest Index according to water stress.
         if (PotTP .lt. 10.) then
@@ -12313,10 +12339,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         HarvestIndex         = OptimalHarvestIndex * 100. * HUAcc / (100. * HUAcc + exp(11.1 - 10. * HUAcc))
         
         ! mm       =   m/s * mm/m * s
-        PotTP      = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%VegetationDT * 1000.0
+        PotTP      = Me%ExternalVar%Integration%AveragePotTPDuringDT(i,j) * Me%ComputeOptions%VegetationDT * 1000.0
 
         !  mm      =   m/s * mm/m * s
-        ActualTP   = Me%Fluxes%WaterUptake(i,j) * Me%VegetationDT * 1000. 
+        ActualTP   = Me%Fluxes%WaterUptake(i,j) * Me%ComputeOptions%VegetationDT * 1000. 
 
         !!Actualize Harvest Index according to water stress.
         if (PotTP .lt. 10.) then
@@ -12773,7 +12799,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 GrazingStartJulianDate = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingStartJulianDay 
                 GrazingStartPlantHU    = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingStartPlantHU
-                DT_day                 = Me%VegetationDT / (60 * 60 * 24)
+                DT_day                 = Me%ComputeOptions%VegetationDT / (60 * 60 * 24)
                 HUAcc                  = Me%HeatUnits%PlantHUAccumulated(i,j)
                 HUAcc_Old              = Me%HeatUnits%PlantHUAccumulated_Old(i,j)
 
@@ -12803,7 +12829,7 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             else
 
                 !! if not first day of grazing increment total days of grazing by one
-                DT_day                 = Me%VegetationDT / (60 * 60 * 24)
+                DT_day                 = Me%ComputeOptions%VegetationDT / (60 * 60 * 24)
                 Me%DaysOfGrazing(i,j)  = Me%DaysOfGrazing(i,j) + DT_day
                 GrazingDays            = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingDays 
                 !! check to set if grazing period is over
@@ -13116,7 +13142,7 @@ do3:        do PestApp = 1, PesticideApps
 
                     AccPesticideDays      = &
                     Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideAccDays(i,j)
-                    DT_day                = Me%VegetationDT / (60. * 60. * 24.)
+                    DT_day                = Me%ComputeOptions%VegetationDT / (60. * 60. * 24.)
                     AccPesticideDays      = AccPesticideDays + DT_day
                     TotalPesticideDays    = &
                     Me%VegetationTypes(Me%VegetationID(i,j))%PesticideDatabase%PesticideApps(PestApp)%ContPesticideDays 
@@ -13201,7 +13227,7 @@ if4:                    if(JulDay .ge. FertilizerAppJulianDay .and. JulDay_Old .
                             
                             if (FertilizationContinuous) then
                                 PlantBeingContFert   = .true.
-                                AccFertilizationDays = AccFertilizationDays + Me%VegetationDT / (60. * 60. * 24.)
+                                AccFertilizationDays = AccFertilizationDays + Me%ComputeOptions%VegetationDT / (60. * 60. * 24.)
                             endif
                         
                         endif if4
@@ -13213,7 +13239,7 @@ if6:                    if(PotentialHU .ge. FertilizerAppHU .and. PotentialHU_Ol
 
                             if (FertilizationContinuous) then
                                 PlantBeingContFert   = .true.
-                                AccFertilizationDays = AccFertilizationDays + Me%VegetationDT / (60. * 60. * 24.)
+                                AccFertilizationDays = AccFertilizationDays + Me%ComputeOptions%VegetationDT / (60. * 60. * 24.)
                             endif                        
                         
                         endif if6
@@ -13224,7 +13250,7 @@ if6:                    if(PotentialHU .ge. FertilizerAppHU .and. PotentialHU_Ol
                 else
                     AccFertilizationDays      = &
                   Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationAccDays(i,j)
-                    DT_day                    = Me%VegetationDT / (60. * 60. * 24.)
+                    DT_day                    = Me%ComputeOptions%VegetationDT / (60. * 60. * 24.)
                     AccFertilizationDays      = AccFertilizationDays + DT_day
                     TotalFertilizationDays    = &
                     Me%VegetationTypes(Me%VegetationID(i,j))%FertilizerDatabase%FertilizerApps(FertApp)%ContFertilizationDays 
@@ -15311,7 +15337,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             Property => Property%Next
 
         enddo
-
+        
+        
         nullify (Property)
 
         if (Me%ComputeOptions%Evolution%ModelSWAT) then
@@ -15400,6 +15427,38 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                  STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR190'
+                
+            !Write the atmosphere integration
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"AverageAirHumidityDuringDT",    &
+                                 "AverageAirHumidityDuringDT",                          &
+                                 "-",                                                   &
+                                 Array2D = Me%ExternalVar%Integration%AverageAirHumidityDuringDT , &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR191'        
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"AverageAirTempDuringDT",        &
+                                 "AverageAirTempDuringDT",                              &
+                                 "ºC",                                                  &
+                                 Array2D = Me%ExternalVar%Integration%AverageAirTempDuringDT , &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR192' 
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"AverageRadiationDuringDT",      &
+                                 "AverageRadiationDuringDT",                            &
+                                 "W/m2",                                                &
+                                 Array2D = Me%ExternalVar%Integration%AverageRadiationDuringDT , &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR193' 
+            call HDF5WriteData  (ObjHDF5, "/Results/"//"AveragePotTPDuringDT",          &
+                                 "AveragePotTPDuringDT",                                &
+                                 "m/s",                                                 &
+                                 Array2D = Me%ExternalVar%Integration%AveragePotTPDuringDT , &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR194'                                             
+                           
+                
         endif
 
         if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then
@@ -15414,7 +15473,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                          Array2D = Me%PlantNitrogenFraction,                    &
                                          STAT    = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                                  &
-                        stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR191'
+                        stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR195'
                 endif
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     call HDF5WriteData  (ObjHDF5, "/Results/"//"PhosphorusFraction",            &
@@ -15423,7 +15482,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                          Array2D = Me%PlantPhosphorusFraction,                  &
                                          STAT    = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                                  &
-                        stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR192'
+                        stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR196'
                 endif            
             endif
 
@@ -15437,7 +15496,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                          Array2D = Me%AnnualNitrogenFertilized,                 &
                                          STAT    = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                                  &
-                        stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR191'
+                        stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR197'
                 endif
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     call HDF5WriteData  (ObjHDF5, "/Results/"//"AnnualPhosphorusFertilized",    &
@@ -15446,7 +15505,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                          Array2D = Me%AnnualPhosphorusFertilized,               &
                                          STAT    = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                                  &
-                        stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR192'
+                        stop 'Write_FinalVegetation_HDF - ModuleVegetation - ERR198'
                 endif
             
             endif
