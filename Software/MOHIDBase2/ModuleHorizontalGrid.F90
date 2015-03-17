@@ -80,6 +80,7 @@ Module ModuleHorizontalGrid
 
     !Modifier
     public  :: WriteHorizontalGrid
+    public  :: WriteHorizontalGrid_UV
     public  :: LocateCell
     public  :: LocateCellPolygons
     public  :: RecenterHorizontalGrid    
@@ -9321,6 +9322,232 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
     !--------------------------------------------------------------------------
 
+
+    !----------------------------------------------------------------------------
+
+
+    subroutine WriteHorizontalGrid_UV (HorizontalGridID, ObjHDF5, WorkSize, STAT)
+
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        integer                                     :: ObjHDF5
+        type(T_Size2D)                              :: WorkSize
+        integer,        optional                    :: STAT
+
+        !Local-----------------------------------------------------------------
+        real(8),     dimension(:,:), pointer        :: Aux2D
+        integer,     dimension(:  ), pointer        :: AuxInt4
+        type(T_Size2D)                              :: WorkSize_
+        integer                                     :: WorkILB, WorkIUB
+        integer                                     :: WorkJLB, WorkJUB
+        integer                                     :: STAT_, ready_, STAT_CALL, ilen, iFile, i
+        character(len=PathLength)                   :: FileName, AuxFile
+        character(len=StringLength)                 :: AuxChar
+        logical                                     :: WindowGrid_
+        type(T_Size2D)                              :: GlobalWorkSizeWindow_
+        
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+            !WorkSize
+            WorkILB = WorkSize%ILB
+            WorkIUB = WorkSize%IUB
+
+            WorkJLB = WorkSize%JLB
+            WorkJUB = WorkSize%JUB
+            
+            WorkSize_ = WorkSize
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+2, WorkJLB, WorkJUB+2,      &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR10'
+            
+            allocate(Aux2D(WorkILB:WorkIUB+2, WorkJLB:WorkJUB+2))
+            
+            Aux2D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1) = Me%XX_IE(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
+            Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%XX_IE(WorkIUB+1        , WorkJLB:WorkJUB+1)
+            Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D   (WorkILB:WorkIUB+2,         WorkJUB+1)
+
+            call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionX", "m",             &
+                                  Array2D = Aux2D,                                  &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR20'
+
+            Aux2D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1) = Me%YY_IE(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
+            Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%YY_IE(WorkIUB+1        , WorkJLB:WorkJUB+1)
+            Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D   (WorkILB:WorkIUB+2,         WorkJUB+1)
+
+            call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionY", "m",             &
+                                  Array2D = Aux2D,                                  &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR30'
+            
+            Aux2D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1) = Me%LongitudeConn(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
+            Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%LongitudeConn(WorkIUB+1        , WorkJLB:WorkJUB+1)
+            Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D           (WorkILB:WorkIUB+2,         WorkJUB+1)
+
+            call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "º",               &
+                                  Array2D = Aux2D,                                  &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR40'
+            
+            Aux2D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1) = Me%LatitudeConn(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
+            Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%LatitudeConn(WorkIUB+1        , WorkJLB:WorkJUB+1)
+            Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D          (WorkILB:WorkIUB+2,         WorkJUB+1)
+
+            call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "º",                &
+                                  Array2D = Aux2D,                                  &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR50'
+            
+            deallocate(Aux2D)
+
+            if (Me%CornersXYInput) then
+            
+                call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR60'            
+
+                call HDF5WriteData   (ObjHDF5, "/Grid", "Define Cells", "-",        &
+                                      Array2D = Me%DefineCellsMap,                  &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR70'
+
+
+            endif
+
+            if (Me%DDecomp%MasterOrSlave) then
+            
+                allocate(AuxInt4(4))
+                
+                !Sets limits for next write operations
+                call HDF5SetLimits   (ObjHDF5, 1, 4, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR80'
+                
+                AuxInt4(1) = Me%DDecomp%Global%ILB
+                AuxInt4(2) = Me%DDecomp%Global%IUB + 1
+                AuxInt4(3) = Me%DDecomp%Global%JLB
+                AuxInt4(4) = Me%DDecomp%Global%JUB + 1
+
+                call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Global", "ILB_IUB_JLB_JUB", &
+                                      "-", Array1D = AuxInt4, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR90'
+
+                AuxInt4(1) = Me%DDecomp%HaloMap%ILB + WorkILB - 1
+                AuxInt4(2) = Me%DDecomp%HaloMap%ILB + WorkIUB - 1 + 1
+                AuxInt4(3) = Me%DDecomp%HaloMap%JLB + WorkJLB - 1
+                AuxInt4(4) = Me%DDecomp%HaloMap%JLB + WorkJUB - 1 + 1
+
+                call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Mapping", "ILB_IUB_JLB_JUB",&
+                                      "-", Array1D = AuxInt4, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR100'
+                
+                if (AuxInt4(1) == Me%DDecomp%HaloMap%ILB) then
+                    AuxInt4(1) =  Me%DDecomp%Mapping%ILB
+                endif
+                
+                if (AuxInt4(2) == Me%DDecomp%HaloMap%IUB) then
+                    AuxInt4(2) =  Me%DDecomp%Mapping%IUB + 1
+                endif
+                
+                if (AuxInt4(3) == Me%DDecomp%HaloMap%JLB) then
+                    AuxInt4(3) =  Me%DDecomp%Mapping%JLB
+                endif
+                
+                if (AuxInt4(4) == Me%DDecomp%HaloMap%JUB) then
+                    AuxInt4(4) =  Me%DDecomp%Mapping%JUB + 1
+                endif
+
+                call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/InnerMapping", "ILB_IUB_JLB_JUB",&
+                                      "-", Array1D = AuxInt4, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR110'
+
+                deallocate(AuxInt4)
+                
+                if (.not. Me%DDecomp%FilesListOpen) then
+                
+                    call UnitsManager(Me%DDecomp%FilesListID, FileOpen, STAT = STAT_CALL) 
+
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR120'
+                    
+                    write(AuxChar,fmt='(i5)') Me%DDecomp%MPI_ID
+                    
+                    Me%DDecomp%FilesListName = trim(adjustl(Me%DDecomp%FilesListName))
+                    Me%DDecomp%ModelPath     = trim(adjustl(Me%DDecomp%ModelPath    ))
+                    
+                    Me%DDecomp%FilesListName = "MPI_"//trim(adjustl(Auxchar))//"_"//trim(Me%DDecomp%FilesListName)
+                    
+                    ilen = len_trim(Me%DDecomp%ModelPath)
+                    
+                    Me%DDecomp%ModelPath(ilen-2: ilen) = "res"
+                    
+                    !windows path
+                    AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"/"//trim(adjustl(Me%DDecomp%FilesListName))
+
+                    open(file   = AuxFile,                                          &
+                         unit   = Me%DDecomp%FilesListID,               &
+                         status = "unknown",                                        &
+                         form   = "formatted",                                      &
+                         IOSTAT = STAT_CALL)
+                    
+                    if (STAT_CALL /= SUCCESS_) then
+                        !linux path
+                        AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"\"//trim(adjustl(Me%DDecomp%FilesListName))
+                        
+                        open(file   = AuxFile,                                      &
+                             unit   = Me%DDecomp%FilesListID,           &
+                             status = "unknown",                                    &
+                             form   = "formatted",                                  &
+                             IOSTAT = STAT_CALL)
+                             
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR130'
+                    endif                     
+                    
+                    Me%DDecomp%FilesListOpen = .true.       
+                    
+                endif
+                
+                if (Me%DDecomp%FilesListOpen) then
+                
+                    call GetHDF5FileName (ObjHDF5, FileName, STAT= STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR140'
+                    iFile = 1
+                    ilen  = len_trim(FileName)
+                    do i = ilen,1,-1
+                        if (FileName(i:i) == '/' .or. FileName(i:i) == '\') then
+                            iFile = i+1 
+                            exit
+                        endif                                
+                    enddo
+                    
+                    write(Me%DDecomp%FilesListID,'(A)') trim(FileName(iFile:ilen))
+                    
+                endif
+                
+            endif
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+
+    end subroutine WriteHorizontalGrid_UV 
+
+    !--------------------------------------------------------------------------
 
     subroutine ReadHDF5HorizontalGrid ()
 

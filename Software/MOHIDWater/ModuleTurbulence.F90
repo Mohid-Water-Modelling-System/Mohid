@@ -286,6 +286,7 @@ Module ModuleTurbulence
         real, dimension(:,:,:), pointer             :: TKE, L, eps, P, B          
         real                                        :: MAXMixingLength        = null_real !Nihoul & Leendertsee
         real                                        :: MINHorizontalViscosity = null_real !Estuary & Smagorinsky
+        real                                        :: MAXHorizontalViscosity = null_real !Estuary & Smagorinsky        
         real                                        :: ReferenceDepth         = null_real !Estuary
         real                                        :: ReferenceVelocity      = null_real !Estuary
         real                                        :: HORCON                 = null_real !Smagorinsky
@@ -1978,7 +1979,7 @@ case1 : select case(String)
         
         !----------------------------------------------------------------------
 
-        !Maximum horizontal viscosity
+        !Minimum horizontal viscosity
         call GetData(Me%TurbVar%MINHorizontalViscosity,         &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromFile,                   &
@@ -1997,6 +1998,17 @@ cd1 :   if (iflag .EQ. 0) then
             write(*,*) 'InicEstuarySmagorinskyModel - ModuleTurbulence - WRN01'
             write(*,*) 
         end if cd1
+        
+        !Minimum horizontal viscosity
+        call GetData(Me%TurbVar%MAXHorizontalViscosity,         &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromFile,                   &
+                     keyword      = 'VISH_MAX',                 &
+                     ClientModule = 'ModuleTurbulence',         &
+                     default      = -FillValueReal,             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                              &
+            stop 'InicEstuarySmagorinskyModel - ModuleTurbulence - ERR20'        
         
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
@@ -4404,6 +4416,10 @@ do1 :           do k = kbottom, KUB
                     
                     Me%Viscosity%HorizontalCenter(i, j, k) = max(Me%TurbVar%MINHorizontalViscosity, &
                                                                  ViscTurb + Me%Viscosity%Background)
+                                                                 
+                    if (Me%Viscosity%HorizontalCenter(i, j, k) > Me%TurbVar%MaxHorizontalViscosity) then
+                        Me%Viscosity%HorizontalCenter(i, j, k) = Me%TurbVar%MaxHorizontalViscosity
+                    endif
 
                 enddo do1
             end if cd1          

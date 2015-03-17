@@ -269,6 +269,10 @@ Module ModuleFunctions
     public :: WindBeaufortScale    
     public :: WaveBeaufortScale            
     
+    !Phase vs Complex
+    public :: AmpPhase_To_Complex
+    public :: Complex_to_AmpPhase
+    
     !types -------------------------------------------------------------------
 
     !griflet
@@ -10616,6 +10620,44 @@ D2:     do I=imax-1,2,-1
         endif        
     
     end function WaveBeaufortScale 
+    
+    !Convert amplitude and phase (degrees / 360º) in complex number (Sreal+ i * Simag)
+   
+    subroutine AmpPhase_To_Complex (Amplitude, Phase, Sreal, Simag)
+
+        !Arguments-------------------------------------------------------------
+        real :: Amplitude, Phase, Sreal, Simag
+        !Begin-----------------------------------------------------------------
+
+        Sreal = Amplitude*cos(Phase * 2 * Pi)
+        Simag = Amplitude*sin(Phase * 2 * Pi)
+
+    end Subroutine AmpPhase_To_Complex
+    
+    
+    !Convert complex number (Sreal+ i * Simag) in amplitude and phase (degrees / 360º)
+    subroutine Complex_to_AmpPhase (Sreal,Simag,Amplitude,Phase)
+
+        !Arguments-------------------------------------------------------------    
+        real :: Amplitude, Phase, Sreal, Simag
+
+        !Begin-----------------------------------------------------------------    
+        Amplitude = sqrt(Sreal**2.+Simag**2.)
+        Phase = Atan (Simag/Sreal)
+
+        if(Sreal < 0 .And. Simag < 0)Then
+           Phase = Phase + Pi
+        end If
+
+        if(Sreal < 0 .And. Simag > 0)Then
+          Phase = Phase - Pi
+        end If
+        
+        Phase = Phase / (2 * Pi)
+
+    end subroutine Complex_to_AmpPhase
+
+    
     
     end module ModuleFunctions
 

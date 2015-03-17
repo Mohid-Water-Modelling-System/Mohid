@@ -1412,7 +1412,7 @@ diV:    do iV = 1, Me%TableValues
             if (NextTime > CurrentTime .or. iV == Me%TableValues) then
                 iEnd = iV
                 
-                nPoints = iEnd - iStart
+                nPoints = iEnd - iStart + 1
                 allocate(Matrix1DX(nPoints), Matrix1DY(nPoints), Matrix1DZ(nPoints),  Prop1D(nPoints)) 
                 allocate(NoData   (nPoints))
 

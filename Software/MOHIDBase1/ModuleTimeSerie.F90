@@ -3315,7 +3315,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
     !--------------------------------------------------------------------------
 
     subroutine GetTimeSerieValue(TimeSerieID, CurrentTime, DataColumn, Time1, Value1,   &
-                                 Time2, Value2, TimeCycle, STAT) 
+                                 Time2, Value2, TimeCycle, NotIncremental, STAT) 
 
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
@@ -3326,7 +3326,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         type(T_Time),      intent(OUT)              :: Time2
         real,              intent(OUT)              :: Value2
         logical,           intent(OUT)              :: TimeCycle
+        logical, optional, intent(IN)               :: NotIncremental
         integer, optional, intent(OUT)              :: STAT
+
 
         !Local-----------------------------------------------------------------
         integer                                     :: ready_         
@@ -3334,14 +3336,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         real                                        :: Year, Month, Day
         real                                        :: Hour, Minute, Second
         integer                                     :: StoredColumn, JulDay
-
-
+        logical                                     :: NotIncremental_ 
+        
+        !Begin-----------------------------------------------------------------
+        
         STAT_ = UNKNOWN_
 
         call Ready(TimeSerieID, ready_)    
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            if (present(NotIncremental)) then
+                NotIncremental_ = NotIncremental
+            else
+                NotIncremental_ = .false. 
+            endif                
 
             !Gets the date
             call ExtractDate(CurrentTime, Year, Month, Day, Hour, Minute, Second)
@@ -3375,7 +3385,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
                 TimeCycle = .false.
 
-                !Me%CurrentIndex = 2  <- Decrease execution speed with time. 
+                if (NotIncremental_) Me%CurrentIndex = 2
+                
                 do while (Me%InitialData + Me%DataMatrix(Me%CurrentIndex, 1) .lt. &
                           CurrentTime)
                     Me%CurrentIndex = Me%CurrentIndex + 1

@@ -40,7 +40,7 @@ Module ModuleGauge
                                        GetHorizontalGridSize, GetZCoordinates,          &
                                        UnGetHorizontalGrid
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
-    use ModuleFunctions,        only : RodaXY
+    use ModuleFunctions,        only : RodaXY, AmpPhase_To_Complex, Complex_to_AmpPhase
     use ModuleTask2000,         only : Task2000Level, NTask2000          
     use ModuleField4D,          only : ConstructField4D, ModifyField4DXYZ, KillField4D, &
                                        GetField4DHarmonicsON, GetField4DHarmonicsNumber,&
@@ -2813,42 +2813,6 @@ do5 :   do while (associated(PresentWave))
     end subroutine TimeSerieValue
 
     
-    !Convert amplitude and phase (degrees / 360º) in complex number (Sreal+ i * Simag)
-   
-    subroutine AmpPhase_To_Complex (Amplitude, Phase, Sreal, Simag)
-
-        !Arguments-------------------------------------------------------------
-        real :: Amplitude, Phase, Sreal, Simag
-        !Begin-----------------------------------------------------------------
-
-        Sreal = Amplitude*cos(Phase * 2 * Pi)
-        Simag = Amplitude*sin(Phase * 2 * Pi)
-
-    end Subroutine AmpPhase_To_Complex
-    
-    
-    !Convert complex number (Sreal+ i * Simag) in amplitude and phase (degrees / 360º)
-    subroutine Complex_to_AmpPhase (Sreal,Simag,Amplitude,Phase)
-
-        !Arguments-------------------------------------------------------------    
-        real :: Amplitude, Phase, Sreal, Simag
-
-        !Begin-----------------------------------------------------------------    
-        Amplitude = sqrt(Sreal**2.+Simag**2.)
-        Phase = Atan (Simag/Sreal)
-
-        if(Sreal < 0 .And. Simag < 0)Then
-           Phase = Phase + Pi
-        end If
-
-        if(Sreal < 0 .And. Simag > 0)Then
-          Phase = Phase - Pi
-        end If
-        
-        Phase = Phase / (2 * Pi)
-
-    end subroutine Complex_to_AmpPhase
-
 !______________________________________________________
 !  2Q1
 !  computes the real part of 2Q1 from Q1 and O1

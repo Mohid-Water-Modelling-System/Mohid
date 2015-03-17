@@ -2051,6 +2051,7 @@ do7 :   do i = ILB, IUB + 1
                 !$OMP CRITICAL (UIV4_ModuleMap_ERR08)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR08")        
                 !$OMP END CRITICAL (UIV4_ModuleMap_ERR08)
+                
             endif
 
         end do do7
@@ -2085,7 +2086,7 @@ do10:   do i = ILB, IUB
                 Me%ComputeFaces3D%U    (i, j, k) == 1) then
                 !ErrorOcurred1 = .true.
                 !exit do9
-                
+
                 !$OMP CRITICAL (UIV6_ModuleMap_ERR10)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR10")        
                 !$OMP END CRITICAL (UIV6_ModuleMap_ERR10)

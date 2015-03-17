@@ -4917,11 +4917,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !--------------------------------------------------------------------------
     !Reads SZZ and VolumeZOld
 
-    subroutine WriteGeometryHDF(GeometryID, ObjHDF5, STAT)
+    subroutine WriteGeometryHDF(GeometryID, ObjHDF5, AddFaces, STAT)
 
         !Parameter-------------------------------------------------------------
         integer                                     :: GeometryID
         integer, intent(in)                         :: ObjHDF5
+        logical, intent(in ), optional              :: AddFaces                
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -4929,6 +4930,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                                     :: STAT_
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: STAT_CALL
+        logical                                     :: AddFaces_          
 
         !----------------------------------------------------------------------
 
@@ -4948,6 +4950,17 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             KLB = Me%WorkSize%KLB
             KUB = Me%WorkSize%KUB
             
+            if (present(AddFaces)) then
+                AddFaces_ = AddFaces
+            else
+                AddFaces_ = .false. 
+            endif      
+ 
+            if (AddFaces_) then
+                IUB = IUB + 1
+                JUB = JUB + 1
+                KUB = KUB + 1
+            endif
         
             !Sets limits for next write operations
             call HDF5SetLimits(ObjHDF5, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
@@ -5002,12 +5015,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     
     !----------------------------------------------------------------------------
 
-    subroutine ReadGeometryHDF(GeometryID, HDF5FileName, MasterOrSlave, STAT)
+    subroutine ReadGeometryHDF(GeometryID, HDF5FileName, MasterOrSlave, AddFaces, STAT)
 
         !Parameter-------------------------------------------------------------
         integer                                 :: GeometryID
         character(len=*)                        :: HDF5FileName
         logical, intent(in ), optional          :: MasterOrSlave
+        logical, intent(in ), optional          :: AddFaces        
         integer, intent(out), optional          :: STAT
 
         !Local-----------------------------------------------------------------
@@ -5023,7 +5037,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         logical                                 :: MasterOrSlave_
         integer, dimension(:,:  ), pointer      :: Aux2DInt
         real,    dimension(:,:,:), pointer      :: Aux3DReal
-        real(8), dimension(:,:,:), pointer      :: Aux3DR8        
+        real(8), dimension(:,:,:), pointer      :: Aux3DR8      
+        logical                                 :: AddFaces_  
 
         !----------------------------------------------------------------------
 
@@ -5063,6 +5078,17 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             KLB = Me%WorkSize%KLB 
             KUB = Me%WorkSize%KUB 
             
+            if (present(AddFaces)) then
+                AddFaces_ = AddFaces
+            else
+                AddFaces_ = .false. 
+            endif      
+ 
+            if (AddFaces_) then
+                IUB = IUB + 1
+                JUB = JUB + 1
+                KUB = KUB + 1
+            endif
             
     ifMS:   if (MasterOrSlave) then
     

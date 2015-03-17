@@ -138,7 +138,7 @@ Module ModuleHydrodynamic
                                        WindowIntersectDomain,                            &
                                        ReturnsIntersectionCorners,                       &                                       
                                        GetGridOutBorderPolygon,                          &
-                                       GetDDecompWorkSize2D
+                                       GetDDecompWorkSize2D, WriteHorizontalGrid_UV
                                        
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,          &
                                        GetGeometryDistances, GetGeometryKFloor,          &
@@ -636,6 +636,9 @@ Module ModuleHydrodynamic
     integer, parameter :: Orlanski_    = 0
     integer, parameter :: Constant_    = 1
     integer, parameter :: OeyAndChen_  = 2
+    
+    !Wind waves celerity
+    integer, parameter :: LongWaves_   = 0
 
     !Maximum internal wave velocity allowed is 10 m/s.
     real,    parameter :: MaxInternalCelerity = 10. 
@@ -988,14 +991,14 @@ Module ModuleHydrodynamic
                                                    ImposedTangY  => null(), & 
                                                    ImposedTangXY => null()
 
-        integer :: CelerityType              = null_int     !initialization: jauch
-        real    :: InternalCelerity          = null_real    !initialization: jauch
-        real    :: TRelaxOut                 = null_real, & !initialization: jauch
-                   TRelaxIn                  = null_real    !initialization: jauch
-        real    :: MinLeavingBaroclincVel    = null_real    !initialization: jauch
-        logical :: BaroclinicNormalRadiation = .false.      !initialization: jauch
-        integer :: BaroclinicOBCDiscret      = null_int     !initialization: jauch
-        logical :: StoreBaroclinicWave       = .false.      !initialization: jauch
+        integer :: CelerityType              = null_int 
+        real    :: InternalCelerity          = null_real
+        real    :: TRelaxOut                 = null_real
+        real    :: TRelaxIn                  = null_real
+        real    :: MinLeavingBaroclincVel    = null_real
+        logical :: BaroclinicNormalRadiation = .false.  
+        integer :: BaroclinicOBCDiscret      = null_int 
+        logical :: StoreBaroclinicWave       = .false.  
 
         real    :: DTWave = null_real
 
@@ -1256,6 +1259,11 @@ Module ModuleHydrodynamic
         integer                             :: CloseFlag    = null_int !initialization: Jauch
     end type T_ThinWalls
 
+    type T_WindWaves
+        integer                             :: CelerityType     = null_int 
+        real                                :: CelerityConstant = null_real
+    end type T_WindWaves
+
     type       T_HydroCoupling                  
          type(T_Time)                           :: NextCompute
          real                                   :: DT_Compute   = FillValueReal
@@ -1401,18 +1409,20 @@ Module ModuleHydrodynamic
                                                      RestartOutTime, &
                                                      SurfaceOutTime
                                                      
-         integer                                  :: NextOutPut             = null_int, & !initialization: Jauch
-                                                     Number                 = null_int, & !initialization: Jauch
-                                                     NextRestartOutput      = null_int, & !initialization: Jauch
-                                                     NextSurfaceOutput      = null_int, & !initialization: Jauch
-                                                     NumberSurfaceOutputs   = null_int    !initialization: Jauch
+         integer                                  :: NextOutPut             = null_int, & 
+                                                     Number                 = null_int, & 
+                                                     NextRestartOutput      = null_int, & 
+                                                     NextSurfaceOutput      = null_int, & 
+                                                     NumberSurfaceOutputs   = null_int    
                                                      
-         logical                                  :: HDF5ON             = .false., & !initialization: Jauch
-                                                     HDF5_Surface_ON    = .false., & !initialization: Jauch
-                                                     Run_End            = .false., & !initialization: Jauch
-                                                     WriteRestartFile   = .false., & !initialization: Jauch
-                                                     TimeSerieON        = .false., & !initialization: Jauch
-                                                     ProfileON          = .false.    !initialization: Jauch
+         logical                                  :: HDF5ON             = .false., & 
+                                                     HDF5_Surface_ON    = .false., & 
+                                                     Run_End            = .false., & 
+                                                     WriteRestartFile   = .false., & 
+                                                     TimeSerieON        = .false., & 
+                                                     ProfileON          = .false.    
+                                                     
+         logical                                  :: Simple             = .false. 
                                                      
          real,          dimension(:,:,:), pointer :: ModulusH       => null(), &
                                                      CenterU        => null(), &
@@ -1429,13 +1439,13 @@ Module ModuleHydrodynamic
                                                      WaterLevelMax  => null(), &
                                                      WaterLevelMin  => null()
                                                      
-         logical                                  :: RestartOverwrite   = .false., & !initialization: Jauch
-                                                     Faces              = .false.    !initialization: Jauch
+         logical                                  :: RestartOverwrite   = .false.
+         logical                                  :: Faces              = .false. 
                                                      
-         real                                     :: WaterLevelUnits    = null_real !initialization: Jauch
+         real                                     :: WaterLevelUnits    = null_real 
          logical                                  :: TimeSerieDischON   = .false. 
          
-         integer                                  :: DischargesNumber   = null_int !initialization: Jauch
+         integer                                  :: DischargesNumber   = null_int 
          
          integer, dimension(:),   pointer         :: TimeSerieDischID   => null()     
          real,    dimension(:,:), pointer         :: TimeSerieDischProp => null()
@@ -1452,16 +1462,16 @@ Module ModuleHydrodynamic
     type      T_OutW
         type(T_OutPutTime), dimension(:), pointer :: OutPutWindows      => null()
         type(T_Size2D    ), dimension(:), pointer :: OriginalCorners    => null()
-        logical                                   :: OutPutWindowsON    = .false. !initialization: Jauch        
-        integer                                   :: WindowsNumber      = 0       !initialization: Jauch
+        logical                                   :: OutPutWindowsON    = .false.        
+        integer                                   :: WindowsNumber      = 0       
         integer,            dimension(:), pointer :: ObjHDF5            => null()
-        logical                                   :: Simple             = .false. !initialization: Jauch
+        logical                                   :: Simple             = .false. 
     end type  T_OutW
     
     type T_Energy
-        integer                         :: FileID       = null_int !initialization: Jauch
-        integer                         :: BufferCount  = null_int !initialization: Jauch
-        real(8)                         :: PotentialEnergyReference = null_real !initialization: Jauch
+        integer                         :: FileID       = null_int 
+        integer                         :: BufferCount  = null_int 
+        real(8)                         :: PotentialEnergyReference = null_real 
         logical                         :: FirstTime                = .true.
         real, dimension(:), pointer     :: YearBuffer               => null(), &
                                            MonthBuffer              => null(), &
@@ -1659,6 +1669,7 @@ Module ModuleHydrodynamic
         type(T_Drag          ) :: Drag
         type(T_Scraper       ) :: Scraper
         type(T_Thinwalls     ) :: Thinwalls
+        type(T_WindWaves     ) :: WindWaves
         
         type(T_DDecomp)        :: DDecomp
                 
@@ -2029,8 +2040,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%ThinWalls%ON) then
             call ConstructThinWalls
         endif
-        
 
+        if (Me%ComputeOptions%ComputeEnteringWave) then
+            call ConstructWindWaves 
+        endif            
+        
         !call External Modules
         call ReadLock_External_Modules
         
@@ -3276,6 +3290,44 @@ d3:         do l = FirstLine+1, LastLine-1
 
 
     end subroutine ConstructThinWalls
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructWindWaves
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_CALL, iflag
+
+        !----------------------------------------------------------------------
+        
+        call GetData(Me%WindWaves%CelerityType,                                         & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'WIND_WAVES_CELERITY_TYPE',                           &
+                     Default    = LongWaves_,                                           &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWindWaves - ModuleHydrodynamic - ERR10'
+        
+        if (Me%WindWaves%CelerityType == Constant_) then
+
+            call GetData(Me%WindWaves%CelerityConstant,                                 & 
+                         Me%ObjEnterData, iflag,                                        & 
+                         Keyword    = 'CELERITY_CONSTANT',                              &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleHydrodynamic',                            &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructWindWaves - ModuleHydrodynamic - ERR20'
+            
+            if (iflag == 0) then
+                write(*,*) 'The user needs to specify the keyword CELERITY_CONSTANT'
+                stop 'ConstructWindWaves - ModuleHydrodynamic - ERR30'
+            endif
+
+        endif
+
+    end subroutine ConstructWindWaves
+
 
 
 
@@ -8707,7 +8759,7 @@ cd5 :           if (opened) then
             
             if(Me%OutPut%FloodRisk)then
                 write(*,*)"Please activate HDF Hydrodynamic outputs in order to compute flood risk"
-                call SetError(FATAL_, INTERNAL_, 'Construct_OutPutTime - Hydrodynamic - ERR11')
+                call SetError(FATAL_, INTERNAL_, 'Construct_OutPutTime - Hydrodynamic - ERR20')
             endif
 
         endif
@@ -8723,7 +8775,7 @@ cd5 :           if (opened) then
                            OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
                            STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'Construct_OutPutTime - Hydrodynamic - ERR20') 
+            call SetError(FATAL_, INTERNAL_, 'Construct_OutPutTime - Hydrodynamic - ERR30') 
 
         if(Me%OutPut%WriteRestartFile)then
 
@@ -8753,7 +8805,7 @@ cd5 :           if (opened) then
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR30")
+            call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR40")
 
 
         call GetOutPutTime(Me%ObjEnterData,                                             &
@@ -8766,7 +8818,7 @@ cd5 :           if (opened) then
                            OutputsNumber= Me%OutPut%NumberSurfaceOutputs,               &
                            STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'Construct_OutPutTime - Hydrodynamic - ERR40') 
+            call SetError(FATAL_, INTERNAL_, 'Construct_OutPutTime - Hydrodynamic - ERR50') 
 
         if(Me%OutPut%HDF5_Surface_ON)then
 
@@ -8783,7 +8835,7 @@ cd5 :           if (opened) then
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, KEYWORD_, 'Construct_OutPutTime - Hydrodynamic - ERR50')
+            call SetError(FATAL_, KEYWORD_, 'Construct_OutPutTime - Hydrodynamic - ERR60')
             
         call GetOutPutTimeWindows(EnterDataID     = Me%ObjEnterData,                    & 
                                   CurrentTime     = Me%CurrentTime,                     &
@@ -8793,7 +8845,7 @@ cd5 :           if (opened) then
                                   WindowsNumber   = Me%OutW%WindowsNumber,              &   
                                   STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'Construct_OutPutTime - Hydrodynamic - ERR60')
+            call SetError(FATAL_, INTERNAL_, 'Construct_OutPutTime - Hydrodynamic - ERR70')
             
          if(Me%OutW%OutPutWindowsON)then
 
@@ -8814,8 +8866,7 @@ cd5 :           if (opened) then
             enddo 
 
         end if
-   
-      
+
         !<BeginKeyword>
             !Keyword          : SIMPLE_WINDOW_OUTPUT
             !<BeginDescription>       
@@ -8838,8 +8889,32 @@ cd5 :           if (opened) then
                      ClientModule = 'ModuleHydrodynamic',                               &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR40")
+            call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR80")
 
+
+        !<BeginKeyword>
+            !Keyword          : SIMPLE_OUTPUT
+            !<BeginDescription>       
+               ! 
+               ! This option checks wether the end user wants to output only the basic properties in the global output
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .true.
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+        
+        call GetData(Me%OutPut%Simple,                                                  &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SIMPLE_OUTPUT',                                    &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleHydrodynamic',                               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR90")
     
 
     end subroutine Construct_OutPutTime
@@ -9718,7 +9793,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             enddo
             FileName(i:i+n-1) = trim(Auxchar)
 
-            if (Me%OutW%Simple) SimpleOutPut = .true.             
+            if (Me%OutW%Simple   ) SimpleOutPut = .true.             
             
         else
 
@@ -9732,6 +9807,8 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
             WorkKUB = Me%WorkSize%KUB 
             
             WorkSize2D = Me%WorkSize2D 
+            
+            if (Me%OutPut%Simple) SimpleOutPut = .true. 
             
 
         endif
@@ -21084,7 +21161,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
     
     Subroutine NullGradProp3D_W_R8(Prop)
         !Local----------------------------------------------------------------------
-        integer                                :: ilb, iub, jlb, jub, k_up, klb, k_bottom, k_first !bounds
+        integer                                :: ilb, iub, jlb, jub, k_up, klb, k_bottom, k_first, KUB !bounds
         real(8),    dimension(:,:,:), pointer  :: Prop
         integer                                :: i, j, k, iy, jx !counters
         ! integer                                 :: CHUNK
@@ -21094,6 +21171,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         iub = Me%WorkSize%IUB
         jlb = Me%WorkSize%JLB
         jub = Me%WorkSize%JUB
+        KUB = Me%WorkSize%KUB
         k_up= Me%WorkSize%KUB + 1
         klb = Me%WorkSize%KLB 
         
@@ -21114,6 +21192,11 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                 do k= k_bottom, k_up
                     Prop(i, j, k) = 0.
                 enddo         
+                
+                k_first = k_bottom
+                iy      = i
+                jx      = j
+                
                 !null gradient horizontal open boundary condition
                 if       (Me%External_Var%BoundaryFacesU(i,j  ) == Boundary) then
                     
@@ -21138,6 +21221,44 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                     iy      = i + 1 
                     jx      = j
                     k_first = Me%External_Var%KFloor_V(i + 1, j)
+
+                !corners                    
+                else                 
+                    !North
+                    if     (Me%External_Var%OpenPoints3D(i+1, j, KUB) == OpenPoint) then
+                        iy = i+1
+                        jx = j
+                    !South
+                    elseif (Me%External_Var%OpenPoints3D(i-1, j, KUB) == OpenPoint) then
+                        iy = i-1
+                        jx = j
+                    !East
+                    elseif (Me%External_Var%OpenPoints3D(i, j+1, KUB) == OpenPoint) then
+                        iy = i
+                        jx = j+1
+                    !West
+                    elseif (Me%External_Var%OpenPoints3D(i, j-1, KUB) == OpenPoint) then
+                        iy = i
+                        jx = j-1
+                    !SW
+                    elseif (Me%External_Var%OpenPoints3D(i-1, j-1, KUB) == OpenPoint) then
+                        iy = i-1
+                        jx = j-1
+                    !NE
+                    elseif (Me%External_Var%OpenPoints3D(i+1, j+1, KUB) == OpenPoint) then
+                        iy = i+1
+                        jx = j+1
+                    !SE
+                    elseif (Me%External_Var%OpenPoints3D(i-1, j+1, KUB) == OpenPoint) then
+                        iy = i-1
+                        jx = j+1
+                    !NW
+                    elseif (Me%External_Var%OpenPoints3D(i+1, j-1, KUB) == OpenPoint) then
+                        iy = i+1
+                        jx = j-1
+                    endif
+                    
+                    k_first = Me%External_Var%KFloor_Z(iy, jx)
                     
                 endif
                 
@@ -25761,8 +25882,16 @@ cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
 
                 !The wave Celerity compute in the boundary face 
                 ![m/s] = [m/s^2*m]^.5 = [m/s]
-                Wave_Celerity = sqrt(Gravity * HT_Boundary) 
                 
+                if      (Me%WindWaves%CelerityType == LongWaves_) then
+                
+                    Wave_Celerity = sqrt(Gravity * HT_Boundary) 
+                    
+                elseif  (Me%WindWaves%CelerityType == Constant_ ) then                   
+                    
+                    Wave_Celerity = Me%WindWaves%CelerityConstant
+                    
+                endif                    
 
                 !If was defined a entering wave then 
 cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
@@ -26595,9 +26724,7 @@ cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
 
                 !The wave Celerity compute in the boundary face 
                 ![m/s] = [m/s^2*m]^.5 = [m/s]
-                
                 Wave_Celerity = sqrt(Gravity * HT_Boundary) 
-                !Wave_Celerity = 2.123163734
 
 
                 !If was defined a entering wave then 
@@ -42412,29 +42539,6 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                              OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR100'
 
-        call HDF5WriteData  (ObjHDF5,                                                   &
-                             "/Results/"//trim(GetPropertyName (WaterColumn_)),         &
-                             trim(GetPropertyName (WaterColumn_)), "m",                 &
-                             Array2D = Me%External_Var%WaterColumn,                     &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR105'
-
-        !!Writes Waterlevel maximum
-        !call HDF5WriteData  (ObjHDF5,                                                &
-        !                     "/Results/"//trim(GetPropertyName (WaterLevelMax_)),     &
-        !                     trim(GetPropertyName (WaterLevelMax_)),                  &
-        !                     "m/s", Array2D =  Me%OutPut%WaterLevelMax,                      &
-        !                     OutputNumber = Index, STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR181'
-
-        !!Writes Waterlevel minimum
-        !call HDF5WriteData  (ObjHDF5,                                                &
-        !                     "/Results/"//trim(GetPropertyName (WaterLevelMin_)),     &
-        !                     trim(GetPropertyName (WaterLevelMin_)),                  &
-        !                     "m/s", Array2D =  Me%OutPut%WaterLevelMin,                      &
-        !                     OutputNumber = Index, STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR182'
-
         !Writes Velocity
         call HDF5WriteData  (ObjHDF5,                                                &
                              "/Results/"//trim(GetPropertyName (VelocityU_)),           &
@@ -42449,6 +42553,22 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                              "m/s", Array3D =  Me%OutPut%CenterV,                       &
                              OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR120'
+        
+        !Writes Velocity modulus
+        call HDF5WriteData  (ObjHDF5,                                                &
+                             "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
+                             trim(GetPropertyName (VelocityModulus_)),                  &
+                             "m/s", Array3D =  Me%OutPut%ModulusH,                      &
+                             OutputNumber = Index, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR180'
+
+        !Writes Velocity W
+        call HDF5WriteData  (ObjHDF5,                                                   &
+                             "/Results/"//trim(GetPropertyName (VelocityW_)),           &
+                             trim(GetPropertyName (VelocityW_)), "m/s",                 &
+                             Array3D = Me%OutPut%CenterW,                               &
+                             OutputNumber = Index, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190'        
 
         if (Me%OutPut%Faces) then
             !Write velocity in faces
@@ -42485,29 +42605,8 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR170'
         endif
 
-        !Writes Velocity modulus
-        call HDF5WriteData  (ObjHDF5,                                                &
-                             "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
-                             trim(GetPropertyName (VelocityModulus_)),                  &
-                             "m/s", Array3D =  Me%OutPut%ModulusH,                      &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR180'
 
-        !Writes Velocity W
-        call HDF5WriteData  (ObjHDF5,                                                   &
-                             "/Results/"//trim(GetPropertyName (VelocityW_)),           &
-                             trim(GetPropertyName (VelocityW_)), "m/s",                 &
-                             Array3D = Me%OutPut%CenterW,                               &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190'
 
-       !Writes YW         vorticity
-       call HDF5WriteData  (ObjHDF5,                                                    &                               
-                            "/Results/"//"Vorticity3D",                                 &                             
-                            "Vorticity3D", "s-1",                                       &                             
-                            Array3D = Me%OutPut%Vorticity3D,                            &                             
-                            OutputNumber = Index, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190'
         !Do statistics analysis
         if (.not. present(iW)) then
             call Statistics_OutPut(Me%OutPut%CenterU, Me%OutPut%CenterV, Me%OutPut%CenterW, &
@@ -42521,6 +42620,23 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         endif
         
 sp:     if (.not. SimpleOutPut) then
+
+           !Writes YW         vorticity
+           call HDF5WriteData  (ObjHDF5,                                                    &                               
+                                "/Results/"//"Vorticity3D",                                 &                             
+                                "Vorticity3D", "s-1",                                       &                             
+                                Array3D = Me%OutPut%Vorticity3D,                            &                             
+                                OutputNumber = Index, STAT = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190'
+
+
+            call HDF5WriteData  (ObjHDF5,                                                   &
+                                 "/Results/"//trim(GetPropertyName (WaterColumn_)),         &
+                                 trim(GetPropertyName (WaterColumn_)), "m",                 &
+                                 Array2D = Me%External_Var%WaterColumn,                     &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR105'
+
 
             if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                 
@@ -44253,13 +44369,13 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         allocate(AuxReal(1), AuxInt(1))
         
         ILB = Me%WorkSize%ILB 
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB 
-        JUB = Me%WorkSize%JUB 
-
-        KLB = Me%WorkSize%KLB 
-        KUB = Me%WorkSize%KUB 
+        IUB = Me%WorkSize%IUB + 1
+        
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB + 1 
+        
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB + 1
 
 
         !Checks if it's at the end of the run 
@@ -44298,8 +44414,8 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         
 
         !Write the Horizontal Grid
-        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
-                                 WorkSize = Me%WorkSize2D, STAT = STAT_CALL)
+        call WriteHorizontalGrid_UV(Me%ObjHorizontalGrid, ObjHDF5,                         &
+                                    WorkSize = Me%WorkSize2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR50'
 
         !Sets limits for next write operations
@@ -44594,10 +44710,13 @@ cd1:    if (Me%ComputeOptions%Residual) then
                               
         endif cd1
 
-        call WriteGeometryHDF (Me%ObjGeometry, ObjHDF5, STAT = STAT_CALL) 
+        call WriteGeometryHDF (Me%ObjGeometry, ObjHDF5, AddFaces = .true., STAT = STAT_CALL) 
         
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError (FATAL_, INTERNAL_,'Write_Final_HDF5; ModuleHydrodynamic. ERR40.')
+            
+        call HDF5SetLimits   (ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR335'
 
 cd23:   if (Me%ComputeOptions%Residual) then 
 
@@ -45241,13 +45360,13 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
         if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR30'
                                     
         ILB = Me%WorkSize%ILB 
-        IUB = Me%WorkSize%IUB
+        IUB = Me%WorkSize%IUB + 1
         
         JLB = Me%WorkSize%JLB 
-        JUB = Me%WorkSize%JUB 
+        JUB = Me%WorkSize%JUB + 1
         
         KLB = Me%WorkSize%KLB 
-        KUB = Me%WorkSize%KUB 
+        KUB = Me%WorkSize%KUB + 1
         
         
 ifMS:   if (Me%DDecomp%MasterOrSlave) then
@@ -45257,11 +45376,11 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                                       STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR40'
             
-            ILW = WindowLimitsJI%ILB
-            IUW = WindowLimitsJI%IUB
+            ILW = WindowLimitsJI%ILB   
+            IUW = WindowLimitsJI%IUB + 1
 
-            JLW = WindowLimitsJI%JLB
-            JUW = WindowLimitsJI%JUB
+            JLW = WindowLimitsJI%JLB 
+            JUW = WindowLimitsJI%JUB + 1
                                                   
         else ifMS
 
@@ -45276,12 +45395,10 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
         
         if (ILW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR50'
         if (IUW > Imax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR60'
-        
         if (JLW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR70'
-        if (JUW > Jmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR80'
-
+        if (JUW > Jmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR80'        
         if (KLB < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR90'
-        if (KUB > Kmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR100'
+        if (KUB > Kmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR100'        
         
         allocate(Aux2DReal(ILW:IUW,JLW:JUW        ))
         allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
@@ -45444,7 +45561,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                              Array3D        = Aux3DReal,                            &
                              STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR220'
-        
+
         Me%Velocity%Horizontal%V%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
         
         !Horizontal velocity New
@@ -45456,7 +45573,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                              Array3D        = Aux3DReal,                            &
                              STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR230'    
-        
+
         Me%Velocity%Horizontal%U%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)        
         
         !read(InitialFile) (((Me%Velocity%Horizontal%V%New(i, j, k), &
@@ -45694,6 +45811,7 @@ cd2:        if (Evolution == Residual_hydrodynamic_) then
         call ReadGeometryHDF(GeometryID     = Me%ObjGeometry,                           & 
                              HDF5FileName   = Me%Files%InitialHydrodynamic,             &
                              MasterOrSlave  = Me%DDecomp%MasterOrSlave,                 &
+                             AddFaces       = .true.,                                   &
                              STAT           = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR390'
         

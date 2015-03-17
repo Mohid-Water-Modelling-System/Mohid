@@ -834,23 +834,10 @@ dok4 :              do k=Kbottom,KUB+1
 
 
         !Local-----------------------------------------------------------------
-        real                    :: Year_File, Month_File, Day_File
-        real                    :: Hour_File, Minute_File, Second_File
-        real                    :: DT_error
-        type (T_Time)           :: BeginTime, EndTimeFile, EndTime
-        integer                 :: IUB, JUB, KUB, ILB, JLB, KLB
-        integer                 :: InitialFile, i, j, k
         logical                 :: exists
         integer                 :: STAT_CALL
 
         !----------------------------------------------------------------------
-
-        ILB = Me%Size%ILB 
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB 
-        JUB = Me%Size%JUB 
-        KLB = Me%Size%KLB 
-        KUB = Me%Size%KUB 
 
         inquire (FILE=Me%Files%InitialTurbulence, EXIST = exists) 
         if (.not. exists) then

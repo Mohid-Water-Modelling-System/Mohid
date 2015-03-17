@@ -9919,7 +9919,7 @@ cd2 :       if (associated(NewProperty%Assimilation%Field)) then
         KUB = Me%Size%KUB 
 
         allocate (Me%HybridWeights%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR40'
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructHybridWeights - ModuleWaterProperties - ERR40'
 
         call SetMatrixValue(Me%HybridWeights%Field, Me%Size, 0.)
 
@@ -19983,7 +19983,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                         if (WaterPoints3D(i, j, k) == 1) then
                         
-                            if (T(i, j, k)<0. .or. T(i, j, k)>50. .or. S(i, j, k) < 0. .or. S(i, j, k)>70.) then
+                            if (T(i, j, k)<-20. .or. T(i, j, k)>100. .or. S(i, j, k) < -5 .or. S(i, j, k)>100.) then
                                 write(*,*) Me%ModelName
                                 write(*,*) 'T,S,i,j,k'
                                 write(*,*) T(i, j, k), S(i, j, k), i,j,k

@@ -56,7 +56,7 @@ Module ModuleFreeVerticalMovement
     use ModuleFunctions,        only: THOMASZ, ConstructPropertyID, SettlingVelocity,          &
                                       SetMatrixValue, CHUNK_J, CHUNK_K, T_VECGW,                &
                                       T_THOMAS, T_D_E_F, Pad, SettlingVelSecondaryClarifier,    &
-                                      SettlingVelPrimaryClarifier
+                                      SettlingVelPrimaryClarifier, InterpolateValueInTime
     use ModuleTime
     use ModuleHorizontalGrid,   only: GetGridCellArea, UngetHorizontalGrid
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,      &
@@ -64,7 +64,10 @@ Module ModuleFreeVerticalMovement
     use ModuleMap,              only: GetOpenPoints3D, GetLandPoints3D, UngetMap
     use ModuleEnterData,        only: ReadFileName, ConstructEnterData, GetData, Block_Unlock, &
                                       ExtractBlockFromBuffer, KillEnterData
-    use ModuleStopWatch,            only: StartWatch, StopWatch
+    use ModuleStopWatch,        only: StartWatch, StopWatch
+    
+    use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie         
+    
 
 #ifdef _ENABLE_CUDA
     use ModuleCuda
@@ -123,29 +126,31 @@ Module ModuleFreeVerticalMovement
     !Types---------------------------------------------------------------------
     type       T_Property
         type (T_PropertyID)                     :: ID
-        real                                    :: Ws_Value         = FillValueReal
-        real                                    :: CHS              = FillValueReal
-        real                                    :: KL               = FillValueReal
-        real                                    :: KL1              = FillValueReal     
-        real                                    :: M                = FillValueReal
-        real                                    :: ML               = FillValueReal
-        real                                    :: ImpExp_AdvV      = FillValueReal
-        logical                                 :: SalinityEffect   = .true.
-        real                                    :: SalinityLimit    = FillValueReal
-        integer                                 :: Ws_Type          = SPMFunction
-        logical                                 :: Deposition       = .true.
-        logical                                 :: WithCompression  = .true.
-        real                                    :: SVI              = FillValueReal
-        real                                    :: Clarification    = FillValueReal
-        real                                    :: Rh               = FillValueReal
-        real                                    :: Rf               = FillValueReal
-        real                                    :: v0max            = FillValueReal
-        real                                    :: v0               = FillValueReal
+        real                                    :: Ws_Value             = FillValueReal
+        real                                    :: CHS                  = FillValueReal
+        real                                    :: KL                   = FillValueReal
+        real                                    :: KL1                  = FillValueReal     
+        real                                    :: M                    = FillValueReal
+        real                                    :: ML                   = FillValueReal
+        real                                    :: ImpExp_AdvV          = FillValueReal
+        logical                                 :: SalinityEffect       = .true.
+        real                                    :: SalinityLimit        = FillValueReal
+        integer                                 :: Ws_Type              = SPMFunction
+        logical                                 :: Deposition           = .true.
+        logical                                 :: WithCompression      = .true.
+        real                                    :: SVI                  = FillValueReal
+        integer                                 :: TimeSerieColumnSVI   = FillValueInt
+        integer                                 :: ObjTimeSerieSVI      = 0        
+        real                                    :: Clarification        = FillValueReal
+        real                                    :: Rh                   = FillValueReal
+        real                                    :: Rf                   = FillValueReal
+        real                                    :: v0max                = FillValueReal
+        real                                    :: v0                   = FillValueReal
         
-        real, pointer, dimension(:,:,:)         :: FreeConvFlux     => null()
-        real, pointer, dimension(:,:,:)         :: Velocity         => null()
-        type(T_Property), pointer               :: Next             => null(), &
-                                                   Prev             => null()
+        real, pointer, dimension(:,:,:)         :: FreeConvFlux         => null()
+        real, pointer, dimension(:,:,:)         :: Velocity             => null()
+        type(T_Property), pointer               :: Next                 => null(), &
+                                                   Prev                 => null()
     end type T_Property
 
     type       T_DEF
@@ -907,90 +912,145 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL .NE. SUCCESS_)                                            &
             stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR120' 
             
-        call GetData(NewProperty%WithCompression,                               &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType   = FromBlock,                                  &
-                     keyword      = 'WITH_COMPRESSION',                         &
-                     Default      = .true.,                                     &
-                     ClientModule = 'ModuleFreeVerticalMovement',               &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR130'
+        call ReadClarifierOprions(NewProperty)            
+            
+            
+    end subroutine Construct_PropertyParameters
 
-        call GetData(NewProperty%SVI,                                           &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType   = FromBlock,                                  &
-                     keyword      = 'SVI',                                      &
-                     Default      = 120.,                                       &
-                     ClientModule = 'ModuleFreeVerticalMovement',               &
+    !----------------------------------------------------------------------
+    
+    !----------------------------------------------------------------------
+    
+    subroutine ReadClarifierOprions(NewProperty)
+
+        !Arguments-------------------------------------------------------------
+        type(T_property), pointer       :: NewProperty
+
+        !External--------------------------------------------------------------
+        integer                         :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        character(LEN = PathLength)     :: SVI_Filename     = null_str                
+        integer                         :: iflag            
+        !Begin-----------------------------------------------------------------        
+
+        call GetData(NewProperty%WithCompression,                                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'WITH_COMPRESSION',                                 &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleFreeVerticalMovement',                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR140'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR10'
+
+        call GetData(NewProperty%SVI,                                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'SVI',                                              &
+                     Default      = 120.,                                               &
+                     ClientModule = 'ModuleFreeVerticalMovement',                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR20'
             
         if (NewProperty%SVI < 10 .or. NewProperty%SVI > 500) then
             write(*,*) 'SVI = ', NewProperty%SVI
             write(*,*) 'out of bounds, min. 10 and máx. 500'
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR140'
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR30'
         endif
-
-        call GetData(NewProperty%Clarification,                                 &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType   = FromBlock,                                  &
-                     keyword      = 'CLARIFICATION',                            &
-                     Default      = 1.,                                         &
-                     ClientModule = 'ModuleFreeVerticalMovement',               &
+            
+            
+        call GetData(SVI_Filename,                                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'SVI_FILENAME',                                     &
+                     Default      = '***.***',                                          &
+                     ClientModule = 'ModuleFreeVerticalMovement',                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR150'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR40'
+            
+        if (iflag /= 0) then
+            
+            call StartTimeSerieInput(NewProperty%ObjTimeSerieSVI,                       &
+                                     SVI_Filename,                                      &
+                                     Me%ObjTime,                                        &
+                                     STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Generic4thDimension - ModuleFillMatrix - ERR50'
+
+
+            call GetData(NewProperty%TimeSerieColumnSVI,                                &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromBlock,                                      &
+                         keyword      = 'SVI_COLUMN',                                   &
+                         Default      = 2,                                              &
+                         ClientModule = 'ModuleFreeVerticalMovement',                   &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+                stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR55'
+
+        endif
+            
+            
+        call GetData(NewProperty%Clarification,                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'CLARIFICATION',                                    &
+                     Default      = 1.,                                                 &
+                     ClientModule = 'ModuleFreeVerticalMovement',                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR60'
             
         if (NewProperty%Clarification < 0.1 .or. NewProperty%Clarification > 1) then
             write(*,*) 'CLARIFICATION = ', NewProperty%Clarification
             write(*,*) 'out of bounds, min. 0.1 and máx. 1'
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR160'
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR70'
         endif
             
-        call GetData(NewProperty%Rh,                                            &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType   = FromBlock,                                  &
-                     keyword      = 'Rh',                                       &
-                     Default      = 0.1,                                        &
-                     ClientModule = 'ModuleFreeVerticalMovement',               &
+        call GetData(NewProperty%Rh,                                                    &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'Rh',                                               &
+                     Default      = 0.1,                                                &
+                     ClientModule = 'ModuleFreeVerticalMovement',                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR170'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR80'
             
 
-        call GetData(NewProperty%Rf,                                            &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType   = FromBlock,                                  &
-                     keyword      = 'Rf',                                       &
-                     Default      = 5.,                                         &
-                     ClientModule = 'ModuleFreeVerticalMovement',               &
+        call GetData(NewProperty%Rf,                                                    &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'Rf',                                               &
+                     Default      = 5.,                                                 &
+                     ClientModule = 'ModuleFreeVerticalMovement',                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR180'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR90'
 
-        call GetData(NewProperty%v0max,                                         &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType   = FromBlock,                                  &
-                     keyword      = 'v0max',                                    &
-                     Default      = 218.4,                                      &
-                     ClientModule = 'ModuleFreeVerticalMovement',               &
+        call GetData(NewProperty%v0max,                                                 &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'v0max',                                            &
+                     Default      = 218.4,                                              &
+                     ClientModule = 'ModuleFreeVerticalMovement',                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR190'
-
-        call GetData(NewProperty%v0,                                            &
-                     Me%ObjEnterData, iflag,                                    &
-                     SearchType   = FromBlock,                                  &
-                     keyword      = 'v0',                                       &
-                     Default      = 199.2,                                      &
-                     ClientModule = 'ModuleFreeVerticalMovement',               &
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR100'
+                   
+        call GetData(NewProperty%v0,                                                    &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'v0',                                               &
+                     Default      = 199.2,                                              &
+                     ClientModule = 'ModuleFreeVerticalMovement',                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR200'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            stop 'ReadClarifierOprions - ModuleFreeVerticalMovement - ERR110'
             
-    end subroutine Construct_PropertyParameters
+    end subroutine ReadClarifierOprions
 
     !----------------------------------------------------------------------
 
@@ -1399,8 +1459,9 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         real,    dimension(:,:,:), pointer      :: SPM
         real                                    :: CHS,KL,KL1,M,ML
         integer                                 :: I, J, K  
-        real                                    :: SPMISCoef
-        integer                                 :: CHUNK
+        real                                    :: SPMISCoef, SVI
+        integer                                 :: CHUNK, STAT_CALL
+        type (T_Time)                           :: CurrentTime
         !----------------------------------------------------------------------
 
         SPM             => Me%ExternalVar%SPM
@@ -1454,16 +1515,34 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             end if
             
         elseif(PropertyX%Ws_Type ==  WSSecondaryClarifier) then            
+        
+            if (PropertyX%ObjTimeSerieSVI /= 0) then
+            
+                call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)    
+                
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'Vertical_Velocity - ModuleFreeVerticalMovement - ERR10'
+                        
+                        
+                SVI = TimeSerieValue(PropertyX%ObjTimeSerieSVI,                         &
+                                     CurrentTime,                                       &
+                                     PropertyX%TimeSerieColumnSVI) 
+                                     
+            else                                     
+
+                SVI = PropertyX%SVI
+                
+            endif                
             
             do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExternalVar%OpenPoints3D(i, j, k)== OpenPoint) then
-
+                
                     PropertyX%Velocity(i, j, k)=-SettlingVelSecondaryClarifier (                &
                                                    Cx              = SPM(i, j, k)*SPMISCoef,    &
                                                    WithCompression = PropertyX%WithCompression, &
-                                                   SVI             = PropertyX%SVI,             & 
+                                                   SVI             = SVI,                       &  
                                                    Clarification   = PropertyX%Clarification)
                 else
                     PropertyX%Velocity(i, j, k)= 0.                                            
@@ -1541,6 +1620,39 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         nullify(SPM)
 
     end subroutine Vertical_Velocity
+
+    !--------------------------------------------------------------------------
+    real function TimeSerieValue(ObjTimeSerie, Now, TimeSerieColumn)    
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjTimeSerie, TimeSerieColumn
+        type (T_Time)                                   :: Now
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        type (T_Time)                                   :: Time1, Time2
+        real                                            :: Value1, Value2
+        logical                                         :: TimeCycle
+
+        !Begin------------------------------------------------------------------
+
+
+
+        !Gets Value for current Time
+        call GetTimeSerieValue (ObjTimeSerie, Now, TimeSerieColumn,                     &
+                                Time1, Value1, Time2, Value2, TimeCycle,                &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleFreeVerticalMovement - ERR10'
+     
+        if (TimeCycle) then
+            TimeSerieValue = Value1
+
+        else
+
+            !Interpolates Value for current instant
+            call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, TimeSerieValue)
+
+        endif
+
+    end function TimeSerieValue
 
     !--------------------------------------------------------------------------
     
@@ -2099,6 +2211,16 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                     if (STAT_CALL .NE. SUCCESS_) &
                         stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR13'
                     nullify(PropertyX%FreeConvFlux)
+                    
+                    if (PropertyX%ObjTimeSerieSVI /= 0) then
+            
+                        call KillTimeSerie(PropertyX%ObjTimeSerieSVI,                   &
+                                           STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'Kill_FreeVerticalMovement - ModuleFillMatrix - ERR50'
+                        
+                    endif
+
+                    
                     PropertyX => PropertyX%Next
                 end do
 

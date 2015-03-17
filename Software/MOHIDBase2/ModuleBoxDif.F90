@@ -243,10 +243,10 @@ Module ModuleBoxDif
         character(len=StringLength), dimension(:), pointer  :: ScalarTimeSerieHeader => null()
         type(T_BoxTimeSerie), pointer                       :: FirstFluxesTimeSerie => null()
         type(T_BoxTimeSerie), pointer                       :: FirstScalarTimeSerie => null()
-        integer                                             :: CoordinateType = null_int !initialization: jauch - or should be other value?
-        integer                                             :: GridType       = null_int !initialization: jauch - or should be other value?
-        logical                                             :: WriteBoxes = .false. !initialization: jauch
-        character(LEN = PathLength)                         :: BoxesOutputFile = null_str !initialization: jauch
+        integer                                             :: CoordinateType       = null_int 
+        integer                                             :: GridType             = null_int 
+        logical                                             :: WriteBoxes           = .false. 
+        character(LEN = PathLength)                         :: BoxesOutputFile      = null_str 
         integer                                             :: NextBoxMainID        = 1
         integer                                             :: NextBoxID            = 1
         integer                                             :: ObjTime              = 0

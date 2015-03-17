@@ -460,7 +460,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     Me%ReadWindow = .false.
                 endif
                 
-                call ReadGridFromFile(ExtractType)
+                call ReadGridFromFile()
                 
             endif
            
@@ -707,10 +707,10 @@ i0:     if      (NewPropField%SpaceDim == Dim2D)then
 
     !--------------------------------------------------------------------------
     
-    subroutine ReadGridFromFile(ExtractType)
+    subroutine ReadGridFromFile()
 
         !Arguments-------------------------------------------------------------
-        integer                                 :: ExtractType
+
                                                     
         !Local-----------------------------------------------------------------
 #ifndef _NO_NETCDF            
