@@ -115,11 +115,12 @@ Module ModuleTimeSeriesAnalyser
         character(len=Stringlength)	                            :: TimeSerieName = "Time Serie"
 	    real                                                    :: CoordX = 0.
 	    real                                                    :: CoordY = 0.
-	    real                                                    :: Value1, Value2, NewValue, DT_Analysis, Aux,ave,adev,sdev,var,skew
-	    real                                                    :: curt, maxvalues, minvalues, t, hour
+	    real                                                    :: Value1, Value2, NewValue, DT_Analysis, Aux
+	    
+	    real                                                    :: maxvalues, minvalues, t, hour
         real                                                    :: stdv, RMS, Error, Average    
         real    (SP)                                            :: ofac,hifac, prob
-
+        real    (SP)                                            :: ave, adev, sdev, var, skew, curt
         integer (I4B)                                           :: isign, jmax
 
 	    integer                                                 :: ObjEnterData          = 0
@@ -702,7 +703,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
         if (Me%FilterTimeSerie) then
         
-            Me%FilterFile = "FilterOut_"//Me%TimeSerieDataFile 
+            !Me%FilterFile = "FilterOut_"//Me%TimeSerieDataFile 
+            Me%FilterFile = AddString2FileName(Me%TimeSerieDataFile,"FilterOut_")
+            
             !Open Output files
             call UnitsManager(Me%iFilter, FileOpen, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructFilterTS - ERR10'
@@ -733,7 +736,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Begin----------------------------------------------------------------
     
-        GapsFile = "GapsOut_"//Me%TimeSerieDataFile 
+        !GapsFile = "GapsOut_"//Me%TimeSerieDataFile 
+        GapsFile = AddString2FileName(Me%TimeSerieDataFile, "GapsOut_")
+        
         !Open Output files
         call UnitsManager(Me%iGap, FileOpen, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructGapsTS - ERR10'
@@ -743,7 +748,37 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
     end subroutine ConstructGapsTS        
     
-    !-------------------------------------------------------------------------        
+!-------------------------------------------------------------------------        
+
+    character(len=PathLength) function AddString2FileName(Filename, AddString)
+
+        !Arguments------------------------------------------------------------    
+        character(len=*)                :: Filename, AddString
+        
+        !Local----------------------------------------------------------------
+        integer                         :: n, i, k
+
+        !Begin----------------------------------------------------------------    
+        
+        n = len_trim(Filename)
+        
+        k = FillValueInt
+        
+        do i=n,1,-1
+            if (Filename(i:i) == "/" .or. Filename(i:i) == "\") then
+                k = i
+                exit
+            endif                
+        enddo
+        
+        if (k > FillValueInt) then
+            AddString2FileName = Filename(1:k)//trim(AddString)//Filename(k+1:n)
+        else
+            AddString2FileName = trim(AddString)//trim(Filename)
+        endif            
+        
+    
+    end function AddString2FileName
 
 !-------------------------------------------------------------------------    
 
@@ -754,7 +789,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Begin----------------------------------------------------------------
         
-        Me%InterpolFile = "InterpolOut_"//Me%TimeSerieDataFile 
+        !Me%InterpolFile = "InterpolOut_"//Me%TimeSerieDataFile 
+        Me%InterpolFile = AddString2FileName(Me%TimeSerieDataFile, "InterpolOut_")
+        
         !Open Output files
         call UnitsManager(Me%iInterpol, FileOpen, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructInterpolTS - ERR10'
@@ -779,7 +816,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
         if (Me%SpectralAnalysis) then
         
-            SpectralAnalysisFile = "SpectralOut_"//Me%TimeSerieDataFile 
+            !SpectralAnalysisFile = "SpectralOut_"//Me%TimeSerieDataFile 
+            SpectralAnalysisFile = AddString2FileName(Me%TimeSerieDataFile, "SpectralOut_")
             !Open Output files
             call UnitsManager(Me%iS, FileOpen, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructPatternsTS - ERR10'
@@ -791,7 +829,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%PercentileAnalysis) then
         
-            PercentileFile       = "PercentileOut_"//Me%TimeSerieDataFile 
+            !PercentileFile       = "PercentileOut_"//Me%TimeSerieDataFile 
+            PercentileFile = AddString2FileName(Me%TimeSerieDataFile, "PercentileOut_")
             
             !Open Output files
             call UnitsManager(Me%iP, FileOpen, STAT = STAT_CALL)
@@ -802,7 +841,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                  
             if (Me%WeekEndOut) then
 
-                PercentileWeekEndFile       = "PercentileWeekEndOut_"//Me%TimeSerieDataFile 
+                !PercentileWeekEndFile       = "PercentileWeekEndOut_"//Me%TimeSerieDataFile 
+                PercentileWeekEndFile = AddString2FileName(Me%TimeSerieDataFile, "PercentileWeekEndOut_")                
                 
                 !Open Output files
                 call UnitsManager(Me%iPWeekEnd, FileOpen, STAT = STAT_CALL)
@@ -811,7 +851,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 open(unit   = Me%iPWeekEnd, file =trim(PercentileWeekEndFile), form = 'FORMATTED',     &
                      status = 'UNKNOWN')
 
-                PercentileWeekWayFile       = "PercentileWeekWayOut_"//Me%TimeSerieDataFile 
+                !PercentileWeekWayFile       = "PercentileWeekWayOut_"//Me%TimeSerieDataFile 
+                PercentileWeekWayFile = AddString2FileName(Me%TimeSerieDataFile, "PercentileWeekWayOut_")                                
                 
                 !Open Output files
                 call UnitsManager(Me%iPWeekWay, FileOpen, STAT = STAT_CALL)
@@ -826,7 +867,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%PercentileEvolution) then
         
-            PerEvolutionFile       = "PerEvolutionOut_"//Me%TimeSerieDataFile 
+            !PerEvolutionFile       = "PerEvolutionOut_"//Me%TimeSerieDataFile 
+            PerEvolutionFile = AddString2FileName(Me%TimeSerieDataFile, "PerEvolutionOut_")                                            
             
             !Open Output files
             call UnitsManager(Me%iPE, FileOpen, STAT = STAT_CALL)
@@ -923,7 +965,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      STAT = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructCompareTS - ERR10'
             
-            CompareOutFile = "CompareOut_"//Me%TimeSerieDataFile 
+            !CompareOutFile = "CompareOut_"//Me%TimeSerieDataFile 
+            CompareOutFile = AddString2FileName(Me%TimeSerieDataFile, "CompareOut_")
+            
             !Open Output files
             call UnitsManager(Me%iCompare, FileOpen, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructCompareTS - ERR10'
@@ -950,14 +994,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
         if (Me%MovAverageBackward%ON) then
             
-            MovAveBackOutFile = "MovAveBackDay_"//Me%TimeSerieDataFile 
+            !MovAveBackOutFile = "MovAveBackDay_"//Me%TimeSerieDataFile 
+            MovAveBackOutFile = AddString2FileName(Me%TimeSerieDataFile, "MovAveBackDay_")
+                        
             !Open Output files
             call UnitsManager(Me%iMovAveBackDay, FileOpen, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructMovAverageBackwardTS - ERR10'
             
             open(unit = Me%iMovAveBackDay, file =trim(MovAveBackOutFile), form = 'FORMATTED', status = 'UNKNOWN')
             
-            MovAveBackOutFile = "MovAveBackWeek_"//Me%TimeSerieDataFile 
+            !MovAveBackOutFile = "MovAveBackWeek_"//Me%TimeSerieDataFile 
+            MovAveBackOutFile = AddString2FileName(Me%TimeSerieDataFile, "MovAveBackWeek_")            
+            
             !Open Output files
             call UnitsManager(Me%iMovAveBackWeek, FileOpen, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructMovAverageBackwardTS - ERR20'
@@ -1220,6 +1268,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real, dimension(:  ), pointer  :: WriteAuxNight, SortArray, AuxSort
         integer                        :: STAT_CALL, iN, i50, i, iNight, FilterValues, iSort
         logical                        :: NightPeriodON, NightPeriodOut, TS_Gap
+        character(len=PathLength)      :: Filename         
         
         
         !Begin-----------------------------------------------------------------
@@ -1227,7 +1276,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call UnitsManager(iNight, FileOpen, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructFilterTS - ERR10'
         
-        open(unit   = iNight, file ="Night_"//trim(Me%TimeSerieDataFile), form = 'FORMATTED', status = 'UNKNOWN')
+        Filename = AddString2FileName(Me%TimeSerieDataFile, "Night_")       
+        !Filename = "Night_"//trim(Me%TimeSerieDataFile)
+        
+        open(unit   = iNight, file = Filename, form = 'FORMATTED', status = 'UNKNOWN')
         
         
         write(iNight,*) "NAME                    : ", trim(Me%TimeSerieName)
@@ -1359,14 +1411,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real, dimension(:  ), pointer  :: WriteAux, SortArray, AuxSort
         integer                        :: STAT_CALL, iSort, iN, i50, iP50, jmin, jmax, j, k, i, iAll, FilterValues
         logical                        :: NightPeriodON, NightPeriodOut, TS_Gap
-        
+        character(len=PathLength)      :: FileName
         
         !Begin-----------------------------------------------------------------
 
         call UnitsManager(iAll, FileOpen, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructFilterTS - ERR10'
-        
-        open(unit   = iAll, file ="FillAll_"//trim(Me%TimeSerieDataFile), form = 'FORMATTED', status = 'UNKNOWN')
+
+        Filename = AddString2FileName(Me%TimeSerieDataFile, "FillAll_")               
+        !Filename = "FillAll_"//trim(Me%TimeSerieDataFile)
+
+        open(unit   = iAll, file = Filename, form = 'FORMATTED', status = 'UNKNOWN')
         
         
         write(iAll,*) "NAME                    : ", trim(Me%TimeSerieName)
@@ -2223,7 +2278,14 @@ i1:     if (Me%CompareTimeSerieOn) then
 
 	        call pearsn(A,B,Rcorr,prob,z_fisher)
 
-	        call medfit(B,A,alfa,beta_1,abdev) 
+            if (size(B)>2e5) then
+	            alfa    = FillValueReal
+	            beta_1  = FillValueReal
+	            abdev   = FillValueReal
+	            write(*,*) 'medfit numerical recipes subroutine do not work for more than 200.000 values'
+            else                	            
+	            call medfit(B,A,alfa,beta_1,abdev) 
+            endif	            
 	        rcorr_quad=rcorr*rcorr
 
 	        ! calculo do rms e da bias

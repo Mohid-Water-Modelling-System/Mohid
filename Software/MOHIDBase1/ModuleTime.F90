@@ -1939,15 +1939,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     
     !--------------------------------------------------------------------------
 
-    character(len=30) function ConvertTimeToString(Time1)
+    character(len=30) function ConvertTimeToString(Time1, Delimiter)
     
         !Arguments-------------------------------------------------------------
         type(T_Time),      intent(IN )              :: Time1
+        character(len=1),  intent(IN ), optional    :: Delimiter
 
         !Local-----------------------------------------------------------------
         character(len=30)                           :: auxStr
+        character(len=1)                            :: DL
         
         !----------------------------------------------------------------------
+        
+        if (present(Delimiter)) then
+            DL = Delimiter
+        else
+            DL = ":"
+        endif            
 
         write(auxStr, 10)int(Time1%Time_(1)), int(Time1%Time_(2)), int(Time1%Time_(3)),  &
                          int(Time1%Time_(4)), int(Time1%Time_(5)), Time1%Time_(6)
@@ -1958,9 +1966,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 !        write(*,*)auxStr
         
         ConvertTimeToString = auxStr
+        
+       
  
 
-     10 format((i4,":"),4(i2, ":"), f12.8)
+     10 format((i4,DL),4(i2, DL), f12.8)
 
 
         !2000:12:12:23:59:59.123345678
