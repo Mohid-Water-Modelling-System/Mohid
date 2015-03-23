@@ -4167,6 +4167,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         real, dimension(6)                      :: AuxTime
         real(8)                                 :: Aux, HundredDays, Aux1
         integer                                 :: n, status, dimid, i, tmax, jmax
+        integer                                 :: stat
         logical                                 :: ReadTime
         type (T_Time)                           :: CurrentTime
         
@@ -4310,7 +4311,12 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             AuxTime(:) = 0.
 
             if (ReadTime) then                            
-                read(ref_date,*) (AuxTime (i), i = 1, 6)
+                read(ref_date,*,iostat=stat) (AuxTime (i), i = 1, 6)
+                if (stat /= SUCCESS_) then
+                    read(ref_date,*,iostat=stat) (AuxTime (i), i = 1, 5)
+                    AuxTime(6) = 0
+                endif                    
+                
             else
                 read(ref_date,*) (AuxTime (i), i = 1, 3)
             endif
