@@ -259,7 +259,7 @@ Module ModuleVegetation
     use ModuleEnterData
     use ModuleHDF5,           only : ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,               &
                                      HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5,        &
-                                     GetHDF5GroupNumberOfItems
+                                     GetHDF5GroupNumberOfItems, GetHDF5DataSetExist
     use ModuleAtmosphere,     only : GetAtmosphereProperty, AtmospherePropertyExists,               &
                                      UnGetAtmosphere
     use ModuleBasinGeometry,  only : GetBasinPoints, UngetBasin
@@ -7187,6 +7187,7 @@ do4:        do GlobalUniquePest = 1,  Me%Fluxes%Pesticides%UniquePesticides
         integer                                     :: HDF5_READ
         integer, dimension(:,:), pointer            :: PlantGrowingInteger, PlantDormantInteger
         character (Len = StringLength)              :: ConvertType 
+        logical                                     :: datasetExists
 
         !----------------------------------------------------------------------
 
@@ -7228,12 +7229,24 @@ cd0:    if (Exist) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadInitialHDF - ModuleVegetation - ERR02'
 
-            call HDF5ReadData   (ObjHDF5, "/Results/"//"AveragePotTPDuringDT",            &
-                                 "AveragePotTPDuringDT",                                  &
-                                 Array2D = Me%ExternalVar%Integration%AveragePotTPDuringDT,  &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                stop 'ReadInitialHDF - ModuleVegetation - ERR03'   
+            call GetHDF5DataSetExist (ObjHDF5,            &
+                                      "/Results/"//"AveragePotTPDuringDT/AveragePotTPDuringDT",  &
+                                       datasetExists,      &
+                                       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialHDF - ModuleVegetation - ERR02.5'
+
+            if (datasetExists) then
+
+                call HDF5ReadData   (ObjHDF5, "/Results/"//"AveragePotTPDuringDT",            &
+                                     "AveragePotTPDuringDT",                                  &
+                                     Array2D = Me%ExternalVar%Integration%AveragePotTPDuringDT,  &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                      &
+                    stop 'ReadInitialHDF - ModuleVegetation - ERR03'   
+
+            else
+                write(*,*) "ModuleVegetation: property AveragePotTPDuringDT does not exist in the initial file"              
+            endif
 
             if (Me%ComputeOptions%Dormancy) then
 
@@ -7316,27 +7329,57 @@ cd0:    if (Exist) then
                     stop 'ReadInitialHDF - ModuleVegetation - ERR06'
                     
 
-                call HDF5ReadData   (ObjHDF5, "/Results/"//"AverageAirHumidityDuringDT",                &
-                                     "AverageAirHumidityDuringDT",                                      &
-                                     Array2D = Me%ExternalVar%Integration%AverageAirHumidityDuringDT,   &
-                                     STAT    = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                        &
-                    stop 'ReadInitialHDF - ModuleVegetation - ERR07'      
-                    
-                call HDF5ReadData   (ObjHDF5, "/Results/"//"AverageAirTempDuringDT",              &
-                                     "AverageAirTempDuringDT",                                    &
-                                     Array2D = Me%ExternalVar%Integration%AverageAirTempDuringDT, &
-                                     STAT    = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                        &
-                    stop 'ReadInitialHDF - ModuleVegetation - ERR08'                     
+                call GetHDF5DataSetExist (ObjHDF5,            &
+                                          "/Results/"//"AverageAirHumidityDuringDT/AverageAirHumidityDuringDT",  &
+                                           datasetExists,      &
+                                           STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialHDF - ModuleVegetation - ERR06.5'
 
-                call HDF5ReadData   (ObjHDF5, "/Results/"//"AverageRadiationDuringDT",              &
-                                     "AverageRadiationDuringDT",                                    &
-                                     Array2D = Me%ExternalVar%Integration%AverageRadiationDuringDT, &
-                                     STAT    = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                          &
-                    stop 'ReadInitialHDF - ModuleVegetation - ERR09'   
-                                                                          
+                if (datasetExists) then
+
+                    call HDF5ReadData   (ObjHDF5, "/Results/"//"AverageAirHumidityDuringDT",                &
+                                         "AverageAirHumidityDuringDT",                                      &
+                                         Array2D = Me%ExternalVar%Integration%AverageAirHumidityDuringDT,   &
+                                         STAT    = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                        &
+                        stop 'ReadInitialHDF - ModuleVegetation - ERR07'      
+                else
+                    write(*,*) "ModuleVegetation: property AverageAirHumidityDuringDT does not exist in the initial file"
+                endif
+
+                call GetHDF5DataSetExist (ObjHDF5,            &
+                                          "/Results/"//"AverageAirTempDuringDT/AverageAirTempDuringDT",  &
+                                           datasetExists,      &
+                                           STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialHDF - ModuleVegetation - ERR07.5'
+
+                if (datasetExists) then                    
+                    call HDF5ReadData   (ObjHDF5, "/Results/"//"AverageAirTempDuringDT",              &
+                                         "AverageAirTempDuringDT",                                    &
+                                         Array2D = Me%ExternalVar%Integration%AverageAirTempDuringDT, &
+                                         STAT    = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                        &
+                        stop 'ReadInitialHDF - ModuleVegetation - ERR08'                     
+                else
+                    write(*,*) "ModuleVegetation: property AverageAirTempDuringDT does not exist in the initial file"              
+                endif
+                
+                call GetHDF5DataSetExist (ObjHDF5,            &
+                                          "/Results/"//"AverageRadiationDuringDT/AverageRadiationDuringDT",  &
+                                           datasetExists,      &
+                                           STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialHDF - ModuleVegetation - ERR08.5'
+
+                if (datasetExists) then                  
+                    call HDF5ReadData   (ObjHDF5, "/Results/"//"AverageRadiationDuringDT",              &
+                                         "AverageRadiationDuringDT",                                    &
+                                         Array2D = Me%ExternalVar%Integration%AverageRadiationDuringDT, &
+                                         STAT    = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                          &
+                        stop 'ReadInitialHDF - ModuleVegetation - ERR09'   
+                else
+                    write(*,*) "ModuleVegetation: property AverageRadiationDuringDT does not exist in the initial file"
+                endif                                                                          
             endif
             
             if (Me%ComputeOptions%Evolution%GrowthModelNeeded) then

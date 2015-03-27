@@ -4968,7 +4968,7 @@ cd0:    if (Exist) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_,STAT_CALL
         type (T_Property), pointer                  :: PropertyX
-
+        logical                                     :: IsFinalFile
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -5094,7 +5094,8 @@ cd0:    if (Exist) then
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%ExtVar%EndTime)) then
                 if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    call WriteFinalFile
+                    IsFinalFile = .false.
+                    call WriteFinalFile(IsFinalFile)
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
@@ -9520,8 +9521,10 @@ do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
     
     !--------------------------------------------------------------------------
 
-    subroutine WriteFinalFile
-
+    subroutine WriteFinalFile(IsFinalFile)
+        
+        !Arguments-------------------------------------------------------------
+        logical                                     :: IsFinalFile
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropertyX
         integer                                     :: STAT_CALL
@@ -9548,7 +9551,8 @@ do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Checks if it's at the end of the run 
         !or !if it's supposed to overwrite the final HDF file
-        if ((Me%ExtVar%Now == Me%ExtVar%EndTime) .or. Me%Output%RestartOverwrite) then
+        !if ((Me%ExtVar%Now == Me%ExtVar%EndTime) .or. Me%Output%RestartOverwrite) then
+        if (IsFinalFile .or. Me%Output%RestartOverwrite) then
 
             filename = trim(Me%Files%FinalFile)
 
@@ -9788,7 +9792,7 @@ do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Local-------------------------------------------------------------------
         integer                             :: STAT_, nUsers,STAT_CALL  
         type(T_property), pointer           :: PropertyX
-        
+        logical                             :: IsFinalFile
 
         !------------------------------------------------------------------------
 
@@ -9800,7 +9804,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             nUsers = DeassociateInstance(mRunoffProperties_,  Me%InstanceID)
             
-            call WriteFinalFile
+            IsFinalFile = .true.
+            call WriteFinalFile(IsFinalFile)
 
             PropertyX => Me%FirstProperty
             

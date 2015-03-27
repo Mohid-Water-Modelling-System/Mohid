@@ -4052,7 +4052,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         logical                                     :: Restart
         integer                                     :: Niter, iter
         integer                                     :: n_restart
-
+        logical                                     :: IsFinalFile
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -4277,7 +4277,8 @@ doIter:         do while (iter <= Niter)
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
                 if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    call WriteFinalFile
+                    IsFinalFile = .false.
+                    call WriteFinalFile(IsFinalFile)
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
@@ -8755,10 +8756,10 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
     !--------------------------------------------------------------------------
     
-    subroutine WriteFinalFile
+    subroutine WriteFinalFile(IsFinalFile)
         
         !Arguments-------------------------------------------------------------
-
+        logical                                     :: IsFinalFile
         !Local-----------------------------------------------------------------
         real                                        :: Year_File, Month_File, Day_File
         real                                        :: Hour_File, Minute_File, Second_File
@@ -8773,7 +8774,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                          Hour_File, Minute_File, Second_File)
         
         
-        if (Me%ExtVar%Now == Me%EndTime) then
+        !if (Me%ExtVar%Now == Me%EndTime) then
+        if (IsFinalFile) then
             FileName = Me%Files%FinalFile
         else
             FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
@@ -8825,7 +8827,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Local-------------------------------------------------------------------
         integer                             :: STAT_, nUsers, STAT_CALL    
         character(len=StringLength)         :: MassErrorFile
-
+        logical                             :: IsFinalFile
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -8840,7 +8842,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
 
                 !Writes file with final condition
-                call WriteFinalFile
+                IsFinalFile = .true.
+                call WriteFinalFile(IsFinalFile)
 
                 !Writes Mass Error
                 call ReadFileName("ROOT_SRT", MassErrorFile, STAT = STAT_CALL)

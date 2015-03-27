@@ -6036,6 +6036,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                     :: STAT_, ready_, STAT_CALL
         integer                                     :: DummyI
         real                                        :: DummyR
+        logical                                     :: IsFinalFile
         !------------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "ModifyPorousMedia")
@@ -6113,7 +6114,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
                 if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    call WriteFinalFile
+                    IsFinalFile = .false.
+                    call WriteFinalFile(IsFinalFile)
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
@@ -10919,6 +10921,7 @@ do1:                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i,j), -1
         !Local-------------------------------------------------------------------
         integer                             :: STAT_, nUsers, STAT_CALL           
         type(T_Piezometer), pointer         :: Piezometer
+        logical                             :: IsFinalFile
 
         !------------------------------------------------------------------------
 
@@ -10933,7 +10936,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
                 
                 !Write Output for continuous computation
-                call WriteFinalFile
+                IsFinalFile = .true.
+                call WriteFinalFile(IsFinalFile)
 
                 !Kills the TimeSerie
                 if (Me%ObjTimeSerie /= 0) then
@@ -11032,10 +11036,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
     
-    subroutine WriteFinalFile
+    subroutine WriteFinalFile(IsFinalFile)
 
         !Arguments-------------------------------------------------------------
-
+        logical                                     :: IsFinalFile
         !Local-----------------------------------------------------------------
         real                                        :: Year_File, Month_File, Day_File
         real                                        :: Hour_File, Minute_File, Second_File
@@ -11045,7 +11049,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !----------------------------------------------------------------------
 
-        if (Me%ExtVar%Now == Me%EndTime) then
+        !if (Me%ExtVar%Now == Me%EndTime) then
+        if(IsFinalFile) then
             FileName = Me%Files%FinalFile
         else
             FileName = ChangeSuffix(Me%Files%FinalFile,                                 &

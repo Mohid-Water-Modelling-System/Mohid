@@ -3399,6 +3399,7 @@ cd2 :           if (BlockFound) then
         character (Len = StringLength)              :: MassEvaluationTime
         character (Len = StringLength)              :: OptionsType
         type (T_BasinProperty), pointer             :: Property
+        logical                                     :: IsFinalFile
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ModifyBasin")
@@ -3598,7 +3599,8 @@ cd2 :           if (BlockFound) then
             !Restart Output
             if (Me%Output%WriteRestartFile .and. .not. (Me%CurrentTime == Me%EndTime)) then
                 if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    call WriteFinalFile
+                    IsFinalFile = .false.
+                    call WriteFinalFile(IsFinalFile)
                     
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
@@ -8875,6 +8877,7 @@ cd2 :           if (BlockFound) then
         integer                             :: STAT_, nUsers           
         integer                             :: STAT_CALL     
         type(T_BasinProperty),  pointer     :: PropertyX => null()
+        logical                             :: IsFinalFile
 
         !------------------------------------------------------------------------
 
@@ -8889,7 +8892,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
 
                 !Writes file with final condition
-                call WriteFinalFile
+                IsFinalFile = .true.
+                call WriteFinalFile(IsFinalFile)
 
                 nUsers = DeassociateInstance(mTIME_,  Me%ObjTime)
                 if (nUsers == 0)           stop 'KillBasin - ModuleBasin - ERR010'
@@ -9062,10 +9066,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !----------------------------------------------------------------------------
     
-    subroutine WriteFinalFile
+    subroutine WriteFinalFile(IsFinalFile)
         
         !Arguments-------------------------------------------------------------
-
+        logical                                     :: IsFinalFile
         !Local-----------------------------------------------------------------
         real                                        :: Year_File, Month_File, Day_File
         real                                        :: Hour_File, Minute_File, Second_File
@@ -9080,7 +9084,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                          Hour_File, Minute_File, Second_File)
         
         
-        if (Me%CurrentTime == Me%EndTime) then
+        !if (Me%CurrentTime == Me%EndTime) then
+        if (IsFinalFile) then
             FileName = Me%Files%FinalFile
         else
             FileName = ChangeSuffix(Me%Files%FinalFile,                                 &

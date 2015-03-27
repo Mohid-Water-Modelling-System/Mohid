@@ -1319,7 +1319,7 @@ i1:      if (CoordON) then
       integer                                     :: Niter, iter
       integer                                     :: n_restart
       integer                                     :: ILB, IUB, JLB, JUB, I, J
-
+      logical                                     :: IsFinalFile      
       !----------------------------------------------------------------------
 
       STAT_ = UNKNOWN_
@@ -1397,7 +1397,8 @@ i1:      if (CoordON) then
          !Restart Output
          if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
                if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                  call WriteFinalFile
+                  IsFinalFile = .false.
+                  call WriteFinalFile(IsFinalFile)
                   Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                endif
          endif
@@ -1503,8 +1504,10 @@ i1:      if (CoordON) then
 
    !-------------------------------------------------------------------------
     
-   subroutine WriteFinalFile
-
+   subroutine WriteFinalFile(IsFinalFile)
+              
+      !Arguments
+      logical                                     :: IsFinalFile
       !Local-----------------------------------------------------------------
       type (T_Property), pointer                  :: PropertyX
       integer                                     :: STAT_CALL      
@@ -1530,7 +1533,8 @@ i1:      if (CoordON) then
 
       !Checks if it's at the end of the run 
       !or !if it's supposed to overwrite the final HDF file
-      if ((Me%ExtVar%Now == Me%EndTime) .or. Me%Output%RestartOverwrite) then
+      !if ((Me%ExtVar%Now == Me%EndTime) .or. Me%Output%RestartOverwrite) then
+      if (IsFinalFile .or. Me%Output%RestartOverwrite) then
          filename = trim(Me%Files%FinalFile)
       else
          FileName = ChangeSuffix(Me%Files%FinalFile, &
@@ -1640,6 +1644,7 @@ i1:      if (CoordON) then
       !Local-------------------------------------------------------------------
       integer                             :: STAT_, nUsers, STAT_CALL    
       !character(len=StringLength)         :: MassErrorFile
+      logical                             :: IsFinalFile
 
       !------------------------------------------------------------------------
 
@@ -1655,7 +1660,8 @@ cd1 : if (ready_ .NE. OFF_ERR_) then
          if (nUsers == 0) then
 
             !Writes file with final condition
-            call WriteFinalFile
+            IsFinalFile = .true.
+            call WriteFinalFile(IsFinalFile)
 
 !                !Writes Mass Error
 !                call ReadFileName("ROOT_SRT", MassErrorFile, STAT = STAT_CALL)
