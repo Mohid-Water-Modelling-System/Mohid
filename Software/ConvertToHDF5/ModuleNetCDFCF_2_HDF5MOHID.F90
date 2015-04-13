@@ -180,6 +180,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type (T_ValueIn)                        :: ValueIn        
         real, dimension(:,:),     pointer       :: Value2DOut
         real, dimension(:,:,:),   pointer       :: Value3DOut
+        logical                                 :: Accumulated2Step
         logical                                 :: FromDir2Vector
         logical                                 :: FromMeteo2Algebric
         character(len=StringLength)             :: DirX
@@ -2428,6 +2429,14 @@ BF:         if (BlockFound) then
 
                     endif           
 
+                    call GetData(Me%Field(ip)%Accumulated2Step,                         &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'STEP_ACCUMULATED',                     &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2720'
                     
                     !call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
 
@@ -3437,12 +3446,14 @@ i5:         if (Me%OutHDF5) then
 !        do iT = 1, Me%Date%NumberInst
         
             if      (Me%Field(iP)%Dim==3) then 
-                allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
-                                                 Me%Size%JLB:Me%Size%JUB,           &
+                allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,               &
+                                                 Me%Size%JLB:Me%Size%JUB,               &
                                                  Me%Size%KLB:Me%Size%KUB))
+                                                 
             else if (Me%Field(iP)%Dim==2) then 
-                allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,           &
+                allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,               &
                                                  Me%Size%JLB:Me%Size%JUB))
+
             endif                            
             
             
@@ -5995,12 +6006,14 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                         :: iP, iFinal
 
         !Local-----------------------------------------------------------------
-        real,   pointer, dimension(:,:,:)               :: Aux3D
-        real,   pointer, dimension(:,:)                 :: Aux2D, Aux2DV
+        real,   pointer, dimension(:,:,:)               :: Aux3D, Aux3DOld
+        real,   pointer, dimension(:,:)                 :: Aux2D, Aux2DV, Aux2DAcc
         integer                                         :: STAT_CALL
         integer                                         :: WorkILB, WorkJLB, WorkKLB
         integer                                         :: WorkIUB, WorkJUB, WorkKUB
         integer                                         :: i, j, k, Mapping
+        real                                            :: AuxOld
+        character (len=StringLength)                    :: AccumulatedPropName
 
         !Begin-----------------------------------------------------------------
         
@@ -6029,20 +6042,22 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         
             call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR10'        
+            
 
             if (Me%WindowOut%ON) then
 
                 allocate(Aux2D(WorkILB:WorkIUB, WorkJLB:WorkJUB))
-
+                
                 do j = WorkJLB, WorkJUB
                 do i = WorkILB, WorkIUB                
                     Aux2D(i,j) = Me%Field(iP)%Value2DOut(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1)
                 enddo
                 enddo
+                
             else
                 Aux2D => Me%Field(iP)%Value2DOut
             endif
-
+            
             do j = WorkJLB, WorkJUB
             do i = WorkILB, WorkIUB                
                 if (associated(Me%Mapping%Value2DOut)) then
@@ -6062,14 +6077,50 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             enddo
             enddo
                
+            if (Me%Field(iP)%Accumulated2Step) then
+            
+                AccumulatedPropName = trim(Me%Field(iP)%ID%Name)//" accumulated"
+
+                allocate(Aux2DAcc(WorkILB:WorkIUB, WorkJLB:WorkJUB))
+                if (iFinal > 1) then
+                    call HDF5ReadData  (Me%ObjHDF5, "/Results/"//trim(AccumulatedPropName),&
+                                         trim(AccumulatedPropName),                        &
+                                         Array2D = Aux2DAcc,                               &
+                                         OutputNumber = iFinal-1, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                else
+                    Aux2DAcc(:,:) = 0.
+                endif
+
+                do j = WorkJLB, WorkJUB
+                do i = WorkILB, WorkIUB  
+                    AuxOld        = Aux2DAcc(i,j)
+                    Aux2DAcc(i,j) = Aux2D   (i, j)
+                    if (AuxOld > 0.) then                    
+                        
+                        Aux2D(i,j) = Aux2D(i,j) - AuxOld
+                    endif
+                enddo
+                enddo
+                
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(AccumulatedPropName),&
+                                     trim(AccumulatedPropName),                         &
+                                     trim(Me%Field(iP)%ID%Units),                       &
+                                     Array2D = Aux2DAcc,                                &
+                                     OutputNumber = iFinal, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                
+                deallocate(Aux2DAcc)
+                
+            endif                
+
             call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%Field(iP)%ID%Name),   &
                                  trim(Me%Field(iP)%ID%Name),                            &
                                  trim(Me%Field(iP)%ID%Units),                           &
                                  Array2D = Aux2D,                                       &
                                  OutputNumber = iFinal, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
-            
-            
+
             if (Me%Field(iP)%FromDir2Vector) then
             
                 allocate(Aux2DV(WorkILB:WorkIUB, WorkJLB:WorkJUB))            
@@ -6114,12 +6165,12 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 enddo
                 enddo
                 
-                call HDF5WriteData  (HDF5ID       = Me%ObjHDF5,                             &
+                call HDF5WriteData  (HDF5ID       = Me%ObjHDF5,                         &
                                      GroupName    = "/Results/"//trim(Me%Field(iP)%DirY),&
-                                     Name         = trim(Me%Field(iP)%DirY),             &
-                                     Units        = "-",                                    &
-                                     Array2D      = Aux2DV,                                  &
-                                     OutputNumber = iFinal,                                 &
+                                     Name         = trim(Me%Field(iP)%DirY),            &
+                                     Units        = "-",                                &
+                                     Array2D      = Aux2DV,                             &
+                                     OutputNumber = iFinal,                             &
                                      STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
 
@@ -6159,6 +6210,10 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                 &
                                  WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR50'        
+            
+            if (Me%Field(iP)%Accumulated2Step) then
+                stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR55'
+            endif                
 
             call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%Field(iP)%ID%Name),   &
                                  trim(Me%Field(iP)%ID%Name),                            &
@@ -6167,8 +6222,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                  OutputNumber = iFinal, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
             
-            if (Me%WindowOut%ON) deallocate(Aux3D)                
-
+            if (Me%WindowOut%ON) deallocate(Aux3D)
         else 
 
             stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR70'

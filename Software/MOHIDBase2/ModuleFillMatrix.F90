@@ -3541,13 +3541,13 @@ if4D:   if (Me%HDF%Field4D) then
 
         !Initial field
 i1:     if (Me%HDF%Generic4D%ON .or. (Me%HDF%Field4D .and. Me%HDF%HarmonicsOn)) then
-            
+        
             if (Me%Dim == Dim2D) then
                 call ModifyHDFInput2D (PointsToFill2D) 
             else
                 call ModifyHDFInput3D (PointsToFill3D)
             endif
-
+            
         else i1
             
 i2:         if(Me%HDF%NumberOfInstants > 1)then
@@ -6698,10 +6698,9 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
 
         if (Me%HDF%Generic4D%ON) then
 
-            if (.not. present(Generic_4D_Value_)) &
-                stop 'ModifyHDFInput2D - ModuleFillMAtrix - ERR010'
-            call ModifyHDFInput2DGeneric4D(PointsToFill2D, Generic_4D_Value_)
-            
+            if (present(Generic_4D_Value_)) then
+                call ModifyHDFInput2DGeneric4D(PointsToFill2D, Generic_4D_Value_)
+            endif
         else
 
             call ModifyHDFInput2DTime(PointsToFill2D)

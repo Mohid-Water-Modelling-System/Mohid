@@ -3422,17 +3422,20 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
     !--------------------------------------------------------------------------
     
-   subroutine GetTimeSerieTimeFrameIndexes(TimeSerieID, StartTime, EndTime, StartIndex, EndIndex, STAT) 
+   subroutine GetTimeSerieTimeFrameIndexes(TimeSerieID, StartTime, EndTime, StartIndex, EndIndex, NotIncremental, STAT) 
 
         !Arguments-------------------------------------------------------------
         integer                                     :: TimeSerieID
         type(T_Time),      intent(IN)               :: StartTime,  EndTime
         integer,           intent(OUT)              :: StartIndex, EndIndex
+        logical, optional, intent(IN)               :: NotIncremental        
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_         
+        type(T_Time)                                :: AuxTime
+        integer                                     :: ready_, i         
         integer                                     :: STAT_ 
+        logical                                     :: NotIncremental_
         !Begin-----------------------------------------------------------------        
 
 
@@ -3442,38 +3445,69 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            !Find Start Index
-            do while (Me%InitialData + Me%DataMatrix(Me%StartIndex, 1) .lt. &
-                      StartTime)
-                Me%StartIndex = Me%StartIndex + 1
-                
-                !Last Instant
-                if (Me%StartIndex >= Me%DataValues) then
-                    Me%StartIndex = Me%DataValues
-                    exit 
-                endif
-            enddo
-
-
-            !Find End Index
-            do while (Me%InitialData + Me%DataMatrix(Me%EndIndex, 1) .lt. &
-                      EndTime)
-                Me%EndIndex = Me%EndIndex + 1
-                
-                !Last Instant
-                if (Me%EndIndex >= Me%DataValues) then
-                    Me%EndIndex = Me%DataValues
-                    exit 
-                endif
-            enddo                
             
-            if (Me%InitialData + Me%DataMatrix(Me%EndIndex, 1) == EndTime) then
-                 Me%EndIndex = Me%EndIndex - 1
-            endif
+            if (present(NotIncremental)) then 
+                NotIncremental_ = NotIncremental
+            else
+                NotIncremental_ = .false.
+            endif                
             
-            StartIndex = Me%StartIndex
-            EndIndex   = Me%EndIndex            
+            if (NotIncremental_) then
+            
+                do i=1, Me%DataValues
+                
+                    AuxTime = Me%InitialData + Me%DataMatrix(i, 1)
+                
+                    if (AuxTime >= StartTime) then
+                        if (AuxTime > StartTime) then
+                            StartIndex = i-1
+                        else
+                            StartIndex = i
+                        endif                            
+                    endif                        
+                    
+                    if (AuxTime >= EndTime) then
+                        EndIndex = i
+                        exit
+                    endif                        
+
+                enddo
+            
+            else
+
+                !Find Start Index
+                do while (Me%InitialData + Me%DataMatrix(Me%StartIndex, 1) .lt. &
+                          StartTime)
+                    Me%StartIndex = Me%StartIndex + 1
+                    
+                    !Last Instant
+                    if (Me%StartIndex >= Me%DataValues) then
+                        Me%StartIndex = Me%DataValues
+                        exit 
+                    endif
+                enddo
+
+
+                !Find End Index
+                do while (Me%InitialData + Me%DataMatrix(Me%EndIndex, 1) .lt. &
+                          EndTime)
+                    Me%EndIndex = Me%EndIndex + 1
+                    
+                    !Last Instant
+                    if (Me%EndIndex >= Me%DataValues) then
+                        Me%EndIndex = Me%DataValues
+                        exit 
+                    endif
+                enddo                
+                
+                if (Me%InitialData + Me%DataMatrix(Me%EndIndex, 1) == EndTime) then
+                     Me%EndIndex = Me%EndIndex - 1
+                endif
+                
+                StartIndex = Me%StartIndex
+                EndIndex   = Me%EndIndex            
+                
+            endif                
 
             STAT_ = SUCCESS_
         else 

@@ -1947,6 +1947,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !Local-----------------------------------------------------------------
         character(len=30)                           :: auxStr
+        character(len=4)                            :: Year
+        character(len=2)                            :: Month, Day, Hour, Minutes   
+        character(len=13)                           :: Seconds     
         character(len=1)                            :: DL
         
         !----------------------------------------------------------------------
@@ -1956,10 +1959,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         else
             DL = ":"
         endif            
+        
+     !10 format((i4,DL),4(i2, DL), f12.8)        
 
-        write(auxStr, 10)int(Time1%Time_(1)), int(Time1%Time_(2)), int(Time1%Time_(3)),  &
-                         int(Time1%Time_(4)), int(Time1%Time_(5)), Time1%Time_(6)
-
+        !write(auxStr, FormatX) int(Time1%Time_(1)), DL, int(Time1%Time_(2)), DL,        &
+        !                       int(Time1%Time_(3)), DL, int(Time1%Time_(4)), DL,        &
+        !                       int(Time1%Time_(5)), DL, Time1%Time_(6)
+        
+        write(Year ,  '(I4)'   ) int(Time1%Time_(1))
+        write(Month,  '(I2)'   ) int(Time1%Time_(2))
+        write(Day  ,  '(I2)'   ) int(Time1%Time_(3))
+        write(Hour ,  '(I2)'   ) int(Time1%Time_(4))
+        write(Minutes,'(I2)'   ) int(Time1%Time_(5))
+        write(Seconds,'(f12.8)') int(Time1%Time_(6))
+                               
+         auxStr = Year//DL//Month//DL//Day//DL//Hour//DL//Minutes//DL//Seconds
 
 !        write(*,*)'TIME CONVERSIONS'
 !        write(*,*)Time1%Time_(1), Time1%Time_(2), Time1%Time_(3), Time1%Time_(4), Time1%Time_(5), Time1%Time_(6)
@@ -1970,7 +1984,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
        
  
 
-     10 format((i4,":"),4(i2, ":"), f12.8)
+
 
 
         !2000:12:12:23:59:59.123345678

@@ -2879,7 +2879,7 @@ i6:                         if (DirectionX.ne.0.) then
                         endif                      
                     enddo
                     
-                    if (.not. Intersect) stop "IntersectionBoundCell - ERR10"
+                    if (.not. Intersect) stop "IntersectionBoundCellV2 - ERR10"
                     
                 endif
 
@@ -2903,7 +2903,7 @@ i6:                         if (DirectionX.ne.0.) then
                         endif                      
                     enddo
                     
-                    if (.not. Intersect) stop "IntersectionBoundCell - ERR20"
+                    if (.not. Intersect) stop "IntersectionBoundCellV2 - ERR20"
                     
                 endif
 
@@ -2927,7 +2927,7 @@ i6:                         if (DirectionX.ne.0.) then
                         endif                      
                     enddo
                     
-                    if (.not. Intersect) write(*,*) "IntersectionBoundCell - ERR30"
+                    if (.not. Intersect) write(*,*) "IntersectionBoundCellV2 - ERR30"
                     
                 endif
 
@@ -2951,7 +2951,7 @@ i6:                         if (DirectionX.ne.0.) then
                         endif                      
                     enddo
                     
-                    if (.not. Intersect) stop "IntersectionBoundCell - ERR40"
+                    if (.not. Intersect) stop "IntersectionBoundCellV2 - ERR40"
                     
                 endif
                 

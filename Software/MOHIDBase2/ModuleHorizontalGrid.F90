@@ -2706,7 +2706,7 @@ BF:     if (BlockFound) then
 
            !Check if the spacing in Y is constant
             call GetData(ConstantSpacingY,                                              &
-                         Me%ObjEnterData, flag,                                            &
+                         Me%ObjEnterData, flag,                                         &
                          SearchType   = FromFile,                                       &
                          keyword      ='CONSTANT_SPACING_Y',                            &
                          STAT         = STAT_CALL)        
@@ -2715,7 +2715,7 @@ BF:     if (BlockFound) then
 iconY:      if (ConstantSpacingY) Then
                 !Get grid origin
                 call GetData(DY,                                                        &
-                             Me%ObjEnterData, flag,                                        &
+                             Me%ObjEnterData, flag,                                     &
                              SearchType   = FromFile,                                   &
                              keyword      ='DY',                                        &
                              STAT         = STAT_CALL)        
@@ -2795,7 +2795,7 @@ iconY:      if (ConstantSpacingY) Then
 
            !Check if the spacing in X is constant
             call GetData(ConstantSpacingX,                                              &
-                         Me%ObjEnterData, flag,                                            &
+                         Me%ObjEnterData, flag,                                         &
                          SearchType   = FromFile,                                       &
                          keyword      ='CONSTANT_SPACING_X',                            &
                          STAT         = STAT_CALL)        
@@ -2804,7 +2804,7 @@ iconY:      if (ConstantSpacingY) Then
 iconX:      if (ConstantSpacingX) Then
                 !Get grid spacing dx
                 call GetData(DX,                                                        &
-                             Me%ObjEnterData, flag,                                        &
+                             Me%ObjEnterData, flag,                                     &
                              SearchType   = FromFile,                                   &
                              keyword      ='DX',                                        &
                              STAT         = STAT_CALL)        

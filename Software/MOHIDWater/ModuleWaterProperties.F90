@@ -19987,7 +19987,6 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                                 write(*,*) Me%ModelName
                                 write(*,*) 'T,S,i,j,k'
                                 write(*,*) T(i, j, k), S(i, j, k), i,j,k
-                                stop 'T, S invalid'
                             endif
 
                             Me%Density%Sigma(i, j, k) = SigmaUNESCO     (T(i, j, k), S(i, j, k))

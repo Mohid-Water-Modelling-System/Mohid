@@ -5084,12 +5084,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 AddFaces_ = .false. 
             endif      
  
-            if (AddFaces_) then
-                IUB = IUB + 1
-                JUB = JUB + 1
-                KUB = KUB + 1
-            endif
-            
     ifMS:   if (MasterOrSlave) then
     
                 call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
@@ -5112,6 +5106,16 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 JUW = JUB 
 
             endif ifMS                                            
+            
+            if (AddFaces_) then
+                IUB = IUB + 1
+                JUB = JUB + 1
+                KUB = KUB + 1
+                
+                IUW = IUW + 1
+                JUW = JUW + 1
+
+            endif            
             
             if (ILB < 1   ) stop 'ReadGeometryHDF - Geometry - ERR40'
             if (IUB > Imax) stop 'ReadGeometryHDF - Geometry - ERR50'

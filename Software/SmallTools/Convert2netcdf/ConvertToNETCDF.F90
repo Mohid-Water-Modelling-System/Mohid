@@ -158,7 +158,7 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, iflag
-        logical                                     :: exist
+        logical                                     :: exist, Exist2
         
         !Begin-----------------------------------------------------------------
 
@@ -175,7 +175,9 @@ program Convert2netcdf
 
         !Verifies if file exists
         inquire(FILE = trim(Me%HDFFile%Name), EXIST = exist)
-        if (.not. exist) then
+        if (exist) then
+            call OpenHDF5File
+        else
             write(*,*)'HDF5 file does not exist'
             stop 'ReadKeywords - Convert2netcdf - ERR02'
         endif
@@ -302,6 +304,32 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR14'
+        
+        call GetHDF5DataSetExist (HDF5ID        = Me%HDFFile%ObjHDF5,           &
+                                  DataSetName   = trim(Me%HDFFile%SizeGroup)//  &
+                                                  "/"//trim(Me%HDFFile%HdfMask),&
+                                  Exist         = Exist,                        & 
+                                  STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR20'
+        
+        if (.not.Exist) then
+        
+            call GetHDF5DataSetExist (HDF5ID        = Me%HDFFile%ObjHDF5,           &
+                                      DataSetName   = trim(Me%HDFFile%SizeGroup)//  &
+                                                      "/"//"WaterPoints",           &
+                                      Exist         = Exist2,                       & 
+                                      STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR30'
+            
+            if (Exist2) then
+                Me%HDFFile%HdfMask = "WaterPoints"
+            else
+                write(*,*) 'Name define in keyword HDF_MASK not valid' 
+                stop 'ReadMask - Convert2netcdf - ERR40'
+            endif
+
+        endif
+        
 
         call GetData(Me%HDFFile%HdfMaskIs3D,                                            &
                      Me%ObjEnterData,iflag,                                             &
@@ -325,7 +353,7 @@ program Convert2netcdf
                      Me%ObjEnterData,iflag,                                             &
                      SearchType   = FromFile,                                           &
                      keyword      = 'HDF_SIZE_DATASET',                                 &
-                     Default      = 'WaterPoints3D',                                    &
+                     Default      = trim(Me%HDFFile%HdfMask),                           &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR14'
@@ -462,7 +490,7 @@ program Convert2netcdf
 
         !Begin-----------------------------------------------------------------
     
-        call OpenHDF5File
+        !call OpenHDF5File
 
         call OpenNCDFFile
 
@@ -1080,14 +1108,14 @@ program Convert2netcdf
                                                JLB = 1, JUB = Me%HDFFile%Size%JUB,          &
                                                KLB = 1, KUB = Me%HDFFile%Size%KUB,          &
                                                STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
-
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR10'
+                
                 call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,                        &
                                   GroupName    = Me%HDFFile%SizeGroup,                      &
                                   Name         = trim(Me%HDFFile%HdfMask),                  &
                                   Array3D      = Me%Int3DIn,                                &
                                   STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR50'
                 
                 do i=1,Me%HDFFile%Size%IUB
                 do j=1,Me%HDFFile%Size%JUB
@@ -1114,21 +1142,21 @@ program Convert2netcdf
                                       MissingValue  = MissingValue,                         &
                                       Array3D       = Me%Int3DOut,                          &
                                       STAT          = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR60'
 
             else
 
                 call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB,  &
                                                JLB = 1, JUB = Me%HDFFile%Size%JUB,          &
                                                STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR70'
 
                 call HDF5ReadData(HDF5ID   = Me%HDFFile%ObjHDF5,                            &
                                   GroupName    = Me%HDFFile%SizeGroup,                      &
                                   Name         = Me%HDFFile%HdfMask,                        &
                                   Array2D      = Me%Int2DIn,                                &
                                   STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR80'
                 
                 do i=1,Me%HDFFile%Size%IUB
                 do j=1,Me%HDFFile%Size%JUB
@@ -1152,7 +1180,7 @@ program Convert2netcdf
                                       MissingValue  = MissingValue,                         &
                                       Array2D       = Me%Int2DOut,                          &
                                       STAT          = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR01'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR90'
 
             endif
 
