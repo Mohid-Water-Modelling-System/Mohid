@@ -15018,7 +15018,7 @@ MF:             if (CurrentPartic%Position%Surface) then
                     ! Velocity due Stokes Drift
                     if (CurrentOrigin%State%StokesDrift .or. Me%Booms%ON) then    
 
-                        if (CurrentPartic%WaveHeight    < 0 ) then
+                        if (CurrentPartic%WaveHeight    < 0 .and. associated(Me%EulerModel(emp)%WaveHeight2D) ) then
                             CurrentPartic%WaveHeight    = Me%EulerModel(emp)%WaveHeight2D(i, j)
                         endif
 
@@ -15672,12 +15672,8 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                                             nullify(CurrLine)
                                             
                                             if (ParticleInsideBuffer) then
-
-                                                IntersectVel = sqrt(CurrentPartic%CurrentX**2 +  &
-                                                                    CurrentPartic%CurrentY**2)
                                             
-                                                if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit .and. &
-                                                    IntersectVel             < Me%Booms%Individual(nn)%VelLimit) then
+                                                if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit) then
                                                     MovePartic = .false.
                                                     exit donn
                                                 endif   

@@ -607,17 +607,17 @@ Module ModulePorousMediaProperties
     end type T_FluxCoef
 
     type  T_Fluxes
-        real, pointer, dimension(:,:,:)         :: AdvFluxX   => null()
-        real, pointer, dimension(:,:,:)         :: AdvFluxY   => null()
-        real, pointer, dimension(:,:,:)         :: AdvFluxZ   => null()
+        real(8), pointer, dimension(:,:,:)         :: AdvFluxX   => null()
+        real(8), pointer, dimension(:,:,:)         :: AdvFluxY   => null()
+        real(8), pointer, dimension(:,:,:)         :: AdvFluxZ   => null()
         
-        real, pointer, dimension(:,:,:)         :: DifFluxX   => null()
-        real, pointer, dimension(:,:,:)         :: DifFluxY   => null()
-        real, pointer, dimension(:,:,:)         :: DifFluxZ   => null()
+        real(8), pointer, dimension(:,:,:)         :: DifFluxX   => null()
+        real(8), pointer, dimension(:,:,:)         :: DifFluxY   => null()
+        real(8), pointer, dimension(:,:,:)         :: DifFluxZ   => null()
         
-        real, pointer, dimension(:,:,:)         :: MassFluxesX   => null()
-        real, pointer, dimension(:,:,:)         :: MassFluxesY   => null()
-        real, pointer, dimension(:,:,:)         :: MassFluxesZ   => null()
+        real(8), pointer, dimension(:,:,:)         :: MassFluxesX   => null()
+        real(8), pointer, dimension(:,:,:)         :: MassFluxesY   => null()
+        real(8), pointer, dimension(:,:,:)         :: MassFluxesZ   => null()
     end type T_Fluxes
 
 #ifdef _PHREEQC_  

@@ -370,8 +370,8 @@ Module ModuleBasin
         real, dimension (:,:,:), pointer            :: Last5DaysAccRain => null ()
         real, dimension (:,:), pointer              :: Last5DaysAccRainTotal => null ()
         real, dimension (:,:), pointer              :: DailyAccRain => null ()
-        real, dimension (:,:), pointer              :: Current5DayAccRain => null ()
-        real, dimension (:,:), pointer              :: ActualCurveNumber => null ()
+        real(8), dimension (:,:), pointer           :: Current5DayAccRain => null ()
+        real(8), dimension (:,:), pointer           :: ActualCurveNumber => null ()
         real, dimension (:,:), pointer              :: S => null ()
         type (T_Time)                               :: NextRainAccStart 
         real                                        :: CIDormThreshold = 12.70,         &
