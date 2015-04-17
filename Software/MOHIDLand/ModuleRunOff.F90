@@ -5843,7 +5843,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     Flow = sign * VertArea * HydraulicRadius**(2./3.) * sqrt(sign * Slope)          &
                            / OverlandCoef
 
-                    MaxFlow  = sign * VertArea * sqrt(Gravity * WaveHeight)
+                    !MaxFlow  = sign * VertArea * sqrt(Gravity * WaveHeight)
+                    
+                    if (sign > 0.0) then
+                        MaxFlow  = min(VertArea * sqrt(Gravity * WaveHeight) * Me%ExtVar%DT, Me%myWaterVolume (i, j)) / Me%ExtVar%DT
+                    else
+                        MaxFlow  = sign * min(VertArea * sqrt(Gravity * WaveHeight) * Me%ExtVar%DT, Me%myWaterVolume (it, jt)) / Me%ExtVar%DT
+                    endif                    
                     
                     if (abs(Flow) > abs(MaxFlow)) then
                         Flow = MaxFlow
