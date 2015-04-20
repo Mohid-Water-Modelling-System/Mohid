@@ -1971,21 +1971,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         write(Day  ,  '(I2)'   ) int(Time1%Time_(3))
         write(Hour ,  '(I2)'   ) int(Time1%Time_(4))
         write(Minutes,'(I2)'   ) int(Time1%Time_(5))
-        write(Seconds,'(f12.8)') int(Time1%Time_(6))
+        write(Seconds,'(f12.8)') Time1%Time_(6)
                                
          auxStr = Year//DL//Month//DL//Day//DL//Hour//DL//Minutes//DL//Seconds
 
-!        write(*,*)'TIME CONVERSIONS'
-!        write(*,*)Time1%Time_(1), Time1%Time_(2), Time1%Time_(3), Time1%Time_(4), Time1%Time_(5), Time1%Time_(6)
-!        write(*,*)auxStr
-        
         ConvertTimeToString = auxStr
-        
-       
- 
-
-
-
 
         !2000:12:12:23:59:59.123345678
 
