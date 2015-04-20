@@ -83,6 +83,8 @@ Module ModuleModel
     use ModuleSedimentProperties,       only : Construct_SedimentProperties,             &
                                                SedimentProperties_Evolution,             &
                                                KillSedimentProperties
+    
+    use ModuleSediment,                 only: ConstructSediment, KillSediment                
 #endif
 
     use ModuleInterfaceSedimentWater,   only : StartInterfaceSedimentWater,              &
@@ -237,6 +239,7 @@ Module ModuleModel
         real                                    :: DTPredictionInterval = null_real !initialization: Jauch
 
         logical                                 :: RunSediments     = .false. !initialization: Jauch
+        logical                                 :: SedimentModule   = .false. 
         logical                                 :: RunLagrangian    = .false. !initialization: Jauch
         logical                                 :: RunWaves         = .false. !initialization: Jauch
         logical                                 :: NoIsolatedCells  = .false. !initialization: Jauch
@@ -277,6 +280,7 @@ Module ModuleModel
         integer                                 :: ObjInterfaceWaterAir         = 0
         integer                                 :: ObjInterfaceSedimentWater    = 0
 !        integer                                 :: ObjInterfaceSedAir           = 0
+        integer                                 :: ObjSediment                  = 0
         integer                                 :: ObjSedimentProperties        = 0
         integer                                 :: ObjConsolidation             = 0
 #ifdef _USE_SEQASSIMILATION
@@ -457,6 +461,15 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   ClientModule  = 'ModuleModel',                         &
                                   STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR40'
+            
+            !Use Sediment module
+            call GetData         (Me%SedimentModule, ObjEnterData, flag,                 &
+                                  SearchType    =  FromFile,                             &
+                                  keyword       = 'SEDIMENT',                            &
+                                  default       = .false.,                               &
+                                  ClientModule  = 'ModuleModel',                         &
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR41'
 
 
             !Use Lagrangian
@@ -891,8 +904,8 @@ il:         if (Me%RunLagrangian) then
                                             MapID               = Me%Sediment%ObjMap,           &
                                             STAT                = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR400'
-
-
+                
+                
                 !Constructs SedimentProperties
                 call Construct_SedimentProperties(SedimentPropertiesID  = Me%ObjSedimentProperties,     &
                                                   TimeID                = Me%ObjTime,                   &     
@@ -904,6 +917,66 @@ il:         if (Me%RunLagrangian) then
                                                   ConsolidationID       = Me%ObjConsolidation,          &
                                                   STAT                  = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR410'
+                
+            endif
+                
+            if (Me%SedimentModule) then
+
+                !Gets the file name of the Bathymetry
+                call ReadFileName('IN_SEDIMENT', SedimentFile, "Sediment File", STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR341'
+
+                !Gets the file name of the Bathymetry
+                call ReadFileName('SED_GEOM', SedGeometryFile, "Sediment Geometry File", STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR351'
+
+                !Horizontal Grid Data - Sediment Column (Bathymetry)
+                call ConstructGridData      (GridDataID       = Me%Sediment%ObjBathymetry,   &
+                                             HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                             FileName         = SedimentFile,                &
+                                             STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR361'
+
+                !Horizontal Map
+                call ConstructHorizontalMap (HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
+                                             GridDataID       = Me%Sediment%ObjBathymetry,   &
+                                             HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                             ActualTime       = Me%CurrentTime,              &
+                                             STAT             = STAT_CALL)  
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR371'
+
+                !Geometry - Sediment Column
+                call ConstructGeometry      (GeometryID       = Me%Sediment%ObjGeometry,     &
+                                             GridDataID       = Me%Sediment%ObjBathymetry,   &
+                                             HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                             HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
+                                             ActualTime       = Me%CurrentTime,              &
+                                             NewDomain        = SedGeometryFile,             &
+                                             STAT             = STAT_CALL)  
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR381'
+
+                !Map - Sediment Column            
+                call ConstructMap           (Map_ID           = Me%Sediment%ObjMap,          &
+                                             GeometryID       = Me%Sediment%ObjGeometry,     &
+                                             HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
+                                             TimeID           = Me%ObjTime,                  &
+                                             STAT             = STAT_CALL)  
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR391'
+
+                
+                call ConstructSediment(ObjSedimentID        = Me%ObjSediment,                        &
+                                   ObjGridDataID        = Me%Water%ObjBathymetry,                   &
+                                   ObjHorizontalGridID  = Me%ObjHorizontalGrid,                  &
+                                   ObjHorizontalMapID   = Me%Water%ObjMap,              &
+                                   ObjTimeID            = Me%ObjTime,                            &
+                                   ObjWavesID           = Me%ObjWaves,                           &
+                                   ObjDischargesID      = Me%ObjDischarges,                      &
+                                   SedimentGridDataID          = Me%Sediment%ObjBathymetry,      &
+                                   SedimentHorizontalMapID     = Me%Sediment%ObjHorizontalMap,   &
+                                   SedimentMapID               = Me%Sediment%ObjMap,             &
+                                   SedimentGeometryID          = Me%Sediment%ObjGeometry,        &
+                                   STAT                 = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR411'
 
             endif
 #else
@@ -940,10 +1013,12 @@ il:         if (Me%RunLagrangian) then
                                              LagrangianID                = Me%ObjLagrangian,             &
 #endif
                                              WavesID                     = Me%ObjWaves,                  &
+                                             SedimentID                  = Me%ObjSediment,               &
                                              SedimentPropertiesID        = Me%ObjSedimentProperties,     &
                                              ConsolidationID             = Me%ObjConsolidation,          &
                                              DischargesID                = Me%ObjDischarges,             &
                                              RunsSediments               = Me%RunSediments,              &
+                                             SedimentModule              = Me%SedimentModule,            &
                                              STAT                        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR430'
 
@@ -2086,11 +2161,38 @@ if7 :               if     (DT_error > 0) then
 #ifndef _SEDIMENT_
                 if (Me%RunSediments) then
 
+                    call KillSediment (Me%ObjSediment,      STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR90'         
+                    
                     call KillSedimentProperties (Me%ObjSedimentProperties,      STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR95'         
 
                     call KillConsolidation      (Me%ObjConsolidation,  STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR95'
+
+                    !Kills Map
+                    call KillMap                (Me%Sediment%ObjMap,           STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR60'
+
+                    !Kills Geometry
+                    call KillGeometry           (Me%Sediment%ObjGeometry,      STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR70'
+
+                    !Kills HorizontalMap
+                    call KillHorizontalMap      (Me%Sediment%ObjHorizontalMap, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR80'
+
+                    !Kills Bathymetry
+                    call KillGridData           (Me%Sediment%ObjBathymetry,    STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR90'
+
+
+                endif
+                
+                if (Me%SedimentModule) then
+
+                    call KillSediment (Me%ObjSediment,      STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR90'         
 
                     !Kills Map
                     call KillMap                (Me%Sediment%ObjMap,           STAT = STAT_CALL)

@@ -75,7 +75,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  90
+    integer, parameter  :: MaxModules           =  92
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1771,6 +1771,7 @@ Module ModuleGlobalData
     integer, parameter ::  mHNS_                    = 89
     integer, parameter ::  mGlueWW3_OBC_            = 90
     integer, parameter ::  mSnow_                   = 91
+    integer, parameter ::  mSediment_               = 92
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -1884,8 +1885,9 @@ Module ModuleGlobalData
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
         T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics"),     &
         T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     ,  T_Module(mAnalytical_LDS_      , "Analytical_LDS"),        &
-        T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS"           ),        &
-        T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"                                                                            ) /)
+        T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS"           ), &
+        T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"),           T_Module(mSnow_             , "Snow"         ),   &
+        T_Module(mSediment_              , "Sediment"           ) /)
         
 
     !Variables
