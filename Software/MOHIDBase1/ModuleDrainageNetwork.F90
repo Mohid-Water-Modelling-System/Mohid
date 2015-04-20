@@ -878,8 +878,8 @@ Module ModuleDrainageNetwork
         integer                                     :: TotalNodes            = 0        
         integer                                     :: TotalReaches          = 0
         integer                                     :: TotalOutlets          = 0
-        integer, dimension(:), pointer              :: OutletReachPos        => null()
-        integer, dimension(:), pointer              :: OutletNodePos         => null()
+        integer, dimension(:), pointer              :: OutletReachID         => null()
+        integer, dimension(:), pointer              :: OutletNodeID          => null()
         integer                                     :: HighestOrder          = 0
         logical                                     :: CheckNodes            = .false.
         logical                                     :: CheckReaches          = .false.
@@ -4069,8 +4069,9 @@ do1:    do while (.not.Done)
         !Arguments--------------------------------------------------------------
 
         !Local------------------------------------------------------------------
-        integer                                 :: NodePos, SaveNodePos, SaveReachPos, OutletPos
+        integer                                 :: NodePos, SaveNodeID, SaveReachID, OutletID
         type (T_Node ), pointer                 :: CurrNode
+        type (T_Reach), pointer                 :: CurrReach
 
         Me%TotalOutlets = 0
 
@@ -4094,8 +4095,9 @@ do1:    do while (.not.Done)
                 end if
                 
                 !if only one outlet, this info will be used
-                SaveReachPos = CurrNode%UpstreamReaches (1)                
-                SaveNodePos = NodePos
+                CurrReach => Me%Reaches(CurrNode%UpstreamReaches (1))
+                SaveReachID = CurrReach%ID                
+                SaveNodeID = CurrNode%ID
 
             end if
 
@@ -4104,28 +4106,31 @@ do1:    do while (.not.Done)
         !Allow more than one outlet
         !if (Me%TotalOutlets /= 1) stop 'ModuleDrainageNetwork - CountOutlets - ERR01'
         
-        allocate (Me%OutletReachPos(Me%TotalOutlets))
-        allocate (Me%OutletNodePos(Me%TotalOutlets))
+        allocate (Me%OutletReachID(Me%TotalOutlets))
+        allocate (Me%OutletNodeID(Me%TotalOutlets))
         
         if (Me%TotalOutlets /= 1) then
             
             !After knowing how many (to allocate) go again and save positions
-            OutletPos = 1
+            !Outlets will not have a type for now since all they need is an ID and they are not read from file
+            !and Me%OutletReachID and Me%OutletNodeID have the node and reach info
+            OutletID = 1
             do NodePos = 1, Me%TotalNodes
 
                 CurrNode => Me%Nodes(NodePos)
                 if (CurrNode%nDownstreamReaches .EQ. 0) then
-
-                    Me%OutletReachPos(OutletPos) = CurrNode%UpstreamReaches (1)
-                    Me%OutletNodePos(OutletPos) = NodePos
-                    OutletPos = OutletPos + 1
+                    
+                    CurrReach => Me%Reaches(CurrNode%UpstreamReaches (1))
+                    Me%OutletReachID(OutletID) = CurrReach%ID
+                    Me%OutletNodeID(OutletID) = CurrNode%ID
+                    OutletID = OutletID + 1
                     
                 end if
 
             end do        
         else
-            Me%OutletReachPos(1) = SaveReachPos
-            Me%OutletNodePos(1) = SaveNodePos
+            Me%OutletReachID(1) = SaveReachID
+            Me%OutletNodeID(1) = SaveNodeID
         end if
         
     end subroutine CountOutlets
@@ -5319,7 +5324,7 @@ cd2 :           if (BlockFound) then
         
         !Local------------------------------------------------------------------
         type(T_Property), pointer                   :: Property
-        integer                                     :: OutletPos
+        integer                                     :: OutletID
 
         Property => Me%FirstProperty
         do while (associated(Property))
@@ -5327,8 +5332,8 @@ cd2 :           if (BlockFound) then
             if ((.not. Me%Continuous) .or. (.not. Me%PropertyContinuous)) then
                 Property%Concentration = Property%InitialValue
                 
-                do OutletPos = 1, Me%TotalOutlets 
-                    Property%Concentration(Me%OutletNodePos(OutletPos)) = Property%BoundaryConcentration
+                do OutletID = 1, Me%TotalOutlets 
+                    Property%Concentration(Me%OutletNodeID(OutletID)) = Property%BoundaryConcentration
                 end do
             endif
                 
@@ -9126,7 +9131,7 @@ do2 :   do while (associated(PropertyX))
                 endif
 
                 do OutletPos = 1, Me%TotalOutlets 
-                    CurrReach => Me%Reaches (Me%OutletReachPos(OutletPos))
+                    CurrReach => Me%Reaches (Me%OutletReachID(OutletPos))
                     !       m3            =          m3         +          m3/s     *    s
                     Me%OutletFlowVolume   = Me%OutletFlowVolume + CurrReach%FlowNew * Me%CV%CurrentDT
                 end do
@@ -10606,7 +10611,7 @@ if2:        if (Volume > PoolVolume) then
                   
             if (Me%CheckMass) then               
                 do OutletPos = 1, Me%TotalOutlets 
-                    CurrReach => Me%Reaches (Me%OutletReachPos(OutletPos))
+                    CurrReach => Me%Reaches (Me%OutletReachID(OutletPos))
                     Me%TotalFlowVolume   = Me%TotalFlowVolume + CurrReach%FlowNew * LocalDT
                 end do
             end if
@@ -12113,7 +12118,7 @@ do1:            do NodeID = 1, Me%TotalNodes
                    !Only advection is needed to be computed since diffusion is not computed at the end (no exiting of diffusion)
                     if (Me%CheckMass) then
 do2:                    do OutletPos = 1, Me%TotalOutlets 
-                            OutletReach => Me%Reaches (Me%OutletReachPos(OutletPos))               
+                            OutletReach => Me%Reaches (Me%OutletReachID(OutletPos))               
                             if (NodeID == OutletReach%UpstreamNode) then
                                 !Flow exiting
                                 if (OutletReach%FlowNew.GE.0.0) then
@@ -16130,16 +16135,16 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     end function GetNumberOfOutlets    
 
     !DEC$ IFDEFINED (VF66)
-    !dec$ attributes dllexport::GetOutletNodeID
+    !dec$ attributes dllexport::GetOutletID
     !DEC$ ELSE
-    !dec$ attributes dllexport,alias:"_GETOUTLETNODEID"::GetOutletNodeID
+    !dec$ attributes dllexport,alias:"_GETOUTLETID"::GetOutletID
     !DEC$ ENDIF
     !Return the number of Error Messages
-    logical function GetOutletNodeID(DrainageNetworkID, OutletNodeID)
+    logical function GetOutletID(DrainageNetworkID, OutletID)
     
         !Arguments-------------------------------------------------------------
         integer                                     :: DrainageNetworkID
-        integer, dimension(:), pointer              :: OutletNodeID
+        integer, dimension(:), pointer              :: OutletID
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
@@ -16149,16 +16154,19 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         call Ready(DrainageNetworkID, ready_)    
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             
+            !outlet does not have a type (is a node) and outlets id's are sequential when created
+            !and Me%OutletRreachID(outletID) and Me%OutletNodeID(outletID) have the respective
+            !outlet reach and node ID's and are used to access outlet properties and flows
             do OutletPos = 1, Me%TotalOutlets
-                OutletNodeID(OutletPos) = Me%OutletNodePos(OutletPos)
+                OutletID(OutletPos) = OutletPos
             enddo
             
-            GetOutletNodeID = .true.
+            GetOutletID = .true.
         else 
-            GetOutletNodeID = .false.
+            GetOutletID = .false.
         end if
 
-    end function GetOutletNodeID
+    end function GetOutletID
 
     
     !DEC$ IFDEFINED (VF66)
@@ -16218,11 +16226,11 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETOUTLETFLOW"::GetOutletFlow
     !DEC$ ENDIF
-    real(8) function GetOutletFlow(DrainageNetworkID, OutletPos)
+    real(8) function GetOutletFlow(DrainageNetworkID, OutletID)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DrainageNetworkID
-        integer                                     :: OutletPos
+        integer                                     :: OutletID
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
@@ -16231,7 +16239,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         call Ready(DrainageNetworkID, ready_)    
 
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-            GetOutletFlow = dble(Me%Reaches(Me%OutletReachPos(OutletPos))%FlowNew)  
+            GetOutletFlow = dble(Me%Reaches(Me%OutletReachID(OutletID))%FlowNew)  
         else
             GetOutletFlow = -99.0
         endif
@@ -16551,12 +16559,12 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETOUTLETFLOWCONCENTRATION"::GetOutletFlowConcentration
     !DEC$ ENDIF
-    real(8) function GetOutletFlowConcentration(DrainageNetworkID, OutletPos, PropIDNumber)
+    real(8) function GetOutletFlowConcentration(DrainageNetworkID, OutletID, PropIDNumber)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DrainageNetworkID
         integer                                     :: PropIDNumber
-        integer                                     :: OutletPos
+        integer                                     :: OutletID
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
@@ -16570,7 +16578,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         
             call SearchProperty (Property, PropIDNumber, STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) then            
-                OutletReach => Me%Reaches(Me%OutletReachPos(OutletPos))
+                OutletReach => Me%Reaches(Me%OutletReachID(OutletID))
                 GetOutletFlowConcentration =  dble(Property%Concentration(OutletReach%UpstreamNode))
             else
                 GetOutletFlowConcentration = -99.0
@@ -16587,13 +16595,13 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_SETDOWNSTREAMCONCENTRATION"::SetDownStreamConcentration
     !DEC$ ENDIF
-    logical function SetDownStreamConcentration(DrainageNetworkID, OutletPos, PropIDNumber, Concentration)
+    logical function SetDownStreamConcentration(DrainageNetworkID, OutletID, PropIDNumber, Concentration)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DrainageNetworkID
         integer                                     :: PropIDNumber
         real(8)                                     :: Concentration
-        integer                                     :: OutletPos
+        integer                                     :: OutletID
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
@@ -16607,7 +16615,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
             
             call SearchProperty (Property, PropIDNumber, STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) then            
-                Property%Concentration(Me%OutletNodePos(OutletPos)) = Concentration
+                Property%Concentration(Me%OutletNodeID(OutletID)) = Concentration
                 SetDownStreamConcentration = .true.
             else
                 SetDownStreamConcentration = .false.
