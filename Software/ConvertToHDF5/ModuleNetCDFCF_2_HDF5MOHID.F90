@@ -180,7 +180,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type (T_ValueIn)                        :: ValueIn        
         real, dimension(:,:),     pointer       :: Value2DOut
         real, dimension(:,:,:),   pointer       :: Value3DOut
-        logical                                 :: Accumulated2Step
+        logical                                 :: Accumulated2StepGFS
         logical                                 :: FromDir2Vector
         logical                                 :: FromMeteo2Algebric
         character(len=StringLength)             :: DirX
@@ -2429,10 +2429,10 @@ BF:         if (BlockFound) then
 
                     endif           
 
-                    call GetData(Me%Field(ip)%Accumulated2Step,                         &
+                    call GetData(Me%Field(ip)%Accumulated2StepGFS,                      &
                                  Me%ObjEnterData, iflag,                                &
                                  SearchType   = FromBlockInBlock,                       &
-                                 keyword      = 'STEP_ACCUMULATED',                     &
+                                 keyword      = 'STEP_ACCUMULATED_GFS',                 &
                                  default      = .false.,                                &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
@@ -6014,7 +6014,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                         :: i, j, k, Mapping
         real                                            :: AuxOld
         character (len=StringLength)                    :: AccumulatedPropName
-
+        type (T_Time)                                   :: CurrentTime 
+        real(8)                                         :: Aux
+        real                                            :: HoursOut
         !Begin-----------------------------------------------------------------
         
         !Bounds
@@ -6076,41 +6078,73 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 endif
             enddo
             enddo
-               
-            if (Me%Field(iP)%Accumulated2Step) then
+            
+            ! The option Accumulated2StepGFS was developed specifically to face a problem 
+            ! identify in the GFS opendap service and grib output files. Precipitation 
+            ! in mm has a variable accumulation period. For precipitations at 
+            ! 3h, 9h, 15h and 21h the precipitation in mm is relative to an accumulation period 
+            ! of 3h the precipitations at 0h,6h,12h,18h and 24h is relative to a 6 h accumulation 
+            ! period. The approach followed to solve the problem consists in subtract the instants 
+            ! with an accumulated period of 6 h by the precipitation of the previous instant 
+            ! (accumulated period of 3 h). This way the precipitation is always the accumulated 
+            ! value since the last instant.
+            
+            if (Me%Field(iP)%Accumulated2StepGFS) then
+            
+                Aux         = Me%Date%ValueInTotal(iFinal)            
+                CurrentTime = Me%Date%RefDateTimeOut + Aux
+           
+
+    !           Dados para escriver uma soa vez cada date:
+                call ExtractDate   (CurrentTime, Hour = HoursOut)            
+            
             
                 AccumulatedPropName = trim(Me%Field(iP)%ID%Name)//" accumulated"
+                
 
-                allocate(Aux2DAcc(WorkILB:WorkIUB, WorkJLB:WorkJUB))
-                if (iFinal > 1) then
+                !Instant is 0h, 6h, 12h, 18h, 24h 
+                if (mod(HoursOut,6.) == 0) then
+
+                    allocate(Aux2DAcc(WorkILB:WorkIUB, WorkJLB:WorkJUB))
+                    
                     call HDF5ReadData  (Me%ObjHDF5, "/Results/"//trim(AccumulatedPropName),&
                                          trim(AccumulatedPropName),                        &
                                          Array2D = Aux2DAcc,                               &
                                          OutputNumber = iFinal-1, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
-                else
-                    Aux2DAcc(:,:) = 0.
-                endif
+                                        
 
-                do j = WorkJLB, WorkJUB
-                do i = WorkILB, WorkIUB  
-                    AuxOld        = Aux2DAcc(i,j)
-                    Aux2DAcc(i,j) = Aux2D   (i, j)
-                    if (AuxOld > 0.) then                    
-                        
-                        Aux2D(i,j) = Aux2D(i,j) - AuxOld
-                    endif
-                enddo
-                enddo
+                    do j = WorkJLB, WorkJUB
+                    do i = WorkILB, WorkIUB  
+                        AuxOld        = Aux2DAcc(i,j)
+                        Aux2DAcc(i,j) = Aux2D   (i, j)
+                        if (AuxOld > 0.) then                    
+                            Aux2D(i,j) = Aux2D(i,j) - AuxOld
+                            if (Aux2D(i,j) < 0.) Aux2D(i,j) = 0.
+                        endif
+                    enddo
+                    enddo
+                    
+                    
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(AccumulatedPropName),&
+                                         trim(AccumulatedPropName),                         &
+                                         trim(Me%Field(iP)%ID%Units),                       &
+                                         Array2D = Aux2DAcc,                                &
+                                         OutputNumber = iFinal, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                    
+                    deallocate(Aux2DAcc)                    
+                    
+                else
                 
-                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(AccumulatedPropName),&
-                                     trim(AccumulatedPropName),                         &
-                                     trim(Me%Field(iP)%ID%Units),                       &
-                                     Array2D = Aux2DAcc,                                &
-                                     OutputNumber = iFinal, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
-                
-                deallocate(Aux2DAcc)
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(AccumulatedPropName),&
+                                         trim(AccumulatedPropName),                         &
+                                         trim(Me%Field(iP)%ID%Units),                       &
+                                         Array2D = Aux2D,                                   &
+                                         OutputNumber = iFinal, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+
+                endif                    
                 
             endif                
 
@@ -6211,7 +6245,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                  WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR50'        
             
-            if (Me%Field(iP)%Accumulated2Step) then
+            if (Me%Field(iP)%Accumulated2StepGFS) then
                 stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR55'
             endif                
 
