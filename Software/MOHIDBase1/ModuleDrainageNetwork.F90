@@ -16135,21 +16135,22 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     end function GetNumberOfOutlets    
 
     !DEC$ IFDEFINED (VF66)
-    !dec$ attributes dllexport::GetOutletID
+    !dec$ attributes dllexport::GetOutletIDs
     !DEC$ ELSE
-    !dec$ attributes dllexport,alias:"_GETOUTLETID"::GetOutletID
+    !dec$ attributes dllexport,alias:"_GETOUTLETIDS"::GetOutletIDs
     !DEC$ ENDIF
     !Return the number of Error Messages
-    logical function GetOutletID(DrainageNetworkID, OutletID)
+    logical function GetOutletIDs(DrainageNetworkID, numberOfOutlets, OutletIDs)
     
         !Arguments-------------------------------------------------------------
         integer                                     :: DrainageNetworkID
-        integer, dimension(:), pointer              :: OutletID
+        integer                                     :: numberOfOutlets
+        integer, dimension(numberOfOutlets)         :: OutletIDs
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_ 
-        integer                                     :: OutletPos        
+        integer                                     :: iOutlet        
 
         call Ready(DrainageNetworkID, ready_)    
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
@@ -16157,16 +16158,16 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
             !outlet does not have a type (is a node) and outlets id's are sequential when created
             !and Me%OutletRreachID(outletID) and Me%OutletNodeID(outletID) have the respective
             !outlet reach and node ID's and are used to access outlet properties and flows
-            do OutletPos = 1, Me%TotalOutlets
-                OutletID(OutletPos) = OutletPos
+            do iOutlet = 1, numberOfOutlets
+                OutletIDs(iOutlet) = iOutlet
             enddo
             
-            GetOutletID = .true.
+            GetOutletIDs = .true.
         else 
-            GetOutletID = .false.
+            GetOutletIDs = .false.
         end if
 
-    end function GetOutletID
+    end function GetOutletIDs
 
     
     !DEC$ IFDEFINED (VF66)
@@ -16226,22 +16227,28 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETOUTLETFLOW"::GetOutletFlow
     !DEC$ ENDIF
-    real(8) function GetOutletFlow(DrainageNetworkID, OutletID)
+    logical function GetOutletFlow(DrainageNetworkID, numberOfOutlets, outletFlow)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DrainageNetworkID
-        integer                                     :: OutletID
+        integer                                     :: numberOfOutlets
+        real, dimension(numberOfOutlets)            :: outletFlow
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_   
+        integer                                     :: iOutlet
 
         call Ready(DrainageNetworkID, ready_)    
 
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-            GetOutletFlow = dble(Me%Reaches(Me%OutletReachID(OutletID))%FlowNew)  
+            
+            do iOutlet = 1, numberOfOutlets                         
+                outletFlow(iOutlet) = dble(Me%Reaches(Me%OutletReachID(iOutlet))%FlowNew) 
+            enddo
+            GetOutletFlow = .true.
         else
-            GetOutletFlow = -99.0
+            GetOutletFlow = .false.
         endif
         
     end function
@@ -16559,18 +16566,20 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETOUTLETFLOWCONCENTRATION"::GetOutletFlowConcentration
     !DEC$ ENDIF
-    real(8) function GetOutletFlowConcentration(DrainageNetworkID, OutletID, PropIDNumber)
+    logical function GetOutletFlowConcentration(DrainageNetworkID, numberOfOutlets, PropIDNumber, flowConcentration)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DrainageNetworkID
         integer                                     :: PropIDNumber
-        integer                                     :: OutletID
+        integer                                     :: numberOfOutlets
+        real, dimension(numberOfOutlets)            :: flowConcentration
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
         type (T_Property), pointer                  :: Property
         type (T_Reach), pointer                     :: OutletReach
+        integer                                     :: iOutlet
 
         call Ready(DrainageNetworkID, ready_)    
 
@@ -16578,13 +16587,19 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         
             call SearchProperty (Property, PropIDNumber, STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) then            
-                OutletReach => Me%Reaches(Me%OutletReachID(OutletID))
-                GetOutletFlowConcentration =  dble(Property%Concentration(OutletReach%UpstreamNode))
+                
+                do iOutlet = 1, numberOfOutlets                                 
+                    OutletReach => Me%Reaches(Me%OutletReachID(iOutlet))
+                    flowConcentration(iOutlet) =  dble(Property%Concentration(OutletReach%UpstreamNode))
+                enddo
+                
+                GetOutletFlowConcentration = .true.
+                
             else
-                GetOutletFlowConcentration = -99.0
+                GetOutletFlowConcentration = .false.
             endif
         else
-            GetOutletFlowConcentration = -99.0
+            GetOutletFlowConcentration = .false.
         endif
         
     end function    
@@ -16595,18 +16610,19 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_SETDOWNSTREAMCONCENTRATION"::SetDownStreamConcentration
     !DEC$ ENDIF
-    logical function SetDownStreamConcentration(DrainageNetworkID, OutletID, PropIDNumber, Concentration)
+    logical function SetDownStreamConcentration(DrainageNetworkID, numberOfOutlets, PropIDNumber, Concentration)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DrainageNetworkID
         integer                                     :: PropIDNumber
-        real(8)                                     :: Concentration
-        integer                                     :: OutletID
+        real, dimension(numberOfOutlets)            :: Concentration
+        integer                                     :: numberOfOutlets
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
         type (T_Property), pointer                  :: Property
+        integer                                     :: iOutlet
 
         call Ready(DrainageNetworkID, ready_)    
 
@@ -16614,9 +16630,14 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
 
             
             call SearchProperty (Property, PropIDNumber, STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_) then            
-                Property%Concentration(Me%OutletNodeID(OutletID)) = Concentration
+            if (STAT_CALL == SUCCESS_) then  
+                
+                do iOutlet = 1, numberOfOutlets
+                    Property%Concentration(Me%OutletNodeID(iOutlet)) = Concentration(iOutlet)                
+                enddo
+                
                 SetDownStreamConcentration = .true.
+                
             else
                 SetDownStreamConcentration = .false.
             endif

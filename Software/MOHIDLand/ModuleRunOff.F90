@@ -304,6 +304,8 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: StormWaterCenterModulus  => null() !Output 
         real,    dimension(:,:), pointer            :: BuildingsHeight          => null() !Height of building in cell
         real,    dimension(:,:), pointer            :: StormWaterInteraction    => null() !Points where interaction with SWMM occurs
+        real,    dimension(:,:), pointer            :: StormWaterGutterInteraction  => null() !Points where gutter interaction with SWMM occurs 
+                                                                                              !(default is the same as StormWaterInteraction)
         real,    dimension(:,:), pointer            :: StreetGutterLength       => null() !Length of Stret Gutter in a given cell
         real,    dimension(:,:), pointer            :: MassError                => null() !Contains mass error
         real,    dimension(:,:), pointer            :: CenterFlowX              => null()
@@ -607,6 +609,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         type(T_PropertyID)                          :: StormWaterDrainageID
         type(T_PropertyID)                          :: BuildingsHeightID
         type(T_PropertyID)                          :: StormWaterInteractionID
+        type(T_PropertyID)                          :: StormWaterGutterInteractionID
         type(T_PropertyID)                          :: StreetGutterLengthID
         integer                                     :: iflag, ClientNumber
         logical                                     :: BlockFound
@@ -1490,6 +1493,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             allocate(Me%StormWaterInteraction(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%StreetGutterLength   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StormWaterGutterInteraction (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
             call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR680'
@@ -1521,12 +1525,43 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 stop      'ReadDataFile - ModuleRunOff - ERR693'
             endif
             
+            !Gets Sewer Points that can interact with street gutter
+            !By default these are the same points as StormWaterInteraction (all points can recieve street gutter)
+            !This exists to individualize junctions that can recieve gutter flow (eg. pluvial nodes)
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
+                                        '<BeginStormWaterGutterInteraction>',                   &
+                                        '<BeginStormWaterGutterInteraction>', BlockFound,       &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR694'
+
+            if (BlockFound) then
+                call ConstructFillMatrix  ( PropertyID       = StormWaterGutterInteractionID, &
+                                            EnterDataID      = Me%ObjEnterData,              &
+                                            TimeID           = Me%ObjTime,                   &
+                                            HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                            ExtractType      = FromBlock,                    &
+                                            PointsToFill2D   = Me%ExtVar%BasinPoints,        &
+                                            Matrix2D         = Me%StormWaterGutterInteraction, &
+                                            TypeZUV          = TypeZ_,                       &
+                                            STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR695'
+
+                call KillFillMatrix(StormWaterGutterInteractionID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR696'
+                
+                call VerifyStreetGutterInteraction
+
+            else
+                call SetMatrixValue(Me%StormWaterGutterInteraction, Me%Size, Me%StormWaterInteraction)
+            endif            
+            
+            
             !Gets Street Gutter Length in each grid cell
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
                                         '<BeginStreetGutterLength>',                         &
                                         '<EndStreetGutterLength>', BlockFound,               &
                                         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR694'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR699'
 
             if (BlockFound) then
                 call ConstructFillMatrix  ( PropertyID       = StreetGutterLengthID,         &
@@ -1684,6 +1719,42 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
+    subroutine VerifyStreetGutterInteraction
+    
+        !Arguments-------------------------------------------------------------
+
+        integer                                      :: CHUNK, i, j
+        !Begin-----------------------------------------------------------------
+
+   
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+
+        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint) then
+
+                !Check if street gutter interaction is cnsistent with storm water interaction
+                !there cant be more gutter interaction points than all interaction points
+                !a new cell or inside the same cell higher nmbers
+                if (Me%StormWaterGutterInteraction(i,j) > Me%StormWaterInteraction(i,j)) then
+                    write(*,*)
+                    write(*,*) 'Error: StormWaterGutterInteraction points are higher than'
+                    write(*,*) 'all StormWaterInteraction points in cell: ', i, j
+                endif
+                
+            endif
+        enddo do2
+        enddo do1
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        
+    
+    end subroutine VerifyStreetGutterInteraction
+            
+    !--------------------------------------------------------------------------                    
+    
     subroutine StartOutputBoxFluxes
 
         !Arguments-------------------------------------------------------------
@@ -2911,7 +2982,7 @@ do4:            do di = -1, 1
 
                             if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
                                 if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
-                                     Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+                                     Me%StormWaterGutterInteraction(iAux, jAux) > AllmostZero) then
                                     nearestfound = .true.
                                     if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
                                         lowestValue = Me%ExtVar%Topography(iAux, jAux)
@@ -2929,7 +3000,7 @@ do4:            do di = -1, 1
 
                             if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
                                 if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
-                                    Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+                                    Me%StormWaterGutterInteraction(iAux, jAux) > AllmostZero) then
                                     nearestfound = .true.
                                     if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
                                         lowestValue = Me%ExtVar%Topography(iAux, jAux)
@@ -2947,7 +3018,7 @@ do4:            do di = -1, 1
 
                             if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
                                 if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
-                                     Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+                                     Me%StormWaterGutterInteraction(iAux, jAux) > AllmostZero) then
                                     nearestfound = .true.
                                     if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
                                         lowestValue = Me%ExtVar%Topography(iAux, jAux)
@@ -2964,7 +3035,7 @@ do4:            do di = -1, 1
 
                             if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
                                 if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
-                                    Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+                                    Me%StormWaterGutterInteraction(iAux, jAux) > AllmostZero) then
                                     nearestfound = .true.
                                     if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
                                         lowestValue = Me%ExtVar%Topography(iAux, jAux)
