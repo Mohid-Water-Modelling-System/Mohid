@@ -106,7 +106,7 @@ Module ModuleTimeSeriesAnalyser
 	    real,                       dimension(:,:), pointer     :: DataMatrix, OutData, DataCollection, Aux2D
 	    integer,                    dimension(:)  , allocatable :: CollectionSize
 	    character(len=Stringlength),dimension(:)  , pointer     :: PropertyList
-	    character (Len=PathLength)                              :: InterpolFile, FilterFile
+	    character (Len=PathLength)                              :: InterpolFile, FilterFile, SmoothFile
 	    character(len=PathLength  )                             :: TimeSerieDataFile, TimeSerieFilterIn, TimeSerieCompareFile
 	    real,                       dimension(:)  , allocatable :: TSGap, TSFilter
 	    type (T_Time),              dimension(:)  , allocatable :: TimeTS, TimeTSOutPut
@@ -129,6 +129,7 @@ Module ModuleTimeSeriesAnalyser
         integer                                                 :: ObjTimeSerieFilterIn  = 0
 	    integer                                                 :: ObjTimeSerieInterpol  = 0
 	    integer                                                 :: ObjTimeSerieFilterOut = 0	    
+	    integer                                                 :: ObjTimeSerieSmoothOut = 0	    	    
 	    integer                                                 :: ObjTimeSerieOutNight  = 0
 
 	    integer                                                 :: ObjTimeSerieCompare   = 0
@@ -147,15 +148,16 @@ Module ModuleTimeSeriesAnalyser
         integer                                                 :: CompareColumn
         logical                                                 :: CompareObservations
         !Files Units
-        integer                                                 :: iS, iP, iPE, iFilter, iGap, iInterpol, iCompare, iPWeekEnd, iPWeekWay, iMovAveBackWeek, iMovAveBackDay
+        integer                                                 :: iS, iP, iPE, iFilter, iSmooth, iGap, iInterpol, iCompare, iPWeekEnd, iPWeekWay, iMovAveBackWeek, iMovAveBackDay
         
 	    logical                                                 :: TimeCycle, OutWindow, SpectralAnalysis, PercentileAnalysis, PercentileEvolution
-	    logical                                                 :: FilterTimeSerie
+	    logical                                                 :: FilterTimeSerie, SmoothTimeSerie
 	    logical                                                 :: TimeSerieFilterInON, WeekEndOut
 	    real                                                    :: FilterMinValue, FilterMaxValue, FilterMaxRateValue, FilterValue, FilterMinRateValue
 
         logical                                                 :: RemoveNoisyPeriods, NoValidPoints = .false. 
         real                                                    :: NoisyPeriodAnalysis, NoisyRacioStdevAverage
+        real                                                    :: SmoothPeriodAnalysis
         integer                                                 :: NoisyPeriodMinSample
                 
         integer                                                 :: InterpolInTime = FillValueInt
@@ -232,6 +234,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructCompareTS
             
             !call ConstructMovingAverageTS
+            
+            call ConstructSmoothTS
             
 
             !Returns ID
@@ -685,9 +689,39 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)        
         if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR380'
         
+
+        
+        call GetData(Me%SmoothTimeSerie,                                                &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='SMOOTH_TIME_SERIE',                                 &
+                     Default      = .false.,                                            &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     STAT         = STAT_CALL)        
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR390'
+        
+        if (Me%SmoothTimeSerie) then
+        
+            call GetData(Me%SmoothPeriodAnalysis,                                       &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='SMOOTH_PERIOD_ANALYSIS',                        &
+                         Default      = FillValueReal,                                  &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL)        
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR400'
+            
+            if (flag == 0) then
+                stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR410'
+            endif
+
+        endif
+
         
         call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR390'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR420'
 
     
     end subroutine ReadKeywords
@@ -725,6 +759,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         
     end subroutine ConstructFilterTS        
+    
+    !-------------------------------------------------------------------------    
+
+    !-------------------------------------------------------------------------
+ 
+    subroutine ConstructSmoothTS
+    
+        !Local----------------------------------------------------------------
+        integer                         :: STAT_CALL
+
+        !Begin----------------------------------------------------------------
+    
+        if (Me%SmoothTimeSerie) then
+        
+            Me%SmoothFile = AddString2FileName(Me%TimeSerieDataFile,"SmoothOut_")
+            
+            !Open Output files
+            call UnitsManager(Me%iSmooth, FileOpen, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ConstructSmoothTS - ERR10'
+            
+            open(unit   = Me%iSmooth, file =trim(Me%SmoothFile), form = 'FORMATTED', status = 'UNKNOWN')
+            
+
+        endif
+
+        
+    end subroutine ConstructSmoothTS        
     
     !-------------------------------------------------------------------------    
 
@@ -1228,6 +1289,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%FilterTimeSerie) then
                 call ModifyFilterTimeSeries
             endif
+            
+            
 
             call ModifyInterpolTimeSeries
             
@@ -1240,6 +1303,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ModifyTimeSeriesNightMedian
             
             call ModifyTimeSeriesFillAll
+            
+            call ModifyTimeSeriesSmooth
 
             STAT_ = SUCCESS_
         else               
@@ -1252,6 +1317,115 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     !--------------------------------------------------------------------------
     
+
+    subroutine ModifyTimeSeriesSmooth
+
+        !Arguments-------------------------------------------------------------
+
+
+        !Local-----------------------------------------------------------------
+        real,       dimension(:), allocatable       :: SortArray
+        integer                                     :: i, j, iini, ifin, iaux, jaux, in, STAT_CALL
+        type (T_Time)                               :: Tfinal, Tinitial
+        real                                        :: Year, Month, Day, hour, minute, second, DTaux
+
+        !----------------------------------------------------------------------
+
+
+
+i232:   if (Me%SmoothTimeSerie) then
+
+
+            write(Me%iSmooth,*) "NAME                    : ", trim(Me%TimeSerieName)
+            write(Me%iSmooth,*) "LOCALIZATION_I          : -999999"
+            write(Me%iSmooth,*) "LOCALIZATION_J          : -999999"
+            write(Me%iSmooth,*) "LOCALIZATION_K          : -999999"
+            call ExtractDate(Me%BeginTime, Year, Month, Day, hour, minute, second)
+            write(Me%iSmooth,'(A26,5F6.0,1f8.2)') "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+            write(Me%iSmooth,*) "TIME_UNITS              : SECONDS"
+            write(Me%iSmooth,*) "COORD_X    : ", Me%CoordX
+            write(Me%iSmooth,*) "COORD_Y    : ", Me%CoordY
+            
+            write(Me%iSmooth,'(A82)') "Time SmoothData"
+            
+            write(Me%iSmooth,*) "<BeginTimeSerie>" 
+               
+
+            !Filter selecting a P50 value from a centered in time window
+d111:       do i=1, Me%DataValues 
+                            
+i111:           if (Me%FlagFilter(i) == 1) then
+
+
+                    DTaux    = - Me%SmoothPeriodAnalysis / 2.
+                    
+                    Tinitial = Me%TimeTS(i) + DTaux
+                    TFinal   = Me%TimeTS(i) + Me%SmoothPeriodAnalysis / 2.
+                    
+                    iini = i
+                    
+                    do j =i,1,-1
+                        if (j>0) then
+                            if (Me%TimeTS(j) < Tinitial) then
+                                iini = j
+                                exit
+                            endif
+                        else                            
+                            exit
+                        endif
+                    enddo 
+
+                    ifin = i
+                    
+                    do j =i,Me%DataValues
+                        if (j<= Me%DataValues) then
+                            if (Me%TimeTS(j) > Tfinal) then
+                                ifin = j
+                                exit
+                            endif
+                        else                            
+                            exit
+                        endif
+                    enddo 
+                    
+                    in = ifin - iini + 1
+                    
+                    allocate(SortArray(1:in))
+                    
+                    iaux=0
+                    
+                    do j = iini, ifin
+                    
+                        if (Me%FlagFilter(j) == 1) then
+                            iaux = iaux + 1
+                            SortArray(iaux) = Me%DataMatrix(j,Me%DataColumn)                                  
+                        endif
+                    enddo                        
+                                     
+                    call sort(SortArray(1:iaux)) 
+                    
+                    jaux = int(real(iaux)/2.) + 1
+                    
+                    write(Me%iSmooth,*) Me%TimeTS(i)-Me%BeginTime, SortArray(jaux)
+                    !write(Me%iSmooth,*) Me%TimeTS(i)-Me%BeginTime, sum(SortArray(1:iaux))/iaux
+                    
+                    deallocate(SortArray)
+                        
+                endif i111
+                
+            enddo d111
+            
+        
+            write(Me%iSmooth,*) "<EndTimeSerie>"  
+            
+            !closes Output files
+            call UnitsManager(Me%iSmooth, FileClose, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ModifyTimeSeriesSmooth - ERR60"            
+            
+        
+        endif i232        
+    
+    end subroutine ModifyTimeSeriesSmooth
 
     !--------------------------------------------------------------------------
     
@@ -1383,7 +1557,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         write(iNight,*) "<EndTimeSerie>"        
         
         !closes Output files
-        call UnitsManager(Me%iFilter, FileClose, STAT = STAT_CALL)
+        call UnitsManager(iNight, FileClose, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ModifyTimeSeriesNightMedian - ERR20'
         
         deallocate(WriteAuxNight)       
@@ -1689,8 +1863,10 @@ d2:     do i=1, Me%DataValues
                     Me%FlagFilter(i+2) = 0
                 endif
             endif
-
+            
         enddo d2
+        
+        
         
 i1:     if (Me%TimeSerieFilterInON) then
         
