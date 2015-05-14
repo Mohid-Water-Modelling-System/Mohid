@@ -56,6 +56,9 @@ Module ModuleInterpolateTime
     character(LEN = StringLength), parameter    :: prop_block_begin     = '<<beginproperty>>'
     character(LEN = StringLength), parameter    :: prop_block_end       = '<<endproperty>>'
 
+    character(LEN = StringLength), parameter    :: inst_block_begin     = '<<begininstant>>'
+    character(LEN = StringLength), parameter    :: inst_block_end       = '<<endinstant>>'
+
     !Types---------------------------------------------------------------------
 
    
@@ -152,7 +155,7 @@ Module ModuleInterpolateTime
         
         call ReadFieldsToInterpolate(ClientNumber)
         
-        call ConstructOutput
+        call ConstructOutput(ClientNumber)
 
         call WriteHDF5File
 
@@ -252,10 +255,12 @@ Module ModuleInterpolateTime
     end subroutine ConstructGrid
     
 
-    subroutine ConstructOutput
-        
+    subroutine ConstructOutput(ClientNumber)
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ClientNumber
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, iW
+        logical                                     :: ReadOutputTimeOk
 
         !Begin-----------------------------------------------------------------
 
@@ -282,17 +287,22 @@ Module ModuleInterpolateTime
                 
             endif
             
-            call GetOutPutTime(EnterDataID      = Me%ObjEnterData,                    & 
-                                CurrentTime     = Me%BeginTime,                       &
-                                EndTime         = Me%EndTime,                         &
-                                keyword         = 'OUTPUT_TIME',                      &
-                                SearchType      = FromBlock,                          &
-                                OutPutsTime     = Me%OutW%OutPutWindows(1)%OutTime,   & 
-                                OutPutsON       = Me%OutW%OutPutWindows(1)%ON,        & 
-                                OutPutsNumber   = Me%OutW%OutPutWindows(1)%Number,    &                                         
-                                STAT            = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOutput - ModuleInterpolateTime - ERR10'
-                     
+            call ReadOutputTime(ClientNumber, ReadOutputTimeOk) 
+            
+            if (.not.ReadOutputTimeOk) then
+            
+                call GetOutPutTime(EnterDataID      = Me%ObjEnterData,                    & 
+                                    CurrentTime     = Me%BeginTime,                       &
+                                    EndTime         = Me%EndTime,                         &
+                                    keyword         = 'OUTPUT_TIME',                      &
+                                    SearchType      = FromBlock,                          &
+                                    OutPutsTime     = Me%OutW%OutPutWindows(1)%OutTime,   & 
+                                    OutPutsON       = Me%OutW%OutPutWindows(1)%ON,        & 
+                                    OutPutsNumber   = Me%OutW%OutPutWindows(1)%Number,    &                                         
+                                    STAT            = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOutput - ModuleInterpolateTime - ERR10'
+
+            endif                     
             
             Me%OutW%OutPutWindows%NextOutPut = 1
             call Open_HDF5_OutPut_File(iW)
@@ -353,6 +363,81 @@ Module ModuleInterpolateTime
     end subroutine ConstructOutput
     
     !------------------------------------------------------------------------
+    
+    subroutine ReadOutputTime(ClientNumber, ReadOutputTimeOk)
+    
+        !Arguments---------------------------------------------------------------
+        integer                             :: ClientNumber
+        logical                             :: ReadOutputTimeOk
+
+        !Local-------------------------------------------------------------------        
+        logical                             :: BlockFound
+        integer                             :: iOut, line, FirstLine, LastLine, STAT_CALL, iflag, Nout
+        real                                :: AuxInst
+
+        !Begin-------------------------------------------------------------------            
+        
+        call RewindBlock  (Me%ObjEnterData, ClientNumber)         
+        
+        ReadOutputTimeOk = .false.
+        
+        call ExtractBlockFromBlock(EnterDataID          = Me%ObjEnterData,              &
+                                   ClientNumber         = ClientNumber,                 &
+                                   block_begin          = inst_block_begin,             &
+                                   block_end            = inst_block_end,               &
+                                   BlockInBlockFound    = BlockFound,                   &
+                                   FirstLine            = FirstLine,                    &
+                                   LastLine             = LastLine,                     &
+                                   STAT                 = STAT_CALL)
+                                   
+IS:     if(STAT_CALL .EQ. SUCCESS_) then
+
+            !The block is found 
+BF:         if (BlockFound) then        
+
+                !number of output instants
+                Nout = LastLine - FirstLine + 1
+                
+                Me%OutW%OutPutWindows(1)%Number = Nout
+                
+                allocate(Me%OutW%OutPutWindows(1)%OutTime(Nout))
+                
+                iOut = 1
+        
+                !read each instant
+                do line = FirstLine + 1, LastLine - 1
+
+                    call GetData(AuxInst, EnterDataID = Me%ObjEnterData, flag = iflag,    &
+                                 Buffer_Line = line, STAT = STAT_CALL)
+
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadOutputTime - ModuleInterpolateTime - ERR10'
+
+                    if (iflag     /= 1       ) stop 'ReadOutputTime - ModuleInterpolateTime - ERR20'
+
+                    Me%OutW%OutPutWindows(1)%OutTime(iOut) = Me%BeginTime + AuxInst
+                    
+                    iOut = iOut + 1
+
+                enddo                    
+                    
+                call RewindBlock  (Me%ObjEnterData, ClientNumber) 
+
+                ReadOutputTimeOk            = .true.                    
+                
+                Me%OutW%OutPutWindows(1)%ON = .true.
+        
+            endif BF
+            
+        else  IS
+        
+            stop 'ReadOutputTime - ModuleInterpolateTime - ERR40'                    
+            
+        endif IS            
+                
+                
+    end subroutine ReadOutputTime
+    
+    !------------------------------------------------------------------------    
     
     subroutine ReadOptions(ClientNumber)
 

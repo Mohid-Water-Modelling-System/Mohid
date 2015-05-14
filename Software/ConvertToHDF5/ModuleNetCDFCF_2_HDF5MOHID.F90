@@ -124,6 +124,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                 :: imax, jmax
         logical                                 :: Starts180W
         integer                                 :: CorrectJDown, CorrectJUp, BreakJ
+        integer                                 :: dij
     end type  T_LongLat
 
 
@@ -1766,6 +1767,18 @@ BF:         if (BlockFound) then
                 Me%LongLat%LatIn%Dim       = 2
                 Me%LongLat%LongIn%Dim      = Me%LongLat%LatIn%Dim
 
+                !cut necessary to compute the location of cell corners by defaut is 1 cell 
+                !but can be more. Needs to be more in the netcdf Delft3D files because
+                !in this case the cell corners do not have position.
+                call GetData(Me%LongLat%dij,                                            &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'DIJ',                                      &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = 1,                                          &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR35'                
+
                 call GetData(Me%Depth%NetCDFName,                                       &
                              Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlockInBlock,                           &
@@ -1840,15 +1853,6 @@ BF:         if (BlockFound) then
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
                 
-                
-                call GetData(Me%Bathym%ValueIn%DataType,                                &
-                             Me%ObjEnterData, iflag,                                    &
-                             SearchType   = FromBlock,                                  &
-                             keyword      = 'BATHYM_TYPE_IN',                           &
-                             default      = Real8_,                                     &
-                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
-                             STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
                 
                 Me%Bathym%ValueIn%Dim      = 2
                 
@@ -3707,7 +3711,7 @@ i5:         if (Me%OutHDF5) then
         !Begin-----------------------------------------------------------------
 
         if (Me%Depth%InvertLayers) then
-            lin   = lmax - l + 1
+            lin   = lmax - l  + 1
         else
             lin   = l
         endif              
@@ -3723,6 +3727,10 @@ i5:         if (Me%OutHDF5) then
         endif
         
 i11:    if (CellFace_) then
+
+            if (Me%Depth%InvertLayers) then
+                lin = lin + 1
+            endif
 
             Aux = GetNetCDFValue(Me%Depth%FaceValueIn,  Dim1 = lin)
         
@@ -4505,10 +4513,10 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         
         
         !Build HDF5 MOHID Grid
-        Me%WorkSize%ILB = 1
-        Me%WorkSize%IUB = Me%LongLat%imax-2
-        Me%WorkSize%JLB = 1
-        Me%WorkSize%JUB = Me%LongLat%jmax-2
+        Me%WorkSize%ILB = Me%LongLat%dij
+        Me%WorkSize%IUB = Me%LongLat%imax - 1 - Me%LongLat%dij
+        Me%WorkSize%JLB = Me%LongLat%dij
+        Me%WorkSize%JUB = Me%LongLat%jmax - 1 - Me%LongLat%dij
         
         !to warn the user before the model crashes
         !cant use a NetCDF with one of the dimension as 2 (or lower) because IUB or JUB would be zero (or lower).
@@ -4519,9 +4527,9 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
         endif
 
-        Me%Size%ILB     = 0
+        Me%Size%ILB     = Me%WorkSize%ILB - 1
         Me%Size%IUB     = Me%WorkSize%IUB + 1
-        Me%Size%JLB     = 0
+        Me%Size%JLB     = Me%WorkSize%JLB - 1
         Me%Size%JUB     = Me%WorkSize%JUB + 1
        
         allocate(Me%LongLat%LongOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -4530,8 +4538,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         allocate(Me%LongLat%RotationY (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         
         
-        do j=1, Me%Size%JUB
-        do i=1, Me%Size%IUB
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB+1
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB+1
         
             X1 = GetNetCDFValue(Me%LongLat%LongIn, Dim1 = j,   Dim2 = i  )
             X2 = GetNetCDFValue(Me%LongLat%LongIn, Dim1 = j+1, Dim2 = i  )
