@@ -719,9 +719,36 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         endif
 
+        !Reads Begin Time
+        call GetData(Me%BeginTime,                                                      &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='START',                                             &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR420'
         
+        if (flag == 0) then
+                call null_time(Me%BeginTime)
+        endif
+        
+        !Reads End Time
+        call GetData(Me%EndTime,                                                        &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='END',                                               &
+                     ClientModule ='ModuleTimeSeriesAnalyser',                          &
+                     STAT         = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR430'
+
+        if (flag == 0) then
+                call null_time(Me%EndTime)
+        endif
+
         call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR420'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR440'
 
     
     end subroutine ReadKeywords
@@ -947,7 +974,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ConstructRawTimeSerie
                  
         !Local----------------------------------------------------------------
-        integer      :: STAT_CALL, i
+        integer                                         :: STAT_CALL, i
+        type (T_Time)                                   :: auxBeginTime, auxEndTime
 
         !Begin----------------------------------------------------------------
 
@@ -975,8 +1003,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         call GetTimeSerieDataMatrix (Me%ObjTimeSerie, Me%DataMatrix, STAT= STAT_CALL) 
         
-        Me%BeginTime = Me%InitialData + Me%DataMatrix(1,1) 
-        Me%EndTime   = Me%InitialData + Me%DataMatrix(Me%DataValues,1) 
+        auxBeginTime = Me%InitialData + Me%DataMatrix(1,1) 
+        auxEndTime   = Me%InitialData + Me%DataMatrix(Me%DataValues,1) 
+        
+        if (Me%BeginTime <= auxBeginTime .or. Me%BeginTime > auxEndTime) then
+                Me%BeginTime = auxBeginTime
+        endif        
+         
+        if (Me%EndTime > auxEndTime .or. Me%EndTime <= auxBeginTime) then
+                Me%EndTime = auxEndTime
+        endif
         
         if ((Me%EndTime - Me%BeginTime) < 3600. * Me%FrequencyWindow) then
         
