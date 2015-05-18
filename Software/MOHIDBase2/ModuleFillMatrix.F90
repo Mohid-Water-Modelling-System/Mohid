@@ -6761,6 +6761,7 @@ i1:     if (.not.(Me%HDF%Previous4DValue <= Generic_4D_Value_ .and.             
         !Local----------------------------------------------------------------
         type (T_Time)                                   :: Now
         integer                                         :: STAT_CALL
+        real                                            :: aux
 
         !Begin----------------------------------------------------------------
 
@@ -6797,7 +6798,10 @@ i6:     if (Me%ValueIsUsedForDTPrediction) then
 i7:         if (Now >= Me%NextEventEnd) then                             
                 call FindNextEventInHDF (Now)
 i8:             if (Me%AccumulateValues .and. (Me%NextValueForDTPred > 0.0)) then
-                    Me%NextValueForDTPred = Me%NextValueForDTPred / (Me%NextEventEnd - Me%NextEventStart)
+                    aux = Me%NextEventEnd - Me%NextEventStart
+                    if (aux > 0.) then
+                        Me%NextValueForDTPred = Me%NextValueForDTPred / aux
+                    endif                                
                 endif i8
             endif i7
             
@@ -7496,6 +7500,7 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
         logical                                         :: TimeCycle
         real                                            :: DT1, DT2, Angle
         real                                            :: u1, u2, v1, v2, uf, vf
+        real                                            :: aux
         
         !Begin----------------------------------------------------------------
         
@@ -7625,7 +7630,10 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                     if (Now >= Me%NextEventEnd) then
                         call FindNextEventInTimeSerie (Now)
                         if (Me%AccumulateValues .and. (Me%NextValueForDTPred > 0.0)) then
-                            Me%NextValueForDTPred = Me%NextValueForDTPred / (Me%NextEventEnd - Me%NextEventStart)
+                            aux = Me%NextEventEnd - Me%NextEventStart
+                            if (aux > 0.) then
+                                Me%NextValueForDTPred = Me%NextValueForDTPred / aux
+                            endif                                
                         endif                    
                     endif
                     
