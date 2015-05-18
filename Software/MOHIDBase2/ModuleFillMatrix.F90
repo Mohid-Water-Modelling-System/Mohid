@@ -7500,7 +7500,7 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
         logical                                         :: TimeCycle
         real                                            :: DT1, DT2, Angle
         real                                            :: u1, u2, v1, v2, uf, vf
-        real                                            :: aux
+        real                                            :: aux 
         
         !Begin----------------------------------------------------------------
         
