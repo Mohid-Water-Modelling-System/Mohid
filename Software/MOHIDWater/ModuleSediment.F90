@@ -83,6 +83,7 @@ Module ModuleSediment
     private ::          ConstructPropertyValue
     private ::          ConstructCohesiveDryDensity
     private ::          CheckPercentageConsistence
+    private ::      ConstructD50Cell
     private ::      ConstructPorosity
     private ::      ConstructClassMass
    
@@ -95,6 +96,9 @@ Module ModuleSediment
 
 
     !Selector
+    public  :: SetInterfaceFlux
+    public  :: GetTopCriticalShear
+    public  :: GetCohesiveMass
     public  :: UnGetSediment                 
     
     !Modifier
@@ -146,6 +150,7 @@ Module ModuleSediment
         module procedure UnGetSediment2D_I
         module procedure UnGetSediment2D_R4
         module procedure UnGetSediment2D_R8
+        module procedure UnGetSediment3Dreal8
     end interface  UnGetSediment
 
     !Parameters
@@ -206,6 +211,8 @@ Module ModuleSediment
         real,    pointer, dimension(:,:,:)      :: SZZ              => null()
         integer, pointer, dimension(:,:  )      :: KTop             => null()
         real(8),    pointer, dimension(:,:,:)   :: VolumeZ          => null()
+        
+        real,    pointer, dimension(:,:  )      :: ConsolidationFlux    => null()
 
     end type T_External
 
@@ -523,6 +530,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructOutputTime
 
             call ConstructClasses
+            
+            call ConstructD50Cell
           
             call ConstructPorosity
             
@@ -1538,7 +1547,7 @@ cd2 :           if (BlockFound) then
                     Me%SandClass(n)%CriticalShearStress(:,:) = null_real
                         
                     allocate(Me%SandClass(n)%NDCriticalShearStress(ILB:IUB, JLB:JUB))
-                    Me%SandClass(n)%CriticalShearStress(:,:) = null_real 
+                    Me%SandClass(n)%CriticalShearStress(:,:) = 0.
                         
                     allocate(Me%SandClass(n)%TopPercentage(ILB:IUB, JLB:JUB))
                     Me%SandClass(n)%TopPercentage(:,:) = null_real
@@ -1609,7 +1618,7 @@ cd2 :           if (BlockFound) then
             
                 
                 allocate(Me%CohesiveClass%CriticalShearStress(ILB:IUB, JLB:JUB))
-                Me%CohesiveClass%CriticalShearStress(:,:) = null_real
+                Me%CohesiveClass%CriticalShearStress(:,:) = 0.
                         
                 allocate(Me%CohesiveClass%TopPercentage(ILB:IUB, JLB:JUB))
                 Me%CohesiveClass%TopPercentage(:,:) = null_real
@@ -1789,7 +1798,52 @@ cd2 :           if (BlockFound) then
     end subroutine ConstructCohesiveDryDensity
 
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     
+    subroutine ConstructD50Cell
+       !Local-----------------------------------------------------------------
+        integer             :: i, j, n, WKUB
+        integer             :: WILB, WIUB, WJLB, WJUB
+        class(T_Sand), pointer :: SandClass
+        !----------------------------------------------------------------------
+        
+        WILB = Me%SedimentWorkSize3D%ILB
+        WIUB = Me%SedimentWorkSize3D%IUB
+        WJLB = Me%SedimentWorkSize3D%JLB
+        WJUB = Me%SedimentWorkSize3D%JUB
+        
+        Me%D50(:,:)= 0      
+        Me%SandD50(:,:)= 0
+        
+        do j=WJLB, WJUB
+        do i=WILB, WIUB
+                    
+            WKUB = Me%KTop(i, j)
+
+            if (Me%ExternalVar%WaterPoints3D (i,j,WKUB) == WaterPoint) then
+                        
+                do n=1,Me%NumberOfClasses
+
+                    SandClass => Me%SandClass(n)
+                        
+                    Me%SandD50(i,j) = SandClass%D50 * SandClass%Field3D(i, j, WKUB) + Me%SandD50(i,j)
+                    
+                enddo
+            
+                Me%D50(i,j) = Me%SandD50(i,j)
+            
+                if (Me%CohesiveClass%Run) then
+                    
+                    Me%D50(i,j) = Me%CohesiveClass%D50 * Me%CohesiveClass%Field3D(i, j, WKUB) + Me%D50(i,j)
+                    
+                endif
+                    
+                
+            endif
+        enddo
+        enddo 
+
+    end subroutine ConstructD50Cell
     !--------------------------------------------------------------------------
 
     subroutine ConstructPorosity
@@ -1816,26 +1870,36 @@ cd2 :           if (BlockFound) then
             do k=KLB, KUB 
                 
                  if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
+                     
+                    Me%CohesiveClass%Porosity(i,j,k) =  1 - Me%CohesiveDryDensity%Field3D(i,j,k) / Me%Density 
+                     
+                    if(Me%SandD50(i,j) > 0)then
         
-                    !Volume fraction of the cohesive class based on total volume        
-                    c = Me%CohesiveClass%Field3D(i,j,k) * (1 - Me%PorositySand)
-        
-                     Me%CohesiveClass%Porosity(i,j,k) =  1 - Me%CohesiveDryDensity%Field3D(i,j,k) / Me%Density        
+                        !Volume fraction of the cohesive class based on total volume        
+                        c = Me%CohesiveClass%Field3D(i,j,k) * (1 - Me%PorositySand)       
+                               
                 
-                    if (c < Me%PorositySand) then
+                        if (c < Me%PorositySand) then
                     
-                        y = c * (ymin - 1) / Me%PorositySand + 1
+                            y = c * (ymin - 1) / Me%PorositySand + 1
                 
-                        Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
-                                                    (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
+                            Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
+                                                        (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
                 
+                        else
+                    
+                            y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
+                    
+                            Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
+                
+                        endif
+                    
                     else
-                    
-                        y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
-                    
-                        Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
-                
+                        
+                        Me%Porosity(i,j,k) = Me%CohesiveClass%Porosity(i,j,k)
+                        
                     endif
+                        
                 endif
                 
             enddo
@@ -2293,7 +2357,127 @@ cd0:    if (EXIST) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+    !--------------------------------------------------------------------------
     
+    subroutine GetTopCriticalShear(ObjSedimentID, TopCriticalShear, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjSedimentID
+        real, dimension(:,:  ),  pointer            :: TopCriticalShear
+        integer, optional, intent(OUT)              :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+
+            call Read_Lock(mSediment_, Me%InstanceID)
+
+            TopCriticalShear => Me%CohesiveClass%CriticalShearStress
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine GetTopCriticalShear
+    
+    
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetCohesiveMass(ObjSedimentID, CohesiveMass, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjSedimentID
+        real(8), dimension(:,:,:),  pointer         :: CohesiveMass
+        integer, optional, intent(OUT)              :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mSediment_, Me%InstanceID)
+
+            CohesiveMass => Me%CohesiveClass%Mass
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine GetCohesiveMass
+    
+    
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    
+    subroutine SetInterfaceFlux(ObjSedimentID, ConsolidationFlux,  STAT)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                 :: ObjSedimentID
+        real, dimension(:,:),optional, pointer  :: ConsolidationFlux
+        integer, optional, intent(OUT)          :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_            
+        integer                                 :: ready_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)  
+        
+cd1 :   if (ready_ == IDLE_ERR_)then
+
+            Me%ExternalVar%ConsolidationFlux => ConsolidationFlux
+            
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    
+    
+    end subroutine SetInterfaceFlux
+
+    !--------------------------------------------------------------------------
     
     !--------------------------------------------------------------------------
     subroutine GetClasses (ObjSedimentID, Classes, STAT)
@@ -2457,6 +2641,46 @@ cd0:    if (EXIST) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine UnGetSediment2D_R4
+    
+        !--------------------------------------------------------------------------
+
+    
+    subroutine UnGetSediment3Dreal8(ObjSedimentID, Array, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                            :: ObjSedimentID
+        real(8), pointer, dimension(:,:,:) :: Array
+        integer, optional, intent (OUT)    :: STAT
+
+        !External--------------------------------------------------------------
+        integer                            :: ready_   
+
+        !Local-----------------------------------------------------------------
+        integer                            :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)
+
+cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+            nullify(Array)
+
+            call Read_UnLock(mSediment_, Me%InstanceID, "UnGetSediment3Dreal8")
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT))STAT = STAT_
+
+    end subroutine UnGetSediment3Dreal8
+
+
+    !--------------------------------------------------------------------------
+
 
     !--------------------------------------------------------------------------
 
@@ -2722,6 +2946,9 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
         WJLB = Me%SedimentWorkSize3D%JLB
         WJUB = Me%SedimentWorkSize3D%JUB
         
+        !Critical erosion shear stress for cohesive sediment 
+        tec = 0.5
+        
         do n=1,Me%NumberOfClasses
             
             SandClass => Me%SandClass(n)
@@ -2739,6 +2966,8 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
 
             if (Me%OpenSediment(i,j) == OpenPoint) then
                 
+                WKUB = Me%KTop(i, j)
+                
                 if (Me%SandD50(i,j) > 0.) then
                     
                     !critical Shields parameter modified by van Rijn (2003, 2007)
@@ -2755,8 +2984,6 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     elseIf (Dast.GT.150) then
                         ShieldsParameter = 0.055
                     endif
-                    
-                    WKUB = Me%KTop(i, j)
                         
                     do n=1,Me%NumberOfClasses
                     
@@ -2772,14 +2999,12 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                         endif
                     enddo
                     
-
                     if (Me%CohesiveClass%Run) then
                     
                         alfa = 2.*10**3
                         beta = 1.0
                         pm1max = 0.3
                         pm2 = 0.6
-                        tec = 0.5
                 
                         pm = Me%CohesiveClass%Field3D(i,j,WKUB)
                         pm1 = alfa*Me%SandD50(i,j)  
@@ -2861,7 +3086,11 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     
                 else !(Me%SandD50(i,j) > 0.)
                 
-                    if (Me%CohesiveClass%Run) Me%CohesiveClass%CriticalShearStress(i, j) = tec
+                    if (Me%CohesiveClass%Run)then
+                        if(Me%CohesiveClass%Field3D(i,j,WKUB) > 0.)     &
+                            Me%CohesiveClass%CriticalShearStress(i, j) = tec
+                    endif
+                        
                 
                 endif !(Me%SandD50(i,j) > 0.)                                                
                 
@@ -3380,6 +3609,9 @@ do1:    do n=1,Me%NumberOfClasses
                 if (Me%ExternalVar%OpenPoints2D(i, j) == OpenPoint) then
                     
                     WKUB = Me%KTop(i, j)
+                    
+                    Me%CohesiveClass%DM(i, j) = Me%ExternalVar%ConsolidationFlux(i, j)* &
+                                            Me%Evolution%SedimentDT*Me%ExternalVar%GridCellArea(i,j)
                  
                     aux = Me%CohesiveClass%Mass(i,j,WKUB) + Me%CohesiveClass%DM(i, j)
                     
@@ -3388,6 +3620,10 @@ do1:    do n=1,Me%NumberOfClasses
                         Me%CohesiveClass%DM(i, j) = - Me%CohesiveClass%Mass(i,j,WKUB)
                         
                         Me%CohesiveClass%Mass(i,j,WKUB) = 0.
+                        
+                        Me%CohesiveClass%Field3D(i,j,WKUB) = 0.
+                        
+                        Me%CohesiveClass%TopPercentage(i,j) = 0.
                         
                     else
                         
@@ -3422,6 +3658,10 @@ do1:    do n=1,Me%NumberOfClasses
                         SandClass%DM(i, j) = - SandClass%Mass(i,j,WKUB)
                         
                         SandClass%Mass(i,j,WKUB) = 0.
+                        
+                        SandClass%Field3D(i, j, WKUB) = 0.
+                        
+                        SandClass%TopPercentage(i,j) = 0.
                         
                     else
                     
@@ -3460,7 +3700,7 @@ do1:    do n=1,Me%NumberOfClasses
         
           do j=WJLB, WJUB
           do i=WILB, WIUB
-              
+               
             if (Me%ExternalVar%OpenPoints2D(i, j) == OpenPoint .and. Me%Mass(i,j) > 0) then
                 
                 WKUB = Me%KTop(i, j)
@@ -3537,36 +3777,44 @@ do1:    do n=1,Me%NumberOfClasses
         real                        :: ymin, y, c
         !----------------------------------------------------------------------
         
-        ymin = 0.76        
-        
-        !Volume fraction of the cohesive class based on total volume        
-        c = Me%CohesiveClass%Field3D(i,j,k) * (1 - Me%Porosity (i,j,k))
-        
-        !WKUB = Me%KTop(i, j)
-        !
-        !if (k == WKUB) then
-        !
-        !    Me%CohesiveClass%Porosity(i,j,WKUB) = (Me%CohesiveClass%Porosity(i,j,WKUB) * (Me%CohesiveClass%Mass(i, j) - Me%CohesiveClass%DM(i, j))      &
-        !                                + Me%MaxPorosityCohesive * Me%CohesiveClass%DM(i, j)) / Me%CohesiveClass%Mass(i, j)
-        !endif
+        ymin = 0.76
         
         Me%CohesiveClass%Porosity(i,j,k) =  1 - Me%CohesiveDryDensity%Field3D(i,j,k) / Me%Density
+        
+        if(Me%SandD50(i,j) > 0)then
+        
+            !Volume fraction of the cohesive class based on total volume        
+            c = Me%CohesiveClass%Field3D(i,j,k) * (1 - Me%Porosity (i,j,k))
+        
+            !WKUB = Me%KTop(i, j)
+            !
+            !if (k == WKUB) then
+            !
+            !    Me%CohesiveClass%Porosity(i,j,WKUB) = (Me%CohesiveClass%Porosity(i,j,WKUB) * (Me%CohesiveClass%Mass(i, j) - Me%CohesiveClass%DM(i, j))      &
+            !                                + Me%MaxPorosityCohesive * Me%CohesiveClass%DM(i, j)) / Me%CohesiveClass%Mass(i, j)
+            !endif
+        
                 
-        if (c < Me%PorositySand) then
+            if (c < Me%PorositySand) then
                     
-            y = c * (ymin - 1) / Me%PorositySand + 1
+                y = c * (ymin - 1) / Me%PorositySand + 1
                 
-            Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
-                                        (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
+                Me%Porosity(i,j,k) = Me%PorositySand - c * y * (1 - Me%CohesiveClass%Porosity(i,j,k)) +     & 
+                                            (1 - y) * c * Me%CohesiveClass%Porosity(i,j,k)
+                
+            else
+                    
+                y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
+                    
+                Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k)
+                
+            endif
                 
         else
-                    
-            y = (c - 1) * (1 - ymin)/(1 - Me%PorositySand) + 1
-                    
-            Me%Porosity(i,j,k) = Me%PorositySand * (1 - y) + c * Me%CohesiveClass%Porosity(i,j,k) 
-
+            
+            Me%Porosity(i,j,k) = Me%CohesiveClass%Porosity(i,j,k)
                 
-        endif          
+        endif        
        
     end subroutine ComputePorosity
     
@@ -3586,10 +3834,13 @@ do1:    do n=1,Me%NumberOfClasses
         WJLB = Me%SedimentWorkSize3D%JLB
         WJUB = Me%SedimentWorkSize3D%JUB
         
+        Me%DZ(:,:) = 0.
+        
         do j=WJLB, WJUB
         do i=WILB, WIUB
               
-            if (Me%ExternalVar%OpenPoints2D(i, j) == OpenPoint) then
+            if (Me%ExternalVar%OpenPoints2D(i, j) == OpenPoint  &
+                .and. Me%Mass(i,j) > 0) then
                 
                 WKUB = Me%KTop(i, j)
                 
@@ -3926,11 +4177,17 @@ if9:        if (Me%CohesiveClass%Run) then
                 
                 Me%CohesiveClass%TopPercentage(i,j) = 0.
                 
-                Me%Porosity(i,j,WKUB) = 0.
+                Me%CohesiveClass%Porosity(i,j,WKUB) = 1.
                 
-                Me%CohesiveClass%Porosity(i,j,WKUB) = 0.
+                Me%Porosity(i,j,WKUB) = 1.
                 
-                Me%CohesiveDryDensity%Field3D(i,j,WKUB) = 0.
+                Me%CohesiveDryDensity%Field3D(i,j,WKUB) = Me%CohesiveDryDensity%Min
+                
+                !To avoid errors when the layer is reactivated
+                
+                Me%Porosity(i,j,WKUB-1) = 1.
+                
+                Me%CohesiveDryDensity%Field3D(i,j,WKUB-1) = Me%CohesiveDryDensity%Min
                             
             endif
                             
@@ -4198,6 +4455,13 @@ do1:            do n=1,Me%NumberOfClasses
                                         STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                  &
                     stop 'OutPutSedimentHDF - ModuleSediment - ERR19'
+                
+                call HDF5WriteData   (Me%ObjHDF5, "/Results/Classes/Critical Shear Stress/Cohesive Sediment",      &
+                                        "Cohesive Sediment",                                                       &
+                                        "%", Array2D = Me%CohesiveClass%CriticalShearStress,                       &
+                                        OutputNumber = OutPutNumber,                                               &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR20'
             
             endif
                     
