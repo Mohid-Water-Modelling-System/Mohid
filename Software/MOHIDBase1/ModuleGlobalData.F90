@@ -42,6 +42,7 @@ Module ModuleGlobalData
     public  ::  GetPropertyIDNumber
     private ::      ConstructPropList
     private ::          AddPropList
+    public  ::  CheckDynamicPropertyName
     public  ::  RegisterDynamicProperty
     public  ::  GetDynamicPropertyIDNumber
 
@@ -2166,24 +2167,85 @@ Module ModuleGlobalData
             endif
 
         enddo
+        
+        if (.not. CheckPropertyName) then
+            
+            if(associated(DynamicPropNameList)) then            
+
+                do i=1, DynamicPropertiesNumber
+
+                    if (PropertyName == DynamicPropNameList(i)) then
+
+                        if (present(Number)) Number = DynamicPropNumberList(i)
+                        CheckPropertyName = .TRUE.
+
+                    endif
+
+                enddo
+        
+            endif            
+        endif
 
         !----------------------------------------------------------------------
 
     end function  CheckPropertyName
 
     !--------------------------------------------------------------------------
- 
-    integer function RegisterDynamicProperty(PropertyName) !soffs
+     
+    logical function CheckDynamicPropertyName (PropertyName, Number)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*), intent (IN)               :: PropertyName
+        integer,          intent (OUT), optional    :: Number
+
+        !Local-----------------------------------------------------------------
+        integer :: i
+
+        !----------------------------------------------------------------------
+
+        CheckDynamicPropertyName = .false.
+
+        if(associated(DynamicPropNameList)) then            
+
+            do i=1, DynamicPropertiesNumber
+
+                if (PropertyName == DynamicPropNameList(i)) then
+
+                    if (present(Number)) Number = DynamicPropNumberList(i)
+                    CheckDynamicPropertyName = .TRUE.
+
+                endif
+
+            enddo
+        
+        endif
+
+        !----------------------------------------------------------------------
+
+    end function  CheckDynamicPropertyName
+
+    !--------------------------------------------------------------------------
+    
+    integer function RegisterDynamicProperty(PropertyName, PropertyExists) !soffs
       
         !Arguments-------------------------------------------------------------
         character(len=*), intent (IN)                       :: PropertyName
+        logical, intent(out), optional                      :: PropertyExists
         
         !Local-----------------------------------------------------------------
         integer, save                                       :: UniqueIDNumber
         character(LEN=StringLength), dimension(:), pointer  :: TempPropNameList
         integer,                     dimension(:), pointer  :: TempPropNumberList
+        logical                                             :: property_exists
         
         !----------------------------------------------------------------------
+        
+        property_exists = .false.
+        
+        if (CheckPropertyName(PropertyName)) then
+            print *, "Dynamic Property '"//trim(PropertyName)//"' already exists in GLOBAL DATA."
+            stop "RegisterDynamicProperty - ModuleGlobalData - ERR010"
+        endif
         
         if(.not. associated(DynamicPropNameList))then
         
@@ -2196,29 +2258,39 @@ Module ModuleGlobalData
             DynamicPropNumberList(1)    = UniqueIDNumber
             
         else
-            allocate(TempPropNameList     (DynamicPropertiesNumber))
-            allocate(TempPropNumberList   (DynamicPropertiesNumber))
+            property_exists = CheckDynamicPropertyName (PropertyName, UniqueIDNumber)   
             
-            TempPropNameList    = DynamicPropNameList
-            TempPropNumberList  = DynamicPropNumberList
+            if (.not. property_exists) then
             
-            deallocate(DynamicPropNameList, DynamicPropNumberList)
+                allocate(TempPropNameList     (DynamicPropertiesNumber))
+                allocate(TempPropNumberList   (DynamicPropertiesNumber))
             
-            UniqueIDNumber          = UniqueIDNumber + 1
-            DynamicPropertiesNumber = DynamicPropertiesNumber + 1
+                TempPropNameList    = DynamicPropNameList
+                TempPropNumberList  = DynamicPropNumberList
+            
+                deallocate(DynamicPropNameList, DynamicPropNumberList)
+            
+                UniqueIDNumber          = UniqueIDNumber + 1
+                DynamicPropertiesNumber = DynamicPropertiesNumber + 1
 
-            allocate(DynamicPropNameList  (DynamicPropertiesNumber))
-            allocate(DynamicPropNumberList(DynamicPropertiesNumber))
+                allocate(DynamicPropNameList  (DynamicPropertiesNumber))
+                allocate(DynamicPropNumberList(DynamicPropertiesNumber))
             
-            DynamicPropNameList  (1:DynamicPropertiesNumber-1) = TempPropNameList  (1:DynamicPropertiesNumber)
-            DynamicPropNumberList(1:DynamicPropertiesNumber-1) = TempPropNumberList(1:DynamicPropertiesNumber)
+                DynamicPropNameList  (1:DynamicPropertiesNumber-1) = TempPropNameList  (1:DynamicPropertiesNumber)
+                DynamicPropNumberList(1:DynamicPropertiesNumber-1) = TempPropNumberList(1:DynamicPropertiesNumber)
            
-            DynamicPropNameList  (DynamicPropertiesNumber) = trim(PropertyName)
-            DynamicPropNumberList(DynamicPropertiesNumber) = UniqueIDNumber
+                DynamicPropNameList  (DynamicPropertiesNumber) = trim(PropertyName)
+                DynamicPropNumberList(DynamicPropertiesNumber) = UniqueIDNumber
             
-            deallocate(TempPropNameList, TempPropNumberList)
+                deallocate(TempPropNameList, TempPropNumberList)
+            
+            endif
 
         endif
+        
+        if (present(PropertyExists)) then
+            PropertyExists = property_exists
+        endif        
         
         RegisterDynamicProperty = UniqueIDNumber       
 
@@ -2266,20 +2338,43 @@ Module ModuleGlobalData
 
         !Local-----------------------------------------------------------------
         integer :: i
+        logical :: found
 
         !----------------------------------------------------------------------
 
         call ConstructPropList
 
-        do i=1, PropertiesNumber
+        found = .false.
+        
+do1:    do i=1, PropertiesNumber
 
             if (Number == PropNumberList(i)) then
 
                 GetPropertyName = PropNameList(i)
+                found = .true.
+                exit do1
 
             endif
 
-        enddo
+        enddo do1
+        
+        if (.not. found) then
+            
+            if(associated(DynamicPropNameList)) then            
+
+do2:            do i=1, DynamicPropertiesNumber
+
+                    if (Number == DynamicPropNumberList(i)) then
+
+                        GetPropertyName = DynamicPropNameList(i)
+                        exit do2
+
+                    endif
+
+                enddo do2
+        
+            endif            
+        endif
 
         !----------------------------------------------------------------------
 
@@ -2305,16 +2400,35 @@ Module ModuleGlobalData
 
         call ConstructPropList
 
-        do i=1, PropertiesNumber
+do1:    do i=1, PropertiesNumber
 
             if (trim(PropertyName) == trim(PropNameList(i))) then
 
                 GetPropertyIDNumber = PropNumberList(i)
+                exit do1
 
             endif
 
-        enddo
+        enddo do1
 
+        if (GetPropertyIDNumber == UNKNOWN_) then
+            
+            if(associated(DynamicPropNameList)) then            
+
+do2:            do i=1, DynamicPropertiesNumber
+
+                    if (trim(PropertyName) == trim(DynamicPropNameList(i))) then
+
+                        GetPropertyIDNumber = DynamicPropNumberList(i)
+                        exit do2
+
+                    endif
+
+                enddo do2
+        
+            endif            
+        endif
+        
         if(GetPropertyIDNumber == UNKNOWN_)then
             write(*,*)'Unknown property: ', PropertyName
             stop 'GetPropertyIDNumber - ModuleGlobalData - ERR010'

@@ -5158,6 +5158,7 @@ d5:     do k = klast + 1,KUB
         integer                                     :: flag
         integer                                     :: STAT_CALL
         logical                                     :: check
+        logical                                     :: dynamic_property
 
         !Property Name
         call GetData(PropertyID%Name, ObjEnterData, flag,                                &
@@ -5170,6 +5171,17 @@ d5:     do k = klast + 1,KUB
             stop 'ConstructPropertyID - ModuleFunctions - ERR02'
         endif
 
+        !Checks to see if this property is a dynamic property
+        call GetData(dynamic_property, ObjEnterData, flag,                               &
+                        SearchType   = ExtractType,                                         &
+                        default      = .false.,                                             &
+                        keyword      = 'DYNAMIC',                                           &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyID - ModuleFunctions - ERR03.1'      
+        if (dynamic_property) then
+            PropertyID%IDnumber = RegisterDynamicProperty(PropertyID%Name)
+        endif
+        
         if (present(CheckProperty)) then
             check = CheckProperty
         else
@@ -5179,7 +5191,7 @@ d5:     do k = klast + 1,KUB
         if (check) then
         if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
             write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
-            stop 'ConstructPropertyID - ModuleFunctions - ERR03'
+            stop 'ConstructPropertyID - ModuleFunctions - ERR03'            
         endif
         endif
  
