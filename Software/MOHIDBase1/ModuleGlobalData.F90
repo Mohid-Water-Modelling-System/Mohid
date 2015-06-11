@@ -2142,11 +2142,12 @@ Module ModuleGlobalData
 
     !--------------------------------------------------------------------------
 
-    logical function CheckPropertyName (PropertyName, Number)
+    logical function CheckPropertyName (PropertyName, Number, IsDynamic)
 
         !Arguments-------------------------------------------------------------
         character(len=*), intent (IN)               :: PropertyName
         integer,          intent (OUT), optional    :: Number
+        logical,          intent (OUT), optional    :: IsDynamic
 
         !Local-----------------------------------------------------------------
         integer :: i
@@ -2154,6 +2155,7 @@ Module ModuleGlobalData
         !----------------------------------------------------------------------
 
         CheckPropertyName = .false.
+        if (present(IsDynamic)) IsDynamic = .false.
 
         call ConstructPropList
 
@@ -2178,6 +2180,7 @@ Module ModuleGlobalData
 
                         if (present(Number)) Number = DynamicPropNumberList(i)
                         CheckPropertyName = .TRUE.
+                        if (present(IsDynamic)) IsDynamic = .true.
 
                     endif
 
@@ -2237,16 +2240,22 @@ Module ModuleGlobalData
         character(LEN=StringLength), dimension(:), pointer  :: TempPropNameList
         integer,                     dimension(:), pointer  :: TempPropNumberList
         logical                                             :: property_exists
+        logical                                             :: is_dynamic
         
         !----------------------------------------------------------------------
         
         property_exists = .false.
         
-        if (CheckPropertyName(PropertyName)) then
-            print *, "Dynamic Property '"//trim(PropertyName)//"' already exists in GLOBAL DATA."
-            stop "RegisterDynamicProperty - ModuleGlobalData - ERR010"
+        if (CheckPropertyName(PropertyName, IsDynamic = is_dynamic)) then
+            if (is_dynamic) then
+                property_exists = .true.
+            else
+                print *, "Dynamic Property '"//trim(PropertyName)//"' already exists in GLOBAL DATA."
+                stop "RegisterDynamicProperty - ModuleGlobalData - ERR010"
+            endif
         endif
         
+        if(.not. property_exists) then
         if(.not. associated(DynamicPropNameList))then
         
             DynamicPropertiesNumber = 1
@@ -2286,6 +2295,7 @@ Module ModuleGlobalData
             
             endif
 
+        endif
         endif
         
         if (present(PropertyExists)) then
@@ -3124,6 +3134,7 @@ cd1 :   if ((Property == Phytoplankton_         ) .OR.  (Property == Diatoms_   
 
         !Arguments-------------------------------------------------------------
         integer, intent (IN) :: Property
+        integer              :: i
 
         !----------------------------------------------------------------------
 
@@ -3183,10 +3194,21 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == DepositFeedersC_       ) .OR.  (Property == Zooplankton_           ) .OR.          &
             (Property == CellPercentContamin_   )) then
 
-            Check_Particulate_Property = .TRUE.    
-        
-        else
+            Check_Particulate_Property = .TRUE. 
+            
+        elseif(associated(DynamicPropNameList)) then            
 
+                do i=1, DynamicPropertiesNumber
+
+                    if (Property == DynamicPropNumberList(i)) then
+                        
+                        Check_Particulate_Property = .TRUE. 
+
+                    endif
+
+                enddo
+                
+        else
             Check_Particulate_Property = .FALSE.
 
         end if cd1
