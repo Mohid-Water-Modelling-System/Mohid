@@ -7978,6 +7978,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         BottomSedimentConc => Property%BottomConcentration        
         SedimentGenerationRate => Me%SedimentGenerationRate%Field
+        WaterColumn        => Me%ExtVar%WaterColumn
         
         nullify (Property)
         Property => Me%FirstProperty                                                    

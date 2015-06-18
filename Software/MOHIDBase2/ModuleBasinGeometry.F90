@@ -1658,6 +1658,7 @@ do1:            do
         integer                                     :: NumberOfNodes
         logical                                     :: IsolatedOutletNode, ConfluenceInOutletNode
         integer                                     :: iTarget, jTarget
+        integer                                     :: iNextTarget, jNextTarget
         logical                                     :: NodesChanged
 
         ILB = Me%WorkSize%ILB
@@ -1669,10 +1670,6 @@ do1:            do
         Me%RiverPoints = NoRiverPoint
 
         !Set Nodes where Drained Area is superior to Treshold Area.
-        !Update: for several outlet mode isolated nodes may appear
-        !without reach. To account a node it has to have a reach associated. 
-        !Also outlets with more than one upstream nodes will not be considered
-        !for drainage network consistency - network will stop upstream. David Fev 2013
         
         NumberOfNodes = 0 
         NodesChanged = .false.
@@ -1681,74 +1678,167 @@ do1:            do
             if (Me%BoundaryPoints (iCen, jCen) == Not_Boundary     .and.    &
                 Me%UpStreamArea(iCen, jCen) >= Me%RiverTresholdArea) then
                 
-                IsolatedOutletNode     = .false.
-                ConfluenceInOutletNode = .false.
-                
-                if (.not. Me%DelineateBasin) then    
-                    
-                    call TargetPoint (Me%DrainageDirection(iCen, jCen), iCen, jCen, iTarget, jTarget)
-                    
-                    if (Me%BoundaryPoints(iTarget, jTarget) == Boundary) then
-                        !this is an outlet
-                        !if outlet is isolated, do not consider it
-                        if (NumberOfUpstreamNodes(iCen, jCen) .eq. 0) then
-                            IsolatedOutletNode = .true.
-                        !if outlet has more than one upstream node, do not consider it
-                        elseif (NumberOfUpstreamNodes(iCen, jCen) .gt. 1) then
-                            ConfluenceInOutletNode = .true.
-                            NodesChanged = .true.                            
-                        endif             
-                    endif
-                endif
-                
-                if ((.not. IsolatedOutletNode) .and. (.not. ConfluenceInOutletNode)) then
                     NumberOfNodes          = NumberOfNodes + 1
                     Me%NodeIDs(iCen, jCen) = NumberOfNodes
-                    Me%RiverPoints (iCen, jCen) = RiverPoint
-                endif             
+                    Me%RiverPoints (iCen, jCen) = RiverPoint       
             
             endif
         enddo
         enddo
         
+        !Update: for several outlet mode isolated nodes may appear
+        !without reach. To account a node it has to have a reach associated. 
+        !Also outlets with more than one upstream nodes will not be considered
+        !for drainage network consistency - network will stop upstream. David Fev 2013
+        !
+        !Using treshold areas small for the cell size (a lor of rivers) it creates that 
+        !a lot of confluences to outlet exist and because upstream of the outlet the same happens
+        !the result of this algorith can be that the main river is cutted down to much much upstream
+        !to avoid that in case of confluences to outlet (more than one upstream node) remove  not the outlet
+        !but the upstream nodes with lower upstream area than the maximum
+        !
         !if a concluence node was removed maybe the isolated node and confluence node are now upstream
-        !everytime a confluence is removed the check has to be redone
-        !isolated nodes removal does not take problem upstream since there will be no more nodes
+        !everytime a confluence is removed the check has to be redone. 
+        !Now it goes directly to river nodes defined up
+        !isolated nodes removal does not take problem upstream since there will be no more nodes. David June 2015
+        
         if (.not. Me%DelineateBasin) then
-            do while (NodesChanged)
-                NodesChanged = .false.
-                do jCen = JLB, JUB
-                do iCen = ILB, IUB
-                    if (Me%RiverPoints (iCen, jCen) == RiverPoint) then
-                        call TargetPoint (Me%DrainageDirection(iCen, jCen), iCen, jCen, iTarget, jTarget)
-                        !test the new outlets
-                        if (Me%RiverPoints(iTarget, jTarget) == NoRiverPoint) then
-                            !removing nodes created a isolated node upstream of boundary
-                            if (NumberOfUpstreamNodes(iCen, jCen) .eq. 0) then
-                                Me%NodeIDs(iCen, jCen)      = 0
-                                Me%RiverPoints (iCen, jCen) = NoRiverPoint
-                            !removing nodes created a confluence upstream
-                            elseif (NumberOfUpstreamNodes(iCen, jCen) .gt. 1) then
-                                Me%NodeIDs(iCen, jCen)      = 0
-                                Me%RiverPoints (iCen, jCen) = NoRiverPoint 
-                                NodesChanged = .true.                       
+            !if (NodesChanged) then
+                NodesChanged = .true.
+                do while (NodesChanged)
+                    NodesChanged = .false.
+                    do jCen = JLB, JUB
+                    do iCen = ILB, IUB
+                        if (Me%RiverPoints (iCen, jCen) == RiverPoint) then
+                            
+                            call TargetPoint (Me%DrainageDirection(iCen, jCen), iCen, jCen, iTarget, jTarget)
+                        
+                            !this is an outlet 
+                            if ((Me%RiverPoints(iTarget, jTarget) == NoRiverPoint) .or. (iCen == iTarget .and. jCen == jTarget)) then
+                                
+                                !remove isolated node
+                                if (NumberOfUpstreamNodes(iCen, jCen) .eq. 0) then
+                                    !Me%NodeIDs(iCen, jCen)      = 0
+                                    Me%RiverPoints (iCen, jCen) = NoRiverPoint                      
+                                endif
+                                
+                            else
+                                !if this node target is outlet verify
+                                !a) if outlet has other tributaries and this point is not the one with larger upstream area (remove this)
+                                !b) this point is a most upstream node what means that this river has only one reach (remove this cases)
+                                call TargetPoint(Me%DrainageDirection(iTarget, jTarget), iTarget, jTarget, iNextTarget, jNextTarget)
+                                
+                                if ((Me%RiverPoints(iNextTarget, jNextTarget) == NoRiverPoint) .or. (iTarget == iNextTarget .and. jTarget == jNextTarget)) then
+                                    
+                                    if (.not. IsTheBiggerTributary(iCen, jCen)) then
+                                        Me%RiverPoints (iCen, jCen) = NoRiverPoint
+                                        NodesChanged = .true. 
+                                    
+                                    elseif (NumberOfUpstreamNodes(iCen, jCen) .eq. 0) then
+                                        Me%RiverPoints (iCen, jCen) = NoRiverPoint
+                                        NodesChanged = .true. 
+                                    endif 
+                                    
+                                endif                                                        
                             endif
                         endif
+                    enddo
+                    enddo
+                enddo
+            
+                !Nodes changed Reset node numbering (IDs) with final
+                NumberOfNodes = 0 
+                Me%NodeIDs = null_int
+                do jCen = JLB, JUB
+                do iCen = ILB, IUB
+                    if (Me%RiverPoints (iCen, jCen) == RiverPoint) then          
+                        NumberOfNodes          = NumberOfNodes + 1
+                        Me%NodeIDs(iCen, jCen) = NumberOfNodes            
                     endif
                 enddo
                 enddo
-            enddo
+            !endif
         endif
         
     end subroutine NodeDefinition
 
     !--------------------------------------------------------------------------
 
+    logical function IsTheBiggerTributary(iCen, jCen)
+        !Arguments-------------------------------------------------------------
+        integer                                      :: iCen, jCen
+        !Local-----------------------------------------------------------------
+        integer                                      :: i, j, iAdj, jAdj, iThisTarget, jThisTarget, iNextTarget, jNextTarget
+        real                                         :: ThisUpstreamArea
+        integer                                      :: ILB, IUB, JLB, JUB
+        
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB        
+        
+        !default true. if not enough drainage area, then false
+        !               if does not find any other tributary with same target remains true (is the only real tributary)
+        !               if finds any real tributary with same target with lower drainage area then it will be false and can exit
+        IsTheBiggerTributary = .true.
+        ThisUpstreamArea =  Me%UpStreamArea(iCen, jCen)
+        
+        if (ThisUpstreamArea .ge. Me%RiverTresholdArea) then        
+            
+            !go around this target point and see who also is a tributary to that target point - verify their drainage area
+            call TargetPoint (Me%DrainageDirection(iCen, jCen), iCen, jCen, iThisTarget, jThisTarget)            
+            
+            do j = -1, 1
+            do i = -1, 1
+
+                if (.not. (i == 0 .and. j == 0)) then
+                
+                    iAdj = iThisTarget + i
+                    jAdj = jThisTarget + j
+                    
+                    !Only effective nodes because they may have been removed in the process 
+                    !(also remove query cell from this search since we need to use .ge. in comparison areas
+                    if (iAdj .le. IUB .and. iAdj .ge. ILB .and. jAdj .le. JUB .and. jAdj .ge. JLB .and. .not. (iAdj .eq. iCen .and. jAdj .eq. jCen)) then
+                        
+                        !if (Me%BoundaryPoints(iAdj, jAdj) == Not_Boundary) then
+                        if (Me%RiverPoints(iAdj, jAdj) == RiverPoint) then
+                    
+                            call TargetPoint (Me%DrainageDirection(iAdj, jAdj), iAdj, jAdj, iNextTarget, jNextTarget)
+                        
+                            !if they have same target as our cell lets find out if they are smaller tributaries
+                            if ((iNextTarget .eq. iThisTarget) .and. (jNextTarget .eq. jThisTarget)                 &
+                                .and. (Me%UpstreamArea(iAdj, jAdj) .ge. ThisUpstreamArea)) then
+                                
+                                IsTheBiggerTributary = .false.
+                                return
+                            endif
+                
+                        endif   
+                    endif
+                endif
+        
+            enddo
+            enddo            
+        else
+            !you are not even a qualified tributary!!
+            IsTheBiggerTributary = .false.
+        endif
+        
+    end function IsTheBiggerTributary
+    
+    !--------------------------------------------------------------------------    
+    
     integer function NumberOfUpstreamNodes(iCen, jCen)
         !Arguments-------------------------------------------------------------
         integer                                      :: iCen, jCen
         !Local-----------------------------------------------------------------
         integer                                      :: i, j, iAdj, jAdj, iTarget, jTarget
+        integer                                      :: ILB, IUB, JLB, JUB
+        
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB            
         
         !go trough the neighbours and count how many point to it and are really nodes (UpstreamArea >= TresholdArea)
         NumberOfUpstreamNodes = 0
@@ -1760,16 +1850,23 @@ do1:            do
                 
                 iAdj = iCen + i
                 jAdj = jCen + j
-
-                if (Me%BoundaryPoints(iAdj, jAdj) == Not_Boundary) then
-                    
-                    call TargetPoint (Me%DrainageDirection(iAdj, jAdj), iAdj, jAdj, iTarget, jTarget)
-                    
-                    if ((iTarget .eq. iCen) .and. (jTarget .eq. jCen)                 &
-                        .and. (Me%UpstreamArea(iAdj, jAdj) .ge. Me%RiverTresholdArea)) then
-                        NumberOfUpstreamNodes = NumberOfUpstreamNodes + 1            
-                    endif
                 
+                !effective upstream nodes because they may have been removed in  the process
+                if (iAdj .le. IUB .and. iAdj .ge. ILB .and. jAdj .le. JUB .and. jAdj .ge. JLB) then
+                    
+                    !if (Me%BoundaryPoints(iAdj, jAdj) == Not_Boundary) then
+                    if (Me%RiverPoints(iAdj, jAdj) == RiverPoint) then
+                    
+                        call TargetPoint (Me%DrainageDirection(iAdj, jAdj), iAdj, jAdj, iTarget, jTarget)
+                    
+                        !if ((iTarget .eq. iCen) .and. (jTarget .eq. jCen)                 &
+                        !    .and. (Me%UpstreamArea(iAdj, jAdj) .ge. Me%RiverTresholdArea)) then
+                        if ((iTarget .eq. iCen) .and. (jTarget .eq. jCen)) then                        
+                            NumberOfUpstreamNodes = NumberOfUpstreamNodes + 1            
+                        endif
+                
+                    endif
+                    
                 endif
                 
             endif
