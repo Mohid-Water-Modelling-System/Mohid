@@ -283,6 +283,7 @@ Module ModuleModel
         integer                                 :: ObjSediment                  = 0
         integer                                 :: ObjSedimentProperties        = 0
         integer                                 :: ObjConsolidation             = 0
+        integer                                 :: ObjFreeVerticalMovement      = 0
 #ifdef _USE_SEQASSIMILATION
         integer                                 :: ObjSeqAssimilation           = 0
 #endif _USE_SEQASSIMILATION
@@ -761,6 +762,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                            TurbulenceID     = Me%ObjTurbulence,         &
                                            AssimilationID   = Me%ObjAssimilation,       &
                                            DischargesID     = Me%ObjDischarges,         &
+                                           FreeVerticalMovementID = Me%ObjFreeVerticalMovement, &
 #ifdef _ENABLE_CUDA
                                            CudaID           = Me%ObjCuda,                 &
 #endif _ENABLE_CUDA
@@ -975,6 +977,7 @@ il:         if (Me%RunLagrangian) then
                                    SedimentHorizontalMapID     = Me%Sediment%ObjHorizontalMap,   &
                                    SedimentMapID               = Me%Sediment%ObjMap,             &
                                    SedimentGeometryID          = Me%Sediment%ObjGeometry,        &
+                                   FreeVerticalMovementID      = Me%ObjFreeVerticalMovement,     &
                                    STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR411'
 

@@ -1595,6 +1595,9 @@ Module ModuleGlobalData
 
     !Methodologies use to compute sedimentation velocity of fine sediments
     integer, parameter :: WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4
+    
+    !Methodologies use to compute sedimentation velocity of sand
+    integer, parameter :: WSSand = 5
 
     !Advection 1D parameters
     integer, parameter :: UpwindOrder1 = 1, UpwindOrder2 = 2, UpwindOrder3 = 3, P2_TVD = 4, CentralDif = 5, LeapFrog = 6
@@ -2229,26 +2232,31 @@ Module ModuleGlobalData
 
     !--------------------------------------------------------------------------
     
-    integer function RegisterDynamicProperty(PropertyName, PropertyExists) !soffs
+    integer function RegisterDynamicProperty(PropertyName) !soffs
       
         !Arguments-------------------------------------------------------------
         character(len=*), intent (IN)                       :: PropertyName
-        logical, intent(out), optional                      :: PropertyExists
         
         !Local-----------------------------------------------------------------
         integer, save                                       :: UniqueIDNumber
         character(LEN=StringLength), dimension(:), pointer  :: TempPropNameList
         integer,                     dimension(:), pointer  :: TempPropNumberList
-        logical                                             :: property_exists
         logical                                             :: is_dynamic
+        integer                                             :: i
+        logical                                             :: property_exists
         
         !----------------------------------------------------------------------
-        
         property_exists = .false.
         
         if (CheckPropertyName(PropertyName, IsDynamic = is_dynamic)) then
             if (is_dynamic) then
-                property_exists = .true.
+do1:            do i=1, DynamicPropertiesNumber
+                    if (trim(PropertyName) == trim(DynamicPropNameList(i))) then
+                        RegisterDynamicProperty = DynamicPropNumberList(i)
+                        property_exists = .true.
+                        exit do1
+                    endif
+                enddo do1
             else
                 print *, "Dynamic Property '"//trim(PropertyName)//"' already exists in GLOBAL DATA."
                 stop "RegisterDynamicProperty - ModuleGlobalData - ERR010"
@@ -2256,53 +2264,44 @@ Module ModuleGlobalData
         endif
         
         if(.not. property_exists) then
-        if(.not. associated(DynamicPropNameList))then
+            if(.not. associated(DynamicPropNameList))then
         
-            DynamicPropertiesNumber = 1
-            allocate(DynamicPropNameList  (DynamicPropertiesNumber))
-            allocate(DynamicPropNumberList(DynamicPropertiesNumber))
-            UniqueIDNumber         = 30001
-
-            DynamicPropNameList(1)      = trim(PropertyName)
-            DynamicPropNumberList(1)    = UniqueIDNumber
-            
-        else
-            property_exists = CheckDynamicPropertyName (PropertyName, UniqueIDNumber)   
-            
-            if (.not. property_exists) then
-            
-                allocate(TempPropNameList     (DynamicPropertiesNumber))
-                allocate(TempPropNumberList   (DynamicPropertiesNumber))
-            
-                TempPropNameList    = DynamicPropNameList
-                TempPropNumberList  = DynamicPropNumberList
-            
-                deallocate(DynamicPropNameList, DynamicPropNumberList)
-            
-                UniqueIDNumber          = UniqueIDNumber + 1
-                DynamicPropertiesNumber = DynamicPropertiesNumber + 1
-
+                DynamicPropertiesNumber = 1
                 allocate(DynamicPropNameList  (DynamicPropertiesNumber))
                 allocate(DynamicPropNumberList(DynamicPropertiesNumber))
-            
-                DynamicPropNameList  (1:DynamicPropertiesNumber-1) = TempPropNameList  (1:DynamicPropertiesNumber)
-                DynamicPropNumberList(1:DynamicPropertiesNumber-1) = TempPropNumberList(1:DynamicPropertiesNumber)
-           
-                DynamicPropNameList  (DynamicPropertiesNumber) = trim(PropertyName)
-                DynamicPropNumberList(DynamicPropertiesNumber) = UniqueIDNumber
-            
-                deallocate(TempPropNameList, TempPropNumberList)
-            
-            endif
+                UniqueIDNumber         = 30001
 
+                DynamicPropNameList(1)      = trim(PropertyName)
+                DynamicPropNumberList(1)    = UniqueIDNumber
+            
+            else            
+                    allocate(TempPropNameList     (DynamicPropertiesNumber))
+                    allocate(TempPropNumberList   (DynamicPropertiesNumber))
+            
+                    TempPropNameList    = DynamicPropNameList
+                    TempPropNumberList  = DynamicPropNumberList
+            
+                    deallocate(DynamicPropNameList, DynamicPropNumberList)
+            
+                    UniqueIDNumber          = UniqueIDNumber + 1
+                    DynamicPropertiesNumber = DynamicPropertiesNumber + 1
+
+                    allocate(DynamicPropNameList  (DynamicPropertiesNumber))
+                    allocate(DynamicPropNumberList(DynamicPropertiesNumber))
+            
+                    DynamicPropNameList  (1:DynamicPropertiesNumber-1) = TempPropNameList  (1:DynamicPropertiesNumber)
+                    DynamicPropNumberList(1:DynamicPropertiesNumber-1) = TempPropNumberList(1:DynamicPropertiesNumber)
+           
+                    DynamicPropNameList  (DynamicPropertiesNumber) = trim(PropertyName)
+                    DynamicPropNumberList(DynamicPropertiesNumber) = UniqueIDNumber
+            
+                    deallocate(TempPropNameList, TempPropNumberList)
+
+            endif 
+            
+            RegisterDynamicProperty = UniqueIDNumber 
+            
         endif
-        endif
-        
-        if (present(PropertyExists)) then
-            PropertyExists = property_exists
-        endif        
-        
-        RegisterDynamicProperty = UniqueIDNumber       
 
     end function
 

@@ -1297,6 +1297,7 @@ Module ModuleWaterProperties
                                          TurbulenceID,                       &
                                          TimeID,                             &
                                          DischargesID,                       &
+                                         FreeVerticalMovementID,             &
 #ifdef _ENABLE_CUDA
                                          CudaID,                             &
 #endif
@@ -1315,6 +1316,7 @@ Module ModuleWaterProperties
         integer                                     :: TurbulenceID
         integer                                     :: AssimilationID
         integer                                     :: DischargesID
+        integer                                     :: FreeVerticalMovementID
 #ifdef _ENABLE_CUDA
         integer                                     :: CudaID
 #endif
@@ -1426,6 +1428,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 #else
             call Construct_Sub_Modules(AssimilationID, DischargesID)
 #endif _ENABLE_CUDA
+
+            FreeVerticalMovementID = Me%ObjFreeVerticalMovement
 
             call CheckAditionalOutputs
             

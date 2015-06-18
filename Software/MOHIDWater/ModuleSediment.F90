@@ -60,6 +60,8 @@ Module ModuleSediment
                                        GetGeometryDistances, GetGeometryKtop,               &
                                        ComputeInitialGeometry, ComputeVerticalGeometry,     &
                                        GetGeometryVolumes, ReadGeometryHDF, WriteGeometryHDF
+    use ModuleFreeVerticalMovement,  only: SetSandParameters
+    
 #ifndef _WAVES_
     use ModuleWaves,            only : GetWaves, UnGetWaves
 #endif
@@ -96,9 +98,12 @@ Module ModuleSediment
 
 
     !Selector
-    public  :: SetInterfaceFlux
+    public  :: SetCohesiveFlux
+    public  :: SetNonCohesiveFlux
     public  :: GetTopCriticalShear
     public  :: GetCohesiveMass
+    public  :: GetSandMass
+    public  :: GetCriticalShearStress
     public  :: UnGetSediment                 
     
     !Modifier
@@ -267,6 +272,7 @@ Module ModuleSediment
                                                                
         real(8), dimension(:,:), pointer        :: FluxX                 => null ()
         real(8), dimension(:,:), pointer        :: FluxY                 => null ()
+        real(8), dimension(:,:), pointer        :: FluxToSediment        => null ()
         real(8), dimension(:,:), pointer        :: Bedload               => null ()
         real, dimension(:,:), pointer           :: CriticalShearStress   => null ()
         real, dimension(:,:), pointer           :: NDCriticalShearStress => null ()
@@ -406,6 +412,8 @@ Module ModuleSediment
         !Instance of ModuleMap                                                  
         integer                                    :: ObjSedimentMap        = 0
         
+        integer                                    :: ObjFreeVerticalMovement = 0
+        
         !List of Sediment Instances
         type(T_Sediment), pointer                      :: Next                  => null ()
 
@@ -440,6 +448,7 @@ Module ModuleSediment
                          SedimentHorizontalMapID,               &
                          SedimentMapID,                         &
                          SedimentGeometryID,                    &
+                         FreeVerticalMovementID,                &
                          STAT)
 
         !Arguments-------------------------------------------------------------
@@ -454,6 +463,7 @@ Module ModuleSediment
         integer                                         :: SedimentHorizontalMapID
         integer                                         :: SedimentMapID
         integer                                         :: SedimentGeometryID
+        integer                                         :: FreeVerticalMovementID
         integer, optional, intent(OUT)                  :: STAT
            
         !External----------------------------------------------------------------
@@ -463,9 +473,13 @@ Module ModuleSediment
 
         !Local-------------------------------------------------------------------
         integer                                         :: STAT_
+        integer                                         :: n
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
+        
+        !Jauch: Defined here because it will be passed as argument in the near future... :P
+        WaveTensionON = .false.
 
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mSediment_)) then
@@ -501,7 +515,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                        Size        = Me%Size,                            &
                                        WorkSize    = Me%WorkSize,                        &
                                        STAT        = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR01'
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR10'
             
             
             call GetGeometrySize(Me%ObjSedimentGeometry,                        &
@@ -509,7 +523,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                  WorkSize   = Me%SedimentWorkSize3D,            &
                                  STAT       = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)&
-                stop 'ConstructGlobalVariables - ModuleSediment - ERR03'
+                stop 'ConstructSediment - ModuleSediment - ERR20'
 
             call ReadLockExternalVar
 
@@ -517,7 +531,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Construct enter data 
             call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR20'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR30'
             
             call ConstructGlobalParameters
             
@@ -536,11 +550,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructPorosity
             
             call ConstructClassMass
-
+            
+            call ConstructCriticalShearStress
+            
             call StartOutputBoxFluxes
             
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR30'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR40'
 
 
             if (Me%OutPut%Yes) call Open_HDF5_OutPut_File(Me%Files%OutPutFields)
@@ -549,13 +565,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 if (ObjDischargesID == 0)  then                                                
                     write(*,*)'You need to define a water discharges in the hydrodynamic input' 
-                    stop      'ConstructSediment - Sediment - ERR01'
+                    stop      'ConstructSediment - Sediment - ERR50'
                 else
                     Me%ObjDischarges = AssociateInstance (mDISCHARGES_, ObjDischargesID)
 
                     Me%Discharges%NextCompute = Me%ExternalVar%Now
                 endif
 
+            endif
+            
+            if(FreeVerticalMovementID .ne. 0) then
+               do n=1, Me%NumberOfClasses
+                    call SetSandParameters(FreeVerticalMovementID, Me%SandClass(n)%ID%IDNumber, Me%SandClass(n)%D50, & 
+                                            Me%RelativeDensity, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR60'
+                enddo
             endif
 
 
@@ -1484,7 +1508,10 @@ do1 :   do n=1, Me%NumberOfClasses
                                     BlockFound      = BlockFound,                &
                                     STAT            = STAT_CALL)
 cd1 :       if (STAT_CALL .EQ. SUCCESS_) then    
-cd2 :           if (BlockFound) then    
+cd2 :           if (BlockFound) then
+    
+                    call ConstructPropertyID(Me%SandClass(n)%ID, Me%ObjEnterData, FromBlock, CheckProperty = .false.)
+                        Me%SandClass(n)%ID%IDNumber = RegisterDynamicProperty (Me%SandClass(n)%ID%Name)
           
                     call GetData(Me%SandClass(n)%D50,                                     &
                                     Me%ObjEnterData,iflag,                                 &
@@ -1493,9 +1520,16 @@ cd2 :           if (BlockFound) then
                                     ClientModule = 'ModuleSediment',                           &
                                     STAT         = STAT_CALL)
 
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR01a' 
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR10' 
                         
-                    if (iflag .NE. 1) stop 'ConstructClasses - ModuleSediment - ERR01a' 
+                    if (iflag .NE. 1) stop 'ConstructClasses - ModuleSediment - ERR20' 
+                    
+                    if(Me%SandClass(n)%D50 < 65.0E-6) then
+                        write(*,*) 
+                        write(*,*) 'Sand classes must have diameters greater than 65.0E-6' 
+                        write(*,*) 'Check property', Me%SandClass(n)%ID%Name
+                        stop       'ConstructClasses - ModuleSediment - ERR30'
+                    endif
                         
                     call GetData(Me%SandClass(n)%parameter_A,                             &
                                     Me%ObjEnterData,iflag,                                 &
@@ -1505,7 +1539,7 @@ cd2 :           if (BlockFound) then
                                     ClientModule = 'ModuleSediment',                       &
                                     STAT         = STAT_CALL)
 
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR01b' 
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR040' 
                          
                     call GetData(Me%SandClass(n)%parameter_n,                             &
                                     Me%ObjEnterData,iflag,                                 &
@@ -1515,7 +1549,7 @@ cd2 :           if (BlockFound) then
                                     ClientModule = 'ModuleSediment',                       &
                                     STAT         = STAT_CALL)
 
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR01c'        
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR50'        
                         
                     call GetData(Me%SandClass(n)%parameter_p,                             &
                                     Me%ObjEnterData,iflag,                                 &
@@ -1525,13 +1559,9 @@ cd2 :           if (BlockFound) then
                                     ClientModule = 'ModuleSediment',                       &
                                     STAT         = STAT_CALL)
 
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR01d'
-                        
-                    call ConstructPropertyID(Me%SandClass(n)%ID, Me%ObjEnterData, FromBlock, CheckProperty = .false.)
-                        Me%SandClass(n)%ID%IDNumber = RegisterDynamicProperty (Me%SandClass(n)%ID%Name)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR60'
                                       
                     call ConstructPropertyValue (Me%SandClass(n), FromBlock)
-                        
                         
                     !Allocate variables of classes 
                     allocate(Me%SandClass(n)%FluxX(ILB:IUB, JLB:JUB))
@@ -1544,10 +1574,10 @@ cd2 :           if (BlockFound) then
                     Me%SandClass(n)%Bedload(:,:) = null_real
 
                     allocate(Me%SandClass(n)%CriticalShearStress(ILB:IUB, JLB:JUB))
-                    Me%SandClass(n)%CriticalShearStress(:,:) = null_real
+                    Me%SandClass(n)%CriticalShearStress(:,:) = FillValueReal
                         
                     allocate(Me%SandClass(n)%NDCriticalShearStress(ILB:IUB, JLB:JUB))
-                    Me%SandClass(n)%CriticalShearStress(:,:) = 0.
+                    Me%SandClass(n)%CriticalShearStress(:,:) = FillValueReal
                         
                     allocate(Me%SandClass(n)%TopPercentage(ILB:IUB, JLB:JUB))
                     Me%SandClass(n)%TopPercentage(:,:) = null_real
@@ -1564,21 +1594,21 @@ cd2 :           if (BlockFound) then
 
                     write(*,*)  
                     write(*,*) 'Error calling ExtractBlockFromBlock. '
-                    stop       'ConstructClasses - ModuleSediment - ERR02'
+                    stop       'ConstructClasses - ModuleSediment - ERR80'
 
                 end if cd2
 
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
                 write(*,*)  
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
-                stop       'ConstructClasses - ModuleSediment - ERR03'
+                stop       'ConstructClasses - ModuleSediment - ERR90'
             else cd1
-                stop       'ConstructClasses - ModuleSediment - ERR04'
+                stop       'ConstructClasses - ModuleSediment - ERR100'
             end if cd1
         end do do1
 
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-        if (STAT_CALL  /= SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR05'
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR110'
 
         !call GetNumberOfBlocks (Me%ObjEnterData, cohesive_block_begin,          &
         !            cohesive_block_end,                                 &
@@ -1614,11 +1644,11 @@ cd2 :           if (BlockFound) then
                                 ClientModule = 'ModuleSediment',                 &
                                 STAT         = STAT_CALL)
                         
-                if (iflag .NE. 1) stop 'ConstructClasses - ModuleSediment - ERR08'
+                if (iflag .NE. 1) stop 'ConstructClasses - ModuleSediment - ERR120'
             
                 
                 allocate(Me%CohesiveClass%CriticalShearStress(ILB:IUB, JLB:JUB))
-                Me%CohesiveClass%CriticalShearStress(:,:) = 0.
+                Me%CohesiveClass%CriticalShearStress(:,:) = FillValueReal
                         
                 allocate(Me%CohesiveClass%TopPercentage(ILB:IUB, JLB:JUB))
                 Me%CohesiveClass%TopPercentage(:,:) = null_real
@@ -1641,11 +1671,11 @@ cd2 :           if (BlockFound) then
         endif
             
         call Block_UnLock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-        if (STAT_CALL  /= SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR09'
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR130'
 
 
         call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-        if (STAT_CALL  /= SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR010'
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR140'
         
         call CheckPercentageConsistence
                
@@ -1968,6 +1998,18 @@ cd2 :           if (BlockFound) then
         enddo
        
     end subroutine ConstructClassMass
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructCriticalShearStress
+    
+        call New_Geometry
+        
+        call ComputeOpenSediment
+    
+        call ComputeCriticalShearStress
+    
+    end subroutine ConstructCriticalShearStress
     
     !--------------------------------------------------------------------------
 
@@ -2440,9 +2482,244 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     
     
     !--------------------------------------------------------------------------
+    
+!     subroutine GetRelativeDensity(ObjSedimentID, RelativeDensity, STAT) 
+!
+!        !Arguments-------------------------------------------------------------
+!        integer                                     :: ObjSedimentID
+!        real                                        :: RelativeDensity
+!        integer, optional, intent(OUT)              :: STAT
+!
+!        !External--------------------------------------------------------------
+!        integer                                     :: ready_        
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: STAT_
+!
+!        !----------------------------------------------------------------------
+!
+!        STAT_ = UNKNOWN_
+!
+!        call Ready(ObjSedimentID, ready_)
+!        
+!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+!            (ready_ .EQ. READ_LOCK_ERR_)) then
+!
+!            call Read_Lock(mSediment_, Me%InstanceID)
+!
+!            RelativeDensity = Me%RelativeDensity
+!
+!            STAT_ = SUCCESS_
+!        else 
+!            STAT_ = ready_
+!        end if cd1
+!
+!
+!        if (present(STAT)) STAT = STAT_
+!    
+!    end subroutine GetRelativeDensity
+    
+    
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
     
-    subroutine SetInterfaceFlux(ObjSedimentID, ConsolidationFlux,  STAT)
+    subroutine GetSandMass(ObjSedimentID, SandClassID, SandMass, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjSedimentID
+        integer                                     :: SandClassID, n
+        class(T_Sand), pointer                      :: SandClass
+        real(8), dimension(:,:,:),pointer           :: SandMass
+        integer, optional, intent(OUT)              :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mSediment_, Me%InstanceID)
+            
+ do1:        do n=1,Me%NumberOfClasses
+               
+               SandClass => Me%SandClass(n)
+               
+                if(SandClass%ID%IDNumber == SandClassID) then
+                        
+                    SandMass => SandClass%Mass
+                    
+                    exit do1
+                    
+                endif
+    
+            enddo do1
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine GetSandMass
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetCriticalShearStress(ObjSedimentID, SandClassID, CriticalShearStress, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjSedimentID
+        integer                                     :: SandClassID, n
+        class(T_Sand), pointer                      :: SandClass
+        real(8), dimension(:,:),pointer             :: CriticalShearStress
+        integer, optional, intent(OUT)              :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mSediment_, Me%InstanceID)
+            
+ do1:        do n=1,Me%NumberOfClasses
+               
+               SandClass => Me%SandClass(n)
+               
+                if(SandClass%ID%IDNumber == SandClassID) then
+                        
+                    CriticalShearStress => SandClass%CriticalShearStress
+                    
+                    exit do1
+                    
+                endif
+    
+            enddo do1
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine GetCriticalShearStress
+     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+!    subroutine GetSandDiameter(ObjSedimentID, SandClassID, SandDiameter, STAT) 
+!
+!        !Arguments-------------------------------------------------------------
+!        integer                                     :: ObjSedimentID
+!        integer                                     :: SandClassID, n
+!        class(T_Sand), pointer                      :: SandClass
+!        real(8)                                     :: SandDiameter
+!        integer, optional, intent(OUT)              :: STAT
+!
+!        !External--------------------------------------------------------------
+!        integer                                     :: ready_        
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: STAT_
+!
+!        !----------------------------------------------------------------------
+!
+!        STAT_ = UNKNOWN_
+!
+!        call Ready(ObjSedimentID, ready_)
+!        
+!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+!            (ready_ .EQ. READ_LOCK_ERR_)) then
+!
+!            call Read_Lock(mSediment_, Me%InstanceID)
+!            
+! do1:        do n=1,Me%NumberOfClasses
+!               
+!               SandClass => Me%SandClass(n)
+!               
+!                if(SandClass%ID%IDNumber == SandClassID) then
+!                        
+!                    SandDiameter = SandClass%D50
+!                    
+!                    exit do1
+!                    
+!                endif
+!    
+!            enddo do1
+!
+!            STAT_ = SUCCESS_
+!        else 
+!            STAT_ = ready_
+!        end if cd1
+!
+!        if (present(STAT)) STAT = STAT_
+!    
+!    end subroutine GetSandDiameter
+     !--------------------------------------------------------------------------
+    
+!    subroutine GetSandClass(ObjSedimentID, SandClass, STAT) 
+!
+!        !Arguments-------------------------------------------------------------
+!        integer                                     :: ObjSedimentID
+!        type (T_Sand), dimension(:),pointer         :: SandClass
+!        integer, optional, intent(OUT)              :: STAT
+!
+!        !External--------------------------------------------------------------
+!        integer                                     :: ready_        
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: STAT_
+!
+!        !----------------------------------------------------------------------
+!
+!        STAT_ = UNKNOWN_
+!
+!        call Ready(ObjSedimentID, ready_)
+!        
+!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+!            (ready_ .EQ. READ_LOCK_ERR_)) then
+!
+!            call Read_Lock(mSediment_, Me%InstanceID)
+!
+!            SandClass => Me%SandClass
+!
+!            STAT_ = SUCCESS_
+!        else 
+!            STAT_ = ready_
+!        end if cd1
+!
+!
+!        if (present(STAT)) STAT = STAT_
+!    
+!    end subroutine GetSandClass
+    
+    
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    
+    subroutine SetCohesiveFlux(ObjSedimentID, ConsolidationFlux,  STAT)
         
         !Arguments-------------------------------------------------------------
         integer                                 :: ObjSedimentID
@@ -2475,7 +2752,60 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
     
     
-    end subroutine SetInterfaceFlux
+    end subroutine SetCohesiveFlux
+
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine SetNonCohesiveFlux(ObjSedimentID, SandClassID, FluxToSediment,  STAT)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                 :: ObjSedimentID
+        integer                                 :: SandClassID, n
+        class(T_Sand), pointer                  :: SandClass
+        real, dimension(:,:),optional, pointer  :: FluxToSediment
+        integer, optional, intent(OUT)          :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_            
+        integer                                 :: ready_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)  
+        
+cd1 :   if (ready_ == IDLE_ERR_)then
+    
+do1:        do n=1,Me%NumberOfClasses
+               
+               SandClass => Me%SandClass(n)
+               
+                if(SandClass%ID%IDNumber == SandClassID) then
+                        
+                    SandClass%FluxToSediment => FluxToSediment
+                    
+                    exit do1
+                    
+                endif
+    
+            enddo do1
+            
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    
+    
+    end subroutine SetNonCohesiveFlux
 
     !--------------------------------------------------------------------------
     
@@ -2749,7 +3079,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                         call ComputeFluxes
                         
                     endif
-
+                    
                     call ComputeEvolution
                         
                     if (Me%Discharges%Yes) then 
@@ -3343,83 +3673,74 @@ do1:    do n=1,Me%NumberOfClasses
            SandClass => Me%SandClass(n)
            
            SandClass%DM(:, :) = 0.
-            
-            if (Me%Residual%ON) then
-
-                RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
-                
-                Me%Residual%FluxX(:,:) = ( Me%Residual%FluxX(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
-                                           SandClass%FluxX(:,:) * Me%Evolution%SedimentDT) / RunPeriod
-                                           
-                Me%Residual%FluxY(:,:) = ( Me%Residual%FluxY(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
-                                           SandClass%FluxY(:,:) * Me%Evolution%SedimentDT) / RunPeriod
-            endif
            
-            do j=WJLB, WJUB
-            do i=WILB, WIUB
+           if (Me%BedloadMethod /= 0) then
+            
+               if (Me%Residual%ON) then
+
+                    RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+                
+                    Me%Residual%FluxX(:,:) = ( Me%Residual%FluxX(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
+                                               SandClass%FluxX(:,:) * Me%Evolution%SedimentDT) / RunPeriod
+                                           
+                    Me%Residual%FluxY(:,:) = ( Me%Residual%FluxY(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
+                                               SandClass%FluxY(:,:) * Me%Evolution%SedimentDT) / RunPeriod
+                endif
+           
+                do j=WJLB, WJUB
+                do i=WILB, WIUB
 
 
-                if (SandClass%FluxX(i, j) < 0.) then 
-                    if      (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
-
-                        !DT_Area1 = Me%Evolution%SedimentDT / Me%ExternalVar%DUX(i, j-1) / Me%ExternalVar%DVY(i, j-1)
-                        !DT_Area2 = Me%Evolution%SedimentDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                    if (SandClass%FluxX(i, j) < 0.) then 
+                        if      (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
                         
-                        SandClass%DM(i, j-1) = SandClass%DM(i, j-1) - Me%Evolution%SedimentDT * SandClass%FluxX(i, j)
-                        SandClass%DM(i, j  ) = SandClass%DM(i, j  ) + Me%Evolution%SedimentDT * SandClass%FluxX(i, j)
+                            SandClass%DM(i, j-1) = SandClass%DM(i, j-1) - Me%Evolution%SedimentDT * SandClass%FluxX(i, j)
+                            SandClass%DM(i, j  ) = SandClass%DM(i, j  ) + Me%Evolution%SedimentDT * SandClass%FluxX(i, j)
                          
 
-                        if (Me%Boxes%Yes) then
-                            Me%Boxes%FluxesX(i,j) = Me%Boxes%FluxesX(i,j) + SandClass%FluxX(i, j) * Me%Evolution%SedimentDT
+                            if (Me%Boxes%Yes) then
+                                Me%Boxes%FluxesX(i,j) = Me%Boxes%FluxesX(i,j) + SandClass%FluxX(i, j) * Me%Evolution%SedimentDT
+                            endif
                         endif
-                    endif
-                else 
+                    else 
 
-                    if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
-
-                        !DT_Area1 = Me%Evolution%SedimentDT / Me%ExternalVar%DUX(i, j+1) / Me%ExternalVar%DVY(i, j+1)
-                        !DT_Area2 = Me%Evolution%SedimentDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                        if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
                   
-                        SandClass%DM(i, j+1) = SandClass%DM(i, j+1) + Me%Evolution%SedimentDT * SandClass%FluxX(i, j)  
-                        SandClass%DM(i, j  ) = SandClass%DM(i, j  ) - Me%Evolution%SedimentDT * SandClass%FluxX(i, j) 
+                            SandClass%DM(i, j+1) = SandClass%DM(i, j+1) + Me%Evolution%SedimentDT * SandClass%FluxX(i, j)  
+                            SandClass%DM(i, j  ) = SandClass%DM(i, j  ) - Me%Evolution%SedimentDT * SandClass%FluxX(i, j) 
 
-                        if (Me%Boxes%Yes) then
-                            Me%Boxes%FluxesX(i,j+1) = Me%Boxes%FluxesX(i,j+1) + SandClass%FluxX(i, j) * Me%Evolution%SedimentDT
+                            if (Me%Boxes%Yes) then
+                                Me%Boxes%FluxesX(i,j+1) = Me%Boxes%FluxesX(i,j+1) + SandClass%FluxX(i, j) * Me%Evolution%SedimentDT
+                            endif
+                        endif                    
+                    endif
+
+                    if (SandClass%FluxY(i, j) < 0.) then
+                        if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+                            
+                            SandClass%DM(i-1, j) = SandClass%DM(i-1, j) - Me%Evolution%SedimentDT * SandClass%FluxY(i, j) 
+                            SandClass%DM(i  , j) = SandClass%DM(i  , j) + Me%Evolution%SedimentDT * SandClass%FluxY(i, j) 
+
+                            if (Me%Boxes%Yes) then
+                                Me%Boxes%FluxesY(i,j) = Me%Boxes%FluxesY(i,j) + SandClass%FluxY(i, j) * Me%Evolution%SedimentDT
+                            endif
                         endif
-                    endif                    
-                endif
+                    else 
+                        if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
 
-                if (SandClass%FluxY(i, j) < 0.) then
-                    if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+                            SandClass%DM(i+1, j) = SandClass%DM(i+1, j) + Me%Evolution%SedimentDT * SandClass%FluxY(i, j)
+                            SandClass%DM(i  , j) = SandClass%DM(i  , j) - Me%Evolution%SedimentDT * SandClass%FluxY(i, j) 
 
-                        !DT_Area1 = Me%Evolution%SedimentDT / Me%ExternalVar%DUX(i-1, j) / Me%ExternalVar%DVY(i-1, j)
-                        !DT_Area2 = Me%Evolution%SedimentDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
-
-                        SandClass%DM(i-1, j) = SandClass%DM(i-1, j) - Me%Evolution%SedimentDT * SandClass%FluxY(i, j) 
-                        SandClass%DM(i  , j) = SandClass%DM(i  , j) + Me%Evolution%SedimentDT * SandClass%FluxY(i, j) 
-
-                        if (Me%Boxes%Yes) then
-                            Me%Boxes%FluxesY(i,j) = Me%Boxes%FluxesY(i,j) + SandClass%FluxY(i, j) * Me%Evolution%SedimentDT
+                            if (Me%Boxes%Yes) then
+                                Me%Boxes%FluxesY(i+1,j) = Me%Boxes%FluxesY(i+1,j) + SandClass%FluxY(i, j) * Me%Evolution%SedimentDT
+                            endif
                         endif
                     endif
-                else 
-                    if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
-
-                        !DT_Area1 = Me%Evolution%SedimentDT / Me%ExternalVar%DUX(i+1, j) / Me%ExternalVar%DVY(i+1, j)
-                        !DT_Area2 = Me%Evolution%SedimentDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
-
-                        SandClass%DM(i+1, j) = SandClass%DM(i+1, j) + Me%Evolution%SedimentDT * SandClass%FluxY(i, j)
-                        SandClass%DM(i  , j) = SandClass%DM(i  , j) - Me%Evolution%SedimentDT * SandClass%FluxY(i, j) 
-
-                        if (Me%Boxes%Yes) then
-                            Me%Boxes%FluxesY(i+1,j) = Me%Boxes%FluxesY(i+1,j) + SandClass%FluxY(i, j) * Me%Evolution%SedimentDT
-                        endif
-                    endif
-                endif
                 
      
-            enddo
-            enddo
+                enddo
+                enddo
+            endif
             
         enddo do1
    
@@ -3518,7 +3839,7 @@ do1:    do n=1,Me%NumberOfClasses
             SandClass => Me%SandClass(n)
 
 
-            if          (Me%Boundary == NullGradient) then
+            if  (Me%Boundary == NullGradient) then
 
                 do j=JLB, JUB
                 do i=ILB, IUB
@@ -3649,7 +3970,10 @@ do1:    do n=1,Me%NumberOfClasses
                 
                 do n=1,Me%NumberOfClasses
 
-                    SandClass => Me%SandClass(n) 
+                    SandClass => Me%SandClass(n)
+                    
+                    SandClass%DM(i, j) = SandClass%DM(i, j) + SandClass%FluxToSediment(i,j) *   &
+                                        Me%Evolution%SedimentDT*Me%ExternalVar%GridCellArea(i,j)
                     
                     aux = SandClass%Mass(i,j,WKUB) + SandClass%DM(i, j)  
                     

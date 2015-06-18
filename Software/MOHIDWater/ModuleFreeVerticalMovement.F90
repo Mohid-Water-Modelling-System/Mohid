@@ -36,7 +36,7 @@
 !   CHS                         : real            [4 g/l]       !Hindered settling threshold concentration  
 !   WS_VALUE                    : real          [0.0001 m/s]    !Constant settling velocity
 !   WS_TYPE                     : int               [1]         !Settling velocity compute method 
-!                                                               !Constant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4
+!                                                               !Constant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4, WSSand = 5
 !   SALTINT                     : 0/1               [0]         !Use salinity effect on settling velocity
 !   SALTINTVALUE                : real            [3 psu]       !Salinity threshold concentration for affecting
 !                                                               !settling velocity
@@ -66,7 +66,7 @@ Module ModuleFreeVerticalMovement
                                       ExtractBlockFromBuffer, KillEnterData
     use ModuleStopWatch,        only: StartWatch, StopWatch
     
-    use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie         
+    use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
     
 
 #ifdef _ENABLE_CUDA
@@ -106,6 +106,7 @@ Module ModuleFreeVerticalMovement
     public  :: GetFreeVertMovOptions
     public  :: FreeVertPropertyExists                   !Function
     public  :: FreeVertPropertyHasDeposition            !Function
+    public  :: SetSandParameters
     public  :: UngetFreeVerticalMovement
 
     public  :: SetDepositionProbability
@@ -231,6 +232,9 @@ Module ModuleFreeVerticalMovement
                                                                         
         !Instance of ModuleMap                                          
         integer                                 :: ObjMap               = 0
+        
+        !Instance of ModuleSediment
+        integer                                 :: ObjSediment          = 0
 
 #ifdef _ENABLE_CUDA        
         !Instance of ModuleCuda
@@ -312,6 +316,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
+            
 #ifdef _ENABLE_CUDA
             Me%ObjCuda           = AssociateInstance (mCUDA_,           ObjCudaID       )
 #endif _ENABLE_CUDA
@@ -674,7 +679,7 @@ cd2 :           if (BlockFound) then
             !Type             : integer 
             !Default          : WSConstant
             !File keyword     : FREE_DAT
-            !Multiple Options : WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4
+            !Multiple Options : WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4, WSSand = 5
             !Search Type      : FromBlock
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
@@ -1459,7 +1464,9 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         real,    dimension(:,:,:), pointer      :: SPM
         real                                    :: CHS,KL,KL1,M,ML
         integer                                 :: I, J, K  
-        real                                    :: SPMISCoef, SVI
+        real                                    :: SPMISCoef, SVI, WS
+        real                                    :: RelativeDensity
+        real(8)                                 :: SandDiameter
         integer                                 :: CHUNK, STAT_CALL
         type (T_Time)                           :: CurrentTime
         !----------------------------------------------------------------------
@@ -1596,6 +1603,11 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             else
                 call SetMatrixValue(PropertyX%Velocity, Me%Size, PropertyX%Ws_Value)
             endif
+            
+        elseif(PropertyX%Ws_Type == WSSand) then            
+            
+            call SetMatrixValue(PropertyX%Velocity, Me%Size, PropertyX%Ws_Value)           
+            
         end if
         
         if (Me%ExternalVar%NoFlux) then
@@ -2097,6 +2109,73 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         !----------------------------------------------------------------------
 
     end subroutine SetDepositionProbability
+    
+    !----------------------------------------------------------------------
+    
+    subroutine SetSandParameters(FreeVerticalMovementID, PropertyID, SandDiameter, RelativeDensity, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                             :: FreeVerticalMovementID
+        integer                             :: PropertyID
+        real(8)                             :: SandDiameter
+        real                                :: RelativeDensity
+        integer, optional, intent(OUT)      :: STAT
+
+        !External--------------------------------------------------------------
+        integer                             :: ready_              
+        
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer           :: PropertyX
+        integer                             :: STAT_, STAT_CALL            
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FreeVerticalMovementID, ready_)  
+        
+cd1 :   if (ready_ == IDLE_ERR_)then
+    
+            call Search_Property(PropertyX      = PropertyX,                            &
+                                 PropertyXID    = PropertyID,                           &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL .ne. SUCCESS_)                                                &
+                stop 'Modify_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR02'
+
+            if(PropertyX%Ws_Type == WSSand) then
+            
+                !The settling velocity of a non-cohesive ("sand") sediment fraction 
+                !is computed following the method of Van Rijn (1993)
+                    
+                if(SandDiameter .le. 100.0e-6) then
+            
+                            PropertyX%WS_Value = - (RelativeDensity - 1) * Gravity  * SandDiameter**2 /     &
+                                                            (18 * WaterCinematicVisc)
+            
+                elseif(SandDiameter .le. 1000.0e-6) then
+            
+                            PropertyX%WS_Value = - 10 * WaterCinematicVisc / SandDiameter * ((1 + 0.01 * (RelativeDensity - 1)   &
+                                                            * Gravity  * SandDiameter**3 / WaterCinematicVisc**2)**0.5 - 1)
+                                            
+                elseif(SandDiameter .gt. 1000.0e-6) then 
+            
+                            PropertyX%WS_Value = - 1.1 * ((RelativeDensity - 1) * Gravity  * SandDiameter)**0.5
+                
+                endif
+            endif
+            
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine SetSandParameters
+!----------------------------------------------------------------------
 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
