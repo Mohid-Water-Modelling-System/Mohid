@@ -286,6 +286,7 @@ Module ModuleMOG2DFormat
         !Arguments---------------------------------------------------------------
         integer,           intent(IN )                  :: EnterDataID, ClientNumber
         integer, optional, intent(OUT)                  :: STAT
+                   
 
         !Local-------------------------------------------------------------------
         integer                                 STAT_CALL
@@ -302,8 +303,8 @@ Module ModuleMOG2DFormat
         Me%ClientNumber = ClientNumber
 
         call SetDate (Me%RefDateTime, Year=2004, Month=1, Day=1, Hour=0, Minute=0, Second=0) 
-
-        call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.0,    &
+    
+        call StartComputeTime(Me%ObjTime, Me%RefDateTime, Me%RefDateTime, Me%RefDateTime, DT = 0.,    &
                                  VariableDT = .false., STAT = STAT_CALL)   
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGrid - ModuleMOG2DFormat - ERR02a'
 
