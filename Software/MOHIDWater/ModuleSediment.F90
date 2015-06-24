@@ -272,9 +272,9 @@ Module ModuleSediment
                                                                
         real(8), dimension(:,:), pointer        :: FluxX                 => null ()
         real(8), dimension(:,:), pointer        :: FluxY                 => null ()
-        real(8), dimension(:,:), pointer        :: FluxToSediment        => null ()
+        real,    dimension(:,:), pointer        :: FluxToSediment        => null ()
         real(8), dimension(:,:), pointer        :: Bedload               => null ()
-        real, dimension(:,:), pointer           :: CriticalShearStress   => null ()
+        real,    dimension(:,:), pointer        :: CriticalShearStress   => null ()
         real, dimension(:,:), pointer           :: NDCriticalShearStress => null ()
         real(8), dimension(:,:), pointer        :: DM                    => null ()
         real(8), dimension(:,:,:), pointer      :: Mass                  => null ()
@@ -289,7 +289,7 @@ Module ModuleSediment
         logical                                 :: Run                  = .false.
         real(8)                                 :: D50                  = FillValueReal
         
-        real, dimension(:,:), pointer           :: CriticalShearStress   => null ()
+        real,    dimension(:,:), pointer        :: CriticalShearStress   => null ()
         real(8), dimension(:,:), pointer        :: DM                    => null ()
         real(8), dimension(:,:,:), pointer      :: Mass                  => null ()
         real(8), dimension(:,:), pointer        :: TopPercentage         => null ()
@@ -2583,7 +2583,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: ObjSedimentID
         integer                                     :: SandClassID, n
         class(T_Sand), pointer                      :: SandClass
-        real(8), dimension(:,:),pointer             :: CriticalShearStress
+        real, dimension(:,:),pointer                :: CriticalShearStress
         integer, optional, intent(OUT)              :: STAT
 
         !External--------------------------------------------------------------
@@ -4114,7 +4114,8 @@ do1:    do n=1,Me%NumberOfClasses
             !
             !if (k == WKUB) then
             !
-            !    Me%CohesiveClass%Porosity(i,j,WKUB) = (Me%CohesiveClass%Porosity(i,j,WKUB) * (Me%CohesiveClass%Mass(i, j) - Me%CohesiveClass%DM(i, j))      &
+            !    Me%CohesiveClass%Porosity(i,j,WKUB) = (Me%CohesiveClass%Porosity(i,j,WKUB) * 
+            !                                          (Me%CohesiveClass%Mass(i, j) - Me%CohesiveClass%DM(i, j))      &
             !                                + Me%MaxPorosityCohesive * Me%CohesiveClass%DM(i, j)) / Me%CohesiveClass%Mass(i, j)
             !endif
         

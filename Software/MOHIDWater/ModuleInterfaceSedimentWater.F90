@@ -1360,7 +1360,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
     subroutine ConstructSedimentTransport
 
         !External--------------------------------------------------------------
-        integer                             :: STAT_CALL, iflag
+        integer                             :: STAT_CALL
 
         !Local-----------------------------------------------------------------
 
@@ -6768,9 +6768,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: i, j, STAT_CALL
         type(T_Property), pointer               :: PropertyX
         real(8), dimension(:,:,:),pointer       :: SandMass
-        real(8), dimension(:,:),pointer         :: CriticalShearStress
+        real, dimension(:,:),pointer            :: CriticalShearStress
         real                                    :: MaximumFlux
-        integer                                 :: CHUNK
 
         !Begin-----------------------------------------------------------------
         
