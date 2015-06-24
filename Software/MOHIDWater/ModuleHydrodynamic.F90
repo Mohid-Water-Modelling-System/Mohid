@@ -758,12 +758,14 @@ Module ModuleHydrodynamic
         real, dimension (:, :, :), pointer :: PrevisionalQ    => null()
         real, dimension (:, :, :), pointer :: CCoef           => null()
         real, dimension (:, :, :), pointer :: GCoef           => null()
-        logical                            :: ON = .false.
-        real                               :: ThetaUV  = null_real 
-        real                               :: Residual = 1.e-6
-        logical                            :: NormalizedResidual = .false.
-        real                               :: alphaLU = 0.5
-        integer                            :: MaxIt = 500
+        logical                            :: ON                    = .false.
+        real                               :: Residual              = 1.e-6
+        logical                            :: NormalizedResidual    = .false.
+        real                               :: alphaLU               = 0.5
+        integer                            :: MaxIt                 = 500
+        logical                            :: PressureCorrection    = .false.
+        logical                            :: SurfBoundHydrostatic  = .false.
+        !logical                            :: SZZGrad               = .false.        
     end type T_NonHydrostatic
 
     private :: T_WaterLevel
@@ -2213,7 +2215,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !This must be called before initial_geometry. Elevation is needed.
         call ConstructHydrodynamicProperties
         
-        if (.not. Me%ComputeOptions%Continuous) call ReadInitialImposedSolution 
+        if (.not. Me%ComputeOptions%Continuous) then
+            call ReadInitialImposedSolution 
+        endif            
 
         !Guillaume
         if (Me%ComputeOptions%Evolution == Vertical1D_) then
@@ -2225,9 +2229,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call Generic4thDimension
     
-
-        call Initial_Geometry
-
+        if (Me%ComputeOptions%Continuous) then
+            call Initial_Geometry
+        endif
 
         call Construct_Sub_Modules (DischargesID, AssimilationID) 
 
@@ -2427,6 +2431,16 @@ cd11:   if (Me%ComputeOptions%Recording) then
                                        
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR30'
             
+            if (Me%WaterLevel%ID%SolutionFromFile .and.                                 &
+                Me%ComputeOptions%Evolution /= ImposedSolution_) then
+                
+                write(*,*) "Water level input field can not change in time"
+                write(*,*) "must be FILE_IN_TIME : None"
+                stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR65'
+                
+            endif
+            
+            
             Me%WaterLevel%New (:,:) = Me%WaterLevel%New (:,:) / Me%OutPut%WaterLevelUnits 
             
             !Gets Bathymetry
@@ -2453,7 +2467,7 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
             call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR60'
                   
-            if(.not. Me%WaterLevel%ID%SolutionFromFile)then
+            if(.not. Me%WaterLevel%ID%SolutionFromFile) then
                 
                 do  j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do  i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -2575,6 +2589,15 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR180'
             
+            if (Me%Velocity%Horizontal%U%ID%SolutionFromFile .and.                      &
+                Me%ComputeOptions%Evolution /= ImposedSolution_) then
+                
+                write(*,*) "Velocity U input field can not change in time"
+                write(*,*) "must be FILE_IN_TIME : None"
+                stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR185'
+                
+            endif            
+            
             RotateX = .true.
 
             if (Me%Velocity%Horizontal%U%InTypeZUV == TypeZ_) then
@@ -2686,6 +2709,15 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
                                        ClientID             = ClientNumber,                     &            
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR260'
+            
+            if (Me%Velocity%Horizontal%V%ID%SolutionFromFile .and.                      &
+                Me%ComputeOptions%Evolution /= ImposedSolution_) then
+                
+                write(*,*) "Velocity V input field can not change in time"
+                write(*,*) "must be FILE_IN_TIME : None"
+                stop 'ReadInitialImposedSolution - ModuleHydrodynamic - ERR265'
+                
+            endif                
             
             RotateY = .true.
 
@@ -6843,7 +6875,29 @@ cd21:   if (Baroclinic) then
         if((Me%NonHydroStatic%AlphaLU<0.).or.(Me%NonHydroStatic%AlphaLU>1.0)) then
             Me%NonHydroStatic%AlphaLU = 0.5
         endif
+        
 
+        call GetData(Me%NonHydroStatic%PressureCorrection,                              & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'PRESSURE_CORRECTION',                                &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1082')        
+
+        call GetData(Me%NonHydroStatic%SurfBoundHydrostatic,                            & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'SURFACE_BOUNDARY_HYDROSTATIC',                       &
+                     Default    = .true.,                                               &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1083')        
 
         call GetData(Me%ComputeOptions%Vertical_AxiSymmetric_Model,            & 
                      Me%ObjEnterData, iflag,                                   &
@@ -20289,11 +20343,11 @@ cd1:    if (Evolution == Solve_Equations_) then
             call AssociateDirectionX
             call Bottom_Boundary
             call Explicit_Forces    
-            call Compute_Velocity       
+            call Compute_Velocity(PressureBackwardInTime = .true.)       
             call AssociateDirectionY 
             call Bottom_Boundary
             call Explicit_Forces    
-            call Compute_Velocity
+            call Compute_Velocity(PressureBackwardInTime = .true.)
 
         else cd1 
             
@@ -20838,23 +20892,26 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         enddo !do k
         ! !! $OMP END PARALLEL
         
+        !if (Me%NonHydroStatic%PressureCorrection) then
         
-        ! !! $OMP PARALLEL PRIVATE(i,j,k)
-        do k = klb, kub
-        ! !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do j = jlb, jub
-        do i = ilb, iub
-            if(Me%External_Var%ComputeFaces3D_W(i, j, k) == Compute) then
-                ![m/s]          =   [m/s]           + [m^2/s^2] / [m]
-                !TiCoef(i, j, k) =   tiCoef(i, j, k) + (PressureCorrect(i, j, k-1) -          &
-                !                                      PressureCorrect(i     , j    , k))/   &
-                !                                      Me%External_Var%DZZ(i, j, k-1) 
-            endif
-        enddo !do i
-        enddo !do j
-        ! !! $OMP END DO
-        enddo !do k
-        ! !! $OMP END PARALLEL        
+            ! !! $OMP PARALLEL PRIVATE(i,j,k)
+        !    do k = klb, kub
+            ! !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !    do j = jlb, jub
+        !    do i = ilb, iub
+        !        if(Me%External_Var%ComputeFaces3D_W(i, j, k) == Compute) then
+                    ![m/s]          =   [m/s]           + [m^2/s^2] / [m]
+        !            TiCoef(i, j, k) =   tiCoef(i, j, k) + (PressureCorrect(i, j, k-1) -         &
+        !                                                  PressureCorrect(i     , j    , k))/   &
+        !                                                  Me%External_Var%DZZ(i, j, k-1) 
+        !        endif
+        !    enddo !do i
+        !    enddo !do j
+            ! !! $OMP END DO
+        !    enddo !do k
+            ! !! $OMP END PARALLEL        
+            
+        !endif            
         
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "VerticalMomentum")
         
@@ -21340,7 +21397,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         integer                              :: di, dj    ! index change due to calculation direction
         real                                 :: dt        ! time step
         real                                 :: az        ! cell face area in Z direction
-        real(8)                              :: aux       ! auxiliary coefficient 
+        real(8)                              :: aux, Aux1, Aux2       ! auxiliary coefficient 
         real(8)                              :: fluxZ     ! flux in Z-dir for the upper (free surface) cell
         real                                 :: pcl       ! local value for pressure correction
         integer                              :: i, j, k   ! counters
@@ -21350,8 +21407,8 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         
         !External_Var - Grid
         integer, dimension (:,:  ), pointer  :: KFloorZ   ! bottom layer
-        real,    dimension (:,:  ), pointer  :: DUX, DVY, DZX_ZY                 
-        real,    dimension (:,:,:), pointer  :: Area_UV             
+        real,    dimension (:,:  ), pointer  :: DUX, DVY, DZX_ZY, DZY_ZX
+        real,    dimension (:,:,:), pointer  :: Area_UV, DWZ, DUZ_VZ, SZZ
         real(8), dimension (:,:,:), pointer  :: Volume_UV, Volume_W            
                       
         !External_Var - Mapping        
@@ -21364,14 +21421,19 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         real(8), dimension (:,:,:), pointer  :: Fluxes_XY, Fluxes_YX           
         !Velocity
         real,    dimension (:,:,:), pointer  :: Vertical_Cartesian  
-        real,    dimension (:,:,:), pointer  :: UV_New             
+        real,    dimension (:,:,:), pointer  :: UV_New, VU_New
         !Water level       
         real,    dimension (:,:  ), pointer  :: WaterLevel_Old     
         real,    dimension (:,:  ), pointer  :: WaterLevel_New     
         !non-hydrostatic
-        real,    dimension (:,:,:), pointer  :: PressureCorrect  
+        real,    dimension (:,:,:), pointer  :: PressureCorrect
+        real,    dimension (:,:  ), pointer  :: VerticalSurfLayerOld  
+        
+        logical  , save                      :: FirstTime = .true.
+        real                                 :: SZZaux, pcf
         
         !Begin----------------------------------------------------------------------
+ 
         
         !----Shorten variables names
         w => Me%NonHydroStatic%CCoef
@@ -21397,6 +21459,11 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         Volume_UV           => Me%External_Var%Volume_UV
         Volume_W            => Me%External_Var%Volume_W        
         DZX_ZY              => Me%External_Var%DZX_ZY
+        DZY_ZX              => Me%External_Var%DZY_ZX
+        DUZ_VZ              => Me%External_Var%DUZ_VZ        
+        DWZ                 => Me%External_Var%DWZ        
+        SZZ                 => Me%External_Var%SZZ
+        
         
         !External_Var - Mapping        
         ComputeFaces3D_UV   => Me%External_Var%ComputeFaces3D_UV
@@ -21411,6 +21478,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         !Velocity
         Vertical_Cartesian  => Me%Velocity%Vertical%Cartesian
         UV_New              => Me%Velocity%Horizontal%UV%New
+        VU_New              => Me%Velocity%Horizontal%VU%New        
         
         !Water level        
         WaterLevel_Old      => Me%WaterLevel%Old
@@ -21420,6 +21488,14 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         !Numerics        
         di = Me%Direction%di
         dj = Me%Direction%dj
+        
+       
+        if (FirstTime) then
+            FirstTime = .false.
+            allocate(VerticalSurfLayerOld(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            VerticalSurfLayerOld(:,:) = 0.
+            !(WaterLevel_New(:,:) - WaterLevel_Old(:,:)) / DT
+        endif        
                                                                   
 
         if (Me%Relaxation%Force) then        
@@ -21458,67 +21534,108 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         !--------Calculate z-area of cell
             az = DUX(i,j) * DVY(i,j)
             do k = KLB, KUB
-                if (OpenPoints3D(i, j, k) /= OpenPoint) then !cell must not be calculated
-                    p(i, j, k)  = 1.0
-                    q(i, j ,k ) = 0.0 !pc(i, j, k)
-                    cycle
-                endif
-        !-------------Fluxes in the implicit direction
-                if (ComputeFaces3D_UV(i, j, k) == Compute) then
-                    ![s*m] = [s*m^4/m^3]
-                    aux = dt * Area_UV(i, j, k) ** 2 / Volume_UV(i, j, k)
-                    
-                    !if (associated(DecayTimeUV)) then
-                    !    if (DecayTimeUV(i,j,k)< 1000) aux = aux*0.1
-                    !endif 
-                    
-                    p(i     , j     , k) = p(i     , j     , k) + aux
-                    s(i     , j     , k) = s(i     , j     , k) - aux
-                    ![m3/s]              =  [m3/s] + [m3/s]
-                    q(i     , j     , k) = q(i     , j     , k) + Fluxes_XY(i, j, k)
-                    p(i - di, j - dj, k) = p(i - di, j - dj, k) + aux
-                    n(i - di, j - dj, k) = n(i - di, j - dj, k) - aux
-                    q(i - di, j - dj, k) = q(i - di, j - dj, k) - Fluxes_XY(i, j, k)
-                endif
-        !-------------Fluxes in the explicit direction
-                if (ComputeFaces3D_VU(i, j, k) == Compute) then
-                    q(i     , j     , k) = q(i     , j     , k) + Fluxes_YX(i, j, k)
-                    q(i - dj, j - di, k) = q(i - dj, j - di, k) - Fluxes_YX(i, j, k) !note here di and dj are switched
-                endif
-        !------------Fluxes in Z direction
-                if (ComputeFaces3D_W (i, j, k) == Compute) then
-                
-                    ![s*m]        = ![s] * [m^4] / [m^3]
-                    aux            = dt * az ** 2 / Volume_W(i, j, k)
+i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be calculated
 
-                    if (associated(DecayTimeW)) then
-                        if (DecayTimeW(i,j,k)< 1000) aux = 0.01 * aux
-                    endif                     
-                    
-                    ![m3/s]        = ![m^2] * [m/s]
-                    fluxZ          = az * Vertical_Cartesian(i, j, k)
+            !-------------Fluxes in the implicit direction
+                    if (ComputeFaces3D_UV(i, j, k) == Compute) then
+                        ![s*m] = [s*m^4/m^3]
+                        aux = dt * Area_UV(i, j, k) ** 2 / Volume_UV(i, j, k)
 
-                    p(i, j, k) = p(i, j, k    ) +  aux
-                    w(i, j, k) = w(i, j, k    ) -  aux
-                    ![m3/s]    = [m3/s] + []*[m3/s] + [ ]* [m^2] * [m/s]
-                    q(i, j, k) = q(i, j, k    ) + fluxZ 
-
-                    p(i, j, k - 1) = p(i, j, k - 1) + aux
-                    e(i, j, k - 1) = e(i, j, k - 1) - aux
-                    q(i, j, k - 1) = q(i, j, k - 1) - fluxZ
-
-        !----------------Free-Surface Layer - boundary condition (pressure correction = 0)
-                    if (k == KUB) then
-                        ![m3/s]    = [m3/s]         + [m]/[s]*[m^2] 
-                        q(i, j, k) = q(i, j, k    ) + (WaterLevel_Old(i, j) - WaterLevel_New(i, j)) / dt * az
-                        ![s*m]     = [s*m]          + [m^2]/[m/s^2]/[s] 
-                        p(i, j, k) = p(i, j, k    ) + az / Gravity / dt
+                        if (k == KUB .and. .not. Me%NonHydroStatic%SurfBoundHydrostatic) then
+                            ![s*m]  = [s*m] * [m)/[m]
+                            SZZaux = - SZZ(i, j, k  ) + SZZ(i - di, j - dj, k  )
+                            SZZaux = - SZZ(i, j, k-1) + SZZ(i - di, j - dj, k-1) + SZZaux
+                            aux1 = aux * 0.5 *  SZZaux/ DUZ_VZ(i, j, k) 
+                            aux  = aux  * 0.5                            
+                            aux1 = aux1 * 0.5    
+                        else
+                            aux1 = 0.                            
+                        endif                            
+                        
+                        ![s*m] 
+                        p(i     , j     , k) = p(i     , j     , k) + aux + aux1
+                        s(i     , j     , k) = s(i     , j     , k) - aux + aux1
+                        ![m3/s]              =  [m3/s] + [m3/s]
+                        q(i     , j     , k) = q(i     , j     , k) + Fluxes_XY(i, j, k)
+                        
+                        p(i - di, j - dj, k) = p(i - di, j - dj, k) + aux - aux1
+                        n(i - di, j - dj, k) = n(i - di, j - dj, k) - aux - aux1
+                        q(i - di, j - dj, k) = q(i - di, j - dj, k) - Fluxes_XY(i, j, k)
+                    endif
+            !-------------Fluxes in the explicit direction
+                    if (ComputeFaces3D_VU(i, j, k) == Compute) then
+                        q(i     , j     , k) = q(i     , j     , k) + Fluxes_YX(i, j, k)
+                        q(i - dj, j - di, k) = q(i - dj, j - di, k) - Fluxes_YX(i, j, k) !note here di and dj are switched
                     endif
 
-                endif
+                    !------------Fluxes in Z direction
+
+                    ![s*m]        = ![s] * [m^4] / [m^3]
+                    aux            = dt * az ** 2 / Volume_W(i, j, k)                    
+                    
+                    if (ComputeFaces3D_W (i, j, k) == Compute) then
+                    
+                        if (associated(DecayTimeW)) then
+                            if (DecayTimeW(i,j,k)< 1000) aux = 0.01 * aux
+                        endif                     
+                        
+                        ![m3/s]        = ![m^2] * [m/s]
+                        fluxZ          = az * Vertical_Cartesian(i, j, k)
+
+                        p(i, j, k) = p(i, j, k    ) +  aux
+                        w(i, j, k) = w(i, j, k    ) -  aux
+                        ![m3/s]    = [m3/s] + []*[m3/s] + [ ]* [m^2] * [m/s]
+                        q(i, j, k) = q(i, j, k    ) + fluxZ 
+
+                        p(i, j, k - 1) = p(i, j, k - 1) + aux
+                        e(i, j, k - 1) = e(i, j, k - 1) - aux
+                        q(i, j, k - 1) = q(i, j, k - 1) - fluxZ
+                         
+                    endif
+
+            !----------------Free-Surface Layer - boundary condition (pressure correction = 0)
+                    if (k == KUB) then
+                       
+                        if (Me%NonHydroStatic%SurfBoundHydrostatic) then
+                            ![m3/s]    = [m3/s]         + [m]/[s]*[m^2] 
+                            q(i, j, k) = q(i, j, k    ) + (WaterLevel_Old(i, j) - WaterLevel_New(i, j)) / dt * az
+                            ![s*m]     = [s*m]          + [m^2]/[m/s^2]/[s] 
+                            p(i, j, k) = p(i, j, k    ) + az / Gravity / dt
+                        else                            
+                            ![s*m]     = [s*m]          + [m/s] * [m^2] 
+                            q(i, j, k) = q(i, j, k    ) - VerticalSurfLayerOld(i, j) * az
+
+                            ![s*m]     = [s*m]          + [m^2] * [s] / [m] 
+                            p(i, j, k) = p(i, j, k    ) + az * 2. * dt / DWZ(i, j, k)
+                        endif
+                                                    
+                    endif                                            
+                    
+                endif i1                    
             enddo ! do k
             enddo ! do j
         enddo ! do i
+        
+        !
+        !if (Me%NonHydroStatic%SZZGrad) then
+        !    call SZZGradients 
+        !endif                        
+        
+        !----In case of no implicit correction the correction is assumed equal to zero
+        do i = ILB-1, IUB+1
+        do j = JLB-1, JUB+1
+        do k = KLB-1, KUB+1
+            if (p(i,j,k) == 0. .or. OpenPoints3D(i, j, k) /= OpenPoint) then 
+                p(i,j,k) = 1.
+                n(i,j,k) = 0.
+                s(i,j,k) = 0.                
+                e(i,j,k) = 0.                
+                w(i,j,k) = 0.
+                q(i,j,k) = 0.
+            endif          
+        enddo ! do k
+        enddo ! do j
+        enddo ! do i        
         !
         !----Boundary Condition - Before Solving System
 
@@ -21531,15 +21648,22 @@ cd2:        if      (Num_Discretization == Abbott    ) then
 !            Similar THOMAS_2D_DDecomp
 !            call BICGSTAB2D_DDecomp
         else
+        
+            if (KUB > 1) then        
 
-            call BICGSTAB2D(pc, p, s, n, w, e, q,               &
-                              ilb, iub, jlb, jub, klb, kub,     &
-                              dj,                               &
-                              Me%NonHydroStatic%MaxIt,          &
-                              Me%NonHydroStatic%Residual,       &
-                              OpenPoints3D,                     &
-                              Me%NonHydroStatic%AlphaLU,        &
-                              Me%NonHydroStatic%NormalizedResidual)
+                call BICGSTAB2D(pc, p, s, n, w, e, q,               &
+                                  ilb, iub, jlb, jub, klb, kub,     &
+                                  dj,                               &
+                                  Me%NonHydroStatic%MaxIt,          &
+                                  Me%NonHydroStatic%Residual,       &
+                                  OpenPoints3D,                     &
+                                  Me%NonHydroStatic%AlphaLU,        &
+                                  Me%NonHydroStatic%NormalizedResidual)
+            else
+            
+               call THOMAS_2D_NonHydroCorrection(p, s, n, q, pc)
+            
+            endif
             
         endif
         
@@ -21556,27 +21680,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "NonHydroStaticCorrection")
         
-        ! !! $OMP PARALLEL PRIVATE(i,j,k,az,pc1)
-        ! !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do j = JLB, JUB
-        do i = ILB, IUB
-            ![m^2] = [m]*[m]
-            az = DUX(i,j) * DVY(i,j)
-        !--------Correct water level
-!            if((.not.Me%ComputeOptions%Compute_Tide).or. &
-!              (Me%External_Var%BoundaryPoints(i, j)/=Boundary)) then
 
-            if(OpenPoints3D  (i, j, KUB) == OpenPoint) then 
-                ![m]= [m^2/s^2]     / [m/s^2]
-                pcl = pc(i, j, KUB) / Gravity
-                !if(abs(pcl)<AllmostZero) pcl = 0. ! only correct after level if pc is something
-                ![m]                   = [m]´+ [m]
-                WaterLevel_New(i,j) = WaterLevel_New(i,j) + pcl
-            end if
-        enddo !do i
-        enddo !do j
-        ! !!$OMP END DO
-        ! !!$OMP END PARALLEL
         
 
         ! !! $OMP PARALLEL PRIVATE(i,j,k,az,pc1)
@@ -21587,13 +21691,39 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             az = DUX(i,j) * DVY(i,j)
             do k = KLB,KUB
         !------------Correct NH pressure correction (itself!)
-                PressureCorrect(i,j,k) = pc(i, j, k) - pc(i, j, KUB) 
+                if (Me%NonHydroStatic%SurfBoundHydrostatic) then        
+                    PressureCorrect(i,j,k) = pc(i, j, k)  - pc(i, j, KUB) 
+                else
+                    PressureCorrect(i,j,k) = pc(i, j, k)
+                endif                    
             enddo !do k             
         enddo !do i
         enddo !do j
         ! !!$OMP END DO
         ! !!$OMP END PARALLEL
 
+
+        if (Me%NonHydroStatic%SurfBoundHydrostatic) then        
+
+            ! !! $OMP PARALLEL PRIVATE(i,j,k,az,pc1)
+            ! !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                ![m^2] = [m]*[m]
+                az = DUX(i,j) * DVY(i,j)
+            !--------Correct water level
+                if(OpenPoints3D  (i, j, KUB) == OpenPoint) then 
+                    ![m]= [m^2/s^2]     / [m/s^2]
+                    pcl = pc(i, j, KUB) / Gravity
+                    ![m]                   = [m]´+ [m]
+                    WaterLevel_New(i,j) = WaterLevel_New(i,j) + pcl
+                end if
+            enddo !do i
+            enddo !do j
+            ! !!$OMP END DO
+            ! !!$OMP END PARALLEL
+            
+        endif            
 
         ! !!$OMP PARALLEL PRIVATE(i,j,k,pcl)
         ! !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -21602,18 +21732,55 @@ cd2:        if      (Num_Discretization == Abbott    ) then
             do k = KLB,KUB
         !------------Correct UV - only the direction taken implicit is corrected
                 if(ComputeFaces3D_UV(i,j,k) == Compute) then 
+                    
                     pcl = pc(i - di, j - dj, k) - pc(i     , j     , k)
 
-                    !if(abs(pcl)<AllmostZero) pcl = 0. ! only correct velocity if grdient important          
-                    ![m/s]        =  [m/s] + [s]*[m^2/s^2]/[m]
-                    UV_New(i,j,k) =  UV_New(i,j,k) + dt * pcl / DZX_ZY(i, j)
+                    ![m/s]        = [s] * [m^2/^s] / [m] 
+                    Aux           =  dt * pcl / DZX_ZY(i-di, j-dj) 
+            
+                   
+                    
+                    if (.not. Me%NonHydroStatic%SurfBoundHydrostatic) then
+                        if (k == KUB) then
+                            pcf =  (pc(i - di, j - dj, k) + pc(i, j, k)) / 2.
+                            ![m/s] = [m/s] + [s] * [m^2/s^2] / [m] * [m/m]
+                            SZZaux = (- SZZ(i - di, j - dj, k)   + SZZ(i, j, k))
+                            SZZaux = (- SZZ(i - di, j - dj, k-1) + SZZ(i, j, k-1)) + SZZaux                    
+                            
+                            Aux =  Aux + dt * pcf / DUZ_VZ(i, j, k) *  SZZaux / DZX_ZY(i-di,j-dj)                         
+
+                            Aux  = Aux * 0.5
+                        endif                       
+                    endif
+                    
+                    ![m/s]        =  [m/s] + [m/s]
+                    UV_New(i,j,k) =  UV_New(i,j,k) + Aux
+            
+                    if (.not. Me%NonHydroStatic%SurfBoundHydrostatic) then
+                        ![m]                     = [m/s] * [s] * [m^2] / [m^2]
+                        Aux1                      = Aux * dt * Area_UV(i,j,k) / (DUX(i   ,j   ) * DVY(i   ,j   ))
+                        Aux2                      = Aux * dt * Area_UV(i,j,k) / (DUX(i-di,j-dj) * DVY(i-di,j-dj))
+                        WaterLevel_New(i   ,j   ) = WaterLevel_New(i   ,j   ) + Aux1 
+                        WaterLevel_New(i-di,j-dj) = WaterLevel_New(i-di,j-dj) - Aux2
+                    endif                    
                 endif
             enddo !do k             
         enddo !do i
         enddo !do j
         ! !! $OMP END DO
         ! !! $OMP END PARALLEL
-        
+
+        if (.not. Me%NonHydroStatic%SurfBoundHydrostatic) then
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if(OpenPoints3D(i,j,KUB) == OpenPoint) then 
+                    VerticalSurfLayerOld(i, j) = VerticalSurfLayerOld(i, j) + 2 * dt * pc(i, j, KUB)/DWZ(i, j, KUB)
+                    !VerticalSurfLayerOld(i, j) = (WaterLevel_New(i,j)-WaterLevel_Old(i,j))/dt
+                endif
+            enddo !do i
+            enddo !do j        
+        endif
+                
         if (Me%Relaxation%Force) then        
 
             call UnGetAssimilation (Me%ObjAssimilation, DecayTimeW,  status)
@@ -21628,7 +21795,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         nullify (w, s, p, n, e, q, pc)
         
         !External_Var - Grid
-        nullify (DUX, DVY, Area_UV, Volume_UV, Volume_W, DZX_ZY, KFloorZ)
+        nullify (DUX, DVY, Area_UV, Volume_UV, Volume_W, DZX_ZY, DZY_ZX, KFloorZ, DUZ_VZ, DWZ, SZZ)
         
         !External_Var - Mapping        
         nullify (ComputeFaces3D_UV, ComputeFaces3D_VU, OpenPoints3D, ComputeFaces3D_W)
@@ -21636,7 +21803,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         !Fluxes
         nullify (Fluxes_XY, Fluxes_YX)
         !Velocity
-        nullify (Vertical_Cartesian, UV_New)
+        nullify (Vertical_Cartesian, UV_New, VU_New)
         !Water level        
         nullify (WaterLevel_Old, WaterLevel_New)
         !Non-hydrostatic
@@ -21644,6 +21811,311 @@ cd2:        if      (Num_Discretization == Abbott    ) then
 
     End Subroutine NonHydroStaticCorrection
     !End------------------------------------------------------------
+
+    Subroutine SZZGradients
+        !Local----------------------------------------------------------------------
+        real,    dimension (:,:,:), pointer  :: s,n,w,e   ! coefficient matrix (non-diagonals elements)
+        real(8), dimension (:,:,:), pointer  :: p         ! coefficient matrix (diagonal elements)
+        real,    dimension (:,:,:), pointer  :: q         ! independdent term
+        integer                              :: di, dj    ! index change due to calculation direction
+        real                                 :: dt        ! time step
+        real                                 :: az        ! cell face area in Z direction
+        integer                              :: i, j, k   ! counters
+        integer                              :: ILB, IUB, JLB, JUB, KLB, KUB !bounds
+        integer                              :: status 
+        ! integer                              :: CHUNK
+        
+        !External_Var - Grid
+        integer, dimension (:,:  ), pointer  :: KFloorZ   ! bottom layer
+        real,    dimension (:,:  ), pointer  :: DUX, DVY, DZX_ZY, DZX, DZY                 
+        real,    dimension (:,:,:), pointer  :: SZZ, DWZ        
+                      
+        !External_Var - Mapping        
+        integer, dimension (:,:,:), pointer  :: OpenPoints3D               
+                
+        !Fluxes
+        !Velocity
+        real,    dimension (:,:,:), pointer  :: UV_New, U_New, V_New             
+        !Water level       
+        real,    dimension (:,:  ), pointer  :: WaterLevel_New     
+        !Aux Variables
+        integer                              :: kbottom, OpL, OpU, Op1, Op2, Op3, Op4
+        real(8)                              :: DWZt, Uface, Uup, Vface, Vup, FL, FU, Ulow, Vlow
+        real(8)                              :: dzdx1, dzdx2, dzdx, dzdy1, dzdy2, dzdy, dzdxy1, dzdxy2, azdt
+        real(8)                              :: n1, n2, n3
+        
+        !Begin----------------------------------------------------------------------
+        
+        !----Shorten variables names
+        w => Me%NonHydroStatic%CCoef
+        s => Me%Coef%D3%D
+        p => Me%Coef%D3%E
+        n => Me%Coef%D3%F
+        e => Me%NonHydroStatic%GCoef
+        q => Me%Coef%D3%TI
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+        dt = Me%WaterLevel%DT
+        
+        !External_Var - Grid
+        KFloorZ             => Me%External_Var%KFloor_Z
+        DUX                 => Me%External_Var%DUX
+        DVY                 => Me%External_Var%DVY
+        DZX_ZY              => Me%External_Var%DZX_ZY
+        DZX                 => Me%External_Var%DZX        
+        DZY                 => Me%External_Var%DZY        
+        SZZ                 => Me%External_Var%SZZ
+        DWZ                 => Me%External_Var%DWZ
+        
+        !External_Var - Mapping        
+        OpenPoints3D        => Me%External_Var%OpenPoints3D           
+                
+        UV_New              => Me%Velocity%Horizontal%UV%New
+        U_New               => Me%Velocity%Horizontal%U%New        
+        V_New               => Me%Velocity%Horizontal%V%New
+        
+        !Water level        
+        WaterLevel_New      => Me%WaterLevel%New
+        !non-hydrostatic
+        !Numerics        
+        di = Me%Direction%di
+        dj = Me%Direction%dj
+                                                                  
+
+
+        !----Calculate matrix coefficient and independent term of the system
+        do i = ILB, IUB
+        do j = JLB, JUB
+        !--------Calculate z-area of cell
+            
+            az      = DUX(i,j) * DVY(i,j)
+            Kbottom = KFloorZ(i, j)
+            
+            azdt    = az * dt
+
+            do k = KLB-1, KUB
+                if (OpenPoints3D(i, j, k) == OpenPoint .or. OpenPoints3D(i, j, k+1) == OpenPoint) then !cell must not be calculated
+
+                    !dzdx
+                    if (OpenPoints3D(i,j-1,k) == 1 .or. OpenPoints3D(i,j-1,k+1)==1) then 
+                        Op1 = 1 
+                    else 
+                        Op1 = 0 
+                    endif
+                    if (OpenPoints3D(i,j+1,k) == 1 .or. OpenPoints3D(i,j+1,k+1)==1) then 
+                        Op2 = 1 
+                    else 
+                        Op2 = 0 
+                    endif
+                    
+
+                    if ((Op1+Op2)>0) then
+                        !if (k==KUB) then
+                        !    n1 = WaterLevel_New(i,j-1)
+                        !    n2 = WaterLevel_New(i,j  )
+                        !    n3 = WaterLevel_New(i,j+1)
+                        !else
+                            n1 = - SZZ(i,j-1,k)
+                            n2 = - SZZ(i,j  ,k)
+                            n3 = - SZZ(i,j+1,k)
+                        !endif
+
+                        dzdx1 = (n2 - n1)/DZX(i,j-1)
+                        dzdx2 = (n3 - n2)/DZX(i,j  )
+                        dzdx  = (dzdx1*Op1 + dzdx2*Op2)/(Op1+Op2)
+                    else
+                        dzdx1 = 0.
+                        dzdx2 = 0.                        
+                        dzdx  = 0.                        
+                    endif                        
+                    
+                    !dzdy
+                    if (OpenPoints3D(i-1,j,k) == 1 .or. OpenPoints3D(i-1,j,k+1)==1) then 
+                        Op3 = 1 
+                    else 
+                        Op3 = 0 
+                    endif
+                    if (OpenPoints3D(i+1,j,k) == 1 .or. OpenPoints3D(i+1,j,k+1)==1) then 
+                        Op4 = 1
+                    else 
+                        Op4 = 0 
+                    
+                    endif
+                    
+                    if ((Op3+Op4)>0) then
+                        if (k==KUB) then
+                            n1 = WaterLevel_New(i-1,j)
+                            n2 = WaterLevel_New(i,  j)
+                            n3 = WaterLevel_New(i+1,j)
+                        else
+                            n1 = - SZZ(i-1,j,k)
+                            n2 = - SZZ(i  ,j,k)
+                            n3 = - SZZ(i+1,j,k)
+                        endif
+                        
+                        dzdy1   = (n2 - n1)/DZY(i-1,j)
+                        dzdy2   = (n3 - n2)/DZY(i  ,j)
+                        dzdy    = (dzdy1*Op3 + dzdy2*Op4)/(Op3+Op4)
+                        
+                    else
+                        dzdy1   = 0.
+                        dzdy2   = 0.
+                        dzdy    = 0.
+                    endif
+                    
+                    !u* and v* discretization
+                    Uup     = (U_new(i,j,k+1) + U_new(i,j+1,k+1)) / 2.
+                    ULow    = (U_new(i,j,k  ) + U_new(i,j+1,k  )) / 2.
+                    Vup     = (V_new(i,j,k+1) + V_new(i+1,j,k+1)) / 2.
+                    VLow    = (V_new(i,j,k  ) + V_new(i+1,j,k  )) / 2.
+                    
+                    OpU     = OpenPoints3D(i,j,k+1)
+                    OpL     = OpenPoints3D(i,j,k  )
+
+                    If (OpU == 1 .and. OpL == 1) then
+                        DWZt    = (DWZ(i,j,k+1)+ DWZ(i,j,k))
+                        Uface   = (DWZ(i,j,k+1)*ULow+ DWZ(i,j,k)*Uup)/DWZt
+                        Vface   = (DWZ(i,j,k+1)*VLow+ DWZ(i,j,k)*Vup)/DWZt
+                        FL      = 2 * DWZ(i,j,k+1) / DWZt
+                        FU      = 2 * DWZ(i,j,k  ) / DWZt
+                    else if (OpU==1) then
+                        !Surface
+                        Uface = Uup; Vface = Vup; FL = 0; FU = 1;
+                    else if (OpL==1) then
+                        !bottom
+                        Uface = Ulow; Vface = Vlow; FL = 1; FU = 0;
+                    endif
+                    
+                    !U explicit contribution to FluxZ
+                    ![m3/s]    = [m3/s] + [m^2] * [m/s] * [ ]
+                    q(i,j,k+1) = q(i,j,k+1) + az * (Uface*dzdx) * FU 
+                    q(i,j,k  ) = q(i,j,k  ) - az * (Uface*dzdx) * FL 
+                    
+                    !V explicit contribution to FluxZ
+                    ![m3/s]    = [m3/s] + [m^2] * [m/s] * [ ]                    
+                    q(i,j,k+1) = q(i,j,k+1) + az * (Vface*dzdy) * FU 
+                    q(i,j,k  ) = q(i,j,k  ) - az * (Vface*dzdy) * FL 
+                    
+                endif
+            enddo ! do k
+            enddo ! do j
+        enddo ! do i
+        
+!        if (KUB == 1) then
+!            if (dj == 1) then
+!                dzdxy1 = dzdx1
+!                dzdxy2 = dzdx2
+!                dzdxy  = dzdx
+!            else
+!                dzdxy1 = dzdy1
+!                dzdxy2 = dzdy2
+!                dzdxy  = dzdy                        
+!            endif
+                    
+!                    if (k==KUB) then
+!                        if (OpenPoints3D(i-di,j-dj,k) == 1) then                   
+!                            s(i,j,KUB)     = s(i,j,KUB)     -  azdt * dzdxy1 / DZX_ZY(i-di,j-dj) / 2.
+!                            p(i,j,KUB)     = p(i,j,KUB)     +  azdt * dzdxy1 / DZX_ZY(i-di,j-dj) / 2.
+!                        endif
+!                        if (OpenPoints3D(i+di,j+dj,k) == 1) then                                           
+!                            p(i,j,KUB)     = p(i,j,KUB)     -  azdt * dzdxy2 / DZX_ZY(i,j) / 2.
+!                            n(i,j,KUB)     = n(i,j,KUB)     +  azdt * dzdxy2 / DZX_ZY(i,j) / 2.
+!                        endif                            
+!                    endif
+                    
+!                    if (k == kbottom-1) then
+!                        if (OpenPoints3D(i-di,j-dj,kbottom) == 1) then  
+!                           ![                 
+                            !s(i,j,kbottom) = s(i,j,kbottom) +  azdt * dzdxy1 / DZX_ZY(i-di,j-dj) / 2.
+                            !p(i,j,kbottom) = p(i,j,kbottom) -  azdt * dzdxy1 / DZX_ZY(i-di,j-dj) / 2.
+!                            p(i,j,kbottom) = p(i,j,kbottom) - azdt * dzdxy / Watercolumn_Z(i,j) / 
+!                        endif                            
+!                        if (OpenPoints3D(i+di,j+dj,kbottom) == 1) then                                                                   
+!                            p(i,j,kbottom) = p(i,j,kbottom) +  azdt * dzdxy2 / DZX_ZY(i,j) / 2.
+!                            n(i,j,kbottom) = n(i,j,kbottom) -  azdt * dzdxy2 / DZX_ZY(i,j) / 2.
+!                        endif                            
+!                    endif
+
+
+        
+        nullify (s, p, n, q,w,e)
+        
+        !External_Var - Grid
+        nullify (DUX, DVY, DZX_ZY, DZX, DZY, KFloorZ, SZZ, DWZ)
+        
+        !External_Var - Mapping        
+        nullify (OpenPoints3D)
+                
+        !Velocity
+        nullify (UV_New, U_New, V_New)
+        !Water level        
+        nullify (WaterLevel_New)
+
+    End Subroutine SZZGradients
+    
+!End------------------------------------------------------------
+
+
+    Subroutine THOMAS_2D_NonHydroCorrection(p, s, n, q, pc)
+        !Arguments------------------------------------------------------------------
+        real,    dimension (:,:,:), pointer  :: s ,n, pc  ! coefficient matrix (non-diagonals elements)
+        real(8), dimension (:,:,:), pointer  :: p         ! coefficient matrix (diagonal elements)
+        real,    dimension (:,:,:), pointer  :: q         ! independdent term
+        
+        !Local----------------------------------------------------------------------
+        real,    dimension (:,:),   pointer  :: s2D ,n2D, pc2D  ! coefficient matrix (non-diagonals elements)
+        real(8), dimension (:,:),   pointer  :: p2D         ! coefficient matrix (diagonal elements)
+        real,    dimension (:,:),   pointer  :: q2D         ! independdent term
+
+        integer                              :: di, dj    ! index change due to calculation direction
+        integer                              :: ILB, IUB, JLB, JUB, KLB, KUB !bounds
+        integer                              :: IJmin, IJmax, JImin, JImax
+        
+        !Begin----------------------------------------------------------------------
+        
+        !----Shorten variables names
+        
+        allocate(s2D (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB),                 &
+                 n2D (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB),                 &
+                 pc2D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB),                 &
+                 p2D (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB),                 &
+                 q2D (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        di = Me%Direction%di
+        dj = Me%Direction%dj
+        
+        s2D (:,:) = s (:,:,1)
+        p2D (:,:) = p (:,:,1)        
+        n2D (:,:) = n (:,:,1)
+        q2D (:,:) = q (:,:,1)        
+
+        IJmin = ILB * dj + JLB * di
+        IJmax = IUB * dj + JUB * di
+
+        JImin = ILB * di + JLB * dj
+        JImax = IUB * di + JUB * dj
+
+        call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, s2D, p2D,       &
+                       n2D, q2D, pc2D, Me%VECG_2D, Me%VECW_2D)
+                       
+        pc(:,:,1) = pc2D(:,:)
+                       
+        deallocate(s2D, p2D, n2D, q2D, pc2D)                       
+                                                                  
+    End Subroutine THOMAS_2D_NonHydroCorrection
+    
+    
+    
+    
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !
     ! NonHydroOpenBoundary (null gradient)     
@@ -22378,7 +22850,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         
         call Explicit_Forces  
 
-        call Compute_Velocity 
+        call Compute_Velocity(PressureBackwardInTime = .true.)
         ! Water Flux must be consistent with the water level equation 
         Me%WaterFluxes%New_Old = 0.
 
@@ -22395,7 +22867,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         call Compute_WaterLevel 
         
-        call Compute_Velocity   
+        call Compute_Velocity(PressureBackwardInTime = .false.)
 
         ! Water Flux must be consistent with the water level equation 
         Me%WaterFluxes%New_Old = 1.
@@ -22441,8 +22913,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         call Compute_WaterLevel 
 
-        call Compute_Velocity   
-
+        call Compute_Velocity(PressureBackwardInTime = .false.)   
 
         ! Water Flux must be consistent with the water level equation 
         Me%WaterFluxes%New_Old = 0.5
@@ -22482,13 +22953,15 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Implicit_1DScheme")
         
+        call MaintainDirection
+        
         call Bottom_Boundary    
 
         call Explicit_Forces    
 
         call Compute_WaterLevel 
 
-        call Compute_Velocity   
+        call Compute_Velocity(PressureBackwardInTime = .false.)
 
 
         ! Water Flux must be consistent with the water level equation 
@@ -22538,9 +23011,6 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         endif 
 
-        Me%NonHydrostatic%ThetaUV = 1
-
-
     End Subroutine  ChangeDirection
 
     !End------------------------------------------------------------
@@ -22576,9 +23046,6 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
              call AssociateDirectionY
 
         endif 
-
-        !NonHydrostatic
-        Me%NonHydrostatic%ThetaUV = 0
 
     End Subroutine  MaintainDirection
 
@@ -23115,7 +23582,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
     ! Author: Paulo Chambel (99/6)                                                         !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Subroutine Compute_Velocity 
+    Subroutine Compute_Velocity(PressureBackwardInTime) 
 
         !Variables Categories  
             !Geometry  : WaterLevel_New, DUX_VY, DZX_ZY 
@@ -23131,7 +23598,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
 
         !Arguments------------------------------------------------------------
-
+        logical                             :: PressureBackwardInTime
 
         !Local----------------------------------------------------------------
         real(8), dimension(:,:,:), pointer  :: ECoef_3D
@@ -23178,13 +23645,13 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         !End   - Shorten variables name
 
-        call SetMatrixValue(DCoef_3D,  Me%WorkSize,      0.0       )
-        call SetMatrixValue(ECoef_3D,  Me%WorkSize, dble(1.0)      )
-        call SetMatrixValue(FCoef_3D,  Me%WorkSize,      0.0       )
-        call SetMatrixValue(TICoef_3D, Me%WorkSize, Velocity_UV_Old)
+        call SetMatrixValue(DCoef_3D,  Me%Size,      0.0       )
+        call SetMatrixValue(ECoef_3D,  Me%Size, dble(1.0)      )
+        call SetMatrixValue(FCoef_3D,  Me%Size,      0.0       )
+        call SetMatrixValue(TICoef_3D, Me%Size, Velocity_UV_Old)
 
 
-        call Velocity_ExplicitForces  
+        call Velocity_ExplicitForces(PressureBackwardInTime)  
 
 
         call VelVerticalDiffusionBoundaries 
@@ -38007,7 +38474,7 @@ dok:            do k = kbottom + 1, KUB
     ! Author: Paulo Chambel (99/6)                                                         !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Subroutine Velocity_ExplicitForces
+    Subroutine Velocity_ExplicitForces(PressureBackwardInTime)
 
         !Variables Categories
             !Geometry  : WaterLevel_New, DUX_VY, DZX_ZY
@@ -38021,7 +38488,7 @@ dok:            do k = kbottom + 1, KUB
             !DUX_VY, DZX_ZY, ComputeFaces3D_UV, KFloor_UV, Direction
 
         !Arguments------------------------------------------------------------
-
+        logical                            :: PressureBackwardInTime
 
 
         !Local---------------------------------------------------------------------
@@ -38212,14 +38679,13 @@ dok:            do  k = kbottom, KUB
                     WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
                                                  
 
-                    if (Me%NonHydrostatic%ON) then
+                    if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
                     
                         ![m/s^2]           = [m/s^2]  +     [m^2/s^2] / [m] 
-                        !WaterPressure_Aceleration = WaterPressure_Aceleration +            &
-                        !!                     (1. - Me%NonHydrostatic%ThetaUV) *            &
-                        !                     (PressureCorrect(iSouth, jWest, k) -          &
-                        !                      PressureCorrect(i     , j    , k))/          &
-                        !                      DZX_ZY(iSouth, jWest) 
+                        WaterPressure_Aceleration = WaterPressure_Aceleration +            &
+                                             (PressureCorrect(iSouth, jWest, k) -          &
+                                              PressureCorrect(i     , j    , k))/          &
+                                              DZX_ZY(iSouth, jWest)
                     endif
 
 
@@ -44973,9 +45439,21 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
         !Arguments-------------------------------------------------------------
         
+        !Local-----------------------------------------------------------------
+        logical                             :: BinaryFormatOK
+        !Begin-----------------------------------------------------------------
+        
+        BinaryFormatOK = .false. 
+        
         if      (Me%ComputeOptions%ReadContinuousFormat == Binary_) then
-            call Read_Final_Bin
-        elseif  (Me%ComputeOptions%ReadContinuousFormat == HDF5_  ) then
+            call Read_Final_Bin(BinaryFormatOK)
+            
+            if (.not. BinaryFormatOK) then
+                Me%ComputeOptions%WriteContinuousFormat = HDF5_
+            endif
+        endif 
+                    
+        if  (Me%ComputeOptions%ReadContinuousFormat == HDF5_  .or. .not. BinaryFormatOK) then
             call Read_Final_HDF5
         endif 
         
@@ -44984,11 +45462,11 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
     !--------------------------------------------------------------------------
 
     !Final hydrodynamic properties in binary format                      
-    subroutine Read_Final_Bin
+    subroutine Read_Final_Bin(BinaryFormatOK)
 
         !Arguments-------------------------------------------------------------
 
-         
+        logical                             :: BinaryFormatOK 
 
         !External--------------------------------------------------------------
 
@@ -45040,356 +45518,368 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
              call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR03.')
 
         !Start reading the end file of the previous run 
-        read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
-
-
-        call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
-
-
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
-                                  EndTime = EndTime, STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                          &
-             call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR04.')
+        read(InitialFile,iostat = STAT_CALL) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
         
-        DT_error = EndTimeFile - BeginTime
+i1:     if (STAT_CALL /= SUCCESS_) then
+        
+            call UnitsManager(InitialFile, FileClose, STAT = STAT_CALL)         
 
-        !Avoid rounding erros - Frank 08-2001
-        if (abs(DT_error) >= 0.01) then
+            if (STAT_CALL /= SUCCESS_)                                                          &
+                 call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR03a.')
+                 
+            BinaryFormatOK = .false.
             
-            write(*,*) 'The end time of the previous run is different from the start time of this run'
-            write(*,*) 'Date in the file'
-            write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
-            write(*,*) 'DT_error', DT_error
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR05.')
-
-
-        endif
-
-        read(InitialFile) Previous_Discretization
+        else i1
         
-        if (Previous_Discretization /= Me%ComputeOptions%Num_Discretization) then
-
-            write(*,*) 'previous run time discretization is different from this one'
-
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR06.')
-
-
-        endif
-
-
-        read(InitialFile) Residual
-
-        !Read the last direction computed implicit by the model
-        read(InitialFile) Me%Direction%XY 
+            BinaryFormatOK = .true. 
         
-
-        !Water level
-
-        read(InitialFile) ((Me%WaterLevel%New(i, j), &
-                           i = ILB, IUB), j = JLB, JUB)
-
-        Me%WaterLevel%Old (:,:) = Me%WaterLevel%New(:,:)
+            call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
 
 
-        !Horizontal velocity Old
-        read(InitialFile) (((Me%Velocity%Horizontal%U%Old(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
+                                      EndTime = EndTime, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)                                                          &
+                 call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR04.')
+            
+            DT_error = EndTimeFile - BeginTime
+
+            !Avoid rounding erros - Frank 08-2001
+            if (abs(DT_error) >= 0.01) then
+                
+                write(*,*) 'The end time of the previous run is different from the start time of this run'
+                write(*,*) 'Date in the file'
+                write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
+                write(*,*) 'DT_error', DT_error
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR05.')
 
 
-        read(InitialFile) (((Me%Velocity%Horizontal%V%Old(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            endif
 
-        !Horizontal velocity New
-        read(InitialFile) (((Me%Velocity%Horizontal%U%New(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            read(InitialFile) Previous_Discretization
+            
+            if (Previous_Discretization /= Me%ComputeOptions%Num_Discretization) then
 
-        read(InitialFile) (((Me%Velocity%Horizontal%V%New(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                write(*,*) 'previous run time discretization is different from this one'
 
-
-        !Water fluxes
-        read(InitialFile) (((Me%WaterFluxes%X(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-        read(InitialFile) (((Me%WaterFluxes%Y(i, j, k) , &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-                            
-        read(InitialFile) (((Me%WaterFluxes%Z(i, j, k), &
-                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR06.')
 
 
-        Evolution = Me%ComputeOptions%Evolution
-
-        
-        if (Evolution == Residual_hydrodynamic_ .and. .not. Residual) then
-
-            write(*,*) 'Can not have a residual evolution with out a initial file with residual values'
-                        
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR07.')
+            endif
 
 
-        endif 
+            read(InitialFile) Residual
 
-      
-cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
-   
-            write(*,*)  
-            write(*,*)  
-            write(*,*)  
-            write(*,*) 'Warning: YOU HAVE STOPPED THE RESIDUAL CALCULATION, '                   
-            write(*,*) 'In the run before this one you have compute residual currents, '                   
-            write(*,*) 'In this run you dont want to compute residual currents ? '                   
-            write(*,*) '                        '
-            write(*,*) 'SUBROUTINE Read_Final_Bin - ModuleHydrodynamic. WRN01.'
-            write(*,*)  
-            write(*,*)  
-            write(*,*)  
+            !Read the last direction computed implicit by the model
+            read(InitialFile) Me%Direction%XY 
+            
 
-            allocate (Aux2D         (ILB:IUB, JLB:JUB))
-            allocate (Aux3D         (ILB:IUB, JLB:JUB, KLB:KUB))
-            allocate (Aux3DDouble   (ILB:IUB, JLB:JUB, KLB:KUB))
+            !Water level
 
-            read(InitialFile) Me%Residual%ResidualTime
-
-            !Average water level 
-            read(InitialFile) ((Aux2D(i, j), i = ILB, IUB), j = JLB, JUB)
-
-            !Residual horizontal velocities
-            read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !Residual vertical velocity  
-            read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !Residual Water specific fluxes 
-            read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-
-            deallocate (Aux2D)
-            deallocate (Aux3D)
-            deallocate (Aux3DDouble)
-       
-        else if (Residual .and. Me%ComputeOptions%Residual) then cd1
-
-           
-            read(InitialFile) Me%Residual%ResidualTime
-
-            !Average water level 
-            read(InitialFile) ((Me%Residual%WaterLevel(i, j),               &
+            read(InitialFile) ((Me%WaterLevel%New(i, j), &
                                i = ILB, IUB), j = JLB, JUB)
 
-            !Residual horizontal velocities
-            read(InitialFile) (((Me%Residual%Velocity_U(i, j, k),           &
-                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            read(InitialFile) (((Me%Residual%Velocity_V(i, j, k),           &
+            Me%WaterLevel%Old (:,:) = Me%WaterLevel%New(:,:)
+
+
+            !Horizontal velocity Old
+            read(InitialFile) (((Me%Velocity%Horizontal%U%Old(i, j, k), &
                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
-            !Residual vertical velocity  
-            read(InitialFile) (((Me%Residual%Vertical_Velocity(i, j, k),    &
+
+            read(InitialFile) (((Me%Velocity%Horizontal%V%Old(i, j, k), &
                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
-            !Residual Water specific fluxes 
-            read(InitialFile) (((Me%Residual%WaterFlux_X(i, j, k),          &
+            !Horizontal velocity New
+            read(InitialFile) (((Me%Velocity%Horizontal%U%New(i, j, k), &
                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
-            read(InitialFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,         &
+            read(InitialFile) (((Me%Velocity%Horizontal%V%New(i, j, k), &
                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+
+            !Water fluxes
+            read(InitialFile) (((Me%WaterFluxes%X(i, j, k), &
+                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            read(InitialFile) (((Me%WaterFluxes%Y(i, j, k) , &
+                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                                
+            read(InitialFile) (((Me%WaterFluxes%Z(i, j, k), &
+                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+
+            Evolution = Me%ComputeOptions%Evolution
 
             
-cd2:        if (Evolution == Residual_hydrodynamic_) then
+            if (Evolution == Residual_hydrodynamic_ .and. .not. Residual) then
 
-                Me%WaterLevel%Old(:,:) = Me%Residual%WaterLevel(:,:)
-
-                Me%WaterLevel%New(:,:) = Me%Residual%WaterLevel(:,:)
-
-
-                Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Residual%Velocity_U(:,:,:)
-
-                Me%Velocity%Horizontal%U%New(:,:,:) = Me%Residual%Velocity_U(:,:,:)
+                write(*,*) 'Can not have a residual evolution with out a initial file with residual values'
+                            
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR07.')
 
 
-                Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Residual%Velocity_V(:,:,:)
-
-                Me%Velocity%Horizontal%V%New(:,:,:) = Me%Residual%Velocity_V(:,:,:)
-
-                !Module - ModuleHorizontalGrid
-                !Horizontal Grid properties
-                 call GetHorizontalGrid(Me%ObjHorizontalGrid,                           &
-                                        DXX  = Me%External_Var%DXX,                     &
-                                        DYY  = Me%External_Var%DYY,                     &
-                                        STAT = STAT_CALL)
-
-                if (STAT_CALL /= SUCCESS_)                                              &
-                     call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR40.')
-
-                do k = KLB, KUB
-                do j = JLB, JUB
-                do i = ILB, IUB
-
-                    ![m3/s]                 = [m2/s] * [m]
-                    Me%WaterFluxes%X(i,j,k) = Me%Residual%WaterFlux_X(i,j,k) * Me%External_Var%DYY(i, J)
-                    Me%WaterFluxes%Y(i,j,k) = Me%Residual%WaterFlux_Y(i,j,k) * Me%External_Var%DXX(i, J)
-
-                enddo
-                enddo
-                enddo
-                    
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DXX,     &
-                                         STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                     call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR50.')
-
-
-
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY,     &
-                                         STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                     call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR60.')
-
-
-
-
-            endif cd2
-
-
-        else if (.not. Residual .and. Me%ComputeOptions%Residual) then cd1
-
-                Me%Residual%ResidualTime    =  0
-
-
-                do  j = JLB, JUB 
-                do  i = ILB, IUB
-
-                    Me%Residual%WaterLevel(i, j)    =  0.
-
-                    do  k = KLB, KUB
-
-                        !Residual horizontal velocity
-                        Me%Residual%Velocity_U(i, j, k) =  0.
-                        Me%Residual%Velocity_V(i, j, k) =  0.
-
-                        !Residual vertical velocity
-                        Me%Residual%Vertical_Velocity(i, j, k) =  0.              
-
-                        !Residual Water fluxes
-                        Me%Residual%WaterFlux_X(i, j, k) = 0.
-                        Me%Residual%WaterFlux_Y(i, j, k) = 0.
-
-                        !Read residual layer thickness
-                        Me%Residual%DWZ(i, j, k) = 0
-
-                    enddo
-
-                enddo
-                enddo
-     
-        endif cd1
-
-        call ReadGeometryBin(Me%ObjGeometry, InitialFile, STAT = STAT_CALL) 
-
-        if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR70.')
-
-cd3:    if (Residual .and. Me%ComputeOptions%Residual) then 
-            !Read residual layer thickness
-            read(InitialFile, END = 10) (((Me%Residual%DWZ(i, j, k),        &
-                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-10          continue  
-
-        endif cd3
-
-
-        read(InitialFile, END = 20) BaroclinicRadia
-
-cd4:    if (.not. BaroclinicRadia                                == NoRadiation_ .and.   &
-            .not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
-
-
-            !Horizontal baroclinic velocity Old
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%U%Old(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%V%Old(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !Horizontal baroclinic velocity New
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%U%New(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%V%New(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !vertical baroclinic velocity 
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%W_New(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            read(InitialFile, END = 20) (((Me%VelBaroclinic%W_Old(i, j, k), &
-                                           i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-        endif cd4
-
-20      continue 
-
-        !NonHydrostatic
-        if (Me%NonHydrostatic%ON) then
-
-            read(InitialFile, IOSTAT = STAT_CALL)                                       &  
-                (((Me%Velocity%Vertical%CartesianOld(i, j, k),                          &
-                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            if (STAT_CALL /= SUCCESS_) then
-                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR80.')
-            endif
-
-        endif
-        
-        !Submodel
-        if (Me%SubModel%ON) then
-        
-            Me%SubModel%HotStartData = .false. 
-
-            read(InitialFile, END = 30, IOSTAT = STAT_CALL)                             &  
-                (((Me%SubModel%qX(i, j, k),                                             &
-                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            if (STAT_CALL /= SUCCESS_) then
-                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR90.')
-            endif
-
-            read(InitialFile, END = 30, IOSTAT = STAT_CALL)                                       &  
-                (((Me%SubModel%qY(i, j, k),                                             &
-                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            if (STAT_CALL /= SUCCESS_) then
-                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR100.')
-            endif
-            
-            Me%SubModel%HotStartData = .true. 
-            
-30          continue
-
-            if (.not. Me%SubModel%HotStartData) then 
-                write(*,*) 'you are doing a hot start based in a old version of MOHID'
-                write(*,*) 'version before Nov 2010'
-                write(*,*) 'in this case in the first iteration if the South/North boundaries are open'
-                write(*,*) 'and the follow options are on (RADIATION : 2; LOCAL_SOLUTION : 2)'
-                write(*,*) 'the mpodel will generate a perturbation that might take some type to dissipate'
-                write(*,*) 'in less dissipative enviroments like the Ocean'
             endif 
 
-        endif        
+          
+    cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
+       
+                write(*,*)  
+                write(*,*)  
+                write(*,*)  
+                write(*,*) 'Warning: YOU HAVE STOPPED THE RESIDUAL CALCULATION, '                   
+                write(*,*) 'In the run before this one you have compute residual currents, '                   
+                write(*,*) 'In this run you dont want to compute residual currents ? '                   
+                write(*,*) '                        '
+                write(*,*) 'SUBROUTINE Read_Final_Bin - ModuleHydrodynamic. WRN01.'
+                write(*,*)  
+                write(*,*)  
+                write(*,*)  
 
-        call UnitsManager(InitialFile, FileClose, STAT = STAT_CALL) 
+                allocate (Aux2D         (ILB:IUB, JLB:JUB))
+                allocate (Aux3D         (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate (Aux3DDouble   (ILB:IUB, JLB:JUB, KLB:KUB))
 
-        if (STAT_CALL /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR110.')
+                read(InitialFile) Me%Residual%ResidualTime
+
+                !Average water level 
+                read(InitialFile) ((Aux2D(i, j), i = ILB, IUB), j = JLB, JUB)
+
+                !Residual horizontal velocities
+                read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                !Residual vertical velocity  
+                read(InitialFile) (((Aux3D(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                !Residual Water specific fluxes 
+                read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
 
+                deallocate (Aux2D)
+                deallocate (Aux3D)
+                deallocate (Aux3DDouble)
+           
+            else if (Residual .and. Me%ComputeOptions%Residual) then cd1
+
+               
+                read(InitialFile) Me%Residual%ResidualTime
+
+                !Average water level 
+                read(InitialFile) ((Me%Residual%WaterLevel(i, j),               &
+                                   i = ILB, IUB), j = JLB, JUB)
+
+                !Residual horizontal velocities
+                read(InitialFile) (((Me%Residual%Velocity_U(i, j, k),           &
+                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                read(InitialFile) (((Me%Residual%Velocity_V(i, j, k),           &
+                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                !Residual vertical velocity  
+                read(InitialFile) (((Me%Residual%Vertical_Velocity(i, j, k),    &
+                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                !Residual Water specific fluxes 
+                read(InitialFile) (((Me%Residual%WaterFlux_X(i, j, k),          &
+                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                read(InitialFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,         &
+                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                
+    cd2:        if (Evolution == Residual_hydrodynamic_) then
+
+                    Me%WaterLevel%Old(:,:) = Me%Residual%WaterLevel(:,:)
+
+                    Me%WaterLevel%New(:,:) = Me%Residual%WaterLevel(:,:)
+
+
+                    Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Residual%Velocity_U(:,:,:)
+
+                    Me%Velocity%Horizontal%U%New(:,:,:) = Me%Residual%Velocity_U(:,:,:)
+
+
+                    Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Residual%Velocity_V(:,:,:)
+
+                    Me%Velocity%Horizontal%V%New(:,:,:) = Me%Residual%Velocity_V(:,:,:)
+
+                    !Module - ModuleHorizontalGrid
+                    !Horizontal Grid properties
+                     call GetHorizontalGrid(Me%ObjHorizontalGrid,                           &
+                                            DXX  = Me%External_Var%DXX,                     &
+                                            DYY  = Me%External_Var%DYY,                     &
+                                            STAT = STAT_CALL)
+
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                         call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR40.')
+
+                    do k = KLB, KUB
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+
+                        ![m3/s]                 = [m2/s] * [m]
+                        Me%WaterFluxes%X(i,j,k) = Me%Residual%WaterFlux_X(i,j,k) * Me%External_Var%DYY(i, J)
+                        Me%WaterFluxes%Y(i,j,k) = Me%Residual%WaterFlux_Y(i,j,k) * Me%External_Var%DXX(i, J)
+
+                    enddo
+                    enddo
+                    enddo
+                        
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DXX,     &
+                                             STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                         call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR50.')
+
+
+
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY,     &
+                                             STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                         call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR60.')
+
+
+
+
+                endif cd2
+
+
+            else if (.not. Residual .and. Me%ComputeOptions%Residual) then cd1
+
+                    Me%Residual%ResidualTime    =  0
+
+
+                    do  j = JLB, JUB 
+                    do  i = ILB, IUB
+
+                        Me%Residual%WaterLevel(i, j)    =  0.
+
+                        do  k = KLB, KUB
+
+                            !Residual horizontal velocity
+                            Me%Residual%Velocity_U(i, j, k) =  0.
+                            Me%Residual%Velocity_V(i, j, k) =  0.
+
+                            !Residual vertical velocity
+                            Me%Residual%Vertical_Velocity(i, j, k) =  0.              
+
+                            !Residual Water fluxes
+                            Me%Residual%WaterFlux_X(i, j, k) = 0.
+                            Me%Residual%WaterFlux_Y(i, j, k) = 0.
+
+                            !Read residual layer thickness
+                            Me%Residual%DWZ(i, j, k) = 0
+
+                        enddo
+
+                    enddo
+                    enddo
+         
+            endif cd1
+
+            call ReadGeometryBin(Me%ObjGeometry, InitialFile, STAT = STAT_CALL) 
+
+            if (STAT_CALL /= SUCCESS_)                                                          &
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR70.')
+
+    cd3:    if (Residual .and. Me%ComputeOptions%Residual) then 
+                !Read residual layer thickness
+                read(InitialFile, END = 10) (((Me%Residual%DWZ(i, j, k),        &
+                                    i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+    10          continue  
+
+            endif cd3
+
+
+            read(InitialFile, END = 20) BaroclinicRadia
+
+    cd4:    if (.not. BaroclinicRadia                                == NoRadiation_ .and.   &
+                .not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
+
+
+                !Horizontal baroclinic velocity Old
+                read(InitialFile, END = 20) (((Me%VelBaroclinic%U%Old(i, j, k), &
+                                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+
+                read(InitialFile, END = 20) (((Me%VelBaroclinic%V%Old(i, j, k), &
+                                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                !Horizontal baroclinic velocity New
+                read(InitialFile, END = 20) (((Me%VelBaroclinic%U%New(i, j, k), &
+                                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                read(InitialFile, END = 20) (((Me%VelBaroclinic%V%New(i, j, k), &
+                                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                !vertical baroclinic velocity 
+                read(InitialFile, END = 20) (((Me%VelBaroclinic%W_New(i, j, k), &
+                                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                read(InitialFile, END = 20) (((Me%VelBaroclinic%W_Old(i, j, k), &
+                                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+            endif cd4
+
+    20      continue 
+
+            !NonHydrostatic
+            if (Me%NonHydrostatic%ON) then
+
+                read(InitialFile, IOSTAT = STAT_CALL)                                       &  
+                    (((Me%Velocity%Vertical%CartesianOld(i, j, k),                          &
+                       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                if (STAT_CALL /= SUCCESS_) then
+                    call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR80.')
+                endif
+
+            endif
+            
+            !Submodel
+            if (Me%SubModel%ON) then
+            
+                Me%SubModel%HotStartData = .false. 
+
+                read(InitialFile, END = 30, IOSTAT = STAT_CALL)                             &  
+                    (((Me%SubModel%qX(i, j, k),                                             &
+                       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                if (STAT_CALL /= SUCCESS_) then
+                    call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR90.')
+                endif
+
+                read(InitialFile, END = 30, IOSTAT = STAT_CALL)                                       &  
+                    (((Me%SubModel%qY(i, j, k),                                             &
+                       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                if (STAT_CALL /= SUCCESS_) then
+                    call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR100.')
+                endif
+                
+                Me%SubModel%HotStartData = .true. 
+                
+    30          continue
+
+                if (.not. Me%SubModel%HotStartData) then 
+                    write(*,*) 'you are doing a hot start based in a old version of MOHID'
+                    write(*,*) 'version before Nov 2010'
+                    write(*,*) 'in this case in the first iteration if the South/North boundaries are open'
+                    write(*,*) 'and the follow options are on (RADIATION : 2; LOCAL_SOLUTION : 2)'
+                    write(*,*) 'the mpodel will generate a perturbation that might take some type to dissipate'
+                    write(*,*) 'in less dissipative enviroments like the Ocean'
+                endif 
+
+            endif        
+
+            call UnitsManager(InitialFile, FileClose, STAT = STAT_CALL) 
+
+            if (STAT_CALL /= SUCCESS_)                                                          &
+                call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR110.')
+
+        endif i1
 
     end subroutine Read_Final_Bin
 

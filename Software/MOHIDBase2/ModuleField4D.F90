@@ -42,7 +42,8 @@ Module ModuleField4D
                                        InterpolateMatrix3DInTime,                       &
                                        SetMatrixValue, ConstructPropertyID,             &
                                        FillMatrix2DNearestCell, LinearInterpolation,    &
-                                       FillMatrix3DNearestCell, InterpolateProfileR8
+                                       FillMatrix3DNearestCell, InterpolateProfileR8,   &
+                                       CheckAlternativeTidalCompNames
     use ModuleDrawing,          only : ArrayPolygonWindow           
     use ModuleHorizontalGrid,   only : GetHorizontalGridSize, ConstructHorizontalGrid,  &
                                        WriteHorizontalGrid,                             &
@@ -163,6 +164,7 @@ Module ModuleField4D
         integer                                                    :: Number         = null_int
         real                                                       :: TimeReference  = null_real
         real                                                       :: ReferenceValue = null_real 
+        character(Len=WaveNameLength), dimension(:),       pointer :: WaveGroupName  => null()
         character(Len=WaveNameLength), dimension(:),       pointer :: WaveName       => null()
         real,                          dimension(:,:,:,:), pointer :: Phase3D        => null()
         real,                          dimension(:,:,:,:), pointer :: Amplitude3D    => null()
@@ -1804,7 +1806,9 @@ wwd1:       if (Me%WindowWithData) then
         PropField%Harmonics%Number = LastLine - FirstLine - 1 
         NW                         = PropField%Harmonics%Number
 
-        allocate(PropField%Harmonics%WaveName(PropField%Harmonics%Number))
+        allocate(PropField%Harmonics%WaveName     (PropField%Harmonics%Number))
+
+        allocate(PropField%Harmonics%WaveGroupName(PropField%Harmonics%Number))        
         
 i0:     if(PropField%SpaceDim == Dim2D) then
 
@@ -1842,10 +1846,15 @@ i0:     if(PropField%SpaceDim == Dim2D) then
         endif i0
         
         do i = 1, PropField%Harmonics%Number
-            call GetData(PropField%Harmonics%WaveName(i),                           &
-                         Me%ObjEnterData,  iflag, Buffer_Line  = FirstLine + i,     &
+        
+            call GetData(PropField%Harmonics%WaveGroupName(i),                          &
+                         Me%ObjEnterData,  iflag, Buffer_Line  = FirstLine + i,         &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR60'
+            
+            call CheckAlternativeTidalCompNames (TidalName      = PropField%Harmonics%WaveGroupName(i), &
+                                                 MohidTidalName = PropField%Harmonics%WaveName(i))
+            
         enddo
         
         if      (ExtractType == FromBlock_   ) then
@@ -3104,7 +3113,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         
 d1:     do N =1, NW       
 
-            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveName(N))
+            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveGroupName(N))
             
             FieldName = char_amplitude_ 
         
@@ -3142,7 +3151,7 @@ d1:     do N =1, NW
 #ifndef _NO_NETCDF
             else if (Me%File%Form == NetCDF_) then
             
-                FieldName = trim(NewPropField%Harmonics%WaveName(N))//"/"//char_amplitude_
+                FieldName = trim(NewPropField%Harmonics%WaveGroupName(N))//"/"//char_amplitude_
             
                 call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
                                     Array2D         = Field,                            &
@@ -3162,7 +3171,7 @@ d1:     do N =1, NW
         
 d2:     do N =1, NW       
 
-            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveName(N))
+            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveGroupName(N))
             
             FieldName = char_phase_ 
         
@@ -3200,7 +3209,7 @@ d2:     do N =1, NW
 #ifndef _NO_NETCDF
             else if (Me%File%Form == NetCDF_) then
             
-                FieldName = trim(NewPropField%Harmonics%WaveName(N))//"/"//char_phase_
+                FieldName = trim(NewPropField%Harmonics%WaveGroupName(N))//"/"//char_phase_
             
                 call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
                                     Array2D         = Field,                            &
@@ -3449,7 +3458,7 @@ if1:    if (NewPropField%Harmonics%Extract) then
         
 d1:     do N =1, NW       
 
-            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveName(N))
+            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveGroupName(N))
             
             FieldName = char_amplitude_ 
         
@@ -3488,7 +3497,7 @@ d1:     do N =1, NW
 #ifndef _NO_NETCDF
             else if (Me%File%Form == NetCDF_) then
             
-                FieldName = trim(NewPropField%Harmonics%WaveName(N))//"/"//char_amplitude_
+                FieldName = trim(NewPropField%Harmonics%WaveGroupName(N))//"/"//char_amplitude_
             
                 call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
                                     Array3D         = Field,                            &
@@ -3521,7 +3530,7 @@ d1:     do N =1, NW
         
 d2:     do N =1, NW       
 
-            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveName(N))
+            GroupName = trim(NewPropField%VGroupPath)//"/"//trim(NewPropField%Harmonics%WaveGroupName(N))
             
             FieldName = char_phase_ 
         
@@ -3560,7 +3569,7 @@ d2:     do N =1, NW
 #ifndef _NO_NETCDF
             else if (Me%File%Form == NetCDF_) then
             
-                FieldName = trim(NewPropField%Harmonics%WaveName(N))//"/"//char_phase_
+                FieldName = trim(NewPropField%Harmonics%WaveGroupName(N))//"/"//char_phase_
             
                 call NETCDFReadData(NCDFID          = Me%File%Obj,                      &
                                     Array3D         = Field,                            &
@@ -5469,6 +5478,12 @@ wwd:            if (Me%WindowWithData) then
                                 deallocate(PropField%Harmonics%WaveName)
                                 nullify   (PropField%Harmonics%WaveName)
                             end if
+
+                            if(associated (PropField%Harmonics%WaveGroupName))then
+                                deallocate(PropField%Harmonics%WaveGroupName)
+                                nullify   (PropField%Harmonics%WaveGroupName)
+                            end if
+
                             
                             if(associated (PropField%Harmonics%Phase2D))then
                                 deallocate(PropField%Harmonics%Phase2D)

@@ -35,7 +35,7 @@ Module ModuleDischarges
     use ModuleEnterData
     use ModuleFunctions, only : InterpolateValueInTime, ConstructPropertyID
     use ModuleTimeSerie, only : StartTimeSerieInput, StartTimeSerie, GetTimeSerieValue, &
-                                WriteTimeSerieLine, KillTimeSerie
+                                WriteTimeSerieLine, KillTimeSerie, GetTimeSerieDataColumns
     use ModuleDrawing
 
     implicit none 
@@ -151,14 +151,15 @@ Module ModuleDischarges
 
     type       T_Property
         type (T_PropertyID)                     :: ID
-        logical                                 :: Variable       = .false.
-        integer                                 :: ConcColumn     = null_int 
-        real                                    :: scalar         = FillValueReal
-        logical                                 :: TimeSerieON    = .false. 
-        integer                                 :: TimeSerie      = 0
-        logical                                 :: PropTimeSerie  = .false.
-        logical                                 :: FromIntake     = .false.
-        real                                    :: IncreaseValue  = FillValueReal 
+        logical                                 :: Variable         = .false.
+        integer                                 :: ConcColumn       = null_int 
+        real                                    :: scalar           = FillValueReal
+        logical                                 :: TimeSerieON      = .false. 
+        integer                                 :: TimeSerie        = 0
+        integer                                 :: TimeSerieMaxCol  = 0        
+        logical                                 :: PropTimeSerie    = .false.
+        logical                                 :: FromIntake       = .false.
+        real                                    :: IncreaseValue    = FillValueReal 
         type (T_Property), pointer              :: Next => null(), &
                                                    Prev => null()
     end type T_Property
@@ -268,6 +269,7 @@ Module ModuleDischarges
          character(len=PathLength)              :: OutPutFile       = null_str    
          logical                                :: TimeSerieON      = .false.  
          integer                                :: TimeSerie        = 0
+         integer                                :: TimeSerieMaxCol  = 0       
          logical                                :: UseOriginalValues    = .false.  
          type(T_WaterFlow          )            :: WaterFlow   
          type(T_WaterVelocity      )            :: VelocityFlow
@@ -1084,7 +1086,12 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                          default      = .false.,                                        &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR21'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR30'
+            
+            call GetTimeSerieDataColumns (TimeSerieID = NewDischarge%TimeSerie,         &
+                                          DataColumns = NewDischarge%TimeSerieMaxCol,   &
+                                          STAT        = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR40'
 
         end if 
         
@@ -1134,11 +1141,22 @@ i1:     if (NewDischarge%TimeSerieON) then
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR20'
 
             if (flag == 1) then
-                NewDischarge%WaterFlow%Variable = .true.            
+
+                NewDischarge%WaterFlow%Variable = .true.
+                
+                if (NewDischarge%WaterFlow%FlowColumn > NewDischarge%TimeSerieMaxCol .or.   &
+                    NewDischarge%WaterFlow%FlowColumn < 2) then
+                    
+                    write(*,*)'Look at file', trim(Me%DataFile)
+                    write(*,*)'FLOW_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
+                    stop 'Construct_FlowValues - ModuleDischarges - ERR20'
+                    
+                endif
+                
             else
                 NewDischarge%WaterFlow%Variable = .false.            
             endif
-
+            
         endif i1
 
 
@@ -1486,9 +1504,22 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          SearchType = FromBlock,                                         &
                          ClientModule = 'ModuleDischarges',                              &
                          STAT       = STAT_CALL)
+                         
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_VariableLocation - ModuleDischarges - ERR10'
 
             if (flag == 1) then
-                NewDischarge%Localization%VariableX = .true.            
+
+                NewDischarge%Localization%VariableX = .true. 
+                
+                if (NewDischarge%Localization%XColumn > NewDischarge%TimeSerieMaxCol .or.   &
+                    NewDischarge%Localization%XColumn < 2) then
+                    
+                    write(*,*)'Look at file', trim(Me%DataFile)
+                    write(*,*)'X_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
+                    stop 'Construct_VariableLocation - ModuleDischarges - ERR20'
+                    
+                endif
+                           
             else
                 NewDischarge%Localization%VariableX = .false.            
             endif
@@ -1501,9 +1532,22 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          SearchType = FromBlock,                                         &
                          ClientModule = 'ModuleDischarges',                              &
                          STAT       = STAT_CALL)
+                         
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_VariableLocation - ModuleDischarges - ERR30'
 
             if (flag == 1) then
+
                 NewDischarge%Localization%VariableY = .true.            
+                
+                if (NewDischarge%Localization%YColumn > NewDischarge%TimeSerieMaxCol .or.   &
+                    NewDischarge%Localization%YColumn < 2) then
+                    
+                    write(*,*)'Look at file', trim(Me%DataFile)
+                    write(*,*)'Y_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
+                    stop 'Construct_VariableLocation - ModuleDischarges - ERR40'
+                    
+                endif
+                
             else
                 NewDischarge%Localization%VariableY = .false.            
             endif
@@ -1540,7 +1584,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                      STAT       = STAT_CALL)
                      
         if   (flag /= 0 .and. flag /=2 .and. flag /=3 ) then    
-            stop "ModuleDischarges - Construct_VelocityValues - ERR10"
+            stop 'Construct_VelocityValues - ModuleDischarges - ERR10'
         endif                 
 
         NewDischarge%VelocityFlow%UScalar = Aux(1)
@@ -1554,16 +1598,31 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
 
         !Searches for the velocity U column (if the discharge is read from a data base)
         if (NewDischarge%TimeSerieON) then
-            call GetData(NewDischarge%VelocityFlow%UColumn,                              &
-                         Me%ObjEnterData, flag,                                          &
-                         keyword    = 'U_COLUMN',                                        &
-                         default    = FillValueInt,                                      &
-                         SearchType = FromBlock,                                         &
-                         ClientModule = 'ModuleDischarges',                              &
-                         STAT       = STAT_CALL)
+            call GetData(NewDischarge%VelocityFlow%UColumn,                             &
+                         Me%ObjEnterData, flag,                                         &
+                         keyword        = 'U_COLUMN',                                   &
+                         default        = FillValueInt,                                 &
+                         SearchType     = FromBlock,                                    &
+                         ClientModule   = 'ModuleDischarges',                           &
+                         STAT           = STAT_CALL)
+                         
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Construct_VelocityValues - ModuleDischarges - ERR20'
+            endif                
 
             if (flag == 1) then
+
                 NewDischarge%VelocityFlow%UVariable = .true.            
+                
+                if (NewDischarge%VelocityFlow%UColumn > NewDischarge%TimeSerieMaxCol .or. &
+                    NewDischarge%VelocityFlow%UColumn < 2) then
+                    
+                    write(*,*)'Look at file', trim(Me%DataFile)
+                    write(*,*)'U_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
+                    stop 'Construct_VelocityValues - ModuleDischarges - ERR30'
+                    
+                endif                
+                
             else
                 NewDischarge%VelocityFlow%UVariable = .false.            
             endif
@@ -1575,9 +1634,23 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          SearchType = FromBlock,                                         &
                          ClientModule = 'ModuleDischarges',                              &
                          STAT       = STAT_CALL)
+                         
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Construct_VelocityValues - ModuleDischarges - ERR40'
+            endif                              
 
             if (flag == 1) then
                 NewDischarge%VelocityFlow%VVariable = .true.
+                
+                if (NewDischarge%VelocityFlow%VColumn > NewDischarge%TimeSerieMaxCol .or. &
+                    NewDischarge%VelocityFlow%VColumn < 2) then
+                    
+                    write(*,*)'Look at file', trim(Me%DataFile)
+                    write(*,*)'V_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
+                    stop 'Construct_VelocityValues - ModuleDischarges - ERR50'
+                    
+                endif                
+                
             else
                 NewDischarge%VelocityFlow%VVariable = .false.
             endif
@@ -1589,9 +1662,22 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          SearchType = FromBlock,                                         &
                          ClientModule = 'ModuleDischarges',                              &
                          STAT       = STAT_CALL)
+                         
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Construct_VelocityValues - ModuleDischarges - ERR60'
+            endif                           
 
             if (flag == 1) then
                 NewDischarge%VelocityFlow%WVariable = .true.
+                
+                if (NewDischarge%VelocityFlow%WColumn > NewDischarge%TimeSerieMaxCol .or. &
+                    NewDischarge%VelocityFlow%WColumn < 2) then
+                    
+                    write(*,*)'Look at file', trim(Me%DataFile)
+                    write(*,*)'W_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
+                    stop 'Construct_VelocityValues - ModuleDischarges - ERR70'
+                    
+                endif                          
             else
                 NewDischarge%VelocityFlow%WVariable = .false.
             endif
@@ -1697,7 +1783,9 @@ cd2 :           if (BlockFound) then
                      ClientModule ='ModuleDischarges')
 
         if (flag == 1) then
+
             NewProperty%Variable = .true.
+            
         else
             NewProperty%Variable = .false.
         endif
@@ -1722,12 +1810,28 @@ ifvar:  if (NewProperty%Variable) then
                 call StartTimeSerieInput(NewProperty%TimeSerie, FileName,  Me%ObjTime, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR10'
+                
+                call GetTimeSerieDataColumns (TimeSerieID = NewProperty%TimeSerie,      &
+                                              DataColumns = NewProperty%TimeSerieMaxCol,&
+                                              STAT        = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR20'
+                
+                if (NewProperty%ConcColumn > NewProperty%TimeSerieMaxCol .or.               &
+                    NewProperty%ConcColumn < 2) then
+                    
+                    write(*,*)'Look at file', trim(Me%DataFile)
+                    write(*,*)'TIME_SERIE_COLUMN not valid in dicharge ', trim(NewDischarge%ID%Name)
+                    write(*,*) 'Property name =',trim(NewProperty%ID%Name)
+                    stop 'Construct_PropertyValues - ModuleDischarges - ERR30'
+                    
+                endif                     
+                
 
             else
                 if (NewDischarge%TimeSerieON) then
                     NewProperty%TimeSerie = NewDischarge%TimeSerie
                 else
-                    stop 'Construct_PropertyValues - ModuleDischarges - ERR20'
+                    stop 'Construct_PropertyValues - ModuleDischarges - ERR40'
                 endif
             endif
 
@@ -1741,7 +1845,7 @@ ifvar:  if (NewProperty%Variable) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleDischarges',                                 &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR21'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR50'
 
 
         if(NewProperty%FromIntake)then
@@ -1752,7 +1856,7 @@ ifvar:  if (NewProperty%Variable) then
                 write(*,*)"because discharge is not based on intake"
                 write(*,*)"Property  : ", trim(adjustl(NewProperty%ID%Name))
                 write(*,*)"Discharge : ", trim(adjustl(NewDischarge%ID%Name))
-                stop      'Construct_PropertyValues - ModuleDischarges - ERR30'
+                stop      'Construct_PropertyValues - ModuleDischarges - ERR60'
 
             end if
             
@@ -1768,14 +1872,14 @@ ifvar:  if (NewProperty%Variable) then
                          default      = 0.0,                                            &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if(STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR40'
+            if(STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR70'
             
             if(flag .eq. 0 .and. NewProperty%FromIntake)then
 
                 write(*,*)"Discharge from intake property. Please define INCREASE_VALUE for :"
                 write(*,*)trim(NewProperty%ID%Name)
                 write(*,*)"Discharge name : ", trim(NewDischarge%ID%Name)
-                stop 'Construct_PropertyValues - ModuleDischarges -  ERR50'
+                stop 'Construct_PropertyValues - ModuleDischarges -  ERR80'
 
             end if 
 
@@ -1795,7 +1899,7 @@ ifvar:  if (NewProperty%Variable) then
             write(*,*)"Please define concentration default value for property :"
             write(*,*)trim(NewProperty%ID%Name)
             write(*,*)"Discharge name : ", trim(NewDischarge%ID%Name)
-            stop 'Construct_PropertyValues - ModuleDischarges -  ERR60'
+            stop 'Construct_PropertyValues - ModuleDischarges -  ERR90'
 
         end if
 

@@ -522,6 +522,8 @@ Module ModuleGlobalData
     integer, parameter :: AtmospDeposReduNH4_               = 623
     integer, parameter :: WindGust_                         = 624
     integer, parameter :: PBLHeight_                        = 625
+    integer, parameter :: Reflectivity_                     = 626
+                          
     !Basin Properties
     integer, parameter :: RefEvapotrans_                    = 708
     integer, parameter :: TotalPlantBiomass_                = 709
@@ -1398,6 +1400,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SunHours                 = 'sunshine hours'
     character(StringLength), private, parameter :: Char_ATMTransmitivity         = 'atmospheric transmitivity'
     character(StringLength), private, parameter :: Char_PBLHeight                = 'pbl height'
+    character(StringLength), private, parameter :: Char_Reflectivity             = 'reflectivity'    
+    
 
     character(StringLength), private, parameter :: Char_MeanSeaLevelPressure     = 'mean sea level pressure'
     character(StringLength), private, parameter :: Char_WindModulus              = 'wind modulus'
@@ -1925,7 +1929,7 @@ Module ModuleGlobalData
                                                                        ChunkK = 1
       
     type (T_Instance), dimension (MaxModules, MaxInstances), save   :: ObjCollector
-    private :: ObjCollector
+    public :: ObjCollector
 
     contains 
 
@@ -2395,15 +2399,23 @@ do2:            do i=1, DynamicPropertiesNumber
 
     !--------------------------------------------------------------------------
 
-    integer function GetPropertyIDNumber (PropertyName)
+    integer function GetPropertyIDNumber (PropertyName, StopActive)
 
         !Arguments-------------------------------------------------------------
         character(len=*), intent (IN )              :: PropertyName
+        logical, optional                           :: StopActive
 
         !Local-----------------------------------------------------------------
-        integer :: i
+        integer                                     :: i
+        logical                                     :: StopActive_
 
         !----------------------------------------------------------------------
+        
+        if (present(StopActive)) then
+            StopActive_ = StopActive
+        else
+            StopActive_ = .true. 
+        endif
         
         GetPropertyIDNumber = UNKNOWN_
 
@@ -2440,7 +2452,9 @@ do2:            do i=1, DynamicPropertiesNumber
         
         if(GetPropertyIDNumber == UNKNOWN_)then
             write(*,*)'Unknown property: ', PropertyName
-            stop 'GetPropertyIDNumber - ModuleGlobalData - ERR010'
+            if (StopActive_) then
+                stop 'GetPropertyIDNumber - ModuleGlobalData - ERR010'
+            endif                
         end if
 
         !----------------------------------------------------------------------
@@ -2752,6 +2766,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (WindVelocityY_,           Char_WindVelocityY          ,      ListNumber)
             call AddPropList (SolarRadiation_,          Char_SolarRadiation         ,      ListNumber)
             call AddPropList (Precipitation_,           Char_Precipitation          ,      ListNumber)
+            call AddPropList (Reflectivity_,            Char_Reflectivity           ,      ListNumber)            
             call AddPropList (AtmosphericPressure_,     Char_AtmosphericPressure    ,      ListNumber)
             call AddPropList (CO2AtmosphericPressure_,  Char_CO2AtmosphericPressure ,      ListNumber)
             call AddPropList (O2AtmosphericPressure_,   Char_O2AtmosphericPressure  ,      ListNumber)

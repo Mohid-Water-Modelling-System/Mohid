@@ -1466,17 +1466,15 @@ if2 :   if (control == 0) then
         !External--------------------------------------------------------------
         character(LEN = StringLength   ), parameter :: block_begin = '<beginharmonics>'
         character(LEN = StringLength   ), parameter :: block_end   = '<endharmonics>'
-        character(LEN = WaveNameLength) :: WaveName
-        
+        character(LEN = WaveNameLength)             :: WaveName
 
-        real,dimension(2) :: AuxWave
+        real,dimension(2)                           :: AuxWave
+        integer                                     :: FromBlock
+        integer                                     :: STAT_CALL
+        integer                                     :: flag
 
-        integer :: FromBlock
-        integer :: STAT_CALL
-        integer :: flag
-
-        real :: Amplitude
-        real :: Phase
+        real                                        :: Amplitude
+        real                                        :: Phase
 
         !Wave names------------------------------------------------------------
 
@@ -1641,13 +1639,13 @@ do2 :       do J = 1, WaveNameLength
             WaveName = WaveNameList(I)
             WaveName = adjustl(WaveName)
             WaveName = trim   (WaveName)
-
-            call GetData( AuxWave,                                                           &
-                          Me%ObjEnterData,                                               &
-                          flag,                                                              &
-                          SearchType = FromBlock,                                            &
-                          keyword=WaveName,                                                  &
-                          ClientModule ='ModuleGauge',                                       &
+            
+            call GetData( AuxWave,                                                      &
+                          Me%ObjEnterData,                                              &
+                          flag,                                                         &
+                          SearchType = FromBlock,                                       &
+                          keyword=WaveName,                                             &
+                          ClientModule ='ModuleGauge',                                  &
                           STAT = STAT_CALL)
      
             if (STAT_CALL /= 0) &

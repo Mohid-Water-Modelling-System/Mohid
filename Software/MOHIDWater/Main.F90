@@ -1162,16 +1162,24 @@ iT:     if (TreeExists) then
                         else
                             read(AuxChar(iMPI+1:),*, iostat = STAT_CALL) nDomains
                             if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR20'
-                            AuxChar1 = trim(AuxChar(1:iMPI-1))
-                            write(*,*) ' : ', iMPI
-                            write(*,*) 'With decomposition'
-                            MasterID    = MPI_ID
-                            LastSlaveID = MPI_ID + nDomains - 1
-                            do nD = 1, nDomains
-                                write(*,*) 'Domain ', nD
-                                call AddNewModel(trim(adjustl(AuxChar1)), MPI_ID, MasterID, LastSlaveID)
+                            if      (nDomains > 1) then
+                                AuxChar1 = trim(AuxChar(1:iMPI-1))
+                                write(*,*) ' : ', iMPI
+                                write(*,*) 'With decomposition'
+                                MasterID    = MPI_ID
+                                LastSlaveID = MPI_ID + nDomains - 1
+                                do nD = 1, nDomains
+                                    write(*,*) 'Domain ', nD
+                                    call AddNewModel(trim(adjustl(AuxChar1)), MPI_ID, MasterID, LastSlaveID)
+                                    MPI_ID = MPI_ID + 1
+                                enddo
+                            elseif (nDomains == 1) then
+                                write(*,*) 'No decomposition'
+                                call AddNewModel(trim(adjustl(AuxChar(1:iMPI-1))), MPI_ID)
                                 MPI_ID = MPI_ID + 1
-                            enddo
+                            else
+                                stop 'ConstructModelList - MohidWater - ERR30'
+                            endif
                         endif
                     else
                         call AddNewModel(trim(adjustl(AuxChar)))
@@ -1184,7 +1192,7 @@ iT:     if (TreeExists) then
             enddo 
 
 100         call UnitsManager(iTree, CLOSE_FILE, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModelList - MohidWater - ERR40'
 
             NumberOfModels = MPI_ID
 
@@ -1649,7 +1657,7 @@ do1:        do i=2,StringLength
         LenName          = LenName-4
         ModelName        = ModelName(1:LenName)
         do i =  LenName, 1, -1
-            if (ModelName(i:i) =='\') then
+            if (ModelName(i:i) =='\' .or. ModelName(i:i) =='/') then
                 ModelName = ModelName(i+1:LenName)
                 exit
             endif

@@ -203,6 +203,7 @@ Module ModuleTurbGOTM
                              GeometryID,                                        &
                              Continuous_Compute,                                &
                              ReadContinuousFormat,                              &
+                             WriteContinuousFormat,                             &
                              STAT)
 
         !Arguments---------------------------------------------------------------
@@ -215,6 +216,7 @@ Module ModuleTurbGOTM
         integer                                         :: GeometryID
         logical                                         :: Continuous_Compute
         integer                                         :: ReadContinuousFormat
+        integer                                         :: WriteContinuousFormat
         integer, optional, intent(OUT)                  :: STAT
 
         !External----------------------------------------------------------------
@@ -304,7 +306,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateVariables
 
             if (Continuous_Compute) then
-                call Read_Final_Turbulence_File(ReadContinuousFormat)
+                call Read_Final_Turbulence_File(ReadContinuousFormat, WriteContinuousFormat)
             end if
 
             !Returns ID
@@ -827,17 +829,18 @@ dok4 :              do k=Kbottom,KUB+1
     ! results file of a previous run. By default this      
     ! file is in HDF format                                
 
-    subroutine Read_Final_Turbulence_File(ReadContinuousFormat)
+    subroutine Read_Final_Turbulence_File(ReadContinuousFormat, WriteContinuousFormat)
     
         !Arguments-------------------------------------------------------------
         integer                 :: ReadContinuousFormat
-
+        integer                 :: WriteContinuousFormat
 
         !Local-----------------------------------------------------------------
         logical                 :: exists
-        integer                 :: STAT_CALL
 
-        !----------------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        logical                             :: BinaryFormatOK
+        !Begin-----------------------------------------------------------------
 
         inquire (FILE=Me%Files%InitialTurbulence, EXIST = exists) 
         if (.not. exists) then
@@ -845,11 +848,19 @@ dok4 :              do k=Kbottom,KUB+1
             stop 'Read_Final_Turbulence_File - ModuleTurbGOTM - ERR10'
         endif            
             
-        
+        BinaryFormatOK = .false.         
             
         if      (ReadContinuousFormat == Binary_) then
-            call Read_Final_Turbulence_Bin
-        elseif  (ReadContinuousFormat == HDF5_) then
+            
+            call Read_Final_Turbulence_Bin(BinaryFormatOK)
+            
+            if (.not. BinaryFormatOK) then            
+                WriteContinuousFormat = HDF5_
+            endif                
+            
+        endif    
+                    
+        if  (ReadContinuousFormat == HDF5_ .or. .not. BinaryFormatOK) then
             call Read_Final_Turbulence_HDF
         endif                
             
@@ -858,8 +869,10 @@ dok4 :              do k=Kbottom,KUB+1
     
     !-------------------------------------------------------------------------
             
-    subroutine Read_Final_Turbulence_Bin
+    subroutine Read_Final_Turbulence_Bin(BinaryFormatOK)
     
+        !Arguments-------------------------------------------------------------
+        logical                             :: BinaryFormatOK        
 
         !Local-----------------------------------------------------------------
         real                    :: Year_File, Month_File, Day_File
@@ -896,44 +909,59 @@ dok4 :              do k=Kbottom,KUB+1
             stop 'Read_Final_Turbulence_Bin - ModuleTurbGOTM - ERR03' 
 
         !Start reading the end file of the previous run 
-        read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
-
-        call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
-
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
-                                  EndTime = EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  &
-            stop 'Read_Final_Turbulence_Bin - ModuleTurbGOTM - ERR04' 
+        read(InitialFile, iostat = STAT_CALL) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
         
-        DT_error = EndTimeFile - BeginTime
+i1:     if (STAT_CALL /= SUCCESS_) then
 
-        if (abs(DT_error) > 1.e-5) then
+            BinaryFormatOK = .false.
+            
+            call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_)  &
+                stop 'Read_Final_Turbulence_Bin - ModuleTurbGOTM - ERR03a' 
+                
 
-            write(*,*) 'The end time of the previous run is different from the start time of this run'
-            write(*,*) 'File Time ', Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
-            write(*,*) 'DT_error ', DT_error
-            stop 'Read_Final_Turbulence_Bin - ModuleTurbGOTM - ERR05'   
+        else i1
+        
+            BinaryFormatOK = .true. 
 
-        endif
+            call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
 
-        !Eddy viscosities and diffusivities
-        read(InitialFile) (((Me%NUM(I,J,K),     i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
-        read(InitialFile) (((Me%NUH(I,J,K),     i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
-                   
-        !TKE
-        read(InitialFile) (((Me%TKE(i, j, k),   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
+            call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
+                                      EndTime = EndTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  &
+                stop 'Read_Final_Turbulence_Bin - ModuleTurbGOTM - ERR04' 
+            
+            DT_error = EndTimeFile - BeginTime
 
-        !L  
-        read(InitialFile) (((Me%L(i, j, k),     i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
+            if (abs(DT_error) > 1.e-5) then
 
-        !eps
-        read(InitialFile) (((Me%EPS(i, j, k),   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
-                               
+                write(*,*) 'The end time of the previous run is different from the start time of this run'
+                write(*,*) 'File Time ', Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
+                write(*,*) 'DT_error ', DT_error
+                stop 'Read_Final_Turbulence_Bin - ModuleTurbGOTM - ERR05'   
 
-        call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_)  &
-            stop 'Read_Final_Turbulence_Bin - ModuleTurbGOTM - ERR06' 
+            endif
 
+            !Eddy viscosities and diffusivities
+            read(InitialFile) (((Me%NUM(I,J,K),     i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
+            read(InitialFile) (((Me%NUH(I,J,K),     i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
+                       
+            !TKE
+            read(InitialFile) (((Me%TKE(i, j, k),   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
+
+            !L  
+            read(InitialFile) (((Me%L(i, j, k),     i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
+
+            !eps
+            read(InitialFile) (((Me%EPS(i, j, k),   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB)
+                                   
+
+            call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_)  &
+                stop 'Read_Final_Turbulence_Bin - ModuleTurbGOTM - ERR06' 
+
+        endif i1
+        
     end subroutine Read_Final_Turbulence_Bin
 
     !--------------------------------------------------------------------------
@@ -953,22 +981,14 @@ dok4 :              do k=Kbottom,KUB+1
         real,    dimension(:), pointer     :: TimeVector
         type (T_Time)                      :: BeginTime, EndTimeFile, EndTime
 
-        real                               :: Year_File, Month_File, Day_File,           &
-                                              Hour_File, Minute_File, Second_File,       &
-                                              DT_error
+        real                               :: DT_error
         integer                            :: IUB, JUB, KUB, ILB, JLB, KLB, HDF5_READ
         integer                            :: IUW, JUW, ILW, JLW
-        integer                            :: InitialFile, i, j, k, Evolution
-        integer                            :: BaroclinicRadia
         logical                            :: MasterOrSlave
         integer                            :: ObjHDF5
         type (T_Size2D)                    :: WindowLimitsJI
         integer                            :: Imax, Jmax, Kmax
-        real,    dimension(:),     pointer :: AuxReal
-        integer, dimension(:),     pointer :: AuxInt
-        real,    dimension(:,:),   pointer :: Aux2DReal
         real,    dimension(:,:,:), pointer :: Aux3DReal
-        real(8), dimension(:,:,:), pointer :: Aux3DR8
 
         !----------------------------------------------------------------------
         
@@ -1148,7 +1168,6 @@ ifMS:   if (MasterOrSlave) then
         integer, optional, intent(OUT )             :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
         integer                                     :: STAT_, ready_
         logical                                     :: WriteOK, Overwrite_
         character (Len = Pathlength)                :: filename
@@ -1237,7 +1256,7 @@ ifMS:   if (MasterOrSlave) then
         real,       dimension(6), target            :: AuxTime
         real,       dimension(:),       pointer     :: TimePtr        
         integer                                     :: IUB, JUB, KUB, ILB, JLB, KLB
-        integer                                     :: FinalFile, i, j, k, HDF5_CREATE, ObjHDF5
+        integer                                     :: HDF5_CREATE, ObjHDF5
         type (T_Size2D)                             :: WorkSize2D
         
 

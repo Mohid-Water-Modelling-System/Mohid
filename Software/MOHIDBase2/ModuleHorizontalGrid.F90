@@ -9344,8 +9344,6 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
         integer                                     :: STAT_, ready_, STAT_CALL, ilen, iFile, i
         character(len=PathLength)                   :: FileName, AuxFile
         character(len=StringLength)                 :: AuxChar
-        logical                                     :: WindowGrid_
-        type(T_Size2D)                              :: GlobalWorkSizeWindow_
         
         !Begin-----------------------------------------------------------------
 

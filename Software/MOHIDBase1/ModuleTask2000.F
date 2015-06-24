@@ -1066,7 +1066,10 @@ C
      &  'Q1         ',
      &  'RHO1     ',
      &  'O1         ',
-     &  'MP1     ',
+!     &  'MP1     ',
+!    common name MP1 (Task2000) == TAU1 (Toga)
+     &  'TAU1     ',
+!       M1 não tem correspondencia no toga     
      &  'M1         ',
      &  'CHI1     ',
      &  'PI1     ',
@@ -1079,101 +1082,164 @@ C
      &  'J1         ',
      &  'SO1     ',
      &  'OO1     ',
-     &  '2MN2S2     ',
+!     &  '2MN2S2     ',
+!    common name 2MN2S2 (Task2000) == ST36 (Toga)
+     &  'ST36     ',
+!       3M(SK)2 não tem correspondencia no toga 
      &  '3M(SK)2 ',
-     &  '3M2S2     ',
+!     &  '3M2S2     ',
+!    common name 3M2S2 (Task2000) == ST37 (Toga)
+     &  'ST37     ',
      &  'OQ2     ',
 !     &  'MNS2     ',
 !    common name MNS2 (Task2000) == EPS2 (Toga)
      &  'EPS2'   ,
+!       MVS2 não tem correspondencia no toga
      &  'MVS2     ',
-     &  'MNK2S2     ',
-     &  '2MK2     ',
+!     &  'MNK2S2     ',
+!    common name MNK2S2 (Task2000) == ST2 (Toga)
+     &  'ST2     ',
+!     &  '2MK2     ',
+!    common name 2MK2 (Task2000) == O2 (Toga)
+     &  'O2     ',
      &  '2N2     ',
      &  'MU2     ',
      &  'SNK2     ',
+!       NA2 não tem correspondencia no toga
      &  'NA2     ',
      &  'N2         ',
+!       NB2 não tem correspondencia no toga
      &  'NB2     ',
      &  'NU2     ',
      &  'OP2     ',
-     &  'MA2     ',
+!     &  'MA2     ',
+!    common name MA2 (Task2000) == H1 (Toga)
+     &  'H1     ',
      &  'M2         ',
-     &  'MB2     ',
+!     &  'MB2     ',
+!    common name MB2 (Task2000) == H2 (Toga)
+     &  'H2     ',
      &  'MKS2     ',
      &  'LDA2     ',
      &  'L2         ',
+!       2MN2 não tem correspondencia no toga(tem mesmo T de L2)
      &  '2MN2     ',
      &  '2SK2     ',
      &  'T2         ',
      &  'S2         ',
      &  'R2         ',
      &  'K2         ',
+!       MSV2 não tem correspondencia no toga     
      &  'MSV2     ',
      &  'MSN2     ',
 !     &  'KJ2     ',
 !    common name KJ2 (Task2000) == ETA2 (Toga)
      &  'ETA2    ', 
      &  '2SM2     ',
-     &  '2MS2N2     ',
+!     &  '2MS2N2     ',
+!    common name 2MS2N2 (Task2000) == ST38 (Toga)
+     &  'ST38     ',
      &  'SKM2     ',
-     &  'MQ3     ',
+!     &  'MQ3     ',
+!    common name MQ3 (Task2000) == NO3 (Toga)
+     &  'NO3     ',
      &  'MO3     ',
+!       2MP3 não tem correspondencia no toga 
      &  '2MP3     ',
      &  'M3         ',
      &  'SO3     ',
      &  'MK3     ',
+!       2MQ3 não tem correspondencia no toga 
      &  '2MQ3     ',
      &  'SK3     ',
-     &  '2MNS4     ',
-     &  '3MK4     ',
+!     &  '2MNS4     ',
+!    common name 2MNS4 (Task2000) == ST8 (Toga)
+     &  'ST8     ',
+!       3MK4(Task2000) tem T=56.8701754 e N4(toga) tem T=56.87946
+     &  'N4     ',
      &  '3MS4     ',
      &  'MN4     ',
+!       MV4 não tem correspondencia no toga 
      &  'MV4     ',
-     &  '2MSK4     ',
+!     &  '2MSK4     ',
+!    common name 2MSK4 (Task2000) == ST40 (Toga)    
+     &  'ST40     ',
      &  'M4         ',
      &  'SN4     ',
+!       3MN4 não tem correspondencia no toga 
      &  '3MN4     ',
      &  'MS4     ',
      &  'MK4     ',
-     &  '2MSN4     ',
+!     &  '2MSN4     ',
+!    common name 2MSN4 (Task2000) == SL4 (Toga) 
+     &  'SL4     ',
      &  'S4         ',
      &  'SK4     ',
-     &  '3MK5     ',
+!     &  '3MK5     ',
+!    common name 3MK5 (Task2000) == 2MO5 (Toga) 
+     &  '2MO5     ',
      &  'M5         ',
-     &  'MSO5     ',
-     &  '3MO5     ',
+!     &  'MSO5     ',
+!    common name MSO5 (Task2000) == 2MP5 (Toga) 
+     &  '2MP5     ',
+!     &  '3MO5     ',
+!    common name 3MO5 (Task2000) == 2MK5 (Toga) 
+     &  '2MK5     ',
      &  'MSK5     ',
+!       2(MN)S6,3MNS6,4MK6,4MS6,2MSNK6 não tem correspondencia no toga 
      &  '2(MN)S6 ',
      &  '3MNS6     ',
      &  '4MK6     ',
      &  '4MS6     ',
      &  '2MSNK6     ',
      &  '2MN6     ',
+!       2MV6 não tem correspondencia no toga 
      &  '2MV6     ',
-     &  '3MSK6     ',
+!     &  '3MSK6     ',
+!    common name 3MSK6 (Task2000) == ST41 (Toga) 
+     &  'ST41     ',
      &  'M6         ',
      &  'MSN6     ',
+!       4MN6 não tem correspondencia no toga 
      &  '4MN6     ',
      &  '2MS6     ',
      &  '2MK6     ',
+!       3MSN6,MKL6 não tem correspondencia no toga 
      &  '3MSN6     ',
      &  'MKL6     ',
      &  '2SM6     ',
      &  'MSK6     ',
-     &  '2(MN)8     ',
+!     &  '2(MN)8     ',
+!    common name 2(MN)8 (Task2000) == ST18 (Toga) 
+     &  'ST18     ',
      &  '3MN8     ',
      &  'M8         ',
-     &  '2MSN8     ',
+!     &  '2MSN8     ',
+!    common name 2MSN8 (Task2000) == ST20 (Toga)
+     &  'ST20     ',
      &  '3MS8     ',
      &  '3MK8     ',
-     &  'MSNK8     ',
-     &  '2(MS)8     ',
-     &  '2MSK8     ',
-     &  '4MS10     ',
-     &  '3M2S10     ',
+!     &  'MSNK8     ',
+!    common name MSNK8 (Task2000) == ST22 (Toga)
+     &  'ST22     ',
+!     &  '2(MS)8     ',
+!    common name 2(MS)8 (Task2000) == ST23 (Toga)
+     &  'ST23     ',
+!     &  '2MSK8     ',
+!    common name 2MSK8 (Task2000) == ST24 (Toga)
+     &  'ST24     ',
+!     &  '4MS10     ',
+!    common name 4MS10 (Task2000) == ST30 (Toga)
+     &  'ST30     ',
+!     &  '3M2S10     ',
+!    common name 3M2S10 (Task2000) == ST32 (Toga)
+     &  'ST32     ',
+!       4MSN12 não tem correspondencia no toga 
      &  '4MSN12     ',
-     &  '5MS12     ',
+!     &  '5MS12     ',
+!    common name 5MS12 (Task2000) == ST34 (Toga)
+     &  'ST34     ',
+!       4M2S12 não tem correspondencia no toga 
      &  '4M2S12     '/
 
 

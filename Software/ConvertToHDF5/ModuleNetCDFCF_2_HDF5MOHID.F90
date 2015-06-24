@@ -2754,7 +2754,9 @@ BF:         if (BlockFound) then
             deallocate(AuxT)
 
             Me%Date%TotalInst   = Me%Date%TotalInst + Me%Date%NumberInst
-            Me%Date%LasTEndTime = Me%Date%FileEndTime            
+            Me%Date%LasTEndTime = Me%Date%FileEndTime    
+        else                
+            stop 'The next file must have an end time greater than the previous file' 
         endif
         
         call DeAllocateValueIn(Me%Date%ValueIn)            

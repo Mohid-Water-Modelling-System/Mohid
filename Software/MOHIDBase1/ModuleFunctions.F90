@@ -246,6 +246,9 @@ Module ModuleFunctions
 
     !ChangeSuffix
     public  :: ChangeSuffix
+    
+    !converts all small caps in large caps
+    public  :: FromLower2UpperCase
 
     !Ordering functions
     private :: SortNumerically_3D
@@ -255,6 +258,8 @@ Module ModuleFunctions
     public  :: maxival
     public  :: minival
     
+    !Tide
+    public  :: CheckAlternativeTidalCompNames
     
     
     public  :: WGS84toGoogleMaps    
@@ -2147,6 +2152,7 @@ do1 :       do
 
         !Local-----------------------------------------------------------------
         integer :: IJ, JI, II, MM, I, J
+        real(8) :: Aux
 
         !----------------------------------------------------------------------
 
@@ -2161,11 +2167,16 @@ do2 :   do IJ = IJmin, IJmax
 do3 :       do JI=JImin+1,JImax+1
                 I        = IJ*dj + JI*di
                 J        = IJ*di + JI*dj
-
-                VECW(JI) = -FCoef_2D(I,J) / (ECoef_2D(I,J) + DCoef_2D(I,J) * VECW(JI-1))
-
-                VECG(JI) = (TiCoef_2D(I,J) - DCoef_2D(I,J) * VECG(JI-1))/   &
-                           (ECoef_2D (I,J) + DCoef_2D(I,J) * VECW(JI-1))
+                
+                Aux = ECoef_2D(I,J) + DCoef_2D(I,J) * VECW(JI-1)
+                
+                !if (abs(Aux)>0) then 
+                    VECW(JI) = -FCoef_2D(I,J) / Aux
+                    VECG(JI) = (TiCoef_2D(I,J) - DCoef_2D(I,J) * VECG(JI-1))/  Aux
+                !else
+                !    VECW(JI) = 0.
+                !    VECG(JI) = 0.
+                !endif                    
             end do do3
 
             I = IJ * dj + (JImax+1) * di
@@ -10124,8 +10135,8 @@ D2:     do I=imax-1,2,-1
 
         ChangeSuffix = Filename(1:Position-1)//trim(NewSuffix)
         
-    end function
-
+    end function ChangeSuffix
+    
     !--------------------------------------------------------------------------
     !griflet: adding minval and maxval ersatz functions in order to lift
     !stacksize and heapsize limitations
@@ -10669,7 +10680,91 @@ D2:     do I=imax-1,2,-1
 
     end subroutine Complex_to_AmpPhase
 
+    !------------------------------------------------------------------------------
     
+    !change all lower cases of a character variable to upper case
+    subroutine FromLower2UpperCase (InputChar, OutputChar)
+
+        !Arguments-------------------------------------------------------------    
+        character(len=*), intent(IN)        :: InputChar
+        character(len=*), intent(OUT)       :: OutputChar
+        !Local-----------------------------------------------------------------
+        integer                             :: il, i, j
+
+        !Begin-----------------------------------------------------------------    
+        
+        il  =   len_trim(InputChar)
+        
+        OutputChar = InputChar
+        
+        do i=1,il
+            j = ichar(OutputChar(i:i))
+            ! ASCII Character Codes (W*32, W*64)
+            if (j>= 97 .and. j <=122) then
+                OutputChar(i:i)= char(j-32)
+            endif
+        enddo
+        
+
+    end subroutine FromLower2UpperCase
+
+    !------------------------------------------------------------------------------
+    
+    !Check if a tidal component name (TidalName) is an alternative name of standard name used by MOHID
+    subroutine CheckAlternativeTidalCompNames (TidalName, MohidTidalName)
+
+        !Arguments-------------------------------------------------------------    
+        character(len=*), intent(IN)        :: TidalName
+        character(len=*), intent(OUT)       :: MohidTidalName
+        !Local-----------------------------------------------------------------
+        integer                             :: il
+        !Begin-----------------------------------------------------------------   
+        
+        MohidTidalName = TidalName
+        
+        il  =   len_trim(TidalName)
+        
+        if (TidalName(1:il) == 'Sa') then
+           MohidTidalName = 'SA' 
+        endif
+        
+        if (TidalName(1:il) == 'Ssa') then
+           MohidTidalName = 'SSA' 
+        endif
+
+        if (TidalName(1:il) == 'Mm') then
+           MohidTidalName = 'MM' 
+        endif
+
+        if (TidalName(1:il) == 'Mf') then
+           MohidTidalName = 'MF' 
+        endif
+        
+        if (TidalName(1:il) == 'MSf') then
+           MohidTidalName = 'MSF' 
+        endif
+        
+
+        if (TidalName(1:il) == 'E2') then
+           MohidTidalName = 'EPS2' 
+        endif
+
+        if (TidalName(1:il) == 'Mu2') then
+           MohidTidalName = 'MU2' 
+        endif
+
+        if (TidalName(1:il) == 'Nu2') then
+           MohidTidalName = 'NU2' 
+        endif
+
+        if (TidalName(1:il) == 'La2' .or. TidalName(1:il) == 'LAMDA2') then
+           MohidTidalName = 'LDA2' 
+        endif
+
+    end subroutine CheckAlternativeTidalCompNames
+
+
+    !------------------------------------------------------------------------------        
     
     end module ModuleFunctions
 

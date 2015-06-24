@@ -693,9 +693,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 FillMatrix_ = null_real
             endif
-            
-            call SetMatrixValue (Me%Matrix3D, Me%Size3D, FillMatrix_, PointsToFill3D)
-            !where (PointsToFill3D == WaterPoint) Me%Matrix3D = FillMatrix_
+
+            where (PointsToFill3D == WaterPoint) Me%Matrix3D = FillMatrix_
 
             if (Me%TypeZUV == TypeU_) then
                 Me%Size3D%JUB       = Me%Size3D%JUB + 1
@@ -1170,8 +1169,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%Dim == Dim2D) then
             where (PointsToFill2D == WaterPoint) Me%Matrix2D = Me%DefaultValue
         else
-            call SetMatrixValue(Me%Matrix3D, Me%Size3D, Me%DefaultValue, PointsToFill3D)
-            !where (PointsToFill3D == WaterPoint) Me%Matrix3D = Me%DefaultValue
+            where (PointsToFill3D == WaterPoint) Me%Matrix3D = Me%DefaultValue
         endif
 
         select case (Me%TimeEvolution)
