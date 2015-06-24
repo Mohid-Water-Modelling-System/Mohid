@@ -67,7 +67,7 @@ Module ModuleLagrangianGlobal
 !   next keyword is read if MONITOR_BOX is defined
 !   MONITOR_BOX_PROP_MASS   : char                      []                      !Name of property to monitor Mass in a box
 !   following 3 keywords are read if MONITOR_BOX_PROP_MASS is defined
-! MONITOR_BOX_MASS_FRACTION : 1/2                       [1]                     !Output Concentration Type of mass monitored in box
+!   MONITOR_BOX_MASS_FRACTION : 1/2                     [1]                     !Output Concentration Type of mass monitored in box
 !                                                                                  1 - Arithmetic; 2 - geometric
 !   MONITOR_BOX_MIN_CONC    : real                      [1]                     !Min. tracer concentration to be included in 
 !                                                                               !average concentration

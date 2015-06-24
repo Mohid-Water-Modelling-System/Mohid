@@ -11,7 +11,7 @@
 ! REVISION      : Frank Braunschweig - v4.0
 ! DESCRIPTION   : Module to calculate the vertical Geometry 
 !
-!------------------------------------------------------------------------------
+!----------------------------------------------------------------------------- 
 ! IMPERMEABILITY                : 0/1               -           !Consider impermeable cell faces
 ! IMPER_COEF_U                  : real             [1]          !
 ! IMPER_COEFX_U                 : real             [0]          !
@@ -204,7 +204,6 @@ Module ModuleGeometry
     integer, parameter :: SigmaTop              = 8
     integer, parameter :: CartesianTop          = 9
 
-
     !Other
     integer, parameter :: INITIALGEOMETRY       = 1
     integer, parameter :: TRANSIENTGEOMETRY     = 2
@@ -240,9 +239,12 @@ Module ModuleGeometry
         integer                                 :: InitializationMethod      = FillValueInt
         real                                    :: Equidistant               = FillValueReal        
         logical                                 :: RomsDistortion            = .false.
-        real                                    :: theta_s                   = null_real, & !initialization: Jauch
-                                                   theta_b                   = null_real, & !initialization: Jauch
-                                                   Hc                        = null_real    !initialization: Jauch
+        real                                    :: theta_s                   = null_real, & 
+                                                   theta_b                   = null_real, & 
+                                                   Hc                        = null_real    
+        logical                                 :: SigmaZleveHybrid          = .false.
+        real                                    :: SigmaZleveHybrid_Hmin     = null_real
+        real                                    :: SigmaZleveHybrid_Hmax     = null_real        
         type (T_Domain), pointer                :: Next                      => null(), &
                                                    Prev                      => null()
     end type T_Domain
@@ -1409,6 +1411,8 @@ cd2 :                       if (BlockLayersFound) then
                         
                         endif
                     endif
+                    
+                    call SigmaZleveHybridOptions(NewDomain,ObjEnterData)
 
 
                     !Inserts new domain into the domain list
@@ -1440,6 +1444,60 @@ cd2 :                       if (BlockLayersFound) then
     end subroutine GetDomainsFromFile
 
     !--------------------------------------------------------------------------
+    
+    subroutine SigmaZleveHybridOptions(NewDomain, ObjEnterData)
+
+        !Parameter-------------------------------------------------------------
+        type (T_Domain), pointer        :: NewDomain
+        integer                         :: ObjEnterData
+        !Local-----------------------------------------------------------------
+        integer                         :: iflag, STAT_CALL
+        !Begin-----------------------------------------------------------------
+
+        call GetData(NewDomain%SigmaZleveHybrid,                                        &
+                     ObjEnterData, iflag,                                               &
+                     SearchType     = FromBlock,                                        &
+                     keyword        = 'SIGMA_Z_SURFACE',                                &
+                     ClientModule   = 'ModuleGeometry',                                 &
+                     Default        = .false.,                                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop "SigmaZleveHybridOptions - Geometry - ERR10"         
+        
+i1:     if (NewDomain%SigmaZleveHybrid) then
+        
+            call GetData(NewDomain%SigmaZleveHybrid_Hmin,                               &
+                         ObjEnterData, iflag,                                           &
+                         SearchType     = FromBlock,                                    &
+                         keyword        = 'SIGMA_Z_SURFACE_HMIN',                       &
+                         ClientModule   = 'ModuleGeometry',                             &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop "SigmaZleveHybridOptions - Geometry - ERR20"         
+
+            if (iflag == 0) then
+                write(*,*) 'if option SIGMA_Z_SURFACE is ON need to define'
+                write(*,*) 'SIGMA_Z_SURFACE_HMIN'
+                stop
+            endif
+
+            call GetData(NewDomain%SigmaZleveHybrid_Hmax,                               &
+                         ObjEnterData, iflag,                                           &
+                         SearchType     = FromBlock,                                    &
+                         keyword        = 'SIGMA_Z_SURFACE_HMAX',                       &
+                         ClientModule   = 'ModuleGeometry',                             &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop "SigmaZleveHybridOptions - Geometry - ERR30"
+
+            if (iflag == 0) then
+                write(*,*) 'if option SIGMA_Z_SURFACE is ON need to define'
+                write(*,*) 'SIGMA_Z_SURFACE_HMAX'
+                stop
+            endif
+
+        endif i1
+    
+    end subroutine SigmaZleveHybridOptions
+    
+    !--------------------------------------------------------------------------    
 
     subroutine ComputeLayers
 
@@ -2105,7 +2163,7 @@ doi:                do i = ILB, IUB
         !Local-----------------------------------------------------------------
         real, dimension(:, :), pointer              :: Bathymetry
         integer, dimension(:, :), pointer           :: WaterPoints2D
-        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: iLayer, i, j, LayersBelow
         real(8)                                     :: BottomDepth, TopDepth, LayerTopDepth
         real(8)                                     :: LayerBottomDepthMin, LayerBottomDepthMax 
@@ -2119,6 +2177,10 @@ doi:                do i = ILB, IUB
         real(8)                                     :: MaxDomainThickness
         real(8)                                     :: TotalLayerThickness, AuxDepth
         real                                        :: Aux4, AllmostZero_
+        real(8)                                     :: hmax, hmin
+        integer                                     :: NewKZ, OldKZ, nlayers
+
+        !Begin-----------------------------------------------------------------        
                                                     
         !WorkSize
         ILB = Me%WorkSize%ILB
@@ -2126,6 +2188,8 @@ doi:                do i = ILB, IUB
 
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
+        
+        KUB = Me%WorkSize%KUB
         
         !Gets a pointer to the Bathymetry
         call GetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
@@ -2339,6 +2403,41 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
             write(*,*)'Total Layer Thickness   : ',TotalLayerThickness
             stop 'ConstructKFloor - ModuleGeometry - ERR99'
         endif
+        
+
+        if (Me%LastDomain%DomainType == Sigma) then
+        
+            if (Me%LastDomain%SigmaZleveHybrid) then        
+            
+                hmax = Me%LastDomain%SigmaZleveHybrid_Hmax
+                hmin = Me%LastDomain%SigmaZleveHybrid_Hmin
+            
+                do j = JLB, JUB
+                do i = ILB, IUB
+                
+                    if (WaterPoints2D(i, j) == WaterPoint .and. Bathymetry(i,j) < hmax) then
+
+                        OldKZ   = Me%KFloor%Z(i, j) 
+                        nlayers = KUB - OldKZ
+                
+                        if (Bathymetry(i,j) > hmin) then
+                            NewKZ = OldKZ + int(nlayers * (hmax - Bathymetry(i,j))/(hmax-hmin))
+                        else
+                            NewKZ = KUB
+                        endif
+                    
+                        if (NewKZ > OldKZ) then
+                            Me%KFloor%Z(i, j) = NewKZ                
+                        endif    
+                        
+                    endif
+
+                enddo
+                enddo
+                
+            endif            
+        endif
+                                                           
 
         !Computes KFloor%U
         do j = JLB, JUB + 1
@@ -2554,8 +2653,17 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
                 else
                    !Constructs SZZ with the initial surface elevation
                     call ComputeSZZ         (SurfaceElevation, INITIALGEOMETRY, WaterPoints3D = WaterPoints3D)
-                endif
 
+                    
+                    if (Me%LastDomain%DomainType == Sigma) then
+                        if (Me%LastDomain%SigmaZleveHybrid) then                    
+                            ! SigmaZHybridSurface
+                            call SigmaZHybridSurface(SurfaceElevation, WaterPoints3D)
+                        endif
+                    endif
+                                                                        
+                endif
+                
                 !Computes the Distances
                 call ComputeDistances   (WaterPoints3D)
 
@@ -2590,6 +2698,78 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine ComputeInitialGeometry
+    
+
+
+
+    !--------------------------------------------------------------------------
+    
+    subroutine SigmaZHybridSurface (SurfaceElevation, WaterPoints3D)
+
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:,:  ), pointer  :: SurfaceElevation
+        integer, dimension(:,:,:), pointer  :: WaterPoints3D
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_CALL        
+        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB, kbottom
+        integer                             :: i, j, k
+        real(8)                             :: hmax
+        real(8)                             :: TotalThickness, TotalWaterColumn, AuxRacio        
+        real,    dimension(:,:), pointer    :: Bathymetry
+
+        !Begin-----------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+        
+        !Gets Bathymetry
+        call GetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SigmaZHybridSurface - Geometry - ERR10'
+        
+        hmax = Me%LastDomain%SigmaZleveHybrid_Hmax
+
+        do j = JLB, JUB
+        do i = ILB, IUB
+        
+            if (WaterPoints3D(i, j, KUB) == WaterPoint .and. Bathymetry(i,j) < hmax) then
+                
+                kbottom = Me%KFloor%Z(i, j)
+                
+                TotalThickness   = sum(Me%LastDomain%LayerThickness(kbottom:KUB))
+                TotalWaterColumn = Bathymetry(i, j) + SurfaceElevation(i, j)
+                AuxRacio         = TotalWaterColumn / TotalThickness
+                
+                do k = KUB,KLB-1,-1
+                    !surface
+                    if (k == KUB) then     
+                        Me%Distances%SZZ(i, j, k) = -1.* SurfaceElevation(i, j)
+                    !water column                        
+                    else if (k >=kbottom .and. k < KUB) then
+                        Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + Me%LastDomain%LayerThickness(k+1) * AuxRacio
+                    !bottom                        
+                    else if (k == kbottom - 1) then
+                        Me%Distances%SZZ(i, j, k) = Bathymetry(i, j)
+                    !land                        
+                    else
+                        Me%Distances%SZZ(i, j, k) = FillValueReal
+                    endif
+                enddo     
+            endif                                     
+        enddo
+        enddo
+        
+        !UnGets Bathymetry
+        call UnGetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SigmaZHybridSurface - Geometry - ERR20'
+
+    end subroutine SigmaZHybridSurface
+
+    !-------------------------------------------------------------------------------
+    
 
     subroutine UpdateKfloor(GeometryID, SurfaceElevation, BathymNotCorrect, STAT)
 
@@ -2682,6 +2862,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             else
                !Computes SZZ
                 call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
+                
+                if (Me%LastDomain%DomainType == Sigma) then
+                    if (Me%LastDomain%SigmaZleveHybrid) then
+                        ! SigmaZHybridSurface
+                        call SigmaZHybridSurface(SurfaceElevation, WaterPoints3D)
+                    endif
+                endif                                            
+                
             endif  
 
             if(present(KTop))then
@@ -2691,7 +2879,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if(present(DecayTime)) then
                 Me%ExternalVar%DecayTime => DecayTime
             endif
+            
 
+            
             !Stores VolumeZOld
             call StoreVolumeZOld
 
@@ -5084,7 +5274,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 AddFaces_ = .false. 
             endif      
  
-    ifMS:   if (MasterOrSlave_) then
+    ifMS:   if (MasterOrSlave) then
     
                 call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
                                           WorkSize         = WindowLimitsJI,       &
