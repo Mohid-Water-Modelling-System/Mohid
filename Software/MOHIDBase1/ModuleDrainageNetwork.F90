@@ -516,14 +516,14 @@ Module ModuleDrainageNetwork
                                                            Initialize       = .true.
         real                                            :: AccTime          = 0.0,      &
                                                            OldAccTime       = 0.0
-        type(T_ReachIntegration), dimension(:), pointer	:: OldReachStatus   => null(),  &
-                                                           ReachStatus	    => null() 
-        type(T_NodeIntegration), dimension(:), pointer	:: OldNodeStatus    => null(),  &
-                                                           NodeStatus	    => null()
+        type(T_ReachIntegration), dimension(:), pointer :: OldReachStatus   => null(),  &
+                                                           ReachStatus      => null() 
+        type(T_NodeIntegration), dimension(:), pointer  :: OldNodeStatus    => null(),  &
+                                                           NodeStatus       => null()
     end type T_IntegratedOutput
 
     type T_Files 
-		character(PathLength)                       :: InputData             = null_str
+        character(PathLength)                       :: InputData             = null_str
         character(PathLength)                       :: FinalFile             = null_str
         character(PathLength)                       :: HDFFile               = null_str
         character(PathLength)                       :: IntegratedHDFFile     = null_str
@@ -1885,20 +1885,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR46' 
 
         !IN PROGRESS
-		!Sets Integrated Output Time 
+        !Sets Integrated Output Time 
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime = Me%CurrentTime,                                &
                            EndTime     = Me%EndTime,                                    &
-                           keyword     = 'INTEGRATION_TIME',						    &
+                           keyword     = 'INTEGRATION_TIME',                            &
                            SearchType  = FromFile,                                      &
                            OutPutsTime = Me%IntegratedOutput%OutTime,                   &
-                           OutPutsOn   = Me%IntegratedOutput%Yes,					    &
+                           OutPutsOn   = Me%IntegratedOutput%Yes,                       &
                            STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR47.0' 
         
         if (Me%IntegratedOutput%Yes) then
-            call ReadFileName('DRAINAGE_NETWORK_INT_HDF', Me%Files%IntegratedHDFFile,	&
-                              Message = "Drainage Network Integration HDF File",		&
+            call ReadFileName('DRAINAGE_NETWORK_INT_HDF', Me%Files%IntegratedHDFFile,   &
+                              Message = "Drainage Network Integration HDF File",        &
                               STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR47.1'
         endif
@@ -9431,7 +9431,7 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
         integer                                 :: id, nNodes
         type(T_Reach), pointer                  :: CurrReach
         type(T_Node), pointer                   :: CurrNode
-        type(T_ReachIntegration), pointer		:: ReachInt
+        type(T_ReachIntegration), pointer       :: ReachInt
         type(T_NodeIntegration), pointer        :: NodeInt
         real                                    :: AvgValue, Depth, Level
         
@@ -9458,10 +9458,10 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
                     !How to interpret this if flow is negative (backwards)?
                     !The "abs" was used to try to avoid this "backwards" flow problem
                     if (abs(CurrReach%FlowNew) > abs(ReachInt%MaxFlow)) &
-                        ReachInt%MaxFlow = CurrReach%FlowNew				
-				    if (abs(CurrReach%FlowNew) < abs(ReachInt%MinFlow)) &
+                        ReachInt%MaxFlow = CurrReach%FlowNew                
+                    if (abs(CurrReach%FlowNew) < abs(ReachInt%MinFlow)) &
                         ReachInt%MinFlow = CurrReach%FlowNew
-				endif
+                endif
             endif
             
         enddo
@@ -9490,9 +9490,9 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
                     NodeInt%MaxVolume = AvgValue
                     NodeInt%MaxDepth = Depth
                     NodeInt%MaxLevel = Level
-			    endif
+                endif
             
-			    if (AvgValue < NodeInt%MinVolume) then
+                if (AvgValue < NodeInt%MinVolume) then
                     NodeInt%MinVolume = AvgValue
                     NodeInt%MinDepth = Depth
                     NodeInt%MinLevel = Level                
@@ -9510,9 +9510,9 @@ cd2 :           if (Actual .GE. Property%NextCompute) then
 
         !Arguments--------------------------------------------------------------
         type (T_Node), pointer                      :: CurrNode
-        real, intent(in)							:: Volume
-        real, intent(out)							:: Depth
-        real, intent(out)							:: Level
+        real, intent(in)                            :: Volume
+        real, intent(out)                           :: Depth
+        real, intent(out)                           :: Level
 
         !Local------------------------------------------------------------------
         real                                        :: Av_New, AvTrapez2, TopH
@@ -13840,13 +13840,13 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
              Me%Reaches(ReachID)%InitialFlowNew = Me%Reaches(ReachID)%FlowNew
              Me%Reaches(ReachID)%InitialFlowOld = Me%Reaches(ReachID)%FlowOld
              
-			if (Me%IntegratedOutput%Yes) then
+            if (Me%IntegratedOutput%Yes) then
                 Me%IntegratedOutput%OldAccTime = Me%IntegratedOutput%AccTime
             
                 OldReachStatus => Me%IntegratedOutput%OldReachStatus(ReachID)
-                ReachStatus	   => Me%IntegratedOutput%ReachStatus(ReachID)
+                ReachStatus    => Me%IntegratedOutput%ReachStatus(ReachID)
                 OldNodeStatus  => Me%IntegratedOutput%OldNodeStatus(ReachID)
-                NodeStatus	   => Me%IntegratedOutput%NodeStatus(ReachID)                
+                NodeStatus     => Me%IntegratedOutput%NodeStatus(ReachID)                
              
                 OldReachStatus%AccFlowVolume = ReachStatus%AccFlowVolume
                 OldReachStatus%MaxFlow = ReachStatus%MaxFlow
@@ -13860,7 +13860,7 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
                 OldNodeStatus%AccWeightedLevel = NodeStatus%AccWeightedLevel
                 OldNodeStatus%MaxLevel = NodeStatus%MaxLevel
                 OldNodeStatus%MinLevel = NodeStatus%MinLevel
-			endif
+            endif
         end do
         
         !Initial Concentration
@@ -13931,13 +13931,13 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
             Me%Reaches(ReachID)%FlowNew = Me%Reaches(ReachID)%InitialFlowNew
             Me%Reaches(ReachID)%FlowOld = Me%Reaches(ReachID)%InitialFlowOld
             
-			if (Me%IntegratedOutput%Yes) then
+            if (Me%IntegratedOutput%Yes) then
                 Me%IntegratedOutput%AccTime = Me%IntegratedOutput%OldAccTime                
             
                 OldReachStatus => Me%IntegratedOutput%OldReachStatus(ReachID)
-                ReachStatus	   => Me%IntegratedOutput%ReachStatus(ReachID)
+                ReachStatus    => Me%IntegratedOutput%ReachStatus(ReachID)
                 OldNodeStatus  => Me%IntegratedOutput%OldNodeStatus(ReachID)
-                NodeStatus	   => Me%IntegratedOutput%NodeStatus(ReachID)   
+                NodeStatus     => Me%IntegratedOutput%NodeStatus(ReachID)   
                 
                 ReachStatus%AccFlowVolume = OldReachStatus%AccFlowVolume
                 ReachStatus%MaxFlow = OldReachStatus%MaxFlow
@@ -13951,7 +13951,7 @@ if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCritic
                 NodeStatus%AccWeightedLevel = OldNodeStatus%AccWeightedLevel
                 NodeStatus%MaxLevel = OldNodeStatus%MaxLevel
                 NodeStatus%MinLevel = OldNodeStatus%MinLevel
-			endif            
+            endif            
         end do
       
         !Initial Concentration
@@ -14877,8 +14877,8 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
 
             call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Time", "Time",                 &
                                  "YYYY/MM/DD HH:MM:SS",                                 &
-                                 Array1D      = TimePointer,							&
-                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,			&
+                                 Array1D      = TimePointer,                            &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,         &
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR020'
 
@@ -14975,7 +14975,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
             call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min volume",                       &
                                  "min volume",                                                      &  
                                  "m3",                                                              &
-                                 Array1D      = OutputMatrix_min,									&
+                                 Array1D      = OutputMatrix_min,                                   &
                                  OutputNumber = Me%IntegratedOutPut%NextOutPut,                     &
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR062'             
@@ -14984,9 +14984,9 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
             do id = 1, Me%TotalNodes
                 CurrNode => Me%Nodes (id)
                 if (CurrNode%nDownstreamReaches .NE. 0) then
-                    call ComputeCrossSectionForIntegration (CurrNode, OutputMatrix (iReach),							&
-															Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth,    &
-                                                            Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedLevel)	
+                    call ComputeCrossSectionForIntegration (CurrNode, OutputMatrix (iReach),                            &
+                                                            Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth,    &
+                                                            Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedLevel)    
                                                             
                     OutputMatrix (iReach)     = Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth
                     OutputMatrix_max (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MaxDepth
@@ -15043,10 +15043,10 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
             if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR080'
 
             !Writes Maximun Channel Water Level
-            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max level",	    &
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max level",        &
                                  "max level",                                       &
                                  "m",                                               &
-                                 Array1D      = OutputMatrix_max,					&
+                                 Array1D      = OutputMatrix_max,                   &
                                  OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR081'            
@@ -15055,7 +15055,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
             call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min level",        &
                                  "min level",                                       &  
                                  "m",                                               &
-                                 Array1D      = OutputMatrix_min,					&
+                                 Array1D      = OutputMatrix_min,                   &
                                  OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR082'            
@@ -15076,16 +15076,16 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                     Me%IntegratedOutput%Initialize = .true.
                     Me%IntegratedOutput%AccTime = 0.0
                     Me%IntegratedOutput%ReachStatus(iReach)%AccFlowVolume       = 0.0
-                    Me%IntegratedOutput%ReachStatus(iReach)%MaxFlow 			= 0.0
+                    Me%IntegratedOutput%ReachStatus(iReach)%MaxFlow             = 0.0
                     Me%IntegratedOutput%ReachStatus(iReach)%MinFlow             = 0.0                 
                     Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedVolume    = 0.0
-                    Me%IntegratedOutput%NodeStatus(iReach)%MaxVolume			= 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MaxVolume            = 0.0
                     Me%IntegratedOutput%NodeStatus(iReach)%MinVolume            = 0.0                
                     Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth     = 0.0
-                    Me%IntegratedOutput%NodeStatus(iReach)%MaxDepth			    = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MaxDepth             = 0.0
                     Me%IntegratedOutput%NodeStatus(iReach)%MinDepth             = 0.0
                     Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedLevel     = 0.0
-                    Me%IntegratedOutput%NodeStatus(iReach)%MaxLevel			    = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MaxLevel             = 0.0
                     Me%IntegratedOutput%NodeStatus(iReach)%MinLevel             = 0.0
                     iReach = iReach + 1
                 endif
