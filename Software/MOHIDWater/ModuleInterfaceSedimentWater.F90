@@ -6096,7 +6096,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                         KUB = Me%ExtSed%KTop(i, j)
 
-                        if(CohesiveSediment%Mass_Available(i,j) .le. CohesiveSediment%Mass_Min)then
+                        !if(CohesiveSediment%Mass_Available(i,j) .le. CohesiveSediment%Mass_Min)then
                             
                             if(Me%RunSedimentModule)then
                                 
@@ -6150,7 +6150,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                             CohesiveSediment%FluxToWater(i,j) = CohesiveSediment%FluxToWater(i,j)     + &
                                                                 CohesiveSediment%ErosionFlux(i,j)
 
-                        endif
+                        !endif
                         
                     end if
 
