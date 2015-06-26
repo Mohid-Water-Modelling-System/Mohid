@@ -984,7 +984,7 @@ cd2 :           if (BlockFound) then
                 if ((      PropertyX%ID%SolutionFromFile .and. .not. PropertyY%ID%SolutionFromFile) .or. &
                     (.not. PropertyX%ID%SolutionFromFile .and.       PropertyY%ID%SolutionFromFile)) then
                     write (*,*) 'wind velocity X must be given in the same way as wind velocity Y'
-                    stop 'ConstructPropertyList - ModuleAtmosphere - ERR99'
+                    stop 'ConstructPropertyList - ModuleAtmosphere - ERR90'
                 endif
             endif
         endif
@@ -1046,7 +1046,7 @@ cd2 :           if (BlockFound) then
                          keyword      = 'CLOUD_COVER_METHOD',                               &
                          ClientModule = 'ModuleAtmosphere',                                 &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleAtmosphere - ERR50'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleAtmosphere - ERR100'
         
             !if keyword not found but model will compute it, warn user that the default method has changed
             if (iflag == 0 .and. .not. PropertyX%ID%SolutionFromFile .and. .not. PropertyX%Constant) then
@@ -1055,8 +1055,30 @@ cd2 :           if (BlockFound) then
                 write (*,*) 'and model will compute cloud cover'
                 write (*,*) 'The default method to compute cloud cover has changed '
                 write (*,*) 'Now is from measured radiation or CLOUD_COVER_METHOD : 3 '
-                write (*,*) ''            
-            endif        
+                write (*,*) ''     
+                
+            endif       
+            
+            !if computing cloud cover from radiation, cant compute radiation from cloud cover
+            !this is a "pescadinha de rabo na boca" that can not exist
+            call SearchProperty(PropertyY, SolarRadiation_, .false., STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then             
+            
+                if (.not. PropertyX%ID%SolutionFromFile .and. .not. PropertyX%Constant          &
+                    .and. .not. PropertyY%ID%SolutionFromFile .and. .not. PropertyY%Constant    &
+                    .and. Me%CloudCoverMethod == CloudFromRadiation) then
+                    
+                    write (*,*) ''
+                    write (*,*) 'Model will compute cloud cover and compute solar radiation'
+                    write (*,*) 'and method for cloud cover uses radiation '
+                    write (*,*) 'and method for radiation uses cloud cover '
+                    write (*,*) 'This options are inconsistent. Change them '
+                    write (*,*) ''                     
+                    stop 'ConstructPropertyList - ModuleAtmosphere - ERR110'
+                    
+                endif
+            endif
+            
         endif
 
     end subroutine ConstructPropertyList
