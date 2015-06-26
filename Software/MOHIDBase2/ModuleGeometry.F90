@@ -5274,7 +5274,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 AddFaces_ = .false. 
             endif      
  
-    ifMS:   if (MasterOrSlave) then
+    ifMS:   if (MasterOrSlave_) then
     
                 call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
                                           WorkSize         = WindowLimitsJI,       &
