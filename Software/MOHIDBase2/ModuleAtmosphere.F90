@@ -554,18 +554,38 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR40'
 
-
+        !Do not use random number as default method to compute cloud cover
+        !the method from radiation does a ratio between TOA radiation and given solar radiation
+        !nowadays solar radiation data is something that both land and water models have and there is no
+        !justification for using random numbers! David June 2015
         call GetData(Me%CloudCoverMethod,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromFile,                                           &
                      keyword      = 'CLOUD_COVER_METHOD',                               &
                      ClientModule = 'ModuleAtmosphere',                                 &
-                     Default      = CloudFromRandom,                                    &
+                     !Default      = CloudFromRandom,                                    &
+                     Default      = CloudFromRadiation,                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR50'
         
+        !if keyword not found and model will compute warn user that the default method has changed
+        !done in ContructPropertyValues
+        
+        !Do not allow cloud cover from random
+        if (Me%CloudCoverMethod == CloudFromRandom) then
+            write (*,*) ''
+            write (*,*) 'CLOUD_COVER_METHOD : 2 (from random numbers), in atmosphere data file'
+            write (*,*) 'was abandoned. The default method now is CLOUD_COVER_METHOD : 3.'
+            write (*,*) 'Please use CLOUD_COVER_METHOD : 3 (from radiation)'
+            write (*,*) ' or CLOUD_COVER_METHOD : 1 (from sun hours)'
+            write (*,*) ' or use a constant value or solution from file.'
+            write (*,*) ''
+            stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR50.1'
+        endif
+        
         if (Me%CloudCoverMethod == CloudFromRadiation) then
-            !Cloud cover value for night (radiation is zero). Reference needed (default it was old value hardcoded)
+            !Cloud cover value for night (radiation is zero). 
+            !0.595 is from FAO Irrigation and Drainage Paper Report 56
             call GetData(Me%CloudCoverNight,                                                &
                          Me%ObjEnterData, iflag,                                            &
                          SearchType   = FromFile,                                           &
@@ -916,7 +936,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: ClientNumber
         integer                                     :: i, j, STAT_CALL
         logical                                     :: BlockFound
-
+        integer                                     :: dummy, iflag
         !----------------------------------------------------------------------
 
         ! Initialize the Atmosphere properties number   
@@ -1015,6 +1035,29 @@ cd2 :           if (BlockFound) then
         endif
 
         call CheckForObsoleteNames
+        
+        call SearchProperty(PropertyX, CloudCover_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then        
+            
+            !Do not use random number as default method to compute cloud cover. David June 2015
+            call GetData(dummy,                                                             &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'CLOUD_COVER_METHOD',                               &
+                         ClientModule = 'ModuleAtmosphere',                                 &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleAtmosphere - ERR50'
+        
+            !if keyword not found but model will compute it, warn user that the default method has changed
+            if (iflag == 0 .and. .not. PropertyX%ID%SolutionFromFile .and. .not. PropertyX%Constant) then
+                write (*,*) ''
+                write (*,*) 'CLOUD_COVER_METHOD keyword not found in atmosphere data file'
+                write (*,*) 'and model will compute cloud cover'
+                write (*,*) 'The default method to compute cloud cover has changed '
+                write (*,*) 'Now is from measured radiation or CLOUD_COVER_METHOD : 3 '
+                write (*,*) ''            
+            endif        
+        endif
 
     end subroutine ConstructPropertyList
 
@@ -3342,7 +3385,7 @@ do1 :   do while (associated(PropertyX))
                     !David
                     !New implementation because cloud cover should be limited at night (and in sunrise and sunset)
                     !Because with the old formulation gives very low cloud cover values at this times (order of 0.001) 
-                    !that are not consistent with bibliography (cloud cover values from 0.3 to 1 and night around 0.5).
+                    !that are not consistent with bibliography (cloud cover values range from 0.3 to 1 and night around 0.5).
                     !In the above old implementation it seems that code exists to correct it ("if (QSO==0.0)") 
                     !but will never correct it because the situation SunHighAngles > 10 is not at night.
                     !So compute normal radiation, start with night, than low angles, than normal day
@@ -3375,7 +3418,7 @@ do1 :   do while (associated(PropertyX))
                             PropCloudCover%Field (i,j) = PropSolarRadiation%Field (i,j) / QSO
                         endif
 
-                        !Correct daily values only
+                        !Correct day values only
                         !usually near sunrise values computed are very low (near 10º sun angle or more)
                         !so min value for day is important to correct it
                         if (PropCloudCover%Field (i,j) < Me%CloudCoverMinDay) then
@@ -3408,13 +3451,13 @@ do1 :   do while (associated(PropertyX))
 
 
 
-        case (CloudFromRandom)
-
-            call JulianDay  (Me%ActualTime, Julday)
-            if (Julday /= Me%LastCalculateRandomCloud) then
-                PropCloudCover%Field = RandomCloud(Julday)
-                Me%LastCalculateRandomCloud = Julday
-            endif
+        !case (CloudFromRandom)
+        !
+        !    call JulianDay  (Me%ActualTime, Julday)
+        !    if (Julday /= Me%LastCalculateRandomCloud) then
+        !        PropCloudCover%Field = RandomCloud(Julday)
+        !        Me%LastCalculateRandomCloud = Julday
+        !    endif
 
         end select
 
