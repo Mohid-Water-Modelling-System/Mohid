@@ -4083,7 +4083,9 @@ do5:            do n=1,Me%NumberOfClasses
                         Me%FluxToSediment(i,j) = Me%FluxToSediment(i,j) + SandClass%FluxToSediment(i,j)
                     
                         !kg
-                        Me%TotalFluxToSediment(i,j) = Me%FluxToSediment(i,j) * Me%Evolution%SedimentDT * Me%ExternalVar%GridCellArea(i,j)
+                        Me%TotalFluxToSediment(i,j) = Me%FluxToSediment(i,j)    *       &
+                                                      Me%Evolution%SedimentDT   *       &
+                                                      Me%ExternalVar%GridCellArea(i,j)
                     endif
                     
                     !kg/m2                    
@@ -4979,17 +4981,17 @@ do1:            do n=1,Me%NumberOfClasses
         !    stop 'OutPut_TimeSeries - ModuleSediment - ERR05'
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D =Me%Bedload, STAT = STAT_CALL)
+                            Data2D_8 = Me%Bedload, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR06'
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D =Me%FluxX, STAT = STAT_CALL)
+                            Data2D_8 =Me%FluxX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR07'
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D =Me%FluxY, STAT = STAT_CALL)
+                            Data2D_8 =Me%FluxY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR08'
         
@@ -5001,29 +5003,29 @@ do1:            do n=1,Me%NumberOfClasses
         endif
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D =Me%FluxToSediment, STAT = STAT_CALL)
+                            Data2D_8 =Me%FluxToSediment, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR10'  
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D =Me%DM, STAT = STAT_CALL)
+                            Data2D_8 =Me%DM, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR11'
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D =Me%BedloadMass, STAT = STAT_CALL)
+                            Data2D_8 =Me%BedloadMass, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR12'
         
         if (Me%CohesiveClass%Run) then            
             call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D =Me%CohesiveClass%DM, STAT = STAT_CALL)
+                            Data2D_8 =Me%CohesiveClass%DM, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                              &
                 stop 'OutPut_TimeSeries - ModuleSediment - ERR13'
         endif
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D =Me%TotalFluxToSediment, STAT = STAT_CALL)
+                            Data2D_8 =Me%TotalFluxToSediment, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR14'
         
