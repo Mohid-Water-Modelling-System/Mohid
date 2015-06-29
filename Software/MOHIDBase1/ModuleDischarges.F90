@@ -76,7 +76,7 @@ Module ModuleDischarges
     public  :: GetByPassON
     public  :: GetByPassConcIncrease    
     public  :: GetDischargeFromIntakeON
-    public  :: GetIntakeConcentration
+    public  :: GetIntakePosition
     private ::    Search_Discharge
     private ::    Search_Discharge_ByName
     private ::    Search_Property
@@ -1154,6 +1154,11 @@ i1:     if (NewDischarge%TimeSerieON) then
                 endif
                 
             else
+                write(*,*)
+                write(*,*)'Look at file                        : ', trim(Me%DataFile)
+                write(*,*)'FLOW_COLUMN not found in discharge  : ', trim(NewDischarge%ID%Name)
+                write(*,*)'Discharge flow will be assumed constant'
+                write(*,*)
                 NewDischarge%WaterFlow%Variable = .false.            
             endif
             
@@ -1962,6 +1967,13 @@ ifvar:  if (NewProperty%Variable) then
                     stop      'Subroutine ConstructIntakeDischarges - ModuleDischarges. ERR01.'
                 else
                     CurrentDischarge%FromIntake%IntakeID = Intake%ID%IDNumber
+                    
+                    !if intake flow is variable, and discharge depends on intake flow
+                    !then it must also be variable
+                    if(CurrentDischarge%FromIntake%AssociateFlow)then
+                        CurrentDischarge%WaterFlow%Variable = Intake%WaterFlow%Variable
+                    endif
+                    
                 endif
 
             end if
@@ -3332,7 +3344,7 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
 
     subroutine GetDischargeConcentration(DischargesID, TimeX,DischargeIDNumber,         &
                                          Concentration, PropertyIDNumber,               &
-                                         STAT)
+                                         PropertyFromIntake, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -3340,6 +3352,7 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
         integer,           intent(IN)               :: DischargeIDNumber
         real,              intent(OUT)              :: Concentration
         integer,           intent(IN)               :: PropertyIDNumber
+        logical, optional, intent(OUT)              :: PropertyFromIntake
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3348,7 +3361,6 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
         integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: STAT_CALL
-        logical                                     :: PropertyFromIntake
         real                                        :: PropertyIncreaseValue
         !----------------------------------------------------------------------
 
@@ -3453,24 +3465,19 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
     end Subroutine GetDischargeConcentration
 
     !--------------------------------------------------------------------------
-
-
-    subroutine GetIntakeConcentration(DischargesID, DischargeIDNumber, PropertyIDNumber,  &
-                                      IntakeI, IntakeJ, IntakeK, ConcentrationIncrease, STAT)
+    
+    subroutine GetIntakePosition(DischargesID, DischargeIDNumber, IntakeI, IntakeJ, IntakeK, STAT)
+                                      
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
         integer,           intent(IN)               :: DischargeIDNumber
         integer,           intent(OUT)              :: IntakeI, IntakeJ, IntakeK
-        real,              intent(OUT)              :: ConcentrationIncrease
-        integer,           intent(IN)               :: PropertyIDNumber
-
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge), pointer        :: DischargeX
         type(T_IndividualDischarge), pointer        :: IntakeX
-        type(T_Property),            pointer        :: PropertyX
         integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: STAT_CALL
@@ -3487,41 +3494,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                stop  'GetIntakeConcentration - ModuleDischarges - ERR01'
+                stop  'GetIntakePosition - ModuleDischarges - ERR01'
             endif
-             
-            call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
+
+            call Search_Discharge(IntakeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
             if (STAT_CALL/=SUCCESS_) then 
-                !If the proeprty is not found the program don't stop is return a error 
-                !not found
-                if (STAT_CALL /= NOT_FOUND_ERR_) then 
-                    stop  'GetIntakeConcentration - ModuleDischarges - ERR02'
-                endif
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                stop  'GetIntakeConcentration - ModuleDischarges - ERR03'
             endif
 
-            if(PropertyX%FromIntake)then
+            IntakeI = IntakeX%Localization%GridCoordinates%I
+            IntakeJ = IntakeX%Localization%GridCoordinates%J
+            IntakeK = IntakeX%Localization%GridCoordinates%K
+                
 
-                ConcentrationIncrease = PropertyX%IncreaseValue
-
-                call Search_Discharge(IntakeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
-                if (STAT_CALL/=SUCCESS_) then 
-                    write(*,*) ' can not find discharge number ',DischargeIDNumber
-                    stop  'GetIntakeConcentration - ModuleDischarges - ERR03'
-                endif
-
-                IntakeI = IntakeX%Localization%GridCoordinates%I
-                IntakeJ = IntakeX%Localization%GridCoordinates%J
-                IntakeK = IntakeX%Localization%GridCoordinates%K
-
-                nullify(IntakeX)
-
-            else
-
-                stop  'GetIntakeConcentration - ModuleDischarges - ERR04'
-
-            end if
-
-            nullify(PropertyX)
+            nullify(IntakeX)
 
             nullify(DischargeX)
 
@@ -3539,7 +3526,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
         !----------------------------------------------------------------------
 
-    end Subroutine GetIntakeConcentration
+    end Subroutine GetIntakePosition
 
     !--------------------------------------------------------------------------
 
@@ -3573,7 +3560,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
             if (STAT_CALL/=SUCCESS_) then 
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
-                stop  'GetDischargeConcentration - ModuleDischarges - ERR01'
+                stop  'GetByPassConcIncrease - ModuleDischarges - ERR01'
             endif
              
             call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
@@ -3581,7 +3568,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                 !If the proeprty is not found the program don't stop is return a error 
                 !not found
                 if (STAT_CALL /= NOT_FOUND_ERR_) then 
-                    stop  'GetDischargeConcentration - ModuleDischarges - ERR02'
+                    stop  'GetByPassConcIncrease - ModuleDischarges - ERR02'
                 endif
             endif
             

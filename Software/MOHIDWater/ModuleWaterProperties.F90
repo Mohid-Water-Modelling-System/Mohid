@@ -190,7 +190,7 @@ Module ModuleWaterProperties
                                           GetByPassON, GetDischargesIDName,                     &
                                           GetDischargeFlowDistribuiton, UnGetDischarges,        &
                                           GetDischargeON, GetByPassConcIncrease,                &
-                                          GetDischargeFromIntakeON,GetIntakeConcentration,      &
+                                          GetDischargeFromIntakeON, GetIntakePosition,          &
                                           Kill_Discharges
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
                                           GetNumberOfTimeSeries, GetTimeSerieLocation,          &
@@ -4060,6 +4060,8 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%Discharges%NumberOfProperties                = &
                 Me%Coupled%Discharges%NumberOfProperties                + 1
                 Me%Coupled%Discharges%Yes                               = ON
+                
+                call CheckDischarges (PropertyX)
 
                 if (PropertyX%Evolution%DischargesTracking) then
                     Me%Coupled%DischargesTracking%NumberOfProperties    = &
@@ -7494,8 +7496,6 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR90'
 
-        call CheckDischarges (NewProperty, Me%ObjHydrodynamic)
-                
         if (NewProperty%evolution%Discharges)                                            &
             NewProperty%Evolution%Variable = .true.
 
@@ -8144,11 +8144,10 @@ case1 : select case(PropertyID)
 
     !--------------------------------------------------------------------------
 
-    subroutine CheckDischarges (NewProperty, ObjHydrodynamic)
+    subroutine CheckDischarges (NewProperty)
     
         !Arguments-------------------------------------------------------------
         type(T_property), pointer       :: NewProperty
-        integer                         :: ObjHydrodynamic
 
         !Local-----------------------------------------------------------------
         logical                         :: HydroDischarge        
@@ -8161,8 +8160,7 @@ case1 : select case(PropertyID)
             
         end if
       
-        call GetPointDischargesState(ObjHydrodynamic, HydroDischarge)
-
+        call GetPointDischargesState(Me%ObjHydrodynamic, HydroDischarge)
         
         if (.not. NewProperty%evolution%Discharges) then 
             if (HydroDischarge .and. NewProperty%evolution%AdvectionDiffusion)  then
@@ -18817,16 +18815,15 @@ do3:            do k = kbottom, KUB
         integer                                     :: DischVertical
         real                                        :: WaterLevelByPass
         integer                                     :: ib, jb, kb
-        logical                                     :: ByPassON, IgnoreOK, DischargeFromIntakeON
-
+        logical                                     :: ByPassON, IgnoreOK, DischargeFromIntakeON, PropFromIntake
         real,    dimension(:    ), pointer          :: DistributionCoef
         integer, dimension(:    ), pointer          :: VectorI, VectorJ, VectorK
         real                                        :: AuxFlowIJ
         integer                                     :: nCells, n, AuxCell
         integer                                     :: FlowDistribution
-        real                                        :: ConcentrationIncrease, ByPassConcIncrease
+        real                                        :: ByPassConcIncrease
         integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax
-
+        
                  
         !Begin------------------------------------------------------------
 
@@ -19020,56 +19017,57 @@ dn:         do n=1, nCells
                             endif
                             
                         else iby 
-                        !Frank
+                        
+                            !Frank
                             !If the discharge flow is positive (Input) then the concentration
                             !to consider is the concentration supplied in the data file
  i1:                        if (AuxFlowIJ >= 0.) then
                     
- i2:                            if (DischargeFromIntakeON) then
-                                    
-                                    !Get the Intake location and the concentration increase
-                                    call GetIntakeConcentration(Me%ObjDischarges, dis,      &
-                                                                PropertyX%ID%IDNumber,      &
-                                                                IntakeI, IntakeJ, IntakeK,  &
-                                                                ConcentrationIncrease,      &
+                                call GetDischargeConcentration (Me%ObjDischarges,                       &
+                                                                Me%ExternalVar%Now,                     &
+                                                                dis, DischargeConc,                     &
+                                                                PropertyIDNumber=PropertyX%ID%IDNumber, &
+                                                                PropertyFromIntake= PropFromIntake,     &
                                                                 STAT = STAT_CALL)
-                                    if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR89'
-                                    PropertyX%DischConc(AuxCell) = PropertyX%Concentration(IntakeI, IntakeJ, IntakeK) + &
-                                                                   ConcentrationIncrease
-
-                                else   i2
-
-                                    call GetDischargeConcentration (Me%ObjDischarges,                   &
-                                                                    Me%ExternalVar%Now,                 &
-                                                                    dis, DischargeConc,                 &
-                                                                    PropertyIDNumber=PropertyX%ID%IDNumber, &
-                                                                    STAT = STAT_CALL)
-                                    if (STAT_CALL/=SUCCESS_) then
-                                        if (STAT_CALL == NOT_FOUND_ERR_) then 
-                                            !When a property is not found associated to a discharge
-                                            !by default is consider that the concentration is zero
-                                            DischargeConc = 0.
+                                if (STAT_CALL/=SUCCESS_) then
+                                    if (STAT_CALL == NOT_FOUND_ERR_) then 
+                                        !When a property is not found associated to a discharge
+                                        !by default is consider that the concentration is zero
+                                        DischargeConc = 0.
+                                        
+                                        !if property is temperature, warn user
+                                        if  ((PropertyX%ID%IDNumber == Temperature_) .and. (.not. Me%TempFirstTimeWarning)) then
                                             
-                                            !if property is temperature, warn user
-                                            if  ((PropertyX%ID%IDNumber == Temperature_) .and. (.not. Me%TempFirstTimeWarning)) then
-                                                
-                                                call SetError(WARNING_, INTERNAL_, &
-                                       "Positive discharge without user defined concentration - discharge temperature = 0ºC", ON)
-                                                Me%TempFirstTimeWarning = .true.              
-                                                         
-                                            endif
-                                        else
-                                            stop 'WaterPropDischarges - ModuleWaterProperties - ERR90'
+                                            call SetError(WARNING_, INTERNAL_, &
+                                   "Positive discharge without user defined concentration - discharge temperature = 0ºC", ON)
+                                            Me%TempFirstTimeWarning = .true.              
+                                                     
                                         endif
+                                    else
+                                        stop 'WaterPropDischarges - ModuleWaterProperties - ERR90'
                                     endif
-
+                                endif
+                                
+                                if(PropFromIntake)then
+                                
+                                    call GetIntakePosition (Me%ObjDischarges, dis,          &
+                                                            IntakeI, IntakeJ, IntakeK,      &
+                                                            STAT = STAT_CALL)
+                                    if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR91'
+                                    
+                                    !DischargeConc here is the concentration increment
+                                    PropertyX%DischConc(AuxCell) = PropertyX%Concentration(IntakeI, IntakeJ, IntakeK) + &
+                                                                   DischargeConc 
+                                else
                                     PropertyX%DischConc(AuxCell) = DischargeConc
-                                                                  
-                                endif i2
+                                endif
+
+                                
+
                             !
                             else       
                                    
-                                   PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k) 
+                                PropertyX%DischConc(AuxCell) = PropertyX%Concentration(i , j , k) 
                                 
                             endif i1
                         
