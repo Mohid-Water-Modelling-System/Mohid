@@ -174,7 +174,7 @@ Module ModuleInterfaceSedimentWater
     use ModuleTurbulence,           only: SetTurbulenceBottomRugosity
     use ModuleFreeVerticalMovement, only: Get_FreeConvFlux, SetDepositionProbability,       &
                                           UngetFreeVerticalMovement, FreeVertPropertyExists,&
-                                          FreeVertPropertyHasDeposition
+                                          Get_FreeVelocity, FreeVertPropertyHasDeposition
 #ifndef _SEDIMENT_ 
     use ModuleSedimentProperties,   only: SedimentPropertyExists,GetSedimentPropertyOptions,&
                                           GetSedimentConcentration, UnGetSedimentProperties,&
@@ -203,9 +203,10 @@ Module ModuleInterfaceSedimentWater
                                           GetSandDiameters, GetSandDensity, UnGetSand 
     use ModuleSediment,             only: ConstructSediment, ModifySediment,                &
                                           SetCohesiveFlux, SetNonCohesiveFlux,              &
-                                          GetTopCriticalShear,                              &
-                                          GetCohesiveMass, GetSandMass,                     &
-                                          GetCriticalShearStress, UnGetSediment 
+                                          GetTopCriticalShear, GetConcRef,                  &
+                                          GetCohesiveMass, GetCohesiveContent, GetSandMass, &
+                                          GetSandContent, GetCriticalShearStress,           &
+                                          UnGetSediment 
     implicit none
 
     private 
@@ -437,6 +438,8 @@ Module ModuleInterfaceSedimentWater
         integer, pointer, dimension(:,:  )          :: SedimentColumnFull   => null()
         logical                                     :: ComputeConsolidation = .false.
         real(8), pointer, dimension(:,:,:)          :: CohesiveMass         => null()
+        real, pointer, dimension(:,:,:)             :: CohesiveContent      => null()
+        
     end type T_Ext_Sed
 
     type       T_Property_2D
@@ -4367,18 +4370,6 @@ do1 :   do while (associated(PropertyX))
             if (STAT_CALL /= SUCCESS_)                                                       &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR18'
 
-
-            !call GetCohesiveDryDensity(Me%ObjSediment,                                      &
-            !                           SedimentDryDensity = Me%ExtSed%SedimentDryDensity,   &
-            !                           STAT       = STAT_CALL)
-            !if (STAT_CALL /= SUCCESS_)                                                      &
-            !    stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR19'
-            !
-            !call GetPorosity(Me%ObjSediment,                                                & 
-            !                              Porosity = Me%ExtSed%Porosity,                    &
-            !                              STAT       = STAT_CALL)
-            !if (STAT_CALL /= SUCCESS_)                                                      &
-            !    stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR20'
             
             call GetCohesiveMass(Me%ObjSediment,                                            & 
                                           CohesiveMass = Me%ExtSed%CohesiveMass,            &
@@ -4386,11 +4377,11 @@ do1 :   do while (associated(PropertyX))
             if (STAT_CALL /= SUCCESS_)                                                      &
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR20'
             
-            !call GetSandClass(Me%ObjSediment,                                            & 
-            !                              SandClass = Me%ExtSed%SandClass,            &
-            !                              STAT       = STAT_CALL)
-            !if (STAT_CALL /= SUCCESS_)                                                      &
-            !    stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR30'
+            call GetCohesiveContent(Me%ObjSediment,                                         & 
+                                          CohesiveContent = Me%ExtSed%CohesiveContent,      &
+                                          STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR30'
             
         endif
 
@@ -4600,6 +4591,10 @@ do1 :   do while (associated(PropertyX))
             call UngetSediment(Me%ObjSediment, Me%ExtSed%CohesiveMass, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
                 stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR24' 
+            
+            call UngetSediment(Me%ObjSediment, Me%ExtSed%CohesiveContent, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR25' 
             
         endif
             
@@ -6137,6 +6132,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                     CohesiveSediment%ErosionFlux(i,j) = MaximumFlux
 
                                 end if
+                                
+                                if(Me%RunSedimentModule)then                                
+                                    CohesiveSediment%ErosionFlux(i,j) = CohesiveSediment%ErosionFlux(i,j) * Me%ExtSed%CohesiveContent(i,j,KUB)
+                                endif
 
                             else
 
@@ -6730,11 +6729,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                 !Non-Cohesive Sediments can pass directly through the interface to 
                                 !the sediment column 
                                 
-                                PropertyX%FluxToWater(i,j)    = PropertyX%FluxToWater(i,j) - PropertyX%DepositionFlux(i,j)
+                                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                                    
+                                    PropertyX%FluxToWater(i,j)    = PropertyX%FluxToWater(i,j) - PropertyX%DepositionFlux(i,j)
                                 
-                                PropertyX%FluxToSediment(i,j) = - PropertyX%FluxToWater(i,j)
+                                    PropertyX%FluxToSediment(i,j) = - PropertyX%FluxToWater(i,j)
                                 
-                                PropertyX%Mass_Available(i,j) = 0.
+                                    PropertyX%Mass_Available(i,j) = 0.
+                                endif
                                 
                             endif 
                             
@@ -6764,11 +6766,14 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
 
         !Local-----------------------------------------------------------------
-        integer                                 :: IUB, JUB, ILB, JLB, KUB
+        integer                                 :: IUB, JUB, ILB, JLB, KLB
+        integer                                 :: KUB_SED
         integer                                 :: i, j, STAT_CALL
         type(T_Property), pointer               :: PropertyX
         real(8), dimension(:,:,:),pointer       :: SandMass
         real, dimension(:,:),pointer            :: CriticalShearStress
+        real, pointer, dimension(:,:,:)         :: SettlingVelocity, SandContent
+        real, dimension(:,:),  pointer          :: ConcRef
         real                                    :: MaximumFlux
 
         !Begin-----------------------------------------------------------------
@@ -6777,6 +6782,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         JUB = Me%WaterWorkSize3D%JUB
         ILB = Me%WaterWorkSize3D%ILB
         JLB = Me%WaterWorkSize3D%JLB
+        KLB = Me%WaterWorkSize3D%KLB
         
         PropertyX => Me%FirstProperty
         
@@ -6789,10 +6795,25 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     call GetSandMass(Me%ObjSediment,PropertyX%ID%IDNumber,SandMass, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                                      &
                         stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR01'
+                    
+                    call GetSandContent(Me%ObjSediment,PropertyX%ID%IDNumber,SandContent, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                      &
+                        stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR03'
                 
                     call GetCriticalShearStress(Me%ObjSediment,PropertyX%ID%IDNumber,CriticalShearStress, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                                      &
                         stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR05'
+                    
+                    call GetConcRef(Me%ObjSediment,ConcRef, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                      &
+                        stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR06'
+                    
+                    call Get_FreeVelocity(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,&
+                                              PropertyID             = PropertyX%ID%IDNumber,     &
+                                              Free_Velocity          = SettlingVelocity,          &
+                                              STAT                   = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                    &
+                        stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR07'
         
                     do j = JLB, JUB
                     do i = ILB, IUB
@@ -6800,30 +6821,42 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint .and. &
                            Me%ExtSed%WaterPoints2D (i,j) == WaterPoint)then
 
-                            KUB = Me%ExtSed%KTop(i, j)                            
+                            KUB_SED = Me%ExtSed%KTop(i, j)                            
                                 
-                            MaximumFlux = SandMass(i,j,KUB)/Me%ExternalVar%GridCellArea(i,j)/  &
+                            MaximumFlux = SandMass(i,j,KUB_SED)/Me%ExternalVar%GridCellArea(i,j)/  &
                                             PropertyX%Evolution%DTInterval
 
                             
                             if(MaximumFlux .lt. 0.)then
-                                write(*,*)'Maximum erosion flux cannot negative.', 'i,j', i,j, 'KUB = ', KUB
+                                write(*,*)'Maximum erosion flux cannot negative.', 'i,j', i,j, 'KUB = ', KUB_SED
                                 stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR10'
                             end if       
 
                             if(CriticalShearStress(i,j) < Me%Shear_Stress%Tension(i,j) .and.        &
-                                SandMass(i,j,KUB) > 0.)then
+                                SandMass(i,j,KUB_SED) > 0.)then
                                 
-                                PropertyX%ErosionFlux(i,j) =                                  &
-                                ErosionFlux(CriticalShearErosion = CriticalShearStress(i, j),        &
-                                            ShearStress          = Me%Shear_Stress%Tension(i,j),     &
-                                            ErosionRate          = Me%ErosionRate%Field(i,j))
-                                            
+                                !For fully cohesive beds (mud content > 0.6) the erosion flux for sand is calculated by using 
+                                !the same formulation of cohesive sediments
+                                if(Me%ExtSed%CohesiveContent(i,j,KUB_SED) > 0.6) then
+                                 
+                                    PropertyX%ErosionFlux(i,j) =                                         &
+                                    ErosionFlux(CriticalShearErosion = CriticalShearStress(i, j),        &
+                                                ShearStress          = Me%Shear_Stress%Tension(i,j),     &
+                                                ErosionRate          = Me%ErosionRate%Field(i,j))                                            
+                                    
+                                else
+                                    PropertyX%ErosionFlux(i,j) = - SettlingVelocity(i,j,KLB+1) * ConcRef(i,j)
+                                endif
+                                
+                                
+                                    
                                 if(PropertyX%ErosionFlux(i,j) .gt. MaximumFlux)then
 
                                     PropertyX%ErosionFlux(i,j) = MaximumFlux
 
                                 end if
+                                
+                                PropertyX%ErosionFlux(i,j) = PropertyX%ErosionFlux(i,j) * SandContent(i,j,KUB_SED)
 
                             else
 
@@ -6845,6 +6878,18 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     call UngetSediment(Me%ObjSediment, CriticalShearStress, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR30' 
+                    
+                    call UngetSediment(Me%ObjSediment, ConcRef, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR35' 
+                    
+                    call UngetSediment(Me%ObjSediment, SandContent, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR40' 
+                    
+                    call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, SettlingVelocity, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR50' 
                 
                 endif
                 
