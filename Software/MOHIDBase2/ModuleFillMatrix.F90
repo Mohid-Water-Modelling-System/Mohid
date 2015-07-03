@@ -4139,7 +4139,7 @@ ifMS:       if (MasterOrSlave) then
                                RefTime      = Now,                                      &
                                CyclicTimeON = Me%HDF%CyclicTimeON)
                                
-         if (Me%HDF%CyclicTimeON) then
+         if (Me%HDF%CyclicTimeON .and. .not. Me%HDF%GenericYear) then
             Me%HDF%StartTime = Me%BeginTime
             Me%HDF%EndTime   = Me%EndTime
          endif                               

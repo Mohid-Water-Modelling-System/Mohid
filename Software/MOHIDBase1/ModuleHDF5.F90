@@ -2413,7 +2413,7 @@ Module ModuleHDF5
             endif
 
             call h5dopen_f (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4_1D - ModuleHDF5 - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadDataR4_1D - ModuleHDF5 - ERR06'
 
             AllocateMatrix = .false.
                                

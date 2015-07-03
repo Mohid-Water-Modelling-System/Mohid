@@ -368,6 +368,7 @@ Module ModuleHydrodynamic
     private ::          ModifyWaterDischarges
 
     private ::      ComputeResidualFlowProperties
+    private ::      ComputeEmersionTime
     private ::      ComputeSystemEnergy
     private ::          WriteEnergyDataFile
     private ::      Hydrodynamic_OutPut
@@ -1402,8 +1403,9 @@ Module ModuleHydrodynamic
         
         integer                         :: ReadContinuousFormat  = null_int
         integer                         :: WriteContinuousFormat = null_int
-        integer                         :: ContinuousFormat      = null_int        
-        
+        integer                         :: ContinuousFormat      = null_int    
+            
+        logical                         :: EmersionTime          = .false.  
     end type T_HydroOptions
 
     type       T_OutPut
@@ -1629,6 +1631,12 @@ Module ModuleHydrodynamic
         logical                              :: ON          = .false.  !initialization: Jauch
         integer                              :: Direction   = null_int !initialization: Jauch
     end type T_CyclicBoundary
+    
+    type T_Emersion
+        real,    dimension(:,:), pointer     :: EmersionTime  => null()
+        real,    dimension(:,:), pointer     :: ImmersionTime => null()
+        real                                 :: TotalSimulationTime = null_real
+    end type T_Emersion
        
     private :: T_Hydrodynamic
     type       T_Hydrodynamic
@@ -1672,7 +1680,7 @@ Module ModuleHydrodynamic
         type(T_Scraper       ) :: Scraper
         type(T_Thinwalls     ) :: Thinwalls
         type(T_WindWaves     ) :: WindWaves
-        
+        type(T_Emersion      ) :: Emersion
         type(T_DDecomp)        :: DDecomp
                 
         logical                :: FirstIteration = .true.
@@ -7011,7 +7019,16 @@ cd21:   if (Baroclinic) then
 
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1170')
-
+            
+        call GetData(Me%ComputeOptions%EmersionTime,                                    & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'COMPUTE_EMERSION_TIME',                              &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1180')
 
     End Subroutine Construct_Numerical_Options
 
@@ -8090,6 +8107,18 @@ ic1:    if (Me%CyclicBoundary%ON) then
         allocate(Me%Aux3DFlux(ILB:IUB, JLB:JUB, KLB:KUB))
         
         call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(FillValueReal))
+        
+        if(Me%ComputeOptions%EmersionTime)then
+
+            allocate (Me%Emersion%EmersionTime  (ILB:Pad(ILB, IUB), JLB:JUB))
+            allocate (Me%Emersion%ImmersionTime (ILB:Pad(ILB, IUB), JLB:JUB)) 
+
+            Me%Emersion%EmersionTime (:,:)  = 0.0
+            Me%Emersion%ImmersionTime(:,:)  = 0.0  
+            
+            Me%Emersion%TotalSimulationTime = 0.0
+  
+        endif
         
       !----------------------------------------------------------------------
 
@@ -13623,6 +13652,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Compute Residual Flow Properties
             if (Me%ComputeOptions%Residual)                                 &
                 call ComputeResidualFlowProperties
+                                
+            !Calculates emersion and immersion times
+            if (Me%ComputeOptions%EmersionTime)                             &
+                call ComputeEmersionTime
 
             !Calculates the energy of the system - Frank Out 99
             if (Me%ComputeOptions%Energy)                                   &
@@ -21822,7 +21855,6 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
         real                                 :: az        ! cell face area in Z direction
         integer                              :: i, j, k   ! counters
         integer                              :: ILB, IUB, JLB, JUB, KLB, KUB !bounds
-        integer                              :: status 
         ! integer                              :: CHUNK
         
         !External_Var - Grid
@@ -21841,7 +21873,7 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
         !Aux Variables
         integer                              :: kbottom, OpL, OpU, Op1, Op2, Op3, Op4
         real(8)                              :: DWZt, Uface, Uup, Vface, Vup, FL, FU, Ulow, Vlow
-        real(8)                              :: dzdx1, dzdx2, dzdx, dzdy1, dzdy2, dzdy, dzdxy1, dzdxy2, azdt
+        real(8)                              :: dzdx1, dzdx2, dzdx, dzdy1, dzdy2, dzdy, azdt
         real(8)                              :: n1, n2, n3
         
         !Begin----------------------------------------------------------------------
@@ -22072,7 +22104,7 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
         real,    dimension (:,:),   pointer  :: q2D         ! independdent term
 
         integer                              :: di, dj    ! index change due to calculation direction
-        integer                              :: ILB, IUB, JLB, JUB, KLB, KUB !bounds
+        integer                              :: ILB, IUB, JLB, JUB !bounds
         integer                              :: IJmin, IJmax, JImin, JImax
         
         !Begin----------------------------------------------------------------------
@@ -42454,6 +42486,53 @@ do3:            do  k = kbottom, KUB
     end subroutine ComputeResidualFlowProperties
     
     !----------------------------------------------------------------------
+    
+    subroutine ComputeEmersionTime
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: WorkILB, WorkIUB, WorkJLB, WorkJUB
+        integer                                     :: WorkKUB
+        integer                                     :: i, j, STAT_CALL
+        integer, dimension(:, :, :), pointer        :: WaterPoints3D
+        integer, dimension(:, :, :), pointer        :: OpenPoints3D
+        real                                        :: DT
+
+        !Begin --------------------------------------------------------------------------
+
+        WorkILB = Me%WorkSize%ILB 
+        WorkIUB = Me%WorkSize%IUB 
+        WorkJLB = Me%WorkSize%JLB 
+        WorkJUB = Me%WorkSize%JUB 
+        WorkKUB = Me%WorkSize%KUB 
+
+        WaterPoints3D => Me%External_Var%WaterPoints3D
+        OpenPoints3D  => Me%External_Var%OpenPoints3D
+        
+        !Gets Compute time step
+        call GetComputeTimeStep(Me%ObjTime, DT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR01'
+        
+        Me%Emersion%TotalSimulationTime = Me%Emersion%TotalSimulationTime +  DT
+
+        do  j = WorkJLB, WorkJUB
+        do  i = WorkILB, WorkIUB
+        
+            if (WaterPoints3D(i, j, WorkKUB) == Covered) then 
+                if (OpenPoints3D(i, j, WorkKUB) == Covered) then 
+                    Me%Emersion%ImmersionTime (i,j) =  Me%Emersion%ImmersionTime(i,j) + DT
+                else
+                    Me%Emersion%EmersionTime(i,j)   =  Me%Emersion%EmersionTime(i,j)  + DT
+                endif
+            endif
+                 
+        enddo
+        enddo
+        
+        nullify(WaterPoints3D, OpenPoints3D)
+    
+    end subroutine ComputeEmersionTime
+    
+    !----------------------------------------------------------------------
 
     subroutine ComputeSystemEnergy !Frank Out99
 
@@ -43565,6 +43644,38 @@ cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR670'
 
             endif cd3
+            
+            if (Me%ComputeOptions%EmersionTime)then
+            
+                !Emersion time
+                call HDF5WriteData  (ObjHDF5, "/Emersion/EmersionTime",                                 &
+                                     "EmersionTime", "s", Array2D = Me%Emersion%EmersionTime,           &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR671'
+                
+                !Immersion Time
+                call HDF5WriteData  (ObjHDF5, "/Emersion/ImmersionTime",                                &
+                                     "ImmersionTime", "s", Array2D = Me%Emersion%ImmersionTime,         &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR672'
+
+                Me%Emersion%EmersionTime  = Me%Emersion%EmersionTime  / Me%Emersion%TotalSimulationTime * 100.0
+                Me%Emersion%ImmersionTime = Me%Emersion%ImmersionTime / Me%Emersion%TotalSimulationTime * 100.0
+                
+                !Emersion percentage
+                call HDF5WriteData  (ObjHDF5, "/Emersion/EmersionPercentage",                           &
+                                     "EmersionPercentage", "%", Array2D = Me%Emersion%EmersionTime,     &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR673'
+
+                !Emersion percentage
+                call HDF5WriteData  (ObjHDF5, "/Emersion/ImmersionPercentage",                          &
+                                     "ImmersionPercentage", "%", Array2D = Me%Emersion%ImmersionTime,   &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR674'
+    
+            endif
+            
             
             if (.not. present(iW)) then
                 call KillHydroStatistics
@@ -47988,7 +48099,14 @@ ic1:    if (Me%CyclicBoundary%ON) then
         
         if (Me%ThinWalls%ON) then
             call KillThinWalls
-        endif        
+        endif       
+        
+        if(Me%ComputeOptions%EmersionTime)then
+
+            deallocate (Me%Emersion%EmersionTime )
+            deallocate (Me%Emersion%ImmersionTime) 
+
+        endif 
         
         
         if(Me%Output%FloodRisk)then
