@@ -27957,6 +27957,9 @@ d2:         do ig = 1, Me%NGroups
                 open (Unit, file = BeachingStatsFileName, status = 'replace', IOSTAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'WriteBeachingStats - ModuleLagrangianGlobal - ERR11'
                 
+                call WriteDataLine(unit, 'START', Me%ExternalVar%BeginTime)
+                call WriteDataLine(unit, 'END',   Me%ExternalVar%EndTime  )
+                
                 CurrentOrigin => Me%FirstOrigin
                 do while (associated(CurrentOrigin))
 
