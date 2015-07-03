@@ -420,7 +420,7 @@ Module ModuleLagrangianGlobal
                                        GetKeywordFromLine, GetFullBufferLine,               &
                                        ReplaceFullBufferLine, RewindBlock,                  &
                                        RewindBlockinBlock, ExtractBlockFromBlockFromBlock,  &
-                                       GetBlockSize, KillEnterData
+                                       GetBlockSize, WriteDataLine, KillEnterData
     use ModuleDrawing,          only : T_Polygon, T_PointF, PointDistanceToPolygon, New,    &
                                        Add, SetLimits, T_Lines, IsVisible, SegIntersectLine,&
                                        SegIntersectPolygon, IsPointInsidePolygon,           &
@@ -705,7 +705,9 @@ Module ModuleLagrangianGlobal
     !UderDefined_ option already declared
     integer, parameter                          :: Computed_Samuels_        = 2
 
-    integer, parameter                         :: ShoreTypesNbr            = 11
+    integer, parameter                          :: ShoreTypesNbr            = 11
+    
+    integer, parameter                          :: nDir                     = 36
     
     character(LEN = StringLength), parameter    :: block_begin              = '<BeginOrigin>'
     character(LEN = StringLength), parameter    :: block_end                = '<EndOrigin>'
@@ -1080,6 +1082,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: EulerianMonitor      = OFF
         logical                                 :: Partition            = OFF
         logical                                 :: AssociateBeachProb   = OFF
+        logical                                 :: CalcPartDistToCoast  = OFF
         logical                                 :: HaveBeachingProbBox  = OFF
         logical                                 :: HaveShoreTypeBox     = OFF
         logical                                 :: Statistics           = OFF
@@ -1428,6 +1431,8 @@ Module ModuleLagrangianGlobal
         real                                    :: HNSSpreadingDiffVel      = null_real
         real                                    :: HNSSpreadingDiffCoef      = null_real
         real                                    :: MDegraded                = null_real
+        real                                    :: DistanceToCoast          = null_real
+        real                                    :: MinDistanceToCoast       = - null_real
     end type T_Partic
 
     !Particle deposition
@@ -1501,6 +1506,7 @@ Module ModuleLagrangianGlobal
         real                                    :: VolumeTotalIni           = null_real        
         real                                    :: VolumeOilTotal           = null_real
         real                                    :: VolTotOilBeached         = null_real
+        real                                    :: MaxVolTotOilBeached      = 0.
         real                                    :: VolTotBeached            = null_real
         logical                                 :: MovingOrigin             = .false.
         character(StringLength)                 :: MovingOriginUnits        = null_str
@@ -1520,6 +1526,7 @@ Module ModuleLagrangianGlobal
         type (T_Partic), pointer                :: FirstPartic              => null()
         type (T_Origin), pointer                :: Next                     => null()
         logical                                 :: Beaching                 = OFF
+        logical                                 :: CoastlineBeaching        = OFF
         logical                                 :: Filtration               = OFF
         logical                                 :: Default                  = OFF
         logical                                 :: OnlyOnceEmit             = OFF
@@ -1710,6 +1717,10 @@ Module ModuleLagrangianGlobal
         logical                                 :: Overlay              = .false.
         logical                                 :: FirstIteration       = .true.
         logical                                 :: ConstructLag         = .true. 
+        
+        real, dimension(:), pointer             :: AngleList            => null()
+        real, dimension(:), pointer             :: DistanceByDirection  => null()
+        type (T_PointF),    pointer             :: Point
         
         logical                                 :: AveragePositionON    = .false. 
         real                                    :: CoefRadius           = null_real
@@ -2056,6 +2067,9 @@ em2:            do em =1, Me%EulerModelNumber
                 call FillGridThickness
                 call ComputeAreaVolume
                 call GetOilOptions
+                if(Me%State%CalcPartDistToCoast)then
+                    call CalcParticDistanceToCoast()
+                endif
             endif
             
             ! Opens Output Tracer Info File, if Needed
@@ -2564,8 +2578,6 @@ d2:         do ig = 1, Me%NGroups
         type (T_PointF),    pointer     :: Point
         real                            :: Distance, IntersectX, IntersectY
         integer                         :: em, i, j, d, STAT_CALL   
-        integer, parameter              :: Ndir = 36        
-
 
         !Begin---------------------------------------------------------------------
         
@@ -3796,10 +3808,9 @@ d2:     do em =1, Me%EulerModelNumber
                      Default      = .false.,                                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR46'
-        if(Me%OutPut%ExportArrvlBeachTimes)then
-            call ReadFileName("ROOT_SRT", Me%OutPut%RootPath, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR47'
-        endif
+        
+        call ReadFileName("ROOT_SRT", Me%OutPut%RootPath, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR47'
 
         call GetComputeTimeStep(Me%ExternalVar%ObjTime, DT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR70'
@@ -3900,7 +3911,7 @@ d2:     do em =1, Me%EulerModelNumber
                      keyword      ='COASTLINE_FILE',                                &
                      ClientModule ='ModuleLagrangianGlobal',                        &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR242'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR242'
             
         if (flag == 0) then
             Me%CoastLineON  = .false.
@@ -3917,7 +3928,7 @@ d2:     do em =1, Me%EulerModelNumber
                      keyword      ='THINWALLS_FILE',                                &
                      ClientModule ='ModuleLagrangianGlobal',                        &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR243'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR243'
             
         if (flag == 0) then
             Me%ThinWallsON  = .false.
@@ -3933,7 +3944,7 @@ d2:     do em =1, Me%EulerModelNumber
                      keyword      ='NEW_GRID_CENTER',                                   &
                      ClientModule ='ModuleLagrangianGlobal',                            &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR244'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR244'
             
         if (flag /= 2) then
             Me%NewGridLocation = .false.
@@ -3953,7 +3964,7 @@ em4:        do em =1, Me%EulerModelNumber
                 
                 !Recenter the model grid
                 call ReCenterHorizontalGrid(EulerModel%ObjHorizontalGrid, Xcenter, Ycenter, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR245'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR245'
                 
                 call ReadLockHorizontalGrid  (EulerModel)
             enddo em4 
@@ -4193,6 +4204,7 @@ BF:         if (BlockFound) then
         real                                        :: OdourConcThreshold
         logical                                     :: FindWaterLocation, FoundWater
         real                                        :: EmissionDuration
+        integer                                     :: dir
 
         !Begin-----------------------------------------------------------------
 
@@ -6635,9 +6647,42 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                      Default      = OFF,                                        &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1630'
+        
+        
+        call GetData(NewOrigin%CoastlineBeaching,                               &
+                     Me%ObjEnterData,                                           &
+                     flag,                                                      &
+                     SearchType   = FromBlock,                                  &
+                     keyword      ='COASTLINE_BEACHING',                        &
+                     ClientModule ='ModuleLagrangianGlobal',                    &
+                     Default      = OFF,                                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1631'
 
-
-
+        if(NewOrigin%CoastlineBeaching)then
+        
+            allocate(Me%AngleList(Ndir), Me%DistanceByDirection(Ndir))
+            allocate(Me%Point)
+            Me%AngleList(1) = 0.
+            do dir=2, Ndir
+                Me%AngleList(dir) = Me%AngleList(dir-1) + 360./real(NDir)
+            enddo
+        
+            NewOrigin%State%CalcPartDistToCoast = ON
+        
+            Me%State%CalcPartDistToCoast = ON
+        
+            if (.not. Me%CoastLineON) then
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1632'
+            endif
+            
+            if(.not. Me%ThinWallsON)then
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1633'
+            endif
+            
+            
+        endif
+        
 
         if (Me%State%OutputTracerInfo) then
             call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
@@ -10784,6 +10829,7 @@ CurrOr: do while (associated(CurrentOrigin))
 
                 !Kill oil
                 if (OriginToDelete%ObjOil /= 0) then
+                
                     call KillOil (OriginToDelete%ObjOil, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangianGlobal - ERR10'
                 endif
@@ -11727,11 +11773,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                     if (Me%State%AssociateBeachProb) then
     !                    call GetOilProperties   ()                 
 !                        !update beached volumes after volume variation (weathering processes)
+
+                        if(Me%State%CalcPartDistToCoast)then
+                            call CalcParticDistanceToCoast()
+                        endif
+
                         call UpdateBeachHoldingCapacity
                         call UpdateBeachedVolumes()
                         call VerifyParticleBeaching()
                         call UpdateRemovedVolumes()                  
                         call VerifyBeachRemoval()
+                        
                     endif
 !                    if (Me%State%AssociateBeachProb) then
 !                        !update beached volumes after volume variation (weathering processes)
@@ -14079,7 +14131,28 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                             Me%EulerModel(emp)%ShoreType(i,j),                                 &
                             Me%EulerModel(emp)%HorizontalBeachHoldingCapacity(i,j))
                             
-                        if (Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) + &
+
+                        if(CurrentOrigin%CoastlineBeaching)then
+
+                            if (Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) + &
+                                CurrentPartic%Geometry%Volume <= SpecificHoldingCapacity) then
+                                
+                                if(CurrentPartic%DistanceToCoast <= Me%EulerModel(emp)%BeachingLimit(i,j))then
+
+                                    call RANDOM_NUMBER(Rand1)
+                                    
+                                    if ((Me%EulerModel(emp)%BeachingProbability(i,j,k) .GT. Rand1) .OR.   &
+                                        (Me%EulerModel(emp)%BeachingProbability(i,j,k) .EQ. 1)) then  
+                                        CurrentPartic%Beached = ON
+                                        FreshlyBeached = .true.
+                                    endif
+                                 endif
+                            endif
+                        
+                        endif 
+                            
+                        if (.NOT. CurrentPartic%Beached .AND.                          &
+                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) + &
                             CurrentPartic%Geometry%Volume <= SpecificHoldingCapacity) then
                             
                             call RANDOM_NUMBER(Rand1)
@@ -14124,11 +14197,14 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                             end if
 
                         endif
+                        
                     endif IfParticNotBeached
 
                     if (CurrentPartic%Beached) then
                         if (InsideDomain) then
                             if (FreshlyBeached) then
+                                
+                                CurrentPartic%MinDistanceToCoast = 0.0
                             
                                 if(Me%EulerModel(emp)%Lag2Euler%GridBeachingTime(i, j, ig) == 0.)then
                                     Me%EulerModel(emp)%Lag2Euler%GridBeachingTime(i, j, ig) = Me%Now - CurrentOrigin%StartEmission
@@ -14154,6 +14230,10 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                     CurrentPartic => CurrentPartic%Next
 
                 enddo CurrPart
+                
+                if(CurrentOrigin%VolTotOilBeached > CurrentOrigin%MaxVolTotOilBeached)then
+                    CurrentOrigin%MaxVolTotOilBeached = CurrentOrigin%VolTotOilBeached
+                endif
 
             end if IfBeaching
             CurrentOrigin => CurrentOrigin%Next
@@ -14313,7 +14393,6 @@ CurrPart:       do while (associated(CurrentPartic))
 
                 enddo CurrPart
 
-
             end if IfBeaching
             CurrentOrigin => CurrentOrigin%Next
 
@@ -14342,8 +14421,60 @@ Group:      do ig = 1, Me%nGroups
     end subroutine VerifyBeachRemoval
 
     !--------------------------------------------------------------------------
+    
+    subroutine CalcParticDistanceToCoast()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer        :: CurrentOrigin
+        type (T_Partic), pointer        :: CurrentPartic
+        
+        real                            :: Distance, IntersectX, IntersectY
+        
+        !----------------------------------------------------------------------
 
 
+               
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+IfBeaching: if (CurrentOrigin%State%CalcPartDistToCoast) then
+                    
+                CurrentPartic => CurrentOrigin%FirstPartic
+CurrPart:       do while (associated(CurrentPartic))
+                   
+                    Me%Point%X = CurrentPartic%Position%CoordX
+                    Me%Point%Y = CurrentPartic%Position%CoordY
+                
+                    call PointDistanceToPolygon (Me%Point, Me%CoastLine,                &
+                                                 Me%AngleList, Me%DistanceByDirection,  &
+                                                 Distance, IntersectX, IntersectY)
+                
+                    !If the first eulerian model is defined in geo. coord. 
+                    if (Me%EulerModel(1)%Grid%GeoGrid) then
+                        Distance = DistanceBetweenTwoGPSPoints(Me%Point%X, Me%Point%Y, IntersectX, IntersectY)
+                    endif
+                    
+                    CurrentPartic%DistanceToCoast = Distance
+                    
+                    if(CurrentPartic%DistanceToCoast < CurrentPartic%MinDistanceToCoast)then
+                        CurrentPartic%MinDistanceToCoast = CurrentPartic%DistanceToCoast
+                    endif       
+                    
+                    CurrentPartic => CurrentPartic%Next
+
+                enddo CurrPart
+
+            end if IfBeaching
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+
+    end subroutine CalcParticDistanceToCoast
+
+    !--------------------------------------------------------------------------
+    
     subroutine UpdateBeachHoldingCapacity()
 
         !Arguments-------------------------------------------------------------
@@ -14371,7 +14502,7 @@ d1:     do em =1, Me%EulerModelNumber
             KUB = Me%EulerModel(em)%WorkSize%KUB
             
             call GetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DXX = DXX, DYY = DYY, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ComputeAreas - Geometry - ERR01'
+            if (STAT_CALL /= SUCCESS_)stop 'UpdateBeachHoldingCapacity - ModuleLagrangianGlobal - ERR01'
 
 d3:         do j  = JLB, JUB
 d4:         do i  = ILB, IUB
@@ -14415,6 +14546,15 @@ i1:             if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) th
 
             enddo d4
             enddo d3
+            
+            !UnGets Horizontal Grid
+            call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DXX, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'UpdateBeachHoldingCapacity - ModuleLagrangianGlobal - ERR10'
+
+            !UnGets Horizontal Grid
+            call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DYY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'UpdateBeachHoldingCapacity - ModuleLagrangianGlobal - ERR20'
+
             
         enddo d1
 
@@ -22409,6 +22549,32 @@ i1:             if (nP>0) then
                             endif
                     
                         endif
+                        
+                        
+                        if (CurrentOrigin%State%CalcPartDistToCoast) then
+
+                            !Particle distance to coast
+                            CurrentPartic   => CurrentOrigin%FirstPartic
+                            nP = 0
+                            do while (associated(CurrentPartic))
+                                nP = nP + 1
+                                Matrix1D(nP)  =  CurrentPartic%DistanceToCoast
+                                CurrentPartic => CurrentPartic%Next
+                            enddo  
+                            
+                            nullify(CurrentPartic)
+                                      
+                            if (nP > 0) then
+                                !HDF 5
+                                call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/DistanceToCoast", &
+                                                    "DistanceToCoast",  "m", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR291'
+                            endif
+
+                        endif
+                        
+                        
 
                        if (CurrentOrigin%State%Oil) then
 
@@ -26965,11 +27131,22 @@ d1:         do em = 1, Me%EulerModelNumber
                 endif
 
             enddo d1
+            
+            if(Me%State%CalcPartDistToCoast)then
+                deallocate(Me%AngleList)
+                deallocate(Me%DistanceByDirection)
+                deallocate(Me%Point)
+            endif
 
             if (Me%State%Oil)  then
                 if(Me%OutPut%ExportArrvlBeachTimes)then
                     call WriteArrivalBeachingTimes
                 endif
+                                
+                if(Me%State%AssociateBeachProb)then
+                    call WriteBeachingStats
+                endif
+                
                 call DeAllocateOil
             endif
 
@@ -27733,7 +27910,150 @@ d2:         do ig = 1, Me%NGroups
     end subroutine DeAllocateOil
 
     !------------------------------------------------------------------------------
+        
+    subroutine WriteBeachingStats
+       
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic   => null()
+        integer                                     :: em, ig
+        integer                                     :: unit, STAT_CALL
+        character(len=PathLength)                   :: BeachingStatsFileName 
+        character(len=1)                            :: iGroupStr
+        real, dimension(:, :), pointer              :: Aux2D 
+        real                                        :: MinBeachingTime, MinDistanceToCoast
+        integer                                     :: ILB, IUB, JLB, JUB, KUB, i, j
+        real                                        :: BeachingCoastLineLength
+        real, dimension(:, :), pointer              :: DXX, DYY               
+
+        !Begin-----------------------------------------------------------------
+
+        
+        do em = 1, Me%EulerModelNumber 
+        
+            call GetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DXX = DXX, DYY = DYY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteBeachingStats - ModuleLagrangianGlobal - ERR00'
+
+        
+            call GetWaterPoints3D(Me%EulerModel(em)%ObjMap, Me%EulerModel(em)%WaterPoints3D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteBeachingStats - ModuleLagrangianGlobal - ERR01'
+            
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
+            
+            do ig = 1, Me%NGroups
+            
+                write(iGroupStr, ('(i1)'))ig
+                BeachingStatsFileName = trim(adjustl(Me%OutPut%RootPath))//"OilBeachingStats_"//iGroupStr//".dat"
+                
+                call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteBeachingStats - ModuleLagrangianGlobal - ERR10'
+                
+                open (Unit, file = BeachingStatsFileName, status = 'replace', IOSTAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'WriteBeachingStats - ModuleLagrangianGlobal - ERR11'
+                
+                CurrentOrigin => Me%FirstOrigin
+                do while (associated(CurrentOrigin))
+
+                    if (CurrentOrigin%Beaching) then
+                    
+                        if(CurrentOrigin%MaxVolTotOilBeached > 0.)then
+                            call WriteDataLine(unit, 'HAS_BEACHED', .true.)
+                        else
+                            call WriteDataLine(unit, 'HAS_BEACHED', .false.)
+                        endif
+                        
+                        call WriteDataLine(unit, 'MAX_VOL_OIL_BEACHED', CurrentOrigin%MaxVolTotOilBeached)
+                       
+                        MinDistanceToCoast = -null_real
+                        
+                        CurrentPartic => CurrentOrigin%FirstPartic
+                        do while (associated(CurrentPartic))
+                   
+                            if(CurrentPartic%MinDistanceToCoast < MinDistanceToCoast)then
+                                MinDistanceToCoast = CurrentPartic%MinDistanceToCoast
+                            endif       
+                    
+                            CurrentPartic => CurrentPartic%Next
+
+                        enddo
+                        
+                        call WriteDataLine(unit, 'MIN_DISTANCE_TO_COAST', MinDistanceToCoast)
+
+                    
+                    endif
+
+                    CurrentOrigin => CurrentOrigin%Next
+
+                enddo     
+            
+                Aux2D => Me%EulerModel(em)%Lag2Euler%GridBeachingTime(ILB:IUB,JLB:JUB,ig)
+                
+                MinBeachingTime         = -1.0 * null_real
+                BeachingCoastLineLength = 0.
+                
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    
+                    if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then
+                        if(Me%EulerModel(em)%Lag2Euler%GridBeachingTime(i,j,ig)> 0.)then
+                        
+                            if(Me%EulerModel(em)%Lag2Euler%GridBeachingTime(i,j,ig) < MinBeachingTime)then
+                                MinBeachingTime = Me%EulerModel(em)%Lag2Euler%GridBeachingTime(i,j,ig)
+                            endif
+
+                            !East face
+                            if ((Me%EulerModel(em)%WaterPoints3D(i, j+1, KUB).NE. WaterPoint)) then
+                                BeachingCoastLineLength = BeachingCoastLineLength + DYY(i,j+1)
+                            !West face
+                            elseif ((Me%EulerModel(em)%WaterPoints3D(i, j-1, KUB).NE. WaterPoint)) then
+                                BeachingCoastLineLength = BeachingCoastLineLength + DYY(i,j)
+                            !North face
+                            elseif ((Me%EulerModel(em)%WaterPoints3D(i+1, j, KUB).NE. WaterPoint)) then
+                                BeachingCoastLineLength = BeachingCoastLineLength + DXX(i+1,j)
+                            !South face
+                            elseif ((Me%EulerModel(em)%WaterPoints3D(i-1, j, KUB).NE. WaterPoint)) then
+                                BeachingCoastLineLength = BeachingCoastLineLength + DXX(i,j)
+                            end if
+                        
+                        endif
+                    endif
+
+                enddo
+                enddo
+                
+                call WriteDataLine(unit, 'MINIMUM_BEACHING_TIME',     MinBeachingTime)
+                call WriteDataLine(unit, 'BEACH_COASTLINE_LENGTH',    BeachingCoastLineLength)
+                
+                
+                call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteBeachingStats - ModuleLagrangianGlobal - ERR20'
+
+
+            enddo
+            
+            call UnGetMap (Me%EulerModel(em)%ObjMap, Me%EulerModel(em)%Waterpoints3D, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteBeachingStats - ModuleLagrangianGlobal - ERR30'
+            
+            call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DXX, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'WriteBeachingStats - ModuleLagrangianGlobal - ERR40'
+
+            call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DYY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'WriteBeachingStats - ModuleLagrangianGlobal - ERR50'
+
+
+        enddo
     
+    
+    end subroutine WriteBeachingStats
+    
+    !------------------------------------------------------------------------------
+
     subroutine WriteArrivalBeachingTimes
     
     
@@ -27751,11 +28071,11 @@ d1:     do em =1, Me%EulerModelNumber
             call GetWaterPoints3D(Me%EulerModel(em)%ObjMap, Me%EulerModel(em)%WaterPoints3D, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'WriteArrivalBeachingTimes - ModuleLagrangianGlobal - ERR00'
 
-        ILB = Me%EulerModel(em)%WorkSize%ILB
-        JLB = Me%EulerModel(em)%WorkSize%JLB
-        IUB = Me%EulerModel(em)%WorkSize%IUB
-        JUB = Me%EulerModel(em)%WorkSize%JUB
-        KUB = Me%EulerModel(em)%WorkSize%KUB
+            ILB = Me%EulerModel(em)%WorkSize%ILB
+            JLB = Me%EulerModel(em)%WorkSize%JLB
+            IUB = Me%EulerModel(em)%WorkSize%IUB
+            JUB = Me%EulerModel(em)%WorkSize%JUB
+            KUB = Me%EulerModel(em)%WorkSize%KUB
 
 d2:         do ig = 1, Me%NGroups
 
