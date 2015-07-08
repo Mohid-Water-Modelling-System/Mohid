@@ -119,6 +119,8 @@ Module ModuleSediment
     private ::          CurrentPlusWaves
     private ::          WavesOnly
     private ::      ComputeFluxes
+    private ::          ComputeBedSlopeEffects
+    private ::          FluxesCorrection
     private ::      ComputeEvolution
     private ::      ComputeDischarges   
     private ::      BoundaryCondition
@@ -388,8 +390,9 @@ Module ModuleSediment
         real                                       :: MinLayerThickness    = null_real
         real                                       :: MaxLayerThickness    = null_real
 
-        
         integer                                    :: BedloadMethod        = FillValueInt
+        logical                                    :: BedSlopeEffects      = .false.
+        
         !Instance of ModuleHDF5        
         integer                                    :: ObjHDF5               = 0
         !Instance of ModuleTimeSerie            
@@ -730,6 +733,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (.not. Me%ExternalVar%WaveTensionON) stop 'ConstructGlobalParameters - ModuleSediment - ERR20' 
 
         endif
+            
+         call GetData(Me%BedSlopeEffects,                                                &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'BEDSLOPE',                                          &
+                     default      = .TRUE.,                                              &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR25' 
+            
 
         call GetData(Me%Evolution%Bathym,                                                &
                      Me%ObjEnterData,iflag,                                              &
@@ -3789,24 +3802,19 @@ do1:    do n=1,Me%NumberOfClasses
     end subroutine WavesOnlyBedload
     !--------------------------------------------------------------------------
 
-      subroutine ComputeFluxes
-              
-        
+    subroutine ComputeFluxes
+      
         !Local-----------------------------------------------------------------                
         integer                 :: i, j, n
         real(8)                 :: Xaux, Yaux
         class(T_Sand), pointer :: SandClass
         integer                :: WILB, WIUB, WJLB, WJUB, WKUB
-        real(8)                :: correction, MassWithdrawal
         !----------------------------------------------------------------------
         
         WILB = Me%SedimentWorkSize3D%ILB
         WIUB = Me%SedimentWorkSize3D%IUB
         WJLB = Me%SedimentWorkSize3D%JLB
         WJUB = Me%SedimentWorkSize3D%JUB
-        
-        Me%FluxX  (:, :) =  0.
-        Me%FluxY  (:, :) =  0.
         
         do n=1,Me%NumberOfClasses
 
@@ -3825,61 +3833,200 @@ do1:    do n=1,Me%NumberOfClasses
                     WKUB = Me%KTop(i, j)
                     
                     if(SandClass%Field3D(i,j,WKUB) > 0.) then
-                    
-                    !TopLayerThickness = Me%ExternalVar%DWZ(i,j,WKUB)
                         
-                        !if (TopLayerThickness > Me%MinLayerThickness) then
-                        
-                            if (Me%ExternalVar%VelMod(i,j)> 0.) then                            
+                        if (Me%ExternalVar%VelMod(i,j)> 0.) then                            
                            
-                                Xaux = Me%ExternalVar%VelU(i,j) / Me%ExternalVar%VelMod(i,j)
-                                Yaux = Me%ExternalVar%VelV(i,j) / Me%ExternalVar%VelMod(i,j)
+                            Xaux = Me%ExternalVar%VelU(i,j) / Me%ExternalVar%VelMod(i,j)
+                            Yaux = Me%ExternalVar%VelV(i,j) / Me%ExternalVar%VelMod(i,j)
                             
-                                !kg/s
-                                SandClass%FluxX(i, j) = SandClass%Bedload(i, j) * Xaux *        &
-                                                        Me%ExternalVar%DVY(i, j)                        
+                            !kg/s
+                            SandClass%FluxX(i, j) = SandClass%Bedload(i, j) * Xaux *        &
+                                                    Me%ExternalVar%DVY(i, j)                        
                                                     
-                                SandClass%FluxY(i, j) = SandClass%Bedload(i, j) * Yaux *        &
-                                                        Me%ExternalVar%DUX(i, j)
-                            
-                                MassWithdrawal = (abs(SandClass%FluxX(i, j)) + abs(SandClass%FluxY(i, j))) * Me%Evolution%SedimentDT
-                                
-                                !Considers the flux to sediment (erosion, deposition)
-                                MassWithdrawal = MassWithdrawal - SandClass%FluxToSediment(i,j) *   &
-                                        Me%Evolution%SedimentDT*Me%ExternalVar%GridCellArea(i,j)
-                            
-                                !Corrects the flux and bedload according to the mass content                             
-                                If (MassWithdrawal > SandClass%Mass(i,j,WKUB)) then                            
-                                
-                                    correction = SandClass%Mass(i,j,WKUB)/MassWithdrawal
-                                
-                                    SandClass%FluxX(i, j) = SandClass%FluxX(i, j) * correction
-                                
-                                    SandClass%FluxY(i, j) = SandClass%FluxY(i, j) * correction
-                                
-                                    Me%Bedload(i, j) = Me%Bedload(i, j) - SandClass%Bedload(i, j) * (1 - correction)
-                                
-                                    SandClass%BedLoad(i, j) = SandClass%BedLoad(i, j) * correction
-                                
-                                endif
-                           
-                                Me%FluxX(i,j) = Me%FluxX(i,j) + SandClass%FluxX(i, j)
-                            
-                                Me%FluxY(i,j) = Me%FluxY(i,j) + SandClass%FluxY(i, j)
-                   
-                            endif
-
+                            SandClass%FluxY(i, j) = SandClass%Bedload(i, j) * Yaux *        &
+                                                    Me%ExternalVar%DUX(i, j)                                
+                        endif
                     endif
+                endif               
+            enddo
+            enddo
+        enddo
+        
+        if(Me%BedSlopeEffects)then
+            call ComputeBedSlopeEffects
+        endif
+        
+        call FluxesCorrection
 
+    end subroutine ComputeFluxes
+      
+   !--------------------------------------------------------------------------
+
+    subroutine ComputeBedSlopeEffects
+      
+        !Local-----------------------------------------------------------------                
+        integer                 :: i, j, n
+        real(8)                 :: Xaux, Yaux, AbsFlux
+        class(T_Sand), pointer  :: SandClass
+        integer                 :: WILB, WIUB, WJLB, WJUB, WKUB
+        real(8), parameter      :: PI_DBLE = 3.1415926536 !PI
+        real                    :: alfa_bs, alfa_bn, phi, dhdx, dhdy
+        real                    :: dzds, dzdn, alfa_s, alfa_n
+        !----------------------------------------------------------------------
+        
+        WILB = Me%SedimentWorkSize3D%ILB
+        WIUB = Me%SedimentWorkSize3D%IUB
+        WJLB = Me%SedimentWorkSize3D%JLB
+        WJUB = Me%SedimentWorkSize3D%JUB
+        
+        alfa_bs = 1.0
+        alfa_bn = 1.5
+        
+        !internal angle of friction of bed material (assumed to be 30º)
+        phi = 30 * PI_DBLE/180.
+        
+        do n=1,Me%NumberOfClasses
+
+            SandClass => Me%SandClass(n)
+
+            do i=WILB, WIUB
+            do j=WJLB, WJUB               
+
+                if (Me%OpenSediment(i,j) == OpenPoint) then     
+                        
+                    if (SandClass%Bedload(i, j)> 0.) then
+                            
+                        AbsFlux = (SandClass%FluxX(i, j)**2 + SandClass%FluxY(i, j)**2)**0.5
+                            
+                        Xaux = SandClass%FluxX(i, j) / AbsFlux
+                        Yaux = SandClass%FluxY(i, j) / AbsFlux
+                            
+                        dhdx = 0.
+                        dhdy = 0.
+                            
+                        if (SandClass%FluxX(i, j) < 0.) then                            
+                            if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
+                                    
+                                dhdx = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i, j-1)) /  &
+                                        Me%ExternalVar%DZX(i,j-1)
+                            endif
+                        else
+                            if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
+                                    
+                                dhdx = (Me%ExternalVar%Bathymetry(i, j+1) - Me%ExternalVar%Bathymetry(i, j)) /  &
+                                        Me%ExternalVar%DZX(i,j)
+                            endif                    
+                        endif
+
+                        if (SandClass%FluxY(i, j) < 0.) then
+                            if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+                            
+                                    dhdy = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i-1, j)) /  &
+                                            Me%ExternalVar%DZY(i-1,j)     
+                            endif
+                        else 
+                            if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
+                                    
+                                dhdy = (Me%ExternalVar%Bathymetry(i+1, j) - Me%ExternalVar%Bathymetry(i, j)) /  &
+                                            Me%ExternalVar%DZY(i,j)        
+                            endif
+                        endif
+                            
+                        !Longitudinal bed slope
+                        dzds = dhdx * Xaux + dhdy * Yaux
+                            
+                        dzds = min(dzds,0.9*tan(phi))
+                            
+                        alfa_s = 1 + alfa_bs * (tan(phi) / (cos(atan(dzds)) * (tan(phi) - dzds)) - 1)
+                            
+                        !Transverse bed slope                            
+                        dzdn = -dhdx * Yaux + dhdy * Xaux
+                            
+                        alfa_n = alfa_bn * (SandClass%CriticalShearStress(i,j) /    &
+                                Me%ExternalVar%ShearStress(i,j))**0.5 * dzdn
+                                
+                        !Adjustment of bedload transport for bed-slope effects
+                        SandClass%FluxX(i, j) = alfa_s * (SandClass%FluxX(i, j) -   &
+                                                alfa_n * SandClass%FluxY(i, j))
+                            
+                        SandClass%FluxY(i, j) = alfa_s * (SandClass%FluxY(i, j) +   &
+                                                alfa_n * SandClass%FluxX(i, j))                            
+                        
+                    endif
+                endif               
+            enddo
+            enddo
+        enddo
+
+    end subroutine ComputeBedSlopeEffects
+      
+   !--------------------------------------------------------------------------
+    
+    subroutine FluxesCorrection
+              
+        !Local-----------------------------------------------------------------                
+        integer                 :: i, j, n
+        class(T_Sand), pointer :: SandClass
+        integer                :: WILB, WIUB, WJLB, WJUB, WKUB
+        real(8)                :: correction, MassWithdrawal
+        !----------------------------------------------------------------------
+        
+        WILB = Me%SedimentWorkSize3D%ILB
+        WIUB = Me%SedimentWorkSize3D%IUB
+        WJLB = Me%SedimentWorkSize3D%JLB
+        WJUB = Me%SedimentWorkSize3D%JUB
+        
+        Me%FluxX  (:, :) =  0.
+        Me%FluxY  (:, :) =  0.
+        
+        do n=1,Me%NumberOfClasses
+
+            SandClass => Me%SandClass(n)
+
+            do i=WILB, WIUB
+            do j=WJLB, WJUB               
+
+                if (Me%OpenSediment(i,j) == OpenPoint) then
+                    
+                    WKUB = Me%KTop(i, j)
+                    
+                    if(SandClass%Field3D(i,j,WKUB) > 0.) then                   
+      
+                        MassWithdrawal = (abs(SandClass%FluxX(i, j)) + abs(SandClass%FluxY(i, j))) * Me%Evolution%SedimentDT
+                                
+                        !Considers the flux to sediment (erosion, deposition)
+                        MassWithdrawal = MassWithdrawal - SandClass%FluxToSediment(i,j) *   &
+                                Me%Evolution%SedimentDT*Me%ExternalVar%GridCellArea(i,j)
+                            
+                        !Corrects the flux and bedload according to the mass content                             
+                        If (MassWithdrawal > SandClass%Mass(i,j,WKUB)) then                            
+                                
+                            correction = SandClass%Mass(i,j,WKUB)/MassWithdrawal
+                                
+                            SandClass%FluxX(i, j) = SandClass%FluxX(i, j) * correction
+                                
+                            SandClass%FluxY(i, j) = SandClass%FluxY(i, j) * correction
+                                
+                            Me%Bedload(i, j) = Me%Bedload(i, j) - SandClass%Bedload(i, j) * (1 - correction)
+                                
+                            SandClass%BedLoad(i, j) = SandClass%BedLoad(i, j) * correction
+                                
+                        endif
+                        
+                        Me%FluxX(i,j) = Me%FluxX(i,j) + SandClass%FluxX(i, j)
+                            
+                        Me%FluxY(i,j) = Me%FluxY(i,j) + SandClass%FluxY(i, j)
+                        
+                    endif
                 endif
 
             enddo
             enddo
         enddo
 
-      end subroutine ComputeFluxes
-      
-   !--------------------------------------------------------------------------   
+    end subroutine FluxesCorrection
+    
+    !--------------------------------------------------------------------------
       
     subroutine ComputeEvolution 
         
@@ -3925,8 +4072,7 @@ do1:    do n=1,Me%NumberOfClasses
            
                 do j=WJLB, WJUB
                 do i=WILB, WIUB
-
-
+                    
                     if (SandClass%FluxX(i, j) < 0.) then 
                         if      (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
                         
@@ -3972,8 +4118,6 @@ do1:    do n=1,Me%NumberOfClasses
                             endif
                         endif
                     endif
-                
-     
                 enddo
                 enddo
             endif
@@ -4786,7 +4930,9 @@ if6:        if(Me%CohesiveClass%Run) then
             stop 'Activate_Layer - ModuleSediment - ERR20'
         endif
         
-        Me%KTop(i,j) = 1                            
+        Me%KTop(i,j) = 1  
+        
+        Me%OpenSediment(i,j) = 1
         
     end subroutine Activate_Layer
         
