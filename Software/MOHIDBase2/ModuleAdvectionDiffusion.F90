@@ -3075,6 +3075,7 @@ cd1:       if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
         real                                        :: Flow
         integer                                     :: i, j, k, kd, n, dis, nc, kmin, kmax
         integer                                     :: STAT_CALL
+        real                                        :: WaterColumn
 
         !----------------------------------------------------------------------
 
@@ -3109,6 +3110,13 @@ dnc:        do   nc = 1, Me%ExternalVar%DischnCells(dis)
                     kmin = kd; kmax = kd
 
                 endif
+                
+                WaterColumn = 0.0
+                do k=kmin, kmax
+                    WaterColumn = WaterColumn + Me%ExternalVar%DWZ(i,j,k)
+                enddo
+                
+               
 
 dk:             do k=kmin, kmax
 
@@ -3117,7 +3125,7 @@ dk:             do k=kmin, kmax
                     if (Me%ExternalVar%DischVert(dis)  == DischUniform_) then
 
                         Flow = Me%ExternalVar%DischFlow(n) *                            &
-                               Me%ExternalVar%DWZ(i,j,k) / WaterColumnZ(i,j)
+                               Me%ExternalVar%DWZ(i,j,k) / WaterColumn
 
                     else
 
