@@ -2569,10 +2569,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     
     !--------------------------------------------------------------------------
     
-    subroutine GetCohesiveContent(ObjSedimentID, CohesiveContent, STAT) 
+    subroutine GetCohesiveContent(ObjSedimentID, CohesiveClassRun, CohesiveContent, STAT) 
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjSedimentID
+        logical                                     :: CohesiveClassRun
         real, dimension(:,:,:),  pointer            :: CohesiveContent
         integer, optional, intent(OUT)              :: STAT
 
@@ -2592,8 +2593,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Read_Lock(mSediment_, Me%InstanceID)
+            
+            CohesiveClassRun = Me%CohesiveClass%Run
 
-            CohesiveContent => Me%CohesiveClass%Field3D
+            if(Me%CohesiveClass%Run)then
+                CohesiveContent => Me%CohesiveClass%Field3D
+            endif                
 
             STAT_ = SUCCESS_
         else 

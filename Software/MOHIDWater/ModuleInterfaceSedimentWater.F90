@@ -439,6 +439,7 @@ Module ModuleInterfaceSedimentWater
         logical                                     :: ComputeConsolidation = .false.
         real(8), pointer, dimension(:,:,:)          :: CohesiveMass         => null()
         real, pointer, dimension(:,:,:)             :: CohesiveContent      => null()
+        logical                                     :: CohesiveClassRun     = .false.
         
     end type T_Ext_Sed
 
@@ -4378,6 +4379,7 @@ do1 :   do while (associated(PropertyX))
                 stop 'ReadLockExternalSediment - ModuleInterfaceSedimentWater - ERR20'
             
             call GetCohesiveContent(Me%ObjSediment,                                         & 
+                                          CohesiveClassRun = Me%ExtSed%CohesiveClassRun,    &
                                           CohesiveContent = Me%ExtSed%CohesiveContent,      &
                                           STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
@@ -4594,8 +4596,7 @@ do1 :   do while (associated(PropertyX))
             
             call UngetSediment(Me%ObjSediment, Me%ExtSed%CohesiveContent, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR25' 
-            
+                stop 'ReadUnlockExternalSediment - ModuleInterfaceSedimentWater - ERR25'             
         endif
             
 
@@ -5738,9 +5739,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         if(STAT_CALL .ne. SUCCESS_)&
                                 stop 'InitializeFluxesToSediment - ModuleInterfaceSedimentWater - ERR02'
                         !$OMP END MASTER
+                        !$OMP END PARALLEL
                         
                     endif
 
+                    !$OMP PARALLEL PRIVATE(i,j,KUB)
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
                     do j = JLB, JUB
                     do i = ILB, IUB
@@ -6837,18 +6840,20 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                 
                                 !For fully cohesive beds (mud content > 0.6) the erosion flux for sand is calculated by using 
                                 !the same formulation of cohesive sediments
-                                if(Me%ExtSed%CohesiveContent(i,j,KUB_SED) > 0.6) then
+                                if(Me%ExtSed%CohesiveClassRun)then
+                                    if(Me%ExtSed%CohesiveContent(i,j,KUB_SED) > 0.6) then
                                  
-                                    PropertyX%ErosionFlux(i,j) =                                         &
-                                    ErosionFlux(CriticalShearErosion = CriticalShearStress(i, j),        &
-                                                ShearStress          = Me%Shear_Stress%Tension(i,j),     &
-                                                ErosionRate          = Me%ErosionRate%Field(i,j))                                            
+                                        PropertyX%ErosionFlux(i,j) =                                         &
+                                        ErosionFlux(CriticalShearErosion = CriticalShearStress(i, j),        &
+                                                    ShearStress          = Me%Shear_Stress%Tension(i,j),     &
+                                                    ErosionRate          = Me%ErosionRate%Field(i,j)) 
+                                    else
+                                        PropertyX%ErosionFlux(i,j) = - SettlingVelocity(i,j,KLB+1) * ConcRef(i,j)
+                                    endif
                                     
                                 else
                                     PropertyX%ErosionFlux(i,j) = - SettlingVelocity(i,j,KLB+1) * ConcRef(i,j)
-                                endif
-                                
-                                
+                                endif                                
                                     
                                 if(PropertyX%ErosionFlux(i,j) .gt. MaximumFlux)then
 
