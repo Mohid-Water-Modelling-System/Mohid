@@ -43891,19 +43891,25 @@ cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
         enddo
         !$OMP END DO NOWAIT       
         enddo
-
+        
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB        
         do i = ILB, IUB
             if (Me%External_Var%WaterPoints3D (i  ,j  ,KUB) == WaterPoint) then
 
-                kbottom = Me%External_Var%KFloor_Z(i, j)
+                kbottom = Me%External_Var%KFloor_Z(i, j)           
 
                 !By default the vertical velocity in the faces that are not compute is zero
                 !Do not apply it to surface points (correction by Hernâni Theias)
-                Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) = &
-                Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) * &
-                Me%External_Var%ComputeFaces3D_W(i, j, kbottom : KUB)
+                !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) = &
+                !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) * &
+                !Me%External_Var%ComputeFaces3D_W(i, j, kbottom : KUB)
+                
+                do k = kbottom, KUB
+                    Me%Velocity%Vertical%Cartesian (i, j, k) = &
+                    Me%Velocity%Vertical%Cartesian (i, j, k) * &
+                    Me%External_Var%ComputeFaces3D_W(i, j, k) 
+                enddo
 
                 do k = kbottom, KUB
 
@@ -43924,9 +43930,17 @@ cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
                 kbottom = Me%External_Var%KFloor_Z(i, j)                
                 !By default the vertical velocity in the faces that are not compute is zero                
                 !Do not apply it to surface points (correction by Hernâni Theias)                
-                Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) = &                
-                Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) * &                
-                Me%External_Var%ComputeFaces3D_W(i, j, kbottom : KUB)                
+                !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) = &                
+                !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) * &                
+                !Me%External_Var%ComputeFaces3D_W(i, j, kbottom : KUB)      
+                
+                do k = kbottom, KUB
+                    Me%Velocity%Vertical%Cartesian (i, j, k) = &                
+                    Me%Velocity%Vertical%Cartesian (i, j, k) * &                
+                    Me%External_Var%ComputeFaces3D_W(i, j, k) 
+                enddo                
+                
+                
                 do k = kbottom, KUB                    
                     Me%OutPut%Vorticity3D(i, j, k) = 0.     
 
