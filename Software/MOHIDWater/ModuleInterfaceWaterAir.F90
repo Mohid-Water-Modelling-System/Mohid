@@ -2297,7 +2297,7 @@ do1 :   do while (associated(PropertyX))
         integer                                             :: STAT_CALL
         
         !Local-----------------------------------------------------------------
-        type (T_Property), pointer                          :: PropertyX
+        type (T_Property), pointer                          :: PropertyX, PropertyY
         integer                                             :: ILB, IUB, JLB, JUB
 
         !----------------------------------------------------------------------
@@ -2529,6 +2529,28 @@ do1 :   do while (associated(PropertyX))
                 stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR160'
             endif
         endif
+        
+        !If computing wind stress it is needed wind velocity X and wind velocity Y in atmosphere
+        call Search_Property(PropertyX, WindStressX_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            call Search_Property(PropertyY, WindStressY_,        STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                if (.not. PropertyX%Constant            .and. &
+                    .not. PropertyY%Constant            .and. &
+                    .not. PropertyX%ID%SolutionFromFile .and. &
+                    .not. PropertyY%ID%SolutionFromFile ) then                
+                    if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
+                        write(*,*) 'Missing WindVelocity X in Module Atmosphere '
+                        stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR170'
+                    endif
+
+                    if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
+                        write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
+                        stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR180'
+                    endif
+                endif
+            endif
+        endif        
         
     end subroutine CheckOptionsAir
 
