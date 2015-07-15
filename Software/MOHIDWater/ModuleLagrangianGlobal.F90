@@ -1698,6 +1698,7 @@ Module ModuleLagrangianGlobal
         type (T_Polygon), pointer               :: CoastLine            => null()
         character(StringLength)                 :: CoastLineFile        = null_str
         logical                                 :: CoastLineON          = .false.
+        logical                                 :: RedefineMapping      = .true.
         
 
         type (T_Polygon), pointer               :: ThinWalls            => null()
@@ -2018,8 +2019,10 @@ em2:            do em =1, Me%EulerModelNumber
             if (STAT_CALL /= SUCCESS_) stop 'ConstructLagrangianGlobal - ModuleLagrangianGlobal - ERR70'
             
             !Redefine coast line
-            call RedefinedCoastLine
-
+            if(Me%RedefineMapping)then
+                call RedefinedCoastLine
+            endif
+            
             !Merges Old with New Origins
             call MergeOldWithNewOrigins
 
@@ -6676,10 +6679,10 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                 stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1632'
             endif
             
-            if(.not. Me%ThinWallsON)then
-                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1633'
-            endif
+            Me%RedefineMapping = OFF
             
+            Me%ThinWallsON  = .true.
+            call New(Me%ThinWalls, Me%CoastLineFile)
             
         endif
         
@@ -14121,82 +14124,78 @@ CurrPart:       do while (associated(CurrentPartic))
                     
 IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
 
-                        SpecificHoldingCapacity =  &
-                        F_AverageBeachHoldingCapacity(CurrentPartic%Geometry%Volume,           &
-                            CurrentPartic%BeachingOilType,                                     &
-                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, 1), &
-                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, 2), &
-                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, 3), &
-                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig),          &
-                            Me%EulerModel(emp)%ShoreType(i,j),                                 &
-                            Me%EulerModel(emp)%HorizontalBeachHoldingCapacity(i,j))
-                            
-
                         if(CurrentOrigin%CoastlineBeaching)then
 
+                            if(CurrentPartic%DistanceToCoast <= Me%EulerModel(emp)%BeachingLimit(i,j))then
+
+                                call RANDOM_NUMBER(Rand1)
+                                
+                                if ((Me%EulerModel(emp)%BeachingProbability(i,j,k) .GT. Rand1) .OR.   &
+                                    (Me%EulerModel(emp)%BeachingProbability(i,j,k) .EQ. 1)) then  
+                                    CurrentPartic%Beached = ON
+                                    FreshlyBeached = .true.
+                                endif
+                             endif
+
+                        else
+                        
+                            SpecificHoldingCapacity =  &
+                                F_AverageBeachHoldingCapacity(CurrentPartic%Geometry%Volume,           &
+                                    CurrentPartic%BeachingOilType,                                     &
+                                    Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, 1), &
+                                    Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, 2), &
+                                    Me%EulerModel(emp)%Lag2Euler%GridBeachedVolumeByType(i, j, ig, 3), &
+                                    Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig),          &
+                                    Me%EulerModel(emp)%ShoreType(i,j),                                 &
+                                    Me%EulerModel(emp)%HorizontalBeachHoldingCapacity(i,j))
+                        
                             if (Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) + &
                                 CurrentPartic%Geometry%Volume <= SpecificHoldingCapacity) then
-                                
-                                if(CurrentPartic%DistanceToCoast <= Me%EulerModel(emp)%BeachingLimit(i,j))then
-
-                                    call RANDOM_NUMBER(Rand1)
-                                    
-                                    if ((Me%EulerModel(emp)%BeachingProbability(i,j,k) .GT. Rand1) .OR.   &
-                                        (Me%EulerModel(emp)%BeachingProbability(i,j,k) .EQ. 1)) then  
-                                        CurrentPartic%Beached = ON
-                                        FreshlyBeached = .true.
-                                    endif
-                                 endif
-                            endif
-                        
-                        endif 
                             
-                        if (.NOT. CurrentPartic%Beached .AND.                          &
-                            Me%EulerModel(emp)%Lag2Euler%GridBeachedVolume(i, j, ig) + &
-                            CurrentPartic%Geometry%Volume <= SpecificHoldingCapacity) then
-                            
-                            call RANDOM_NUMBER(Rand1)
+                                call RANDOM_NUMBER(Rand1)
 
-                            if ((Me%EulerModel(emp)%OpenPoints3D(i, j+1, k).NE. OpenPoint)  .AND. &
-                                  ((1-BALX) *  (Me%EulerModel(emp)%Grid%ParticXX(i, j+1) - &
-                                   Me%EulerModel(emp)%Grid%ParticXX(i, j)) .LT. Me%EulerModel(emp)%BeachingLimit(i,j+1))) then
+                                if ((Me%EulerModel(emp)%OpenPoints3D(i, j+1, k).NE. OpenPoint)  .AND. &
+                                   ((1-BALX) *  (Me%EulerModel(emp)%Grid%ParticXX(i, j+1) - &
+                                    Me%EulerModel(emp)%Grid%ParticXX(i, j)) .LT. Me%EulerModel(emp)%BeachingLimit(i,j+1))) then
 
-                                if ((Me%EulerModel(emp)%BeachingProbability(i,j+1,k) .GT. Rand1)   &
-                                    .OR. (Me%EulerModel(emp)%BeachingProbability(i,j+1,k) .EQ. 1)) &  
-                                   CurrentPartic%Beached = ON
-                                   FreshlyBeached = .true.
-           
-                            else if ((Me%EulerModel(emp)%OpenPoints3D(i, j-1, k).NE. OpenPoint)  .AND.  &
+                                    if((Me%EulerModel(emp)%BeachingProbability(i,j+1,k) .GT. Rand1)    &
+                                        .OR. (Me%EulerModel(emp)%BeachingProbability(i,j+1,k) .EQ. 1)) &  
+                                       CurrentPartic%Beached = ON
+                                       FreshlyBeached = .true.
+               
+                                elseif((Me%EulerModel(emp)%OpenPoints3D(i, j-1, k).NE. OpenPoint)  .AND.  &
                                        (BALX *  (Me%EulerModel(emp)%Grid%ParticXX(i, j+1) - &
                                         Me%EulerModel(emp)%Grid%ParticXX(i, j)).LT. Me%EulerModel(emp)%BeachingLimit(i,j-1))) then
 
 
-                                if ((Me%EulerModel(emp)%BeachingProbability(i,j-1,k) .GT. Rand1)   &
-                                    .OR. (Me%EulerModel(emp)%BeachingProbability(i,j-1,k) .EQ. 1)) &  
-                                   CurrentPartic%Beached = ON
-                                   FreshlyBeached = .true.
-         
-                            else if ((Me%EulerModel(emp)%OpenPoints3D(i+1, j, k).NE. OpenPoint)  .AND. &
-                                       ((1-BALY) *  (Me%EulerModel(emp)%Grid%ParticYY(i+1, j) - &
+                                    if((Me%EulerModel(emp)%BeachingProbability(i,j-1,k) .GT. Rand1)    &
+                                        .OR. (Me%EulerModel(emp)%BeachingProbability(i,j-1,k) .EQ. 1)) &  
+                                       CurrentPartic%Beached = ON
+                                       FreshlyBeached = .true.
+                 
+                                elseif((Me%EulerModel(emp)%OpenPoints3D(i+1, j, k).NE. OpenPoint)  .AND. &
+                                      ((1-BALY) *  (Me%EulerModel(emp)%Grid%ParticYY(i+1, j) - &
                                        Me%EulerModel(emp)%Grid%ParticYY(i, j)).LT. Me%EulerModel(emp)%BeachingLimit(i+1,j))) then
 
-                                if ((Me%EulerModel(emp)%BeachingProbability(i+1,j,k) .GT. Rand1) &
-                                    .OR. (Me%EulerModel(emp)%BeachingProbability(i+1,j,k) .EQ. 1)) &  
-                                   CurrentPartic%Beached = ON
-                                   FreshlyBeached = .true.
-           
-                            else if ((Me%EulerModel(emp)%OpenPoints3D(i-1, j, k).NE. OpenPoint)  .AND. &
-                                       (BALY *  (Me%EulerModel(emp)%Grid%ParticYY(i+1, j) -            &
+                                    if ((Me%EulerModel(emp)%BeachingProbability(i+1,j,k) .GT. Rand1) &
+                                        .OR. (Me%EulerModel(emp)%BeachingProbability(i+1,j,k) .EQ. 1)) &  
+                                       CurrentPartic%Beached = ON
+                                       FreshlyBeached = .true.
+                   
+                                elseif((Me%EulerModel(emp)%OpenPoints3D(i-1, j, k).NE. OpenPoint)  .AND. &
+                                      (BALY *  (Me%EulerModel(emp)%Grid%ParticYY(i+1, j) -            &
                                        Me%EulerModel(emp)%Grid%ParticYY(i, j)) .LT. Me%EulerModel(emp)%BeachingLimit(i-1,j))) then
 
-                                if ((Me%EulerModel(emp)%BeachingProbability(i-1,j,k) .GT. Rand1)   &
-                                    .OR. (Me%EulerModel(emp)%BeachingProbability(i-1,j,k) .EQ. 1)) &  
-                                   CurrentPartic%Beached = ON
-                                   FreshlyBeached = .true.
-                    
-                            end if
+                                    if((Me%EulerModel(emp)%BeachingProbability(i-1,j,k) .GT. Rand1)   &
+                                        .OR. (Me%EulerModel(emp)%BeachingProbability(i-1,j,k) .EQ. 1)) &  
+                                       CurrentPartic%Beached = ON
+                                       FreshlyBeached = .true.
 
-                        endif
+                                end if
+
+                            endif
+                        
+                        endif 
                         
                     endif IfParticNotBeached
 
