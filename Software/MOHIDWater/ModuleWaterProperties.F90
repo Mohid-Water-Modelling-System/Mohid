@@ -6979,22 +6979,38 @@ do8 :   do J = JLB, JUB
 do7 :   do K = KLB, KUB
             
 cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
-                               
-cd52:           if (NewProperty%Concentration(i, j, k) < 0.) then
-
-                    write(*,*)
-                    write(*,*)"Property : ", trim(NewProperty%ID%Name)
-                    write(*,*)"Negative initial concentration in cell", i, j, k
+    
+                if(NewProperty%Evolution%MinConcentration) then
                     
-                    call FindNearestPositive(i, j, k, NewProperty%Concentration, NewValue)
+                    if (NewProperty%Concentration(i, j, k) < NewProperty%MinValue) then
 
-                    write(*,*)"New concentration = ", NewValue
-                    write(*,*)"CheckFieldConsistence - ModuleWaterProperties - WRN01"
-                    write(*,*)
+                        write(*,*)
+                        write(*,*)"Property : ", trim(NewProperty%ID%Name)
+                        write(*,*)"Initial concentration is below the minimum value in cell", i, j, k
+                    
+                        NewProperty%Concentration(i, j, k) = NewProperty%MinValue
 
-                    NewProperty%Concentration(i,j,k) = NewValue
+                        write(*,*)"New concentration = ", NewProperty%MinValue
+                        write(*,*)"CheckFieldConsistence - ModuleWaterProperties - WRN01"
+                        write(*,*)
 
-                endif cd52
+                    endif
+             
+                elseif (NewProperty%Concentration(i, j, k) < 0.) then
+
+                        write(*,*)
+                        write(*,*)"Property : ", trim(NewProperty%ID%Name)
+                        write(*,*)"Negative initial concentration in cell", i, j, k
+                    
+                        call FindNearestPositive(i, j, k, NewProperty%Concentration, NewValue)
+
+                        write(*,*)"New concentration = ", NewValue
+                        write(*,*)"CheckFieldConsistence - ModuleWaterProperties - WRN02"
+                        write(*,*)
+
+                        NewProperty%Concentration(i,j,k) = NewValue
+
+                endif 
 
             else  cd21
 

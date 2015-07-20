@@ -106,6 +106,7 @@ Module ModuleSediment
     public  :: GetSandContent
     public  :: GetCriticalShearStress
     public  :: GetConcRef
+    public  :: GetSandD50
     public  :: UnGetSediment
     
     !Modifier
@@ -2807,96 +2808,48 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end subroutine GetConcRef
     
     !--------------------------------------------------------------------------
-    !--------------------------------------------------------------------------
     
-!    subroutine GetSandDiameter(ObjSedimentID, SandClassID, SandDiameter, STAT) 
-!
-!        !Arguments-------------------------------------------------------------
-!        integer                                     :: ObjSedimentID
-!        integer                                     :: SandClassID, n
-!        class(T_Sand), pointer                      :: SandClass
-!        real(8)                                     :: SandDiameter
-!        integer, optional, intent(OUT)              :: STAT
-!
-!        !External--------------------------------------------------------------
-!        integer                                     :: ready_        
-!
-!        !Local-----------------------------------------------------------------
-!        integer                                     :: STAT_
-!
-!        !----------------------------------------------------------------------
-!
-!        STAT_ = UNKNOWN_
-!
-!        call Ready(ObjSedimentID, ready_)
-!        
-!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
-!            (ready_ .EQ. READ_LOCK_ERR_)) then
-!
-!            call Read_Lock(mSediment_, Me%InstanceID)
-!            
-! do1:        do n=1,Me%NumberOfClasses
-!               
-!               SandClass => Me%SandClass(n)
-!               
-!                if(SandClass%ID%IDNumber == SandClassID) then
-!                        
-!                    SandDiameter = SandClass%D50
-!                    
-!                    exit do1
-!                    
-!                endif
-!    
-!            enddo do1
-!
-!            STAT_ = SUCCESS_
-!        else 
-!            STAT_ = ready_
-!        end if cd1
-!
-!        if (present(STAT)) STAT = STAT_
-!    
-!    end subroutine GetSandDiameter
-     !--------------------------------------------------------------------------
+        
+    subroutine GetSandD50(ObjSedimentID, SandD50, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjSedimentID
+        real, dimension(:,:),  pointer              :: SandD50
+        integer, optional, intent(OUT)              :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+
+            call Read_Lock(mSediment_, Me%InstanceID)
+
+            SandD50 => Me%SandD50
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
     
-!    subroutine GetSandClass(ObjSedimentID, SandClass, STAT) 
-!
-!        !Arguments-------------------------------------------------------------
-!        integer                                     :: ObjSedimentID
-!        type (T_Sand), dimension(:),pointer         :: SandClass
-!        integer, optional, intent(OUT)              :: STAT
-!
-!        !External--------------------------------------------------------------
-!        integer                                     :: ready_        
-!
-!        !Local-----------------------------------------------------------------
-!        integer                                     :: STAT_
-!
-!        !----------------------------------------------------------------------
-!
-!        STAT_ = UNKNOWN_
-!
-!        call Ready(ObjSedimentID, ready_)
-!        
-!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
-!            (ready_ .EQ. READ_LOCK_ERR_)) then
-!
-!            call Read_Lock(mSediment_, Me%InstanceID)
-!
-!            SandClass => Me%SandClass
-!
-!            STAT_ = SUCCESS_
-!        else 
-!            STAT_ = ready_
-!        end if cd1
-!
-!
-!        if (present(STAT)) STAT = STAT_
-!    
-!    end subroutine GetSandClass
-    
+    end subroutine GetSandD50
     
     !--------------------------------------------------------------------------
+ 
     !--------------------------------------------------------------------------
     
     subroutine SetCohesiveFlux(ObjSedimentID, ConsolidationFlux,  STAT)
@@ -3471,7 +3424,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                 
                 Me%NDShearStress(i,j) = Me%ExternalVar%ShearStress(i,j)/(Me%DeltaDensity*Gravity*Me%SandD50(i,j))
                
-                !The reference concentration is computed based on the formulation of Zyserman and Fredsoe (1994)
+                !The reference concentration (volumetric) is computed based on the formulation of Zyserman and Fredsoe (1994)
                 !to calculate the erosion flux
                 if(Me%NDShearStress(i,j) > 0.045)then
                     
@@ -3481,6 +3434,9 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                 
                 !The reference concentration upper limit is set to 0.2 (Amoudry, 2010)
                 Me%ConcRef(i,j) = min(Me%ConcRef(i,j), 0.2)
+                
+                ![kg m-3]
+                Me%ConcRef(i,j) = Me%ConcRef(i,j) * Me%Density
                  
             endif
         enddo
