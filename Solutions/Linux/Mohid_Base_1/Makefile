@@ -62,8 +62,7 @@ FILES = \
         ModuleHDF5.$(S) \
         ModuleDrainageNetwork.$(S) \
         ModuleProfile.$(S) \
-		ModuleMPImanagement.$(S) \
-		ModuleHDF5_OO.$(S) \
+	ModuleMPImanagement.$(S) \
         ModuleTask2000.F \
         ModuleWWTPQ.$(S)
 #	ModuleCuda.$(S) 
@@ -92,11 +91,12 @@ ModuleBivalve.${Obj} 			: ModuleEnterData.${Obj}
 ModuleBenthos.${Obj} 			: ModuleEnterData.${Obj}
 ModuleCEQUALW2.${Obj} 			: ModuleFunctions.${Obj}
 ModuleMacroAlgae.${Obj} 		: ModuleFunctions.${Obj}
-ModuleTimeSerie.${Obj} 			: ModuleEnterData.${Obj}
 ModuleDischarges.${Obj} 		: ModuleFunctions.${Obj} \
                     			  ModuleTimeSerie.${Obj} \
                     			  ModuleDrawing.${Obj}
 ModuleDrawing.${Obj} 			: ModuleFunctions.${Obj}
+ModuleTimeSerie.${Obj} 			: ModuleEnterData.${Obj} \
+					  ModuleDrawing.${Obj}
 ModuleLUD.${Obj} 			: ModuleGlobalData.${Obj}
 ModuleWaterQuality.${Obj} 		: ModuleFunctions.${Obj} \
                       			  ModuleLUD.${Obj}
@@ -127,7 +127,6 @@ ModuleDrainageNetwork.${Obj}	 	: ModuleDischarges.${Obj} \
                           		  ModuleStopWatch.${Obj} \
                           		  ModuleInterface.${Obj}
 #ModuleCuda.${Obj} 			: ModuleGlobalData.${Obj}
-ModuleHDF5_OO.${Obj}            : ModuleGlobalData.${Obj} \
 ModuleProfile.${Obj} 			: ModuleEnterData.${Obj} \
                   			  ModuleHDF5.${Obj}
 

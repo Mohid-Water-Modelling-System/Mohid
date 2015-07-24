@@ -72,7 +72,8 @@ ModuleGeometry.${Obj} 		: ModuleHorizontalMap.${Obj}
 ModuleMap.${Obj} 		: ModuleGeometry.${Obj}
 ModuleAdvectionDiffusion.${Obj} : ModuleMap.${Obj}
 ModuleFillMatrix.${Obj} 	: ModuleBoxDif.${Obj} \
-                     		  ModuleGeometry.${Obj}
+                     		  ModuleGeometry.${Obj} \
+                                  ModuleField4D.${Obj}
 ModuleInterpolation.${Obj} 	: ModuleMap.${Obj}
 ModuleAtmosphere.${Obj} 	: ModuleStatistic.${Obj} \
                      		  ModuleFillMatrix.${Obj}
