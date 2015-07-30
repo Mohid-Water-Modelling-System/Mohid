@@ -76,11 +76,12 @@ program Convert2netcdf
         character(len=StringLength)                         :: HdfMask
         character(len=StringLength)                         :: TimeVar
         character(len=StringLength)                         :: VertVar
-        logical                                             :: ReadLatLon   = .true.
-        logical                                             :: Sigma   = .false.
-        logical                                             :: HdfMaskIs3D   = .true.
-        logical                                             :: ImposeMask   = .false.
-        logical                                             :: ResultsAre2D = .false.
+        logical                                             :: ReadLatLon       = .true.
+        logical                                             :: Sigma            = .false.
+        logical                                             :: HdfMaskIs3D      = .true.
+        logical                                             :: ImposeMask       = .false.
+        logical                                             :: ResultsAre2D     = .false.
+        logical                                             :: OutputIs2D       = .false. 
     end type T_HDFFile                                      
                                                             
     type T_NCDFFile                                         
@@ -125,6 +126,8 @@ program Convert2netcdf
 
         real                                                :: DepthAddOffSet   = 0.
         type(T_Time)                                        :: ReferenceTime
+        integer                                             :: DecimalPlaces    = FillValueInt
+        logical                                             :: StagGoogleOut    = .true. 
 
         logical                                             :: ConvertEverything=ON
         integer                                             :: nGroupsToConvert
@@ -163,7 +166,7 @@ program Convert2netcdf
         !Begin-----------------------------------------------------------------
 
         call ConstructEnterData (Me%ObjEnterData, Me%DataFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR00'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR10'
 
         call GetData(Me%HDFFile%Name,                                                   &
                      Me%ObjEnterData,iflag,                                             &
@@ -171,7 +174,7 @@ program Convert2netcdf
                      keyword      = 'HDF_FILE',                                         &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR20'
 
         !Verifies if file exists
         inquire(FILE = trim(Me%HDFFile%Name), EXIST = exist)
@@ -179,7 +182,7 @@ program Convert2netcdf
             call OpenHDF5File
         else
             write(*,*)'HDF5 file does not exist'
-            stop 'ReadKeywords - Convert2netcdf - ERR02'
+            stop 'ReadKeywords - Convert2netcdf - ERR30'
         endif
 
         call GetData(Me%NCDF_File%Name,                                                 &
@@ -188,7 +191,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_FILE',                                      &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR40'
 
         call GetData(Me%NCDF_File%Title,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -196,7 +199,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_TITLE',                                     &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR50'
 
         call GetData(Me%NCDF_File%Convention,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -205,7 +208,7 @@ program Convert2netcdf
                      Default      = 'CF-1.0',                                           &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR05'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR60'
 
         call GetData(Me%NCDF_File%Version,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -214,7 +217,7 @@ program Convert2netcdf
                      Default      = '3.6.1',                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR70'
 
         call GetData(Me%NCDF_File%History,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -222,7 +225,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_HISTORY',                                   &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR07'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR80'
         
         call GetData(Me%NCDF_File%Source,                                               &
                      Me%ObjEnterData,iflag,                                             &
@@ -230,7 +233,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_SOURCE',                                    &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR08'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR90'
 
         
         call GetData(Me%NCDF_File%Institution,                                          &
@@ -240,7 +243,7 @@ program Convert2netcdf
                      Default      = 'Instituto Superior Tecnico',                       &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR09'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR100'
         
         call GetData(Me%NCDF_File%References,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -249,7 +252,7 @@ program Convert2netcdf
                      Default      = 'http://www.mohid.com',                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR110'
 
         call GetData(Me%NCDF_File%iDate,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -257,7 +260,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_DATE',                                      &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR11'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR120'
 
         call GetData(Me%HDFFile%TimeVar,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -266,7 +269,7 @@ program Convert2netcdf
                      Default      = 'Time',                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR12'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR130'
 
         call GetData(Me%HDFFile%VertVar,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -275,7 +278,7 @@ program Convert2netcdf
                      Default      = 'VerticalZ/Vertical',                               &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR12a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR140'
 
 
         call GetData(Me%HDFFile%SizeGroup,                                              &
@@ -285,7 +288,7 @@ program Convert2netcdf
                      Default      = '/Grid',                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR13'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR150'
 
         call GetData(Me%HDFFile%ImposeMask,                                             &
                      Me%ObjEnterData,iflag,                                             &
@@ -294,7 +297,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR16'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR160'
 
         call GetData(Me%HDFFile%HdfMask,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -303,14 +306,14 @@ program Convert2netcdf
                      Default      = 'WaterPoints3D',                                    &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR14'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR170'
         
         call GetHDF5DataSetExist (HDF5ID        = Me%HDFFile%ObjHDF5,           &
                                   DataSetName   = trim(Me%HDFFile%SizeGroup)//  &
                                                   "/"//trim(Me%HDFFile%HdfMask),&
                                   Exist         = Exist,                        & 
                                   STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR180'
         
         if (.not.Exist) then
         
@@ -319,13 +322,13 @@ program Convert2netcdf
                                                       "/"//"WaterPoints",           &
                                       Exist         = Exist2,                       & 
                                       STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR190'
             
             if (Exist2) then
                 Me%HDFFile%HdfMask = "WaterPoints"
             else
                 write(*,*) 'Name define in keyword HDF_MASK not valid' 
-                stop 'ReadMask - Convert2netcdf - ERR40'
+                stop 'ReadMask - Convert2netcdf - ERR200'
             endif
 
         endif
@@ -338,7 +341,7 @@ program Convert2netcdf
                      Default      = .true.,                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR16'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR210'
 
         call GetData(Me%HDFFile%ResultsAre2D,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -347,7 +350,17 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR16'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR220'
+
+        call GetData(Me%HDFFile%OutputIs2D,                                             &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OUTPUT_IS_2D',                                     &
+                     Default      = .false.,                                            &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR230'
+
 
         call GetData(Me%HDFFile%SizeDataSet,                                            &
                      Me%ObjEnterData,iflag,                                             &
@@ -356,7 +369,7 @@ program Convert2netcdf
                      Default      = trim(Me%HDFFile%HdfMask),                           &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR14'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR240'
         
         call GetData(Me%HDFFile%ReadLatLon,                                             &
                      Me%ObjEnterData,iflag,                                             &
@@ -365,7 +378,7 @@ program Convert2netcdf
                      Default      = .true.,                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR15'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR250'
 
         call GetData(Me%HDFFile%Sigma,                                                  &
                      Me%ObjEnterData,iflag,                                             &
@@ -374,7 +387,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR16'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR260'
 
         call GetData(Me%ConvertEverything,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -383,7 +396,7 @@ program Convert2netcdf
                      Default      = .true.,                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR17'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR270'
 
 
         call GetData(Me%DepthAddOffSet,                                                 &
@@ -393,7 +406,7 @@ program Convert2netcdf
                      Default      = 0.,                                                 &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR18'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR280'
 
 
         call GetData(Me%ReferenceTime,                                                  &
@@ -402,13 +415,43 @@ program Convert2netcdf
                      keyword      = 'REFERENCE_TIME',                                   &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR19'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR290'
 
         if(iflag == 0)then
             call SetDate(Me%ReferenceTime, 2004, 1, 1, 0, 0, 0)
         end if
 
+        call GetData(Me%DecimalPlaces,                                                  &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'DECIMAL_PLACES',                                   &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = FillValueInt,                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR300'
+        
+        if (iflag /= 0) then
+            if (Me%DecimalPlaces < 0) then
+                stop 'ReadKeywords - Convert2netcdf - ERR310'
+            endif
+            
+            if (Me%DecimalPlaces > 16) then
+                stop 'ReadKeywords - Convert2netcdf - ERR320'
+            endif            
+            
+        endif
+        
+       
 
+        call GetData(Me%StagGoogleOut ,                                                 &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'STAG_GOOGLE_OUT',                                  &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = .true.,                                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR330'
+        
         if(.not. Me%ConvertEverything)then
 
              call ReadVGroupsToConvert
@@ -416,7 +459,7 @@ program Convert2netcdf
         end if
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR99'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR990'
 
     end subroutine ReadKeywords
 
@@ -638,7 +681,7 @@ program Convert2netcdf
 
         call ReadWriteLatLon
 
-        if (Me%HDFFile%Size%KUB .gt. 0) then
+        if (Me%HDFFile%Size%KUB .gt. 0 .and. .not. Me%HDFFile%OutputIs2D) then
             if ( .not. Me%HDFFile%ResultsAre2D ) then
                 call ReadWriteVertical
             else
@@ -797,22 +840,37 @@ program Convert2netcdf
         
         allocate(SphericX(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
         allocate(SphericY(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
+        
+        if (Me%StagGoogleOut) then
 
-        call WGS84toGoogleMaps(lon_stag, lat_stag,                                      &
-                               1, Me%HDFFile%Size%JUB, 1, Me%HDFFile%Size%IUB,          &
-                               SphericX, SphericY)
+            call WGS84toGoogleMaps(lon_stag, lat_stag,                                      &
+                                   1, Me%HDFFile%Size%JUB, 1, Me%HDFFile%Size%IUB,          &
+                                   SphericX, SphericY)
 
-        call NETCDFWriteLatLon(NCDFID           = Me%NCDF_File%ObjNETCDF,               &
-                               Lat              = Lat,                                  &
-                               Lon              = Lon,                                  &
-                               Lat_Stag         = Lat_Stag,                             &
-                               Lon_Stag         = Lon_Stag,                             &
-                               SphericX         = SphericX,                             &
-                               SphericY         = SphericY,                             &
-                               STAT             = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR60'
+            call NETCDFWriteLatLon(NCDFID           = Me%NCDF_File%ObjNETCDF,               &
+                                   Lat              = Lat,                                  &
+                                   Lon              = Lon,                                  &
+                                   Lat_Stag         = Lat_Stag,                             &
+                                   Lon_Stag         = Lon_Stag,                             &
+                                   SphericX         = SphericX,                             &
+                                   SphericY         = SphericY,                             &
+                                   STAT             = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR60'
 
-        deallocate(SphericX, SphericY)
+            deallocate(SphericX, SphericY)
+            
+        else
+
+            call NETCDFWriteLatLon(NCDFID           = Me%NCDF_File%ObjNETCDF,               &
+                                   Lat              = Lat,                                  &
+                                   Lon              = Lon,                                  &
+                                   Lat_Stag         = Lat_Stag,                             &
+                                   Lon_Stag         = Lon_Stag,                             &
+                                   STAT             = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR70'        
+        
+        endif
+                    
         deallocate(Lat, Lon, Lat_Stag, Lon_Stag)
         nullify   (Lat, Lon, Lat_Stag, Lon_Stag)
 
@@ -1117,32 +1175,66 @@ program Convert2netcdf
                                   STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR50'
                 
-                do i=1,Me%HDFFile%Size%IUB
-                do j=1,Me%HDFFile%Size%JUB
-                do k=1,Me%HDFFile%Size%KUB                
-                    Me%Int3DOut(j,i,k) = Me%Int3DIn(i,j,k)
-                enddo
-                enddo                
-                enddo
-        
-                call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
-                                     LongName, StandardName,                                &
-                                     Units, ValidMin, ValidMax,                             &
-                                     MinValue, MaxValue, MissingValue, Int3D = Me%Int3DIn)
-        
-                call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
-                                      Name          = trim(NCDFName),                       &
-                                      LongName      = trim(LongName),                       &
-                                      StandardName  = trim(StandardName),                   & 
-                                      Units         = trim(Units),                          &
-                                      ValidMin      = ValidMin,                             &
-                                      ValidMax      = ValidMax,                             &
-                                      MinValue      = MinValue,                             &
-                                      MaxValue      = MaxValue,                             &
-                                      MissingValue  = MissingValue,                         &
-                                      Array3D       = Me%Int3DOut,                          &
-                                      STAT          = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR60'
+                if (Me%HDFFile%OutputIs2D) then
+                
+                    do i=1,Me%HDFFile%Size%IUB
+                    do j=1,Me%HDFFile%Size%JUB
+                        k                = 1
+                        Me%Int2DIn (i,j) = Me%Int3DIn(i,j,k)                        
+                        Me%Int2DOut(j,i) = Me%Int3DIn(i,j,k)
+                    enddo                
+                    enddo
+            
+                    call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
+                                         LongName, StandardName,                                &
+                                         Units, ValidMin, ValidMax,                             &
+                                         MinValue, MaxValue, MissingValue, Int2D = Me%Int2DIn)
+            
+                    call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
+                                          Name          = trim(NCDFName),                       &
+                                          LongName      = trim(LongName),                       &
+                                          StandardName  = trim(StandardName),                   & 
+                                          Units         = trim(Units),                          &
+                                          ValidMin      = ValidMin,                             &
+                                          ValidMax      = ValidMax,                             &
+                                          MinValue      = MinValue,                             &
+                                          MaxValue      = MaxValue,                             &
+                                          MissingValue  = MissingValue,                         &
+                                          Array2D       = Me%Int2DOut,                          &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR60'
+                    
+                else
+                
+                    do i=1,Me%HDFFile%Size%IUB
+                    do j=1,Me%HDFFile%Size%JUB
+                    do k=1,Me%HDFFile%Size%KUB                
+                        Me%Int3DOut(j,i,k) = Me%Int3DIn(i,j,k)
+                    enddo
+                    enddo                
+                    enddo
+            
+                    call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
+                                         LongName, StandardName,                                &
+                                         Units, ValidMin, ValidMax,                             &
+                                         MinValue, MaxValue, MissingValue, Int3D = Me%Int3DIn)
+            
+                    call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
+                                          Name          = trim(NCDFName),                       &
+                                          LongName      = trim(LongName),                       &
+                                          StandardName  = trim(StandardName),                   & 
+                                          Units         = trim(Units),                          &
+                                          ValidMin      = ValidMin,                             &
+                                          ValidMax      = ValidMax,                             &
+                                          MinValue      = MinValue,                             &
+                                          MaxValue      = MaxValue,                             &
+                                          MissingValue  = MissingValue,                         &
+                                          Array3D       = Me%Int3DOut,                          &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR60'
+                
+                
+                endif                    
 
             else
 
@@ -1954,6 +2046,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         character(len=StringLength)                 :: Name, NCDFName, LongName, StandardName, Units
         real                                        :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
         integer                                     :: i, j, k
+        real                                        :: DecimalPlaces
 
         !Begin-----------------------------------------------------------------
         
@@ -1997,12 +2090,35 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                                Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB),    &
                                   dims, STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR02'
+
+
+                if (Me%DecimalPlaces > FillValueInt) then
                 
-                do i=1,Me%HDFFile%Size%IUB
-                do j=1,Me%HDFFile%Size%JUB
-                    Me%Float2DOut(j,i) = Me%Float2DIn(i, j)
-                enddo
-                enddo                
+                    DecimalPlaces = 10.**Me%DecimalPlaces
+
+                    do i=1,Me%HDFFile%Size%IUB
+                    do j=1,Me%HDFFile%Size%JUB
+                        if (Me%Float2DIn(i, j) /= FillValueReal) then
+                            Me%Float2DOut(j,i) = int(Me%Float2DIn(i, j) * DecimalPlaces)/ DecimalPlaces
+                        else
+                            Me%Float2DOut(j,i) =  FillValueReal                                                       
+                        endif                            
+                    enddo
+                    enddo                
+                    
+                else                    
+                    
+                    do i=1,Me%HDFFile%Size%IUB
+                    do j=1,Me%HDFFile%Size%JUB
+                        if (Me%Float2DIn(i, j) /= FillValueReal) then
+                            Me%Float2DOut(j,i) = Me%Float2DIn(i, j)
+                        else
+                            Me%Float2DOut(j,i) =  FillValueReal                                                       
+                        endif                            
+                    enddo
+                    enddo                
+                    
+                endif                                        
 
                 call BuildAttributes(Name, NCDFName, LongName, StandardName, &
                                            Units, ValidMin, ValidMax,        &
@@ -2053,52 +2169,151 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                   dims, STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR05'
 
-                do i=1,Me%HDFFile%Size%IUB
-                do j=1,Me%HDFFile%Size%JUB
-                do k=1,Me%HDFFile%Size%KUB                
-                    Me%Float3DOut(j,i,k) = Me%Float3DIn(i, j, k)
-                enddo
-                enddo
-                enddo
+                if (Me%HDFFile%OutputIs2D) then                    
 
-                call BuildAttributes(Name, NCDFName, LongName, StandardName, &
-                                           Units, ValidMin, ValidMax,        &
-                                           MinValue, MaxValue, MissingValue, &
-                                           Float3D = Me%Float3DIn)
-
-                if(nGItems > 1)then
-
-                    call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
-                                          Name          = trim(NCDFName),           &
-                                          LongName      = trim(LongName),           &
-                                          StandardName  = trim(StandardName),       & 
-                                          Units         = trim(Units),              &
-                                          ValidMin      = ValidMin,                 &
-                                          ValidMax      = ValidMax,                 &
-                                          MinValue      = MinValue,                 &
-                                          MaxValue      = MaxValue,                 &
-                                          OutputNumber  = item,                     &
-                                          Array3D       = Me%Float3DOut,            &
-                                          STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR06'
-                
-                else
+                    if (Me%DecimalPlaces > FillValueInt) then
                     
-                    call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
-                                          Name          = trim(NCDFName),           &
-                                          LongName      = trim(LongName),           &
-                                          StandardName  = trim(StandardName),       & 
-                                          Units         = trim(Units),              &
-                                          ValidMin      = ValidMin,                 &
-                                          ValidMax      = ValidMax,                 &
-                                          MinValue      = MinValue,                 &
-                                          MaxValue      = MaxValue,                 &
-                                          Array3D       = Me%Float3DOut,            &
-                                          STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR07'
-                end if
+                        DecimalPlaces = 10.**Me%DecimalPlaces
+                        
+                        do i=1,Me%HDFFile%Size%IUB
+                        do j=1,Me%HDFFile%Size%JUB
+                            k                  = 1
+                            Me%Float2DIn (i,j) = Me%Float3DIn(i, j, k)                            
+                            if (Me%Float2DIn(i, j) /= FillValueReal) then                            
+                                Me%Float2DOut(j,i) = int(Me%Float2DIn(i, j) * DecimalPlaces) / DecimalPlaces
+                            else
+                                Me%Float2DOut(j,i) =  FillValueReal                                                       
+                            endif                                                                
+                        enddo
+                        enddo
 
-        end select
+                    else
+
+                        do i=1,Me%HDFFile%Size%IUB
+                        do j=1,Me%HDFFile%Size%JUB
+                            k                  = 1
+                            Me%Float2DIn (i,j) = Me%Float3DIn(i, j, k)
+                            if (Me%Float2DIn(i, j) /= FillValueReal) then                                                        
+                                Me%Float2DOut(j,i) = Me%Float2DIn(i, j)
+                            else
+                                Me%Float2DOut(j,i) = FillValueReal
+                            endif                                
+                        enddo
+                        enddo
+                        
+                    endif                    
+
+                    call BuildAttributes(Name, NCDFName, LongName, StandardName, &
+                                               Units, ValidMin, ValidMax,        &
+                                               MinValue, MaxValue, MissingValue, &
+                                               Float2D = Me%Float2DIn)
+
+                    if(nGItems > 1)then
+
+                        call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                              Name          = trim(NCDFName),           &
+                                              LongName      = trim(LongName),           &
+                                              StandardName  = trim(StandardName),       & 
+                                              Units         = trim(Units),              &
+                                              ValidMin      = ValidMin,                 &
+                                              ValidMax      = ValidMax,                 &
+                                              MinValue      = MinValue,                 &
+                                              MaxValue      = MaxValue,                 &
+                                              OutputNumber  = item,                     &
+                                              Array2D       = Me%Float2DOut,            &
+                                              STAT          = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR06'
+                    
+                    else
+                        
+                        call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                              Name          = trim(NCDFName),           &
+                                              LongName      = trim(LongName),           &
+                                              StandardName  = trim(StandardName),       & 
+                                              Units         = trim(Units),              &
+                                              ValidMin      = ValidMin,                 &
+                                              ValidMax      = ValidMax,                 &
+                                              MinValue      = MinValue,                 &
+                                              MaxValue      = MaxValue,                 &
+                                              Array2D       = Me%Float2DOut,            &
+                                              STAT          = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR07'
+                    end if
+                    
+                else                    
+
+                    if (Me%DecimalPlaces > FillValueInt) then
+                    
+                        DecimalPlaces = 10.**Me%DecimalPlaces
+                        
+                        do i=1,Me%HDFFile%Size%IUB
+                        do j=1,Me%HDFFile%Size%JUB
+                        do k=1,Me%HDFFile%Size%KUB  
+                            if (Me%Float3DIn(i, j, k) /= FillValueReal) then                                      
+                                Me%Float3DOut(j,i,k) = int(Me%Float3DIn(i, j, k) * DecimalPlaces) / DecimalPlaces
+                            else                       
+                                Me%Float3DOut(j,i,k) = FillValueReal         
+                            endif                                
+                        enddo
+                        enddo
+                        enddo
+
+                    else
+
+                        do i=1,Me%HDFFile%Size%IUB
+                        do j=1,Me%HDFFile%Size%JUB
+                        do k=1,Me%HDFFile%Size%KUB                
+                            if (Me%Float3DIn(i, j, k) /= FillValueReal) then                                                              
+                                Me%Float3DOut(j,i,k) = Me%Float3DIn(i, j, k)
+                            else
+                                Me%Float3DOut(j,i,k) = FillValueReal
+                            endif                                    
+                        enddo
+                        enddo
+                        enddo
+                        
+                    endif                    
+
+                    call BuildAttributes(Name, NCDFName, LongName, StandardName, &
+                                               Units, ValidMin, ValidMax,        &
+                                               MinValue, MaxValue, MissingValue, &
+                                               Float3D = Me%Float3DIn)
+
+                    if(nGItems > 1)then
+
+                        call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                              Name          = trim(NCDFName),           &
+                                              LongName      = trim(LongName),           &
+                                              StandardName  = trim(StandardName),       & 
+                                              Units         = trim(Units),              &
+                                              ValidMin      = ValidMin,                 &
+                                              ValidMax      = ValidMax,                 &
+                                              MinValue      = MinValue,                 &
+                                              MaxValue      = MaxValue,                 &
+                                              OutputNumber  = item,                     &
+                                              Array3D       = Me%Float3DOut,            &
+                                              STAT          = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR06'
+                    
+                    else
+                        
+                        call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
+                                              Name          = trim(NCDFName),           &
+                                              LongName      = trim(LongName),           &
+                                              StandardName  = trim(StandardName),       & 
+                                              Units         = trim(Units),              &
+                                              ValidMin      = ValidMin,                 &
+                                              ValidMax      = ValidMax,                 &
+                                              MinValue      = MinValue,                 &
+                                              MaxValue      = MaxValue,                 &
+                                              Array3D       = Me%Float3DOut,            &
+                                              STAT          = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR07'
+                    end if
+
+                endif
+            
+         end select
 
         call h5dclose_f  (dset_id, STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR08'

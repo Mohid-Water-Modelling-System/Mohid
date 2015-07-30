@@ -3070,18 +3070,12 @@ cd1:       if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        real,   dimension(:,:), pointer             :: WaterColumnZ
         real(8)                                     :: DT_V
         real                                        :: Flow
         integer                                     :: i, j, k, kd, n, dis, nc, kmin, kmax
-        integer                                     :: STAT_CALL
         real                                        :: WaterColumn
 
         !----------------------------------------------------------------------
-
-        !WaterColumnZ
-        call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)  stop 'Discharges - ModuleAdvectionDiffusion - ERR10'
 
 
         n = 0
@@ -3104,7 +3098,7 @@ dnc:        do   nc = 1, Me%ExternalVar%DischnCells(dis)
 
                     if (kmin == FillValueInt) kmin = Me%ExternalVar%KFloorZ(i, j)
                     if (kmax == FillValueInt) kmax = Me%WorkSize%KUB
-
+                    
                 else
         
                     kmin = kd; kmax = kd
@@ -3171,12 +3165,6 @@ fl:                         if (Flow > 0.) then
             enddo dnc
         
         enddo ddis
-
-
-        !WaterColumnZ
-        call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)  stop 'Discharges - ModuleAdvectionDiffusion - ERR20'
 
 
     end subroutine Discharges 

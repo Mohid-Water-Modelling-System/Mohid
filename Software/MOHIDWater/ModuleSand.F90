@@ -89,7 +89,7 @@ Module ModuleSand
     private ::      ComputeFluxes
     private ::          MeyerPeterTransport
     private ::          AckersTransport
-    private ::          VanRijnCurrentTransport
+    private ::          VanRijn2007Transport
     private ::          VanRijn1Transport !suspended load compute by algebric formula
     private ::          VanRijn2Transport !suspended load compute by numerical integration
     private ::          BailardTransport
@@ -146,7 +146,7 @@ Module ModuleSand
     character(LEN = StringLength), parameter    :: Rock_block_end        = '<endrock>'
 
     integer, parameter :: NoTransport = 0, Ackers = 1, MeyerPeter = 2, VanRijn1 = 3, & 
-                          VanRijn2 = 4, Bailard = 5, Dibajnia = 6, Bijker = 7, VanRijnCurrent = 8
+                          VanRijn2 = 4, Bailard = 5, Dibajnia = 6, Bijker = 7, VanRijn2007 = 8
     integer, parameter :: NullGradient = 1, Cyclic = 2, NullValue = 3
 
     !Selma
@@ -327,6 +327,10 @@ Module ModuleSand
         real, dimension(:,:), pointer              :: TauCritic             => null ()
         real, dimension(:,:), pointer              :: Dast                  => null ()
         integer                                    :: TransportMethod       = FillValueInt
+        logical                                    :: BedLoad               = .true.
+        logical                                    :: SuspendedLoad         = .true.        
+        logical                                    :: WaveEffect            = .true.                
+                       
         !Instance of ModuleHDF5        
         integer                                    :: ObjHDF5               = 0
         !Instance of ModuleTimeSerie            
@@ -1757,8 +1761,8 @@ cd2 :               if (BlockFound) then
             Me%TransportMethod = MeyerPeter
         Case ("Ackers")
             Me%TransportMethod = Ackers
-        Case ("VanRijnCurrent")
-            Me%TransportMethod = VanRijnCurrent
+        Case ("VanRijn2007")
+            Me%TransportMethod = VanRijn2007
         Case ("VanRijn1")
             Me%TransportMethod = VanRijn1
         Case ("VanRijn2")
@@ -1925,6 +1929,39 @@ cd2 :               if (BlockFound) then
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR89' 
+
+
+        if (Me%TransportMethod == VanRijn2007) then
+        
+            call GetData(Me%BedLoad,                                                    &
+                         Me%ObjEnterData,iflag,                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'BEDLOAD',                                      &
+                         default      = .true.,                                         &
+                         ClientModule = 'ModuleSand',                                   &
+                         STAT         = STAT_CALL)              
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR100'         
+
+            call GetData(Me%SuspendedLoad,                                              &
+                         Me%ObjEnterData,iflag,                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'SUSPENDEDLOAD',                                &
+                         default      = .true.,                                         &
+                         ClientModule = 'ModuleSand',                                   &
+                         STAT         = STAT_CALL)              
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR110'         
+
+            call GetData(Me%WaveEffect,                                                 &
+                         Me%ObjEnterData,iflag,                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'WAVE_EFFECT',                                  &
+                         default      = .true.,                                         &
+                         ClientModule = 'ModuleSand',                                   &
+                         STAT         = STAT_CALL)              
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR120'
+
+        endif    
+        
 
 
     end subroutine ConstructGlobalParameters
@@ -2485,8 +2522,8 @@ cd0:    if (EXIST) then
             call MeyerPeterTransport
         Case (Ackers)
             call AckersTransport
-        Case (VanRijnCurrent) 
-            call VanRijnCurrentTransport            
+        Case (VanRijn2007) 
+            call VanRijn2007Transport            
         Case (VanRijn1)
             call VanRijn1Transport
         Case (VanRijn2)
@@ -2674,18 +2711,46 @@ cd0:    if (EXIST) then
 
     !--------------------------------------------------------------------------
     
-
-    subroutine VanRijnCurrentTransport
+    !Leo C. van Rijn1 (2007) Unified View of Sediment Transport by Currents and Waves. 
+    !Two papers in     !JOURNAL OF HYDRAULIC ENGINEERING © ASCE / JUNE 2007 
+    !see references below
+    
+    subroutine VanRijn2007Transport
 
         !Local-----------------------------------------------------------------
-        real    :: RhoSW, D50, D90, U, Ucr, M, H
+ 
+        !Begin-----------------------------------------------------------------
+ 
+
+        Me%TransportCapacity(:, :) = 0
+        
+        if (Me%BedLoad) then
+            call VanRijn2007BedLoad
+        endif
+                    
+        if (Me%SuspendedLoad) then
+            call VanRijn2007SuspendedLoad
+        endif
+        
+        
+
+    end subroutine VanRijn2007Transport
+
+    !--------------------------------------------------------------------------
+
+    !Leo C. van Rijn1 (2007) Unified View of Sediment Transport by Currents and Waves. 
+    !I: Initiation of Motion, Bed Roughness, and Bed-Load Transport 
+    !JOURNAL OF HYDRAULIC ENGINEERING © ASCE / JUNE 2007 / 649
+
+    subroutine VanRijn2007BedLoad
+
+        !Local-----------------------------------------------------------------
+        real    :: D50, U, H, M
         integer :: i, j
  
         !----------------------------------------------------------------------
- 
-! ---> Global Parameters
-
-        RhoSW  = Me%Density / Me%ExternalVar%WaterDensity
+        
+        ! ---> Global Parameters
         
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -2693,38 +2758,17 @@ cd0:    if (EXIST) then
             if (Me%ExternalVar%OpenPoints2D(i, j) == OpenPoint) then
             
                 D50 = Me%D50%Field2D(I,J)
-                D90 = Me%D90%Field2D(I,J)
                 H   = Me%ExternalVar%WaterColumn(I,J)
                 U   = Me%ExternalVar%VelMod(I,J)
-            
-! ---> Compute critical velocity based on Shields initiation of motion (see Van Rijn, 1993)          
-                if     (D50 > 0.05e-3 .and. D50 <= 0.5e-3) then
-                    Ucr = 0.19*(D50)**0.1*log10(4*H/D90)
-                elseif (D50 > 0.5e-3 .and. D50 <= 2.0e-3) then
-                    Ucr = 8.50*(D50)**0.6*log10(4*H/D90)
-                elseif (D50 >= 2.0e-3) then
-                    write(*,*) "D50 > 2 mm - not valid "
-                    stop "VanRijnCurrentTransport - ModuleSand - ERR10"
-                elseif (D50 <= 0.05e-3) then
-                    Ucr = 0.
-                endif
-                    
-! ---> Compute mobility paramter
-                if (U > Ucr) then
-                    M = (U - Ucr) / sqrt((RhoSW - 1)*Gravity*D50)
-                else
-                    M = 0.
-                endif                    
-                
-!----> Compute transport capacity                
+
+                !----> Compute transport capacity                
                 ! [m^2/s]
                 if (H > 0.01) then
-                    Me%TransportCapacity(i, j) = 0.015*U*H*(D50/H)**1.2*M**1.5
-                else                    
-                    Me%TransportCapacity(i, j) = 0
+                    M                          = VanRijn2007Mobility(i, j)         
+                    ! [m^2/s]                  = [m^2/s]                    + [] * [m/s]*[m]*[m/m]^1.2 * []^1.5 
+                    Me%TransportCapacity(i, j) = Me%TransportCapacity(i, j) + 0.015*U*H*(D50/H)**1.2*M**1.5
+
                 endif
-            else
-                Me%TransportCapacity(i, j) = 0.
             endif
 
         enddo
@@ -2734,10 +2778,143 @@ cd0:    if (EXIST) then
               //,T10,'O Valor do Diametro Adimensional e < 1',   &
               //T10,'Verifique os dados do problema ...',///)
 
-    end subroutine VanRijnCurrentTransport
+    end subroutine VanRijn2007BedLoad
 
     !--------------------------------------------------------------------------
+
+    !Leo C. van Rijn1 (2007) Unified View of Sediment Transport by Currents and Waves. 
+    !II : Suspended Transport 
+    !JOURNAL OF HYDRAULIC ENGINEERING © ASCE / JUNE 2007 / 668    
+
+    subroutine VanRijn2007SuspendedLoad
+
+        !Local-----------------------------------------------------------------
+        real    :: RhoSW, D50, Di, U, M, H
+        integer :: i, j
+ 
+        !----------------------------------------------------------------------
+        
+        ! ---> Global Parameters
+
+        RhoSW  = Me%Density / Me%ExternalVar%WaterDensity
+        
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExternalVar%OpenPoints2D(i, j) == OpenPoint) then
+            
+                D50 = Me%D50%Field2D(I,J)
+                H   = Me%ExternalVar%WaterColumn(I,J)
+                U   = Me%ExternalVar%VelMod(I,J)
+
+                !----> Compute transport capacity                
+                ! [m^2/s]
+                if (H > 0.01) then
+                    M                          = VanRijn2007Mobility(i, j)                
+                    ![]                        = [m] * [[] * [m/s^2] / [m^2/s]^2]^(1/3)
+                    Di                         = D50 * ((RhoSW - 1) * Gravity / WaterCinematicVisc**2.)**(0.33333)
+                    ! [m^2/s]                  = [m^2/s]                    + [] * [m/s]*[m]*[]^2.4*[]^-0.6                     
+                    Me%TransportCapacity(i, j) = Me%TransportCapacity(i, j) + 0.012*U*D50*M**2.4/Di**0.6
+
+                endif
+            endif
+
+        enddo
+        enddo
+
+500 Format (/////T10,'A T E N C A O !!!',                        &
+              //,T10,'O Valor do Diametro Adimensional e < 1',   &
+              //T10,'Verifique os dados do problema ...',///)
+
+    end subroutine VanRijn2007SuspendedLoad
+
+    !--------------------------------------------------------------------------    
     
+    !Leo C. van Rijn1 (2007) Unified View of Sediment Transport by Currents and Waves. 
+    !I: Initiation of Motion, Bed Roughness, and Bed-Load Transport 
+    !JOURNAL OF HYDRAULIC ENGINEERING © ASCE / JUNE 2007 / 649    
+   
+    real function VanRijn2007Mobility(i, j)
+    
+        !Arguments-------------------------------------------------------------
+        integer :: i, j        
+    
+        !Local-----------------------------------------------------------------
+        real    :: RhoSW, D50, D90, U, Ucr, H
+        real    :: Ubw, Alpha, Beta, Ue, Ucrc, Ucrw, PeakPeriod
+        
+        !Begin-----------------------------------------------------------------
+
+        RhoSW  = Me%Density / Me%ExternalVar%WaterDensity
+    
+        D50 = Me%D50%Field2D            (i,j)
+        D90 = Me%D90%Field2D            (i,j)
+        H   = Me%ExternalVar%WaterColumn(i,j)
+        U   = Me%ExternalVar%VelMod     (i,j)
+        
+        if (Me%WaveEffect) then
+            Ubw   = Me%ExternalVar%Ubw  (i,j)
+            !Alpha = 0.4 irregular waves & 0.8 regular waves
+            Alpha = 0.4
+            Ue    = U + Alpha * Ubw
+        else
+            Ue    = U
+        endif            
+        
+! ---> Compute critical velocity for currents based on Shields initiation of motion (see Van Rijn, 1993)          
+        if     (D50 > 0.05e-3 .and. D50 <= 0.5e-3) then
+            Ucrc = 0.19*(D50)**0.1*log10(4*H/D90)
+        elseif (D50 > 0.5e-3 .and. D50 <= 2.0e-3) then
+            Ucrc = 8.50*(D50)**0.6*log10(4*H/D90)
+        elseif (D50 >= 2.0e-3) then
+            write(*,*) "D50 > 2 mm - not valid "
+            stop "VanRijn2007CurrentWave - ModuleSand - ERR10"
+        elseif (D50 <= 0.05e-3) then
+            Ucrc = 0.
+        endif
+
+! ---> Compute critical velocity for waves (see Van Rijn, 1993)          
+        if (Me%WaveEffect) then
+
+            PeakPeriod = Me%ExternalVar%WavePeriod(i,j)
+            
+            if     (D50 > 0.05e-3 .and. D50 <= 0.5e-3) then
+                Ucrw = 0.24*((RhoSW-1)*Gravity)**0.66*D50**0.33*PeakPeriod**0.33
+            elseif (D50 > 0.5e-3 .and. D50 <= 2.0e-3) then
+                Ucrw = 0.95*((RhoSW-1)*Gravity)**0.57*D50**0.43*PeakPeriod**0.14
+            elseif (D50 >= 2.0e-3) then
+                write(*,*) "D50 > 2 mm - not valid "
+                stop "VanRijn2007CurrentWave - ModuleSand - ERR10"
+            elseif (D50 <= 0.05e-3) then
+                Ucrw = 0.
+            endif
+
+        endif
+        
+        if (Me%WaveEffect) then
+            ![]  = [m/s] / [m/s]
+            Beta = U / (U + Ubw)
+            ![m/s] = []*[m/s] + []*[m/s]
+            Ucr  = Beta * Ucrc + (1 - Beta) * Ucrw
+        else
+            Ucr  = Ucrc
+        endif            
+        
+                              
+
+         if (Ue > Ucr) then
+            ![] = [m/s] / [m/s^2*m]^0.5
+            VanRijn2007Mobility = (Ue - Ucr) / sqrt((RhoSW - 1)*Gravity*D50)
+        else
+            VanRijn2007Mobility = 0.
+        endif      
+                
+
+    end function VanRijn2007Mobility
+    
+
+    !---------------------------------------------------------------------------    
+                
     
     subroutine VanRijn1Transport
 

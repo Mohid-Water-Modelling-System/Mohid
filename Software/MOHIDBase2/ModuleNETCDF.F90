@@ -1741,13 +1741,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteLatLon(NCDFID, Lat, Lon, Lat_Stag, Lon_Stag, SphericX, SphericY, STAT)
+    subroutine NETCDFWriteLatLon(NCDFID, Lat, Lon, Lat_Stag, Lon_Stag,                  &
+                                 SphericX, SphericY, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
         real, dimension(:,:), pointer                   :: Lat, Lon
         real, dimension(:,:), pointer                   :: Lat_Stag, Lon_Stag
-        real(8), dimension(:,:), pointer, optional      :: SphericX, SphericY       
+        real(8), dimension(:,:), pointer, optional      :: SphericX, SphericY     
         integer, optional                               :: STAT
         
         !Local-----------------------------------------------------------------
@@ -1768,7 +1769,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Ready (NCDFID, ready_)
 
         if (ready_ .EQ. IDLE_ERR_) then
-
+        
             !enter definition mode
             STAT_CALL = nf90_redef(ncid = Me%ncid)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR10'
@@ -1786,7 +1787,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !define longitude as variable 
             STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Name), NF90_FLOAT, Dims2ID, Me%Dims(1)%VarID)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR30'
-
+            
             !define latitude staggered as variable
             STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Stag_Name), NF90_FLOAT, Dims3IDStag, LatStagID)
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR40'
@@ -1796,15 +1797,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR50'
 
             !define spherical mercator coordinates adopted by Google and Bing X staggered as variable 
-            if (associated(SphericX)) then
-                STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_x_Name), NF90_FLOAT, Dims3IDStag, SphericXVarID)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR60'
+            if (present(SphericX)) then
+                if (associated(SphericX)) then
+                    STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_x_Name), NF90_FLOAT, Dims3IDStag, SphericXVarID)
+                    if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR60'
+                endif                    
             endif
 
             !define spherical mercator Y staggered as variable 
-            if (associated(SphericY)) then
-                STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_y_Name), NF90_FLOAT, Dims3IDStag, SphericYVarID)
-                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR70'
+            if (present(SphericY)) then
+                if (associated(SphericY)) then
+                    STAT_CALL = nf90_def_var(Me%ncid, trim(gmaps_y_Name), NF90_FLOAT, Dims3IDStag, SphericYVarID)
+                    if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR70'
+                endif                    
             endif
             
             FillValue       = FillValueReal
@@ -1829,27 +1834,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                          bounds       = trim(Lon_Stag_Name),    &
                                                          MissingValue = MissingValue)
 
-
-            if (associated(SphericX)) then
+            if (present(SphericX)) then
+                if (associated(SphericX)) then
                                                          
-                call NETCDFWriteAttributes(SphericXVarID,    LongName     = "spherical mercator - google maps - x staggered",  &
-                                                             StandardName = "spherical mercator - google maps - x",            &
-                                                             Units        = "paper meters",         &
-                                                             FillValue    = FillValue,              &
-                                                             ValidMin     = -20037508.34,           &
-                                                             ValidMax     =  20037508.34,           &
-                                                             MissingValue = MissingValue)
+                    call NETCDFWriteAttributes(SphericXVarID,    LongName     = "spherical mercator - google maps - x staggered",  &
+                                                                 StandardName = "spherical mercator - google maps - x",            &
+                                                                 Units        = "paper meters",         &
+                                                                 FillValue    = FillValue,              &
+                                                                 ValidMin     = -20037508.34,           &
+                                                                 ValidMax     =  20037508.34,           &
+                                                                 MissingValue = MissingValue)
+                endif                    
             endif
             
-            if (associated(SphericY)) then
-                                                         
-                call NETCDFWriteAttributes(SphericYVarID,    LongName     = "spherical mercator - google maps - y staggered",  &
-                                                             StandardName = "spherical mercator - google maps - y",            &
-                                                             Units        = "paper meters",         &
-                                                             FillValue    = FillValue,              & 
-                                                             ValidMin     = -20037508.34,           &
-                                                             ValidMax     =  20037508.34,           &
-                                                             MissingValue = MissingValue)
+            if (present(SphericY)) then
+                if (associated(SphericY)) then
+
+                    call NETCDFWriteAttributes(SphericYVarID,    LongName     = "spherical mercator - google maps - y staggered",  &
+                                                                 StandardName = "spherical mercator - google maps - y",            &
+                                                                 Units        = "paper meters",         &
+                                                                 FillValue    = FillValue,              & 
+                                                                 ValidMin     = -20037508.34,           &
+                                                                 ValidMax     =  20037508.34,           &
+                                                                 MissingValue = MissingValue)
+                endif
             endif                
             
             !exit definition mode
@@ -1915,6 +1923,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR120'
             
             !write spheric X staggered
+            if (present   (SphericX)) then
             if (associated(SphericX)) then
             
                 do j = Me%Dims(1)%LB,Me%Dims(1)%UB
@@ -1940,8 +1949,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 STAT_CALL = nf90_put_var(Me%ncid, SphericXVarID, AuxStag)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR130'
             endif
+            endif
             
             !write spheric Y staggered
+            if (present   (SphericY)) then
             if (associated(SphericY)) then
 
                 do j = Me%Dims(1)%LB,Me%Dims(1)%UB
@@ -1966,8 +1977,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 STAT_CALL = nf90_put_var(Me%ncid, SphericYVarID, AuxStag)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon - ModuleNETCDF - ERR140'
-            endif            
             
+            endif    
+            endif
+            
+
             call NETCDFWriteLineColumn            
 
             STAT_ = SUCCESS_

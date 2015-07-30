@@ -2418,6 +2418,9 @@ i1:     if (Me%CompareTimeSerieOn) then
             write(Me%iCompare,*) "COORD_X                 : ", Me%CoordX
             write(Me%iCompare,*) "COORD_Y                 : ", Me%CoordY
             
+            write(Me%iCompare,*) "STDEV_OBS               : ", StdevObs
+            write(Me%iCompare,*) "AVERAGE_OBS             : ", AverageObs            
+            
             write(Me%iCompare,*) "BIAS                    : ",Bias
             write(Me%iCompare,*) "RMSE                    : ",RMSE
             write(Me%iCompare,*) "Normalise RMSE [%]      : ",NRMSE            

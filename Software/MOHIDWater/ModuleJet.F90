@@ -150,6 +150,7 @@ Module ModuleJet
     public  :: GetPlumeVelocity
     public  :: GetPlumeMixingHorLength
     public  :: GetPlumeThickness
+    public  :: GetPortGeometry
     public  :: UngetJet
 
     private :: UngetJetChar1D
@@ -721,21 +722,21 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             Me%OutPut%Header(5)  = "Dilution"
 
-            Me%OutPut%Header(6)  = "1 / Dilution"
+            Me%OutPut%Header(6)  = "1/Dilution"
 
-            Me%OutPut%Header(7)  = "Radius"
+            Me%OutPut%Header(7)  = "Length_H"
 
             Me%OutPut%Header(8)  = "Velocity"
 
-            Me%OutPut%Header(9)  = "Density Gradient"
+            Me%OutPut%Header(9)  = "Density_Gradient"
 
-            Me%OutPut%Header(10) = "Plume Density"
+            Me%OutPut%Header(10) = "Plume_Density"
 
-            Me%OutPut%Header(11) = "Ambient Density"
+            Me%OutPut%Header(11) = "Ambient_Density"
 
             Me%OutPut%Header(12) = "Thickness"
 
-            Me%OutPut%Header(13) = "Length V"
+            Me%OutPut%Header(13) = "Length_V"
 
         else if (Me%OutPut%FormatType == CLOUD) then
 
@@ -1782,25 +1783,14 @@ i3:             if (Me%Evolution%Diameter > Me%Evolution%MaxHorizLengthScale) th
 
                 else if (Me%Evolution%VertBoundContact) then i3
 
-                    RestrainedLengthScale = Me%Evolution%VertLengthScale
+                    DensityFrontSpeed = sqrt(abs(Me%Evolution%dro) / Me%Ambient%LocalDensity * &
+                                              Gravity * Me%Evolution%VertLengthScale)
 
-                    if (Me%Evolution%dro > 0) then
-                        !Horizontal Expantion 
-                        DensityFrontSpeed = sqrt(Me%Evolution%dro / Me%Ambient%LocalDensity * &
-                                                  Gravity * Me%Evolution%VertLengthScale)
+                    !Density front propagation 
+                    Me%Evolution%VertLengthScale = Me%Evolution%VertLengthScale / (2. * DensityFrontSpeed*Me%Evolution%DT&
+                                                                                  /Me%Evolution%Diameter  + 1.)
 
-                        Me%Evolution%VertLengthScale = Me%Evolution%VertLengthScale / (DensityFrontSpeed*Me%Evolution%DT&
-                                                                                      /Me%Evolution%Diameter  + 1.)
-
-                    else
-                        !Horizontal Compression
-                        DensityFrontSpeed = sqrt(- Me%Evolution%dro / Me%Ambient%LocalDensity * &
-                                                   Gravity * Me%Evolution%VertLengthScale)
-
-                        Me%Evolution%VertLengthScale = Me%Evolution%VertLengthScale * (DensityFrontSpeed*Me%Evolution%DT&
-                                                                                      /Me%Evolution%Diameter  + 1.)
-
-                    endif
+                    RestrainedLengthScale = Me%Evolution%VertLengthScale                    
 
                 endif i3
 
@@ -2001,7 +1991,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
 
         Me%OutPut%Matrix(Me%OutPut%Number, 6) = 1 / Me%Evolution%Dilution
                 
-        Me%OutPut%Matrix(Me%OutPut%Number, 7) = Me%Evolution%Diameter / 2.
+        Me%OutPut%Matrix(Me%OutPut%Number, 7) = Me%Evolution%Diameter
 
         Me%OutPut%Matrix(Me%OutPut%Number, 8) = Me%Evolution%VelModulus
 
@@ -2013,7 +2003,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
 
         Me%OutPut%Matrix(Me%OutPut%Number,12) = Me%Evolution%Thickness
 
-        Me%OutPut%Matrix(Me%OutPut%Number, 13)= Me%Evolution%VertLengthScale / 2.
+        Me%OutPut%Matrix(Me%OutPut%Number, 13)= Me%Evolution%VertLengthScale
 
 
     end subroutine JetOutPut
@@ -2720,8 +2710,44 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end subroutine GetOutPutHeader
     !----------------------------------------------------------------------
 
-    
-    
+
+
+    subroutine GetPortGeometry(JetID, HZAngle, XYAngle, Diameter, Number, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                            :: JetID
+        real   , optional, intent(OUT)                     :: HZAngle, XYAngle, Diameter
+        integer, optional, intent(OUT)                     :: Number
+        integer, optional, intent(OUT)                     :: STAT        
+        !Local-----------------------------------------------------------------
+        integer                                            :: ready_          
+        integer                                            :: STAT_
+
+        !----------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(JetID, ready_) 
+        
+if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            HZAngle     = Me%Port%HZAngle
+            XYAngle     = Me%Port%XYAngle
+            Diameter    = Me%Port%Diameter
+            Number      = Me%Port%Number   
+  
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if if1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+    end subroutine GetPortGeometry
     
     !----------------------------------------------------------------------
     subroutine UngetJetReal2D(JetID, Matrix2D, STAT)

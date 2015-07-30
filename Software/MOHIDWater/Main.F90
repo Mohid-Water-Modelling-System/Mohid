@@ -764,13 +764,20 @@ program MohidWater
 
             !Checks the limits of the model (always model one which controls it)
             call GetModelTimeLimits (FirstModel%ModelID, GlobalBeginTime, GlobalEndTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR240'
-
+            
             call ExtractDate (GlobalBeginTime, AuxBeg(1), AuxBeg(2), AuxBeg(3),          &
                               AuxBeg(4), AuxBeg(5), AuxBeg(6))
 
             call ExtractDate (GlobalEndTime,   AuxEnd(1), AuxEnd(2), AuxEnd(3),          &
                               AuxEnd(4), AuxEnd(5), AuxEnd(6))
+            
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'FirstModel%ModelID =', FirstModel%ModelID
+                write(*,*) 'GlobalBeginTime    =', AuxBeg
+                write(*,*) 'GlobalEndTime      =', AuxEnd                
+                write(*,*) 'STAT_CALL          =', STAT_CALL
+                stop 'ConstructMohidWaterMPI - MohidWater - ERR240'
+            endif                
 
         endif
 

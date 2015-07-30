@@ -325,7 +325,8 @@ Module ModuleFillMatrix
         real,    dimension(:), pointer              :: Y                    => null()        
         real,    dimension(:), pointer              :: Z                    => null()
         real,    dimension(:), pointer              :: Prop                 => null()
-        logical, dimension(:), pointer              :: NoData               => null()        
+        logical, dimension(:), pointer              :: NoData               => null()  
+        logical                                     :: Extrapolate          = .false.       
     end type T_Field4D
 
 
@@ -3797,6 +3798,19 @@ i0:     if(Me%Dim == Dim2D)then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR120'
         
+        
+        if (Me%HDF%Field4D) then
+            call GetData(Me%HDF%Extrapolate,                                            &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'EXTRAPOLATE',                                  &
+                         default      = .false.,                                        &
+                         ClientModule = 'ModuleFillMatrix',                             &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR125'
+        
+        endif
+        
         !The adding and multiplying functionalities are also available in ModuleField4D
         !This way it is avoid adding and multiplying twice the AddingFactor and the MultiplyingFactor respectively 
         if (Me%HDF%Field4D) then
@@ -5074,9 +5088,13 @@ if2D:   if (Me%Dim == Dim2D) then
                     
                     icount           = icount + 1
                     if (Me%HDF%NoData(icount)) then
-                        write(*,*) GetPropertyName (Me%PropertyID%IDNumber)
-                        write(*,*) 'No data in 2D cell I=',i, 'J=',j
-                        stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR20' 
+                        if (Me%HDF%Extrapolate) then
+                            Matrix2D(i, j)   = Me%DefaultValue
+                        else
+                            write(*,*) GetPropertyName (Me%PropertyID%IDNumber)
+                            write(*,*) 'No data in 2D cell I=',i, 'J=',j
+                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR20' 
+                        endif                        
                     else                        
                         Matrix2D(i, j)   = Me%HDF%Prop(icount)
                     endif

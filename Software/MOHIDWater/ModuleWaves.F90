@@ -513,7 +513,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WavePeriod%ON) then
 
-            Me%WavePeriod%ID%Name = GetPropertyName(MeanWavePeriod_)
+            Me%WavePeriod%ID%Name     = GetPropertyName(MeanWavePeriod_)
+            Me%WavePeriod%ID%IDNumber = MeanWavePeriod_                                                            
                      
             call ReadWaveParameters(WaveProperty = Me%WavePeriod,                       &
                                     BeginBlock   = "<begin_waveperiod>",                &
@@ -533,7 +534,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveHeight%ON) then
 
-            Me%WaveHeight%ID%Name = GetPropertyName(SignificantWaveHeight_)
+            Me%WaveHeight%ID%Name     = GetPropertyName(SignificantWaveHeight_)
+            Me%WaveHeight%ID%IDNumber = SignificantWaveHeight_
 
             call ReadWaveParameters(WaveProperty = Me%WaveHeight,                       &
                                     BeginBlock   = "<begin_waveheight>",                &
@@ -553,7 +555,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveDirection%ON) then
 
-            Me%WaveDirection%ID%Name = GetPropertyName(MeanWaveDirection_)
+            Me%WaveDirection%ID%Name     = GetPropertyName(MeanWaveDirection_)
+            Me%WaveDirection%ID%IDNumber = MeanWaveDirection_            
 
             call ReadWaveParameters(WaveProperty = Me%WaveDirection,                    &
                                     BeginBlock   = "<begin_wavedirection>",             &
@@ -573,7 +576,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveLength%ON) then
 
-            Me%WaveLength%ID%Name = GetPropertyName(MeanWaveLength_)
+            Me%WaveLength%ID%Name     = GetPropertyName(MeanWaveLength_)
+            Me%WaveLength%ID%IDNumber = MeanWaveLength_                        
 
             call ReadWaveParameters(WaveProperty = Me%WaveLength,                       &
                                     BeginBlock   = "<begin_wavelength>",                &
@@ -593,7 +597,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%RadiationStressX%ON) then
 
-            Me%RadiationStressX%ID%Name = GetPropertyName(WaveStressX_)
+            Me%RadiationStressX%ID%Name     = GetPropertyName(WaveStressX_)
+            Me%RadiationStressX%ID%IDNumber = WaveStressX_                                    
 
             call ReadWaveParameters(WaveProperty = Me%RadiationStressX,                 &
                                     BeginBlock   = "<begin_radiationstress_x>",         &
@@ -614,7 +619,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%RadiationStressY%ON) then
 
-            Me%RadiationStressY%ID%Name = GetPropertyName(WaveStressY_)
+            Me%RadiationStressY%ID%Name     = GetPropertyName(WaveStressY_)
+            Me%RadiationStressY%ID%IDNumber = WaveStressY_                                                
+            
 
             call ReadWaveParameters(WaveProperty = Me%RadiationStressY,                 &
                                     BeginBlock   = "<begin_radiationstress_y>",         &

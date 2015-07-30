@@ -9059,13 +9059,13 @@ PropX:      do while (associated(PropertyX))
         end if
 
         if (Me%ObjHydrodynamic /= 0) then
-            if (Me%WaveShear_Stress%Yes) then
 
-                call GetWavesStressON(Me%ObjHydrodynamic,                                &
-                                     WavesStressON, STAT = STAT_CALL)
-                if(STAT_CALL .ne. SUCCESS_)                                              &
-                    stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR130'
-                
+            call GetWavesStressON(Me%ObjHydrodynamic,                                &
+                                 WavesStressON, STAT = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_)                                              &
+                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR130'
+
+            if (Me%WaveShear_Stress%Yes) then
                 if (WavesStressON) then
 
                     call SetWaveChezyVel(Me%ObjHydrodynamic,                             &
@@ -9074,6 +9074,11 @@ PropX:      do while (associated(PropertyX))
                     if(STAT_CALL .ne. SUCCESS_)                                          &
                         stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR140'
                 endif
+            else
+                if (WavesStressON) then
+                    write(*,*) 'Missing Keyword WAVETENSION    : 1 - in ModuleInterfaceSedimentWater'
+                    stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR150'
+                endif                                
             endif
         endif
             

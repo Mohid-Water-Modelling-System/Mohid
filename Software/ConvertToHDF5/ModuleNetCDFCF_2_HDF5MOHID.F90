@@ -148,6 +148,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                 :: N_ZLevels
         real(8), dimension(:),       pointer    :: Zlevels
         logical                                 :: InvertLayers
+        logical                                 :: NetCDFNameFaceOff = .false.
     end type  T_Depth
 
     private :: T_Bathym
@@ -1804,13 +1805,6 @@ BF:         if (BlockFound) then
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR43'
 
-                call GetData(Me%Depth%NetCDFNameFace,                                   &
-                             Me%ObjEnterData, iflag,                                    &
-                             SearchType   = FromBlockInBlock,                           &
-                             keyword      = 'NETCDF_NAME_DEPTH_FACE',                   &
-                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
-                             STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'
                 
                 call GetData(Me%Bathym%NetCDFName,                                      &
                              Me%ObjEnterData, iflag,                                    &
@@ -1982,6 +1976,22 @@ BF:         if (BlockFound) then
                                  default      = 0.,                                     &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
+                    
+                    call GetData(Me%Depth%NetCDFNameFace,                                   &
+                                 Me%ObjEnterData, iflag,                                    &
+                                 SearchType   = FromBlockInBlock,                           &
+                                 keyword      = 'NETCDF_NAME_DEPTH_FACE',                   &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'
+                    
+                    if (iflag == 0) then
+                        write(*,*) 'keyword not defined NETCDF_NAME_DEPTH_FACE'
+                        Me%Depth%NetCDFNameFaceOff = .true.
+                    else
+                        Me%Depth%NetCDFNameFaceOff = .false.                                            
+                    endif
+                    
                 
                 endif
                 
@@ -4774,8 +4784,9 @@ i2:                 if (Me%Depth%Interpolate) then
         
         !Local-----------------------------------------------------------------
         integer, dimension(nf90_max_var_dims)   :: dimIDs
-        integer                                 :: status, i, j, bn, dn
-
+        integer                                 :: status, i, j, bn, dn, k
+        type (T_ValueIn)                        :: Aux
+        real(8)                                 :: AuxK
         !Begin-----------------------------------------------------------------    
 
         !Read bathymetry
@@ -4815,10 +4826,35 @@ i2:                 if (Me%Depth%Interpolate) then
 
                 call AllocateValueIn(Me%Depth%FaceValueIn, Dim1 = Me%Depth%kmax+1)
                 
-                status = nf90_inq_varid(ncid, trim(Me%Depth%NetCDFNameFace), bn)
-                if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'                     
+                if (Me%Depth%NetCDFNameFaceOff) then
+                
+                    Aux%Dim       = 1
 
-                call GetNetCDFMatrix(ncid, bn, Me%Depth%FaceValueIn) 
+                    call AllocateValueIn(Aux, Dim1 = Me%Depth%kmax)
+                        
+                    status = nf90_inq_varid(ncid, trim(Me%Depth%NetCDFName), bn)
+                    if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'                     
+
+                    call GetNetCDFMatrix(ncid, bn, Aux)  
+                    
+                    do k = 1, Me%Depth%kmax
+                        AuxK = GetNetCDFValue(Aux, Dim1 = k)                   
+                        call SetNetCDFValue(Me%Depth%FaceValueIn,  AuxK, Dim1 = k)                   
+                    enddo
+                    
+                    k = Me%Depth%kmax
+                    
+                    AuxK = GetNetCDFValue(Aux, Dim1 = k)                   
+                    call SetNetCDFValue(Me%Depth%FaceValueIn,  AuxK, Dim1 = k+1)                   
+                    
+                    call DeallocateValueIn(Aux)
+                
+                else                
+                    status = nf90_inq_varid(ncid, trim(Me%Depth%NetCDFNameFace), bn)
+                    if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'                     
+
+                    call GetNetCDFMatrix(ncid, bn, Me%Depth%FaceValueIn) 
+                endif                    
                 
             endif                
             
