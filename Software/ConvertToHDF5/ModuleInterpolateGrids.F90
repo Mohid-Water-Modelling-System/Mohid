@@ -1012,6 +1012,8 @@ prop:   do CurrentProperty = 1, Me%New%NumberOfProperties
             if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR130'
 
             if (PropertyName =='VolumeCreated') cycle prop
+            
+            if (GetPropertyIDNumber(PropertyName, StopActive = .false.) == UNKNOWN_) cycle prop
 
             if(.not. Me%ConvertAllFields)then
 

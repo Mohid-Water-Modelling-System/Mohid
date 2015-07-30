@@ -396,7 +396,7 @@ IS:     if(STAT_CALL .EQ. SUCCESS_) then
 BF:         if (BlockFound) then        
 
                 !number of output instants
-                Nout = LastLine - FirstLine + 1
+                Nout = LastLine - FirstLine - 1
                 
                 Me%OutW%OutPutWindows(1)%Number = Nout
                 

@@ -165,7 +165,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     private :: T_Mapping
     type       T_Mapping
         character(len=StringLength)             :: NetCDFName
-        logical                                 :: ON = .true.
+        logical                                 :: ON       = .true.
+        logical                                 :: Dim3D    = .true.
         real                                    :: Limit
         integer                                 :: Instant
         type (T_ValueIn)                        :: ValueIn        
@@ -178,7 +179,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type(T_PropertyID)                      :: ID
         integer                                 :: Dim
         character(len=StringLength)             :: NetCDFName
-        real                                    :: Add, Multiply
+        real                                    :: Add, Multiply, MinValue
         type (T_ValueIn)                        :: ValueIn        
         real, dimension(:,:),     pointer       :: Value2DOut
         real, dimension(:,:,:),   pointer       :: Value3DOut
@@ -198,7 +199,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                 :: ExtractFromLayer, NumberOfLayers
         logical                                 :: AverageInDepth
         character(len=StringLength)             :: AverageInDepthName
-        
+        logical                                 :: Reflectivity2Precipitation
+        character(len=StringLength)             :: ReflectivityName
     end type  T_Field
 
     type T_NetCDF_Out                                         
@@ -321,6 +323,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         call WriteRelativeHumidity
         
         call WriteAverageInDepth
+        
+        call WriteReflectivity2Precipitation
        
         if (Me%OutNetCDF) call WriteTimeNetCDF(DefDimTime=.false.)
     
@@ -828,6 +832,92 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     !------------------------------------------------------------------------       
 
 
+    !------------------------------------------------------------------------
+    
+    subroutine WriteReflectivity2Precipitation
+        !Local-----------------------------------------------------------------
+        real,   dimension(:,:  ), pointer           :: Reflectivity, Precipitation
+        integer                                     :: i, iP, iPt
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+
+        nullify(Reflectivity, Precipitation)
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%Reflectivity2Precipitation) then
+        
+                !Found property to be average in depth
+                Found = .false.
+                do iPt = 1, Me%PropNumber
+                    if (trim(Me%Field(iPt)%ID%Name)==trim(Me%Field(iP)%ReflectivityName)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteReflectivity2Precipitation - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+
+                do i=1, Me%Date%TotalInst
+                    !Read 2D property
+
+                    if      (Me%Field(iPt)%Dim/=2) then
+                        stop 'WriteReflectivity2Precipitation - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                    endif
+
+                    allocate(Me%Field(iPt)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
+                    Reflectivity => Me%Field(iPt)%Value2DOut
+
+                    if      (Me%Field(iP)%Dim/=2) then
+                        stop 'WriteAverageInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                    endif
+                    
+                    allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                    Precipitation => Me%Field(iP)%Value2DOut                    
+
+                    if (i > 1) then                    
+
+                        call ReadFieldHDF5(iPt, i-1)
+                       
+                    endif                       
+                    
+                    !Compute Precipitation from Reflectivity
+                    call ComputePrecipitation(Reflectivity, Precipitation, i-1, Step1 = .true.) 
+                    
+                    if (i > 1) then
+
+                        call ReadFieldHDF5(iPt, i)
+                        
+                        !Compute Precipitation from Reflectivity
+                        call ComputePrecipitation(Reflectivity, Precipitation, i, Step1 = .false.) 
+                    
+                    endif
+                    
+                    deallocate(Me%Field(iPt)%Value2DOut)
+                    nullify   (Me%Field(iPt)%Value2DOut, Reflectivity)
+               
+
+                    !Write Precipitation
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+
+                    deallocate(Me%Field(iP)%Value2DOut)
+
+                enddo
+            endif                
+        enddo    
+        
+    end subroutine WriteReflectivity2Precipitation
+    
+    !------------------------------------------------------------------------       
+
 
     !------------------------------------------------------------------------     
 
@@ -1046,6 +1136,65 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         enddo
             
     end subroutine ComputeAverageInDepth
+    
+    !------------------------------------------------------------------------    
+
+    !------------------------------------------------------------------------    
+
+
+    subroutine ComputePrecipitation(Reflectivity, Precipitation, it, Step1) 
+    
+        !Arguments-------------------------------------------------------------
+        real, dimension(:,:),   pointer             :: Reflectivity, Precipitation
+        integer                                     :: it
+        logical                                     :: Step1
+        !Local-----------------------------------------------------------------
+        real (8)                                    :: aux
+        real (8), save                              :: DT
+        integer                                     :: i, j
+        !Begin-----------------------------------------------------------------
+
+        if (it > 0) then
+            if (Step1) then
+                ![s]
+                DT = Me%Date%ValueInTotal(it+1)-Me%Date%ValueInTotal(it)
+                ![h]
+                DT = DT / 3600.
+            endif
+        endif            
+
+
+        !it is assumed that the units of reflectivity is dBZ        
+        !It assumed the units of precipitation is mm or in other words mm porecipitation between two consecutive instants
+        !For the first instant precipitation is always ZERO
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if(Me%Mapping%Value2DOut(i,j) == 1)then
+                if (it > 0) then
+                    ![mm/h]
+                    if (Reflectivity(i, j) > 5) then
+                        aux  = (10.**(Reflectivity(i, j)/10.)/200.)**(5./8.)
+                    else
+                        aux = 0
+                    endif                        
+                    !integral between two consecutive instants
+                    ![mm]               = [mm/h] * [h]
+                    if (Step1) then
+                        Precipitation(i, j) = aux * DT * 0.5
+                    else
+                        Precipitation(i, j) = Precipitation(i, j) + aux * DT * 0.5
+                    endif   
+                else
+                    Precipitation(i, j) = 0.
+                endif
+            endif
+                
+        enddo
+        enddo
+
+            
+    end subroutine ComputePrecipitation
     
     !------------------------------------------------------------------------    
 
@@ -1887,6 +2036,15 @@ BF:         if (BlockFound) then
                     Me%Mapping%ON = .true.
                 endif
                 
+                call GetData(Me%Mapping%Dim3D,                                          &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'NETCDF_NAME_MAPPING_3D',                   &
+                             default      = Me%Depth%Dim3D,                             & 
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR35'   
+                
                 call GetData(Me%Mapping%Limit,                                          &
                              Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlockInBlock,                           &
@@ -2124,6 +2282,17 @@ BF:         if (BlockFound) then
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'    
+
+
+                    call GetData(Me%Field(ip)%MinValue,                                 &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'MINIMUM_VALUE',                        &
+                                 default      = FillValueReal,                          &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'
+
 
                     call GetData(Me%Field(ip)%Dim,                                      &
                                  Me%ObjEnterData, iflag,                                &
@@ -2439,7 +2608,11 @@ BF:         if (BlockFound) then
                                      keyword      = 'AVERAGE_IN_DEPTH_NAME',            &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)       
-                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2710'   
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2710'
+                        
+                        if (iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2720'
+                        endif   
 
                     endif           
 
@@ -2450,22 +2623,41 @@ BF:         if (BlockFound) then
                                  default      = .false.,                                &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2720'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2730'
                     
-                    !call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
+                    call GetData(Me%Field(ip)%Reflectivity2Precipitation,               &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'RFLECTIVITY_2_PRECIPITATION',          &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2740'
+                    
+                    if (Me%Field(ip)%Reflectivity2Precipitation) then
+                        
+                        call GetData(Me%Field(ip)%ReflectivityName,                     &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'REFLECTIVITY_NAME',                &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2750'   
 
-                    !if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
-                    
-     
+                        if (iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2760'
+                        endif                           
+
+                    endif           
             
                 else BF
                 
-                    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2670'    
+                    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR3000'    
                     
                 endif BF
             else IS
             
-                stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2680'    
+                stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR4000'    
             
             endif IS            
         
@@ -2515,7 +2707,7 @@ BF:         if (BlockFound) then
             if (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation             .or. &
                 Me%Field(iP)%Beaufort         .or. Me%Field(iP)%ComputeRH            .or. &
                 Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeWindDirection .or. &
-                Me%Field(iP)%AverageInDepth) then
+                Me%Field(iP)%AverageInDepth   .or. Me%Field(iP)%Reflectivity2Precipitation) then
             
                 Me%ReadPropNumber = Me%ReadPropNumber - 1
             
@@ -2764,9 +2956,7 @@ BF:         if (BlockFound) then
             deallocate(AuxT)
 
             Me%Date%TotalInst   = Me%Date%TotalInst + Me%Date%NumberInst
-            Me%Date%LasTEndTime = Me%Date%FileEndTime    
-        else                
-            stop 'The next file must have an end time greater than the previous file' 
+            Me%Date%LasTEndTime = Me%Date%FileEndTime            
         endif
         
         call DeAllocateValueIn(Me%Date%ValueIn)            
@@ -3170,9 +3360,10 @@ BF:         if (BlockFound) then
         do iP = 1, Me%PropNumber
             do iT =1, Me%Date%NumberInst
         
-                if (Me%Field(iP)%ComputeIntensity     .or. Me%Field(iP)%Rotation     .or.    &
-                    Me%Field(iP)%Beaufort             .or. Me%Field(iP)%WaveBeaufort .or.    &
-                    Me%Field(iP)%ComputeWindDirection .or. Me%Field(iP)%AverageInDepth) then
+                if (Me%Field(iP)%ComputeIntensity     .or. Me%Field(iP)%Rotation       .or.  &
+                    Me%Field(iP)%Beaufort             .or. Me%Field(iP)%WaveBeaufort   .or.  &
+                    Me%Field(iP)%ComputeWindDirection .or. Me%Field(iP)%AverageInDepth .or.  &
+                    Me%Field(iP)%Reflectivity2Precipitation) then
                 
                     WriteProp       = .false.
                 
@@ -3195,7 +3386,8 @@ BF:         if (BlockFound) then
 
                 if (.not. (Me%Field(iP)%ComputeIntensity      .or. Me%Field(iP)%Rotation .or.     &
                            Me%Field(iP)%Beaufort              .or. Me%Field(iP)%WaveBeaufort .or. &
-                           Me%Field(iP)%ComputeWindDirection  .or. Me%Field(iP)%AverageInDepth))  &
+                           Me%Field(iP)%ComputeWindDirection  .or. Me%Field(iP)%AverageInDepth.or.&
+                           Me%Field(iP)%Reflectivity2Precipitation))  &
                     call DeAllocateValueIn(Me%Field(iP)%ValueIn)
             enddo
         enddo
@@ -3529,7 +3721,10 @@ i5:         if (Me%OutHDF5) then
                                                                               
                         Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Add +           &
                             Me%Field(iP)%Value3DOut(i, j, k)* Me%Field(iP)%Multiply
-                                                             
+                            
+                        if (Me%Field(iP)%Value3DOut(i, j, k) < Me%Field(iP)%MinValue) then
+                            Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%MinValue
+                        endif                                     
 
                     else 
                         Me%Field(iP)%Value3DOut(i, j, k) = FillValueReal
@@ -3560,6 +3755,10 @@ i5:         if (Me%OutHDF5) then
                                                                 Dim1 = j+1, Dim2 = i+1, Dim3 = 1, Dim4 = 1)
                         endif
                         Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j)* Me%Field(iP)%Multiply + Me%Field(iP)%Add
+                        
+                        if (Me%Field(iP)%Value2DOut(i, j) < Me%Field(iP)%MinValue) then
+                            Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%MinValue
+                        endif                              
                         
                                                          
                     else 
@@ -4609,9 +4808,17 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             
             if (Me%Depth%Dim3D) then 
                 if      (numDims == 3) then
-                    call AllocateValueIn(Me%Mapping%ValueIn, Dim1 = Me%LongLat%jmax,        &
-                                                             Dim2 = Me%LongLat%imax,        &
-                                                             Dim3 = Me%Depth%kmax)
+                
+                    if (Me%Mapping%Dim3D) then
+                        call AllocateValueIn(Me%Mapping%ValueIn, Dim1 = Me%LongLat%jmax,        &
+                                                                 Dim2 = Me%LongLat%imax,        &
+                                                                 Dim3 = Me%Depth%kmax)
+                    else
+                        call AllocateValueIn(Me%Mapping%ValueIn, Dim1 = Me%LongLat%jmax,        &
+                                                                 Dim2 = Me%LongLat%imax,        &
+                                                                 Dim3 = Me%Date%NumberInst)
+                    
+                    endif                                                                 
                 else if (numDims == 4) then      
                     call AllocateValueIn(Me%Mapping%ValueIn, Dim1 = Me%LongLat%jmax,        &
                                                              Dim2 = Me%LongLat%imax,        &
@@ -4675,7 +4882,11 @@ i2:                 if (Me%Depth%Interpolate) then
                                 Aux1 = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = kin, &
                                                                            Dim4 = Me%Mapping%Instant)
                             else if (Me%Mapping%ValueIn%Dim == 3) then
-                                Aux1 = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = kin)
+                                if (Me%Mapping%Dim3D) then                            
+                                    Aux1 = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = kin)
+                                else
+                                    Aux1 = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = Me%Mapping%Instant)
+                                endif                                    
                             else if (Me%Mapping%ValueIn%Dim == 2) then
                                 Aux1 = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1)
                             endif
@@ -4701,7 +4912,11 @@ i2:                 if (Me%Depth%Interpolate) then
                         if      (Me%Mapping%ValueIn%Dim == 4) then
                             Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = kin, Dim4 = Me%Mapping%Instant)
                         else if (Me%Mapping%ValueIn%Dim == 3) then
-                            Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = kin)
+                            if (Me%Mapping%Dim3D) then                            
+                                Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = kin               )
+                            else                                
+                                Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = Me%Mapping%Instant)
+                            endif
                         else if (Me%Mapping%ValueIn%Dim == 2) then
                             Aux = GetNetCDFValue(Me%Mapping%ValueIn,  Dim1 = j+1, Dim2 = i+1)
                         endif
