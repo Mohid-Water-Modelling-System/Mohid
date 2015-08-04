@@ -320,12 +320,12 @@ Module ModuleRunOff
         integer, dimension(:,:), pointer            :: StabilityPoints          => null() !Points where models check stability
         type(T_PropertyID)                          :: OverLandCoefficientID
         logical                                     :: StormWaterModel          = .false.          !If connected to SWMM
-        real,    dimension(:,:), pointer            :: StormWaterModelFlow      => null() !Flow from SWMM
-        real,    dimension(:,:), pointer            :: StreetGutterFlow         => null() !Flow through "street gutters"
-        real,    dimension(:,:), pointer            :: SewerInflow              => null() !Integrated inflow at sewer points 
+        real,    dimension(:,:), pointer            :: StormWaterModelFlow      => null() !Flow from SWMM (inflow + outflow)
+        real,    dimension(:,:), pointer            :: StreetGutterFlow         => null() !Inflow at street gutters (per target junction)
+        real,    dimension(:,:), pointer            :: SewerInflow              => null() !Integrated inflow at sewer manholes (per junction)
                                                                                           !(potential)
         real,    dimension(:,:), pointer            :: StormInteractionFlow     => null() !Interaction Flow 
-                                                                                          !(at gutters + sewer points) (real)
+                                                                                          !(at gutters + sewer manholes) (real)
         integer, dimension(:,:), pointer            :: StreetGutterTargetI      => null() !Sewer interaction point...
         integer, dimension(:,:), pointer            :: StreetGutterTargetJ      => null() !...where street gutter drains to
         real                                        :: MinSlope              = null_real
@@ -611,7 +611,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         type(T_PropertyID)                          :: StormWaterInteractionID
         type(T_PropertyID)                          :: StormWaterGutterInteractionID
         type(T_PropertyID)                          :: StreetGutterLengthID
-        integer                                     :: iflag, ClientNumber
+        integer                                     :: ObjEnterDataGutterInteraction = 0
+        character(len=StringLength)                 :: InitializationMethod, Filename
+        character(len=StringLength)                 :: StormWaterGutterRegExpression, StormWaterGutterRegExpressionFromGD
+        integer                                     :: iflag, ClientNumber, FoundSWMMRegExpression
         logical                                     :: BlockFound
         integer                                     :: i, j
         logical                                     :: DynamicAdjustManning
@@ -1488,7 +1491,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         endif
         
-        !Looks for StormWater Interaction Points
+        !Looks for StormWater Interaction Point
         if (Me%StormWaterModel) then
         
             allocate(Me%StormWaterInteraction(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -1499,13 +1502,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR680'
 
             !Gets Flag with Sewer Points
+            !These are all cells that interact with SWMM (via SWMM junction (manhole) overflow to MOHID Land
+            !or MOHID Land street gutter inflow to SWMM - directed to nearest manhole)
+            !The cell value is number of manholes in each cell  
+            !If this field is zero everywhere, there wil be no SWMM-MOHIDLand interaction
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
                                         '<BeginStormWaterInteraction>',                      &
                                         '<EndStormWaterInteraction>', BlockFound,            &
                                         STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR690'
 
-            if (BlockFound) then
+            if (BlockFound) then                                                              
                 call ConstructFillMatrix  ( PropertyID       = StormWaterInteractionID,      &
                                             EnterDataID      = Me%ObjEnterData,                 &
                                             TimeID           = Me%ObjTime,                   &
@@ -1525,16 +1532,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 stop      'ReadDataFile - ModuleRunOff - ERR693'
             endif
             
+            call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR693'
+            
+            !Look for keyword to filter SWMM nodes (regular expresion on node names) that can recieve MOHID Land flow (e.g. pluvial nodes)
+            !This can only be used in conjunction with <BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction> to have
+            !gutter interaction number of nodes. this latter griddata needs to have been built with same regular exression 
+            !(saved in grid data comment2 during grid data build with tool)
+            call GetData(StormWaterGutterRegExpression,                                        &
+                            Me%ObjEnterData,                                                   &
+                            FoundSWMMRegExpression,                                            &
+                            SearchType   = FromFile,                                           &
+                            keyword      = 'SWMM_JUNCTIONS_GUTTER_REGEX',                      &                                      
+                            ClientModule = 'ModuleBasin',                                      &
+                            STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleRunoff - ERR694.5'              
+            
             !Gets Sewer Points that can interact with street gutter
             !By default these are the same points as StormWaterInteraction (all points can recieve street gutter)
-            !This exists to individualize junctions that can recieve gutter flow (eg. pluvial nodes)
+            !This exists to individualize SWMM junctions (manholes) that can recieve gutter flow (eg. pluvial junctions)
+            !It is only used to find for each gutter the closer cell that can have gutter inflow (avoid the ones that can't)
+            !If this field is zero everywhere, it cant find SWMM junctions to discharge gutter flow and will return error
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
                                         '<BeginStormWaterGutterInteraction>',                   &
-                                        '<BeginStormWaterGutterInteraction>', BlockFound,       &
+                                        '<EndStormWaterGutterInteraction>', BlockFound,         &
                                         STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR694'
 
-            if (BlockFound) then
+            if (BlockFound) then                                
                 call ConstructFillMatrix  ( PropertyID       = StormWaterGutterInteractionID, &
                                             EnterDataID      = Me%ObjEnterData,              &
                                             TimeID           = Me%ObjTime,                   &
@@ -1544,17 +1569,87 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                             Matrix2D         = Me%StormWaterGutterInteraction, &
                                             TypeZUV          = TypeZ_,                       &
                                             STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR695'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFi le - ModuleRunOff - ERR695'
+                
+                !verify that griddata file was created with same regular expression that SWMM will apply to
+                if (FoundSWMMRegExpression == 0) then
+                    write(*,*)'With <BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction>'
+                    write(*,*)'SWMM_JUNCTIONS_GUTTER_REGEX must be defined in module Runoff.'
+                    stop 'ReadDataFile - ModuleRunOff - ERR0694.6'                    
+                else
+                    
+                    !open grid data and check what regular expression was used
+                    call GetData(InitializationMethod,                                  &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      = 'INITIALIZATION_METHOD',                &
+                                 ClientModule = 'ModuleRunoff',                         &
+                                 STAT         = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
+                        stop 'ReadDataFile - ModuleRunOff - ERR694.7'
+                    
+                    select case (trim(adjustl(InitializationMethod)))
+                        case ("ASCII_File", "ASCII_FILE", "ascii_file",   "Ascii_file")
 
+                            call GetData(FileName,                                              &
+                                         Me%ObjEnterData,iflag,                                 &
+                                         SearchType   = FromBlock,                              &
+                                         keyword      = 'FILENAME',                             &
+                                         ClientModule = 'ModuleRunoff',                         &
+                                         STAT         = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                                        &
+                                stop 'ReadDataFile - ModuleRunOff - ERR694.8'                         
+                    
+                            call ConstructEnterData (ObjEnterDataGutterInteraction, FileName, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR694.9'
+                        
+                            !in comment 2 is grid data regular expression used to build the grid data 
+                            !(method that builds the grid data automatically writes that)
+                            call GetData(StormWaterGutterRegExpressionFromGD,                   &
+                                         ObjEnterDataGutterInteraction,iflag,                 &
+                                         SearchType   = FromFile,                               &
+                                         keyword      = 'COMENT2',                              &
+                                         ClientModule = 'ModuleRunoff',                         &
+                                         STAT         = STAT_CALL)
+                            if (STAT_CALL .NE. SUCCESS_)                                        &
+                                stop 'ReadDataFile - ModuleRunOff - ERR694.9'    
+                    
+                            if (StormWaterGutterRegExpression /= StormWaterGutterRegExpressionFromGD) then
+                                write(*,*) 'Grid Data in <BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction>'
+                                write(*,*) 'was built with a different regular expression as the one defined in'
+                                write(*,*) 'SWMM_JUNCTIONS_GUTTER_REGEX keyword. Build the file with same regular exression'
+                                stop 'ReadDataFile - ModuleRunOff - ERR695'                                             
+                            endif
+
+                        case default
+                            write(*,*) 'With <BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction>'
+                            write(*,*) 'Use ascii file input - INITIALIZATION_METHOD keyword ASCII_FILE'
+                            stop 'ReadDataFile - ModuleRunOff - ERR694.8'       
+                            
+                    end select
+                endif
+                
                 call KillFillMatrix(StormWaterGutterInteractionID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR696'
                 
+                !StormWaterGutterInteraction points can only e <= StormWaterInteraction points
                 call VerifyStreetGutterInteraction
 
             else
+                !f not block exists <BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction>
+                !do not allow to filter SWMM nodes (inside SWMM wrapper)
+                if (FoundSWMMRegExpression /= 0) then                
+                    write(*,*)'With trying to filter SWMM nodes with SWMM_JUNCTIONS_GUTTER_REGEX '
+                    write(*,*)'<BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction> must be defined in module Runoff.'
+                    stop 'ReadDataFile - ModuleRunOff - ERR0696.5'     
+                endif
+                
+                !If not defined in file it will be the same as StormWaterInteraction
                 call SetMatrixValue(Me%StormWaterGutterInteraction, Me%Size, Me%StormWaterInteraction)
             endif            
             
+            call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR697'
             
             !Gets Street Gutter Length in each grid cell
             call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
@@ -1728,27 +1823,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
    
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-
-        !$OMP PARALLEL PRIVATE(I,J)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        
+        !Dont openmp since write will be messy and this is 2D field and this is constructor
+        !!$OMP PARALLEL PRIVATE(I,J)
+        !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j)  == BasinPoint) then
 
-                !Check if street gutter interaction is cnsistent with storm water interaction
+                !Check if street gutter interaction is consistent with storm water interaction
                 !there cant be more gutter interaction points than all interaction points
-                !a new cell or inside the same cell higher nmbers
+                !since gutter interaction is only going to be used to drive gutter flow to the cells
+                !that have eligible points (e.g. only discharge gutter in pluvial nodes)
                 if (Me%StormWaterGutterInteraction(i,j) > Me%StormWaterInteraction(i,j)) then
                     write(*,*)
-                    write(*,*) 'Error: StormWaterGutterInteraction points are higher than'
+                    write(*,*) 'Error: StormWaterGutterInteraction nº of points is higher than'
                     write(*,*) 'all StormWaterInteraction points in cell: ', i, j
+                    stop 'VerifyStreetGutterInteraction - Module Runoff - ERR01'
                 endif
                 
             endif
         enddo do2
         enddo do1
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+        !!$OMP END DO NOWAIT
+        !!$OMP END PARALLEL
         
     
     end subroutine VerifyStreetGutterInteraction
@@ -6252,13 +6350,20 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        !Calculates the inflow at each street gutter point
+        !Calculates the inflow at each street gutter point. Per gutter target interaction point 
+        !because all SWMM gutter interaction points inside cell will recieve the cell value
         !$OMP PARALLEL PRIVATE(I,J, flow, AverageCellLength)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn .and. Me%StreetGutterLength(i, j) > AllmostZero) then 
+            !SEWER interaction point
+            targetI = Me%StreetGutterTargetI(i, j)
+            targetJ = Me%StreetGutterTargetJ(i, j) 
+            
+            !only compute if there is water column, gutter and gutter target available
+            if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn .and. Me%StreetGutterLength(i, j) > AllmostZero   &
+                  .and.  targetI > null_int / 2. .and. targetJ > null_int / 2.) then 
         
                 !Q  = L * K * y0^(3/2) * sqrt(g)
                 !L  = Cumprimento Sargeta = 0.5
@@ -6276,10 +6381,11 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 endif
                 
                 !flow = 0.5 * 0.2 * y0**1.5 * sqrt(Gravity)
-                flow = Me%StreetGutterLength(i, j) * 0.2 * y0**1.5 * sqrt(Gravity)
-            
-                !Flow Rate into street Gutter
-                Me%StreetGutterFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT)
+                flow = Me%StreetGutterLength(i, j) * 0.2 * y0**1.5 * sqrt(Gravity)                     
+                
+                !Flow Rate into street Gutter - needs to be per gutter interaction points because the cell value
+                !will be passed to all SWMM gutter interaction junctions
+                Me%StreetGutterFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT) / Me%StormWaterGutterInteraction(targetI, targetJ)
                 
             else
             
@@ -6291,7 +6397,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         enddo
         !$OMP END DO
         
-        !Integrates values from gutter flow at sewer points
+        !Integrates values from gutter flow at sewer manholes - Flow per gutter interaction points
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -6343,16 +6449,17 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         
         !The algorithm below has the following assumptions
-        !1. MOHID Land calculates the possible inflow into the sewer system through the street gutters (matrix StreetGutterFlow)
-        !2. The values of the StreetGutterFlow are integrated at the nearest StormWaterInteraction points (matrix SewerInflow)
+        !1. MOHID Land calculates the POTENTIAL inflow into the sewer system through the street gutters. values per target gutter points (matrix StreetGutterFlow)
+        !2. The values of the StreetGutterFlow are integrated at the nearest StormWaterInteraction points. values per gutter points (matrix SewerInflow)
         !3. This matrix (SewerInflow) is provide to SWMM
-        !4. Swmm calculates the efective inflow and returns the efective flow at each interaction point (matrix StormWaterModelFlow)
-        !5. The algorithm below calculates the efective inflow in each Street Gutter Point
-        !5a  - if the flow in the target point is negative (inflow into the sewer system) the flow at each point is the relative one 
-        !      StreetGutterFlow/StormWaterModelFlow
-        !5b  - if the flow in the target point is positive (outflow from the sewer system), the flow flows out at the target point 
-        !      ("saltam as tampas"). 
-        !6. The Water Column is reduces due to the final flow
+        !4. Swmm calculates the EFFECTIVE inflow and returns the efective flow (inflow or outflow) at each interaction point (matrix StormWaterModelFlow)
+        !5. The algorithm below calculates the efective flow in each cell
+        !5a  - if the flow in the gutter target point is negative (inflow into the sewer system) the flow at each gutter will be affected 
+        !      by the ratio of StormWaterModelFlow/SewerInflow (will be reduced in the same ratio as EFFECTIVE/POTENTIAL inflow)
+        !5b  - if the flow in the cell is positive (outflow from the sewer system), the flow flows out ("saltam as tampas"). 
+        !6. The Water Column is reduced/increased due to the final flow
+        !Remark: as StormWaterModelFlow is inflow or outflow at each cell the two processes below can be separated and 
+        !2nd evaluation of StormInteractionFlow does not need to be summed to first evaluation
 
 
         !Algorithm which calculates the real inflow in each point
@@ -6372,9 +6479,12 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     targetJ = Me%StreetGutterTargetJ(i, j)
 
                     if (Me%StormWaterModelFlow(targetI, targetJ) < 0.0 .and. Me%SewerInflow(targetI, targetJ) > AllmostZero) then
-                        !Distribute real / potentil
+                        !Distribute real / potential
+                        !sewer inflow and street gutter flow is per gutter junction. 
+                        !it would need to * per number of gutter junctions to have total flow but because number of gutter junctions
+                        !appear both in numerator and denominator is not needed
                         Me%StormInteractionFlow(i, j) = -1.0 * Me%StreetGutterFlow(i, j) * &
-                                                        Me%StormWaterModelFlow(targetI, targetJ) / Me%SewerInflow(targetI, targetJ)
+                                                        Me%StormWaterModelFlow(targetI, targetJ) / Me%SewerInflow(targetI, targetJ) 
                                                                
                     endif
                     
@@ -8496,20 +8606,31 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
             if (Me%StormWaterModel) then
             
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water flow",         &
-                                      "storm water flow", "m3/s",                       &
+                !result from SWMM (effective inflow or outflow)
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water model flow",   &
+                                      "storm water model flow", "m3/s",                 &
                                       Array2D      = Me%StormWaterModelFlow,            &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'
                 
+                !street gutter flow per gutter junction (at gutter location)
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/street gutter flow",       &
                                       "street gutter flow", "m3/s",                     &
                                       Array2D      = Me%StreetGutterFlow,               &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'
-            
+                
+                !street gutter target flow per gutter junction (potential manhole inflow for SWMM)
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/sewer potential inflow",   &
+                                      "sewer potential inflow", "m3/s",                 &
+                                      Array2D      = Me%SewerInflow,                    &
+                                      OutputNumber = Me%OutPut%NextOutPut,              &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'                
+                
+                !storm interaction effective inflows (at gutter location) and outflows (at manholes)
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water real flow",    &
                                       "storm water real flow", "m3/s",                  &
                                       Array2D      = Me%StormInteractionFlow,           &
