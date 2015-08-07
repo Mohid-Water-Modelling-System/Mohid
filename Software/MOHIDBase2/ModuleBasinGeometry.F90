@@ -71,6 +71,8 @@ Module ModuleBasinGeometry
     public  :: GetRiverPoints
     public  :: GetDrainageDirection    
     public  :: GetCellSlope
+    public  :: GetRiverPointsFromDN
+    public  :: SetRiverPointsFromDN
     public  :: UnGetBasin
 
     public  :: TargetPoint
@@ -173,6 +175,7 @@ Module ModuleBasinGeometry
         logical                                     :: RemoveDepressions
         logical                                     :: FlatSolution
         logical                                     :: DelineateBasin
+        logical                                     :: SetRiverPointsFromDN
         real                                        :: SlopeDepressions     = 1.e-4
         character(Pathlength)                       :: DrainedAreaFile
         character(Pathlength)                       :: ReachesFile
@@ -423,6 +426,24 @@ Module ModuleBasinGeometry
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasinGeometry - ERR05'
 
 
+        !Do not compute river points - they will be set by Basin based on Drainage Network definition
+        call GetData (Me%SetRiverPointsFromDN, ObjEnterData, flag,                       &
+                      SearchType   = FromFile,                                           &
+                      keyword      ='SET_RIVER_POINTS_FROM_DN',                          &
+                      default      = .false.,                                            &
+                      ClientModule ='ModuleBasinGeometry',                               &
+                      STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasinGeometry - ERR06'        
+        
+        !setting river points from DN makes that flat solution needs to be active 
+        !(no delineation or removing depressions)
+        if (Me%SetRiverPointsFromDN .and. .not. Me%FlatSolution) then
+            write(*,*)''
+            write(*,*)'if RIVER_POINTS_FROM_DRAINAGE_NETWORK active then'
+            write(*,*)'FLAT_SOLUTION needs to be active'
+            stop 'ReadDataFile - ModuleBasinGeometry - ERR06.1'
+        endif
+        
         !Remove Depressions
         call GetData (Me%RemoveDepressions, ObjEnterData, flag,                          &
                       SearchType   = FromFile,                                           &
@@ -805,7 +826,9 @@ doUA:   do
         enddo
         enddo
 
-        if (.not. Me%RemoveDepressions .and. Me%DelineateBasin) then
+        !if (.not. Me%RemoveDepressions .and. Me%DelineateBasin) then
+        !having remove depression active will not change this verification
+        if (Me%DelineateBasin) then
 
             !Tests if the Outlet is outside the domain
             if (Me%OutletI < Me%WorkSize%ILB .or. Me%OutletI > Me%WorkSize%IUB .or.          &
@@ -1656,7 +1679,7 @@ do1:            do
         integer                                     :: iCen, jCen
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: NumberOfNodes
-        logical                                     :: IsolatedOutletNode, ConfluenceInOutletNode
+        !logical                                     :: IsolatedOutletNode, ConfluenceInOutletNode
         integer                                     :: iTarget, jTarget
         integer                                     :: iNextTarget, jNextTarget
         logical                                     :: NodesChanged
@@ -1714,7 +1737,8 @@ do1:            do
                             call TargetPoint (Me%DrainageDirection(iCen, jCen), iCen, jCen, iTarget, jTarget)
                         
                             !this is an outlet 
-                            if ((Me%RiverPoints(iTarget, jTarget) == NoRiverPoint) .or. (iCen == iTarget .and. jCen == jTarget)) then
+                            if ((Me%RiverPoints(iTarget, jTarget) == NoRiverPoint) &
+                                .or. (iCen == iTarget .and. jCen == jTarget)) then
                                 
                                 !remove isolated node
                                 if (NumberOfUpstreamNodes(iCen, jCen) .eq. 0) then
@@ -1728,7 +1752,8 @@ do1:            do
                                 !b) this point is a most upstream node what means that this river has only one reach (remove this cases)
                                 call TargetPoint(Me%DrainageDirection(iTarget, jTarget), iTarget, jTarget, iNextTarget, jNextTarget)
                                 
-                                if ((Me%RiverPoints(iNextTarget, jNextTarget) == NoRiverPoint) .or. (iTarget == iNextTarget .and. jTarget == jNextTarget)) then
+                                if ((Me%RiverPoints(iNextTarget, jNextTarget) == NoRiverPoint) &
+                                    .or. (iTarget == iNextTarget .and. jTarget == jNextTarget)) then
                                     
                                     if (.not. IsTheBiggerTributary(iCen, jCen)) then
                                         Me%RiverPoints (iCen, jCen) = NoRiverPoint
@@ -1798,7 +1823,8 @@ do1:            do
                     
                     !Only effective nodes because they may have been removed in the process 
                     !(also remove query cell from this search since we need to use .ge. in comparison areas
-                    if (iAdj .le. IUB .and. iAdj .ge. ILB .and. jAdj .le. JUB .and. jAdj .ge. JLB .and. .not. (iAdj .eq. iCen .and. jAdj .eq. jCen)) then
+                    if (iAdj .le. IUB .and. iAdj .ge. ILB .and. jAdj .le. JUB .and. jAdj .ge. JLB &
+                        .and. .not. (iAdj .eq. iCen .and. jAdj .eq. jCen)) then
                         
                         !if (Me%BoundaryPoints(iAdj, jAdj) == Not_Boundary) then
                         if (Me%RiverPoints(iAdj, jAdj) == RiverPoint) then
@@ -2589,6 +2615,90 @@ do1:            do
     end subroutine GetMicroChannels
         
     !--------------------------------------------------------------------------
+    
+    
+    subroutine GetRiverPointsFromDN (BasinGeometryID, RiverPointsFromDN, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: BasinGeometryID
+        logical                                         :: RiverPointsFromDN
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(BasinGeometryID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            RiverPointsFromDN = Me%SetRiverPointsFromDN
+
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetRiverPointsFromDN
+        
+    !--------------------------------------------------------------------------    
+    
+    subroutine SetRiverPointsFromDN (BasinGeometryID, ChannelsIDs, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: BasinGeometryID
+        integer, dimension(:,:), pointer                :: ChannelsIDs
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_, ILB, IUB, JLB, JUB, jCen, iCen
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(BasinGeometryID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB            
+
+            !Sets Points equal to NoRiverPoints
+            Me%RiverPoints = NoRiverPoint            
+            
+            do jCen = JLB, JUB
+            do iCen = ILB, IUB
+                if (Me%BoundaryPoints (iCen, jCen) == Not_Boundary .and. ChannelsIDs(iCen, jCen) > 0) then
+                
+                        Me%NodeIDs(iCen, jCen) = ChannelsIDs(iCen, jCen)
+                        Me%RiverPoints (iCen, jCen) = RiverPoint       
+            
+                endif
+            enddo
+            enddo            
+
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine SetRiverPointsFromDN
+        
+    !--------------------------------------------------------------------------      
 
     subroutine UnGetBasin2D_I(BasinGeometryID, Array, STAT)
 

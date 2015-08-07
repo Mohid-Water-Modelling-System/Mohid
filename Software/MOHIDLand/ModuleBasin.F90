@@ -63,7 +63,8 @@ Module ModuleBasin
                                      GetGridData, UngetGridData
                                      
     use ModuleBasinGeometry,  only : ConstructBasinGeometry,  KillBasinGeometry,         &
-                                     GetBasinPoints, GetRiverPoints, UngetBasin
+                                     GetBasinPoints, GetRiverPoints, UngetBasin,         &
+                                     GetRiverPointsFromDN, SetRiverPointsFromDN
                                      
     use ModuleAtmosphere,     only : StartAtmosphere, ModifyAtmosphere,                  &
                                      GetAtmosphereProperty,                              &
@@ -457,6 +458,7 @@ Module ModuleBasin
     type T_Basin
         integer                                     :: InstanceID           = 0
         character(len=StringLength)                 :: ModelName            = null_str
+        logical                                     :: StopOnBathymetryChange = .true.
         type (T_Size2D)                             :: Size, WorkSize
         type (T_Coupling)                           :: Coupled
         type (T_Files)                              :: Files
@@ -624,12 +626,13 @@ Module ModuleBasin
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructBasin(ObjBasinID, ObjTime, ModelName, STAT)
+    subroutine ConstructBasin(ObjBasinID, ObjTime, ModelName, StopOnBathymetryChange, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: ObjBasinID 
         integer                                         :: ObjTime 
         character(len=*)                                :: ModelName
+        logical                                         :: StopOnBathymetryChange
         integer, optional, intent(OUT)                  :: STAT     
 
         !Local-------------------------------------------------------------------
@@ -679,6 +682,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,   ObjTime)
             
+            !stop the model on bathymetry change?
+            Me%StopOnBathymetryChange = StopOnBathymetryChange
+                          
             call GetComputeCurrentTime  (Me%ObjTime, CurrentTime = Me%CurrentTime,       &
                                          STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructBasin - ModuleBasin - ERR01'
@@ -1806,7 +1812,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                       :: i, j
         
         allocate(Me%SCSCNRunOffModel%VegGrowthStage%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        call ConstructOneProperty (Me%SCSCNRunOffModel%VegGrowthStage, "VegGrowthStage", "<BeginVegGrowthStage>", "<EndVegGrowthStage>")
+        call ConstructOneProperty (Me%SCSCNRunOffModel%VegGrowthStage, "VegGrowthStage",  &
+                                   "<BeginVegGrowthStage>", "<EndVegGrowthStage>")
         
         allocate(Me%SCSCNRunOffModel%ImpFrac%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         call ConstructOneProperty (Me%SCSCNRunOffModel%ImpFrac, "ImpFrac", "<BeginImpFrac>", "<EndImpFrac>")
@@ -1835,7 +1842,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%SCSCNRunOffModel%ConvertIAFactor) then
             where(Me%ExtVar%BasinPoints(:,:) == BasinPoint)
-                Me%SCSCNRunOffModel%CurveNumber%Field(:,:) = 100.0 / (1.879 * (100.0 / Me%SCSCNRunOffModel%CurveNumber%Field(:,:) - 1.0)**1.15 + 1.0)
+                Me%SCSCNRunOffModel%CurveNumber%Field(:,:) = 100.0  &
+                / (1.879 * (100.0 / Me%SCSCNRunOffModel%CurveNumber%Field(:,:) - 1.0)**1.15 + 1.0)
             end where
         endif
         
@@ -2775,13 +2783,14 @@ i1:         if (CoordON) then
 #endif
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        logical                                     :: VariableDT
+        !logical                                     :: VariableDT
         integer                                     :: MapID
         logical                                     :: IgnoreWaterColumnOnEvap
         logical                                     :: IsConstant
         real                                        :: ConstantValue
         logical                                     :: VegParticFertilization
-        logical                                     :: Pesticide
+        logical                                     :: Pesticide, RiverPointsFromDN
+        integer, dimension(:, :), pointer           :: ChannelsID
         !Begin-----------------------------------------------------------------
 
         !Constructs Atmosphere
@@ -2800,18 +2809,62 @@ i1:         if (CoordON) then
         !Constructs Drainage Network
         if (Me%Coupled%DrainageNetwork) then
 
-            call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR020'
+            !call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR020'
             
-            call ConstructDrainageNetwork (ModelName         = Me%ModelName,                     &
-                                           DrainageNetworkID = Me%ObjDrainageNetwork,            &
-                                           TimeID            = Me%ObjTime,                       &
-                                           Size              = Me%Size,                          &
-                                           CheckMass         = Me%VerifyGlobalMass,              &
-                                           CoupledPMP        = Me%Coupled%PorousMediaProperties, &
-                                           CoupledRP         = Me%Coupled%RunoffProperties,      &
-                                           STAT              = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR030'
+            !check if the user wants to set River Points based on DN (not computed from DTM
+            !in Basin Geometry)
+            call GetRiverPointsFromDN (Me%ObjBasinGeometry, RiverPointsFromDN, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR025'
+            
+            if (RiverPointsFromDN) then
+                
+                !if forcing riverpoints from DN, the DTM of the sim may be different from the one used to generate DN
+                !Need to fix DN nodes terrain level and height based on DTM so that
+                !levels are consistent between DN and other moduels like Runoff
+                call ConstructDrainageNetwork (ModelName         = Me%ModelName,                     &
+                                               DrainageNetworkID = Me%ObjDrainageNetwork,            &
+                                               TimeID            = Me%ObjTime,                       &
+                                               Size              = Me%Size,                          &
+                                               CheckMass         = Me%VerifyGlobalMass,              &
+                                               CoupledPMP        = Me%Coupled%PorousMediaProperties, &
+                                               CoupledRP         = Me%Coupled%RunoffProperties,      &
+                                               Topography        = Me%ExtVar%Topography,             &
+                                               STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR026'
+                
+                !set the drainage network river nodes in BasinGeometry
+                call GetChannelsID   (Me%ObjDrainageNetwork, ChannelsID, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR027'
+                
+                call SetRiverPointsFromDN (Me%ObjBasinGeometry, ChannelsID, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR028'
+                
+                call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsID, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR29'                  
+                
+                
+                !UnGets River Points - it was getted in getreadlock and will be used troughout the model
+                !so need to be in getreadlock
+                call UnGetBasin         (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR030'                
+                
+                !Gets River Points (that were forced from Drainage Network)
+                call GetRiverPoints (Me%ObjBasinGeometry, Me%ExtVar%RiverPoints, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR031'
+                
+            else
+                
+                call ConstructDrainageNetwork (ModelName         = Me%ModelName,                     &
+                                               DrainageNetworkID = Me%ObjDrainageNetwork,            &
+                                               TimeID            = Me%ObjTime,                       &
+                                               Size              = Me%Size,                          &
+                                               CheckMass         = Me%VerifyGlobalMass,              &
+                                               CoupledPMP        = Me%Coupled%PorousMediaProperties, &
+                                               CoupledRP         = Me%Coupled%RunoffProperties,      &
+                                               STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR030'
+            endif
         endif
 
 !        !Constructs RunOff
@@ -2859,6 +2912,7 @@ i1:         if (CoordON) then
                                          GeometryID             = Me%ObjGeometry,           &
                                          MapID                  = MapID,                    &
                                          DischargesID           = Me%ObjDischargesPM,       &
+                                         StopOnBathymetryChange = Me%StopOnBathymetryChange,   &
                                          STAT                   = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR040'
             
@@ -5273,21 +5327,26 @@ cd2 :           if (BlockFound) then
                     Me%SCSCNRunOffModel%DailyAccRain (i, j) = Me%SCSCNRunOffModel%DailyAccRain (i, j) + rain
         
                     !mm  =        mm         +                     mm
-                    Me%SCSCNRunOffModel%Current5DayAccRain(i,j) = previousInDayRain + Me%SCSCNRunOffModel%Last5DaysAccRainTotal (i, j)
+                    Me%SCSCNRunOffModel%Current5DayAccRain(i,j) = previousInDayRain  &
+                                                     + Me%SCSCNRunOffModel%Last5DaysAccRainTotal (i, j)
                     
                     if (Me%SCSCNRunOffModel%VegGrowthStage%Field (i, j) == DormantVegetation) then
                         if (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) < Me%SCSCNRunOffModel%CIDormThreshold) then
-                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) &
+                                                       / (2.334 - 0.01334 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         elseif (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) > Me%SCSCNRunOffModel%CIIIDormThreshold) then
-                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) &
+                                                      / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         else
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j)
                         endif
                     else
                         if (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) < Me%SCSCNRunOffModel%CIGrowthThreshold) then
-                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (2.334 - 0.01334 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) &
+                                                      / (2.334 - 0.01334 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         elseif (Me%SCSCNRunOffModel%Current5DayAccRain(i,j) > Me%SCSCNRunOffModel%CIIIGrowthThreshold) then
-                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
+                            Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j) &
+                                                      / (0.4036 + 0.0059 * Me%SCSCNRunOffModel%CurveNumber%Field (i, j))
                         else
                             Me%SCSCNRunOffModel%ActualCurveNumber (i, j) = Me%SCSCNRunOffModel%CurveNumber%Field (i, j)
                         endif                        
@@ -5312,8 +5371,8 @@ cd2 :           if (BlockFound) then
                         Me%InfiltrationRate (i, j) = (rain - qInTimeStep) / Me%CurrentDT * 3600.0
                         
                         !mm /hour = (mm - (mm - []mm)**2 / (mm + []mm))/s * s/hour
-!                        Me%InfiltrationRate (i, j) = (rain -                                                                        &
-!                            (rain - Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j))**2 /                               & 
+!                        Me%InfiltrationRate (i, j) = (rain -                                                                   &
+!                            (rain - Me%SCSCNRunOffModel%IAFactor * Me%SCSCNRunOffModel%S (i, j))**2 /                          &
 !                            (rain + (1.0 - Me%SCSCNRunOffModel%IAFactor) * Me%SCSCNRunOffModel%S (i, j))) / Me%CurrentDT * 3600 
                         
                     else

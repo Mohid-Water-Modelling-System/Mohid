@@ -63,7 +63,8 @@ program MohidLand
     character(PathLength)               :: OutputFile           = null_str
     logical                             :: SaveOutput           = .false.
     character(PathLength)               :: DataFile             = 'nomfich.dat'
-    logical                             :: ConfigByArgument     = .false.    
+    logical                             :: ConfigByArgument     = .false.   
+    logical                             :: StopOnBathymetryChange = .true.
 
     !Other Stuff
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
@@ -214,7 +215,7 @@ program MohidLand
         CurrentTime  = BeginTime
 
         !Constructs Basin
-        call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, STAT = STAT_CALL)
+        call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, StopOnBathymetryChange = StopOnBathymetryChange, STAT = STAT_CALL)
 
         ModelConstructed = .true.
 
@@ -285,9 +286,18 @@ program MohidLand
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR04'
 
+        !add the option to continue model in case of bathymetry verifications  
+        !(geometry check and isolated cells check)
+        !for runs on demand it is needed or the model wont run by itself
+        call GetData                (StopOnBathymetryChange, ObjEnterData, iflag,   &
+                                        keyword      = 'STOP_ON_BATHYMETRY_CHANGE', &
+                                        ClientModule = 'MOHIDLand',                 &
+                                        default      =  .true.,                     &
+                                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR05'         
 
         call KillEnterData (ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR05'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR06'
 
     end subroutine ReadKeywords
 

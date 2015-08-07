@@ -309,6 +309,7 @@ Module ModuleGeometry
         logical                                 :: ContinuesCompute = .false.
         logical                                 :: NonHydrostatic   = .false.
         real                                    :: BathymTopoFactor = 1.0
+        logical                                 :: StopOnBathymetryChange = .true.
         real, dimension(:,:,:), pointer         :: DecayTime        => null()
     end type T_External
 
@@ -370,7 +371,7 @@ Module ModuleGeometry
     subroutine ConstructGeometryV1(GeometryID, GridDataID, HorizontalGridID,            &
                                    HorizontalMapID, ActualTime,                         &
                                    NewDomain, SurfaceElevation, BathymTopoFactor,       &
-                                   STAT)
+                                   STAT, StopOnBathymetryChange)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: GeometryID
@@ -381,6 +382,7 @@ Module ModuleGeometry
         character (len=*), intent(IN), optional     :: NewDomain
         real, dimension(:,:), pointer, optional     :: SurfaceElevation
         real,              intent(IN), optional     :: BathymTopoFactor
+        logical,           intent(IN), optional     :: StopOnBathymetryChange
         integer,  intent(OUT),         optional     :: STAT
         
         !Local-----------------------------------------------------------------
@@ -420,6 +422,13 @@ Module ModuleGeometry
                 Me%ExternalVar%BathymTopoFactor = 1.0
             endif
             
+            !stop the model on bathymetry change? - it will be verified in ConstructGlobalVariables and VerifyBathymetry
+            if (present(StopOnBathymetryChange)) then
+                Me%ExternalVar%StopOnBathymetryChange = StopOnBathymetryChange
+            else
+                Me%ExternalVar%StopOnBathymetryChange = .true.
+            endif
+            
             !Construct the variable common to all module
             if (present(NewDomain)) then
                 if (present(SurfaceElevation)) then
@@ -441,7 +450,7 @@ Module ModuleGeometry
             else
                 call ConstructKFloor
             endif    
-
+            
             !Returns ID
             GeometryID    = Me%InstanceID
 
@@ -2051,8 +2060,8 @@ doi:                do i = ILB, IUB
 
             !Writes new Bathymetry
             call GetGridDataFileName(Me%ObjTopography, FileName = BathymetryFile, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR130'
-
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR130'           
+            
             BathymetryFile  = adjustl(BathymetryFile)
             Comment1        = "Automatic Generated Grid Data File"
             Comment2        = "Based On "//trim(BathymetryFile)
@@ -2085,6 +2094,7 @@ doi:                do i = ILB, IUB
             else
                 BathymetryFile  = BathymetryFile(1:LengthWithoutExt-2)//FileVersion//".dat"
             endif
+                
             
             
             call GetCheckDistortion (Me%ObjHorizontalGrid, Distortion, STAT = STAT_CALL)
@@ -2138,10 +2148,18 @@ doi:                do i = ILB, IUB
             nullify   (NewBathymetry)
 
             !Displays Message to inform
+            !Check if will stop or not. By default always stop and ask user to run again
+            !But for run on demand this needs to be possible                  
+            call SetError(WARNING_, INTERNAL_, 'Bathymetry changed due to geometry', Screen = .false.)
+            write(*,*)'WARNING'
             write(*,*)'A new Bathymetry has been created, which consists with the geometry'
-            write(*,*)'Modify the file Nomfich.dat and Re-run the model'
-            write(*,*)'New Bathymetry file : ', trim(BathymetryFile)
-            stop
+            write(*,*)'New Bathymetry file : ', trim(BathymetryFile)   
+            write(*,*)''
+            
+            if (Me%ExternalVar%StopOnBathymetryChange) then                
+                write(*,*)'Modify the file Nomfich.dat and Re-run the model'            
+                stop 'VerifyBathymetry - Geometry - ERR165'
+            endif
         endif
 
         !Disposes pointer to the Bathymetry

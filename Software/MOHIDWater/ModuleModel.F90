@@ -249,6 +249,8 @@ Module ModuleModel
         logical                                 :: SubModelWindowON = .false. !initialization: Jauch
         
         logical                                 :: BackTracking = .false. !initialization: Jauch
+        
+        logical                                 :: StopOnBathymetryChange = .true.
 
 #ifdef OVERLAP
         type (T_Overlap)                        :: Overlap  = .false. !initialization: Jauch
@@ -510,6 +512,16 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                   STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR80'
 
+            
+            !add the option to continue model in case of bathymetry verifications  
+            !(geometry check and isolated cells check)
+            !for runs on demand it is needed or the model wont run by itself
+            call GetData                (Me%StopOnBathymetryChange, ObjEnterData, flag,     &
+                                         keyword      = 'STOP_ON_BATHYMETRY_CHANGE',        &
+                                         ClientModule = 'ModuleModel',                      &
+                                         default      =  .true.,                            &
+                                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR85'             
 
 
             call GetData         (Me%BackTracking, ObjEnterData, flag,                  &
@@ -638,6 +650,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          HorizontalGridID = Me%ObjHorizontalGrid,        &
                                          HorizontalMapID  = Me%Water%ObjHorizontalMap,   &
                                          ActualTime       = Me%CurrentTime,              &
+                                         StopOnBathymetryChange = Me%StopOnBathymetryChange, &
                                          STAT             = STAT_CALL)  
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR180'
 
@@ -649,6 +662,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                              TimeID           = Me%ObjTime,               &
                                              GridDataID       = Me%Water%ObjBathymetry,   &
                                              HorizontalGridID = Me%ObjHorizontalGrid,     &
+                                             StopOnBathymetryChange = Me%StopOnBathymetryChange, &                
                                              STAT             = STAT_CALL)  
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR190'
             else

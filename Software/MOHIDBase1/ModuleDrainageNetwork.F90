@@ -668,6 +668,7 @@ Module ModuleDrainageNetwork
         real                                        :: DT         = null_real
         logical                                     :: CoupledPMP = .false.
         logical                                     :: CoupledRP  = .false.
+        real, dimension(:,:), pointer               :: Topography => null()
     end type T_ExtVar
 
     type T_Downstream
@@ -1025,6 +1026,8 @@ Module ModuleDrainageNetwork
 
         logical                                     :: OutputHydro                  = .false.
         
+        logical                                     :: ChangedNodes                 = .false.  !change nodes according to DTM
+        
         !Evapotranspirate in reach pools
         real                                        :: EVTPMaximumDepth             = null_real
         real                                        :: EVTPCropCoefficient          = null_real
@@ -1052,7 +1055,7 @@ Module ModuleDrainageNetwork
     !----------------------------------------------------------------------------
 
     subroutine ConstructDrainageNetwork(ModelName, DrainageNetworkID, TimeID, Size,   &
-                                        CheckMass, CoupledPMP, CoupledRP, STAT)
+                                        CheckMass, CoupledPMP, CoupledRP, Topography, STAT)
 
         !Arguments---------------------------------------------------------------
         character(len=*)                                :: ModelName
@@ -1060,7 +1063,8 @@ Module ModuleDrainageNetwork
         integer                                         :: TimeID
         type (T_Size2D), optional                       :: Size
         logical, optional                               :: CheckMass
-        logical, optional                               :: CoupledPMP, CoupledRP     
+        logical, optional                               :: CoupledPMP, CoupledRP 
+        real, dimension(:,:), pointer, optional         :: Topography
         integer, optional, intent(OUT)                  :: STAT     
 
         !Local-------------------------------------------------------------------
@@ -1098,7 +1102,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(CoupledRP)) then
                 Me%ExtVar%CoupledRP  = CoupledRP
             endif
-
+            !DN will be forced with Topography (to check nodes terrain level and heights)
+            !This is used when DN is forced over DTM (the latter without removed depressions)
+            nullify(Me%ExtVar%Topography)
+            if (present (Topography)) then
+                Me%ExtVar%Topography => Topography
+            endif
+                        
             !Gets Current Compute Time
             call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR01'
@@ -2468,6 +2478,9 @@ if2:        if (Me%Downstream%Evolution == ReadTimeSerie) then
         call ConstructReachList 
 
         call ConnectNetwork
+        
+        !if nodes were changed for DTM consistency give the user feedback
+        if (Me%ChangedNodes) call WriteNewDrainageNetwork()        
 
         if (Me%NumericalScheme == ImplicitScheme) then
             call OrderNodes
@@ -2534,7 +2547,8 @@ if2:              if (BlockFound) then
 
             end if if1
 
-        end do do1
+        end do do1        
+
 
         if (Me%CheckNodes) call CheckNodesConsistency
 
@@ -2643,6 +2657,8 @@ if2:            if (BlockFound) then
         integer                                     :: flag, NStations
         real, dimension (2)                         :: AuxCoord 
         logical                                     :: ComputeElevation
+        real                                        :: heightDif
+        character (len = StringLength)              :: AuxString
 
         !Local------------------------------------------------------------------
      
@@ -2727,7 +2743,7 @@ if2:            if (BlockFound) then
             write (*,*)'Invalid Node Terrain Level [TERRAIN_LEVEL]'
             stop 'ModuleDrainageNetwork - ConstructNode - ERR21'
         endif
-
+        
         !Singularity Coef - % available vertical area = 1 - % reduction Av by singularity
         call GetData(NewNode%SingCoef,                                          &
                      Me%Files%ObjEnterDataNetwork, flag,                        &  
@@ -2801,6 +2817,31 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
                 stop 'ModuleDrainageNetwork - ConstructNode - ERR12a'
             endif
 
+            !if DN was imposed over DTM (if associated(Me%ExtVar%Topography)) 
+            !meaning that drainage network may have been built from DTM different than currently used (e.g. with depressions removed), 
+            !need to check terrain level and height to be consistent with DTM used
+            if (associated(Me%ExtVar%Topography)) then
+                
+                if (Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) /= NewNode%CrossSection%TerrainLevel) then
+                    
+                    heightDif = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) - NewNode%CrossSection%TerrainLevel
+                    
+                    NewNode%CrossSection%TerrainLevel = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ)
+                    NewNode%CrossSection%Height = NewNode%CrossSection%Height + heightDif
+                    
+                    if (NewNode%CrossSection%Height < 0) then
+                        write(*,*)'Negative node cross section height after Topography check'
+                        write(*,*)'in node ', NewNode%ID
+                        stop 'ModuleDrainageNetwork - ConstructNode - ERR12b'
+                    endif
+                    
+                    Me%ChangedNodes = .true.
+                    write(AuxString,*) 'Forcing river points from DN, Node changed to fit DTM ', NewNode%ID
+                    call SetError (WARNING_, INTERNAL_, AuxString , OFF)
+                    
+                endif        
+            endif            
+            
             NewNode%CrossSection%Slope = (( NewNode%CrossSection%TopWidth        &
                                           - NewNode%CrossSection%BottomWidth )   &
                                           / 2 ) / NewNode%CrossSection%Height
@@ -2991,7 +3032,96 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
  
      !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
+    
+    subroutine WriteNewDrainageNetwork()
+        
+        !Arguments-------------------------------------------------------------
 
+        !Local-----------------------------------------------------------------
+        integer                                   :: Unit, LengthWithoutExt, NodePos, ReachPos, i
+        character(len=PathLength)                 :: filename
+        type(T_Node), pointer                     :: CurrNode
+        type(T_Reach), pointer                    :: CurrReach
+    
+        LengthWithoutExt= len_trim(Me%Files%Network) - 4
+        filename = Me%Files%Network(1:LengthWithoutExt)//"_v01.dnt"
+        
+        write(*,*)''
+        write(*,*)'Forced Drainage Network river points over DTM'
+        write(*,*)'Nodes changed to be consistent with DTM'
+        write(*,*)'Drainage Network corrected was writte to ', filename
+        write(*,*)''
+        
+        call UnitsManager (Unit, OPEN_FILE)
+        open (unit = unit, file = trim(filename), status = 'unknown')        
+        
+        write (unit, *)"COORDINATE_TYPE   : ", Me%CoordType
+        
+        do NodePos = 1, Me%TotalNodes
+            
+            CurrNode => Me%Nodes (NodePos)     
+            
+            write (unit, *)"<BeginNode>"
+            write (unit, *)"ID                 : ", CurrNode%ID
+            write (unit, *)"COORDINATES        : ", CurrNode%X, CurrNode%Y
+            write (unit, *)"GRID_I             : ", CurrNode%GridI
+            write (unit, *)"GRID_J             : ", CurrNode%GridJ            
+            write (unit, *)"CROSS_SECTION_TYPE : ", CurrNode%CrossSection%Form 
+            write (unit, *)"TERRAIN_LEVEL      : ", CurrNode%CrossSection%TerrainLevel            
+            write (unit, *)"BOTTOM_LEVEL       : ", CurrNode%CrossSection%BottomLevel
+            
+            if (CurrNode%CrossSection%Form == Trapezoidal .or.                       &
+                CurrNode%CrossSection%Form == TrapezoidalFlood) then         
+                write (unit, *)"BOTTOM_WIDTH       : ", CurrNode%CrossSection%BottomWidth
+                write (unit, *)"TOP_WIDTH          : ", CurrNode%CrossSection%TopWidth
+                write (unit, *)"HEIGHT             : ", CurrNode%CrossSection%Height
+                
+                if (CurrNode%CrossSection%Form == TrapezoidalFlood) then
+                    write (unit, *)"MIDDLE_WIDTH       : ", CurrNode%CrossSection%MiddleWidth
+                    write (unit, *)"MIDDLE_HEIGHT      : ", CurrNode%CrossSection%MiddleHeight
+                endif
+            
+            elseif (CurrNode%CrossSection%Form == Tabular) then
+                write (unit, *)"N_STATIONS         : ", CurrNode%CrossSection%NStations
+                write (unit, *)"STATION            : ", (CurrNode%CrossSection%Station(i), i=1, CurrNode%CrossSection%NStations)
+                write (unit, *)"ELEVATION          : ", (CurrNode%CrossSection%Elevation(i), i=1, CurrNode%CrossSection%NStations)
+            endif
+            
+            if (CurrNode%CrossSection%PoolDepth > 0.0) then
+                write (unit, *)"POOL_DEPTH         : ", CurrNode%CrossSection%PoolDepth
+            endif
+            
+            if (CurrNode%CrossSection%ManningCH /= Me%GlobalManning) then
+                write (unit, *)"MANNING_CHANNEL    : ", CurrNode%CrossSection%ManningCH
+            endif 
+            
+            if (CurrNode%WaterDepth /= Me%InitialWaterDepth) then
+                write (unit, *)"WATER_DEPTH        : ", CurrNode%WaterDepth
+            endif             
+            
+            write (unit, *)"<EndNode>"                    
+            
+        enddo
+    
+        do ReachPos = 1, Me%TotalReaches
+            
+            CurrReach => Me%Reaches (ReachPos)  
+            
+            write (unit, *)"<BeginReach>"
+            write (unit, *)"ID              : ", CurrReach%ID
+            write (unit, *)"UPSTREAM_NODE   : ", CurrReach%UpstreamNode
+            write (unit, *)"DOWNSTREAM_NODE : ", CurrReach%DownstreamNode
+            write (unit, *)"ACTIVE          : ", CurrReach%Active
+            write (unit, *)"<EndReach>"            
+            
+            
+        enddo
+        
+        
+    end subroutine WriteNewDrainageNetwork
+
+    !---------------------------------------------------------------------------    
+    
     subroutine InitializeTabularCrossSection (CurrNode, ComputeElevation)
 
         !Arguments-----------------------------------------------------------------

@@ -644,6 +644,8 @@ Module ModulePorousMedia
         real(8), dimension(:,:,:), pointer          :: FluxVAcc       => null()
         real(8), dimension(:,:,:), pointer          :: FluxWAcc       => null()
         real(8), dimension(:,:,:), pointer          :: FluxWAccFinal  => null()
+        
+        logical                                     :: StopOnBathymetryChange = .true.
 
         !integer                                 :: ChunkK = 1,  &
         !                                           ChunkJ = 1,  &
@@ -681,6 +683,7 @@ Module ModulePorousMedia
                                     GeometryID,                                 &
                                     MapID,                                      &
                                     DischargesID,                               &
+                                    StopOnBathymetryChange,                     &
                                     STAT)
 
         !Arguments---------------------------------------------------------------
@@ -695,6 +698,7 @@ Module ModulePorousMedia
         logical                                         :: CheckGlobalMass
         logical                                         :: ConstructEvaporation
         logical                                         :: ConstructTranspiration
+        logical                                         :: StopOnBathymetryChange        
         integer, intent (OUT)                           :: GeometryID
         integer, intent (OUT)                           :: DischargesID
         integer, intent (OUT)                           :: MapID
@@ -743,6 +747,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ExtVar%ConstructEvaporation   = ConstructEvaporation
             Me%ExtVar%ConstructTranspiration = ConstructTranspiration
 
+            !stop the model on bathymetry change?
+            Me%StopOnBathymetryChange = StopOnBathymetryChange              
+            
             !Time
             call GetComputeCurrentTime  (Me%ObjTime, Me%ExtVar%Now, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPorousMedia - ModulePorousMedia - ERR010'
@@ -1257,8 +1264,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             
             
             
-        endif        
-        
+        endif                    
         
         !Checks consistency
         if (Me%OutPut%Yes .and. Me%OutPut%SurfaceOutput) then
@@ -2032,6 +2038,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 ActualTime       = Me%ExtVar%Now,                  &
                                 SurfaceElevation = Me%ExtVar%Topography,           &
                                 BathymTopoFactor = -1.0,                           &
+                                StopOnBathymetryChange = Me%StopOnBathymetryChange, &
                                 STAT             = STAT_CALL)  
         if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMedia - VerticalDiscretization - ERR01'
         
@@ -2040,6 +2047,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                                  GeometryID       = Me%ObjGeometry,                 &
                                  HorizontalMapID  = Me%ObjHorizontalMap,            &
                                  TimeID           = Me%ObjTime,                     &
+                                 StopOnBathymetryChange = Me%StopOnBathymetryChange, &
                                  STAT             = STAT_CALL)  
         if (STAT_CALL /= SUCCESS_) stop 'ModulePorousMedia - VerticalDiscretization - ERR02'
         
