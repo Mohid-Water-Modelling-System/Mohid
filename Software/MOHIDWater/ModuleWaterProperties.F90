@@ -483,6 +483,7 @@ Module ModuleWaterProperties
     private ::      AltimAssimilationProcess
     private ::      CalculateAge
     private ::      ModifyDensity
+    private ::      ModifyDensitySed
     private ::      Filtration_Processes
     private ::      Reinitialize_Solution
     private ::      ModifySpecificHeat
@@ -888,6 +889,7 @@ Module ModuleWaterProperties
         type(T_PropertyID)                      :: ID
         real                                    :: ISCoefficient
         logical                                 :: Particulate
+        logical                                 :: Non_Cohesive         = .false.
         type (T_Evolution)                      :: Evolution
         type (T_LocalAssimila)                  :: Assimilation
         type (T_SubModel)                       :: SubModel
@@ -1006,12 +1008,15 @@ Module ModuleWaterProperties
         type(T_PropertyID)                      :: ID
         integer                                 :: Method
         logical                                 :: CorrecPress, CorrecSed
+        logical                                 :: CorrecNonCohesiveSed =.false.
         real, pointer, dimension(:,:,:)         :: Field
         real, pointer, dimension(:,:,:)         :: Sigma
         real, pointer, dimension(:,:,:)         :: SigmaNoPressure
         real                                    :: Reference    = FillValueReal
         real                                    :: CohesiveSed  = FillValueReal
+        real                                    :: NonCohesiveSed  = FillValueReal
         logical                                 :: Variable     =.false.
+        logical                                 :: VariableSed  =.false.
         type(T_Time)                            :: LastActualization
 
 #ifdef _USE_SEQASSIMILATION
@@ -6276,6 +6281,15 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Construct_PropertyState - ModuleWaterProperties - ERR03' 
 
+        call GetData(NewProperty%Non_Cohesive,                                           &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'NON_COHESIVE',                                      &
+                     Default      = .false.,                                             &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)&
+            stop 'Construct_PropertyState - ModuleWaterProperties - ERR04' 
 
      end subroutine Construct_PropertyState
 
@@ -10020,6 +10034,7 @@ cd2 :       if (BlockFound) then
         integer                            :: STAT_CALL, iflag, ClientNumber
         integer                            :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                            :: i, j, k
+        integer                            :: aux
         logical                            :: BlockFound
         
         !----------------------------------------------------------------------
@@ -10103,10 +10118,28 @@ cd2 :       if (BlockFound) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
                      keyword    = 'DENSITY_COHESIVE_SED',                               &
-                     Default    = 2600.,                                                &
+                     Default    = 2650.,                                                &
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR40'
+        
+        call GetData(Me%Density%CorrecNonCohesiveSed,                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'NONCOHESIVE_CORRECTION',                             &
+                     Default    = .false.,                                              &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR41'
+        
+        call GetData(Me%Density%NonCohesiveSed,                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType = FromFile,                                             &
+                     keyword    = 'DENSITY_NONCOHESIVE_SED',                            &
+                     Default    = 2650.,                                                &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructDensity - ModuleWaterProperties - ERR42'
 
 
         allocate (Me%Density%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
@@ -10217,20 +10250,13 @@ cd2 :       if (BlockFound) then
 
 Sal:        if(STAT_CALL == SUCCESS_)then
     
-                if (PropertyX%Evolution%Variable) Me%Density%Variable = .TRUE.
+               if (PropertyX%Evolution%Variable) Me%Density%Variable = .TRUE.
 
-                call Search_Property(PropertyX, PropertyXID = Temperature_, STAT = STAT_CALL)
+               call Search_Property(PropertyX, PropertyXID = Temperature_, STAT = STAT_CALL)
 
 temp:          if (STAT_CALL == SUCCESS_)then
-                
-                   if (PropertyX%Evolution%Variable) Me%Density%Variable = .TRUE.
-                   
-                    if (Me%Density%CorrecSed) then
-                        call Search_Property(PropertyX, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
-                        if (STAT_CALL/= SUCCESS_) stop 'ConstructDensity - ModuleWaterProperties - ERR130.'
-                        
-                        if (PropertyX%Evolution%Variable) Me%Density%Variable = .TRUE.                        
-                    endif
+                    
+                    if (PropertyX%Evolution%Variable) Me%Density%Variable = .TRUE.
                 
                     call null_time(Me%Density%LastActualization)
 
@@ -10243,6 +10269,52 @@ temp:          if (STAT_CALL == SUCCESS_)then
                 endif temp
 
             endif sal
+
+            if (Me%Density%CorrecSed) then
+                call Search_Property(PropertyX, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+                if (STAT_CALL/= SUCCESS_) stop 'ConstructDensity - ModuleWaterProperties - ERR130.'
+                        
+                if (PropertyX%Evolution%Variable) Me%Density%VariableSed = .TRUE.                        
+            endif
+                    
+            if (Me%Density%CorrecNonCohesiveSed) then
+                        
+                aux = 0
+                        
+                PropertyX => Me%FirstProperty
+                
+                do while (associated(PropertyX))
+                    
+                    if (PropertyX%Non_Cohesive) then
+                        
+                        if (PropertyX%Evolution%Variable) aux = aux + 1
+                    
+                        PropertyX=>PropertyX%Next
+                    
+                    endif
+
+                end do
+                        
+                if (aux .gt. 0)  then
+                
+                    Me%Density%VariableSed = .TRUE.
+                    
+                else
+                    write(*,*)
+                    write(*,*) 'Keyword NONCOHESIVE_CORRECTION is activated'
+                    write(*,*) 'but there is not defined any NON_COHESIVE property' 
+                    stop 'ConstructDensity - ModuleWaterProperties - ERR140.'
+                endif
+                    
+            endif
+            
+            if (Me%Density%VariableSed) then
+                
+                call null_time(Me%Density%LastActualization)
+
+                call ModifyDensitySed(Me%ExternalVar%Now)
+                
+            endif
 
         endif
 
@@ -11421,7 +11493,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Density%Variable)                          &
                 call ModifyDensity(Me%ExternalVar%Now)
-           
+            
+            if (Me%Density%VariableSed)                       &
+                call ModifyDensitySed(Me%ExternalVar%Now)           
            
             if (Me%Coupled%Filtration%Yes)                    &
                 call Filtration_Processes
@@ -19899,7 +19973,7 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
         type (T_Time)                           :: CurrentTime
 
         !Local----------------------------------------------------------------- 
-        type(T_Property), pointer               :: PropertyX, Cohesive_Sediment  
+        type(T_Property), pointer               :: PropertyX
         real,    pointer, dimension(:,:,:)      :: S,T    
         real, pointer, dimension(:,:,:)         :: SZZ, ZCellCenter
         integer, pointer, dimension(:,:,:)      :: WaterPoints3D
@@ -20172,36 +20246,6 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
             end if
             
-            if (Me%Density%CorrecSed) then
-            
-                call Search_Property(Cohesive_Sediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
-                if (STAT_CALL/= SUCCESS_)stop 'ModifySpecificHeat - ModuleWaterProperties - ERR01.'
-
-
-
-                !$OMP PARALLEL PRIVATE(I,J,K)
-                do k = KLB, KUB
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                do j = JLB, JUB
-                do i = ILB, IUB
-
-                    if (WaterPoints3D(i, j, k) == 1) then
-                        Me%Density%Sigma(i, j, k) = Me%Density%Sigma(i, j, k) + Cohesive_Sediment%Concentration(i,j,k)* &
-                                                                                Cohesive_Sediment%IScoefficient       * &
-                                                    (Me%Density%CohesiveSed - Me%Density%Reference) / Me%Density%Reference
-                    endif
-
-                enddo
-                enddo
-                !$OMP END DO NOWAIT
-                enddo
-                !$OMP END PARALLEL
-                
-                nullify(Cohesive_Sediment)
-
-            endif
-            
-            
             !$OMP PARALLEL PRIVATE(I,J,K)
             do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -20270,7 +20314,125 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
     
     !--------------------------------------------------------------------------
+    subroutine ModifyDensitySed(CurrentTime)
 
+        !Arguments-------------------------------------------------------------
+        type (T_Time)                           :: CurrentTime
+
+        !Local----------------------------------------------------------------- 
+        type(T_Property), pointer               :: PropertyX, Cohesive_Sediment    
+        integer, pointer, dimension(:,:,:)      :: WaterPoints3D
+        integer                                 :: STAT_CALL
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: i, j, k
+        !$ integer                                 :: CHUNK
+        
+        !Begin----------------------------------------------------------------- 
+
+cd10:   if (CurrentTime > Me%Density%LastActualization) then
+    
+            call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL/= SUCCESS_) stop 'ModifyDensitySed - ModuleWaterProperties - ERR01'
+           
+            ILB = Me%WorkSize%ILB 
+            IUB = Me%WorkSize%IUB 
+            JLB = Me%WorkSize%JLB 
+            JUB = Me%WorkSize%JUB 
+            KLB = Me%WorkSize%KLB 
+            KUB = Me%WorkSize%KUB 
+
+            !$ CHUNK = CHUNK_J(JLB, JUB)
+            
+           if (Me%Density%CorrecSed) then
+            
+                call Search_Property(Cohesive_Sediment, PropertyXID = Cohesive_Sediment_, STAT = STAT_CALL)
+                if (STAT_CALL/= SUCCESS_)stop 'ModifyDensitySed - ModuleWaterProperties - ERR10.'
+
+                !$OMP PARALLEL PRIVATE(I,J,K)
+                do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do j = JLB, JUB
+                do i = ILB, IUB
+
+                    if (WaterPoints3D(i, j, k) == 1) then
+                        
+                        if(.not.Me%Density%Variable) Me%Density%Sigma(i, j, k) = Me%Density%Reference - SigmaDensityReference
+                        
+                        Me%Density%Sigma(i, j, k) = Me%Density%Sigma(i, j, k) + Cohesive_Sediment%Concentration(i,j,k)* &
+                                                                                Cohesive_Sediment%IScoefficient       * &
+                                                    (Me%Density%CohesiveSed - Me%Density%Reference) / Me%Density%Reference
+                    endif
+
+                enddo
+                enddo
+                !$OMP END DO NOWAIT
+                enddo
+                !$OMP END PARALLEL
+                
+                nullify(Cohesive_Sediment)
+            endif
+                
+            if (Me%Density%CorrecNonCohesiveSed) then
+                
+                !It's included the density effect of non_cohesive (sand) sediments in suspension
+                PropertyX => Me%FirstProperty
+                
+                do while (associated(PropertyX))
+                    
+                    if (PropertyX%Non_Cohesive) then
+                        
+                        !$OMP PARALLEL PRIVATE(I,J,K)
+                        do k = KLB, KUB
+                        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                        do j = JLB, JUB
+                        do i = ILB, IUB
+
+                            if (WaterPoints3D(i, j, k) == 1) then
+                                
+                                if(.not.Me%Density%Variable) Me%Density%Sigma(i, j, k) = Me%Density%Reference - SigmaDensityReference
+                                
+                                Me%Density%Sigma(i, j, k) = Me%Density%Sigma(i, j, k) + PropertyX%Concentration(i,j,k)* &
+                                                                                        PropertyX%IScoefficient       * &
+                                                            (Me%Density%NonCohesiveSed - Me%Density%Reference) / Me%Density%Reference
+                            endif
+
+                        enddo
+                        enddo
+                        !$OMP END DO NOWAIT
+                        enddo
+                        !$OMP END PARALLEL
+                    
+                        PropertyX=>PropertyX%Next
+                    
+                    endif
+
+                end do
+            endif
+    
+                !$OMP PARALLEL PRIVATE(I,J,K)
+            do k = KLB, KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (WaterPoints3D(i, j, k) == 1) then
+                    Me%Density%Field(i, j, k) = Me%Density%Sigma(i, j, k) + SigmaDensityReference
+                endif
+
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            enddo
+            !$OMP END PARALLEL
+            
+            Me%Density%LastActualization = CurrentTime
+    
+            call UnGetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL/= SUCCESS_) stop 'ModifyDensitySed - ModuleWaterProperties - ERR100'
+            
+            endif cd10
+            
+        end subroutine ModifyDensitySed
     !--------------------------------------------------------------------------
 
     
@@ -22616,6 +22778,12 @@ cd2 :       if (Me%Density%Variable) then
 
             end if cd2
 
+cd3 :       if (Me%Density%VariableSed) then
+                
+                call ModifyDensitySed(CurrentTime)
+
+            end if cd3
+
 
             Density => Me%Density%Field 
 
@@ -22736,6 +22904,12 @@ cd2 :       if (Me%Density%Variable) then
 
             end if cd2
 
+cd3 :       if (Me%Density%VariableSed) then
+                
+                call ModifyDensitySed(CurrentTime)
+
+            end if cd3
+
 
             Sigma => Me%Density%Sigma 
 
@@ -22783,6 +22957,12 @@ cd2 :       if (Me%Density%Variable) then
                 call ModifyDensity(CurrentTime)
 
             end if cd2
+
+cd3 :       if (Me%Density%VariableSed) then
+                
+                call ModifyDensitySed(CurrentTime)
+
+            end if cd3
 
 
             SigmaNoPressure => Me%Density%SigmaNoPressure 

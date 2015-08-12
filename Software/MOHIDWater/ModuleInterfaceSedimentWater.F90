@@ -206,7 +206,7 @@ Module ModuleInterfaceSedimentWater
                                           GetTopCriticalShear, GetConcRef,                  &
                                           GetCohesiveMass, GetCohesiveContent, GetSandMass, &
                                           GetSandContent, GetCriticalShearStress,           &
-                                          UnGetSediment 
+                                          GetReferenceLevel, UnGetSediment 
     implicit none
 
     private 
@@ -482,6 +482,7 @@ Module ModuleInterfaceSedimentWater
          real, dimension(:,:), pointer              :: ErosionFlux              => null()
          real, dimension(:,:), pointer              :: DepositionFlux           => null()
          real, dimension(:,:), pointer              :: ErosionCoefficient       => null()
+         real, dimension(:,:), pointer              :: Cza                      => null()
          real                                       :: Mass_Min             = FillValueReal
          logical                                    :: Old                  = .false.
          logical                                    :: Mass_Limitation      = .false.
@@ -2063,6 +2064,13 @@ cd2 :           if (BlockFound) then
                 if (STAT_CALL .NE. SUCCESS_)                                        &
                     stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10'
                 NewProperty%DepositionFlux(:,:) = null_real
+                
+                if(NewProperty%Non_Cohesive) then
+                    allocate(NewProperty%Cza(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'Construct_PropertyValues - ModuleInterfaceSedimentWater - ERR10b'
+                    NewProperty%Cza(:,:) = null_real
+                endif
 
             end if
 
@@ -2161,10 +2169,6 @@ cd2 :           if (BlockFound) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR25'
-          
-            
-            
-       
 
         !CEQUALW2 as a sink and source      
         call GetData(NewProperty%Evolution%CEQUALW2,                                    &
@@ -3170,7 +3174,19 @@ do1 :   do while (associated(PropertyX))
         PropertyX   => Me%FirstProperty
         nProperties =  1
         do while (associated(PropertyX))
-            if (PropertyX%TimeSerie) nProperties = nProperties + 1
+            if (PropertyX%TimeSerie) then
+                nProperties = nProperties + 1
+                if(PropertyX%Evolution%Deposition) then
+                    nProperties = nProperties + 1
+                    if(PropertyX%Non_Cohesive) then
+                        nProperties = nProperties + 1
+                    endif
+                endif
+                if(PropertyX%Evolution%Erosion) then
+                    nProperties = nProperties + 1
+                endif
+            endif
+                
             PropertyX=>PropertyX%Next
         enddo
 
@@ -3188,6 +3204,20 @@ do1 :   do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
                 nProperties = nProperties + 1
                 PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name))
+                
+                if(PropertyX%Evolution%Deposition) then
+                    nProperties = nProperties + 1
+                    PropertyList(nProperties) = 'Deposition_'//trim(adjustl(PropertyX%ID%name))
+                    if(PropertyX%Non_Cohesive) then
+                        nProperties = nProperties + 1
+                        PropertyList(nProperties) = 'BottomConcentration_'//trim(adjustl(PropertyX%ID%name))
+                    endif
+                endif
+                if(PropertyX%Evolution%Erosion) then
+                    nProperties = nProperties + 1
+                    PropertyList(nProperties) = 'Erosion_'//trim(adjustl(PropertyX%ID%name))
+                endif
+                
             endif
             PropertyX=>PropertyX%Next
         enddo
@@ -6719,7 +6749,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR05'
                     
-        call GetConcRef(Me%ObjSediment,ConcRef, STAT = STAT_CALL)
+        call GetConcRef(Me%ObjSediment,PropertyX%ID%IDNumber,ConcRef, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR06'
                     
@@ -6760,7 +6790,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                 PropertyX%ErosionFlux(i,j) =                                         &
                                 ErosionFlux(CriticalShearErosion = CriticalShearStress(i, j),        &
                                             ShearStress          = Me%Shear_Stress%Tension(i,j),     &
-                                            ErosionRate          = Me%ErosionRate%Field(i,j)) 
+                                            ErosionRate          = Me%ErosionRate%Field(i,j))
+                                
+                                PropertyX%ErosionFlux(i,j) = PropertyX%ErosionFlux(i,j) * SandContent(i,j,KTOP)
+                                
                             endif
                         else
                             !Otherwise the erosion flux is equal to the entrainment rate under equilibrium conditions
@@ -6778,8 +6811,6 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         PropertyX%ErosionFlux(i,j) = MaximumFlux
 
                     end if
-                                
-                    PropertyX%ErosionFlux(i,j) = PropertyX%ErosionFlux(i,j) * SandContent(i,j,KTOP)
 
                 else
 
@@ -6833,7 +6864,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
         character(len=StringLength)             :: WaterPropertyUnits
         real                                    :: WaterPropertyISCoef
-        real                                    :: z, a, H, C, Ca, Ws, K0, b, aux, u
+        real                                    :: z, H, C, Ws, K0, b, aux, u, a
+        real                                    :: ReferenceLevel
         !Begin-----------------------------------------------------------------
         
         IUB = Me%WaterWorkSize3D%IUB
@@ -6857,6 +6889,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         if (STAT_CALL /= SUCCESS_)                                                    &
             stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR20'
         
+        call GetReferenceLevel(Me%ObjSediment,ReferenceLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR25'
+        
         do j = JLB, JUB
         do i = ILB, IUB
 
@@ -6866,8 +6902,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 
                 !height above bed
                 z = Me%ExtWater%DWZ(i,j,kbottom) / 2.
-                !reference level (~2*D50)
-                a = 0.002
+                !Reference Level
+                a = ReferenceLevel
                 !WaterColumn
                 H = Me%ExtWater%WaterColumn(i,j)
                 !Concentration in the middle of the bottom grid cell
@@ -6885,12 +6921,13 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 !Rouse profile term
                 aux = (a * (H - z) / (z * (H - a))) **b
                 !Near bed concentration in the reference level
-                Ca = C/aux
-                !Ca,max = fraction*density = 0.2*2650 = 530
-                Ca = min (Ca,530.0)
+                PropertyX%Cza(i,j) = C/aux
+                !Ca,max = fraction*density = 0.05*2650 = 132.5
+                PropertyX%Cza(i,j) = min (PropertyX%Cza(i,j),132.5)
                 
                 ![kg m-2 s-1]                   [m s-1]*[kg m-3]
-                PropertyX%DepositionFlux(i,j) =  - SettlingVelocity(i,j,kbottom) * Ca
+                PropertyX%DepositionFlux(i,j) =  - SettlingVelocity(i,j,kbottom) * PropertyX%Cza(i,j)
+                
             endif
         enddo
         enddo
@@ -6901,7 +6938,9 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     
         call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, SettlingVelocity, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR40' 
+            stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR40'
+        
+        call Read_Unlock(mSediment_, Me%InstanceID, "UnGetReferenceLevel")
 
 #endif   
     end subroutine ModifyNonCohesiveDepositionFluxes
@@ -7064,7 +7103,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                             Data2D  = Me%Shear_Stress%Tension,                  &
                             STAT    = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
-            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR01'
+            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR010'
         
         
         PropertyX   => Me%FirstProperty
@@ -7077,7 +7116,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                     Data2D  = PropertyX%MassInKg,                    &
                                     STAT    = STAT_CALL)
                      if (STAT_CALL /= SUCCESS_)                                      &
-                        stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR02a'     
+                        stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR020'     
                              
                     else
                                  
@@ -7085,9 +7124,37 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                             Data2D  = PropertyX%Mass_Available,         &
                                             STAT    = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
-                            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR02b'
+                            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR030'
 
-                end if
+                    end if
+    
+                    
+                    if(PropertyX%Evolution%Deposition)then
+                        
+                        call WriteTimeSerie(Me%ObjTimeSerie,                            &
+                                            Data2D  = PropertyX%DepositionFlux,         &
+                                            STAT    = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR040'
+                        
+                        if(PropertyX%Non_Cohesive)then                                                 
+                            call WriteTimeSerie(Me%ObjTimeSerie,                            &
+                                                Data2D  = PropertyX%Cza,                    &
+                                                STAT    = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_)                                      &
+                                stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR045'
+                        endif
+                            
+                    end if
+                    
+                    if(PropertyX%Evolution%Erosion)then
+                        
+                        call WriteTimeSerie(Me%ObjTimeSerie,                            &
+                                            Data2D  = PropertyX%ErosionFlux,            &
+                                            STAT    = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            stop 'OutPut_TimeSeries - ModuleInterfaceSedimentWater - ERR050'
+                    end if
             
             endif
             PropertyX=>PropertyX%Next
@@ -9469,6 +9536,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         if(STAT_CALL .ne. SUCCESS_)&
                             stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR37'
                         nullify(PropertyX%DepositionFlux)
+                        
+                        if(PropertyX%Non_Cohesive) then
+                            deallocate(PropertyX%Cza,   STAT = STAT_CALL) 
+                            if(STAT_CALL .ne. SUCCESS_)&
+                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR37b'
+                            nullify(PropertyX%Cza)
+                        endif
 
                     end if
 
