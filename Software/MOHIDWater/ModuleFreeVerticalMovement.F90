@@ -2620,6 +2620,12 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 
                 nUsers = DeassociateInstance(mTURBGOTM_,        Me%ObjTurbGOTM)
                 if (nUsers == 0) stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04b'
+                
+                 if (Me%Output%TimeSerie) then
+                    call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04c'
+                endif
 
 #ifdef _USE_PAGELOCKED
                 ! FreePageLocked will also nullify the pointers and arrays
