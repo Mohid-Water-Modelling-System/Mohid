@@ -174,7 +174,8 @@ Module ModuleInterfaceSedimentWater
     use ModuleTurbulence,           only: SetTurbulenceBottomRugosity
     use ModuleFreeVerticalMovement, only: Get_FreeConvFlux, SetDepositionProbability,       &
                                           UngetFreeVerticalMovement, FreeVertPropertyExists,&
-                                          Get_FreeVelocity, FreeVertPropertyHasDeposition
+                                          Get_FreeVelocity, FreeVertPropertyHasDeposition,  &
+                                          SetShearVelocity
 #ifndef _SEDIMENT_ 
     use ModuleSedimentProperties,   only: SedimentPropertyExists,GetSedimentPropertyOptions,&
                                           GetSedimentConcentration, UnGetSedimentProperties,&
@@ -9122,7 +9123,14 @@ PropX:      do while (associated(PropertyX))
                                           STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)                                                 &
                 stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR120'
+            
+            call SetShearVelocity (Me%ObjFreeVerticalMovement,                          &
+                                          Me%Shear_Stress%Velocity,                     &
+                                          STAT = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_)                                                 &
+                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR121'
 
+            
         end if
 
         if (Me%ObjHydrodynamic /= 0) then

@@ -267,7 +267,7 @@ Module ModuleWaterProperties
 #endif _USE_MPI
                                           
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
-                                          GetMLD_Surf, UnGetTurbulence
+                                          GetMLD_Surf, GetContinuousGOTM, UnGetTurbulence
     use ModuleHydrodynamic,         only: GetWaterFluxes, GetWaterLevel, GetDischargesFluxes,   &
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
                                           GetXZFlow, GetHydrodynamicAirOptions,                 &
@@ -1235,6 +1235,9 @@ Module ModuleWaterProperties
 
         !Instance of ModuleFreeVerticalMovement
         integer                                 :: ObjFreeVerticalMovement  = 0
+        
+        !Instance of ModuleTurbGOTM
+        integer                                 :: ObjTurbGOTM              = 0
                                                 
         !Instance of ModuleInterface            
         integer                                 :: ObjInterface             = 0
@@ -1303,6 +1306,7 @@ Module ModuleWaterProperties
                                          TimeID,                             &
                                          DischargesID,                       &
                                          FreeVerticalMovementID,             &
+                                         TurbGOTMID,                         &
 #ifdef _ENABLE_CUDA
                                          CudaID,                             &
 #endif
@@ -1322,6 +1326,7 @@ Module ModuleWaterProperties
         integer                                     :: AssimilationID
         integer                                     :: DischargesID
         integer                                     :: FreeVerticalMovementID
+        integer                                     :: TurbGOTMID
 #ifdef _ENABLE_CUDA
         integer                                     :: CudaID
 #endif
@@ -1332,6 +1337,7 @@ Module ModuleWaterProperties
         integer                                     :: ready_, iW        
                        
         !Local-----------------------------------------------------------------
+        logical                                     :: ModelGOTM, ContinuousGOTM
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
@@ -1369,11 +1375,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
             Me%ObjHydrodynamic   = AssociateInstance (mHYDRODYNAMIC_,   HydrodynamicID  )
             Me%ObjTurbulence     = AssociateInstance (mTURBULENCE_,     TurbulenceID    )
+            
             ! guillaume nogueira
 !            Me%ObjAssimilation   = AssociateInstance (mASSIMILATION_,     AssimilationID  )
 #ifdef _ENABLE_CUDA
             Me%ObjCuda           = AssociateInstance (mCUDA_,           CudaID          )
 #endif
+
+            call GetContinuousGOTM(Me%ObjTurbulence, ContinuousGOTM, ModelGOTM, STAT = STAT_CALL)
+            
+            if(ModelGOTM)then
+                Me%ObjTurbGOTM       = AssociateInstance (mTURBGOTM_,       TurbGOTMID    )
+            endif
 
             call ReadLockExternalVar
             
@@ -5719,6 +5732,8 @@ cd12 :       if (BlockFound) then
                                             HorizontalGridID       = Me%ObjHorizontalGrid,       &
                                             MapID                  = Me%ObjMap,                  &
                                             GeometryID             = Me%ObjGeometry,             &
+                                            TurbulenceID           = Me%ObjTurbulence,           &
+                                            TurbGOTMID             = Me%ObjTurbGOTM,             &
 #ifdef _ENABLE_CUDA
                                             ObjCudaID              = CudaID,                     &
 #endif
@@ -24487,6 +24502,9 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
 
                 nUsers = DeassociateInstance(mHYDRODYNAMIC_,    Me%ObjHydrodynamic)
                 if (nUsers == 0) stop 'KillWaterProperties - ModuleWaterProperties - ERR90'
+                
+                nUsers = DeassociateInstance(mTURBGOTM_,        Me%ObjTurbGOTM)
+                if (nUsers == 0) stop 'KillWaterProperties - ModuleWaterProperties - ERR100'
 
 !                nUsers = DeassociateInstance(mASSIMILATION_,    Me%ObjAssimilation) ! guillaume nogueira
 !                if (nUsers == 0) stop 'KillWaterProperties - ModuleWaterProperties - ERR100'

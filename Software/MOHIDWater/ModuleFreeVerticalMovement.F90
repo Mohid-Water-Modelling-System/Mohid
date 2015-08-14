@@ -36,7 +36,8 @@
 !   CHS                         : real            [4 g/l]       !Hindered settling threshold concentration  
 !   WS_VALUE                    : real          [0.0001 m/s]    !Constant settling velocity
 !   WS_TYPE                     : int               [1]         !Settling velocity compute method 
-!                                                               !Constant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4, WSSand = 5
+!                                                               !Constant = 1, SPMFunction = 2, WSSecondaryClarifier = 3,  
+!                                                                WSPrimaryClarifier = 4, WSSand = 5, WSFlocs = 6
 !   SALTINT                     : 0/1               [0]         !Use salinity effect on settling velocity
 !   SALTINTVALUE                : real            [3 psu]       !Salinity threshold concentration for affecting
 !                                                               !settling velocity
@@ -58,15 +59,26 @@ Module ModuleFreeVerticalMovement
                                       T_THOMAS, T_D_E_F, Pad, SettlingVelSecondaryClarifier,    &
                                       SettlingVelPrimaryClarifier, InterpolateValueInTime
     use ModuleTime
-    use ModuleHorizontalGrid,   only: GetGridCellArea, UngetHorizontalGrid
+    use ModuleHorizontalGrid,   only: GetGridCellArea, GetGridOutBorderPolygon, GetXYCellZ,    &
+                                      UngetHorizontalGrid
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,      &
-                                      GetGeometryKFloor
-    use ModuleMap,              only: GetOpenPoints3D, GetLandPoints3D, UngetMap
+                                      GetGeometryKFloor, GetGeometryWaterColumn,               &
+                                      GetGeometryDistances
+    use ModuleMap,              only: GetOpenPoints3D, GetWaterPoints3D, GetLandPoints3D, UngetMap
     use ModuleEnterData,        only: ReadFileName, ConstructEnterData, GetData, Block_Unlock, &
-                                      ExtractBlockFromBuffer, KillEnterData
+                                      ExtractBlockFromBuffer, KillEnterData, GetNumberOfBlocks
     use ModuleStopWatch,        only: StartWatch, StopWatch
     
-    use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
+    use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, StartTimeSerie,  &
+                                       GetTimeSerieLocation, CorrectsCellsTimeSerie,            &
+                                       GetTimeSerieName, TryIgnoreTimeSerie,                    &
+                                       GetNumberOfTimeSeries, WriteTimeSerie, KillTimeSerie
+    
+    use ModuleTurbGOTM,         only : GetTurbGOTM_TurbEq, UnGetTurbGOTM_TurbEq
+    
+    use ModuleTurbulence,       only: GetContinuousGOTM
+    
+    use ModuleDrawing
     
 
 #ifdef _ENABLE_CUDA
@@ -91,6 +103,7 @@ Module ModuleFreeVerticalMovement
     private ::          Construct_Property  
     private ::              Construct_PropertyParameters
     private ::          Add_Property
+    private ::      Construct_Time_Serie
 
 
     !Modifier
@@ -99,6 +112,7 @@ Module ModuleFreeVerticalMovement
     private ::         VerticalFreeConvection
     private ::         CalcVerticalFreeConvFlux
     private ::         Vertical_Velocity
+    private ::      OutPut_TimeSeries
 
     !Selector 
     public  :: Get_FreeVelocity
@@ -110,6 +124,7 @@ Module ModuleFreeVerticalMovement
     public  :: UngetFreeVerticalMovement
 
     public  :: SetDepositionProbability
+    public  :: SetShearVelocity
 
     !Destructor
     public  :: Kill_FreeVerticalMovement
@@ -177,7 +192,9 @@ Module ModuleFreeVerticalMovement
         real, pointer, dimension   (: , : , :)  :: SPM                      => null()
         real, pointer, dimension   (: , : , :)  :: SalinityField            => null()
         real,    pointer, dimension(: , :    )  :: DepositionProbability    => null()
+        real,    pointer, dimension(: , :    )  :: ShearVelocity            => null()
         integer, pointer, dimension(: , :    )  :: KFloor_Z                 => null()
+        real,    dimension(:,:),  pointer       :: WaterColumn              => null()
         type(T_Time)                            :: Now
         real                                    :: DTProp           = FillValueReal
         real                                    :: IS_Coef          = FillValueReal
@@ -190,6 +207,26 @@ Module ModuleFreeVerticalMovement
         logical                                 :: Salinity = .false. !initialization: Jauch 
         logical                                 :: SPM      = .false. !initialization: Jauch
     end type   T_Options
+    
+    private :: T_Files
+    type       T_Files
+        character(Len = PathLength)           :: ConstructData  = null_str
+        character(Len = PathLength)           :: Initial    = null_str  
+        character(Len = PathLength)           :: OutPutFields   = null_str
+        character(Len = PathLength)           :: Final      = null_str
+    end type  T_Files
+    
+    type       T_OutPut         
+         integer                                    :: NextOutPut, Number, NextRestartOutput
+         logical                                    :: ON                       = .false.
+         logical                                    :: WriteRestartFile         = .false.
+         logical                                    :: RestartOverwrite         = .false.
+         logical                                    :: Run_End                  = .false. 
+         type (T_Time), dimension(:), pointer       :: OutTime, RestartOutTime  => null() 
+         real, dimension(:, :, :), pointer          :: Aux3D                    => null()
+         logical                                    :: TimeSerie                = .false.
+         logical                                    :: ProfileON                = .false.
+    end type T_OutPut
 
     type      T_FreeVerticalMovement
         private
@@ -199,6 +236,8 @@ Module ModuleFreeVerticalMovement
         type(T_External)                        :: ExternalVar
         type(T_DEF   )                          :: COEF3
         type(T_Options )                        :: Needs
+        type(T_OutPut  )                        :: OutPut
+        type (T_Files  )                        :: Files
         real, pointer, dimension(:,:,:)         :: TICOEF3  => null()
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                             :: TICOEF3Ptr
@@ -233,8 +272,15 @@ Module ModuleFreeVerticalMovement
         !Instance of ModuleMap                                          
         integer                                 :: ObjMap               = 0
         
-        !Instance of ModuleSediment
-        integer                                 :: ObjSediment          = 0
+        !Instance of ModuleTurbulence           
+        integer                                 :: ObjTurbulence        = 0
+        
+        !Instance of ModuleTurbGOTM
+        integer                                 :: ObjTurbGOTM          = 0
+        
+        !Instance of ModuleTimeSerie                                        
+        integer                                 :: ObjTimeSerie         = 0
+        
 
 #ifdef _ENABLE_CUDA        
         !Instance of ModuleCuda
@@ -271,6 +317,7 @@ Module ModuleFreeVerticalMovement
     Subroutine Construct_FreeVerticalMovement(FreeVerticalMovementID,         &
                                               TimeID, HorizontalGridID,       &
                                               MapID, GeometryID,              &
+                                              TurbulenceID, TurbGOTMID,       &
 #ifdef _ENABLE_CUDA
                                               ObjCudaID,                      &
 #endif    
@@ -282,6 +329,8 @@ Module ModuleFreeVerticalMovement
         integer                                     :: HorizontalGridID
         integer                                     :: MapID
         integer                                     :: GeometryID
+        integer                                     :: TurbulenceID
+        integer                                     :: TurbGOTMID
 #ifdef _ENABLE_CUDA
         integer                                     :: ObjCudaID
 #endif
@@ -291,7 +340,8 @@ Module ModuleFreeVerticalMovement
         integer                                     :: ready_, STAT_CALL                        
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_
+        logical                                     :: ModelGOTM, ContinuousGOTM
+        integer                                     :: STAT_, flag
  
         !----------------------------------------------------------------------
 
@@ -316,10 +366,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
+            Me%ObjTurbulence     = AssociateInstance (mTURBULENCE_,     TurbulenceID    )
             
 #ifdef _ENABLE_CUDA
             Me%ObjCuda           = AssociateInstance (mCUDA_,           ObjCudaID       )
 #endif _ENABLE_CUDA
+
+            call GetContinuousGOTM(Me%ObjTurbulence, ContinuousGOTM, ModelGOTM, STAT = STAT_CALL)
+            
+            if(ModelGOTM)then
+                Me%ObjTurbGOTM   = AssociateInstance (mTURBGOTM_,       TurbGOTMID      )
+            endif
 
             call GetGeometrySize(Me%ObjGeometry,                                        &
                                  Size       = Me%Size,                                  &
@@ -337,10 +394,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateVariables
 
             call Construct_PropertyList
+            
+            call GetData (Me%Output%TimeSerie,                  &
+                      Me%ObjEnterData, flag,                &
+                      Keyword      = 'TIME_SERIE',          &
+                      ClientModule = 'ModuleFreeVerticalMovement',    &
+                      Default      = .false.,               &
+                      STAT         = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)  &
+                stop 'Construct_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR03'
+            
+            if (Me%Output%TimeSerie)   call Construct_Time_Serie
 
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)                                                 &
-                stop 'Construct_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR03'
+                stop 'Construct_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04'
             
             STAT_ = SUCCESS_
 
@@ -679,7 +747,8 @@ cd2 :           if (BlockFound) then
             !Type             : integer 
             !Default          : WSConstant
             !File keyword     : FREE_DAT
-            !Multiple Options : WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4, WSSand = 5
+            !Multiple Options : WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4, WSSand = 5,
+            !WSFlocs = 6 
             !Search Type      : FromBlock
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
@@ -699,7 +768,9 @@ cd2 :           if (BlockFound) then
         
         if(NewProperty%Ws_Type == WSSecondaryClarifier ) Me%Needs%SPM = .true.              
         
-        if(NewProperty%Ws_Type == WSPrimaryClarifier   ) Me%Needs%SPM = .true.                      
+        if(NewProperty%Ws_Type == WSPrimaryClarifier   ) Me%Needs%SPM = .true. 
+        
+        if(NewProperty%Ws_Type == WSFlocs              ) Me%Needs%SPM = .true. 
         
         if(NewProperty%Ws_Type == WSConstant)then
             call SetMatrixValue(NewProperty%Velocity, Me%Size, NewProperty%Ws_Value)
@@ -1095,6 +1166,138 @@ cd2 :           if (BlockFound) then
 
                                                                              
     end subroutine ReadFreeVertMovFilesName
+    
+       !--------------------------------------------------------------------------
+
+    subroutine Construct_Time_Serie
+
+
+        !External--------------------------------------------------------------
+        character(len=StringLength), dimension(:), pointer  :: PropertyList
+        integer                                             :: STAT_CALL, iflag
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                          :: PropertyX
+        integer                                             :: nProperties, n
+        real                                                :: CoordX, CoordY
+        logical                                             :: CoordON, IgnoreOK
+        integer                                             :: dn, Id, Jd, TimeSerieNumber
+        character(len=PathLength)                           :: TimeSerieLocationFile
+        character(len=StringLength)                         :: TimeSerieName
+        type (T_Polygon), pointer                           :: ModelDomainLimit
+        integer, pointer, dimension(:,:,:)                  :: WaterPoints3D
+ 
+        !----------------------------------------------------------------------
+
+        
+        call GetNumberOfBlocks (Me%ObjEnterData, prop_block_begin, prop_block_end, &
+                                FromFile,                                          &
+                                nProperties,                                       &
+                                STAT = STAT_CALL)
+
+
+        !Allocates PropertyList
+        allocate(PropertyList(nProperties), STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR10'
+        
+        PropertyX   => Me%FirstProperty
+        
+        do n=1,nProperties    
+            PropertyList(n) = trim(adjustl(PropertyX%ID%name))
+            PropertyX=>PropertyX%Next
+        enddo
+
+        call GetData(TimeSerieLocationFile,                                         &
+                        Me%ObjEnterData,iflag,                                         &
+                        SearchType   = FromFile,                                       &
+                        keyword      = 'TIME_SERIE_LOCATION',                          &
+                        ClientModule = 'ModuleFreeVerticalMovement',                   &
+                        Default      = Me%Files%ConstructData,                         &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR20' 
+                
+        call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,       &
+                                        Polygon          = ModelDomainLimit,           &
+                                        STAT             = STAT_CALL)           
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR30' 
+            
+        call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL/= SUCCESS_)   &
+                stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR35'
+
+        call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                            &
+                            trim(TimeSerieLocationFile),                            &
+                            PropertyList, "srf",                                    &
+                            WaterPoints3D   = WaterPoints3D,                        &
+                            ModelDomain     = ModelDomainLimit,                     &
+                            STAT            = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR40'
+
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                    Polygon          = ModelDomainLimit,               &
+                                    STAT             = STAT_CALL)                      
+        if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR50'
+            
+        !Constructs TimeSerie
+        !Deallocates PropertyList
+        deallocate(PropertyList, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR60'
+
+        !Corrects if necessary the cell of the time serie based in the time serie coordinates
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR70'  
+
+        do dn = 1, TimeSerieNumber
+
+            call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR80'
+
+            if (IgnoreOK) cycle
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                        CoordX   = CoordX,                                &
+                                        CoordY   = CoordY,                                & 
+                                        CoordON  = CoordON,                               &
+                                        STAT     = STAT_CALL)
+                                          
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR90'  
+                                          
+            if (CoordON) then
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                    stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR100'
+                endif                           
+
+                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleWaterProperties - ERR110'
+            endif
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
+                                        LocalizationI   = Id,                             &
+                                        LocalizationJ   = Jd,                             & 
+                                        STAT     = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR120'
+
+            if (WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) then
+                    
+                    write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName)
+
+            endif
+                
+        enddo
+            
+        call UnGetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL/= SUCCESS_) stop 'Construct_Time_Serie - ModuleFreeVerticalMovement - ERR130'
+
+        
+    end subroutine Construct_Time_Serie
+
+    !--------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1153,8 +1356,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 Me%ExternalVar%SalinityField => SalinityField
             end if
 
-            if(PropertyX%Ws_Type == SPMFunction .or. PropertyX%Ws_Type == WSSecondaryClarifier .or. &
-               PropertyX%Ws_Type == WSPrimaryClarifier)then
+            if(Me%Needs%SPM )then
                 Me%ExternalVar%SPMISCoef =  SPMISCoef
                 Me%ExternalVar%SPM       => SPM
             end if
@@ -1168,6 +1370,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                         
             !Compute free vertical movement
             call FreeVerticalMovementIteration(PropertyX)
+            
+            if (Me%Output%TimeSerie)   call OutPut_TimeSeries
 
             nullify(Me%ExternalVar%Concentration)
             nullify(Me%ExternalVar%SPM)
@@ -1461,15 +1665,19 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         type(T_Property), pointer               :: PropertyX
 
         !Local-----------------------------------------------------------------
-        real,    dimension(:,:,:), pointer      :: SPM
+        real,    dimension(:,:,:), pointer      :: SPM, SZZ
         real                                    :: CHS,KL,KL1,M,ML
-        integer                                 :: I, J, K  
+        integer                                 :: I, J, K, KUB  
         real                                    :: SPMISCoef, SVI, WS
-        real                                    :: RelativeDensity
-        real(8)                                 :: SandDiameter
+        real, dimension(:,:,:), pointer         :: TKE, L, eps, P, B
+        real                                    :: BM, Seu, kM, usm, n1, WM !Macroflocs parameters
+        real                                    :: Bu, usu, s, n2, Wu !Microflocs parameters
+        real                                    :: waterdensity, KV, CellDepth, C, xi, r
+        real,  dimension(:,:), pointer          :: WaterColumnZ
         integer                                 :: CHUNK, STAT_CALL
         type (T_Time)                           :: CurrentTime
         !----------------------------------------------------------------------
+        
 
         SPM             => Me%ExternalVar%SPM
         SPMISCoef       =  Me%ExternalVar%SPMISCoef
@@ -1604,9 +1812,113 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 call SetMatrixValue(PropertyX%Velocity, Me%Size, PropertyX%Ws_Value)
             endif
             
-        elseif(PropertyX%Ws_Type == WSSand) then            
+        elseif(PropertyX%Ws_Type == WSSand) then   
+        !The settling velocity of a non-cohesive ("sand") sediment fraction 
+        !is computed following the method of Van Rijn (1993) - see subroutine SetSandParameters
             
-            call SetMatrixValue(PropertyX%Velocity, Me%Size, PropertyX%Ws_Value)           
+            call SetMatrixValue(PropertyX%Velocity, Me%Size, PropertyX%Ws_Value) 
+            
+        elseif(PropertyX%Ws_Type == WSFlocs) then
+        !Method based on Soulsby et al. (2013)
+            
+            call GetTurbGOTM_TurbEq(Me%ObjTurbGOTM,     &
+                                    TKE, eps, L, P, B,  &
+                                    STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*)
+                write(*,*) 'Module GOTM must be activated to use the option WS_TYPE : 6'
+                write(*,*) 'To activate module GOTM define in module Turbulence the option' 
+                write(*,*) 'MODTURB: turbulence_equation '
+                stop 'Vertical_Velocity - ModuleFreeVerticalMovement - ERR20'
+            endif
+            
+            call GetGeometryWaterColumn(Me%ObjGeometry,                                 &
+                                        WaterColumn = WaterColumnZ,       &
+                                        STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'Vertical_Velocity - ModuleFreeVerticalMovement - ERR30'
+            
+            call GetGeometryDistances (Me%ObjGeometry, SZZ = SZZ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Vertical_Velocity - ModuleFreeVerticalMovement - ERR40'
+            
+            KUB = Me%WorkSize%KUB
+            
+            !Macroflocs parameters
+            BM = 0.860
+            Seu = 1.15
+            !du = 10e-4 ![m]
+            kM = 0.0825
+            usm = 0.067 ![m.s-1]
+            n1 = 0.463
+            
+            !Microflocs parameters
+            Bu = 0.363
+            usu = 0.025 ![m.s-1]
+            s = 2.6368
+            !d1 = 10e-5 ![m]
+            n2 = 0.66
+            
+            KV = 1.3e-6 !Kinematic viscosity [m2/s]
+            waterdensity = 1000 ![kg/m3]
+            
+            !d4**4/KV**3 = 455166
+            !d1**4/KV**3 = 45.5166
+            
+            do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                if (Me%ExternalVar%OpenPoints3D(i, j, k)== OpenPoint) then
+                    
+                    if (Me%ExternalVar%ShearVelocity(i,j) > 0. .and.    &
+                        SPM(i,j,k) > 0.) then
+                    
+                        c = SPM(i,j,k)/waterdensity
+                    
+                        CellDepth = (SZZ(i, j, k) + SZZ(i, j, k - 1)) / 2 - SZZ(i, j, KUB) 
+                    
+                        xi = 1 - CellDepth/WaterColumnZ(i,j)
+            
+                        WM = BM * (Seu -1) * (eps(i,j,k) * 455166)**0.166 * gravity * c**(2.672*kM) * &
+                            (KV/eps(i,j,k))**0.5 * exp(-(usm / (Me%ExternalVar%ShearVelocity(i,j) * xi**0.5))**n1)
+                    
+                        Wu = Bu * (s -1) * (eps(i,j,k) * 45.5166)**0.39 * gravity * (KV/eps(i,j,k))**0.5 * &
+                             exp(-(usu / (Me%ExternalVar%ShearVelocity(i,j) * xi**0.5))**n2)
+            
+                
+                        if (log(SPM(i,j,k)) < 0.) then
+                            r = 0.1
+                        elseif (log(SPM(i,j,k)) < 4.07) then
+                            r = 0.1 + 0.221 * log(SPM(i,j,k))
+                        elseif (log(SPM(i,j,k)) >= 4.0) then
+                            r = 1
+                        endif
+                    
+                        WS = r * WM + (1 - r) * Wu
+                        WS = max(WS, 0.0002) 
+                         
+                        !the settling velocity is negative
+                        PropertyX%Velocity(i, j, k) = - WS
+                    else 
+                        PropertyX%Velocity(i, j, k) = - 0.0002
+                    endif
+                    
+                endif
+            enddo
+            enddo
+            enddo
+            
+            call UnGetTurbGOTM_TurbEq(Me%ObjTurbGOTM,     &
+                                     TKE, eps, L, P, B,   &
+                                     STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Vertical_Velocity - ModuleFreeVerticalMovement - ERR50'
+            
+            call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Vertical_Velocity - ModuleFreeVerticalMovement - ERR60'
+            
+            call UnGetGeometry(Me%ObjGeometry,SZZ, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'Vertical_Velocity - ModuleFreeVerticalMovement - ERR70'
+            
             
         end if
         
@@ -1753,6 +2065,40 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
 
 
     end subroutine BottomBoundary
+    
+    !--------------------------------------------------------------------------
+
+    subroutine OutPut_TimeSeries
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer              :: PropertyX
+        real, dimension(:,:,:), pointer         :: WS
+        integer                                 :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+
+        !Calls Time Serie for every property
+        PropertyX   => Me%FirstProperty
+        do while (associated(PropertyX))
+            
+            WS => PropertyX%Velocity
+            
+            !To write positive values
+            WS(:,:,:) = - WS(:,:,:)
+           
+            call WriteTimeSerie(Me%ObjTimeSerie,                                     &
+                                Data3D = WS, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                               &
+                stop 'OutPut_TimeSeries - ModuleFreeVerticalMovement - ERR01'
+                
+            PropertyX=>PropertyX%Next
+
+        enddo
+
+    
+    end subroutine OutPut_TimeSeries
+
+    !--------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2112,6 +2458,45 @@ cd1 :   if (ready_ == IDLE_ERR_)then
     
     !----------------------------------------------------------------------
     
+    subroutine SetShearVelocity(FreeVerticalMovementID, ShearVelocity, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                             :: FreeVerticalMovementID
+        real,    pointer, dimension(:,:)    :: ShearVelocity
+        integer, optional, intent(OUT)      :: STAT
+
+        !External--------------------------------------------------------------
+        integer                             :: ready_              
+        
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_            
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FreeVerticalMovementID, ready_)  
+        
+cd1 :   if (ready_ == IDLE_ERR_)then
+
+            Me%ExternalVar%ShearVelocity => ShearVelocity
+            
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine SetShearVelocity
+    
+    !----------------------------------------------------------------------
+        
     subroutine SetSandParameters(FreeVerticalMovementID, PropertyID, SandDiameter, RelativeDensity, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2140,7 +2525,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
                                  PropertyXID    = PropertyID,                           &
                                  STAT           = STAT_CALL)
             if (STAT_CALL .ne. SUCCESS_)                                                &
-                stop 'Modify_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR02'
+                stop 'SetSandParameters - ModuleFreeVerticalMovement - ERR02'
 
             if(PropertyX%Ws_Type == WSSand) then
             
@@ -2229,6 +2614,12 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
 
                 nUsers = DeassociateInstance(mMAP_,             Me%ObjMap)
                 if (nUsers == 0) stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04'
+                
+                nUsers = DeassociateInstance(mTURBULENCE_,      Me%ObjTurbulence)
+                if (nUsers == 0) stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04a'
+                
+                nUsers = DeassociateInstance(mTURBGOTM_,        Me%ObjTurbGOTM)
+                if (nUsers == 0) stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04b'
 
 #ifdef _USE_PAGELOCKED
                 ! FreePageLocked will also nullify the pointers and arrays

@@ -777,6 +777,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                            AssimilationID   = Me%ObjAssimilation,       &
                                            DischargesID     = Me%ObjDischarges,         &
                                            FreeVerticalMovementID = Me%ObjFreeVerticalMovement, &
+                                           TurbGOTMID       = Me%ObjTurbGOTM,           &
 #ifdef _ENABLE_CUDA
                                            CudaID           = Me%ObjCuda,                 &
 #endif _ENABLE_CUDA

@@ -1598,7 +1598,7 @@ Module ModuleGlobalData
     integer, parameter :: Father3DSon2D      = 3
 
     !Methodologies use to compute sedimentation velocity of fine sediments
-    integer, parameter :: WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4
+    integer, parameter :: WSConstant = 1, SPMFunction = 2, WSSecondaryClarifier = 3, WSPrimaryClarifier = 4, WSFlocs = 6
     
     !Methodologies use to compute sedimentation velocity of sand
     integer, parameter :: WSSand = 5
