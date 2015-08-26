@@ -267,7 +267,7 @@ Module ModuleWaterProperties
 #endif _USE_MPI
                                           
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
-                                          GetMLD_Surf, GetContinuousGOTM, UnGetTurbulence
+                                          GetMLD_Surf, UnGetTurbulence
     use ModuleHydrodynamic,         only: GetWaterFluxes, GetWaterLevel, GetDischargesFluxes,   &
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
                                           GetXZFlow, GetHydrodynamicAirOptions,                 &
@@ -1381,10 +1381,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 #ifdef _ENABLE_CUDA
             Me%ObjCuda           = AssociateInstance (mCUDA_,           CudaID          )
 #endif
-
-            call GetContinuousGOTM(Me%ObjTurbulence, ContinuousGOTM, ModelGOTM, STAT = STAT_CALL)
             
-            if(ModelGOTM)then
+            if(TurbGOTMID /= 0)then
                 Me%ObjTurbGOTM       = AssociateInstance (mTURBGOTM_,       TurbGOTMID    )
             endif
 
@@ -24503,8 +24501,10 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 nUsers = DeassociateInstance(mHYDRODYNAMIC_,    Me%ObjHydrodynamic)
                 if (nUsers == 0) stop 'KillWaterProperties - ModuleWaterProperties - ERR90'
                 
-                nUsers = DeassociateInstance(mTURBGOTM_,        Me%ObjTurbGOTM)
-                if (nUsers == 0) stop 'KillWaterProperties - ModuleWaterProperties - ERR100'
+                if(Me%ObjTurbGOTM /= 0)then
+                    nUsers = DeassociateInstance(mTURBGOTM_,        Me%ObjTurbGOTM)
+                    if (nUsers == 0) stop 'KillWaterProperties - ModuleWaterProperties - ERR100'
+                endif
 
 !                nUsers = DeassociateInstance(mASSIMILATION_,    Me%ObjAssimilation) ! guillaume nogueira
 !                if (nUsers == 0) stop 'KillWaterProperties - ModuleWaterProperties - ERR100'

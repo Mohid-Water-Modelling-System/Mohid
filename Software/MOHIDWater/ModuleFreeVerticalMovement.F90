@@ -76,8 +76,6 @@ Module ModuleFreeVerticalMovement
     
     use ModuleTurbGOTM,         only : GetTurbGOTM_TurbEq, UnGetTurbGOTM_TurbEq
     
-    use ModuleTurbulence,       only: GetContinuousGOTM
-    
     use ModuleDrawing
     
 
@@ -272,9 +270,6 @@ Module ModuleFreeVerticalMovement
         !Instance of ModuleMap                                          
         integer                                 :: ObjMap               = 0
         
-        !Instance of ModuleTurbulence           
-        integer                                 :: ObjTurbulence        = 0
-        
         !Instance of ModuleTurbGOTM
         integer                                 :: ObjTurbGOTM          = 0
         
@@ -366,15 +361,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
-            Me%ObjTurbulence     = AssociateInstance (mTURBULENCE_,     TurbulenceID    )
             
 #ifdef _ENABLE_CUDA
             Me%ObjCuda           = AssociateInstance (mCUDA_,           ObjCudaID       )
 #endif _ENABLE_CUDA
-
-            call GetContinuousGOTM(Me%ObjTurbulence, ContinuousGOTM, ModelGOTM, STAT = STAT_CALL)
             
-            if(ModelGOTM)then
+            if(TurbGOTMID /= 0)then
                 Me%ObjTurbGOTM   = AssociateInstance (mTURBGOTM_,       TurbGOTMID      )
             endif
 
@@ -2615,11 +2607,10 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                 nUsers = DeassociateInstance(mMAP_,             Me%ObjMap)
                 if (nUsers == 0) stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04'
                 
-                nUsers = DeassociateInstance(mTURBULENCE_,      Me%ObjTurbulence)
-                if (nUsers == 0) stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04a'
-                
-                nUsers = DeassociateInstance(mTURBGOTM_,        Me%ObjTurbGOTM)
-                if (nUsers == 0) stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04b'
+                if(Me%ObjTurbGOTM /= 0)then
+                    nUsers = DeassociateInstance(mTURBGOTM_,        Me%ObjTurbGOTM)
+                    if (nUsers == 0) stop 'Kill_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04b'
+                endif
                 
                  if (Me%Output%TimeSerie) then
                     call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
