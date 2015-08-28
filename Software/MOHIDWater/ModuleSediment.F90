@@ -53,7 +53,7 @@ Module ModuleSediment
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,                  &
                                        GetHorizontalGridSize, UnGetHorizontalGrid, GetXYCellZ,  &
                                        GetGridCellArea, GetDDecompMPI_ID, GetDDecompON,         &
-                                       GetGridOutBorderPolygon
+                                       GetGridOutBorderPolygon, RotateVectorGridToField
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, BoxDif,         &
                                        UngetBoxDif, KillBoxDif
     use ModuleGeometry,         only:  GetGeometrySize, UnGetGeometry,                      &
@@ -107,7 +107,8 @@ Module ModuleSediment
     public  :: GetCriticalShearStress
     public  :: GetConcRef
     public  :: GetReferenceLevel
-    public  :: GetSandD50
+    !public  :: GetSandD50
+    public  :: SetWaveTensionON
     public  :: UnGetSediment
     
     !Modifier
@@ -118,6 +119,7 @@ Module ModuleSediment
     private ::      ComputeCriticalShearStress
     private ::      ComputeReferenceConcentration
     private ::      ComputeBedload
+    private ::          Cohesiveness_Adjust
     private ::          CurrentOnly
     private ::          CurrentPlusWaves
     private ::          WavesOnly
@@ -158,6 +160,8 @@ Module ModuleSediment
     private :: UnGetSediment2D_I
     private :: UnGetSediment2D_R8
     private :: UnGetSediment2D_R4
+    private :: UnGetSediment3Dreal8
+    private :: UnGetSediment3Dreal4
     interface  UnGetSediment
         module procedure UnGetSediment2D_I
         module procedure UnGetSediment2D_R4
@@ -206,17 +210,15 @@ Module ModuleSediment
         real,    pointer, dimension(:,:)        :: WaveDirection    => null()
         real,    pointer, dimension(:,:)        :: Abw              => null()
         real,    pointer, dimension(:,:)        :: Ubw              => null()
-        real,    pointer, dimension(:,:)        :: ShearStress         => null()
-        real,    pointer, dimension(:,:)        :: CurrentRugosity  => null()
-        real,    pointer, dimension(:,:)        :: WaveRugosity     => null()
+        real,    pointer, dimension(:,:)        :: ShearStress      => null()
+        real,    pointer, dimension(:,:)        :: ShearStressMean  => null()
         real,    pointer, dimension(:,:)        :: VelU             => null()
         real,    pointer, dimension(:,:)        :: VelV             => null()
-        real,    pointer, dimension(:,:)        :: VelU_Face        => null()
-        real,    pointer, dimension(:,:)        :: VelV_Face        => null()
         real,    pointer, dimension(:,:)        :: VelMod           => null()
         real,    pointer, dimension(:,:)        :: TauWave          => null()
-        real,    pointer, dimension(:,:)        :: TauCurrent       => null()
-        real,    pointer, dimension(:,:)        :: ShearVelocity    => null()    
+        real,    pointer, dimension(:,:)        :: Cphi             => null()
+        real,    pointer, dimension(:,:)        :: CWphi            => null()
+        real,    pointer, dimension(:,:)        :: Wphi             => null()
         real,    pointer, dimension(:,:)        :: WaveHeight       => null()
         real,    pointer, dimension(:,:)        :: WavePeriod       => null()
         !Sediment
@@ -282,6 +284,8 @@ Module ModuleSediment
         real(8), dimension(:,:), pointer        :: FluxY                 => null ()
         real,    dimension(:,:), pointer        :: FluxToSediment        => null ()
         real(8), dimension(:,:), pointer        :: Bedload               => null ()
+        real(8), dimension(:,:), pointer        :: BedloadX              => null ()
+        real(8), dimension(:,:), pointer        :: BedloadY              => null ()
         real,    dimension(:,:), pointer        :: CriticalShearStress   => null ()
         real, dimension(:,:), pointer           :: NDCriticalShearStress => null ()
         real(8), dimension(:,:), pointer        :: DM                    => null ()
@@ -364,7 +368,8 @@ Module ModuleSediment
         real, dimension(:, :), pointer             :: D50                   => null () 
         real, dimension(:, :), pointer             :: SandD50               => null () 
         real, dimension(:, :), pointer             :: NDShearStress         => null ()
-        !real, dimension(:, :), pointer             :: ConcRef               => null ()
+        real, dimension(:, :), pointer             :: NDShearStressWaves    => null ()
+        real, dimension(:, :), pointer             :: NDShearStressMean     => null ()
         real(8), dimension(:,:), pointer           :: FluxX                 => null ()
         real(8), dimension(:,:), pointer           :: FluxY                 => null ()
         real(8), dimension(:,:), pointer           :: Bedload               => null ()
@@ -400,6 +405,7 @@ Module ModuleSediment
         integer                                    :: BedloadMethod        = FillValueInt
         integer                                    :: RefConcMethod        = FillValueInt
         logical                                    :: BedSlopeEffects      = .false.
+        logical                                    :: WavesOn              = .false.
         
         !Instance of ModuleHDF5        
         integer                                    :: ObjHDF5               = 0
@@ -491,7 +497,7 @@ Module ModuleSediment
         !External----------------------------------------------------------------
         integer                                         :: ready_, STAT_CALL
         !real                                            :: WaterDensity
-        logical                                         :: WaveTensionON
+        !logical                                         :: WaveTensionON
 
         !Local-------------------------------------------------------------------
         integer                                         :: STAT_
@@ -501,7 +507,7 @@ Module ModuleSediment
         STAT_ = UNKNOWN_
         
         !Jauch: Defined here because it will be passed as argument in the near future... :P
-        WaveTensionON = .false.
+        !WaveTensionON = .false.
 
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mSediment_)) then
@@ -531,7 +537,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             end if
 
             Me%ExternalVar%WaterDensity  = SigmaDensityReference
-            Me%ExternalVar%WaveTensionON = WaveTensionON
+            !Me%ExternalVar%WaveTensionON = WaveTensionON
 
             call GetHorizontalGridSize(Me%ObjHorizontalGrid,                             &
                                        Size        = Me%Size,                            &
@@ -738,7 +744,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             if (Me%ObjWaves == 0) stop 'ConstructGlobalParameters - ModuleSediment - ERR16' 
 
-            if (.not. Me%ExternalVar%WaveTensionON) stop 'ConstructGlobalParameters - ModuleSediment - ERR20' 
+            !if (.not. Me%ExternalVar%WaveTensionON) stop 'ConstructGlobalParameters - ModuleSediment - ERR20' 
+            
+            Me%WavesOn = .true. 
 
         endif
             
@@ -874,8 +882,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%NDShearStress (ILB:IUB, JLB:JUB))
         Me%NDShearStress(:,:) = FillValueReal
         
-        !allocate(Me%ConcRef (ILB:IUB, JLB:JUB))
-        !Me%ConcRef(:,:) = 0.
+        if (Me%WavesOn) then
+            allocate(Me%NDShearStressWaves (ILB:IUB, JLB:JUB))
+            Me%NDShearStressWaves(:,:) = FillValueReal
+            
+            allocate(Me%NDShearStressMean (ILB:IUB, JLB:JUB))
+            Me%NDShearStressMean(:,:) = FillValueReal
+        endif
         
         allocate(Me%Dast (ILB:IUB, JLB:JUB))
         Me%Dast(:,:) = FillValueReal
@@ -1694,6 +1707,14 @@ cd2 :           if (BlockFound) then
                     
                     allocate(Me%SandClass(n)%ConcRef(ILB:IUB, JLB:JUB))
                     Me%SandClass(n)%ConcRef(:,:) = 0.  
+                    
+                    if (Me%WavesOn) then
+                        allocate(Me%SandClass(n)%BedloadX(ILB:IUB, JLB:JUB))
+                        Me%SandClass(n)%BedloadX(:,:) = null_real
+                        
+                        allocate(Me%SandClass(n)%BedloadY(ILB:IUB, JLB:JUB))
+                        Me%SandClass(n)%BedloadY(:,:) = null_real
+                    endif
                     
                 else cd2
 
@@ -2904,7 +2925,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
 
-            call Read_Lock(mSediment_, Me%InstanceID)
+            !call Read_Lock(mSediment_, Me%InstanceID)
 
             ReferenceLevel = Me%ReferenceLevel
 
@@ -2921,43 +2942,43 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     
     !--------------------------------------------------------------------------
         
-    subroutine GetSandD50(ObjSedimentID, SandD50, STAT) 
-
-        !Arguments-------------------------------------------------------------
-        integer                                     :: ObjSedimentID
-        real, dimension(:,:),  pointer              :: SandD50
-        integer, optional, intent(OUT)              :: STAT
-
-        !External--------------------------------------------------------------
-        integer                                     :: ready_        
-
-        !Local-----------------------------------------------------------------
-        integer                                     :: STAT_
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(ObjSedimentID, ready_)
-        
-cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-
-
-            call Read_Lock(mSediment_, Me%InstanceID)
-
-            SandD50 => Me%SandD50
-
-
-            STAT_ = SUCCESS_
-        else 
-            STAT_ = ready_
-        end if cd1
-
-
-        if (present(STAT)) STAT = STAT_
-    
-    end subroutine GetSandD50
+!    subroutine GetSandD50(ObjSedimentID, SandD50, STAT) 
+!
+!        !Arguments-------------------------------------------------------------
+!        integer                                     :: ObjSedimentID
+!        real, dimension(:,:),  pointer              :: SandD50
+!        integer, optional, intent(OUT)              :: STAT
+!
+!        !External--------------------------------------------------------------
+!        integer                                     :: ready_        
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: STAT_
+!
+!        !----------------------------------------------------------------------
+!
+!        STAT_ = UNKNOWN_
+!
+!        call Ready(ObjSedimentID, ready_)
+!        
+!cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+!            (ready_ .EQ. READ_LOCK_ERR_)) then
+!
+!
+!            call Read_Lock(mSediment_, Me%InstanceID)
+!
+!            SandD50 => Me%SandD50
+!
+!
+!            STAT_ = SUCCESS_
+!        else 
+!            STAT_ = ready_
+!        end if cd1
+!
+!
+!        if (present(STAT)) STAT = STAT_
+!    
+!    end subroutine GetSandD50
     
     !--------------------------------------------------------------------------
  
@@ -3052,72 +3073,50 @@ do1:        do n=1,Me%NumberOfClasses
     end subroutine SetNonCohesiveFlux
 
     !--------------------------------------------------------------------------
-    
-    !--------------------------------------------------------------------------
-    subroutine GetClasses (ObjSedimentID, Classes, STAT)
+       
+    subroutine SetWaveTensionON(ObjSedimentID, WaveTensionON, STAT)
+        
         !Arguments-------------------------------------------------------------
-        integer                                         :: ObjSedimentID
-        type (T_Sand), dimension(:), pointer           :: Classes
-        integer, intent(OUT), optional                  :: STAT
+        integer                                 :: ObjSedimentID
+        logical                                 :: WaveTensionON
+        integer, optional, intent(OUT)          :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                         :: STAT_, ready_
-
+        integer                                 :: STAT_            
+        integer                                 :: ready_
+        
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(ObjSedimentID, ready_)
-
-        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+        call Ready(ObjSedimentID, ready_)  
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            call Read_Lock(mSediment_, Me%InstanceID)
-                Classes => Me%SandClass
+            Me%ExternalVar%WaveTensionON = WaveTensionON
             
             STAT_ = SUCCESS_
 
-        else 
+        else cd1
+
             STAT_ = ready_
-        end if
+
+        end if cd1
 
         if (present(STAT)) STAT = STAT_
     
-    end subroutine GetClasses 
-    !--------------------------------------------------------------------------
-
-    subroutine UnGetSandClass(ObjSedimentID, Classes, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                                         :: ObjSedimentID
-        type (T_Sand), dimension(:), pointer            :: Classes
-        integer, intent(OUT), optional                  :: STAT
-
-        !Local-----------------------------------------------------------------
-        integer                                         :: STAT_, ready_
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(ObjSedimentID, ready_)
-
-        if (ready_ .EQ. READ_LOCK_ERR_) then
-
-            nullify(Classes)
-            call Read_Unlock(mSediment_, Me%InstanceID, "UnGetSandClass")
-
-            STAT_ = SUCCESS_
-        else               
-            STAT_ = ready_
-        end if
-
-        if (present(STAT)) STAT = STAT_
-
-    end subroutine UnGetSandClass
+        if(Me%WavesOn) then
+            if (.not. Me%ExternalVar%WaveTensionON) then                
+                write(*,*)
+                write(*,*) 'Define WAVETENSION: 1 in module InterfaceSedimentWater'
+                stop 'SetWaveTensionON - ModuleSediment - ERR10'
+            endif
+        endif
+        
+    end subroutine SetWaveTensionON
 
     !--------------------------------------------------------------------------
-
     subroutine UnGetSediment2D_I(ObjSedimentID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -3297,16 +3296,15 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifySediment(ObjSedimentID, ShearStress, CurrentRugosity, WaveRugosity,   &
-                          VelU, VelV, VelMod, TauWave, TauCurrent, &
-                          ShearVelocity, VelU_Face, VelV_Face, STAT)
+    subroutine ModifySediment(ObjSedimentID, ShearStress, VelU, VelV, VelMod,    &
+                              TauWave, ShearStressMean, Cphi, CWphi, Wphi, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjSedimentID
-        real, dimension(:,:), pointer               :: ShearStress, CurrentRugosity, WaveRugosity, &
-                                                       VelU, VelV, VelMod,         &
-                                                       TauWave, TauCurrent, ShearVelocity,      &
-                                                       VelU_Face, VelV_Face     
+        real, dimension(:,:), pointer               :: ShearStress,  &
+                                                       VelU, VelV, VelMod,           &
+                                                       TauWave, ShearStressMean, &
+                                                       Cphi, CWphi, Wphi   
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3324,20 +3322,18 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
 do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment) 
 
-                    Me%ExternalVar%ShearStress        => ShearStress
-
-                    Me%ExternalVar%CurrentRugosity => CurrentRugosity
-                    Me%ExternalVar%WaveRugosity    => WaveRugosity
+                    Me%ExternalVar%ShearStress     => ShearStress                    
 
                     Me%ExternalVar%VelU            => VelU
                     Me%ExternalVar%VelV            => VelV
                     Me%ExternalVar%VelMod          => VelMod
-                    Me%ExternalVar%VelU_Face       => VelU_Face
-                    Me%ExternalVar%VelV_Face       => VelV_Face
 
                     Me%ExternalVar%TauWave         => TauWave
-                    Me%ExternalVar%TauCurrent      => TauCurrent
-                    Me%ExternalVar%ShearVelocity   => ShearVelocity
+                    Me%ExternalVar%ShearStressMean => ShearStressMean
+                    
+                    Me%ExternalVar%Cphi            => Cphi
+                    Me%ExternalVar%CWphi           => CWphi
+                    Me%ExternalVar%Wphi            => Wphi
                     
                     call ComputeOpenSediment
 
@@ -3345,7 +3341,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                         
                     call ComputeNDShearStress
                     
-                    !call ComputeCriticalShearStress
+                    call ComputeCriticalShearStress
                         
                     if (Me%BedloadMethod /= 0) then
                     
@@ -3414,7 +3410,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     
                     call ComputeD50Cell
                     
-                    call ComputeCriticalShearStress
+                    !call ComputeCriticalShearStress
                     
                     call ComputeReferenceConcentration
 
@@ -3526,7 +3522,12 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
         WJLB = Me%SedimentWorkSize3D%JLB
         WJUB = Me%SedimentWorkSize3D%JUB
         
-        Me%NDShearStress(:,:) = FillValueReal
+        Me%NDShearStress(:,:) = 0.
+        
+        if (Me%WavesOn) then
+            Me%NDShearStressMean(:,:) = 0.
+            Me%NDShearStressWaves(:,:) = 0.
+        endif
         
         do j=WJLB, WJUB
         do i=WILB, WIUB
@@ -3534,7 +3535,13 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
             if ((Me%OpenSediment(i,j) == OpenPoint .and. Me%SandD50(i,j) > 0.)) then
                 
                 Me%NDShearStress(i,j) = Me%ExternalVar%ShearStress(i,j)/(Me%DeltaDensity*Gravity*Me%SandD50(i,j))
-                 
+                
+                if (Me%WavesOn) then
+                    
+                    Me%NDShearStressMean(i,j) = Me%ExternalVar%ShearStressMean(i,j)/(Me%DeltaDensity*Gravity*Me%SandD50(i,j))
+                
+                    Me%NDShearStressWaves(i,j) =  Me%ExternalVar%TauWave(i,j)/(Me%DeltaDensity*Gravity*Me%SandD50(i,j))
+                endif                 
             endif
         enddo
         enddo
@@ -3879,7 +3886,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
         class(T_Sand), pointer :: SandClass
         
         !Local-----------------------------------------------------------------
-        real    ::  A,n1,p,DeltaTau,NDBedload
+        real    ::  A,n1,p,DeltaTau,NDBedload,Cohesiveness_Factor
         integer :: i, j, n
         integer :: WILB, WIUB, WJLB, WJUB, WKUB
         !----------------------------------------------------------------------
@@ -3923,17 +3930,13 @@ do1:    do n=1,Me%NumberOfClasses
                             
                             if (Me%CohesiveClass%Run) then
                                 
-                                if (Me%CohesiveClass%Field3D(i,j,WKUB) > Me%CohesiveClass%PM1(i,j)) then
-                                    
-                                    if(Me%CohesiveClass%Field3D(i,j,WKUB) > Me%CohesiveClass%PM2) then
-                                        !Fully cohesive bed - bedload is not possible 
-                                        SandClass%BedLoad(i, j) = 0.
-                                    else
-                                        !Cohesive bed - bedload decreases linearly with mud content 
-                                        SandClass%BedLoad(i, j) = (Me%CohesiveClass%PM2 - Me%CohesiveClass%Field3D(i,j,WKUB))/        &
-                                            (Me%CohesiveClass%PM2 - Me%CohesiveClass%PM1(i,j)) * SandClass%BedLoad(i, j)
-                                    endif
-                                endif
+                                Cohesiveness_Factor =                                                         &
+                                Cohesiveness_Adjust(Cohesive_Percentage = Me%CohesiveClass%Field3D(i,j,WKUB), &
+                                                    PM1                 = Me%CohesiveClass%PM1(i,j),          &
+                                                    PM2                 = Me%CohesiveClass%PM2)
+                                
+                                SandClass%BedLoad(i, j) = Cohesiveness_Factor * SandClass%BedLoad(i, j)    
+                            
                             endif
                         
                             Me%Bedload(i, j) = Me%Bedload(i, j) + SandClass%Bedload(i, j)
@@ -3949,7 +3952,108 @@ do1:    do n=1,Me%NumberOfClasses
 
     !--------------------------------------------------------------------------
 
-    subroutine CurrentPlusWavesBedload 
+    subroutine CurrentPlusWavesBedload
+    
+        !Arguments-------------------------------------------------------------
+        class(T_Sand), pointer :: SandClass
+        
+        !Local-----------------------------------------------------------------
+        real    :: A, n1, p, DeltaTau, NDBedload, Cohesiveness_Factor
+        real    :: NDBedload1, NDBedload2, Cphi, CWphi, Asym_Factor
+        real    :: NDBedloadNormal,NDBedloadParallel, NDBedloadX, NDBedloadY, aux
+        integer :: i, j, n
+        integer :: WILB, WIUB, WJLB, WJUB, WKUB
+        
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        
+        !Begin----------------------------------------------------------------
+        
+        WILB = Me%SedimentWorkSize3D%ILB
+        WIUB = Me%SedimentWorkSize3D%IUB
+        WJLB = Me%SedimentWorkSize3D%JLB
+        WJUB = Me%SedimentWorkSize3D%JUB
+        
+        Me%Bedload(:, :) = 0.
+        
+        Asym_Factor = 0.2
+        
+do1:    do n=1,Me%NumberOfClasses
+    
+            SandClass => Me%SandClass(n)
+            
+            A = SandClass%parameter_A
+            n1 = SandClass%parameter_n
+            p = SandClass%parameter_p
+            
+            SandClass%Bedload(:, :) = 0.
+            
+            do j=WJLB, WJUB
+            do i=WILB, WIUB
+                
+                WKUB = Me%KTop(i, j)
+
+                if (Me%OpenSediment(i,j) == OpenPoint) then
+                    
+                    if(SandClass%Field3D(i,j,WKUB) > 0.) then                        
+                    
+                        DeltaTau = Me%NDShearStress(i, j)-SandClass%NDCriticalShearStress(i, j)                  
+                    
+                        if (DeltaTau.GT.0.) then
+                            
+                            Cphi = Me%ExternalVar%Cphi(i,j) * pi/180. !Current angle in radians
+                        
+                            CWphi = Me%ExternalVar%CWphi(i,j) * pi/180. !Current-wave angle in radians
+                            
+                            !Dimensionless bedload tranport rate paralell to the current direction
+                            NDBedload1 = A*Me%NDShearStressMean(i, j)**n1*DeltaTau**p * SandClass%Field3D(i,j,WKUB)
+                            
+                            NDBedload2 = A*(0.9534 + 0.1904 * cos(2*CWphi)) * &
+                                         Me%NDShearStressWaves(i,j)**0.5 * Me%NDShearStressMean(i, j) + &
+                                         A*0.229*Asym_Factor* Me%NDShearStressWaves(i,j)**1.5 * cos(CWphi)
+                            
+                            NDBedloadParallel = max(NDBedload1, abs(NDBedload2))
+                            
+                            !Dimensionless bedload tranport rate normal to the current direction
+                            NDBedloadNormal = A*0.1907 * Me%NDShearStressWaves(i,j)**2 /        &
+                                            (Me%NDShearStressWaves(i,j)**1.5 + 1.5*Me%NDShearStressMean(i,j)**1.5) *    &
+                                            (Me%NDShearStressMean(i,j)*sin(2*CWphi) + 1.2*Asym_Factor*Me%NDShearStressWaves(i,j)*sin(CWphi)) 
+                            
+                            NDBedload = (NDBedloadParallel**2 + NDBedloadNormal**2)**0.5
+                            
+                            !Rotation to cartesian convention
+                            NDBedloadX = NDBedloadParallel * cos(Cphi) - NDBedloadNormal * sin(Cphi)
+                            NDBedloadY = NDBedloadParallel * sin(Cphi) + NDBedloadNormal * cos(Cphi)
+                            
+                            aux = (gravity*(Me%RelativeDensity-1)*    &
+                                Me%SandD50(i, j)**3)**(1./2.)*Me%Density
+                            
+                            !Bedload transport rate per unit width [kg/s/m]
+                            SandClass%BedLoad(i, j)  = NDBedload  * aux
+                            SandClass%BedLoadX(i, j) = NDBedloadX * aux
+                            SandClass%BedLoadY(i, j) = NDBedloadY * aux
+                            
+                            if (Me%CohesiveClass%Run) then
+                                
+                                Cohesiveness_Factor =                                                         &
+                                Cohesiveness_Adjust(Cohesive_Percentage = Me%CohesiveClass%Field3D(i,j,WKUB), &
+                                                    PM1                 = Me%CohesiveClass%PM1(i,j),          &
+                                                    PM2                 = Me%CohesiveClass%PM2)
+                                
+                                SandClass%BedLoad(i, j)  = Cohesiveness_Factor * SandClass%BedLoad(i, j)
+                                SandClass%BedLoadX(i, j) = Cohesiveness_Factor * SandClass%BedLoadX(i, j)
+                                SandClass%BedLoadY(i, j) = Cohesiveness_Factor * SandClass%BedLoadY(i, j)
+                            
+                            endif                            
+                        
+                            Me%Bedload(i, j) = Me%Bedload(i, j) + SandClass%Bedload(i, j)
+                            
+                        endif
+                    endif
+                endif
+            enddo
+            enddo
+        enddo do1
         
     end subroutine CurrentPlusWavesBedload
 
@@ -3957,8 +4061,109 @@ do1:    do n=1,Me%NumberOfClasses
     
     subroutine WavesOnlyBedload
         !Arguments-------------------------------------------------------------
+        class(T_Sand), pointer :: SandClass
+        
+        !Local-----------------------------------------------------------------
+        real    :: A, DeltaTau, NDBedload,Cohesiveness_Factor
+        real    :: Wphi, aux, Asym_Factor
+        integer :: i, j, n
+        integer :: WILB, WIUB, WJLB, WJUB, WKUB
+        
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        
+        !Begin----------------------------------------------------------------
+        
+        WILB = Me%SedimentWorkSize3D%ILB
+        WIUB = Me%SedimentWorkSize3D%IUB
+        WJLB = Me%SedimentWorkSize3D%JLB
+        WJUB = Me%SedimentWorkSize3D%JUB
+        
+        Me%Bedload(:, :) = 0.
+        
+        Asym_Factor = 0.2
+        
+do1:    do n=1,Me%NumberOfClasses
+    
+            SandClass => Me%SandClass(n)
+            
+            A = SandClass%parameter_A
+            
+            SandClass%Bedload(:, :) = 0.
+            
+            do j=WJLB, WJUB
+            do i=WILB, WIUB
+                
+                WKUB = Me%KTop(i, j)
+
+                if (Me%OpenSediment(i,j) == OpenPoint) then
+                    
+                    if(SandClass%Field3D(i,j,WKUB) > 0.) then                        
+                    
+                        DeltaTau = Me%NDShearStress(i, j)-SandClass%NDCriticalShearStress(i, j)                  
+                    
+                        if (DeltaTau.GT.0.) then
+                        
+                            !Wave angle referenced to the grid in radians
+                            Wphi = Me%ExternalVar%Wphi(i,j) * pi/180.
+                            
+                            NDBedload = A*0.229*Asym_Factor* Me%NDShearStressWaves(i,j)**1.5                          
+
+                            aux = (gravity*(Me%RelativeDensity-1)*    &
+                                Me%SandD50(i, j)**3)**(1./2.)*Me%Density
+                            
+                            !Bedload transport rate per unit width [kg/s/m]
+                            SandClass%BedLoad(i, j)  = NDBedload  * aux                            
+                           
+                            if (Me%CohesiveClass%Run) then
+                                
+                                Cohesiveness_Factor =                                                         &
+                                Cohesiveness_Adjust(Cohesive_Percentage = Me%CohesiveClass%Field3D(i,j,WKUB), &
+                                                    PM1                 = Me%CohesiveClass%PM1(i,j),          &
+                                                    PM2                 = Me%CohesiveClass%PM2)
+                                
+                                SandClass%BedLoad(i, j) = Cohesiveness_Factor * SandClass%BedLoad(i, j)    
+                            
+                            endif
+                            
+                            SandClass%BedLoadX(i, j) =  SandClass%BedLoad(i, j) * cos(Wphi)
+                            SandClass%BedLoadY(i, j) =  SandClass%BedLoad(i, j) * sin(Wphi) 
+                                
+                        endif
+                        
+                            Me%Bedload(i, j) = Me%Bedload(i, j) + SandClass%Bedload(i, j)                            
+                    endif
+                endif
+            enddo
+            enddo
+        enddo do1
         
     end subroutine WavesOnlyBedload
+    !--------------------------------------------------------------------------
+    
+    real function Cohesiveness_Adjust (Cohesive_Percentage, PM1, PM2) 
+        
+        !Arguments-------------------------------------------------------------
+        real    :: Cohesive_Percentage, PM1, PM2
+        
+        !Local-----------------------------------------------------------------
+        real    :: aux
+        
+        !Begin----------------------------------------------------------------
+    
+        if (Cohesive_Percentage > PM1) then
+                                    
+            if(Cohesive_Percentage > PM2) then
+                !Fully cohesive bed - bedload is not possible 
+                Cohesiveness_Adjust = 0.
+            else
+                !Cohesive bed - bedload decreases linearly with mud content                                        
+                Cohesiveness_Adjust = (PM2 - Cohesive_Percentage)/(PM2 - PM1)
+                
+            endif
+        endif
+        
+    end function Cohesiveness_Adjust
     !--------------------------------------------------------------------------
 
     subroutine ComputeFluxes
@@ -3991,19 +4196,30 @@ do1:    do n=1,Me%NumberOfClasses
                     
                     WKUB = Me%KTop(i, j)
                     
-                    if(SandClass%Field3D(i,j,WKUB) > 0.) then
+                    !if(SandClass%Field3D(i,j,WKUB) > 0.) then
+                    if(SandClass%BedLoad(i, j) > 0.) then
                         
-                        if (Me%ExternalVar%VelMod(i,j)> 0.) then                            
+                        if (Me%BedloadMethod==1) then
+                         
+                            if (Me%ExternalVar%VelMod(i,j)> 0.) then                            
                            
-                            Xaux = Me%ExternalVar%VelU(i,j) / Me%ExternalVar%VelMod(i,j)
-                            Yaux = Me%ExternalVar%VelV(i,j) / Me%ExternalVar%VelMod(i,j)
+                                Xaux = Me%ExternalVar%VelU(i,j) / Me%ExternalVar%VelMod(i,j)
+                                Yaux = Me%ExternalVar%VelV(i,j) / Me%ExternalVar%VelMod(i,j)
                             
-                            !kg/s
-                            SandClass%FluxX(i, j) = SandClass%Bedload(i, j) * Xaux *        &
-                                                    Me%ExternalVar%DVY(i, j)                        
+                                !kg/s
+                                SandClass%FluxX(i, j) = SandClass%Bedload(i, j) * Xaux *        &
+                                                        Me%ExternalVar%DVY(i, j)                        
                                                     
-                            SandClass%FluxY(i, j) = SandClass%Bedload(i, j) * Yaux *        &
-                                                    Me%ExternalVar%DUX(i, j)                                
+                                SandClass%FluxY(i, j) = SandClass%Bedload(i, j) * Yaux *        &
+                                                        Me%ExternalVar%DUX(i, j)                                
+                            endif
+                            
+                        elseif (Me%BedloadMethod==2 .or. Me%BedloadMethod==3) then
+                            
+                                !kg/s
+                                SandClass%FluxX(i, j) = SandClass%BedloadX(i, j) * Me%ExternalVar%DVY(i, j)                        
+                                                    
+                                SandClass%FluxY(i, j) = SandClass%BedloadY(i, j) * Me%ExternalVar%DUX(i, j)
                         endif
                     endif
                 endif               
@@ -5092,7 +5308,7 @@ if6:        if(Me%CohesiveClass%Run) then
         
         Me%KTop(i,j) = 1  
         
-        Me%OpenSediment(i,j) = 1
+        !Me%OpenSediment(i,j) = 1
         
     end subroutine Activate_Layer
         
@@ -5728,7 +5944,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 call WriteFinalState
 
-
 do1 :               do i=1, Me%NumberOfClasses
                         deallocate(Me%SandClass(i)%Field3D)
                         nullify(Me%SandClass(i)%Field3D)
@@ -5744,6 +5959,14 @@ do1 :               do i=1, Me%NumberOfClasses
                         nullify(Me%SandClass(i)%FluxY) 
                         deallocate(Me%SandClass(i)%Bedload)
                         nullify(Me%SandClass(i)%Bedload)
+                        
+                        if(Me%WavesOn) then
+                            deallocate(Me%SandClass(i)%BedloadX)
+                            nullify(Me%SandClass(i)%BedloadX)
+                            deallocate(Me%SandClass(i)%BedloadY)
+                            nullify(Me%SandClass(i)%BedloadY)
+                        endif
+                        
                         deallocate(Me%SandClass(i)%TopPercentage)
                         nullify(Me%SandClass(i)%TopPercentage)
                         deallocate(Me%SandClass(i)%HidingFactor)
@@ -5813,11 +6036,18 @@ do1 :               do i=1, Me%NumberOfClasses
                     stop 'KillSediment - ModuleSediment. ERR03.' 
                 nullify (Me%NDShearStress) 
                 
-                !deallocate (Me%ConcRef, STAT = STAT_CALL) 
-                !if (STAT_CALL /= SUCCESS_)                                          &          
-                !    stop 'KillSediment - ModuleSediment. ERR003.' 
-                !nullify (Me%ConcRef) 
-        
+                if (Me%WavesOn) then
+                    deallocate (Me%NDShearStressWaves, STAT = STAT_CALL) 
+                    if (STAT_CALL /= SUCCESS_)                                          &          
+                        stop 'KillSediment - ModuleSediment. ERR03a.' 
+                    nullify (Me%NDShearStressWaves)
+                    
+                    deallocate (Me%NDShearStressMean, STAT = STAT_CALL) 
+                    if (STAT_CALL /= SUCCESS_)                                          &          
+                        stop 'KillSediment - ModuleSediment. ERR03b.' 
+                    nullify (Me%NDShearStressMean)
+                endif
+                
                 deallocate(Me%Elevation, STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_)                                          &          
                     stop 'KillSediment - ModuleSediment. ERR04.' 
