@@ -25913,109 +25913,123 @@ CurrOr:     do while (associated(CurrentOrigin))
 
                 !Just writes the output if there are particle
 !               if (CurrentOrigin%nParticle > 0) then
-
+                    
+                    !Corrected dataset names to be the same as group name
                     !HDF 5
-                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
-                                               "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/AirConcentration_2D",         &
-                                               "Air Concentration in surface",                      &
-                                               "mg/m3",                     &
-                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridAirConc2D, &
+                                              !"Air Concentration in surface",                      &
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                      &
+                                               "/Results/"//trim(CurrentOrigin%Name)                &
+                                               //"/Data_2D/AirConcentration_2D",                    &
+                                               "AirConcentration_2D",                               &
+                                               "mg/m3",                                             &
+                                               Array2D = Me%EulerModel(em)%HNS(ig)%GridAirConc2D,   &
                                                OutputNumber = OutputNumber)
-
+                    
+                                               !"Surface Floating Mass",                       &
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/SurfaceFloatingMass_2D",         &
-                                               "Surface Floating Mass",                      &
-                                               "kg",                     &
+                                               //"/Data_2D/SurfaceFloatingMass_2D",            &
+                                               "SurfaceFloatingMass_2D",                       &
+                                               "kg",                                           &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridSurfaceFloatingMass2D, &
                                                OutputNumber = OutputNumber)
-
+                    
+                                               !"Dissolved Mass in Water Column",              &
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/DissolvedMass_2D",         &
-                                               "Dissolved Mass in Water Column",                      &
-                                               "kg",                     &
+                                               //"/Data_2D/DissolvedMass_2D",                  &
+                                               "DissolvedMass_2D",                             &
+                                               "kg",                                           &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D, &
                                                OutputNumber = OutputNumber)
-
+                    
+                                               !"Dissolved Concentration in Water Column",     &
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
                                                //"/Data_2D/DissolvedConcentration_2D",         &
-                                               "Dissolved Concentration in Water Column",                      &
-                                               "mg/m3",                     &
+                                               "DissolvedConcentration_2D",                    &
+                                               "mg/m3",                                        &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Dissolved Maximum Concentration in Water Column", &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/DissolvedMaximumConcentration_2D",         &
-                                               "Dissolved Maximum Concentration in Water Column",      &
-                                               "mg/m3",                     &
+                                               //"/Data_2D/DissolvedMaximumConcentration_2D",  &
+                                               "DissolvedMaximumConcentration_2D",             &
+                                               "mg/m3",                                        &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Suspended Droplets Mass in Water Column",     &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/DropletsMass_2D",         &
-                                               "Suspended Droplets Mass in Water Column",                      &
-                                               "kg",                     &
+                                               //"/Data_2D/DropletsMass_2D",                   &
+                                               "DropletsMass_2D",                              &
+                                               "kg",                                           &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Droplets Concentration in Water Column",      &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/DropletsConcentration_2D",         &
-                                               "Droplets Concentration in Water Column",                  &
-                                               "mg/m3",                     &
+                                               //"/Data_2D/DropletsConcentration_2D",          &
+                                               "DropletsConcentration_2D",                     &
+                                               "mg/m3",                                        &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Droplets Maximum Concentration in Water Column",     &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/DropletsMaximumConcentration_2D",         &
-                                               "Droplets Maximum Concentration in Water Column",     &
-                                               "mg/m3",                     &
+                                               //"/Data_2D/DropletsMaximumConcentration_2D",   &
+                                               "DropletsMaximumConcentration_2D",              &
+                                               "mg/m3",                                        &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Suspended Particulate Mass in Water Column",   &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/SuspendedParticulateMass_2D",         &
-                                               "Suspended Particulate Mass in Water Column",                &
-                                               "kg",                     &
+                                               //"/Data_2D/SuspendedParticulateMass_2D",       &
+                                               "SuspendedParticulateMass_2D",                  &
+                                               "kg",                                           &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Suspended Particulate Concentration in Water Column",    &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/SuspendedParticulateConcentration_2D",         &
-                                               "Suspended Particulate Concentration in Water Column",          &
-                                               "mg/m3",                     &
+                                               //"/Data_2D/SuspendedParticulateConcentration_2D", &
+                                               "SuspendedParticulateConcentration_2D",          &
+                                               "mg/m3",                                         &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D, &
                                                OutputNumber = OutputNumber)
 
-                    call HDF5WriteData        (Me%ObjHDF5(em),                                 &
-                                               "/Results/"//trim(CurrentOrigin%Name)           &
+                                               !"Suspended Particulate Maximum Concentration in Water Column",   &                    
+                    call HDF5WriteData        (Me%ObjHDF5(em),                                                   &
+                                               "/Results/"//trim(CurrentOrigin%Name)                             &
                                                //"/Data_2D/SuspendedParticulateMaximumConcentration_2D",         &
-                                               "Suspended Particulate Maximum Concentration in Water Column",                      &
-                                               "mg/m3",                     &
+                                               "SuspendedParticulateMaximumConcentration_2D",                    &
+                                               "mg/m3",                                                          &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Deposited Particulate Mass",                  &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/DepositedParticulateMass_2D",         &
-                                               "Deposited Particulate Mass",                      &
-                                               "kg",                     &
+                                               //"/Data_2D/DepositedParticulateMass_2D",       &
+                                               "DepositedParticulateMass_2D",                  &
+                                               "kg",                                           &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMass2D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Deposited Particulate Mass Per Unit Area",     &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_2D/DepositedParticulateMassPerArea_2D",         &
-                                               "Deposited Particulate Mass Per Unit Area",                      &
-                                               "mg/m3",                     &
+                                               //"/Data_2D/DepositedParticulateMassPerArea_2D", &
+                                               "DepositedParticulateMassPerArea_2D",           &
+                                               "mg/m3",                                        &
                                                Array2D = Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D, &
                                                OutputNumber = OutputNumber)
 
@@ -26184,7 +26198,7 @@ CurrOr:     do while (associated(CurrentOrigin))
 
     !--------------------------------------------------------------------------
    
-    subroutine WriteHNSGridConc3D (em, OutputNumber)
+    subroutine WriteHNSGridConc3D    (em, OutputNumber)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: em, OutputNumber
@@ -26231,53 +26245,60 @@ CurrOr:     do while (associated(CurrentOrigin))
 
                 !Just writes the output if there are particle
 !               if (CurrentOrigin%nParticle > 0) then
-
+                    
+                    !Corrected dataset names to be the same as group name
                     !HDF 5
+                                               !"Dissolved Mass",                              &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_3D/DissolvedMass_3D",         &
-                                               "Dissolved Mass",                      &
-                                               "kg",                     &
+                                               //"/Data_3D/DissolvedMass_3D",                  &
+                                               "DissolvedMass_3D",                             &
+                                               "kg",                                           &
                                                Array3D = Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Dissolved Concentration",                      &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
                                                //"/Data_3D/DissolvedConcentration_3D",         &
-                                               "Dissolved Concentration",                      &
+                                               "DissolvedConcentration_3D",                    &
                                                "mg/m3",                                        &
                                                Array3D = Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Suspended Droplets Mass",                      &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_3D/DropletsMass_3D",         &
-                                               "Suspended Droplets Mass",                      &
-                                               "kg",                     &
+                                               //"/Data_3D/DropletsMass_3D",                   &
+                                               "DropletsMass_3D",                              &
+                                               "kg",                                           &
                                                Array3D = Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Droplets Concentration",                      &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_3D/DropletsConcentration_3D",         &
-                                               "Droplets Concentration",                      &
-                                               "mg/m3",                     &
+                                               //"/Data_3D/DropletsConcentration_3D",          &
+                                               "DropletsConcentration_3D",                     &
+                                               "mg/m3",                                        &
                                                Array3D = Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Suspended Particulate Mass",                  &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_3D/SuspendedParticulateMass_3D",         &
-                                               "Suspended Particulate Mass",                      &
-                                               "kg",                     &
+                                               //"/Data_3D/SuspendedParticulateMass_3D",       &
+                                               "SuspendedParticulateMass_3D",                  &
+                                               "kg",                                           &
                                                Array3D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D, &
                                                OutputNumber = OutputNumber)
 
+                                               !"Suspended Particulate Concentration",         &                    
                     call HDF5WriteData        (Me%ObjHDF5(em),                                 &
                                                "/Results/"//trim(CurrentOrigin%Name)           &
-                                               //"/Data_3D/SuspendedParticulateConcentration_3D",         &
-                                               "Suspended Particulate Concentration",                      &
-                                               "mg/m3",                     &
+                                               //"/Data_3D/SuspendedParticulateConcentration_3D", &
+                                               "SuspendedParticulateConcentration_3D",         &
+                                               "mg/m3",                                        &
                                                Array3D = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D, &
                                                OutputNumber = OutputNumber)
 !                endif
