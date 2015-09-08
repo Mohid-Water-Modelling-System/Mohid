@@ -150,6 +150,7 @@ Module ModuleFreeVerticalMovement
         logical                                 :: SalinityEffect       = .true.
         real                                    :: SalinityLimit        = FillValueReal
         integer                                 :: Ws_Type              = SPMFunction
+        logical                                 :: Non_Cohesive         = .false.
         logical                                 :: Deposition           = .true.
         logical                                 :: WithCompression      = .true.
         real                                    :: SVI                  = FillValueReal
@@ -980,7 +981,17 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL .NE. SUCCESS_)                                            &
             stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR120' 
             
-        call ReadClarifierOprions(NewProperty)            
+        call ReadClarifierOprions(NewProperty)   
+        
+        call GetData(NewProperty%Non_Cohesive,                                           &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'NON_COHESIVE',                                      &
+                     Default      = .false.,                                             &
+                     ClientModule = 'ModuleFreeVerticalMovement',                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)&
+            stop 'Read_FreeVert_Parameters - ModuleFreeVerticalMovement - ERR130' 
             
             
     end subroutine Construct_PropertyParameters
@@ -2017,10 +2028,12 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExternalVar%OpenPoints3D (i,j, KUB) == OpenPoint) then
 
                     Kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                    
+                    if(.not. PropertyX%Non_Cohesive) then
 
-                    PropertyX%Velocity(i,j,Kbottom) = PropertyX%Velocity(i,j,Kbottom) *     &
-                                                      Me%ExternalVar%DepositionProbability(i,j)
-
+                        PropertyX%Velocity(i,j,Kbottom) = PropertyX%Velocity(i,j,Kbottom) *     &
+                                                        Me%ExternalVar%DepositionProbability(i,j)
+                    endif
                 endif
                 
             end do
@@ -2552,7 +2565,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         if (present(STAT)) STAT = STAT_
 
     end subroutine SetSandParameters
-!----------------------------------------------------------------------
+    !----------------------------------------------------------------------
 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
