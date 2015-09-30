@@ -207,7 +207,8 @@ Module ModuleInterfaceSedimentWater
                                           GetTopCriticalShear, GetConcRef,                  &
                                           GetCohesiveMass, GetCohesiveContent, GetSandMass, &
                                           GetSandContent, GetCriticalShearStress,           &
-                                          GetReferenceLevel, SetWaveTensionON, UnGetSediment 
+                                          GetReferenceLevel, SetWaveTensionON,              &
+                                          GetGrainRoughness, UnGetSediment 
     implicit none
 
     private 
@@ -443,7 +444,7 @@ Module ModuleInterfaceSedimentWater
         real(8), pointer, dimension(:,:,:)          :: CohesiveMass         => null()
         real, pointer, dimension(:,:,:)             :: CohesiveContent      => null()
         logical                                     :: CohesiveClassRun     = .false.
-        real                                        :: ReferenceLevel       = null_real
+        !real                                        :: ReferenceLevel       = null_real
     end type T_Ext_Sed
 
     type       T_Property_2D
@@ -1376,7 +1377,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         !Local-----------------------------------------------------------------
 
         integer                             :: ILB, IUB, JLB, JUB
-        real                                :: ReferenceLevel
+        !real                                :: ReferenceLevel
 
         !Begin-----------------------------------------------------------------
         
@@ -1400,11 +1401,11 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             
         endif
         
-        call GetReferenceLevel(Me%ObjSediment,ReferenceLevel, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR01'
-        
-        Me%ExtSed%ReferenceLevel = ReferenceLevel
+        !call GetReferenceLevel(Me%ObjSediment,ReferenceLevel, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                                                      &
+        !    stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR01'
+        !
+        !Me%ExtSed%ReferenceLevel = ReferenceLevel
         
         call SetWaveTensionON(ObjSedimentID = Me%ObjSediment,            &
                               WaveTensionON = Me%WaveShear_Stress%Yes,   &
@@ -4803,14 +4804,16 @@ do1 :       do while (associated(Property))
         real,    pointer, dimension(:, :   )    :: Chezy
         integer, pointer, dimension(:, :, :)    :: LandPoints3D, OpenPoints3D
         integer, pointer, dimension(:, :   )    :: KFloorZ
+        real, dimension(:,:),  pointer          :: GrainRoughness
         real                                    :: VC,UC, UVC2,UVC, WaterDensity
         integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
         integer                                 :: i, j, kbottom
         integer                                 :: CHUNK
+        integer                                 :: STAT_CALL
         real                                    :: CWphi,Cphi,Wphi,REW,REC,FWR,FWS
         real                                    :: CDS,CDR,TAUMR,TAUMS,TAUWR,TAUWS,RECCR,REWCR,TAUM,TAUMAX
         real                                    :: ar,T1,T2,T3,A1,A2,CDM,CDMAX,as,TAUMAXS,TAUW,TAUMAXR
-        real                                    :: DWZ, KV     !Kinematic viscosity [m2/s]
+        real                                    :: DWZ, Z0
 
         !Begin-----------------------------------------------------------------
 
@@ -4966,13 +4969,16 @@ do1 :       do while (associated(Property))
                     call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method2")
                 endif
                 
-                KV = 1.3e-6 
+                if (Me%RunSedimentModule) then
+                    call GetGrainRoughness(Me%ObjSediment, GrainRoughness, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyShearStress - ModuleInterfaceSedimentWater - ERR10'
+                endif
                 
                 CHUNK = CHUNK_J(JLB, JUB)
                 
-                !$OMP PARALLEL PRIVATE(i,j,kbottom,VC,UC,UVC2,TAUMAX,TAUMAXR,TAUMAXS,TAUM,TAUMR,TAUMS,UVC,REC,REW) &
-                !$OMP PRIVATE(CDM,CDMAX,CDR,CDS,Cphi,CWphi,Wphi,TAUW,RECCR,REWCR,FWR,FWS,T1,T2,T3,A1,A2)
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                !!$OMP PARALLEL PRIVATE(i,j,kbottom,VC,UC,UVC2,TAUMAX,TAUMAXR,TAUMAXS,TAUM,TAUMR,TAUMS,UVC,REC,REW) &
+                !!$OMP PRIVATE(CDM,CDMAX,CDR,CDS,Cphi,CWphi,Wphi,TAUW,RECCR,REWCR,FWR,FWS,T1,T2,T3,A1,A2,Z0)
+                !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 
 do1:            do j = JLB, JUB
 do2:            do i = ILB, IUB  
@@ -4986,27 +4992,31 @@ do2:            do i = ILB, IUB
                     
                         kbottom = KFloorZ(i, j)
                         
-                        DWZ = max(Me%ExtWater%DWZ(i,j,kbottom),0.2)
+                        DWZ = Me%ExtWater%DWZ(i,j,kbottom)
                     
                         VC = (Velocity_V(i+1,j,kbottom)+Velocity_V(i,j,  kbottom))/2.
                         UC = (Velocity_U(i,  j,kbottom)+Velocity_U(i,j+1,kbottom))/2.
 
                         UVC2 = UC*UC+VC*VC
 
-                        UVC = sqrt(UVC2)                        
+                        UVC = sqrt(UVC2) 
                         
-                        if (Me%RunSedimentModule.or.Me%RunsSandTransport) then
+                        Z0 = Me%Rugosity%Field(i,j)
+                        
+                        if (Me%RunSedimentModule) then
 
                             Me%Shear_Stress%CurrentVel(i, j) = sqrt(UVC2)
                             Me%Shear_Stress%CurrentU  (i, j) = UC
                             Me%Shear_Stress%CurrentV  (i, j) = VC
                             Me%Shear_Stress%UFace     (i, j) = Velocity_U(i,j,kbottom)
                             Me%Shear_Stress%VFace     (i, j) = Velocity_V(i,j,kbottom)
+                            
+                            Z0 = GrainRoughness(i,j) / 30.
 
                         endif
                         
-                        REC=UVC*(DWZ/2.)/KV
-                        CDR=(0.40/(log((DWZ/2.)/Me%Rugosity%Field(i,j))-1.))**2
+                        REC=UVC*DWZ/WaterCinematicVisc
+                        CDR=(0.40/(log(DWZ/Z0)-1.))**2
                         CDS=0.0001615
                         
                         if(UVC.gt.1.e-2)then !current-only flow
@@ -5014,7 +5024,7 @@ do2:            do i = ILB, IUB
                             CDS=0.0001615*EXP(6.*REC**(-0.08))
                         
                             if (REC.lt.2000)then !laminar flow
-                                TAUMAX=3*WaterDensity*KV*UVC/(DWZ/2.)
+                                TAUMAX=3*WaterDensity*WaterCinematicVisc*UVC/DWZ
                                 TAUM=TAUMAX
                             else if(REC.gt.2000)then !turbulent flow
                                 TAUMR=WaterDensity*CDR*UVC**2 !rough
@@ -5043,9 +5053,9 @@ do2:            do i = ILB, IUB
                             
                             if (Me%ExtWater%Ubw(i,j).gt.1.e-2)then !To avoid overflow errors
 
-                                 REW=Me%ExtWater%Ubw(i,j)*Me%ExtWater%Abw(i,j)/KV     
+                                 REW=Me%ExtWater%Ubw(i,j)*Me%ExtWater%Abw(i,j)/WaterCinematicVisc     
                                  FWS=0.0521*REW**(-0.187)
-                                 FWR=1.39*(Me%ExtWater%Abw(i,j)/Me%Rugosity%Field(i,j))**(-0.52)
+                                 FWR=1.39*(Me%ExtWater%Abw(i,j)/Z0)**(-0.52)
  
                                 if(UVC.lt.1.e-2 .and. Me%ExtWater%Ubw(i,j).gt.1.e-2)then !wave-only flow
                                     if (REW.lt.1.5e5)then !laminar flow
@@ -5068,7 +5078,7 @@ do2:            do i = ILB, IUB
                                     RECCR=2000+(5.92*1.e5*REW)**0.35
                                     REWCR=1.5e5
                                     if(REC.lt.RECCR.and.REW.lt.REWCR)then !laminar flow
-                                        TAUM=3*WaterDensity*KV*UVC/(DWZ/2.)
+                                        TAUM=3*WaterDensity*WaterCinematicVisc*UVC/DWZ
                                         TAUW=WaterDensity*REW**(-0.5)*Me%ExtWater%Ubw(i,j)**2
                                         TAUMAX=((TAUM+TAUW*abs(COS(CWphi*pi/180.)))**2+(TAUW*abs(SIN(CWphi*pi/180.)))**2)**(0.5)
                                         
@@ -5077,8 +5087,8 @@ do2:            do i = ILB, IUB
                                     else if(REC.gt.RECCR.or.REW.gt.REWCR)then !turbulent flow
                                         !Rough-turbulent wave-plus-current shear-stress
                                         ar=0.24
-                                        T1=MAX(ar*(FWR/2)**0.5*(Me%ExtWater%Abw(i,j)/Me%Rugosity%Field(i,j)),12.)
-                                        T2=(DWZ/2.)/(T1*Me%Rugosity%Field(i,j))
+                                        T1=MAX(ar*(FWR/2)**0.5*(Me%ExtWater%Abw(i,j)/Z0),12.)
+                                        T2=DWZ/(T1*Z0)
                                         T3=(CDR**2+(FWR/2)**2*(Me%ExtWater%Ubw(i,j)/UVC)**4)**(1./4)
                                         A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                                         A2=0.40*T3/LOG(T1)
@@ -5133,8 +5143,14 @@ do2:            do i = ILB, IUB
 
                 enddo do2
                 enddo do1
-                !$OMP END DO
-                !$OMP END PARALLEL
+                !!$OMP END DO
+                !!$OMP END PARALLEL
+
+        if (Me%RunSedimentModule) then
+            call UngetSediment(Me%ObjSediment, GrainRoughness, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ModifyShearStress - ModuleInterfaceSedimentWater - ERR20'
+        endif
 
                 if (MonitorPerformance) then
                     call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method2")
@@ -6621,7 +6637,6 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: IUB, JUB, ILB, JLB, KUB
         integer                                 :: i, j
         type(T_Property),       pointer         :: CohesiveSediment
-        real                                    :: DT
         integer                                 :: STAT_CALL
         integer                                 :: CHUNK
 
@@ -6717,14 +6732,11 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         real, dimension(:,:),pointer            :: CriticalShearStress
         real, pointer, dimension(:,:,:)         :: SettlingVelocity, SandContent
         real, dimension(:,:),  pointer          :: ConcRef
+        real, dimension(:,:),  pointer          :: ReferenceLevel
         real                                    :: MaximumFlux, ConcRefz
-        real                                    :: WaterPropertyISCoef
-        character(len=StringLength)             :: WaterPropertyUnits
-        real                                    :: z, H, C, Ws, K0, b, u, a
+        real                                    :: z, H, Ws, K0, b, u, a
         real                                    :: RouseProfile
         real, dimension(:,:,:), pointer         :: FreeConvFlux
-        real, dimension(:,:),  pointer          :: WaterColumnZ
-        real, dimension(:,:,:), pointer         :: WaterPropertyConcentration
 
         !Begin-----------------------------------------------------------------
         
@@ -6748,22 +6760,17 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         call GetConcRef(Me%ObjSediment,PropertyX%ID%IDNumber,ConcRef, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR40'
+        
+        call GetReferenceLevel(Me%ObjSediment,PropertyX%ID%IDNumber,ReferenceLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR45'
                     
         call Get_FreeVelocity(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,&
                                     PropertyID             = PropertyX%ID%IDNumber,     &
                                     Free_Velocity          = SettlingVelocity,          &
                                     STAT                   = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                    &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR50'
-        
-        call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
-                                ConcentrationX    = WaterPropertyConcentration,       &
-                                PropertyXIDNumber = PropertyX%ID%IDNumber,            &
-                                PropertyXUnits    = WaterPropertyUnits,               &
-                                PropertyXISCoef   = WaterPropertyISCoef,              &
-                                STAT              = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR60'
+            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR50'        
         
          call Get_FreeConvFlux(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,  &
                                 PropertyID             = PropertyX%ID%IDNumber,       &
@@ -6795,20 +6802,19 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 
                     !height above bed
                     z = Me%ExtWater%DWZ(i,j,kbottom) / 2.
+                    
                     !Reference Level
-                    a = Me%ExtSed%ReferenceLevel
+                    a = ReferenceLevel(i,j)
                     !WaterColumn
                     H = Me%ExtWater%WaterColumn(i,j)
-                    !Concentration in the middle of the bottom grid cell
-                    C = WaterPropertyConcentration(i,j,kbottom) * WaterPropertyISCoef
                     !Settling velocity 
                     Ws = - SettlingVelocity(i,j,kbottom)
                     !Von Karmann coefficient
                     K0 = 0.4
                     !bed-shear velocity
                     u = Me%Shear_Stress%Velocity(i,j)
-                    !u,min= 0.01 to avoid numerical errors
-                    if(u < 0.01)  u = 0.01
+                    !u,min= 0.001 to avoid numerical errors
+                    if(u < 0.001)  u = 0.001
                     !Suspension number
                     b = Ws / (K0 * u)
                     !Rouse profile term
@@ -6816,29 +6822,34 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     !Reference concentration in the middle of the bottom grid cell
                     ConcRefz = ConcRef(i,j) * RouseProfile
                                 
-                    if(Me%ExtSed%CohesiveClassRun .and.     &
-                        Me%ExtSed%CohesiveContent(i,j,KTOP) > 0.6) then
+                    if(Me%ExtSed%CohesiveClassRun) then
+                        
+                        if(Me%ExtSed%CohesiveContent(i,j,KTOP) > 0.6) then
                         !For fully cohesive beds (mud content > 0.6) the erosion flux for sand is calculated by using 
                         !the same formulation of cohesive sediments
                         
-                        if(CriticalShearStress(i,j) < Me%Shear_Stress%Tension(i,j))then
+                            if(CriticalShearStress(i,j) < Me%Shear_Stress%Tension(i,j))then
                                  
-                            PropertyX%ErosionFlux(i,j) =                                         &
-                            ErosionFlux(CriticalShearErosion = CriticalShearStress(i, j),        &
-                                        ShearStress          = Me%Shear_Stress%Tension(i,j),     &
-                                        ErosionRate          = Me%ErosionRate%Field(i,j))
+                                PropertyX%ErosionFlux(i,j) =                                         &
+                                ErosionFlux(CriticalShearErosion = CriticalShearStress(i, j),        &
+                                            ShearStress          = Me%Shear_Stress%Tension(i,j),     &
+                                            ErosionRate          = Me%ErosionRate%Field(i,j))
                                 
-                            PropertyX%ErosionFlux(i,j) = PropertyX%ErosionFlux(i,j) * SandContent(i,j,KTOP)                                
-                        endif
+                                PropertyX%ErosionFlux(i,j) = PropertyX%ErosionFlux(i,j) * SandContent(i,j,KTOP)                                
+                            endif
                         
-                    else
+                        else
                             !Otherwise the erosion flux is equal to the entrainment rate under equilibrium conditions
                             !(Garcia and Parker, 1991).
                             ![kg m-2 s-1]               [m s-1]*[kg m-3]                       
                             
                             PropertyX%ErosionFlux(i,j) = - SettlingVelocity(i,j,kbottom) * ConcRefz
                             
-                    endif                                                                  
+                        endif
+                    else
+                        PropertyX%ErosionFlux(i,j) = - SettlingVelocity(i,j,kbottom) * ConcRefz
+
+                    endif
                                     
                     if(PropertyX%ErosionFlux(i,j) .gt. MaximumFlux)then
 
@@ -6870,6 +6881,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         call UngetSediment(Me%ObjSediment, ConcRef, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR120' 
+        
+        call UngetSediment(Me%ObjSediment, ReferenceLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR125' 
                     
         call UngetSediment(Me%ObjSediment, SandContent, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
@@ -6877,11 +6892,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     
         call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, SettlingVelocity, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR140' 
-        
-                call UnGetWaterProperties(Me%ObjWaterProperties, WaterPropertyConcentration, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR150'                    
+            stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR140'               
         
         call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, FreeConvFlux, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
@@ -7080,8 +7091,10 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         integer                                 :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
+        
 
-        call ModifySediment(Me%ObjSediment, Me%Shear_Stress%Tension,             &
+        call ModifySediment(Me%ObjSediment,                                      &
+                        Me%Shear_Stress%Tension,                                 &
                         Me%Shear_Stress%CurrentU,                                &
                         Me%Shear_Stress%CurrentV,                                &
                         Me%Shear_Stress%CurrentVel,                              &
@@ -7097,8 +7110,6 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
     end subroutine ModifySedimentTransport
 
-
-
     !--------------------------------------------------------------------------
     
     subroutine OutPut_TimeSeries
@@ -7108,6 +7119,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: PropertyX
+        
+        !Begin-----------------------------------------------------------------
 
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
                             Data2D  = Me%Shear_Stress%Tension,                  &
