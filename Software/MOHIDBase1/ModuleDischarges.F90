@@ -67,6 +67,8 @@ Module ModuleDischarges
     public  :: GetDischargesNumber                                  !Returns the number of discharge points
     public  :: GetDischargesGridLocalization
     public  :: GetDischargesNodeID
+    public  :: GetDischargesReservoirID
+    public  :: GetIsReservoirOutflow    
     public  :: GetDischargesIDName
     public  :: GetDischargeWaterFlow
     public  :: SetDischargeWaterFlow
@@ -213,6 +215,7 @@ Module ModuleDischarges
          integer                                :: DischVertical                    = FillValueInt
          real                                   :: Kdepth                           = FillValueReal
          integer                                :: NodeID                           = FillValueInt
+         integer                                :: ReservoirID                      = FillValueInt
          logical                                :: TrackLocation                    = .false. 
          character(len=StringLength)            :: TrackLocationFile                = null_str 
          integer                                :: TrackLocationFileUnitNumber      = null_int 
@@ -284,6 +287,7 @@ Module ModuleDischarges
          type(T_ByPass             )            :: ByPass
          type(T_FromIntake         )            :: FromIntake       
          logical                                :: IgnoreON         = .false.  
+         logical                                :: IsReservoirOutflow = .false.
     end type T_IndividualDischarge    
 
     type      T_Discharges
@@ -1022,7 +1026,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
         else    i1
 
-            !I Location
+            !Darinage Network Dishcarge
             call GetData(NewDischarge%Localization%NodeID,                              &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
@@ -1031,6 +1035,28 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstDischargeLoc - ModuleDischarges - ERR210'
+            
+            !MOHID Land Reservoirs Discharge
+            if (flag == 0) then
+               call GetData(NewDischarge%Localization%ReservoirID,                          &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             FromBlock,                                                     &
+                             keyword      ='RESERVOIR_ID',                                  &
+                             ClientModule = 'ModuleDischarges',                             &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstDischargeLoc - ModuleDischarges - ERR220'        
+                
+                !is an imposed outflow? to distinguish from other discharge types (abstraction and input)
+               call GetData(NewDischarge%IsReservoirOutflow,                                &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             FromBlock,                                                     &
+                             keyword      ='IS_OUTFLOW',                                    &
+                             ClientModule = 'ModuleDischarges',                             &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstDischargeLoc - ModuleDischarges - ERR230'                      
+            endif
             
         endif   i1
 
@@ -2729,6 +2755,95 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
     end subroutine GetDischargesNodeID
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GetDischargesReservoirID (DischargesID, DischargeIDNumber, ReservoirID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: DischargesID
+        integer,           intent(IN )                  :: DischargeIDNumber
+        integer,           intent(OUT)                  :: ReservoirID
+        integer, optional, intent(OUT)                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_, STAT_
+        type(T_IndividualDischarge), pointer            :: DischargeX
+
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeIDNumber
+                stop       'GetDischargesReservoirID - ModuleDischarges - ERR01'
+            endif
+
+            if (DischargeX%Localization%Location2D) then
+                write(*,*)'Discharge location not given as Reservoir ID'
+                write(*,*)trim(adjustl(DischargeX%ID%Name))
+                stop 'GetDischargesReservoirID - ModuleDischarges - ERR01a'
+            endif
+
+            ReservoirID = DischargeX%Localization%ReservoirID
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+
+    end subroutine GetDischargesReservoirID
+
+    !--------------------------------------------------------------------------    
+
+   subroutine GetIsReservoirOutflow(DischargesID, DischargeIDNumber, IsOutflow, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: DischargesID
+        integer,           intent(IN )                  :: DischargeIDNumber
+        logical,           intent(OUT)                  :: IsOutflow
+        integer, optional, intent(OUT)                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge), pointer            :: DischargeX
+        integer                                         :: STAT_CALL, STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ', DischargeIDNumber, '.'
+                stop       'Subroutine GetIsReservoirOutflow - ModuleDischarges. ERR01.'
+            endif
+
+            IsOutflow = DischargeX%IsReservoirOutflow
+                    
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetIsReservoirOutflow
+
 
     !--------------------------------------------------------------------------
 

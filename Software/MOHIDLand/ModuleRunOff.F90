@@ -3280,8 +3280,9 @@ do4:            do di = -1, 1
         DT_error = EndTimeFile - BeginTime
 
         !Avoid rounding erros - Frank 08-2001
-        if (abs(DT_error) >= 0.01) then
-            
+        !All runs are limited to second definition - David 10-2015     
+        !if (abs(DT_error) >= 0.01) then
+        if (abs(DT_error) >= 1) then
             write(*,*) 'The end time of the previous run is different from the start time of this run'
             write(*,*) 'Date in the file'
             write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File

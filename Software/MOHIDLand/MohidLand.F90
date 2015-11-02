@@ -65,7 +65,12 @@ program MohidLand
     character(PathLength)               :: DataFile             = 'nomfich.dat'
     logical                             :: ConfigByArgument     = .false.   
     logical                             :: StopOnBathymetryChange = .true.
-
+    
+    logical                             :: SyncDT               = .false.      !Sync modules at specified interval?
+    real                                :: SyncDTInterval       = null_real    !interval to sync in seconds
+    type(T_Time)                        :: NextSyncTime                        !time at wich all modules sync (for output)
+                                                                               !use max dt as default
+    
     !Other Stuff
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
     integer, dimension(8)               :: F95Time              = null_int
@@ -213,7 +218,9 @@ program MohidLand
 
         !Update Current Time
         CurrentTime  = BeginTime
-
+        
+        if(SyncDT) NextSyncTime = BeginTime + SyncDTInterval
+        
         !Constructs Basin
         call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, StopOnBathymetryChange = StopOnBathymetryChange, STAT = STAT_CALL)
 
@@ -296,8 +303,25 @@ program MohidLand
                                         STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR05'         
 
+        call GetData                (SyncDT, ObjEnterData, iflag,             &
+                                        keyword      = 'SYNC_DT',             &
+                                        ClientModule = 'MOHIDLand',           &
+                                        default      =  .false.,              &
+                                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR06'         
+        
+        if(SyncDT) then            
+            call GetData                (SyncDTInterval, ObjEnterData, iflag,     &
+                                            keyword      = 'SYNC_DT_INTERVAL',    &
+                                            ClientModule = 'MOHIDLand',           &
+                                            default      =  MaxDT,                &
+                                            STAT         = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR06'            
+         endif
+    
         call KillEnterData (ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR07'
 
     end subroutine ReadKeywords
 
@@ -395,9 +419,38 @@ program MohidLand
                     DT = EndTime - CurrentTime 
                 endif
             endif
+               
+            
+            !synchronize so that output can occur at multiples of sync interval and not some minutes, seconds or milisseconds 
+            !after output times as it can occur with variable dt
+            !The user needs to set the output times and restart times of modules as multiples of sync interval. this is not verified            
+            if (SyncDT) then
                 
+                !if passed time to sync, cut dt to sync time
+                if (CurrentTime + DT >= NextSyncTime) then
+                    DT = NextSyncTime - CurrentTime
+                    NextSyncTime = NextSyncTime + SyncDTInterval
+                else
+                    !to avoid that small timesteps are created when setting the dt to time to sync (previous if)
+                    
+                    !if next next dt will be very small, ignore it and increase this dt to next sync time (+1milisecond)
+                    if ((NextSyncTime - CurrentTime + DT) < 0.001) then
+                        DT = NextSyncTime - CurrentTime
+                        NextSyncTime = NextSyncTime + SyncDTInterval
+
+                    !verify if the remainder time to sync is not lower than current step, otherwise
+                    !divide it by 2
+                    else if ((NextSyncTime - CurrentTime + DT) < DT) then
+                        DT = DT / 2.0
+                    endif   
+                endif
+            endif
+            
             call ActualizeDT(TimeID = ObjComputeTime, DT = DT, STAT = STAT_CALL)     
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidLand - MohidLand - ERR04'
+            
+            
+            
             
         else
 

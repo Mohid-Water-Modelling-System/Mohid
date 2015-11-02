@@ -148,6 +148,10 @@ Module ModuleFunctions
     public  :: RODAXY
     public  :: FromCartesianToGrid
     public  :: FromGridToCartesian
+    
+    !Angle Conversion
+    public  :: AngleFromFieldToGrid
+    public  :: AngleFromGridToField
 
     !Interpolation of a value in Time
     public  :: InterpolateValueInTime
@@ -352,6 +356,10 @@ Module ModuleFunctions
         module procedure SetMatrixValues1D_R4_FromMatrix
         module procedure SetMatrixValues1D_I8_FromMatrix
         module procedure SetMatrixValues1D_R8_FromMatrix
+        module procedure SetMatrixValues1D_I4_Constant
+        module procedure SetMatrixValues1D_I8_Constant
+        module procedure SetMatrixValues1D_R4_Constant
+        module procedure SetMatrixValues1D_R8_Constant
         module procedure SetMatrixValues2D_I4_Constant
         module procedure SetMatrixValues2D_R4_Constant
         module procedure SetMatrixValues2D_R8_Constant
@@ -598,7 +606,166 @@ Module ModuleFunctions
 
     !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
+    subroutine SetMatrixValues1D_I4_Constant (Matrix, Size, ValueX, MapMatrix)
 
+        !Arguments-------------------------------------------------------------
+        integer(4), dimension(:), pointer               :: Matrix
+        type (T_Size1D)                                 :: Size
+        integer(4), intent (IN)                         :: ValueX
+        integer, dimension(:), pointer, optional        :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i
+        integer                                         :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_I(Size%ILB, Size%IUB)
+        
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i) == 1) then
+                    Matrix (i) = ValueX
+                endif
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                Matrix (i) = ValueX
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif    
+
+    end subroutine SetMatrixValues1D_I4_Constant
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine SetMatrixValues1D_I8_Constant (Matrix, Size, ValueX, MapMatrix)
+
+        !Arguments-------------------------------------------------------------
+        integer(8), dimension(:), pointer               :: Matrix
+        type (T_Size1D)                                 :: Size
+        integer(8), intent (IN)                         :: ValueX
+        integer, dimension(:), pointer, optional        :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i
+        integer                                         :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_I(Size%ILB, Size%IUB)
+        
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i) == 1) then
+                    Matrix (i) = ValueX
+                endif
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                Matrix (i) = ValueX
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif    
+
+    end subroutine SetMatrixValues1D_I8_Constant
+    
+    !--------------------------------------------------------------------------    
+
+    subroutine SetMatrixValues1D_R4_Constant (Matrix, Size, ValueX, MapMatrix)
+
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:), pointer                  :: Matrix
+        type (T_Size1D)                                 :: Size
+        real(4), intent (IN)                            :: ValueX
+        integer, dimension(:), pointer, optional        :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i
+        integer                                         :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_I(Size%ILB, Size%IUB)
+        
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i) == 1) then
+                    Matrix (i) = ValueX
+                endif
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                Matrix (i) = ValueX
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif    
+
+    end subroutine SetMatrixValues1D_R4_Constant
+    
+    !--------------------------------------------------------------------------
+
+    subroutine SetMatrixValues1D_R8_Constant (Matrix, Size, ValueX, MapMatrix)
+
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:), pointer                  :: Matrix
+        type (T_Size1D)                                 :: Size
+        real(8), intent (IN)                            :: ValueX
+        integer, dimension(:), pointer, optional        :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i
+        integer                                         :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_I(Size%ILB, Size%IUB)
+        
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i) == 1) then
+                    Matrix (i) = ValueX
+                endif
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do i = Size%ILB, Size%IUB
+                Matrix (i) = ValueX
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif    
+
+    end subroutine SetMatrixValues1D_R8_Constant
+    
+    !--------------------------------------------------------------------------
+    
     subroutine SetMatrixValues2D_I4_Constant (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
@@ -4065,8 +4232,67 @@ end function
     end subroutine FromGridToCartesian
 
     !--------------------------------------------------------------------------
+    !Convert from user referential (Nautical, Currents) to cell trigonometric angle
+    subroutine AngleFromFieldToGrid (AngleInReferential, Referential, GridAngle, AngleOutGrid)
 
+        !Arguments-------------------------------------------------------------
+        real, intent (in)                 :: AngleInReferential, GridAngle
+        integer, intent (in)              :: Referential
+        real, intent (out)                :: AngleOutGrid
 
+        !Local-----------------------------------------------------------------
+
+        
+        !Nautical referential 0º is coming from N, 90ºN from E, 180º from S, 270º from W
+        if (Referential == NauticalReferential_) then
+            
+            AngleOutGrid = 270. - AngleInReferential - GridAngle
+        
+        !Current referential 0º is going to N, 90ºN to E, 180º to S, 270º to W
+        else if (Referential == CurrentsReferential_) then
+            
+            AngleOutGrid = 90. - AngleInReferential - GridAngle
+            
+        endif
+        
+        !0-360
+        if (AngleOutGrid < 0) AngleOutGrid = 360.0 + AngleOutGrid
+        if (AngleOutGrid > 360) AngleOutGrid = AngleOutGrid - 360.0
+
+        
+    end subroutine AngleFromFieldToGrid
+
+    !--------------------------------------------------------------------------    
+    !Convert from cell trigonometric angle to user referential (Nautical, Currents) 
+    subroutine AngleFromGridToField (AngleInGrid, Referential, GridAngle, AngleOutReferential)
+
+        !Arguments-------------------------------------------------------------
+        real, intent (in)                 :: AngleInGrid, GridAngle
+        integer, intent (in)              :: Referential
+        real, intent (out)                :: AngleOutReferential
+
+        !Local-----------------------------------------------------------------
+        
+        !Nautical referential 0º is coming from N, 90ºN from E, 180º from S, 270º from W
+        if (Referential == NauticalReferential_) then
+            
+            AngleOutReferential = AngleInGrid - 270. + GridAngle
+        
+        !Current referential 0º is going to N, 90ºN to E, 180º to S, 270º to W
+        else if (Referential == CurrentsReferential_) then
+            
+            AngleOutReferential = AngleInGrid - 90. + GridAngle
+            
+        endif
+
+        !0-360
+        if (AngleOutReferential < 0) AngleOutReferential = 360.0 + AngleOutReferential
+        if (AngleOutReferential > 360) AngleOutReferential = AngleOutReferential - 360.0        
+        
+    end subroutine AngleFromGridToField
+
+    !--------------------------------------------------------------------------    
+    
     subroutine InterpolateValueInTime(ActualTime, Time1, Value1, Time2, Value2, ValueOut)
 
         !Arguments-------------------------------------------------------------

@@ -160,7 +160,7 @@ Module ModuleDrainageNetwork
                                            LatentHeat, SensibleHeat, OxygenSaturation,                      &
                                            OxygenSaturationHenry, OxygenSaturationCeQualW2, AerationFlux,   &
                                            TimeToString, ChangeSuffix, DistanceBetweenTwoGPSPoints,         &
-                                           LinearInterpolation
+                                           LinearInterpolation, SetMatrixValue
     use ModuleTimeSerie            , only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerieLine,         &
                                            GetTimeSerieValue, KillTimeSerie, WriteTimeSerieLineNow
     use ModuleStopWatch            , only: StartWatch, StopWatch
@@ -269,7 +269,12 @@ Module ModuleDrainageNetwork
     public  :: SetRPConcDN                  !DrainageNetwork gets the conc from Runoff Properties
     public  :: SetGWFlowLayersToDN          !DrainageNetwork gets the Porous Media layers limits for GWFlow (faster process)
     private :: SearchProperty
-        
+    
+    public :: SetInflowFromReservoir       !DrainageNetwork gets inflow from Reservoirs (Reservoirs outflow)
+    public :: GetOutflowToReservoir        !Reservoirs gets outflow from DN (Reservoirs inflow)
+    public :: SetReservoirsConcDN          !Drainage Network gets the Reservoir concentrations
+    public :: GetNodeConcReservoirs        !Reservoirs get node conc before conc was zeroed
+    
     !Modifier
     public  :: FillOutPutMatrix
     public  :: ModifyDrainageNetwork
@@ -713,6 +718,7 @@ Module ModuleDrainageNetwork
         logical                                     :: CalcFractionSediment     = .false.
         logical                                     :: EVTPFromReach            = .false.
         logical                                     :: StormWaterModelLink      = .false.
+        logical                                     :: ReservoirLink            = .false.
         logical                                     :: LimitToCriticalFlow      = .true.
         integer                                     :: FaceWaterColumn          = WDMaxBottom_  
         logical                                     :: IntMassFlux              = .false.
@@ -808,7 +814,7 @@ Module ModuleDrainageNetwork
         character(PathLength)                       :: OutputName               = null_str
         type (T_Property), pointer                  :: Next                     => null()
         type (T_Property), pointer                  :: Prev                     => null()
-       
+        
        !property dt in quality modules
         real                                        :: DTInterval               = null_real
         type(T_Time)                                :: LastCompute 
@@ -834,7 +840,17 @@ Module ModuleDrainageNetwork
         real, dimension(:), allocatable             :: Outflow              
         real, dimension(:), allocatable             :: Inflow               
     end type T_StormWaterModelLink
-
+    
+    type T_ReservoirLink
+        integer, dimension(:), pointer              :: ReservoirDNNodeID       => null()    !from reservoirs - the node ID location
+        integer, dimension (:), pointer             :: ReservoirsExchangeNodePos => null()  !reservoir node ID (after check outlet)
+        real, dimension (:,:), pointer              :: ReservoirsConc          => null()
+        real, dimension (:,:), pointer              :: NodeConc                => null()
+        integer                                     :: nReservoirs             = null_int
+        real(8), dimension (:), pointer             :: ReservoirsInflow        => null()
+        real(8), dimension (:), pointer             :: ReservoirsOutflow       => null()          
+    end type T_ReservoirLink
+        
     type T_Converge
         integer                                     :: MinIterations                = 1               
         integer                                     :: MaxIterations                = 1024
@@ -894,6 +910,7 @@ Module ModuleDrainageNetwork
         type (T_Files )                             :: Files
         type (T_Coupled  )                          :: Coupled
         type (T_StormWaterModelLink)                :: StormWaterModelLink
+        type (T_ReservoirLink)                      :: Reservoirs
         logical                                     :: Continuous            = .false.
         logical                                     :: PropertyContinuous    = .false.
         logical                                     :: StopOnWrongDate       = .false.
@@ -954,6 +971,7 @@ Module ModuleDrainageNetwork
         integer, dimension(:)  , pointer            :: DischargesLink       => null()
         real,    dimension(:)  , pointer            :: DischargesFlow       => null()
         real,    dimension(:,:), pointer            :: DischargesConc       => null()
+        logical, dimension(:)  , pointer            :: DischargesActive     => null()
         integer, dimension(:,:), pointer            :: ChannelsID          => null()   
 
         logical                                     :: Discharges           = OFF   
@@ -979,6 +997,8 @@ Module ModuleDrainageNetwork
         real(8)                                     :: TotalOverTopVolume           = 0.0 !OverTopping
         real(8)                                     :: TotalStormWaterOutput        = 0.0 !Total outflow to the Storm Water System
         real(8)                                     :: TotalStormWaterInput         = 0.0
+        real(8)                                     :: TotalReservoirInput          = 0.0 !input from reservoirs
+        real(8)                                     :: TotalReservoirOutput         = 0.0 !exit to reservoirs
         real(8)                                     :: InitalTotalEvapFromSurfaceVolume = 0.0
         real(8)                                     :: InitialTotalOutputVolume     = 0.0
         real(8)                                     :: InitialTotalFlowVolume       = 0.0
@@ -1054,16 +1074,18 @@ Module ModuleDrainageNetwork
 
     !----------------------------------------------------------------------------
 
-    subroutine ConstructDrainageNetwork(ModelName, DrainageNetworkID, TimeID, Size,   &
-                                        CheckMass, CoupledPMP, CoupledRP, Topography, STAT)
+    subroutine ConstructDrainageNetwork(ModelName, DrainageNetworkID, TimeID, Size2D,   &
+                                        CheckMass, CoupledPMP, CoupledRP, CoupledReservoirs, &
+                                         ReservoirDNNodeID, Topography, STAT)
 
         !Arguments---------------------------------------------------------------
         character(len=*)                                :: ModelName
         integer                                         :: DrainageNetworkID  
         integer                                         :: TimeID
-        type (T_Size2D), optional                       :: Size
+        type (T_Size2D), optional                       :: Size2D
         logical, optional                               :: CheckMass
-        logical, optional                               :: CoupledPMP, CoupledRP 
+        logical, optional                               :: CoupledPMP, CoupledRP, CoupledReservoirs
+        integer, dimension(:), pointer, optional        :: ReservoirDNNodeID
         real, dimension(:,:), pointer, optional         :: Topography
         integer, optional, intent(OUT)                  :: STAT     
 
@@ -1102,6 +1124,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(CoupledRP)) then
                 Me%ExtVar%CoupledRP  = CoupledRP
             endif
+            if (present(CoupledReservoirs)) then
+                Me%ComputeOptions%ReservoirLink  = CoupledReservoirs
+                Me%Reservoirs%ReservoirDNNodeID => ReservoirDNNodeID
+                Me%Reservoirs%nReservoirs = size(Me%Reservoirs%ReservoirDNNodeID)
+            endif
+            
             !DN will be forced with Topography (to check nodes terrain level and heights)
             !This is used when DN is forced over DTM (the latter without removed depressions)
             nullify(Me%ExtVar%Topography)
@@ -1120,9 +1148,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
 
             !Verifies if Drainage Network Runs coupled to a grid or not
-            if (present(Size)) then
+            if (present(Size2D)) then
                 Me%HasGrid = .true.
-                Me%Size    = Size
+                Me%Size    = Size2D
             else
                 Me%HasGrid = .false.
             endif
@@ -1166,6 +1194,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%ComputeOptions%StormWaterModelLink) then
                 call ConstructStormWaterModelLink
             endif
+            
+           if (Me%ComputeOptions%ReservoirLink) then
+                call ConstructReservoirs
+            endif              
             
             !Couples other modules
             call ConstructSubModules
@@ -1258,7 +1290,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         logical                                         :: Found
         type (T_Node), pointer                          :: CurrNode
 
-
         call Construct_Discharges(Me%ObjDischarges,                              &
                                   Me%ObjTime,                                    &
                                   STAT = STAT_CALL)
@@ -1272,24 +1303,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         allocate(Me%DischargesLink(nDischarges))
         allocate(Me%DischargesFlow(nDischarges))
         allocate(Me%DischargesConc(nDischarges, Me%nPropWithDischarges))
-
+        allocate(Me%DischargesActive(nDischarges))
+        
         do iDis = 1, nDischarges
-
+                              
             call GetDischargesNodeID  (Me%ObjDischarges, iDis, NodeID, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR04'
-
-            call FindNodePosition   (NodeID, NodePos, Found)
-
-            CurrNode => Me%Nodes(NodePos)
-            CurrNode%Discharges = .true.
             
-            if (Found) then
-                Me%DischargesLink(iDis) = NodePos
+            !ignore discharges from reservoir (that can cohesist)
+            if (NodeID > 0) then
+                
+                Me%DischargesActive(iDis) = .true.
+                
+                call FindNodePosition   (NodeID, NodePos, Found)
+
+                CurrNode => Me%Nodes(NodePos)
+                CurrNode%Discharges = .true.
+            
+                if (Found) then
+                    Me%DischargesLink(iDis) = NodePos
+                else
+                    write (*,*) 'Discharge Node not found'
+                    write (*,*) 'Node ID = ', NodeID            
+                    stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR05'
+                end if
             else
-                write (*,*) 'Discharge Node not found'
-                write (*,*) 'Node ID = ', NodeID            
-                stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR05'
-            end if
+                Me%DischargesActive(iDis) = .false.
+            endif
             
         end do
     
@@ -6336,8 +6376,8 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
 
         if (Me%ComputeOptions%Benthos) then
             call CoupleBenthos
-        endif
-
+        endif      
+        
         if (Me%ComputeOptions%BottomFluxes) then
             call SearchProperty(PropertyX, PropertyXIDNumber = TSS_, STAT = STAT_CALL)
             !give a warning, if TSS is not chosen as property
@@ -6577,6 +6617,100 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         
     !---------------------------------------------------------------------------
 
+    subroutine ConstructReservoirs
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Size1D)                             :: Size1D
+        type (T_Size2D)                             :: Size2D
+        integer                                     :: ReservoirPos, NodePos, i
+        integer                                     :: DownReachPos, UpReachPos, UpNode
+        logical                                     :: Found
+        type(T_Node), pointer                       :: CurrNodeExchange, CurrNode
+        type(T_Reach), pointer                      :: CurrReach
+        
+        
+        !inactivate the nodes where reservoirs are
+        
+        !Reservoirs
+        Size1D%ILB = 1
+        Size2D%ILB = 1
+        Size1D%IUB = Me%Reservoirs%nReservoirs
+        Size2D%IUB = Me%Reservoirs%nReservoirs
+        
+        !props
+        Size2D%JLB = 1
+        Size2D%JUB = Me%PropertiesNumber
+        
+        allocate (Me%Reservoirs%ReservoirsInflow           (Me%Reservoirs%nReservoirs))
+        allocate (Me%Reservoirs%ReservoirsOutflow          (Me%Reservoirs%nReservoirs))
+        allocate (Me%Reservoirs%ReservoirsConc             (Me%Reservoirs%nReservoirs, Me%PropertiesNumber))
+        allocate (Me%Reservoirs%NodeConc                   (Me%Reservoirs%nReservoirs, Me%PropertiesNumber))
+        allocate (Me%Reservoirs%ReservoirsExchangeNodePos  (Me%Reservoirs%nReservoirs))        
+
+        call SetMatrixValue(Me%Reservoirs%ReservoirsInflow          , Size1D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsConc            , Size2D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%NodeConc                  , Size2D, 0.0)        
+        call SetMatrixValue(Me%Reservoirs%ReservoirsExchangeNodePos , Size1D, 0)      
+        
+        
+        nullify (CurrNode)
+        do ReservoirPos = 1, Me%Reservoirs%nReservoirs
+            
+            call FindNodePosition(Me%Reservoirs%ReservoirDNNodeID(ReservoirPos), NodePos, Found)
+            
+            !inactivate reach(es) downstream resevoir node
+            !node to remove flow to reservoir (node water volume /dt) is only one (upstream inactive reach(es))
+            !node to insert flow from reservoir can be several (downstream of inactive reaches)
+            if (Found) then
+                
+                !Reservoir Node
+                CurrNodeExchange => Me%Nodes(NodePos)
+                
+                !Inactivate all downstream reaches
+                if (CurrNodeExchange%nDownstreamReaches /= 0) then
+                    
+                    do i = 1, CurrNodeExchange%nDownstreamReaches
+                        DownReachPos = CurrNodeExchange%DownstreamReaches(i)
+                        CurrReach => Me%Reaches(DownReachPos)
+                        CurrReach%Active = .false.
+                    enddo                    
+                                        
+                else !outlet - it can have only one upstream reach so inactivate that one
+                    UpReachPos = CurrNode%UpstreamReaches(1)
+                    CurrReach => Me%Reaches(UpReachPos)
+                    CurrReach%Active = .false.
+                    
+                    UpNode = CurrReach%UpstreamNode
+                    CurrNode => Me%Nodes(UpNode)
+                    !update Node (cant be the original because it was an outlet)
+                    call FindNodePosition(CurrNode%ID, NodePos, Found)
+                    
+                    if (.not. Found) then
+                        write (*,*) 'Node not found'
+                        write (*,*) 'Node ID = ', CurrNode%ID                          
+                        stop 'CoupleReservoirs - ModuleDrainageNetwork - ERR01'                
+                    endif                         
+                endif                            
+                
+                Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos) = NodePos
+                
+            else
+                write (*,*) 'Node not found from Reservoir list'
+                write (*,*) 'Node ID = ', Me%Reservoirs%ReservoirDNNodeID(ReservoirPos)                           
+                stop 'CoupleReservoirs - ModuleDrainageNetwork - ERR010'                
+            endif        
+        enddo
+        
+        
+
+        
+    end subroutine ConstructReservoirs
+
+    !---------------------------------------------------------------------------    
+    
     subroutine ConstructOutput
 
         !Arguments--------------------------------------------------------------
@@ -7472,6 +7606,18 @@ if0:    if (Me%HasProperties) then
             write(*, *)
             
         endif
+        
+        if (Me%ComputeOptions%ReservoirLink) then
+        
+            write(*, *)"--------------- DRAINAGE NETWORK RESERVOIR LINKS --------------"      
+            write(*, *)
+            write(*, *)"Num of Reservoir  Nodes: ", Me%Reservoirs%nReservoirs
+            do iNode = 1, Me%Reservoirs%nReservoirs
+                write(*, *)"       Reservoir  Node : ", Me%Reservoirs%ReservoirDNNodeID(iNode)
+            enddo
+            write(*, *)
+            
+        endif        
         
 #endif  
 
@@ -8429,7 +8575,8 @@ if0:    if (Me%HasProperties) then
                           TotalOutputVolume, TotalStoredVolume, TotalFlowVolume,         &
                           TotalOvertopVolume, TotalStormWaterOutput,                     &
                           TotalStormWaterInput, OutletFlowVolume,                        &
-                          TotalEvapFromSurfaceVolume, STAT)
+                          TotalEvapFromSurfaceVolume, TotalReservoirOutput,              &
+                          TotalReservoirInput, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
@@ -8440,6 +8587,8 @@ if0:    if (Me%HasProperties) then
         real(8), intent(OUT), optional                  :: TotalOvertopVolume
         real(8), intent(OUT), optional                  :: TotalStormWaterOutput
         real(8), intent(OUT), optional                  :: TotalStormWaterInput
+        real(8), intent(OUT), optional                  :: TotalReservoirInput
+        real(8), intent(OUT), optional                  :: TotalReservoirOutput
         real(8), intent(OUT), optional                  :: OutletFlowVolume
         real(8), intent(OUT), optional                  :: TotalEvapFromSurfaceVolume
         integer, intent(OUT), optional                  :: STAT
@@ -8461,6 +8610,8 @@ if0:    if (Me%HasProperties) then
             if (present (TotalOvertopVolume    )) TotalOvertopVolume    = Me%TotalOvertopVolume
             if (present (TotalStormWaterOutput )) TotalStormWaterOutput = Me%TotalStormWaterOutput
             if (present (TotalStormWaterInput  )) TotalStormWaterInput  = Me%TotalStormWaterInput
+            if (present (TotalReservoirOutput )) TotalReservoirOutput = Me%TotalReservoirOutput
+            if (present (TotalReservoirInput  )) TotalReservoirInput  = Me%TotalReservoirInput            
             if (present (OutletFlowVolume      )) OutletFlowVolume      = Me%OutletFlowVolume
             if (present (TotalEvapFromSurfaceVolume)) TotalEvapFromSurfaceVolume = Me%TotalEvapFromSurfaceVolume
             STAT_CALL = SUCCESS_
@@ -8885,6 +9036,201 @@ if0:    if (Me%HasProperties) then
 
     !---------------------------------------------------------------------------
 
+    subroutine SetInflowFromReservoir   (DrainageNetworkID, ReservoirInflow, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real(8), dimension(:), pointer                  :: ReservoirInflow
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_, ReservoirPos
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+                
+            do ReservoirPos = 1, Me%Reservoirs%nReservoirs            
+            
+                Me%Reservoirs%ReservoirsInflow(ReservoirPos) = ReservoirInflow(ReservoirPos)
+
+            enddo
+            
+            
+            STAT_ = SUCCESS_ 
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetInflowFromReservoir
+
+    !---------------------------------------------------------------------------  
+    
+   subroutine GetOutflowToReservoir   (DrainageNetworkID, ReservoirOutflow, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real(8), dimension(:), pointer                  :: ReservoirOutflow
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID) 
+                         
+            
+            ReservoirOutflow => Me%Reservoirs%ReservoirsOutflow
+            
+            
+            STAT_ = SUCCESS_ 
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine GetOutflowToReservoir   
+
+    !---------------------------------------------------------------------------
+
+    subroutine SetReservoirsConcDN   (DrainageNetworkID, ConcentrationX,      &
+                                                PropertyXIDNumber, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:), pointer                     :: ConcentrationX
+        integer                                         :: PropertyXIDNumber
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: IProp, ReservoirPos
+        integer                                         :: STAT_, ready_
+        type(T_Property), pointer                       :: PropertyX
+        logical                                         :: FoundProperty
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+                       
+            nullify(PropertyX)
+            
+            FoundProperty = .false.
+            iProp = 0
+            PropertyX => Me%FirstProperty
+do1:        do while (associated (PropertyX))    
+    
+                iProp = iProp + 1    
+                
+                if (PropertyX%ID%IDNumber == PropertyXIDNumber) then
+                          
+                    do ReservoirPos = 1, Me%Reservoirs%nReservoirs            
+            
+                        Me%Reservoirs%ReservoirsConc(ReservoirPos, iProp) = ConcentrationX(ReservoirPos)
+
+                    enddo 
+                    
+                    FoundProperty = .true.
+                    exit do1
+                endif
+            enddo do1
+            
+            if (.not. FoundProperty) then
+                write(*,*) 'Looking for Reservoir Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'SetReservoirsConcDN - ModuleDrainageNetwork - ERR010'
+            end if
+
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetReservoirsConcDN
+
+    !---------------------------------------------------------------------------   
+                                                
+    subroutine GetNodeConcReservoirs   (DrainageNetworkID, ConcentrationX,      &
+                                                PropertyXIDNumber, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:), pointer                     :: ConcentrationX
+        integer                                         :: PropertyXIDNumber
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: IProp, ReservoirPos
+        integer                                         :: STAT_, ready_
+        type(T_Property), pointer                       :: PropertyX
+        logical                                         :: FoundProperty
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+                       
+            nullify(PropertyX)
+            
+            FoundProperty = .false.
+            iProp = 0
+            PropertyX => Me%FirstProperty
+do1:        do while (associated (PropertyX))    
+                
+                iProp = iProp + 1   
+    
+                if (PropertyX%ID%IDNumber == PropertyXIDNumber) then
+                         
+                    do ReservoirPos = 1, Me%Reservoirs%nReservoirs            
+            
+                        ConcentrationX(ReservoirPos) = Me%Reservoirs%NodeConc(ReservoirPos, iProp)
+
+                    enddo 
+                    
+                    FoundProperty = .true.
+                    exit do1
+                endif
+            enddo do1
+            
+            if (.not. FoundProperty) then
+                write(*,*) 'Looking for Reservoir Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'GetNodeConcReservoir - ModuleDrainageNetwork - ERR010'
+            end if
+
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine GetNodeConcReservoirs
+
+    !---------------------------------------------------------------------------                                                  
+                                                
+   
     subroutine SetGWFlowLayersToDN   (DrainageNetworkID, GWFlowBottomLayer,        &
                                       GWFlowTopLayer, STAT)
 
@@ -8924,8 +9270,8 @@ if0:    if (Me%HasProperties) then
 
     end subroutine SetGWFlowLayersToDN
 
-    !---------------------------------------------------------------------------    
-
+    !---------------------------------------------------------------------------                                          
+                                      
     subroutine SearchProperty(PropertyX, PropertyXIDNumber, PrintWarning, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -9127,6 +9473,9 @@ do2 :   do while (associated(PropertyX))
         Me%TotalOverTopVolume           = 0.0
         Me%TotalStormWaterOutput        = 0.0
         Me%TotalEvapFromSurfaceVolume   = 0.0
+        Me%TotalReservoirOutput         = 0.0
+        Me%TotalReservoirInput          = 0.0       
+        
         
         if (Me%CheckMass) then
             Property => Me%FirstProperty
@@ -9208,6 +9557,11 @@ do2 :   do while (associated(PropertyX))
                 call FlowFromStormWater     (Me%CV%CurrentDT)
             endif
             
+            !Inputs from Reservoirs
+            if (Me%ComputeOptions%ReservoirLink) then
+                call FlowFromReservoirs     (Me%CV%CurrentDT)
+            endif
+            
             call UpdateAreasAndMappings
          
             !Runs Hydrodynamic
@@ -9286,6 +9640,10 @@ do2 :   do while (associated(PropertyX))
             call FlowToStormWater
         endif
 
+        if (Me%ComputeOptions%ReservoirLink) then
+            call FlowToReservoirs
+        endif
+        
         !Top Radiation
         if (Me%ComputeOptions%TopRadiation)       call ModifyTopRadiation       ()   
             
@@ -10235,85 +10593,89 @@ if2:        if (Volume > PoolVolume) then
 
         do iDis = 1, nDischarges
 
-            NodePos = Me%DischargesLink(iDis)
-
-            CurrNode => Me%Nodes(NodePos)
-
-            if (iter == 1) then
-                call GetDischargeWaterFlow(Me%ObjDischarges,                                &
-                                        Me%CurrentTime, iDis,                               &
-                                        Me%Nodes(NodePos)%WaterDepth,                       &
-                                        Me%DischargesFlow(iDis), STAT = STAT_CALL)
-                if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ModifyWaterDischarges - ERR04'
-            endif
+            if (Me%DischargesActive(iDis)) then
             
-            VolumeNew = CurrNode%VolumeNew + Me%DischargesFlow(iDis) * LocalDT
-            
-            !only remove what is available
-            if (Me%DischargesFlow(iDis).lt. 0.0 .and. VolumeNew .lt. 0.0) then
-                !       m3/s            =       m3    /    s
-                Me%DischargesFlow(iDis) = - CurrNode%VolumeNew / LocalDT
-                VolumeNew = 0.0
-            endif
-            
-            !if (Me%CheckMass) Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
-            Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
+                NodePos = Me%DischargesLink(iDis)
 
-            nullify (Property)
-            Property => Me%FirstProperty
-            iProp = 0
-            do while (associated (Property))
+                CurrNode => Me%Nodes(NodePos)
+
+                if (iter == 1) then
+                    call GetDischargeWaterFlow(Me%ObjDischarges,                                &
+                                            Me%CurrentTime, iDis,                               &
+                                            Me%Nodes(NodePos)%WaterDepth,                       &
+                                            Me%DischargesFlow(iDis), STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ModifyWaterDischarges - ERR04'
+                endif
+            
+                VolumeNew = CurrNode%VolumeNew + Me%DischargesFlow(iDis) * LocalDT
+            
+                !only remove what is available
+                if (Me%DischargesFlow(iDis).lt. 0.0 .and. VolumeNew .lt. 0.0) then
+                    !       m3/s            =       m3    /    s
+                    Me%DischargesFlow(iDis) = - CurrNode%VolumeNew / LocalDT
+                    VolumeNew = 0.0
+                endif
+            
+                !if (Me%CheckMass) Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
+                Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
+
+                nullify (Property)
+                Property => Me%FirstProperty
+                iProp = 0
+                do while (associated (Property))
                 
-                if (Property%ComputeOptions%Discharges) then 
+                    if (Property%ComputeOptions%Discharges) then 
                     
-                    iProp = iProp + 1
+                        iProp = iProp + 1
 
-                    !Gets Discharge Concentration for this cycle of iter
-                    if (iter == 1) then
-                        call GetDischargeConcentration (Me%ObjDischarges,                           &
-                                                        Me%CurrentTime,                             &
-                                                        iDis, Me%DischargesConc(iDis, iProp),       &
-                                                        Property%ID%IDNumber,                       &
-                                                        STAT = STAT_CALL)
-                        if (STAT_CALL/=SUCCESS_) then
-                            if (STAT_CALL == NOT_FOUND_ERR_) then 
-                                !When a property is not found associated to a discharge
-                                !by default is consider that the concentration is zero
-                                Me%DischargesConc(iDis, iProp) = 0.
-                            else
-                                stop 'ModuleDrainageNetwork - ModifyWaterDischarges - ERR05'
+                        !Gets Discharge Concentration for this cycle of iter
+                        if (iter == 1) then
+                            call GetDischargeConcentration (Me%ObjDischarges,                           &
+                                                            Me%CurrentTime,                             &
+                                                            iDis, Me%DischargesConc(iDis, iProp),       &
+                                                            Property%ID%IDNumber,                       &
+                                                            STAT = STAT_CALL)
+                            if (STAT_CALL/=SUCCESS_) then
+                                if (STAT_CALL == NOT_FOUND_ERR_) then 
+                                    !When a property is not found associated to a discharge
+                                    !by default is consider that the concentration is zero
+                                    Me%DischargesConc(iDis, iProp) = 0.
+                                else
+                                    stop 'ModuleDrainageNetwork - ModifyWaterDischarges - ERR05'
+                                endif
                             endif
                         endif
-                    endif
 
-                    !In case of negative discharge flux for mass balance is done using old concentration in river
-                    !and before concentration is updated in routine DischargeProperty
-                    !Do not move this computation to after DischargeProperty
-                    !In case of positive use dicharge concentration
-                    if (Me%CheckMass) then
-                        if (Me%DischargesFlow(iDis) .lt. 0.0) then                        
-                            !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
-                            Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis)           &
-                                                             * LocalDT * Property%Concentration(NodePos) * Property%IScoefficient)
-                        else
-                            !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
-                            Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis)           &
-                                                             * LocalDT * Me%DischargesConc(iDis, iProp) * Property%IScoefficient)
+                        !In case of negative discharge flux for mass balance is done using old concentration in river
+                        !and before concentration is updated in routine DischargeProperty
+                        !Do not move this computation to after DischargeProperty
+                        !In case of positive use dicharge concentration
+                        if (Me%CheckMass) then
+                            if (Me%DischargesFlow(iDis) .lt. 0.0) then                        
+                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis)           &
+                                                                 * LocalDT * Property%Concentration(NodePos) * Property%IScoefficient)
+                            else
+                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis)           &
+                                                                 * LocalDT * Me%DischargesConc(iDis, iProp) * Property%IScoefficient)
                         
+                            endif
                         endif
-                    endif
                 
-                    call DischargeProperty (Me%DischargesFlow(iDis), Me%DischargesConc(iDis, iProp),        &
-                                            NodePos, CurrNode%VolumeNew,   Property,                        &
-                                            Property%IScoefficient, LocalDT, .false.)
+                        call DischargeProperty (Me%DischargesFlow(iDis), Me%DischargesConc(iDis, iProp),        &
+                                                NodePos, CurrNode%VolumeNew,   Property,                        &
+                                                Property%IScoefficient, LocalDT, .false.)
                     
-                end if
+                    end if
                                 
-                Property => Property%Next
+                    Property => Property%Next
 
-            enddo
+                enddo
         
-            CurrNode%VolumeNew = VolumeNew
+                CurrNode%VolumeNew = VolumeNew
+                
+            endif
 
         enddo
 
@@ -10691,7 +11053,149 @@ if2:        if (Volume > PoolVolume) then
 
 
     end subroutine FlowToStormWater
+    
+    !---------------------------------------------------------------------------
 
+    subroutine FlowFromReservoirs(LocalDT)
+
+        !Arguments--------------------------------------------------------------
+        real                                        :: LocalDT
+
+        !Local------------------------------------------------------------------
+        integer                                     :: ReservoirPos, iProp, NodePos, i
+        integer                                     :: DownReachPos
+        type (T_Node), pointer                      :: CurrNodeExchange, CurrNode
+        type (T_Reach), pointer                     :: CurrReach
+        real(8)                                     :: Flow, TotalVerticalArea
+        logical                                     :: Found
+        type(T_Property), pointer                   :: Property    
+        
+        
+        !Actualize VolumeNew
+        !input from reservoirs goes to nodes donstream inactive reaches
+        do ReservoirPos = 1, Me%Reservoirs%nReservoirs
+            
+            TotalVerticalArea = 0.0
+            
+            !Reservoir Node
+            CurrNodeExchange                        => Me%Nodes (Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos))
+            
+
+            !Sum Vertical Area to distribute flow over several nodes (if exist). Water goes to where it exists
+            !Do not this by MaxVolume or the water can go to unreachble (e.g. higher bottom level) big nodes
+            do i = 1, CurrNodeExchange%nDownstreamReaches
+                DownReachPos = CurrNodeExchange%DownstreamReaches(i)
+                CurrReach => Me%Reaches(DownReachPos)
+                CurrNode => Me%Nodes(CurrReach%DownstreamNode)
+                TotalVerticalArea = TotalVerticalArea + CurrNode%VerticalArea
+            enddo
+            
+            !Downstream reaches that are inactive. Divide flow per number of reaches and upate nodes volume
+            do i = 1, CurrNodeExchange%nDownstreamReaches
+                DownReachPos = CurrNodeExchange%DownstreamReaches(i)
+                CurrReach => Me%Reaches(DownReachPos)
+                CurrNode => Me%Nodes(CurrReach%DownstreamNode)
+                
+                if (TotalVerticalArea > AlmostZero) then
+                    Flow = Me%Reservoirs%ReservoirsInflow(ReservoirPos) * CurrNode%VerticalArea / TotalVerticalArea
+                else
+                    Flow = Me%Reservoirs%ReservoirsInflow(ReservoirPos) / CurrNodeExchange%nDownstreamReaches
+                endif
+                
+                call FindNodePosition(CurrNode%ID, NodePos, Found)
+                
+                !Property discharge
+                iProp = 0
+                Property => Me%FirstProperty
+                do while (associated (Property))     
+                    if (Property%ComputeOptions%AdvectionDiffusion) then
+                        iProp = iProp + 1
+                        call DischargeProperty (Flow, Me%Reservoirs%ReservoirsConc(ReservoirPos, iProp),   &
+                                                NodePos, CurrNode%VolumeNew,   Property,                  &
+                                                Property%IScoefficient, Me%ExtVar%DT, .false.)
+                    endif
+                    Property => Property%Next
+                enddo  
+                
+                CurrNode%VolumeNew                 = CurrNode%VolumeNew + Flow * LocalDT
+                                
+            enddo
+            
+            Me%TotalReservoirInput                 = Me%TotalReservoirInput + Me%Reservoirs%ReservoirsInflow(ReservoirPos)
+        
+            
+        enddo        
+
+    end subroutine FlowFromReservoirs
+
+    !---------------------------------------------------------------------------    
+    
+    subroutine FlowToReservoirs
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: ReservoirPos, iProp
+        type (T_Node), pointer                      :: CurrNodeExchange
+        type(T_Property), pointer                   :: Property
+        type(T_Size2D)                              :: Size2D
+        type(T_Size1D)                              :: Size1D           
+        
+        !Reservoirs
+        Size1D%ILB = 1
+        Size2D%ILB = 1
+        Size1D%IUB = Me%Reservoirs%nReservoirs
+        Size2D%IUB = Me%Reservoirs%nReservoirs
+        
+        !props
+        Size2D%JLB = 1
+        Size2D%JUB = Me%PropertiesNumber            
+
+        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%NodeConc                  , Size2D, 0.0)        
+                  
+        
+        !Actualize VolumeNew
+        !input to reservoirs goes from reservoir node (upstream inactive reaches)
+        do ReservoirPos = 1, Me%Reservoirs%nReservoirs
+            
+            
+            !Reservoir Node
+            CurrNodeExchange                              => Me%Nodes (Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos))
+            
+
+            Me%TotalReservoirOutput                        = Me%TotalReservoirOutput + CurrNodeExchange%VolumeNew
+            
+            Me%Reservoirs%ReservoirsOutflow(ReservoirPos)  = CurrNodeExchange%VolumeNew / Me%ExtVar%DT
+                
+            CurrNodeExchange%VolumeNew = 0.0
+                
+                
+            iProp = 0
+            Property => Me%FirstProperty
+            do while (associated (Property))     
+                    
+                iProp = iProp + 1
+                    
+                if (Property%ComputeOptions%AdvectionDiffusion) then
+                        
+                    !Save conc before zeroing
+                    Me%Reservoirs%NodeConc(ReservoirPos, iProp) = Property%Concentration(Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos))
+                    !No water no conc
+                    Property%Concentration(Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos)) = 0.0
+                        
+                endif
+                Property => Property%Next
+            enddo                   
+                                                                       
+            
+        enddo        
+
+
+    end subroutine FlowToReservoirs
+    
+    !---------------------------------------------------------------------------    
+    
     !---------------------------------------------------------------------------
 
     subroutine ModifyHydrodynamics (LocalDT)

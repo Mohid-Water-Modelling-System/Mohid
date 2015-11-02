@@ -36,13 +36,15 @@ Module ModuleHorizontalGrid
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
                                   GeographicToCartesian, CartesianToGeographic,         &
-                                  CHUNK_J, WGS84toGoogleMaps
+                                  CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
+                                  AngleFromGridToField
 
 #else                                  
     use ModuleFunctions, only   : Rodaxy, FromCartesianToGrid, FromGridToCartesian,     &
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
-                                  CHUNK_J, WGS84toGoogleMaps
+                                  CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
+                                  AngleFromGridToField
 
 #endif
     
@@ -226,8 +228,30 @@ Module ModuleHorizontalGrid
         module procedure RotateVectorGridToField3D
     end interface  RotateVectorGridToField
 
-
-
+    private:: RotateAngleFieldToGrid2D
+    private:: RotateAngleFieldToGrid3D
+    public :: RotateAngleFieldToGrid
+    interface  RotateAngleFieldToGrid
+        module procedure RotateAngleFieldToGrid2D
+        module procedure RotateAngleFieldToGrid3D
+    end interface  RotateAngleFieldToGrid    
+    
+    private:: RotateAngleGridToField2D
+    private:: RotateAngleGridToField3D
+    public :: RotateAngleGridToField
+    interface  RotateAngleGridToField
+        module procedure RotateAngleGridToField2D
+        module procedure RotateAngleGridToField3D
+    end interface  RotateAngleGridToField
+    
+    private:: ComputeAngleFromGridComponents2D
+    private:: ComputeAngleFromGridComponents3D
+    public :: ComputeAngleFromGridComponents
+    interface  ComputeAngleFromGridComponents
+        module procedure ComputeAngleFromGridComponents2D
+        module procedure ComputeAngleFromGridComponents3D
+    end interface  ComputeAngleFromGridComponents    
+    
     !Parameter-----------------------------------------------------------------
 
 
@@ -9835,7 +9859,204 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
     !--------------------------------------------------------------------------
 
+    subroutine RotateAngleFieldToGrid2D(HorizontalGridID, AngleIn, InReferential,       &
+                                         AngleOut, WaterPoints2D,                      &
+                                         Rotate, STAT)
 
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:, :), pointer       :: AngleIn, AngleOut
+        integer, dimension(:, :), pointer       :: WaterPoints2D
+        integer                                 :: HorizontalGridID
+        logical                                 :: Rotate
+        integer, optional                       :: STAT
+        integer                                 :: InReferential
+        !Local-----------------------------------------------------------------
+        real                                    :: AngleOutCell, GridAngle
+        integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: i, j
+        integer                                 :: STAT_, ready_
+
+        !Begin--------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+            
+        
+!if1:        if  (Me%Distortion .or. Me%RegularRotation) then
+
+                !Bounds
+                ILB = Me%WorkSize%ILB 
+                IUB = Me%WorkSize%IUB 
+
+                JLB = Me%WorkSize%JLB 
+                JUB = Me%WorkSize%JUB 
+
+                !Rotate
+                do j = JLB, JUB
+                do i = ILB, IUB
+                        
+if2:                if (WaterPoints2D(i, j) == WaterPoint) then
+
+                        !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
+                        !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+
+                        if      (Me%Distortion) then 
+                            
+                            !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
+                            !and rotation Y is not accounted
+                            GridAngle = Me%RotationX(i, j) / 180. * Pi
+
+                        else if (Me%RegularRotation) then
+
+                            GridAngle = Me%Grid_Angle 
+
+                        endif
+
+                        call AngleFromFieldToGrid (AngleIn(i, j), InReferential,           &
+                                                         GridAngle, AngleOutCell)
+
+                        if (Rotate) then
+
+                            AngleOut(i, j) = AngleOutCell
+
+                        endif
+
+
+                    endif if2
+
+                enddo
+                enddo
+
+            !else  if1
+            !
+            !    if (Rotate) then
+            !
+            !        AngleOut(:, :) = AngleIn(:, :)
+            !
+            !    endif
+            !
+            !
+            !endif if1
+
+            STAT_ = SUCCESS_
+
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine RotateAngleFieldToGrid2D
+
+    !--------------------------------------------------------------------------
+
+    subroutine RotateAngleFieldToGrid3D(HorizontalGridID, AngleIn, InReferential,       &
+                                         AngleOut, WaterPoints3D,         &
+                                         Rotate, KLB, KUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:, : , :), pointer   :: AngleIn, AngleOut
+        integer, dimension(:, : , :), pointer   :: WaterPoints3D
+        integer                                 :: HorizontalGridID, KLB, KUB
+        logical                                 :: Rotate
+        integer, optional                       :: STAT
+        integer                                 :: InReferential
+        !Local-----------------------------------------------------------------
+        real                                    :: AngleOutCell, GridAngle
+        integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: i, j, k
+        integer                                 :: STAT_, ready_
+
+        !Begin--------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+            
+        
+!if1:        if  (Me%Distortion .or. Me%RegularRotation) then
+
+                !Bounds
+                ILB = Me%WorkSize%ILB 
+                IUB = Me%WorkSize%IUB 
+
+                JLB = Me%WorkSize%JLB 
+                JUB = Me%WorkSize%JUB 
+
+                !Rotate
+                do k = KLB, KUB
+                do j = JLB, JUB
+                do i = ILB, IUB
+                        
+if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
+
+                        !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
+                        !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+
+                        if      (Me%Distortion) then 
+                            
+                            !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
+                            !and rotation Y is not accounted
+                            GridAngle = Me%RotationX(i, j) / 180. * Pi
+
+                        else if (Me%RegularRotation) then
+
+                            GridAngle = Me%Grid_Angle 
+
+                        endif
+
+                        call AngleFromFieldToGrid (AngleIn(i, j, k), InReferential,           &
+                                                         GridAngle, AngleOutCell)
+
+                        if (Rotate) then
+
+                            AngleOut(i, j, k) = AngleOutCell
+
+                        endif
+
+
+                    endif if2
+
+                enddo
+                enddo
+                enddo
+
+            !else  if1
+            !
+            !    if (Rotate) then
+            !
+            !        AngleOut(:, :, :) = AngleIn(:, : , :)
+            !
+            !    endif
+            !
+            !
+            !endif if1
+
+            STAT_ = SUCCESS_
+
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine RotateAngleFieldToGrid3D
+
+    !--------------------------------------------------------------------------                                         
+                                         
     subroutine RotateVectorGridToField2D(HorizontalGridID, VectorInX, VectorInY,        &
                                          VectorOutX, VectorOutY, WaterPoints2D,         &
                                          RotateX, RotateY, STAT)
@@ -10064,6 +10285,338 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
     end subroutine RotateVectorGridToField3D
     !--------------------------------------------------------------------------
 
+    subroutine RotateAngleGridToField2D(HorizontalGridID, AngleIn, OutReferential,       &
+                                         AngleOut, WaterPoints2D,         &
+                                         Rotate, STAT)
+
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:, :), pointer       :: AngleIn, AngleOut
+        integer, dimension(:, :), pointer       :: WaterPoints2D
+        integer                                 :: HorizontalGridID
+        logical                                 :: Rotate
+        integer, optional                       :: STAT
+        integer                                 :: OutReferential
+        !Local-----------------------------------------------------------------
+        real                                    :: AngleOutCell, GridAngle
+        integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: i, j
+        integer                                 :: STAT_, ready_
+
+        !Begin--------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+            
+        
+!if1:        !if  (Me%Distortion .or. Me%RegularRotation) then
+
+                !Bounds
+                ILB = Me%WorkSize%ILB 
+                IUB = Me%WorkSize%IUB 
+
+                JLB = Me%WorkSize%JLB 
+                JUB = Me%WorkSize%JUB 
+
+
+                !Rotate
+                do j = JLB, JUB
+                do i = ILB, IUB
+                        
+if2:                if (WaterPoints2D(i, j) == WaterPoint) then
+
+                        !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
+                        !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+
+                        if      (Me%Distortion) then 
+                            
+                            !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
+                            !and rotation Y is not accounted
+                            GridAngle = Me%RotationX(i, j) * 180. / Pi
+
+                        else if (Me%RegularRotation) then
+
+                            GridAngle = Me%Grid_Angle 
+
+                        endif
+
+                        call AngleFromGridToField (AngleIn(i, j), OutReferential,           &
+                                                         GridAngle, AngleOutCell)
+
+                        if (Rotate) then
+
+                            AngleOut(i, j) = AngleOutCell
+
+                        endif
+
+
+                    endif if2
+
+                enddo
+                enddo
+
+            !else  if1
+            !
+            !    if (Rotate) then
+            !
+            !        AngleOut(:, :) = AngleIn(:, :)
+            !
+            !    endif
+            !
+            !
+            !endif if1
+
+            STAT_ = SUCCESS_
+
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine RotateAngleGridToField2D
+
+    !--------------------------------------------------------------------------
+
+    subroutine RotateAngleGridToField3D(HorizontalGridID, AngleIn, OutReferential,       &
+                                         AngleOut, WaterPoints3D,         &
+                                         Rotate, KLB, KUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:, : , :), pointer   :: AngleIn, AngleOut
+        integer, dimension(:, : , :), pointer   :: WaterPoints3D
+        integer                                 :: HorizontalGridID, KLB, KUB
+        logical                                 :: Rotate
+        integer                                 :: OutReferential
+        integer, optional                       :: STAT
+        !Local-----------------------------------------------------------------
+        real                                    :: AngleOutCell, GridAngle
+        integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: i, j, k
+        integer                                 :: STAT_, ready_
+
+        !Begin--------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+            
+        
+!if1:        !if  (Me%Distortion .or. Me%RegularRotation) then
+
+                !Bounds
+                ILB = Me%WorkSize%ILB 
+                IUB = Me%WorkSize%IUB 
+
+                JLB = Me%WorkSize%JLB 
+                JUB = Me%WorkSize%JUB 
+
+                !Rotate
+                do k = KLB, KUB
+                do j = JLB, JUB
+                do i = ILB, IUB
+                        
+if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
+
+                        !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
+                        !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+
+                        if      (Me%Distortion) then 
+                            
+                            !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
+                            !and rotation Y is not accounted
+                            GridAngle = Me%RotationX(i, j) * 180. / Pi
+
+                        else if (Me%RegularRotation) then
+
+                            GridAngle = Me%Grid_Angle 
+
+                        endif
+
+                        call AngleFromGridToField (AngleIn(i, j, k), OutReferential,           &
+                                                         GridAngle, AngleOutCell)
+
+                        if (Rotate) then
+
+                            AngleOut(i, j, k) = AngleOutCell
+
+                        endif
+
+
+                    endif if2
+
+                enddo
+                enddo
+                enddo
+
+            !else  if1
+            !
+            !    if (Rotate) then
+            !
+            !        AngleOut(:, :, :) = AngleIn(:, : , :)
+            !
+            !    endif
+            !
+            !
+            !endif if1
+
+            STAT_ = SUCCESS_
+
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine RotateAngleGridToField3D
+
+    !--------------------------------------------------------------------------         
+                                         
+    subroutine ComputeAngleFromGridComponents2D(HorizontalGridID, VectorU, VectorV,       &
+                                         AngleOutField, AngleOutGrid, WaterPoints2D,  OutReferential,             &
+                                         Rotate, STAT)
+
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:, :), pointer       :: VectorU, VectorV, AngleOutField, AngleOutGrid
+        integer, dimension(:, :), pointer       :: WaterPoints2D
+        integer                                 :: HorizontalGridID, OutReferential
+        logical                                 :: Rotate
+        integer, optional                       :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_, ready_, STAT_CALL
+        integer                                 :: ILB, IUB, JLB, JUB, i, j
+
+        !Begin--------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+
+            !Bounds
+            ILB = Me%WorkSize%ILB 
+            IUB = Me%WorkSize%IUB 
+
+            JLB = Me%WorkSize%JLB 
+            JUB = Me%WorkSize%JUB 
+            
+            do j = JLB, JUB
+            do i = ILB, IUB
+                        
+                if (WaterPoints2D(i, j) == WaterPoint) then
+                    AngleOutGrid(i,j) = atan2(VectorV(i,j), VectorU(i,j)) * 180. / Pi
+                endif
+                
+            enddo
+            enddo
+            
+            !rotate the angles to input referential
+            call RotateAngleGridToField2D(HorizontalGridID,                         &
+                                            AngleIn = AngleOutGrid,                 &
+                                            OutReferential = OutReferential,        &
+                                            AngleOut = AngleOutField,               &
+                                            WaterPoints2D = WaterPoints2D,          &
+                                            Rotate = Rotate,                        &
+                                            STAT = STAT_CALL)   
+            
+            STAT_ = SUCCESS_
+
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine ComputeAngleFromGridComponents2D
+
+    !-------------------------------------------------------------------------- 
+                                         
+    subroutine ComputeAngleFromGridComponents3D(HorizontalGridID, VectorU, VectorV,       &
+                                         AngleOutField, AngleOutGrid, WaterPoints3D, OutReferential,         &
+                                         Rotate, KLB, KUB, STAT)
+
+        !Arguments-------------------------------------------------------------
+        real,    dimension(:, :, :), pointer    :: VectorU, VectorV, AngleOutField, AngleOutGrid
+        integer, dimension(:, :, :), pointer    :: WaterPoints3D
+        integer                                 :: HorizontalGridID, OutReferential
+        integer                                 :: KLB, KUB
+        logical                                 :: Rotate
+        integer, optional                       :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_, ready_, STAT_CALL
+        integer                                 :: ILB, IUB, JLB, JUB, i, j, k
+        !Begin--------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+                    
+            !Bounds
+            ILB = Me%WorkSize%ILB 
+            IUB = Me%WorkSize%IUB 
+
+            JLB = Me%WorkSize%JLB 
+            JUB = Me%WorkSize%JUB 
+            
+            
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+                        
+                if (WaterPoints3D(i, j, k) == WaterPoint) then
+                    AngleOutGrid(i,j, k) = atan2(VectorV(i,j,k), VectorU(i,j,k)) * 180. / Pi
+                endif
+                
+            enddo
+            enddo
+            enddo
+                
+            !rotate the angles to input referential
+            call RotateAngleGridToField3D(HorizontalGridID,                         &
+                                            AngleIn = AngleOutGrid,                 &
+                                            OutReferential = OutReferential,        &
+                                            AngleOut = AngleOutField,               &
+                                            WaterPoints3D = WaterPoints3D,          &
+                                            Rotate = Rotate,                        &
+                                            KLB    = KLB,                           &
+                                            KUB    = KUB,                           &
+                                            STAT = STAT_CALL)   
+            
+            STAT_ = SUCCESS_
+
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine ComputeAngleFromGridComponents3D
+
+    !--------------------------------------------------------------------------                                          
+                                         
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 

@@ -105,7 +105,9 @@ Module ModuleBasin
                                      SetPMPConcDN,SetRPConcDN, UnGetDrainageNetwork,     &
                                      KillDrainageNetwork, SetGWFlowLayersToDN,           &
                                      GetDNMassBalance, CheckDNProperty,                  &
-                                     GetDNConcentration, GetDNStoredVolume
+                                     GetDNConcentration, GetDNStoredVolume,              &
+                                     SetInflowFromReservoir, SetReservoirsConcDN,        &
+                                     GetOutflowToReservoir, GetNodeConcReservoirs
                                      
     use ModulePorousMedia,    only : ConstructPorousMedia, ModifyPorousMedia,            &
                                      KillPorousMedia, GetGWFlowToChannels,               &
@@ -146,6 +148,8 @@ Module ModuleBasin
     use ModuleGeometry,       only : GetGeometrySize
     
     use ModuleSnow
+    
+    use ModuleReservoirs
     
 #ifdef _ENABLE_CUDA
     use ModuleCuda
@@ -247,6 +251,7 @@ Module ModuleBasin
         logical                                     :: PorousMedia          = .false.
         logical                                     :: PorousMediaProperties = .false.
         logical                                     :: Vegetation           = .false.
+        logical                                     :: Reservoirs           = .false.
         logical                                     :: SimpleInfiltration   = .false.
         logical                                     :: SCSCNRunOffModel     = .false.
         logical                                     :: Snow                 = .false.
@@ -555,6 +560,8 @@ Module ModuleBasin
         !Basin is responsable by Total vegetation volume
         real(8)                                     :: VolumeVegetation         = null_real
         
+        integer                                     :: nReservoirs              = null_int
+        
         type (T_Time)                               :: CurrentTime
         type (T_Time)                               :: BeginTime
         type (T_Time)                               :: EndTime       
@@ -586,6 +593,7 @@ Module ModuleBasin
         integer                                     :: ObjDrainageNetwork       = 0
         integer                                     :: ObjPorousMedia           = 0
         integer                                     :: ObjVegetation            = 0
+        integer                                     :: ObjReservoirs            = 0
         integer                                     :: ObjSnow                  = 0
         integer                                     :: ObjHDF5                  = 0
         integer                                     :: ObjEVTPHDF               = 0
@@ -1304,6 +1312,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR300'
 
+        !The Reservoirs Module is coupled_
+        call GetData(Me%Coupled%Reservoirs,                                              &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'RESERVOIRS',                                        &
+                     default      = OFF,                                                 &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR305'        
+        
         !Verifies if the user wants to use simple 
         call GetData(Me%Coupled%SimpleInfiltration,                                      &
                      Me%ObjEnterData, iflag,                                             &
@@ -1667,9 +1685,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     write(*,*)'If using Porous Media/simple Infiltration/SCS CN Run Off model than need to link RUN_OFF '
                     write(*,*)'Because Runoff is now the module responsible for the'
                     write(*,*)'water column. Module Basin is now only an updater'
-                    stop 'VerifyOptions - ModuleBasin - ERR08' 
+                    stop 'VerifyOptions - ModuleBasin - ERR09' 
                 endif                
             endif
+            
+            if (Me%Coupled%Reservoirs .and. .not. Me%Coupled%DrainageNetwork) then
+                write(*,*)'You must enable module Drainage Network if you want to use module Reservoirs'
+                stop 'VerifyOptions - ModuleBasin - ERR09a'
+            endif            
             
         elseif (WarningString == "PropertyOptions") then
             !!!Check if properties that have advection diffusion have it in all modules
@@ -1772,8 +1795,50 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                             if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR120' 
                         endif
                     endif
+                    !All DN propeties with advection diffusion need to be in Reservoirs
+                    if (PropAdvDiff) then
+                        if (Me%Coupled%Reservoirs) then 
+                            call CheckReservoirProperty (Me%ObjReservoirs, PropID, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR130'                        
+                        endif
+                    else
+                        !if DN property has no advection diffusion cant exist in reservoirs
+                        if (Me%Coupled%Reservoirs) then 
+                            call CheckReservoirProperty (Me%ObjReservoirs, PropID, STAT_CALL)
+                            if (STAT_CALL == SUCCESS_) then
+                                write(*,*)
+                                write(*,*)'Found property', GetPropertyName(PropID)
+                                write(*,*)'in Reservoirs Module but it has no advection diffusion in DN.'
+                                stop 'VerifyOptions - ModuleBasin - ERR131'  
+                            endif
+                        endif                        
+                    endif
                 enddo
             endif
+            
+            !Now checking with Reservoirs
+            if (Me%Coupled%Reservoirs) then                        
+            
+                !properties
+                call GetReservoirsnProperties (Me%ObjReservoirs, nProperties, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR140'
+
+                do iProp = 1, nProperties
+
+                    call GetReservoirsPropertiesIDByIdx(ObjReservoirsID   = Me%ObjReservoirs,                      &
+                                                        Idx               = iProp,                                 &
+                                                        ID                = PropID,                                &
+                                                        STAT              = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR150' 
+                
+                    !All reservoir properties must exist in DN
+                    if (Me%Coupled%DrainageNetwork) then
+                        call CheckDNProperty(Me%ObjDrainageNetwork, PropID, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR160' 
+                    endif
+                
+                enddo           
+            endif            
         endif
         
 
@@ -2791,6 +2856,7 @@ i1:         if (CoordON) then
         logical                                     :: VegParticFertilization
         logical                                     :: Pesticide, RiverPointsFromDN
         integer, dimension(:, :), pointer           :: ChannelsID
+        integer, dimension(:),    pointer           :: ReservoirDNNodeID               => null()
         !Begin-----------------------------------------------------------------
 
         !Constructs Atmosphere
@@ -2806,11 +2872,33 @@ i1:         if (CoordON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR010'
         endif
 
+        !Constructs Reservoirs
+        if (Me%Coupled%Reservoirs) then
+            call ConstructReservoirs    (ModelName         = Me%ModelName,                   &
+                                         ObjReservoirsID    = Me%ObjReservoirs,              &
+                                         TimeID             = Me%ObjTime,                    &
+                                         TopographicFile    = Me%Files%TopographicFile,      &
+                                         STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR020'               
+            
+            call GetNumberOfReservoirs(Me%ObjReservoirs, Me%nReservoirs, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR021' 
+                        
+            
+        endif
+        
         !Constructs Drainage Network
-        if (Me%Coupled%DrainageNetwork) then
-
-            !call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
-            !if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR020'
+        if (Me%Coupled%DrainageNetwork) then            
+            
+            !Constructs Reservoirs
+            if (Me%Coupled%Reservoirs) then            
+                
+                !get the DN node id's where reservoirs are
+                call GetReservoirsNodeIDs(Me%ObjReservoirs, ReservoirDNNodeID, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR021' 
+                        
+            
+            endif            
             
             !check if the user wants to set River Points based on DN (not computed from DTM
             !in Basin Geometry)
@@ -2825,10 +2913,12 @@ i1:         if (CoordON) then
                 call ConstructDrainageNetwork (ModelName         = Me%ModelName,                     &
                                                DrainageNetworkID = Me%ObjDrainageNetwork,            &
                                                TimeID            = Me%ObjTime,                       &
-                                               Size              = Me%Size,                          &
+                                               Size2D            = Me%Size,                          &
                                                CheckMass         = Me%VerifyGlobalMass,              &
                                                CoupledPMP        = Me%Coupled%PorousMediaProperties, &
                                                CoupledRP         = Me%Coupled%RunoffProperties,      &
+                                               CoupledReservoirs = Me%Coupled%Reservoirs,            &
+                                               ReservoirDNNodeID = ReservoirDNNodeID,                &
                                                Topography        = Me%ExtVar%Topography,             &
                                                STAT              = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR026'
@@ -2858,13 +2948,25 @@ i1:         if (CoordON) then
                 call ConstructDrainageNetwork (ModelName         = Me%ModelName,                     &
                                                DrainageNetworkID = Me%ObjDrainageNetwork,            &
                                                TimeID            = Me%ObjTime,                       &
-                                               Size              = Me%Size,                          &
+                                               Size2D            = Me%Size,                          &
                                                CheckMass         = Me%VerifyGlobalMass,              &
                                                CoupledPMP        = Me%Coupled%PorousMediaProperties, &
                                                CoupledRP         = Me%Coupled%RunoffProperties,      &
+                                               CoupledReservoirs = Me%Coupled%Reservoirs,            &
+                                               ReservoirDNNodeID = ReservoirDNNodeID,                &                
                                                STAT              = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR030'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR032'
             endif
+                    
+            if (Me%Coupled%Reservoirs) then            
+                
+                !get the DN node id's where reservoirs are
+                call UnGetReservoirs(Me%ObjReservoirs, ReservoirDNNodeID, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR033' 
+                        
+            
+            endif              
+            
         endif
 
 !        !Constructs RunOff
@@ -3036,6 +3138,8 @@ i1:         if (CoordON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR090'
         endif
        
+
+        
         !Constructs Simple Infiltration
         if (Me%Coupled%SimpleInfiltration) then
             call ConstructSimpleInfiltration ()
@@ -3380,7 +3484,9 @@ cd2 :           if (BlockFound) then
         DT_error = EndTimeFile - BeginTime
 
         !Avoid rounding erros - Frank 08-2001
-        if (abs(DT_error) >= 0.01) then
+        !All runs are limited to second definition - David 10-2015
+        !if (abs(DT_error) >= 0.01) then
+        if (abs(DT_error) >= 1) then
             
             write(*,*) 'The end time of the previous run is different from the start time of this run'
             write(*,*) 'Date in the file'
@@ -3614,6 +3720,11 @@ cd2 :           if (BlockFound) then
             !Drainage Network
             if (Me%Coupled%DrainageNetwork) then
                 call DrainageNetworkProcesses                                
+            endif
+            
+            !Reservoirs
+            if (Me%Coupled%Reservoirs) then
+                call ReservoirsProcesses
             endif
             
             !Calibrating 1D
@@ -5531,8 +5642,9 @@ cd2 :           if (BlockFound) then
         real, dimension(:, :   ), pointer           :: PMPConcentration2D
         real, dimension(:, :, :), pointer           :: PMPConcentration
         real, dimension(:, :   ), pointer           :: RPConcentration
+        real, dimension(:      ), pointer           :: ReservoirConcentration
         integer, dimension(:, :), pointer           :: GWLayer
-        
+        real(8), dimension(:), pointer              :: ReservoirFlowToChannels
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "DrainageNetworkProcesses")
         
@@ -5718,6 +5830,56 @@ cd2 :           if (BlockFound) then
             enddo                      
         endif
 
+        if (Me%Coupled%Reservoirs) then
+            
+            !this are the new reservoirs outflows that were computed at the end of the previous time step
+            call GetReservoirsOutflow  (Me%ObjReservoirs, ReservoirFlowToChannels, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR051'
+            
+            !set them to DN
+            call SetInflowFromReservoir (Me%ObjDrainageNetwork, ReservoirFlowToChannels, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR051a'
+            
+            !unget pointer
+            call UngetReservoirs (Me%ObjReservoirs, ReservoirFlowToChannels, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR051b'
+            
+            
+            !properties
+            call GetReservoirsnProperties (Me%ObjReservoirs, nProperties, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR052'
+
+            do iProp = 1, nProperties
+
+                call GetReservoirsPropertiesIDByIdx(ObjReservoirsID   = Me%ObjReservoirs,                      &
+                                                    Idx               = iProp,                                 &
+                                                    ID                = PropID,                                &
+                                                    STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR053' 
+                
+                !All reservoir properties can interact with DN
+                    
+                !Get the property conc from Reservoirs                
+                call GetReservoirsConcentration   (ObjReservoirsID = Me%ObjReservoirs,                  &
+                                            ConcentrationX    = ReservoirConcentration,                 &
+                                            PropertyXIDNumber = PropID,                                 &
+                                            STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR054'
+                
+                !And send it to DN
+                call SetReservoirsConcDN (DrainageNetworkID = Me%ObjDrainageNetwork,                     &
+                                    PropertyXIDNumber          = PropID,                                 &
+                                    ConcentrationX             = ReservoirConcentration,                 &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR055'   
+
+                call UngetReservoirs (Me%ObjReservoirs, ReservoirConcentration, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DrainageNetworkProcesses - ModuleBasin - ERR056'
+
+                
+            enddo           
+        endif
+        
         !Check if Radiation is needed
         call GetNeedsRadiation (Me%ObjDrainageNetwork, NeedsRadiation, STAT_CALL)
 
@@ -5827,6 +5989,85 @@ cd2 :           if (BlockFound) then
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "DrainageNetworkProcesses")
 
     end subroutine DrainageNetworkProcesses
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ReservoirsProcesses
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: nProperties, iProp 
+        integer                                     :: PropID
+        real, dimension(:   ), pointer              :: DNConcentration
+        real(8), dimension(:), pointer              :: ChannelFlowToReservoir
+        logical                                     :: PropAdvDiff
+
+        if (MonitorPerformance) call StartWatch ("ModuleBasin", "ReservoirProcesses")
+        
+
+        if (Me%Coupled%DrainageNetwork) then
+            
+            !this are the new DN outflows that were computed just before this routine
+            call GetOutflowToReservoir  (Me%ObjDrainageNetwork, ChannelFlowToReservoir, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR051'
+            
+            !set them to Reservoirs
+            call SetReservoirsInflow (Me%ObjReservoirs, ChannelFlowToReservoir, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR051a'
+            
+            !unget pointer
+            call UngetDrainageNetwork (Me%ObjDrainageNetwork, ChannelFlowToReservoir, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR051b'
+            
+            
+            !properties
+            call GetDNnProperties (Me%ObjDrainageNetwork, nProperties, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR052'
+
+            do iProp = 1, nProperties
+
+                call GetDNPropertiesIDByIdx(DrainageNetworkID         = Me%ObjDrainageNetwork,                 &
+                                                    Idx               = iProp,                                 &
+                                                    ID                = PropID,                                &
+                                                    PropAdvDiff       = PropAdvDiff,                           &
+                                                    STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR053' 
+                
+                !All DN properties with advection diffusion can interact with Reservoirs
+                if (PropAdvDiff) then
+                    !Get the property conc from DN                
+                    call GetNodeConcReservoirs (DrainageNetworkID  = Me%ObjDrainageNetwork,                  &
+                                                ConcentrationX    = DNConcentration,                        &
+                                                PropertyXIDNumber = PropID,                                 &
+                                                STAT              = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR054'
+                
+                    !And send it to Reservoirs
+                    call SetDNConcReservoirs (ObjReservoirsID      = Me%ObjReservoirs,                     &
+                                        PropertyXIDNumber          = PropID,                               &
+                                        ConcentrationX             = DNConcentration,                      &
+                                        STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR055'   
+
+                    call UngetDrainageNetwork (Me%ObjDrainageNetwork, DNConcentration, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR056'
+                endif
+                
+            enddo           
+        endif
+        
+
+        call ModifyReservoirs  ( Me%ObjReservoirs, &
+                                        STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR140'     
+ 
+                    
+
+        if (MonitorPerformance) call StopWatch ("ModuleBasin", "ReservoirProcesses")
+
+    end subroutine ReservoirsProcesses
     
     !--------------------------------------------------------------------------
 
@@ -8900,6 +9141,8 @@ cd2 :           if (BlockFound) then
         
         endif
 
+        !synchronize so that output can occur at multiples of MaxDT and not some minutes, seconds or milisseconds after
+        
         NextTime = Me%CurrentTime + NewDT
         time_string = ConvertTimeToString (NextTime)
 
@@ -8989,6 +9232,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR070'
                 endif
 
+                if (Me%Coupled%Reservoirs) then
+                    call KillReservoirs(Me%ObjReservoirs, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR075'
+                endif                
 
                 if (Me%Coupled%Atmosphere) then
                     call KillAtmosphere     (Me%ObjAtmosphere,  STAT = STAT_CALL)

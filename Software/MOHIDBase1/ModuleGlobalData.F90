@@ -76,7 +76,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  92
+    integer, parameter  :: MaxModules           =  93
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -218,6 +218,10 @@ Module ModuleGlobalData
     !Mohid Land ground water flow type
     integer, parameter :: GWFlowToChanByCell_               = 1
     integer, parameter :: GWFlowToChanByLayer_              = 2
+    
+    !Angles Referential
+    integer, parameter :: NauticalReferential_              = 1   !0º is from N, 90º is from E
+    integer, parameter :: CurrentsReferential_              = 2   !0º is to N, 90º is to E
 
     !Water Properties 
     integer, parameter :: Density_                          =  0        
@@ -493,7 +497,8 @@ Module ModuleGlobalData
     integer, parameter :: SpecificCarbonDioxideFlux_        = 521
     integer, parameter :: AmmoniaFlux_                      = 522
     integer, parameter :: NitrateFlux_                      = 523
-
+    !Vectorial 
+    integer, parameter :: WindStress_                       = 524
 
     !AtmosProperties
     integer, parameter :: WindVelocityX_                    = 600
@@ -523,7 +528,10 @@ Module ModuleGlobalData
     integer, parameter :: WindGust_                         = 624
     integer, parameter :: PBLHeight_                        = 625
     integer, parameter :: Reflectivity_                     = 626
-                          
+    !vectorial
+    integer, parameter :: WindVelocity_                     = 627
+
+    
     !Basin Properties
     integer, parameter :: RefEvapotrans_                    = 708
     integer, parameter :: TotalPlantBiomass_                = 709
@@ -668,7 +676,9 @@ Module ModuleGlobalData
     integer, parameter ::  CurrentY_                       = 3404
     integer, parameter ::  WaveX_                          = 3405
     integer, parameter ::  WaveY_                          = 3406
-
+    !vectorial
+    integer, parameter :: WaveStress_                      = 3407
+    
     !!Monocromatic:
     integer, parameter ::  WaveLength_                     = 3500
     integer, parameter ::  WaveAmplitude_                  = 3501
@@ -1380,6 +1390,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SurfaceRadiation         = 'surface radiation'
     character(StringLength), private, parameter :: Char_WindStressX              = 'wind stress X'
     character(StringLength), private, parameter :: Char_WindStressY              = 'wind stress Y'
+    character(StringLength), private, parameter :: Char_WindStress               = 'wind stress'
     character(StringLength), private, parameter :: Char_SurfaceWaterFlux         = 'surface water flux'
     character(StringLength), private, parameter :: Char_NonSolarFlux             = 'non solar flux'
     character(StringLength), private, parameter :: Char_TurbulentKineticEnergy   = 'turbulent kinetic energy'
@@ -1388,6 +1399,7 @@ Module ModuleGlobalData
     !Atmosphere
     character(StringLength), private, parameter :: Char_WindVelocityX            = 'wind velocity X'
     character(StringLength), private, parameter :: Char_WindVelocityY            = 'wind velocity Y'
+    character(StringLength), private, parameter :: Char_WindVelocity             = 'wind velocity' !vectorial
     character(StringLength), private, parameter :: Char_SolarRadiation           = 'solar radiation'
     character(StringLength), private, parameter :: Char_Precipitation            = 'precipitation'
     character(StringLength), private, parameter :: Char_AtmosphericPressure      = 'atmospheric pressure'
@@ -1437,6 +1449,7 @@ Module ModuleGlobalData
     !wave dynamics
     character(StringLength), private, parameter :: Char_WaveStressX              = 'wave stress X'
     character(StringLength), private, parameter :: Char_WaveStressY              = 'wave stress Y'   
+    character(StringLength), private, parameter :: Char_WaveStress               = 'wave stress' 
     character(StringLength), private, parameter :: Char_CurrentX                 = 'Current X'
     character(StringLength), private, parameter :: Char_CurrentY                 = 'Current Y'
     character(StringLength), private, parameter :: Char_WaveX                    = 'wave_x'
@@ -1783,6 +1796,7 @@ Module ModuleGlobalData
     integer, parameter ::  mGlueWW3_OBC_            = 90
     integer, parameter ::  mSnow_                   = 91
     integer, parameter ::  mSediment_               = 92
+    integer, parameter ::  mReservoirs_             = 93
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -1896,9 +1910,10 @@ Module ModuleGlobalData
         T_Module(mSEAGRASSSEDIMINTERAC_  , "SeagrassSedimInteraction"), T_Module(mBivalve_             , "BivalveModel"),          &
         T_Module(mTimeSeriesAnalyser_    , "TimeSeriesAnalyser"      ), T_Module(mNetworkStatistics_   , "NetworkStatistics"),     &
         T_Module(mTimeSeriesOperator_    , "TimeSeriesOperator")     ,  T_Module(mAnalytical_LDS_      , "Analytical_LDS"),        &
-        T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS"           ), &
-        T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"),           T_Module(mSnow_             , "Snow"         ),   &
-        T_Module(mSediment_              , "Sediment"           ) /)
+        T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS"           ),        &
+        T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"),           T_Module(mSnow_                   , "Snow"          ),        &
+        T_Module(mSediment_              , "Sediment"           ),   T_Module(mReservoirs_             , "Reservoirs"    )         &
+        /)
         
 
     !Variables
@@ -2203,7 +2218,7 @@ Module ModuleGlobalData
 
     end function  CheckPropertyName
 
-    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------           
      
     logical function CheckDynamicPropertyName (PropertyName, Number)
 
@@ -2755,6 +2770,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (SurfaceRadiation_ ,          Char_SurfaceRadiation ,         ListNumber)
             call AddPropList (WindStressX_,                Char_WindStressX,               ListNumber)
             call AddPropList (WindStressY_,                Char_WindStressY,               ListNumber)
+            call AddPropList (WindStress_,                 Char_WindStress,                ListNumber)
             call AddPropList (SurfaceWaterFlux_ ,          Char_SurfaceWaterFlux ,         ListNumber)
             call AddPropList (NonSolarFlux_ ,              Char_NonSolarFlux ,             ListNumber)
             call AddPropList (TurbulentKineticEnergy_,     Char_TurbulentKineticEnergy,    ListNumber)
@@ -2767,6 +2783,7 @@ do2:            do i=1, DynamicPropertiesNumber
 
             call AddPropList (WindVelocityX_,           Char_WindVelocityX          ,      ListNumber)
             call AddPropList (WindVelocityY_,           Char_WindVelocityY          ,      ListNumber)
+            call AddPropList (WindVelocity_,            Char_WindVelocity           ,      ListNumber)
             call AddPropList (SolarRadiation_,          Char_SolarRadiation         ,      ListNumber)
             call AddPropList (Precipitation_,           Char_Precipitation          ,      ListNumber)
             call AddPropList (Reflectivity_,            Char_Reflectivity           ,      ListNumber)            
@@ -2885,6 +2902,7 @@ do2:            do i=1, DynamicPropertiesNumber
             !wave dynamics
             call AddPropList (WaveStressX_,             Char_WaveStressX,                ListNumber)
             call AddPropList (WaveStressY_,             Char_WaveStressY,                ListNumber)
+            call AddPropList (WaveStress_,              Char_WaveStress,                 ListNumber)
             call AddPropList (CurrentX_,                Char_CurrentX,                   ListNumber)
             call AddPropList (CurrentY_,                Char_CurrentY,                   ListNumber)
             call AddPropList (WaveX_,                   Char_WaveX,                      ListNumber)
@@ -3234,8 +3252,156 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
 
         
     !--------------------------------------------------------------------------
+    
+    logical function Check_Angle_Property(Property)
 
+        !Arguments-------------------------------------------------------------
+        integer, intent (IN) :: Property
+        integer              :: i
 
+        !----------------------------------------------------------------------
+
+cd1 :   if ((Property == WindDirection_          )  .OR. (Property == MeanWaveDirection_     ) & !.OR.
+            !(Property == WindAngle_             ) .OR.  (Property == VelocityDirection_     ) .OR.          &
+            !(Property == WaveDirection_         ) .OR.  (Property == PeakDiretion_          ) .OR.          &
+            !(Property == WindSeaPeakDirection_  ) 
+            ) then
+
+            Check_Angle_Property = .TRUE. 
+            
+        elseif(associated(DynamicPropNameList)) then            
+
+                do i=1, DynamicPropertiesNumber
+
+                    if (Property == DynamicPropNumberList(i)) then
+                        
+                        Check_Angle_Property = .TRUE. 
+
+                    endif
+
+                enddo
+                
+        else
+            Check_Angle_Property = .FALSE.
+
+        end if cd1
+
+    end function Check_Angle_Property   
+
+        
+    !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
+            
+    integer function Get_Angle_Referential(Property)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent (IN) :: Property
+        !integer              :: i
+
+        !----------------------------------------------------------------------
+        if (Check_Angle_Property(Property)) then
+            
+cd1 :       if ((Property == WindDirection_          )  .OR. (Property == MeanWaveDirection_     ) & !.OR.
+                !(Property == WindAngle_             ) .OR.  (Property == VelocityDirection_     ) .OR.          &
+                !(Property == WaveDirection_         ) .OR.  (Property == PeakDiretion_          ) .OR.          &
+                !(Property == WindSeaPeakDirection_  ) 
+                ) then
+
+                Get_Angle_Referential = NauticalReferential_ 
+        
+            !else if(Property == VelocityDirection_     ) then
+
+            !    Get_Angle_Referential = CurrentsReferential_            
+
+            end if cd1
+        else
+            stop  'Get_Angle_Referential - ModuleGlobalData - ERR01'
+        endif
+                    
+
+    end function Get_Angle_Referential
+
+        
+    !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------            
+    
+    logical function Check_Vectorial_Property(Property)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent (IN) :: Property
+        integer              :: i
+
+        !----------------------------------------------------------------------
+
+cd1 :   if ((Property == WindVelocity_          ) .OR. (Property == WaveStress_            )  .OR.          &
+            (Property == WindStress_            ) &  ! .OR. (Property == Velocity_              ).OR.          &
+            ) then
+
+            Check_Vectorial_Property = .TRUE. 
+            
+        elseif(associated(DynamicPropNameList)) then            
+
+                do i=1, DynamicPropertiesNumber
+
+                    if (Property == DynamicPropNumberList(i)) then
+                        
+                        Check_Vectorial_Property = .TRUE. 
+
+                    endif
+
+                enddo
+                
+        else
+            Check_Vectorial_Property = .FALSE.
+
+        end if cd1
+
+    end function Check_Vectorial_Property
+
+        
+    !--------------------------------------------------------------------------      
+
+    subroutine Get_Vectorial_PropertyNames(PropertyID, PropertyX, PropertyY, PropertyZ)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent (IN)                         :: PropertyID
+        character(len=*), intent (OUT)               :: PropertyX
+        character(len=*), intent (OUT)               :: PropertyY
+        character(len=*), intent (OUT), optional     :: PropertyZ
+        !integer              :: i
+
+        !----------------------------------------------------------------------
+
+cd1 :   if ((PropertyID == WindVelocity_ )) then
+
+            PropertyX = GetPropertyName(WindVelocityX_)
+            PropertyY = GetPropertyName(WindVelocityY_)
+            PropertyZ = null_str
+        
+        else if ((PropertyID == WaveStress_ )) then
+            PropertyX = GetPropertyName(WaveStressX_)
+            PropertyY = GetPropertyName(WaveStressY_)
+            PropertyZ = null_str
+
+        else if ((PropertyID == WindStress_ )) then
+            PropertyX = GetPropertyName(WindStressX_)
+            PropertyY = GetPropertyName(WindStressY_)
+            PropertyZ = null_str            
+            
+        else
+            PropertyX = null_str
+            PropertyY = null_str
+            PropertyZ = null_str
+            
+        end if cd1
+
+    end subroutine Get_Vectorial_PropertyNames
+
+        
+    !--------------------------------------------------------------------------                
+            
     integer function TranslateTypeZUV(Char_TypeZUV)
 
         !Arguments-------------------------------------------------------------
