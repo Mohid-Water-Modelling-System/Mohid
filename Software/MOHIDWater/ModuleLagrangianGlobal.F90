@@ -15877,7 +15877,18 @@ dts:        do ts = 1, 2
                                                          Referential = AlongGrid_,          &
                                                          ConvertOK   = ConvertOK)                 
                     if (.not.ConvertOK) then
-                        stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR30'
+                        !stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR30'
+                        !If it is not possible to convert it is assumed an anomaly related with land points + plus nesting model interface
+                        !In this case the particle do not move from the original position 
+                        !If a particle doesnt move the freazed state is ON
+                        CurrentPartic%Freazed    = ON
+                        CurrentPartic%TpercursoH = abs(null_real)
+                        write(*,*) 'Particle ID=', CurrentPartic%ID
+                        write(*,*) 'New model domain =',NewPosition%ModelID  
+                        write(*,*) 'Anomalous movement was detected' 
+                        write(*,*) 'New position = land point + nesting model interface' 
+                        write(*,*) 'Freazed condition is assumed'
+                        exit
                     endif
 
                     

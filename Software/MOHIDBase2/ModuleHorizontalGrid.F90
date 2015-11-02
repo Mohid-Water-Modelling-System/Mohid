@@ -6016,8 +6016,10 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                 call LocateCellPolygons(XX2D,                                           &
                                         YY2D,                                           &
                                         XPoint, YPoint, Me%DefineCellsMap,              &
-                                        Me%WorkSize%ILB, Me%WorkSize%IUB + 1,           &
-                                        Me%WorkSize%JLB, Me%WorkSize%JUB + 1,           &
+!                                        Me%WorkSize%ILB, Me%WorkSize%IUB + 1,           &
+!                                        Me%WorkSize%JLB, Me%WorkSize%JUB + 1,           &
+                                        Me%WorkSize%ILB, Me%WorkSize%IUB,           &
+                                        Me%WorkSize%JLB, Me%WorkSize%JUB,           &
                                         I, J, CellLocated, Iold_, Jold_)
 
                 if (I < 0 .or. J < 0  .or. .not. CellLocated) then
@@ -6201,8 +6203,10 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                 call LocateCellPolygons(XX2D,                                           &
                                         YY2D,                                           &
                                         XPoint, YPoint, LocalMe%DefineCellsMap,              &
-                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB + 1,           &
-                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB + 1,           &
+!                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB + 1,           &
+!                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB + 1,           &
+                                        LocalMe%WorkSize%ILB, LocalMe%WorkSize%IUB,           &
+                                        LocalMe%WorkSize%JLB, LocalMe%WorkSize%JUB,           &
                                         I, J, CellLocated)
 
                 if (I < 0 .or. J < 0 .or. .not. CellLocated) then
