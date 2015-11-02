@@ -3917,8 +3917,8 @@ ifMS:       if (MasterOrSlave) then
             call ConstructField4D(Field4DID         = Me%HDF%ObjField4D,                &
                                   EnterDataID       = Me%ObjEnterData,                  &
                                   ExtractType       = ExtractType,                      &
-                                  FileName          = Me%HDF%FileName,                  &
                                   TimeID            = Me%ObjTime,                       &   
+                                  FileName          = Me%HDF%FileName,                  &                                  
                                   MaskDim           = Me%Dim,                           &
                                   LatReference      = LatDefault,                       &
                                   LonReference      = LongDefault,                      & 
@@ -4499,8 +4499,8 @@ d2:      do while(.not. FoundSecondInstant)
         call ConstructField4D(Field4DID         = Me%HDF%ObjField4D,                    &
                               EnterDataID       = Me%ObjEnterData,                      &
                               ExtractType       = ExtractType,                          &
-                              FileName          = Me%HDF%FileName,                      &
                               TimeID            = Me%ObjTime,                           &   
+                              FileName          = Me%HDF%FileName,                      &                              
                               MaskDim           = Me%Dim,                               &
                               LatReference      = LatDefault,                           &
                               LonReference      = LongDefault,                          & 

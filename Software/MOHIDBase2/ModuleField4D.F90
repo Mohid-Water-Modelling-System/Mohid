@@ -214,21 +214,32 @@ Module ModuleField4D
     
 
     type T_File
-        character(PathLength)                       :: FileName             = null_str
-        type (T_Time)                               :: StartTime
-        type (T_Time)                               :: EndTime        
-        integer                                     :: Obj                  = 0
-        integer                                     :: NumberOfInstants     = null_int
-        type (T_Time), dimension(:), pointer        :: InstantsDates        => null()    
-        logical                                     :: CyclicTimeON         = .false.
-        logical                                     :: TimeON               = .false.        
-        integer                                     :: Form                 = HDF5_
-        character(StringLength)                     :: LonStagName          = null_str
-        character(StringLength)                     :: LatStagName          = null_str
-        character(StringLength)                     :: DepthStagName        = null_str
-        character(StringLength)                     :: MaskName             = null_str
-        character(StringLength)                     :: BathymName           = null_str
-        type (T_DefaultNames)                       :: DefaultNames        
+        character(PathLength)                           :: FileName             = null_str
+        type (T_Time)                                   :: StartTime
+        type (T_Time)                                   :: EndTime        
+        integer                                         :: Obj                  = null_int
+        
+        logical                                         :: FileListON           = .false. 
+        character(PathLength), dimension(:), pointer    :: FileNameList         => null()         
+        integer                                         :: FilesNumber          = null_int
+        integer, dimension(:), pointer                  :: ObjList              => null()
+        integer, dimension(:), pointer                  :: ListNInst            => null()        
+        integer, dimension(:), pointer                  :: ObjListInst          => null()
+        integer, dimension(:), pointer                  :: ListInst             => null()
+
+        
+        integer                                         :: NumberOfInstants     = null_int        
+        type (T_Time), dimension(:), pointer            :: InstantsDates        => null()    
+        
+        logical                                         :: CyclicTimeON         = .false.
+        logical                                         :: TimeON               = .false.        
+        integer                                         :: Form                 = HDF5_
+        character(StringLength)                         :: LonStagName          = null_str
+        character(StringLength)                         :: LatStagName          = null_str
+        character(StringLength)                         :: DepthStagName        = null_str
+        character(StringLength)                         :: MaskName             = null_str
+        character(StringLength)                         :: BathymName           = null_str
+        type (T_DefaultNames)                           :: DefaultNames        
     end type T_File
     
     type T_PropField
@@ -346,32 +357,33 @@ Module ModuleField4D
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructField4D(Field4DID, EnterDataID, ExtractType, FileName, TimeID,  &
+    subroutine ConstructField4D(Field4DID, EnterDataID, ExtractType, TimeID,  FileName, &
                                 MaskDim, HorizontalGridID, BathymetryID,                &
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
-                                Extrapolate, PropertyID, ClientID, STAT)
+                                Extrapolate, PropertyID, ClientID, FileNameList, STAT)
 
         !Arguments---------------------------------------------------------------
-        integer,                                intent(INOUT) :: Field4DID
-        integer,                                intent(IN )   :: EnterDataID
-        integer,                                intent(IN )   :: ExtractType        
-        character(*),                           intent(IN )   :: FileName
-        integer,                                intent(IN )   :: TimeID
-        integer,                      optional, intent(IN )   :: MaskDim                
-        integer,                      optional, intent(IN )   :: HorizontalGridID
-        integer,                      optional, intent(IN )   :: BathymetryID
-        integer,                      optional, intent(IN )   :: HorizontalMapID
-        integer,                      optional, intent(IN )   :: GeometryID
-        integer,                      optional, intent(IN )   :: MapID
-        real,                         optional, intent(IN )   :: LatReference
-        real,                         optional, intent(IN )   :: LonReference        
-        real,    dimension(1:2,1:2),  optional, intent(IN )   :: WindowLimitsXY
-        type (T_Size2D)            ,  optional, intent(IN )   :: WindowLimitsJI
-        logical,                      optional, intent(IN )   :: Extrapolate
-        type (T_PropertyID),          optional, intent(IN )   :: PropertyID
-        integer,                      optional, intent(IN )   :: ClientID     
-        integer,                      optional, intent(OUT)   :: STAT     
+        integer,                                        intent(INOUT) :: Field4DID
+        integer,                                        intent(IN )   :: EnterDataID
+        integer,                                        intent(IN )   :: ExtractType        
+        integer,                                        intent(IN )   :: TimeID
+        character(*),                         optional, intent(IN )   :: FileName
+        integer,                              optional, intent(IN )   :: MaskDim                
+        integer,                              optional, intent(IN )   :: HorizontalGridID
+        integer,                              optional, intent(IN )   :: BathymetryID
+        integer,                              optional, intent(IN )   :: HorizontalMapID
+        integer,                              optional, intent(IN )   :: GeometryID
+        integer,                              optional, intent(IN )   :: MapID
+        real,                                 optional, intent(IN )   :: LatReference
+        real,                                 optional, intent(IN )   :: LonReference        
+        real,    dimension(1:2,1:2),          optional, intent(IN )   :: WindowLimitsXY
+        type (T_Size2D)            ,          optional, intent(IN )   :: WindowLimitsJI
+        logical,                              optional, intent(IN )   :: Extrapolate
+        type (T_PropertyID),                  optional, intent(IN )   :: PropertyID
+        integer,                              optional, intent(IN )   :: ClientID
+        character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList             
+        integer,                              optional, intent(OUT)   :: STAT     
         
         !Local-------------------------------------------------------------------
         type (T_PropField), pointer                           :: NewPropField        
@@ -401,8 +413,35 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 Me%ClientID = FillValueInt
             endif
+            
+            if (present(FileName)) then
+            
+                Me%File%FileName     = trim(FileName)
+                Me%File%FileListON   = .false.
+                
+            else if (present(FileNameList)) then
+                if (associated(FileNameList)) then
+            
+                    Me%File%FileListON      = .true. 
+                    Me%File%FilesNumber     = SIZE(FileNameList)  
+                    Me%File%FileName        = trim(FileNameList(1))                       
+                    
+                    allocate(Me%File%FileNameList(Me%File%FilesNumber))
+                    allocate(Me%File%ObjList     (Me%File%FilesNumber))
+                    allocate(Me%File%ListNInst   (Me%File%FilesNumber))  
+                    
+                    Me%File%ObjList     (:) = 0
+                    Me%File%FileNameList(:) = FileNameList(:)
+                    Me%File%ListNInst   (:) = 0
 
-            Me%File%FileName     = trim(FileName)
+                else                    
+                    stop 'ConstructField4D - ModuleField4D - ERR10' 
+                endif
+            else                    
+                stop 'ConstructField4D - ModuleField4D - ERR20' 
+            endif                
+            
+            
             if (present(MaskDim)) then
                 Me%MaskDim  = MaskDim
             else
@@ -429,13 +468,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (present(LatReference)) then
                     Me%LatReference = LatReference
                 else
-                    stop 'ConstructField4D - ModuleField4D - ERR10' 
+                    stop 'ConstructField4D - ModuleField4D - ERR30' 
                 endif
 
                 if (present(LonReference)) then
                     Me%LonReference = LonReference
                 else
-                    stop 'ConstructField4D - ModuleField4D - ERR20' 
+                    stop 'ConstructField4D - ModuleField4D - ERR40' 
                 endif
                 
                 if (present(WindowLimitsXY)) then
@@ -453,7 +492,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif
                 
                 if (Me%ReadWindowXY .and. Me%ReadWindowJI) then                
-                    stop 'ConstructField4D - ModuleField4D - ERR25' 
+                    stop 'ConstructField4D - ModuleField4D - ERR50' 
                 endif
                 
                 if (Me%ReadWindowXY .or. Me%ReadWindowJI) then
@@ -477,7 +516,7 @@ wwd:        if (Me%WindowWithData) then
                                            WorkSize         = Me%WorkSize2D,                &
                                            STAT             = STAT_CALL) 
                 if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR30' 
+                    stop 'ConstructField4D - ModuleField4D - ERR60' 
                 endif
                 
                 
@@ -506,7 +545,7 @@ wwd:        if (Me%WindowWithData) then
                                       WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
                                       STAT              = STAT_CALL) 
                 if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR40' 
+                    stop 'ConstructField4D - ModuleField4D - ERR70' 
                 endif 
 
                 if (Me%MaskDim == Dim3D) then
@@ -528,7 +567,7 @@ wwd:        if (Me%WindowWithData) then
                                               WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
                                               STAT              = STAT_CALL) 
                         if (STAT_CALL/=SUCCESS_) then
-                            stop 'ConstructField4D - ModuleField4D - ERR50' 
+                            stop 'ConstructField4D - ModuleField4D - ERR80' 
                         endif 
                     
                         Me%BuildMap      = .false.
@@ -564,7 +603,7 @@ wwd:        if (Me%WindowWithData) then
                                         Array           = Me%ExternalVar%WaterPoints2D,     &
                                         STAT            = STAT_CALL) 
                 if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR60' 
+                    stop 'ConstructField4D - ModuleField4D - ERR90' 
                 endif 
                 
                 if (Me%MaskDim == Dim3D) then
@@ -573,7 +612,7 @@ wwd:        if (Me%WindowWithData) then
                                   Array           = Me%ExternalVar%WaterPoints3D,           &
                                   STAT            = STAT_CALL) 
                     if (STAT_CALL/=SUCCESS_) then
-                        stop 'ConstructField4D - ModuleField4D - ERR70' 
+                        stop 'ConstructField4D - ModuleField4D - ERR100' 
                     endif 
                 
                 endif
@@ -581,7 +620,7 @@ wwd:        if (Me%WindowWithData) then
             endif wwd
                          
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
-            if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR60' 
+            if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR110' 
              
             
             !Returns ID
@@ -591,7 +630,7 @@ wwd:        if (Me%WindowWithData) then
 
         else cd0
             
-            stop 'ConstructField4D - ModuleField4D - ERR20' 
+            stop 'ConstructField4D - ModuleField4D - ERR120' 
 
         end if cd0
 
@@ -1334,8 +1373,11 @@ wwd1:       if (Me%WindowWithData) then
 
        if      (Me%File%Form == HDF5_  ) then
        
-            ArrayHDF_Dim = GetHDF5ArrayDim(HDF5ID = Me%File%Obj, GroupName = "/Grid",   &
-                                          ItemName = trim(Me%File%MaskName), STAT = STAT_CALL)
+            ArrayHDF_Dim = GetHDF5ArrayDim(HDF5ID       = Me%File%Obj,                  &
+                                           GroupName    = "/Grid",                      &
+                                           ItemName     = trim(Me%File%MaskName),       &
+                                           STAT         = STAT_CALL)
+                                           
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR60'       
             
             if          (ArrayHDF_Dim == 3) then
@@ -1957,6 +1999,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
 #endif        
         integer                                                 :: STAT_CALL, i, HDF5_READ, iflag
         logical                                                 :: exist, exist3D, exist2D, exist2D_2
+        integer                                                 :: n, j, k, iaux
 
         !Begin-----------------------------------------------------------------
 
@@ -1984,32 +2027,94 @@ i0:     if(PropField%SpaceDim == Dim2D) then
         
             call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
             
-            call ConstructHDF5 (Me%File%Obj, trim(Me%File%FileName), HDF5_READ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR30'
+            if (Me%File%FileListON) then
+
+                do n = 1, Me%File%FilesNumber                            
+
+                    call ConstructHDF5 (Me%File%ObjList(n), trim(Me%File%FileNameList(n)), HDF5_READ, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR30'
+                    
+                enddo
+                
+                Me%File%Obj = Me%File%ObjList(1)
+            else
+            
+                call ConstructHDF5 (Me%File%Obj, trim(Me%File%FileName), HDF5_READ, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR40'
+            
+            endif
             
             call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
                                     GroupName   = "/Time",                              &
                                     Exist       = Me%File%TimeON,                       &
                                     STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR50'
             
             
             if (Me%File%TimeON) then
-                call GetHDF5GroupNumberOfItems(Me%File%Obj, "/Time", &
-                                               Me%File%NumberOfInstants, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) then
-                    stop 'ConstructFile - ModuleField4D - ERR50'
-                endif
 
-                allocate(Me%File%InstantsDates(Me%File%NumberOfInstants))
+flo:            if (Me%File%FileListON) then            
                 
-                do i=1, Me%File%NumberOfInstants
-                    Me%File%InstantsDates(i) = HDF5TimeInstant(i)
-                enddo
+                    Me%File%NumberOfInstants = 0
+                    iaux                     = 0
+                
+                    do n = 1, Me%File%FilesNumber
+            
+                        call GetHDF5GroupNumberOfItems(Me%File%ObjList(n), "/Time", iaux, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ConstructFile - ModuleField4D - ERR60'
+                        endif
+                        
+                        Me%File%NumberOfInstants = Me%File%NumberOfInstants + iaux
+                        Me%File%ListNInst(n) = iaux
+                        
+                    enddo                        
+
+                    allocate(Me%File%InstantsDates(Me%File%NumberOfInstants))
+                    allocate(Me%File%ObjListInst  (Me%File%NumberOfInstants))
+                    allocate(Me%File%ListInst     (Me%File%NumberOfInstants))
+
+                    k = 0
+
+                    do n=1, Me%File%FilesNumber
+                        do j = 1, Me%File%ListNInst(n) 
+                            k = k + 1
+                            Me%File%InstantsDates(k) = HDF5TimeInstant(j, HDF5ID = Me%File%ObjList(n))
+                            Me%File%ObjListInst  (k) =  Me%File%ObjList(n)
+                            Me%File%ListInst     (k) =  j
+                            
+                            
+                            if (k > 1) then
+                                if (Me%File%InstantsDates(k) < Me%File%InstantsDates(k-1)) then
+                                    stop  'ConstructFile - ModuleField4D - ERR70'
+                                endif
+                            endif
+                        enddo
+                    enddo    
+                    
+                    if (k /= Me%File%NumberOfInstants) then
+                        stop 'ConstructFile - ModuleField4D - ERR80'
+                    endif
+                    
+                else flo
+                
+                    call GetHDF5GroupNumberOfItems(Me%File%Obj, "/Time", &
+                                                   Me%File%NumberOfInstants, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructFile - ModuleField4D - ERR90'
+                    endif
+
+                    allocate(Me%File%InstantsDates(Me%File%NumberOfInstants))
+                    
+                    do i=1, Me%File%NumberOfInstants
+                        Me%File%InstantsDates(i) = HDF5TimeInstant(i)
+                    enddo
+
+                endif flo
 
                 Me%File%StartTime = Me%File%InstantsDates(1)
                 Me%File%EndTime   = Me%File%InstantsDates(Me%File%NumberOfInstants)
-                
+
             endif            
             
             Me%File%DefaultNames%bat        = 'Bathymetry'
@@ -2017,13 +2122,13 @@ i0:     if(PropField%SpaceDim == Dim2D) then
             Me%File%DefaultNames%lat_stag   = 'Latitude'
  
             call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints2D', exist2D, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR100'
                        
             call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints', exist2D_2, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR80'           
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR110'           
             
             call GetHDF5DataSetExist (Me%File%Obj, '/Grid/WaterPoints3D', exist3D, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR60'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR120'
             
             if (Me%MaskDim == DimUnknown) then
             
@@ -2099,7 +2204,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
         
             call ConstructNETCDF(NCDFID = Me%File%Obj, FileName = trim(Me%File%FileName),&
                                  Access = NCDF_READ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR130'
             
             if (Me%MaskDim == DimUnknown) then
                
@@ -2114,7 +2219,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
             call NETCDFReadTime(NCDFID = Me%File%Obj, InitialDate = InitialDate,        &
                                 nInstants = Me%File%NumberOfInstants,                   &
                                 Instants = Instants, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR180'
             
             call SetDate(Time1 = AuxTime, Year = InitialDate(1), Month = InitialDate(2), &
                                            Day = InitialDate(3), Hour  = InitialDate(4), &
@@ -2133,7 +2238,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%StartTime,                 &
                                                 EndTime = Me%EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR110'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR190'
         
         call GetData(Me%File%LonStagName,                                               &
                      Me%ObjEnterData,  iflag,                                           &
@@ -2142,7 +2247,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                      default        = Me%File%DefaultNames%lon_stag,                    &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR120'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR200'
         
         call GetData(Me%File%LatStagName,                                               &
                      Me%ObjEnterData,  iflag,                                           &
@@ -2151,7 +2256,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                      default        = Me%File%DefaultNames%lat_stag,                    &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR130'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR210'
 
         call GetData(Me%File%DepthStagName,                                             &
                      Me%ObjEnterData,  iflag,                                           &
@@ -2160,7 +2265,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                      default        = Me%File%DefaultNames%depth_stag,                  &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR140'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR220'
 
         call GetData(Me%File%BathymName,                                                &
                      Me%ObjEnterData,  iflag,                                           &
@@ -2169,7 +2274,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                      default        = Me%File%DefaultNames%bat,                         &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR150'         
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR230'         
         
 
         call GetData(Me%File%MaskName,                                                  &
@@ -2179,7 +2284,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                      default        = Me%File%DefaultNames%mask,                        &
                      ClientModule   = 'ModuleField4D',                                  &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR160'        
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructFile - ModuleFiel4D - ERR240'        
  
                
     end subroutine ConstructFile
@@ -2656,24 +2761,31 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
    !----------------------------------------------------------------------------
 
 
-    type(T_Time) function HDF5TimeInstant(Instant)
+    type(T_Time) function HDF5TimeInstant(Instant, HDF5ID)
 
         !Arguments-------------------------------------------------------------
         integer                                 :: Instant
+        integer, optional                       :: HDF5ID
         
 
         !Local-----------------------------------------------------------------
 !        type(T_Time)                            :: TimeInstant
         real,    dimension(:), pointer          :: TimeVector
-        integer                                 :: STAT_CALL
+        integer                                 :: STAT_CALL, HDF5ID_
 
         !Begin-----------------------------------------------------------------
         
-        call HDF5SetLimits  (Me%File%Obj, 1, 6, STAT = STAT_CALL)
-
         allocate(TimeVector(6))
+        
+        if (present(HDF5ID)) then
+            HDF5ID_ = HDF5ID
+        else
+            HDF5ID_ = Me%File%Obj
+        endif
+        
+        call HDF5SetLimits  (HDF5ID_, 1, 6, STAT = STAT_CALL)        
 
-        call HDF5ReadWindow (HDF5ID         = Me%File%Obj,                              &
+        call HDF5ReadWindow (HDF5ID         = HDF5ID_,                                  &
                              GroupName      = "/Time",                                  &
                              Name           = "Time",                                   &
                              Array1D        = TimeVector,                               &
@@ -2805,6 +2917,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         integer                                 :: Instant
         real, dimension(:,:), pointer           :: Field
         integer                                 :: STAT_CALL, Imax, Jmax, i, j, ILB, IUB, JLB, JUB
+        integer                                 :: Obj, iaux
 
         !Begin-----------------------------------------------------------------
         
@@ -2822,8 +2935,21 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         JUB = Me%WorkSize2D%JUB
         
         if      (Me%File%Form == HDF5_  ) then
-            call GetHDF5ArrayDimensions(Me%File%Obj, trim(NewPropField%VGroupPath),         &
-                              trim(NewPropField%FieldName), OutputNumber = Instant,         &
+
+            if (Me%File%FileListON) then
+            
+                Obj  = Me%File%ObjListInst(Instant)
+                iaux = Me%File%ListInst   (Instant)
+                 
+            else
+
+                Obj  = Me%File%Obj
+                iaux = Instant
+            
+            endif            
+        
+            call GetHDF5ArrayDimensions(Obj, trim(NewPropField%VGroupPath),         &
+                              trim(NewPropField%FieldName), OutputNumber = iaux,    &
                               Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR10'                                   
 #ifndef _NO_NETCDF
@@ -2846,14 +2972,17 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
 
         if      (Me%File%Form == HDF5_  ) then
 
-            call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+            call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR30'
             
-                 
-            call HDF5ReadWindow(Me%File%Obj, trim(NewPropField%VGroupPath),             &
-                              trim(NewPropField%FieldName),                             &
-                              Array2D = Field, OutputNumber = Instant, STAT = STAT_CALL)
+            call HDF5ReadWindow(HDF5ID        = Obj,                                    &
+                                GroupName     = trim(NewPropField%VGroupPath),          &
+                                Name          = trim(NewPropField%FieldName),           &
+                                Array2D       = Field,                                  &
+                                OutputNumber  = iaux,                                   &        
+                                STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues2D - ModuleField4D - ERR40'
+            
 #ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
@@ -2927,6 +3056,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         real, dimension(:,:,:), pointer         :: Field, Aux3D, FieldAux
         integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: Obj, iaux
 
         !Begin-----------------------------------------------------------------
         
@@ -2958,8 +3088,21 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         
 
         if      (Me%File%Form == HDF5_  ) then
-            call GetHDF5ArrayDimensions(Me%File%Obj, trim(NewPropField%VGroupPath),         &
-                              trim(NewPropField%FieldName), OutputNumber = Instant,         &
+
+            if (Me%File%FileListON) then
+            
+                Obj  = Me%File%ObjListInst(Instant)
+                iaux = Me%File%ListInst   (Instant)
+                 
+            else
+
+                Obj  = Me%File%Obj
+                iaux = Instant
+            
+            endif                         
+        
+            call GetHDF5ArrayDimensions(Obj, trim(NewPropField%VGroupPath),             &
+                              trim(NewPropField%FieldName), OutputNumber = iaux,        &
                               Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR10'                                   
 #ifndef _NO_NETCDF
@@ -2983,14 +3126,15 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
 
         if      (Me%File%Form == HDF5_  ) then
         
-            call HDF5SetLimits  (Me%File%Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
+            call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR30'
             
-            call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                            &
+            
+            call HDF5ReadWindow(HDF5ID        = Obj,                                    &
                                 GroupName     = trim(NewPropField%VGroupPath),          &
                                 Name          = trim(NewPropField%FieldName),           &
-                                Array3D       = FieldAux,                               &
-                                OutputNumber  = Instant,                                &
+                                Array3D       = Field,                                  &
+                                OutputNumber  = iaux,                                   &
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
 

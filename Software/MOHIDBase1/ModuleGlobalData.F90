@@ -1576,11 +1576,14 @@ Module ModuleGlobalData
     !Default specific heat
     real,    parameter  :: SpecificHeatDefault = 4200.  ![joules/kg/Kelvin]
 
-    !Angles
-    real(8), parameter  :: Pi = 3.1415926535897932384626433832795
+    !Angles                                 
+    real(8), parameter  :: Pi               = 3.1415926535897932384626433832795
+    ! ARC RADIAN OF 1 DEGREE
+    real(8), parameter  :: RAD_DEG          = 0.01745329252
+    
 
     !Zero Degrees Kelvin
-    real, parameter     :: AbsoluteZero = 273.15
+    real, parameter     :: AbsoluteZero     = 273.15
 
     !Error Magnitudes
     integer, parameter :: FATAL_       = 1

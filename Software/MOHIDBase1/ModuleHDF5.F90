@@ -298,7 +298,10 @@ Module ModuleHDF5
             elseif  (Access == HDF5_READ_) then
                 call h5fopen_f (trim(FileName), ACCESS_FLAGS = H5F_ACC_RDONLY_F,               &
                                 FILE_ID = Me%FileID, HDFERR = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5 - ModuleHDF5 - ERR02'
+                if (STAT_CALL /= SUCCESS_) then
+                    write(*,*) trim(FileName)
+                    stop 'ConstructHDF5 - ModuleHDF5 - ERR02'
+                endif
             elseif  (Access == HDF5_READWRITE_) then
                 call h5fopen_f (trim(FileName), ACCESS_FLAGS = H5F_ACC_RDWR_F,                &
                                 FILE_ID = Me%FileID, HDFERR = STAT_CALL)

@@ -859,13 +859,18 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
                                       STAT      = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
                 stop 'ReadTimeSeriesTimes - ModuleTimeSerie - ERR11b'
+                
+            if (Me%TimeSerie(iTimeSerie)%DT > 0.) then
 
-            !Computes the total number of outputs
-            Me%TimeSerie(iTimeSerie)%TotalOutPutsNumber                             &
-                        = (Me%TimeSerie(iTimeSerie)%EndOutPut                       &
-                        -  Me%TimeSerie(iTimeSerie)%BeginOutPut)                    &
-                        /  Me%TimeSerie(iTimeSerie)%DT + 1
-
+                !Computes the total number of outputs
+                Me%TimeSerie(iTimeSerie)%TotalOutPutsNumber                             &
+                            = (Me%TimeSerie(iTimeSerie)%EndOutPut                       &
+                            -  Me%TimeSerie(iTimeSerie)%BeginOutPut)                    &
+                            /  Me%TimeSerie(iTimeSerie)%DT + 1
+            else
+                Me%TimeSerie(iTimeSerie)%TotalOutPutsNumber = 1
+            endif
+            
             !Inits NextOutput
             Me%TimeSerie(iTimeSerie)%NextOutPut =                                   &
                 Me%TimeSerie(iTimeSerie)%BeginOutPut + Me%TimeSerie(iTimeSerie)%FirstDT

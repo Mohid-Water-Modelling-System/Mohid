@@ -686,8 +686,8 @@ i1:                 if (exist) then
                                 call ConstructField4D(Field4DID     = Me%Properties(iP)%Field(iH)%ID,&
                                                       EnterDataID   = Me%ObjEnterData,      &
                                                       ExtractType   = FromFile,             &
-                                                      FileName      = Me%HDF5Files(iH)%Name,&
                                                       TimeID        = Me%ObjTime,           &   
+                                                      FileName      = Me%HDF5Files(iH)%Name,&                                                      
                                                       LatReference  = (Me%Ymin+Me%Ymax)/2., &
                                                       LonReference  = (Me%Xmin+Me%Xmax)/2., & 
                                                       Extrapolate   = Me%Extrapolate,       & 

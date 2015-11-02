@@ -190,6 +190,10 @@ Module ModuleWaves
         real,    dimension(:,:),  pointer                    :: YY_IE               => null()
         real,    dimension(:,:),  pointer                    :: DUX                 => null()
         real,    dimension(:,:),  pointer                    :: DVY                 => null()
+        real,    dimension(:,:),  pointer                    :: DZX                 => null()
+        real,    dimension(:,:),  pointer                    :: DZY                 => null()        
+        real,    dimension(:,:),  pointer                    :: DXX                 => null()
+        real,    dimension(:,:),  pointer                    :: DYY                 => null()               
         real,    dimension(:,:,:),pointer                    :: SZZ                 => null()
         real,    dimension(:,:),  pointer                    :: Bathymetry          => null() 
         real                                                 :: GridAngle           = null_real
@@ -234,6 +238,8 @@ Module ModuleWaves
         type (T_WaveProperty)                               :: WaveHeight
         type (T_WaveProperty)                               :: WaveDirection
         type (T_WaveProperty)                               :: WaveLength
+        type (T_WaveProperty)                               :: StokeDriftVelX
+        type (T_WaveProperty)                               :: StokeDriftVelY        
         real, dimension(:,:  ), pointer                     :: Abw                     => null()
         real, dimension(:,:  ), pointer                     :: Ubw                     => null()
         real, dimension(:,:  ), pointer                     :: WaveLength_             => null()
@@ -3266,7 +3272,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
     subroutine ComputeWaveLength
 
         !Local-----------------------------------------------------------------
-        integer                                 :: i, j, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
+        integer                                 :: i, j, ILB, IUB, JLB, JUB, STAT_CALL
         real                                    :: WavePeriod, WaterDepth, WaveAmplitude, G_Aux, F_Aux
         !Begin-----------------------------------------------------------------
 
@@ -3275,8 +3281,6 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         ILB = Me%WorkSize%ILB
         JUB = Me%WorkSize%JUB
         JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
         
         call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
                                     WaterColumn = Me%ExternalVar%WaterColumn,           &
@@ -3323,6 +3327,266 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
 
            
     end subroutine ComputeWaveLength
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ComputeAvInDepthStokesDriftVel
+
+        !Local-----------------------------------------------------------------
+        integer         :: i, j, ILB, IUB, JLB, JUB, STAT_CALL
+        real            :: WavePeriod, WaterDepth, WaveDirection
+        real            :: Hs, Hrms, StokesDriftVel, WaveLength
+        
+        !Begin-----------------------------------------------------------------
+
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        
+        call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
+                                    WaterColumn = Me%ExternalVar%WaterColumn,           &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftVel - ModuleWaves - ERR10'
+        
+
+        do j=JLB, JUB
+        do i=ILB, IUB
+            
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+
+                WaterDepth         = Me%ExternalVar%WaterColumn(i, j)
+                WavePeriod         = Me%WavePeriod%Field(i, j)
+                WaveLength         = Me%WaveLength%Field(i, j)  
+                WaveDirection      = Me%WaveDirection%Field(i, j)                  
+                              
+                
+                if (Me%WaveHeight%Field(i, j) > 0.67 * WaterDepth) then
+                    Hs = 0.67 * WaterDepth
+                else
+                    Hs = Me%WaveHeight%Field(i, j)
+                endif
+                
+                Hrms               = Hs / 1.4
+                
+                ![m/s]             = [m/s^2 ] * [m]^2 * [s] / [m] / [m]
+                StokesDriftVel     = 0.125*Gravity* Hrms**2 * WavePeriod / WaveLength / WaterDepth
+                
+                Me%StokeDriftVelX%Field(i, j) = cos(WaveDirection * (Pi / 180.)) * StokesDriftVel
+                Me%StokeDriftVelY%Field(i, j) = sin(WaveDirection * (Pi / 180.)) * StokesDriftVel                
+                
+            end if
+        
+        end do
+        end do
+
+
+        !WaterColumn
+        call UnGetGeometry (Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftVel - ModuleWaves - ERR20'
+
+           
+    end subroutine ComputeAvInDepthStokesDriftVel
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ComputeAvInDepthStokesDriftAdvX(AvInDepthStokesDriftAdvX)
+    
+        !Argument--------------------------------------------------------------
+        real,   dimension(:,:), pointer :: AvInDepthStokesDriftAdvX
+
+        !Local-----------------------------------------------------------------
+        integer         :: i, j, ILB, IUB, JLB, JUB, STAT_CALL
+        real            :: U1, U2, U3, U4, U5
+        real            :: V1, V2, V3, V4, V5        
+        real            :: H1, H2, H3, H4, H5       
+        real            :: dhuudx, dhvudy
+        
+        !Begin-----------------------------------------------------------------
+
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        
+        call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
+                                    WaterColumn = Me%ExternalVar%WaterColumn,           &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvX - ModuleWaves - ERR10'
+        
+        call GetHorizontalGrid(Me%ObjHorizontalGrid, DZX  = Me%ExternalVar%DZX,         &
+                                                     DYY  = Me%ExternalVar%DYY,         &
+                                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvX - ModuleWaves - ERR20'
+
+        do j=JLB, JUB
+        do i=ILB, IUB
+            
+            AvInDepthStokesDriftAdvX(i, j) = 0.
+
+            if (Me%ExternalVar%WaterPoints2D(i, j  ) == WaterPoint .and.                &
+                Me%ExternalVar%WaterPoints2D(i, j-1) == WaterPoint) then
+                
+                H1  = Me%ExternalVar%WaterColumn(i, j-1)
+                U1  = Me%StokeDriftVelX%Field   (i, j-1)
+                
+                H2  = Me%ExternalVar%WaterColumn(i, j)
+                U2  = Me%StokeDriftVelX%Field   (i, j)
+                
+                dhuudx = (H1*U1*U1 - H2*U2*U2)/Me%ExternalVar%DZX(i, j-1)
+                
+                if (Me%ExternalVar%WaterPoints2D(i-1, j  ) == WaterPoint .and.          &
+                    Me%ExternalVar%WaterPoints2D(i-1, j-1) == WaterPoint .and.          &
+                    Me%ExternalVar%WaterPoints2D(i+1, j  ) == WaterPoint .and.          &
+                    Me%ExternalVar%WaterPoints2D(i+1, j-1) == WaterPoint) then
+
+                    U1  = (Me%StokeDriftVelX%Field   (i-1, j-1)+Me%StokeDriftVelX%Field   (i-1, j)) / 2.
+                    U2  = (Me%StokeDriftVelX%Field   (i  , j-1)+Me%StokeDriftVelX%Field   (i  , j)) / 2.
+                    U3  = (Me%StokeDriftVelX%Field   (i+1, j-1)+Me%StokeDriftVelX%Field   (i+1, j)) / 2.
+                    
+                    U4  = (U1+U2)/2.
+                    U5  = (U2+U3)/2.
+                    
+                    V1  = (Me%StokeDriftVelY%Field   (i-1, j-1)+Me%StokeDriftVelY%Field   (i-1, j)) / 2.
+                    V2  = (Me%StokeDriftVelY%Field   (i  , j-1)+Me%StokeDriftVelY%Field   (i  , j)) / 2.
+                    V3  = (Me%StokeDriftVelY%Field   (i+1, j-1)+Me%StokeDriftVelY%Field   (i+1, j)) / 2.
+
+                    V4  = (V1+V2)/2.
+                    V5  = (V2+V3)/2.
+                    
+                    H1  = (Me%ExternalVar%WaterColumn(i-1, j-1)+Me%ExternalVar%WaterColumn(i-1, j)) / 2.
+                    H2  = (Me%ExternalVar%WaterColumn(i  , j-1)+Me%ExternalVar%WaterColumn(i  , j)) / 2.                    
+                    H3  = (Me%ExternalVar%WaterColumn(i+1, j-1)+Me%ExternalVar%WaterColumn(i+1, j)) / 2.  
+                    
+                    H4  = (H1+H2)/2.
+                    H5  = (H2+H3)/2.                                      
+                    
+                    dhvudy = (H4*U4*V4 - H5*U5*V5) / Me%ExternalVar%DYY(i, j)
+                    
+                    AvInDepthStokesDriftAdvX(i, j) = dhuudx + dhvudy                  
+                    
+                endif                                      
+                
+            end if
+        
+        end do
+        end do
+
+
+        !WaterColumn
+        call UnGetGeometry (Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvX - ModuleWaves - ERR30'
+        
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DZX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvX - ModuleWaves - ERR40'        
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DYY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvX - ModuleWaves - ERR50'   
+           
+    end subroutine ComputeAvInDepthStokesDriftAdvX
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine ComputeAvInDepthStokesDriftAdvY(AvInDepthStokesDriftAdvY)
+    
+        !Argument--------------------------------------------------------------
+        real,   dimension(:,:), pointer :: AvInDepthStokesDriftAdvY    
+
+        !Local-----------------------------------------------------------------
+        integer         :: i, j, ILB, IUB, JLB, JUB, STAT_CALL
+        real            :: U1, U2, U3, U4, U5
+        real            :: V1, V2, V3, V4, V5        
+        real            :: H1, H2, H3, H4, H5       
+        real            :: dhvvdy, dhuvdx
+        
+        !Begin-----------------------------------------------------------------
+
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        
+        call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
+                                    WaterColumn = Me%ExternalVar%WaterColumn,           &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvX - ModuleWaves - ERR10'
+        
+        call GetHorizontalGrid(Me%ObjHorizontalGrid, DZX  = Me%ExternalVar%DZY,         &
+                                                     DYY  = Me%ExternalVar%DXX,         &
+                                                     STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvX - ModuleWaves - ERR20'
+
+        do j=JLB, JUB
+        do i=ILB, IUB
+            
+            AvInDepthStokesDriftAdvY(i, j) = 0.
+
+            if (Me%ExternalVar%WaterPoints2D(i,   j) == WaterPoint .and.                &
+                Me%ExternalVar%WaterPoints2D(i-1, j) == WaterPoint) then
+                
+                H1  = Me%ExternalVar%WaterColumn(i-1, j)
+                V1  = Me%StokeDriftVelY%Field   (i-1, j)
+                
+                H2  = Me%ExternalVar%WaterColumn(i, j)
+                V2  = Me%StokeDriftVelY%Field   (i, j)
+                
+                dhvvdy = (H1*V1*V1 - H2*V2*V2)/Me%ExternalVar%DZY(i-1, j)
+                
+                if (Me%ExternalVar%WaterPoints2D(i-1, j  ) == WaterPoint .and.          &
+                    Me%ExternalVar%WaterPoints2D(i-1, j-1) == WaterPoint .and.          &
+                    Me%ExternalVar%WaterPoints2D(i+1, j  ) == WaterPoint .and.          &
+                    Me%ExternalVar%WaterPoints2D(i+1, j-1) == WaterPoint) then
+
+                    U1  = (Me%StokeDriftVelX%Field   (i-1, j-1)+Me%StokeDriftVelX%Field   (i-1, j)) / 2.
+                    U2  = (Me%StokeDriftVelX%Field   (i  , j-1)+Me%StokeDriftVelX%Field   (i  , j)) / 2.
+                    U3  = (Me%StokeDriftVelX%Field   (i+1, j-1)+Me%StokeDriftVelX%Field   (i+1, j)) / 2.
+                    
+                    U4  = (U1+U2)/2.
+                    U5  = (U2+U3)/2.
+                    
+                    V1  = (Me%StokeDriftVelY%Field   (i-1, j-1)+Me%StokeDriftVelY%Field   (i-1, j)) / 2.
+                    V2  = (Me%StokeDriftVelY%Field   (i  , j-1)+Me%StokeDriftVelY%Field   (i  , j)) / 2.
+                    V3  = (Me%StokeDriftVelY%Field   (i+1, j-1)+Me%StokeDriftVelY%Field   (i+1, j)) / 2.
+
+                    V4  = (V1+V2)/2.
+                    V5  = (V2+V3)/2.
+                    
+                    H1  = (Me%ExternalVar%WaterColumn(i-1, j-1)+Me%ExternalVar%WaterColumn(i-1, j)) / 2.
+                    H2  = (Me%ExternalVar%WaterColumn(i  , j-1)+Me%ExternalVar%WaterColumn(i  , j)) / 2.                    
+                    H3  = (Me%ExternalVar%WaterColumn(i+1, j-1)+Me%ExternalVar%WaterColumn(i+1, j)) / 2.  
+                    
+                    H4  = (H1+H2)/2.
+                    H5  = (H2+H3)/2.                                      
+                    
+                    dhuvdx = (H4*V4*U4 - H5*V5*U5) / Me%ExternalVar%DXX(i, j)
+                    
+                    AvInDepthStokesDriftAdvY(i, j) = dhvvdy + dhuvdx                  
+                    
+                endif                                      
+                
+            end if
+        
+        end do
+        end do
+
+
+        !WaterColumn
+        call UnGetGeometry (Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvY - ModuleWaves - ERR30'
+        
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DZY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvY - ModuleWaves - ERR40'        
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DXX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeAvInDepthStokesDriftAdvY - ModuleWaves - ERR50'   
+           
+    end subroutine ComputeAvInDepthStokesDriftAdvY
     !--------------------------------------------------------------------------
     
     !This subroutine compute the radiation stresses based in X
@@ -3535,11 +3799,41 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
                     stop 'OutPut_Results_HDF - ModuleWaves - ERR90'                 
         
             endif
+            
+            if (Me%ParametersON) then
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//"Abw",                    &
+                                     "Abw", "m",                                        &
+                                     Array2D      = Me%Abw,                             &
+                                     OutputNumber = OutPutNumber,                       &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR100'                 
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//"Ubw",                    &
+                                     "Ubw", "m/s",                                      &
+                                     Array2D      = Me%Ubw,                             &
+                                     OutputNumber = OutPutNumber,                       &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR110'                 
+                    
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(GetPropertyName(WaveLength_)),&
+                                     trim(GetPropertyName(WaveLength_)), "m",           &
+                                     Array2D      = Me%WaveLength_,                     &
+                                     OutputNumber = OutPutNumber,                       &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR120'
+ 
+            endif
+            
 
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleWaves - ERR100'
+                stop 'OutPut_Results_HDF - ModuleWaves - ERR130'
 
 
             Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
@@ -3547,7 +3841,7 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
             !UnGets OpenPoints2D
             call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D,   &
                                     STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaves - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Results_HDF - ModuleWaves - ERR140'
 
         endif  TOut    
 

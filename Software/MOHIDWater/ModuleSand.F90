@@ -96,6 +96,7 @@ Module ModuleSand
     private ::          DibajniaTransport
     private ::          BijkerTransport
     private ::      ComputeEvolution
+    private ::      ComputeEvolution_CentralDifferences
     private ::          ComputeDischarges   
     private ::      ComputeSmoothSlope
     private ::      BoundaryCondition
@@ -144,6 +145,11 @@ Module ModuleSand
     character(LEN = StringLength), parameter    :: D35_block_end         = '<endD35>'
     character(LEN = StringLength), parameter    :: Rock_block_begin      = '<beginrock>'
     character(LEN = StringLength), parameter    :: Rock_block_end        = '<endrock>'
+    character(LEN = StringLength), parameter    :: U_Average_block_begin = '<beginUaverage>'
+    character(LEN = StringLength), parameter    :: U_Average_block_end   = '<endUaverage>'
+    character(LEN = StringLength), parameter    :: V_Average_block_begin = '<beginVaverage>'
+    character(LEN = StringLength), parameter    :: V_Average_block_end   = '<endVaverage>'
+    
 
     integer, parameter :: NoTransport = 0, Ackers = 1, MeyerPeter = 2, VanRijn1 = 3, & 
                           VanRijn2 = 4, Bailard = 5, Dibajnia = 6, Bijker = 7, VanRijn2007 = 8
@@ -184,6 +190,9 @@ Module ModuleSand
         real,    pointer, dimension(:,:)        :: WaterColumn      => null()
         real,    pointer, dimension(:,:)        :: VelU             => null()
         real,    pointer, dimension(:,:)        :: VelV             => null()
+        real,    pointer, dimension(:,:)        :: VelResidualU     => null()
+        real,    pointer, dimension(:,:)        :: VelResidualV     => null()
+
         real,    pointer, dimension(:,:)        :: VelU_Face        => null()
         real,    pointer, dimension(:,:)        :: VelV_Face        => null()
         real,    pointer, dimension(:,:)        :: VelMod           => null()
@@ -197,7 +206,7 @@ Module ModuleSand
 
     private :: T_Residual
     type       T_Residual
-        logical                                 :: ON           = .false.
+!        logical                                 :: ON           = .false.
         type(T_Time)                            :: StartTime    
         real, dimension(:,:), pointer           :: FluxX        => null ()
         real, dimension(:,:), pointer           :: FluxY        => null ()        
@@ -238,11 +247,14 @@ Module ModuleSand
     type       T_Evolution
         logical                                 :: Old          = .false. 
         real                                    :: SandDT       = FillValueReal
+        real                                    :: DZDT         = FillValueReal        
         real                                    :: BathymDT     = FillValueReal
-        type (T_Time)                           :: NextSand, NextBatim
+        type (T_Time)                           :: NextSand, NextBatim, NextDZ
         logical                                 :: Bathym       = .false. 
         !Selma
         integer                                 :: BathymType   = Time_
+        real                                    :: Gama         = FillValueReal
+        integer                                 :: NumericMethod= FillValueInt
     end type T_Evolution
 
     private :: T_Property
@@ -305,6 +317,9 @@ Module ModuleSand
         type (T_Property)                          :: BedRock, DZ, BatimIncrement, DZ_Residual
         type (T_Aceleration)                       :: Aceleration
         type (T_Property)                          :: D35, D50, D90
+        type (T_Property)                          :: Uaverage, Vaverage
+        logical                                    :: AverageON       
+        logical                                    :: ResidualCurrent
         real                                       :: SandMin               = FillValueReal
         real                                       :: Porosity              = FillValueReal
         real                                       :: Density               = FillValueReal
@@ -323,6 +338,8 @@ Module ModuleSand
         type (T_Residual  )                        :: Residual
         real, dimension(:,:), pointer              :: FluxX                 => null ()
         real, dimension(:,:), pointer              :: FluxY                 => null ()
+        real, dimension(:,:), pointer              :: FluxXIntegral         => null ()
+        real, dimension(:,:), pointer              :: FluxYIntegral         => null ()        
         real, dimension(:,:), pointer              :: TransportCapacity     => null ()
         real, dimension(:,:), pointer              :: TauCritic             => null ()
         real, dimension(:,:), pointer              :: Dast                  => null ()
@@ -452,6 +469,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructClasses
 
             call ConstructGlobalParameters
+            
+            call ConstructAverageCurrent            
 
             call StartOutputBoxFluxes
 
@@ -533,6 +552,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine AllocateInstance
 
     !--------------------------------------------------------------------------
+ 
+    !-----------------------------------------------------------------------------------    
 
     subroutine StartOutputBoxFluxes
 
@@ -767,14 +788,6 @@ i1:     if (Me%Boxes%Yes) then
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR70' 
 
-        call GetComputeTimeLimits(Me%ObjTime,                                            &
-                                  EndTime   = Me%EndTime,                                &
-                                  BeginTime = Me%BeginTime,                              &
-                                  STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'ConstructEvolution - ModuleSand - ERR80'
-
-
 
         if (Me%Evolution%BathymDT < Me%Evolution%SandDT) then
 
@@ -809,6 +822,63 @@ i1:     if (Me%Boxes%Yes) then
 
         Me%Evolution%NextBatim = Me%BeginTime + Me%Evolution%BathymDT
 
+
+        !<BeginKeyword>
+            !Keyword          : DZ_DT
+            !<BeginDescription>       
+               ! The time step of the DZ evolution
+               !
+            !<EndDescription>
+            !Type             : real 
+            !Default          : ModelDT
+            !File keyword     : SAND_DATA
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%Evolution%DZDT,                                                  &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'DZ_DT',                                             &
+                     default      = Me%Evolution%SandDT,                                 &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR130' 
+
+
+        if (Me%Evolution%DZDT < Me%Evolution%SandDT) then
+
+            stop 'ConstructEvolution - ModuleSand - ERR150'
+
+        elseif (Me%Evolution%DZDT > Me%Evolution%SandDT) then
+
+            !Batim DT  must be a multiple of the Sand DT
+            auxFactor = Me%Evolution%DZDT / Me%Evolution%SandDT
+
+            Erroraux = auxFactor - int(auxFactor)
+            if (Erroraux /= 0) then
+                write(*,*) 
+                write(*,*) ' Time step error.'
+                stop 'ConstructEvolution - ModuleSand - ERR160'
+            endif
+
+        endif
+
+        ! Run period in seconds
+        DTaux = Me%EndTime - Me%BeginTime
+
+        !The run period   must be a multiple of the BATIM DT
+        auxFactor = DTaux / Me%Evolution%DZDT
+
+        ErrorAux = auxFactor - int(auxFactor)
+        if (ErrorAux /= 0) then
+            write(*,*) 
+            write(*,*) ' Time step error.'
+            stop 'ConstructEvolution - ModuleSand - ERR170'
+        endif
+
+        Me%Evolution%NextDZ = Me%BeginTime + Me%Evolution%DZDT
+
+
         !<BeginKeyword>
             !Keyword          : OLD
             !<BeginDescription>       
@@ -828,7 +898,7 @@ i1:     if (Me%Boxes%Yes) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR130' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR180' 
 
 
 
@@ -839,7 +909,7 @@ i1:     if (Me%Boxes%Yes) then
                      default      = 1.,                                                  &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR140' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR190' 
 
         if (iflag==1) then
             Me%Aceleration%Yes = .true.
@@ -848,19 +918,55 @@ i1:     if (Me%Boxes%Yes) then
         endif
 
 
-        call GetData(Me%Residual%ON,                                                    &
-                     Me%ObjEnterData,iflag,                                             &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'RESIDUAL',                                         &
-                     default      = .false.,                                            &
-                     ClientModule = 'ModuleSand',                                       &
-                     STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR150' 
+!        call GetData(Me%Residual%ON,                                                    &
+!                     Me%ObjEnterData,iflag,                                             &
+!                     SearchType   = FromFile,                                           &
+!                     keyword      = 'RESIDUAL',                                         &
+!                     default      = .false.,                                            &
+!                     ClientModule = 'ModuleSand',                                       &
+!                     STAT         = STAT_CALL)              
+!        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR200' 
         
-        if (Me%Residual%ON .and. .not. Me%Evolution%OLD) then
+        if (.not. Me%Evolution%OLD) then
             Me%Residual%StartTime = Me%BeginTime
         endif                
 
+        call GetData(Me%Evolution%Gama,                                                 &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'GAMA',                                             &
+                     default      = 0.0,                                                &
+                     ClientModule = 'ModuleSand',                                       &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR210' 
+        
+        if (Me%Evolution%Gama < 0 .or. Me%Evolution%Gama > 1) then
+            stop 'ConstructEvolution - ModuleSand - ERR220' 
+        endif
+        ! integer, parameter :: UpwindOrder1 = 1, UpwindOrder2 = 2, UpwindOrder3 = 3, P2_TVD = 4, CentralDif = 5, LeapFrog = 6
+        call GetData(Me%Evolution%NumericMethod,                                        &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NUMERIC_METHOD',                                   &
+                     default      = UpwindOrder1,                                       &
+                     ClientModule = 'ModuleSand',                                       &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR230'
+        
+        
+        if (Me%Evolution%NumericMethod /= UpwindOrder1      .and.                       &
+            Me%Evolution%NumericMethod /= UpwindOrder2      .and.                       &        
+            Me%Evolution%NumericMethod /= CentralDif   ) then
+            stop 'ConstructEvolution - ModuleSand - ERR240'
+        endif                            
+        
+        if (Me%Evolution%NumericMethod == CentralDif) then
+            if (Me%Evolution%Gama==0) then
+                write(*,*) 'Central Difference mass balance and no smoothing = unstable'
+                write(*,*) 'ConstructEvolution - ModuleSand - WRN250'
+            endif
+        endif
+        
 
     end subroutine ConstructEvolution
 
@@ -976,6 +1082,20 @@ i1:     if (Me%Boxes%Yes) then
 
 
         enddo
+        
+        if (Me%AverageON) then
+
+            call HDF5WriteData   (Me%ObjHDF5, "/SandCaracteristics", trim(Me%Uaverage%ID%Name),&
+                                   trim(Me%Uaverage%ID%Units), Array2D = Me%Uaverage%Field2D,   &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSand - ERR110'
+
+            call HDF5WriteData   (Me%ObjHDF5, "/SandCaracteristics", trim(Me%Vaverage%ID%Name),&
+                                   trim(Me%Vaverage%ID%Units), Array2D = Me%Vaverage%Field2D,   &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSand - ERR120'
+            
+         endif  
 
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
@@ -1476,6 +1596,93 @@ cd2 :               if (BlockFound) then
     end subroutine ConstructClasses
 
     !----------------------------------------------------------------------------
+    
+    subroutine ConstructAverageCurrent
+    
+        !External----------------------------------------------------------------
+        integer                             :: ClientNumber
+        integer                             :: STAT_CALL, iflag
+        logical                             :: BlockFound
+
+        !Local-------------------------------------------------------------------
+
+        !------------------------------------------------------------------------    
+        
+        Me%AverageON = .true. 
+    
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                                 &
+                                    ClientNumber    = ClientNumber,                  &
+                                    block_begin     = U_Average_block_begin,         &
+                                    block_end       = U_Average_block_end,           &
+                                    BlockFound      = BlockFound,                    &
+                                    STAT            = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR10'
+
+        if (BlockFound) then
+            call ConstructSandProperty(Me%Uaverage, FromBlock)
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR20'
+
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+            if (STAT_CALL  /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR30'
+
+        else
+            Me%AverageON = .false. 
+        endif
+
+
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                                 &
+                                    ClientNumber    = ClientNumber,                  &
+                                    block_begin     = V_Average_block_begin,         &
+                                    block_end       = V_Average_block_end,           &
+                                    BlockFound      = BlockFound,                    &
+                                    STAT            = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR40'
+
+        if (BlockFound) then
+            call ConstructSandProperty(Me%Vaverage, FromBlock)
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+            if (STAT_CALL  /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR50'
+
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR60'
+        else
+            Me%AverageON = .false. 
+        endif
+ 
+    
+        !<BeginKeyword>
+            !Keyword          : RESIDUAL_CURRENT
+            !<BeginDescription>       
+               ! If in transport is used the residual current for define the transport direction
+               !
+            !<EndDescription>
+            !Type             : logical
+            !Default          : .false. 
+            !File keyword     : SAND_DATA
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%ResidualCurrent,                                                 &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'RESIDUAL_CURRENT',                                  &
+                     default      = .false.,                                             &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR70' 
+        
+
+        if (Me%AverageON .and. Me%ResidualCurrent) then
+            stop 'ConstructGlobalParameters - ModuleSand - ERR80' 
+        endif
+
+    end subroutine ConstructAverageCurrent
 
     !--------------------------------------------------------------------------
     subroutine ConstructGlobalParameters
@@ -1598,7 +1805,7 @@ cd2 :               if (BlockFound) then
         
         Me%DZ%Field2D(:,:) = 0.
 
-        if (Me%Evolution%BathymDT > Me%Evolution%SandDT) then
+        if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
 
             allocate(Me%BatimIncrement%Field2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
@@ -1670,6 +1877,10 @@ cd2 :               if (BlockFound) then
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR12' 
+        
+        if (Me%Porosity < 0. .or. Me%Porosity > 1.) then
+            stop 'ConstructGlobalParameters - ModuleSand - ERR120' 
+        endif
 
 
         !<BeginKeyword>
@@ -1704,25 +1915,28 @@ cd2 :               if (BlockFound) then
         allocate(Me%FluxY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         Me%FluxY(:,:) = 0.
         
+        allocate(Me%FluxXIntegral(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%FluxXIntegral(:,:) = 0.
+
+        allocate(Me%FluxYIntegral(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%FluxXIntegral(:,:) = 0.
+
         
-        if (Me%Residual%ON) then
 
-            allocate(Me%Residual%FluxX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            Me%Residual%FluxX(:,:) = 0.
+        allocate(Me%Residual%FluxX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%Residual%FluxX(:,:) = 0.
 
-            allocate(Me%Residual%FluxY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            Me%Residual%FluxY(:,:) = 0.
+        allocate(Me%Residual%FluxY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%Residual%FluxY(:,:) = 0.
+        
+        if (Me%Evolution%Old) then
+        
+            call ReadResidualStartTime()
             
-            if (Me%Evolution%Old) then
+            call ReadInitialField(FieldName = "Residual Transport Flux X", Field2D = Me%Residual%FluxX)
             
-                call ReadResidualStartTime()
-                
-                call ReadInitialField(FieldName = "Residual Transport Flux X", Field2D = Me%Residual%FluxX)
-                
-                call ReadInitialField(FieldName = "Residual Transport Flux Y", Field2D = Me%Residual%FluxY)                
-            
-            endif
-            
+            call ReadInitialField(FieldName = "Residual Transport Flux Y", Field2D = Me%Residual%FluxY)                
+        
         endif
         
 
@@ -1961,7 +2175,7 @@ cd2 :               if (BlockFound) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR120'
 
         endif    
-        
+
 
 
     end subroutine ConstructGlobalParameters
@@ -2313,14 +2527,15 @@ cd0:    if (EXIST) then
 
     subroutine ModifySand(ObjSandID, TauTotal, CurrentRugosity, WaveRugosity,   &
                           WaterColumn, VelU, VelV, VelMod, TauWave, TauCurrent, &
-                          ShearVelocity, MinWaterColumn, VelU_Face, VelV_Face, STAT)
+                          ShearVelocity, MinWaterColumn, VelU_Face, VelV_Face,  &
+                          VelResidualU, VelResidualV, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjSandID
         real, dimension(:,:), pointer               :: TauTotal, CurrentRugosity, WaveRugosity, &
                                                        WaterColumn, VelU, VelV, VelMod,         &
                                                        TauWave, TauCurrent, ShearVelocity,      &
-                                                       VelU_Face, VelV_Face
+                                                       VelU_Face, VelV_Face, VelResidualU, VelResidualV
         real,    intent(IN )                        :: MinWaterColumn      
         integer, intent(OUT), optional              :: STAT
 
@@ -2356,6 +2571,9 @@ cd0:    if (EXIST) then
                     Me%ExternalVar%VelU_Face       => VelU_Face
                     Me%ExternalVar%VelV_Face       => VelV_Face
 
+                    Me%ExternalVar%VelResidualU    => VelResidualU
+                    Me%ExternalVar%VelResidualV    => VelResidualV
+
                     Me%ExternalVar%TauWave         => TauWave
                     Me%ExternalVar%TauCurrent      => TauCurrent
                     Me%ExternalVar%ShearVelocity   => ShearVelocity
@@ -2363,19 +2581,36 @@ cd0:    if (EXIST) then
                     Me%ExternalVar%MinWaterColumn  =  MinWaterColumn
 
                     call ComputeFluxes
+                    
+                    if (Me%ExternalVar%Now >= Me%Evolution%NextDZ) then
 
-                    call ComputeEvolution            
+                        if (Me%Evolution%NumericMethod     == UpwindOrder1 ) then
+                            call ComputeEvolution            
+                        elseif (Me%Evolution%NumericMethod == CentralDif   ) then
+                            call ComputeEvolution_CentralDifferences
+                        elseif (Me%Evolution%NumericMethod == UpwindOrder2 ) then
+                            call ComputeEvolution_UpwindOrder2                            
+                        endif                            
+                        
+                        call ComputeNumericalSmoothing                        
 
-                    if (Me%SmoothSlope%ON) then
+                        if (Me%SmoothSlope%ON) then
 
-                        call ComputeSmoothSlope
+                            call ComputeSmoothSlope
 
-                    endif
+                        endif
 
-                    !Boundary Condition
-                    call BoundaryCondition(Me%DZ%Field2D)
+                        !Boundary Condition
+                        call BoundaryCondition(Me%DZ%Field2D)
 
-                    call ComputeResidualEvolution
+                        call ComputeResidualEvolution
+                        
+                        Me%FluxXIntegral (:,:) = 0.
+                        Me%FluxYIntegral (:,:) = 0.
+
+                        Me%Evolution%NextDZ = Me%Evolution%NextDZ + Me%Evolution%DZDT
+
+                    endif                         
 
                     if (Me%Boxes%Yes ) call OutputBoxFluxes
 
@@ -2462,7 +2697,7 @@ cd0:    if (EXIST) then
         !----------------------------------------------------------------------
 
 
-        Beta = .5
+        Beta = .1
       
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -2473,19 +2708,21 @@ cd0:    if (EXIST) then
                 AuxSum  = 0.
                 do jw = j - Me%Filter%Radius, j + Me%Filter%Radius
                 do iw = i - Me%Filter%Radius, i + Me%Filter%Radius
+                
+                    if (i == iw .and. j == jw) cycle
 
                     if (jw >= Me%WorkSize%JLB .and. jw <= Me%WorkSize%JUB .and.         &
                         iw >= Me%WorkSize%ILB .and. iw <= Me%WorkSize%IUB) then
                         if(Me%ExternalVar%WaterPoints2D(iw, jw) == WaterPoint) then
                             Counter = Counter + 1
-                            AuxSum  = AuxSum + Me%BatimIncrement%Field2D(iw, jw)
+                            AuxSum  = AuxSum + Me%DZ_Residual%Field2D(iw, jw)
                         end if
                     endif
 
                 enddo
                 enddo
 
-                Me%Filter%Field2D(i, j) = Beta * Me%BatimIncrement%Field2D(i, j) + (1. - Beta) * AuxSum / real(Counter)
+                Me%Filter%Field2D(i, j) = Beta * (AuxSum / real(Counter) - Me%DZ_Residual%Field2D(i, j))
 
             endif
                                    
@@ -2497,7 +2734,7 @@ cd0:    if (EXIST) then
 
             if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
-                Me%BatimIncrement%Field2D(i,j) = Me%Filter%Field2D(i,j)
+                Me%BatimIncrement%Field2D(i,j) = Me%BatimIncrement%Field2D(i,j) + Me%Filter%Field2D(i,j)
 
             endif
                                    
@@ -2513,7 +2750,7 @@ cd0:    if (EXIST) then
     subroutine ComputeFluxes
         !Local-----------------------------------------------------------------
         integer             :: i, j
-        real                :: SandThickness, Xaux, Yaux, XYMod, FluxX, FluxY
+        real                :: SandThickness, Xaux, Yaux, XYMod, FluxX, FluxY, DT_Racio
         !----------------------------------------------------------------------
 
         SELECT CASE (Me%TransportMethod)
@@ -2542,6 +2779,17 @@ cd0:    if (EXIST) then
         Me%FluxY  (:, :) =  0.
 
         !Computes the sand fluxes (m3/s) in the middle of the cells
+        
+        if (Me%ResidualCurrent) then
+            if (.not.associated(Me%ExternalVar%VelResidualU)) then
+                stop 'ComputeFluxes - ModuleSand - ERR10.'
+            endif
+
+            if (.not.associated(Me%ExternalVar%VelResidualV)) then
+                stop 'ComputeFluxes - ModuleSand - ERR20.'
+            endif
+                            
+        endif
 
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -2552,18 +2800,44 @@ cd0:    if (EXIST) then
                     
                 if (SandThickness > Me%SandMin) then
 
-                    Xaux  = Me%ExternalVar%VelU  (i,j)
-                    Yaux  = Me%ExternalVar%VelV  (i,j)
-                    XYMod = Me%ExternalVar%VelMod(i,j)
+                    XYMod = Me%ExternalVar%VelMod(i,j) 
+                
+                    if (Me%AverageON) then
+
+                        Xaux  = Me%Uaverage%Field2D (i,j)
+                        Yaux  = Me%Vaverage%Field2D (i,j)
+
+                    else 
+                    
+                        if (Me%ResidualCurrent) then
+                        
+                            Xaux  = Me%ExternalVar%VelResidualU  (i,j)
+                            Yaux  = Me%ExternalVar%VelResidualV  (i,j)
+                        
+                        else
+
+                            Xaux  = Me%ExternalVar%VelU  (i,j)
+                            Yaux  = Me%ExternalVar%VelV  (i,j)
+                            
+                        endif                            
+                        
+                    endif    
                     
                     if (XYMod > 0.) then
                     
-                        FluxX     = Xaux / XYMod * Me%ExternalVar%DVY(i, j)
-                        FluxY     = Yaux / XYMod * Me%ExternalVar%DUX(i, j)
+                        ![m]      = [m]/[m]*[m]
+                        FluxX     = Xaux / XYMod * Me%ExternalVar%DVY(i, j) / (1. - Me%Porosity)
+                        FluxY     = Yaux / XYMod * Me%ExternalVar%DUX(i, j) / (1. - Me%Porosity)
                         
+                        ![m^3/s]        = [m^2/s] * [m]
                         Me%FluxX (i, j) = Me%TransportCapacity(i, j) * FluxX  * Me%TransportFactor
                         Me%FluxY (i, j) = Me%TransportCapacity(i, j) * FluxY  * Me%TransportFactor
+                        
+                        DT_Racio = Me%Evolution%SandDT / Me%Evolution%DZDT
                 
+                        Me%FluxXIntegral (i, j) = Me%FluxXIntegral (i, j) + Me%FluxX (i, j) * DT_Racio
+                        Me%FluxYIntegral (i, j) = Me%FluxYIntegral (i, j) + Me%FluxY (i, j) * DT_Racio
+
                     endif
 
                 endif
@@ -2578,7 +2852,8 @@ cd0:    if (EXIST) then
 
     subroutine MeyerPeterTransport
         !Local-----------------------------------------------------------------
-        real :: Tr1,Tr2,Tr3, DeltaTau, Miu, CChezy, Clinha, Depth
+        real    :: Tr1,Tr2,Tr3, DeltaTau, Miu, CChezy, Clinha, Depth
+        real    :: DeltaTauNoDim
         integer :: i, j
 
         !----------------------------------------------------------------------
@@ -2587,31 +2862,40 @@ cd0:    if (EXIST) then
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
 
             if (Me%ExternalVar%OpenPoints2D(i, j) == OpenPoint) then
+            
+                Me%TransportCapacity(i, j) = 0.  
 
                 Depth = Me%ExternalVar%WaterColumn(I,J)
 
-                if (Depth < Me%ExternalVar%MinWaterColumn) Depth = Me%ExternalVar%MinWaterColumn
+                if (Depth < Me%ExternalVar%MinWaterColumn) then
+                    Depth = Me%ExternalVar%MinWaterColumn
+                endif                    
 
-                CChezy= 18.*ALOG10(12.*Depth/Me%ExternalVar%CurrentRugosity(I,J))
-                Clinha= 18.*ALOG10(12.*Depth/Me%D90%Field2D(I,J))
+                CChezy= 18.*LOG10(12.*Depth/Me%ExternalVar%CurrentRugosity(I,J))
+                Clinha= 18.*LOG10(12.*Depth/Me%D90%Field2D(I,J))
                 Miu   = (CChezy/Clinha)**1.5
 
-                DeltaTau = min(Miu*Me%ExternalVar%TauTotal(I,J),Me%TauMax)-Me%TauCritic(I,J)        
+                !N/m2    = [kg * m/s^2 * m]  
+                DeltaTau = min(Miu*Me%ExternalVar%TauTotal(I,J),Me%TauMax)-Me%TauCritic(I,J)      
+                
+                ![ ]     = [kg * m/s^2 * m] / [kg] / [m/s^2] / [m]  
+                DeltaTauNoDim = DeltaTau / (Me%RhoSl * Gravity * Me%D50%Field2D(I,J))
+                  
 
 ! ---> If Tau < Tau critic there is no transport
 
-                if (DeltaTau.LE.0.) Then
-                    Me%TransportCapacity(i, j) = 0.
-                    Cycle
+                if (DeltaTau>0.) Then
+                    ![m/s^2]^0.5                = []^0.5*[m/s^2]^0.5  
+                    Tr1                         = (Me%RelativeDensity*Gravity)**0.5
+                    ![m]^1.5                    = [m]^1.5                      
+                    Tr2                         = Me%D50%Field2D(I,J)**1.5
+                    ![ ]                        = [ ]
+                    Tr3                         = DeltaTauNoDim**1.5
+                    ![ ]                        
+                    Me%TransportCapacity(i, j)  = 8.*Tr1*Tr2*Tr3
+                
                 endif
-
-                Tr1    = (Me%RelativeDensity*Gravity)**0.5
-                Tr2                        = Me%D50%Field2D(I,J)**1.5
-                Tr3                        = DeltaTau**1.5
-                Me%TransportCapacity(i, j) = 8.*Tr1*Tr2*Tr3
-            
-            else
-                Me%TransportCapacity(i, j) = 0.  !instrução adicionada
+                
             endif
 
         enddo
@@ -2625,7 +2909,8 @@ cd0:    if (EXIST) then
     subroutine AckersTransport
 
         !Local-----------------------------------------------------------------
-        real    :: Alfa, EP, VisCin2, R32, RhoSW, Dgr, Depth
+        !real    :: Alfa, EP, VisCin2, R32, RhoSW, Dgr, Depth
+        real    :: Alfa, EP, VisCin2, R32, Dgr, Depth
         real    :: Vn, Va, Vm, Vc1, Vc, Fgr1, Fgr2, Fgr, Ggr1, Ggr, S1
         integer :: i, j
  
@@ -2637,7 +2922,7 @@ cd0:    if (EXIST) then
         EP     = 1./3.
         VisCin2= WaterCinematicVisc**2.
         R32    = SQRT(32.)
-        RhoSW  = Me%Density / Me%ExternalVar%WaterDensity
+!        RhoSW  = Me%Density / Me%ExternalVar%WaterDensity
         
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -2687,7 +2972,8 @@ cd0:    if (EXIST) then
                   Ggr  = Vc*(Ggr1-1)**Vm
                   S1   = (Me%ExternalVar%ShearVelocity(I,J)/Me%ExternalVar%VelMod(I,J))**Vn
 
-                  Me%TransportCapacity(i, j) = Ggr*RhoSW*Me%D35%Field2D(I,J)/S1               !(m)
+                  !Me%TransportCapacity(i, j) = Ggr*RhoSW*Me%D35%Field2D(I,J)/S1               !(m)
+                  Me%TransportCapacity(i, j) = Ggr*Me%D35%Field2D(I,J)/S1               !(m)
                   
                   ! [m3/s/m] = [m/s]*[m]
                   Me%TransportCapacity(i, j) = Me%ExternalVar%VelMod(I,J) * Me%TransportCapacity(i, j)
@@ -3820,91 +4106,86 @@ cd0:    if (EXIST) then
         real                               :: DT_Area1, DT_Area2, RunPeriod
         integer                            :: i, j
         !----------------------------------------------------------------------
-
+        
         Me%DZ%Field2D(:,:) = 0.
 
-        if (Me%Boxes%Yes) then
-
-            Me%Boxes%FluxesX(:,:) = 0.
-            Me%Boxes%FluxesY(:,:) = 0.
-
-        endif
+!        if (Me%Boxes%Yes) then
+!            Me%Boxes%FluxesX(:,:) = 0.
+!            Me%Boxes%FluxesY(:,:) = 0.
+!        endif
 
         if (Me%Aceleration%Yes) then
 
-            Me%FluxX (:,:) = Me%Aceleration%Coef * Me%FluxX (:,:)
-            Me%FluxY (:,:) = Me%Aceleration%Coef * Me%FluxY (:,:)
+            Me%FluxXIntegral (:,:) = Me%Aceleration%Coef * Me%FluxXIntegral (:,:)
+            Me%FluxYIntegral (:,:) = Me%Aceleration%Coef * Me%FluxYIntegral (:,:)
 
         endif
         
-        if (Me%Residual%ON) then
+        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
 
-                RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+        Me%Residual%FluxX(:,:) = ( Me%Residual%FluxX(:,:) * (RunPeriod -  Me%Evolution%DZDT)          + &
+                                   Me%FluxXIntegral(:,:) * Me%Evolution%DZDT) / RunPeriod
 
-                Me%Residual%FluxX(:,:) = ( Me%Residual%FluxX(:,:) * (RunPeriod -  Me%Evolution%SandDT)          + &
-                                           Me%FluxX(:,:) * Me%Evolution%SandDT) / RunPeriod
-
-                Me%Residual%FluxY(:,:) = ( Me%Residual%FluxY(:,:) * (RunPeriod -  Me%Evolution%SandDT)          + &
-                                           Me%FluxY(:,:) * Me%Evolution%SandDT) / RunPeriod
-        endif
+        Me%Residual%FluxY(:,:) = ( Me%Residual%FluxY(:,:) * (RunPeriod -  Me%Evolution%DZDT)          + &
+                                   Me%FluxYIntegral(:,:) * Me%Evolution%DZDT) / RunPeriod
         
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
 
 
-            if (Me%FluxX(i, j) < 0.) then 
+            if (Me%FluxXIntegral(i, j) < 0.) then 
                 if      (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
 
-                    DT_Area1 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j-1) / Me%ExternalVar%DVY(i, j-1)
-                    DT_Area2 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                    DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j-1) / Me%ExternalVar%DVY(i, j-1)
+                    DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
 
-                    Me%DZ%Field2D(i, j-1) = Me%DZ%Field2D(i, j-1) - DT_Area1 * Me%FluxX(i, j) 
-                    Me%DZ%Field2D(i, j  ) = Me%DZ%Field2D(i, j  ) + DT_Area2 * Me%FluxX(i, j) 
+                    Me%DZ%Field2D(i, j-1) = Me%DZ%Field2D(i, j-1) + DT_Area1 * (- Me%FluxXIntegral(i, j)) 
+                    Me%DZ%Field2D(i, j  ) = Me%DZ%Field2D(i, j  ) - DT_Area2 * (- Me%FluxXIntegral(i, j)) 
 
-                    if (Me%Boxes%Yes) then
-                        Me%Boxes%FluxesX(i,j) = Me%Boxes%FluxesX(i,j) + Me%FluxX(i, j) * Me%Evolution%SandDT
-                    endif
+!                    if (Me%Boxes%Yes) then
+!                        Me%Boxes%FluxesX(i,j) = Me%Boxes%FluxesX(i,j) + Me%FluxXIntegral(i, j) * Me%Evolution%DZDT
+!                    endif
                 endif
             else 
 
                 if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
 
-                    DT_Area1 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j+1) / Me%ExternalVar%DVY(i, j+1)
-                    DT_Area2 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                    DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j+1) / Me%ExternalVar%DVY(i, j+1)
+                    DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
               
-                    Me%DZ%Field2D(i, j+1) = Me%DZ%Field2D(i, j+1) + DT_Area1 * Me%FluxX(i, j)  
-                    Me%DZ%Field2D(i, j  ) = Me%DZ%Field2D(i, j  ) - DT_Area2 * Me%FluxX(i, j) 
+                    Me%DZ%Field2D(i, j+1) = Me%DZ%Field2D(i, j+1) + DT_Area1 * Me%FluxXIntegral(i, j)  
+                    Me%DZ%Field2D(i, j  ) = Me%DZ%Field2D(i, j  ) - DT_Area2 * Me%FluxXIntegral(i, j) 
 
-                    if (Me%Boxes%Yes) then
-                        Me%Boxes%FluxesX(i,j+1) = Me%Boxes%FluxesX(i,j+1) + Me%FluxX(i, j) * Me%Evolution%SandDT
-                    endif
+!                    if (Me%Boxes%Yes) then
+!                        Me%Boxes%FluxesX(i,j+1) = Me%Boxes%FluxesX(i,j+1) + Me%FluxXIntegral(i, j) * Me%Evolution%DZDT
+!                    endif
                 endif                    
             endif
 
-            if (Me%FluxY(i, j) < 0.) then
+            if (Me%FluxYIntegral(i, j) < 0.) then
                 if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
 
-                    DT_Area1 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i-1, j) / Me%ExternalVar%DVY(i-1, j)
-                    DT_Area2 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                    DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i-1, j) / Me%ExternalVar%DVY(i-1, j)
+                    DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
 
-                    Me%DZ%Field2D(i-1, j) = Me%DZ%Field2D(i-1, j) - DT_Area1 * Me%FluxY(i, j) 
-                    Me%DZ%Field2D(i  , j) = Me%DZ%Field2D(i  , j) + DT_Area2 * Me%FluxY(i, j) 
+                    Me%DZ%Field2D(i-1, j) = Me%DZ%Field2D(i-1, j) + DT_Area1 * (- Me%FluxYIntegral(i, j)) 
+                    Me%DZ%Field2D(i  , j) = Me%DZ%Field2D(i  , j) - DT_Area2 * (- Me%FluxYIntegral(i, j)) 
 
                     if (Me%Boxes%Yes) then
-                        Me%Boxes%FluxesY(i,j) = Me%Boxes%FluxesY(i,j) + Me%FluxY(i, j) * Me%Evolution%SandDT
+                        Me%Boxes%FluxesY(i,j) = Me%Boxes%FluxesY(i,j) + Me%FluxYIntegral(i, j) * Me%Evolution%DZDT
                     endif
                 endif
             else 
                 if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
 
-                    DT_Area1 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i+1, j) / Me%ExternalVar%DVY(i+1, j)
-                    DT_Area2 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                    DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i+1, j) / Me%ExternalVar%DVY(i+1, j)
+                    DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
 
-                    Me%DZ%Field2D(i+1, j) = Me%DZ%Field2D(i+1, j  ) + DT_Area1 * Me%FluxY(i, j)
-                    Me%DZ%Field2D(i  , j) = Me%DZ%Field2D(i  , j  ) - DT_Area2 * Me%FluxY(i, j) 
+                    Me%DZ%Field2D(i+1, j) = Me%DZ%Field2D(i+1, j  ) + DT_Area1 * Me%FluxYIntegral(i, j)
+                    Me%DZ%Field2D(i  , j) = Me%DZ%Field2D(i  , j  ) - DT_Area2 * Me%FluxYIntegral(i, j) 
 
                     if (Me%Boxes%Yes) then
-                        Me%Boxes%FluxesY(i+1,j) = Me%Boxes%FluxesY(i+1,j) + Me%FluxY(i, j) * Me%Evolution%SandDT
+                        Me%Boxes%FluxesY(i+1,j) = Me%Boxes%FluxesY(i+1,j) + Me%FluxYIntegral(i, j) * Me%Evolution%DZDT
                     endif
                 endif
             endif
@@ -3915,7 +4196,239 @@ cd0:    if (EXIST) then
 
         call ComputeDischarges
         
+        
     end subroutine ComputeEvolution
+    
+    !--------------------------------------------------------------------------
+
+
+    subroutine ComputeEvolution_CentralDifferences            
+
+        !Local-----------------------------------------------------------------
+        real                               :: DT_Area1, DT_Area2, RunPeriod, Flux
+        integer                            :: i, j
+        !----------------------------------------------------------------------
+        
+        Me%DZ%Field2D(:,:) = 0.
+
+!        if (Me%Boxes%Yes) then
+!            Me%Boxes%FluxesX(:,:) = 0.
+!            Me%Boxes%FluxesY(:,:) = 0.
+!        endif
+
+        if (Me%Aceleration%Yes) then
+
+            Me%FluxXIntegral (:,:) = Me%Aceleration%Coef * Me%FluxXIntegral (:,:)
+            Me%FluxYIntegral (:,:) = Me%Aceleration%Coef * Me%FluxYIntegral (:,:)
+
+        endif
+        
+        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+
+        Me%Residual%FluxX(:,:) = ( Me%Residual%FluxX(:,:) * (RunPeriod -  Me%Evolution%DZDT)          + &
+                                   Me%FluxXIntegral(:,:) * Me%Evolution%DZDT) / RunPeriod
+
+        Me%Residual%FluxY(:,:) = ( Me%Residual%FluxY(:,:) * (RunPeriod -  Me%Evolution%DZDT)          + &
+                                   Me%FluxYIntegral(:,:) * Me%Evolution%DZDT) / RunPeriod
+        
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+
+            if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
+
+                ![s/m^2]= [s] / [m] / [m] 
+                DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j-1) / Me%ExternalVar%DVY(i, j-1)
+                DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                
+                ![m^3/s]             = ([m^3/s]*[m]+[m^3/s]*[m]) / ([m]+[m])
+                Flux                 = (Me%FluxXIntegral  (i, j)   *  Me%ExternalVar%DUX(i, j-1) + &
+                                        Me%FluxXIntegral  (i, j-1) *  Me%ExternalVar%DUX(i, j  ))/ &
+                                       (Me%ExternalVar%DUX(i, j-1) +  Me%ExternalVar%DUX(i, j)) 
+                ![m]
+                Me%DZ%Field2D(i, j-1) = Me%DZ%Field2D(i, j-1) - DT_Area1 * Flux 
+                Me%DZ%Field2D(i, j  ) = Me%DZ%Field2D(i, j  ) + DT_Area2 * Flux 
+
+!                if (Me%Boxes%Yes) then
+!                    Me%Boxes%FluxesX(i,j) = Me%Boxes%FluxesX(i,j) + Flux * Me%Evolution%DZDT
+!                endif
+            endif
+
+            if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+
+                DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i-1, j) / Me%ExternalVar%DVY(i-1, j)
+                DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+
+                Flux                 = (Me%FluxXIntegral  (i, j)   *  Me%ExternalVar%DVY(i-1, j) + &
+                                        Me%FluxXIntegral  (i-1, j) *  Me%ExternalVar%DVY(i, j  ))/ &
+                                       (Me%ExternalVar%DVY(i-1, j) +  Me%ExternalVar%DVY(i, j)) 
+                
+                Me%DZ%Field2D(i-1, j) = Me%DZ%Field2D(i-1, j) - DT_Area1 * Flux 
+                Me%DZ%Field2D(i  , j) = Me%DZ%Field2D(i  , j) + DT_Area2 * Flux 
+                
+                if (Me%Boxes%Yes) then
+                    Me%Boxes%FluxesY(i,j) = Me%Boxes%FluxesY(i,j) + Me%FluxYIntegral(i, j) * Me%Evolution%DZDT
+                endif
+            endif
+            
+        enddo
+        enddo
+
+        call ComputeDischarges
+        
+       
+    end subroutine ComputeEvolution_CentralDifferences
+
+    !--------------------------------------------------------------------------
+
+
+    subroutine ComputeEvolution_UpwindOrder2            
+
+        !Local-----------------------------------------------------------------
+        real                               :: DT_Area1, DT_Area2, RunPeriod, Flux, FluxWest, FluxEast
+        integer                            :: i, j
+        !----------------------------------------------------------------------
+        
+        Me%DZ%Field2D(:,:) = 0.
+
+!        if (Me%Boxes%Yes) then
+!            Me%Boxes%FluxesX(:,:) = 0.
+!            Me%Boxes%FluxesY(:,:) = 0.
+!        endif
+
+        if (Me%Aceleration%Yes) then
+
+            Me%FluxXIntegral (:,:) = Me%Aceleration%Coef * Me%FluxXIntegral (:,:)
+            Me%FluxYIntegral (:,:) = Me%Aceleration%Coef * Me%FluxYIntegral (:,:)
+
+        endif
+        
+        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+
+        Me%Residual%FluxX(:,:) = ( Me%Residual%FluxX(:,:) * (RunPeriod -  Me%Evolution%DZDT)          + &
+                                   Me%FluxXIntegral(:,:) * Me%Evolution%DZDT) / RunPeriod
+
+        Me%Residual%FluxY(:,:) = ( Me%Residual%FluxY(:,:) * (RunPeriod -  Me%Evolution%DZDT)          + &
+                                   Me%FluxYIntegral(:,:) * Me%Evolution%DZDT) / RunPeriod
+        
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+
+            if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
+
+                ![s/m^2]= [s] / [m] / [m] 
+                DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j-1) / Me%ExternalVar%DVY(i, j-1)
+                DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                
+                !Upwind second order                    
+                if (Me%ExternalVar%OpenPoints2D(i,  j-2) == 1 .and.     &
+                    Me%ExternalVar%OpenPoints2D(i,  j-1) == 1 .and.     &                    
+                    Me%ExternalVar%OpenPoints2D(i,  j  ) == 1 .and.     &                                        
+                    Me%ExternalVar%OpenPoints2D(i,  j+1) == 1) then
+
+                    FluxWest = -1./8. * Me%FluxXIntegral(i, j-2) + 6./8. * Me%FluxXIntegral(i, j-1) &
+                               +3./8. * Me%FluxXIntegral(i, j  )
+                    FluxEast = -1./8. * Me%FluxXIntegral(i, j+1) + 6./8. * Me%FluxXIntegral(i, j  ) &
+                               +3./8. * Me%FluxXIntegral(i, j-1)
+                    
+                    if (0.5*(FluxWest+FluxEast) > 0) then
+                        Flux = FluxWest
+                    else
+                        Flux = FluxEast
+                    endif
+
+                !Upwind first order
+                else
+                    Flux = 0
+                    if (Me%FluxXIntegral(i, j-1) > 0) then
+                        Flux = Flux + Me%FluxXIntegral(i, j-1)
+                    endif
+                    if (Me%FluxXIntegral(i, j  ) < 0) then
+                        Flux = Flux + Me%FluxXIntegral(i, j  )
+                    endif
+                    
+                endif
+                                       
+                ![m]
+                Me%DZ%Field2D(i, j-1) = Me%DZ%Field2D(i, j-1) - DT_Area1 * Flux 
+                Me%DZ%Field2D(i, j  ) = Me%DZ%Field2D(i, j  ) + DT_Area2 * Flux 
+
+!                if (Me%Boxes%Yes) then
+!                    Me%Boxes%FluxesX(i,j) = Me%Boxes%FluxesX(i,j) + Flux * Me%Evolution%DZDT
+!                endif
+            endif
+
+            if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+
+                DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i-1, j) / Me%ExternalVar%DVY(i-1, j)
+                DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+
+                Flux                 = (Me%FluxXIntegral  (i, j)   *  Me%ExternalVar%DVY(i-1, j) + &
+                                        Me%FluxXIntegral  (i-1, j) *  Me%ExternalVar%DVY(i, j  ))/ &
+                                       (Me%ExternalVar%DVY(i-1, j) +  Me%ExternalVar%DVY(i, j)) 
+                
+                Me%DZ%Field2D(i-1, j) = Me%DZ%Field2D(i-1, j) - DT_Area1 * Flux 
+                Me%DZ%Field2D(i  , j) = Me%DZ%Field2D(i  , j) + DT_Area2 * Flux 
+                
+                if (Me%Boxes%Yes) then
+                    Me%Boxes%FluxesY(i,j) = Me%Boxes%FluxesY(i,j) + Me%FluxYIntegral(i, j) * Me%Evolution%DZDT
+                endif
+            endif
+            
+        enddo
+        enddo
+
+        call ComputeDischarges
+        
+       
+    end subroutine ComputeEvolution_UpwindOrder2
+    
+
+    
+    !--------------------------------------------------------------------------
+
+
+
+    subroutine ComputeNumericalSmoothing            
+
+        !Local-----------------------------------------------------------------
+        real                               :: NumericalSmoothing
+        integer                            :: i, j
+        !----------------------------------------------------------------------
+        
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+
+            if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
+
+                ![m]                       
+                NumericalSmoothing    =  -(Me%ExternalVar%Bathymetry(i, j) -            &
+                    Me%ExternalVar%Bathymetry(i, j-1)) * 0.5 * Me%Evolution%Gama
+                                       
+                ![m]
+                Me%DZ%Field2D(i, j-1) = Me%DZ%Field2D(i, j-1)  + NumericalSmoothing
+                Me%DZ%Field2D(i, j  ) = Me%DZ%Field2D(i, j  )  - NumericalSmoothing
+
+            endif
+
+            if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+
+                ![m]                       
+                NumericalSmoothing    =  -(Me%ExternalVar%Bathymetry(i, j) -            &
+                    Me%ExternalVar%Bathymetry(i-1, j)) * 0.5 * Me%Evolution%Gama
+
+                Me%DZ%Field2D(i-1, j) = Me%DZ%Field2D(i-1, j) + NumericalSmoothing
+                Me%DZ%Field2D(i  , j) = Me%DZ%Field2D(i  , j) - NumericalSmoothing
+                
+            endif
+        enddo
+        enddo
+
+        
+       
+    end subroutine ComputeNumericalSmoothing
     
     !--------------------------------------------------------------------------
 
@@ -3925,6 +4438,7 @@ cd0:    if (EXIST) then
         real                               :: DT_Area, BottomDensity, TicknessAdd,      &
                                               DischargeFlow, DischargeConc
         integer                            :: i, j, dis, DischargesNumber, STAT_CALL
+        logical                            :: PropFromIntake
         !----------------------------------------------------------------------
 
         
@@ -3958,15 +4472,17 @@ d1:         do dis = 1, DischargesNumber
                 call GetDischargeConcentration (Me%ObjDischarges,                       &
                                                 Me%ExternalVar%Now,                     &
                                                 dis, DischargeConc,                     &
-                                                PropertyIDNumber = Sand_,               &        
-                                                STAT = STAT_CALL)
+                                                PropertyIDNumber    = Sand_,            &
+                                                PropertyFromIntake  = PropFromIntake,   &
+                                                STAT                = STAT_CALL)                                                
+                                                
                 if (STAT_CALL/=SUCCESS_)                                                &
                     stop 'ComputeDischarges - ModuleSand - ERR40'
                 
 
                 BottomDensity       = Me%Porosity * Me%ExternalVar%WaterDensity + (1. - Me%Porosity) * Me%Density
 
-                DT_Area             = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                DT_Area             = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
 
                                      ![m3/s] * [g/m3/1000] / [kg/m3] * [s/m2] * []
                 TicknessAdd         = DischargeFlow * (DischargeConc/1000.) / BottomDensity * DT_Area
@@ -4001,8 +4517,8 @@ d1:         do dis = 1, DischargesNumber
                     Me%ExternalVar%WaterPoints2D(i,  j-1) == WaterPoint  .and. &
                     abs(dhdx) > Me%SmoothSlope%Critic) then
                 
-                DT_Area1 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j-1) / Me%ExternalVar%DVY(i, j-1)
-                DT_Area2 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j-1) / Me%ExternalVar%DVY(i, j-1)
+                DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
 
                 FluxX = Me%SmoothSlope%Factor * max(abs(Me%FluxY(i, j)), abs(Me%FluxY(i, j-1)))
 
@@ -4029,8 +4545,8 @@ d1:         do dis = 1, DischargesNumber
                     Me%ExternalVar%WaterPoints2D(i-1, j) == WaterPoint  .and. &
                     abs(dhdy) > Me%SmoothSlope%Critic) then
                 
-                DT_Area1 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i-1, j) / Me%ExternalVar%DVY(i-1, j)
-                DT_Area2 = Me%Evolution%SandDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
+                DT_Area1 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i-1, j) / Me%ExternalVar%DVY(i-1, j)
+                DT_Area2 = Me%Evolution%DZDT / Me%ExternalVar%DUX(i, j  ) / Me%ExternalVar%DVY(i, j)
 
                 FluxY = Me%SmoothSlope%Factor * max(abs(Me%FluxX(i, j)), abs(Me%FluxX(i-1, j)))
 
@@ -4160,7 +4676,7 @@ d1:         do dis = 1, DischargesNumber
         enddo
         enddo    
 
-        if (Me%Evolution%BathymDT > Me%Evolution%SandDT) then
+        if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
 
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4267,36 +4783,32 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
 
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Tau Critic", "Tau Critic",        &
-                                     "m3/s/m", Array2D = Me%TauCritic,                       &
+                                     "N/m2", Array2D = Me%TauCritic,                         &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR07'
                 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Flux X", "Transport Flux X",        &
-                                     "m3/s/m", Array2D = Me%FluxX,                       &
+                                     "m3/s", Array2D = Me%FluxX,                        &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR80'
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Flux Y", "Transport Flux Y",        &
-                                     "m3/s/m", Array2D = Me%FluxY,                       &
+                                     "m3/s", Array2D = Me%FluxY,                        &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR90'
                 
-                if (Me%Residual%ON) then
-                
-                    call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux X", &
-                                         "Residual Transport Flux X",                      &
-                                         "m3/s/m", Array2D = Me%Residual%FluxX,            &
-                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR80'
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux X", &
+                                     "Residual Transport Flux X",                      &
+                                     "m3/s", Array2D = Me%Residual%FluxX,              &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR80'
 
-                    call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux Y", &
-                                         "Residual Transport Flux Y",                      &
-                                         "m3/s/m", Array2D = Me%Residual%FluxY,            &
-                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR90'
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux Y", &
+                                     "Residual Transport Flux Y",                      &
+                                     "m3/s", Array2D = Me%Residual%FluxY,              &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR90'
                 
-                endif
-
                 !Writes everything to disk
                 call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR08'
@@ -4366,12 +4878,12 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
 
         do J = JLB, JUB
         do I = ILB, IUB
-            Me%Boxes%Mass   (i,j) = Me%DZ%Field2D(i,j)      * (1.- Me%Porosity) * Me%Density * &
-                                    Me%ExternalVar%DUX(i,j) * Me%ExternalVar%DVY(i,j) 
+            Me%Boxes%Mass   (i,j) = Me%DZ_Residual%Field2D(i,j) *                       &
+                                    Me%ExternalVar%DUX(i,j)     * Me%ExternalVar%DVY(i,j) 
 
-            !This fluxes are initialised and partial computed in the subroutine ComputeEvolution
-            Me%Boxes%FluxesX(i,j) = Me%Boxes%FluxesX(i,j)   * (1.- Me%Porosity) * Me%Density
-            Me%Boxes%FluxesY(i,j) = Me%Boxes%FluxesY(i,j)   * (1.- Me%Porosity) * Me%Density
+            !This fluxes are compute from the residual fluxes in m3/s
+            Me%Boxes%FluxesX(i,j) = Me%Residual%FluxX(i,j)   
+            Me%Boxes%FluxesY(i,j) = Me%Residual%FluxY(i,j)   
 
         end do
         end do
@@ -4497,13 +5009,18 @@ if1:            if (Me%Classes%Number > 0) then
                 deallocate(Me%D35%Field2D)
                 deallocate(Me%D50%Field2D)
                 deallocate(Me%D90%Field2D)
+                
+                if (Me%AverageON) then
+                    deallocate(Me%Uaverage%Field2D)
+                    deallocate(Me%Vaverage%Field2D)                
+                endif
 
                 deallocate(Me%BedRock%Field2D)
                 deallocate(Me%TauCritic)
 
                 deallocate(Me%DZ%Field2D)
                 
-                if (Me%Evolution%BathymDT > Me%Evolution%SandDT) then
+                if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
                 
                     deallocate(Me%BatimIncrement%Field2D)
 
@@ -4516,12 +5033,12 @@ if1:            if (Me%Classes%Number > 0) then
                 !deallocate fluxes
                 deallocate(Me%FluxX  )
                 deallocate(Me%FluxY  )
+                deallocate(Me%FluxXIntegral)
+                deallocate(Me%FluxYIntegral)
                 deallocate(Me%TransportCapacity)
                 
-                if (Me%Residual%ON) then
-                    deallocate(Me%Residual%FluxX  )
-                    deallocate(Me%Residual%FluxY  )
-                endif
+                deallocate(Me%Residual%FluxX  )
+                deallocate(Me%Residual%FluxY  )
                 
                 !if (Me%TransportMethod == VanRijn1) deallocate (Me%Dast)
                 
@@ -4641,42 +5158,38 @@ if1:            if (Me%Classes%Number > 0) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'WriteFinalState - ModuleSand - ERR30'
 
-        if (Me%Residual%ON) then
-            call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
-                                 "Residual Transport Flux X",                           &
-                                 "m3/s/m",                                              &
-                                 Array2D = Me%Residual%FluxX,                           &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'WriteFinalState - ModuleSand - ERR40'
+        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
+                             "Residual Transport Flux X",                           &
+                             "m3/s/m",                                              &
+                             Array2D = Me%Residual%FluxX,                           &
+                             STAT    = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'WriteFinalState - ModuleSand - ERR40'
 
-            call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
-                                 "Residual Transport Flux Y",                           &
-                                 "m3/s/m",                                              &
-                                 Array2D = Me%Residual%FluxY,                           &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'WriteFinalState - ModuleSand - ERR50'
+        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
+                             "Residual Transport Flux Y",                           &
+                             "m3/s/m",                                              &
+                             Array2D = Me%Residual%FluxY,                           &
+                             STAT    = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'WriteFinalState - ModuleSand - ERR50'
 
-            call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'WriteFinalState - ModuleSand - ERR60'
+        call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'WriteFinalState - ModuleSand - ERR60'
 
-            !Writes current time
-            call ExtractDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3), &
-                                AuxTime(4), AuxTime(5), AuxTime(6))
-            TimePtr => AuxTime
-            call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR70'
+        !Writes current time
+        call ExtractDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3), &
+                            AuxTime(4), AuxTime(5), AuxTime(6))
+        TimePtr => AuxTime
+        call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR70'
 
-            call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
-                                 "Residual Start Time", "YYYY/MM/DD HH:MM:SS",          &
-                                 Array1D = TimePtr, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR80'
-                                 
-
-        endif
-   
+        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
+                             "Residual Start Time", "YYYY/MM/DD HH:MM:SS",          &
+                             Array1D = TimePtr, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR80'
+                             
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &

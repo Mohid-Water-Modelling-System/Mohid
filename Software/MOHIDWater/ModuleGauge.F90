@@ -379,18 +379,18 @@ Module ModuleGauge
             endif
             
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR80' 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR110' 
 
 
 if8 :       if (.NOT. associated(Me%FirstGauge)) then
-                stop 'ConstructGauges - ModuleGauges - ERR100' 
+                stop 'ConstructGauges - ModuleGauges - ERR120' 
             else
                 PresentGauge => Me%FirstGauge
 do4 :           do while (associated(PresentGauge))
                     call GetNumberWaves(PresentGauge, NWaves)
 
                     allocate(WaveName(NWaves), STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR110.'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR130.'
 
 
                     I = 0
@@ -404,7 +404,7 @@ do5 :               do while (associated(PresentWave))
                     end do do5
 
                     call ConstructToga(PresentGauge%ObjToga, NWaves, WaveName, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR120'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauge - ERR140'
 
                     deallocate(WaveName)
                     nullify   (WaveName)
@@ -426,7 +426,7 @@ do5 :               do while (associated(PresentWave))
 
         else 
             
-            stop 'ModuleGauge - ConstructGauges - ERR130' 
+            stop 'ModuleGauge - ConstructGauges - ERR150' 
 
         end if 
 
@@ -581,8 +581,8 @@ if6 :           if (BlockFound) then
         call ConstructField4D(Field4DID         = Me%ObjField4D,                        &
                               EnterDataID       = Me%ObjEnterData,                      &
                               ExtractType       = FromBlock,                            &
-                              FileName          = Me%HDFFileTidalComponents,            &
                               TimeID            = Me%ObjTime,                           &   
+                              FileName          = Me%HDFFileTidalComponents,            &
                               MaskDim           = 2,                                    &
                               LatReference      = LatDefault,                           &
                               LonReference      = LongDefault,                          & 

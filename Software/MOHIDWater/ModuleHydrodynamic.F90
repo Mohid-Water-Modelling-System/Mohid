@@ -105,7 +105,8 @@ Module ModuleHydrodynamic
     use ModuleFunctions         
     use ModuleTime              
     use ModuleEnterData           
-    use ModuleGridData,         only : GetGridData, WriteGridData, UngetGridData 
+    use ModuleGridData,         only : GetGridData, WriteGridData, UngetGridData,       &
+                                       ConstructGridData, KillGridData
     use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile
     use ModuleDischarges,       only : Construct_Discharges, GetDischargesNumber,        &
                                        GetDischargesGridLocalization, GetDischargeON,    &
@@ -351,7 +352,11 @@ Module ModuleHydrodynamic
 
     private ::                  Waterlevel_CyclicBoundary
     private ::                      CyclicCoef2D
-
+    
+    private ::                  WaterLevel_Tsunami
+    private ::                      Dip_Slip             
+    private ::                      Strike_Slip
+    
     private ::              Modify_HorizontalWaterFlow
 
     private ::          New_Geometry
@@ -411,7 +416,8 @@ Module ModuleHydrodynamic
     public  :: GetVertical1D
     public  :: GetXZFlow
     public  :: GetVelocityModulus
-
+    public  :: GetResidualVelocityON
+    public  :: GetResidualHorizontalVelocity
 
 #ifdef _USE_SEQASSIMILATION
     public  :: GetHydroSeqAssimilation
@@ -687,6 +693,8 @@ Module ModuleHydrodynamic
     !Ways of computing the tide potential phase of each constituint using the doodson numbers
     integer, parameter     :: Kantha = 1, Lefevre=2
     
+    !Methods to generate a water level perturbation due to a tsunami/fault
+    integer, parameter     :: FaultOkada1985_ = 0, FaultFile_ = 1
 
 
     !Types---------------------------------------------------------------------
@@ -701,20 +709,20 @@ Module ModuleHydrodynamic
 
     private :: T_Direction
     type       T_Direction
-        integer  :: XY = null_int !initialization: jauch
-        integer  :: YX = null_int !initialization: jauch
-        integer  :: di = null_int !initialization: jauch
-        integer  :: dj = null_int !initialization: jauch
+        integer  :: XY = null_int 
+        integer  :: YX = null_int 
+        integer  :: di = null_int 
+        integer  :: dj = null_int 
     end type       T_Direction
 
     private :: T_Files
     type       T_Files
-         character(len=PathLength) :: InitialHydrodynamic = null_str !initialization: jauch
-         character(len=PathLength) :: FinalHydrodynamic   = null_str !initialization: jauch
-         character(len=PathLength) :: OutPutFields        = null_str !initialization: jauch
-         character(len=PathLength) :: ConstructData       = null_str !initialization: jauch
-         character(len=PathLength) :: BoxFluxesFileName   = null_str !initialization: jauch
-         character(len=PathLength) :: Energy              = null_str !initialization: jauch
+         character(len=PathLength) :: InitialHydrodynamic = null_str 
+         character(len=PathLength) :: FinalHydrodynamic   = null_str 
+         character(len=PathLength) :: OutPutFields        = null_str 
+         character(len=PathLength) :: ConstructData       = null_str 
+         character(len=PathLength) :: BoxFluxesFileName   = null_str 
+         character(len=PathLength) :: Energy              = null_str 
     end type T_Files
     
     private :: T_DDecomp
@@ -759,6 +767,7 @@ Module ModuleHydrodynamic
         real, dimension (:, :, :), pointer :: PrevisionalQ    => null()
         real, dimension (:, :, :), pointer :: CCoef           => null()
         real, dimension (:, :, :), pointer :: GCoef           => null()
+        real, dimension (:, :   ), pointer :: VerticalSurfLayerOld  => null()
         logical                            :: ON                    = .false.
         real                               :: Residual              = 1.e-6
         logical                            :: NormalizedResidual    = .false.
@@ -777,8 +786,8 @@ Module ModuleHydrodynamic
         real, dimension (:, :), pointer :: VolumeCreated => null()
         real, dimension (:, :), pointer :: Maxi          => null()
         real, dimension (:, :), pointer :: Mini          => null()
-        real                            :: DT      = null_real !initialization: jauch
-        real                            :: Default = null_real !initialization: jauch
+        real                            :: DT      = null_real 
+        real                            :: Default = null_real 
         logical                         :: InitalizedByFile = .false.
     end type T_WaterLevel
 
@@ -791,8 +800,8 @@ Module ModuleHydrodynamic
         type(C_PTR)                        :: OldPtr
         type(C_PTR)                        :: NewPtr
 #endif _USE_PAGELOCKED
-        real                               :: Default   = null_real !initialization: jauch
-        integer                            :: InTypeZUV = null_int  !initialization: jauch
+        real                               :: Default   = null_real 
+        integer                            :: InTypeZUV = null_int  
     end type T_Vel_UV 
 
     private :: T_Horizontal
@@ -817,7 +826,7 @@ Module ModuleHydrodynamic
     type T_Velocity
         type (T_Horizontal)  :: Horizontal
         type (T_Vertical)    :: Vertical
-        real                 :: DT = null_real !initialization: jauch
+        real                 :: DT = null_real 
     end type T_Velocity
 
     private :: T_WaterFluxes
@@ -831,12 +840,12 @@ Module ModuleHydrodynamic
         real(8), dimension(:,:,:), pointer     :: DischargesVelU  => null()
         real(8), dimension(:,:,:), pointer     :: DischargesVelV  => null()
         real(8), dimension(:,:,:), pointer     :: DischargesVelUV => null()
-        real                                   :: New_Old = null_real !initialization: jauch
+        real                                   :: New_Old = null_real 
     end type T_WaterFluxes
 
     private :: T_Residual
     type T_Residual
-        real                                :: ResidualTime      = null_real !initialization: jauch
+        real                                :: ResidualTime      = null_real 
         real, dimension(:,:),   pointer     :: WaterLevel        => null()
         real, dimension(:,:,:), pointer     :: Velocity_U        => null()
         real, dimension(:,:,:), pointer     :: Velocity_V        => null()
@@ -860,7 +869,7 @@ Module ModuleHydrodynamic
         real,    dimension (:, :), pointer    :: Reference_V_barotropic => null()
         real,    dimension (:, :), pointer    :: Coef_U_barotropic => null()
         real,    dimension (:, :), pointer    :: Coef_V_barotropic => null()
-        logical                               :: ON = .false. !initialization: jauch
+        logical                               :: ON = .false. 
     end type T_Geostroph
 
     private :: T_Forces
@@ -881,9 +890,9 @@ Module ModuleHydrodynamic
     private :: T_HorAdvection
     type T_HorAdvection
 
-        real :: Coef1_Up = null_real !initialization: jauch
-        real :: Coef2_Up = null_real !initialization: jauch
-        real :: Coef3_Up = null_real !initialization: jauch
+        real :: Coef1_Up = null_real 
+        real :: Coef2_Up = null_real 
+        real :: Coef3_Up = null_real 
 
     end type T_HorAdvection
 
@@ -920,7 +929,7 @@ Module ModuleHydrodynamic
         real(C_DOUBLE), dimension (:, :, :), pointer    :: D  => null(), &
                                                            F  => null(), &
                                                            Ti => null(), &
-                                                           E   => null()    !initialization: jauch - was real... Mabe should be real(8)? 
+                                                           E  => null()    
 #else
         real,    dimension (:, :, :), pointer :: D  => null(), &
                                                  F  => null(), & 
@@ -955,7 +964,7 @@ Module ModuleHydrodynamic
     type T_InstantBound
 
         type (T_Time)                  :: TimeB  
-        real                           :: BaroclVel = null_real !initialization: jauch
+        real                           :: BaroclVel = null_real 
         type (T_InstantBound), pointer :: Next => null(), &
                                           Prev => null()
 
@@ -965,8 +974,8 @@ Module ModuleHydrodynamic
     private :: T_Imposed
     type T_Imposed
 
-        integer                        :: Number     = null_int  !initialization: jauch
-        real                           :: DTInterval = null_real !initialization: jauch
+        integer                        :: Number     = null_int  
+        real                           :: DTInterval = null_real 
         type (T_InstantBound), pointer :: FirstInstant => null(), &
                                           LastInstant  => null()
 
@@ -1104,8 +1113,12 @@ Module ModuleHydrodynamic
                                               RotationX     => null(), &
                                               RotationY     => null()
                                               
-        logical                            :: Distortion   = .false.     !initialization: jauch
-        real                               :: GridRotation = null_real   !initialization: jauch
+        logical                            :: Distortion   = .false.     
+        real                               :: GridRotation = null_real   
+        
+        real, dimension(:, :), pointer     :: LatitudeZ  => null()
+        real, dimension(:, :), pointer     :: LongitudeZ => null()
+        
 
         !3D Geometry 
 
@@ -1200,8 +1213,8 @@ Module ModuleHydrodynamic
         !Altimetry Assimilation
         real,    dimension(:,:  ), pointer :: AltimWaterLevelAnalyzed   => null()
         
-        real                               :: AltimDecayTime    = null_real, & !initialization: Jauch
-                                              AltimAssimDT      = null_real    !initialization: Jauch
+        real                               :: AltimDecayTime    = null_real, & 
+                                              AltimAssimDT      = null_real    
         
         real,    dimension(:,:,:), pointer :: AltimSigmaDensAnalyzed    => null()
         
@@ -1223,9 +1236,9 @@ Module ModuleHydrodynamic
                                                
         integer, dimension(:,:,:), pointer  :: Position => null()
         
-        logical                             :: UOn  = .false., & !initialization: Jauch  
-                                               VOn  = .false., & !initialization: Jauch  
-                                               WOn  = .false.    !initialization: Jauch
+        logical                             :: UOn  = .false., &   
+                                               VOn  = .false., &   
+                                               WOn  = .false.    
         
         real                                :: VelLimit     = -1e8
         real                                :: TimeScale    = null_real !initialization: Jauch
@@ -1242,24 +1255,24 @@ Module ModuleHydrodynamic
                                                FaceW_J  => null(), &
                                                FaceW_K  => null()
                                                
-        logical                             :: UOn  = .false., & !initialization: Jauch
-                                               VOn  = .false., & !initialization: Jauch
-                                               WOn  = .false., & !initialization: Jauch
-                                               ON   = .false.    !initialization: Jauch
+        logical                             :: UOn  = .false., & 
+                                               VOn  = .false., & 
+                                               WOn  = .false., & 
+                                               ON   = .false.    
                                                
-        integer                             :: Nu   = null_int, & !initialization: Jauch
-                                               Nv   = null_int, & !initialization: Jauch
-                                               Nw   = null_int    !initialization: Jauch
+        integer                             :: Nu   = null_int, &
+                                               Nv   = null_int, &
+                                               Nw   = null_int   
                                                
-        integer                             :: ObjTimeSerie     = null_int, & !initialization: Jauch
-                                               CloseFlagColumn  = null_int    !initialization: Jauch
+        integer                             :: ObjTimeSerie     = null_int, & 
+                                               CloseFlagColumn  = null_int    
                                                
-        logical                             :: VariableInTime   = .false. !initialization: Jauch
+        logical                             :: VariableInTime   = .false. 
         
-        real                                :: GradWL_Limit = null_real !initialization: Jauch
+        real                                :: GradWL_Limit = null_real 
         
                                                !CloseFlag = 1 close, CloseFlag = 0 open
-        integer                             :: CloseFlag    = null_int !initialization: Jauch
+        integer                             :: CloseFlag    = null_int 
     end type T_ThinWalls
 
     type T_WindWaves
@@ -1283,118 +1296,118 @@ Module ModuleHydrodynamic
                                            
         real, dimension(:,:),   pointer :: Tlag => null()
 
-        real                            :: BiHarmonicCoef           = null_real, & !initialization: Jauch
-                                           BottomViscCoef           = null_real, & !initialization: Jauch
-                                           UpStream_CenterDif       = null_real, & !initialization: Jauch
-                                           ImplicitVertAdvection    = null_real, & !initialization: Jauch
-                                           ImplicitVertDiffusion    = null_real, & !initialization: Jauch
-                                           Num_Discretization       = null_real, & !initialization: Jauch
-                                           MinLeavingVelocity       = null_real, & !initialization: Jauch
-                                           MinLeavingComponent      = null_real, & !initialization: Jauch
-                                           InertialPeriods          = null_real, & !initialization: Jauch
-                                           RampPeriod               = null_real, & !initialization: Jauch
-                                           TideSlowStartCoef        = null_real, & !initialization: Jauch
-                                           Hmin_Advection           = null_real, & !initialization: Jauch
+        real                            :: BiHarmonicCoef           = null_real, & 
+                                           BottomViscCoef           = null_real, & 
+                                           UpStream_CenterDif       = null_real, & 
+                                           ImplicitVertAdvection    = null_real, & 
+                                           ImplicitVertDiffusion    = null_real, & 
+                                           Num_Discretization       = null_real, & 
+                                           MinLeavingVelocity       = null_real, & 
+                                           MinLeavingComponent      = null_real, & 
+                                           InertialPeriods          = null_real, & 
+                                           RampPeriod               = null_real, & 
+                                           TideSlowStartCoef        = null_real, & 
+                                           Hmin_Advection           = null_real, & 
                                            !AtmosphereCoef: This is the coefficient bounded by [0 1] to multiply the atmospheric forces with.
-                                           AtmosphereCoef           = null_real, & !initialization: Jauch
+                                           AtmosphereCoef           = null_real, & 
                                            !AtmospherePeriod: This period will substitute the SmoothInitial period                                                    
-                                           AtmospherePeriod         = null_real    !initialization: Jauch                                           
+                                           AtmospherePeriod         = null_real                                           
 
-        integer                         :: UpStream                 = null_int, & !initialization: Jauch
-                                           Evolution                = null_int, & !initialization: Jauch
-                                           VelTangentialBoundary    = null_int, & !initialization: Jauch
-                                           VelNormalBoundary        = null_int, & !initialization: Jauch
-                                           BaroclinicMethod         = null_int    !initialization: Jauch
+        integer                         :: UpStream                 = null_int, & 
+                                           Evolution                = null_int, & 
+                                           VelTangentialBoundary    = null_int, & 
+                                           VelNormalBoundary        = null_int, & 
+                                           BaroclinicMethod         = null_int    
 
-        logical                         :: Baroclinic           = .false., & !initialization: Jauch
-                                           BoundaryBaroclinic   = .false., & !initialization: Jauch                                           
-                                           Coriolis             = .false., & !initialization: Jauch
-                                           Continuous           = .false., & !initialization: Jauch
-                                           Compute_Tide         = .false., & !initialization: Jauch
-                                           Imposed_BoundaryWave = .false., & !initialization: Jauch
-                                           WaterDischarges      = .false., & !initialization: Jauch
-                                           Residual             = .false., & !initialization: Jauch
-                                           ComputeEnteringWave  = .false., & !initialization: Jauch
-                                           Energy               = .false., & !initialization: Jauch
-                                           VolumeVariation      = .false., & !initialization: Jauch
-                                           HorizontalDiffusion  = .false., & !initialization: Jauch
-                                           HorizontalAdvection  = .false., & !initialization: Jauch
-                                           VerticalDiffusion    = .false., & !initialization: Jauch
-                                           VerticalAdvection    = .false., & !initialization: Jauch
-                                           BaroclinicRAMP       = .false., & !initialization: Jauch
-                                           NullBoundaryHorAdv   = .false., & !initialization: Jauch
+        logical                         :: Baroclinic           = .false., & 
+                                           BoundaryBaroclinic   = .false., &                                          
+                                           Coriolis             = .false., & 
+                                           Continuous           = .false., & 
+                                           Compute_Tide         = .false., & 
+                                           Imposed_BoundaryWave = .false., & 
+                                           WaterDischarges      = .false., & 
+                                           Residual             = .false., & 
+                                           ComputeEnteringWave  = .false., & 
+                                           Energy               = .false., & 
+                                           VolumeVariation      = .false., & 
+                                           HorizontalDiffusion  = .false., & 
+                                           HorizontalAdvection  = .false., & 
+                                           VerticalDiffusion    = .false., & 
+                                           VerticalAdvection    = .false., & 
+                                           BaroclinicRAMP       = .false., & 
+                                           NullBoundaryHorAdv   = .false., & 
                                            !AtmosphereRAMP: This logical value makes obsolete the wind
-                                           AtmosphereRAMP       = .false., & !initialization: Jauch
-                                           InvertBarometer      = .false., & !initialization: Jauch
-                                           InvertBaromSomeBound = .false.    !initialization: Jauch
+                                           AtmosphereRAMP       = .false., & 
+                                           InvertBarometer      = .false., & 
+                                           InvertBaromSomeBound = .false.    
                                            
         real, pointer, dimension(:,:)   :: InvertBarometerCells => null()
                                                       
-        integer                         :: Wind                 = null_int  !initialization: Jauch
-        real                            :: SmoothInitialPeriod  = null_real !initialization: Jauch
+        integer                         :: Wind                 = null_int  
+        real                            :: SmoothInitialPeriod  = null_real 
         
-        logical                         :: AtmPressure      = .false.  !initialization: Jauch
-        integer                         :: AtmPressureType  = null_int !initialization: JAuch
+        logical                         :: AtmPressure      = .false.  
+        integer                         :: AtmPressureType  = null_int 
                                             ! 0 - don't use atmospheric pressure
                                             ! 1 - Use atmospheric pressure
                                             ! 2 - Use Mean Sea Level Pressure (MSLP)
                                         
-        logical                         :: SurfaceWaterFlux     = .false., & !initialization: Jauch
-                                           BottomWaterFlux      = .false., & !initialization: Jauch
-                                           Relaxation           = .false., & !initialization: Jauch
-                                           Geost_Initialization = .false., & !initialization: Jauch
-                                           Level_Bottom_Anomaly = .false.    !initialization: Jauch
+        logical                         :: SurfaceWaterFlux     = .false., & 
+                                           BottomWaterFlux      = .false., & 
+                                           Relaxation           = .false., & 
+                                           Geost_Initialization = .false., & 
+                                           Level_Bottom_Anomaly = .false.    
         
         type(T_HydroCoupling)           :: AltimetryAssimilation
         
-        logical                         :: CoriolisBoundary     = .false., & !initialization: Jauch
-                                           Recording            = .false., & !initialization: Jauch
-                                           MomentumDischarge    = .false., & !initialization: Jauch
-                                           LocalDensity         = .false., & !initialization: Jauch
-                                           BlumbergKantha       = .false., & !initialization: Jauch
-                                           InitialElevation     = .false., & !initialization: Jauch
-                                           ConservativeHorDif   = .false., & !initialization: Jauch
-                                           BiHarmonic           = .false., & !initialization: Jauch
-                                           BottomVisc_LIM       = .false., & !initialization: Jauch  !MRV
-                                           WaterLevelMaxMin     = .false.    !initialization: Jauch
+        logical                         :: CoriolisBoundary     = .false., & 
+                                           Recording            = .false., & 
+                                           MomentumDischarge    = .false., & 
+                                           LocalDensity         = .false., & 
+                                           BlumbergKantha       = .false., & 
+                                           InitialElevation     = .false., & 
+                                           ConservativeHorDif   = .false., & 
+                                           BiHarmonic           = .false., & 
+                                           BottomVisc_LIM       = .false., & 
+                                           WaterLevelMaxMin     = .false.    
 
 #ifdef OVERLAP
-        logical                         :: Overlap  = .false. !initialization: Jauch
+        logical                         :: Overlap  = .false. 
 #endif OVERLAP
 
-        integer                         :: BarotropicRadia  = null_int, &  !initialization: Jauch
-                                           BaroclinicRadia  = null_int, &  !initialization: Jauch
-                                           LocalSolution    = null_int     !initialization: Jauch
+        integer                         :: BarotropicRadia  = null_int, &  
+                                           BaroclinicRadia  = null_int, &  
+                                           LocalSolution    = null_int     
 
-        logical                         :: CorrectWaterLevel    = .false.       !initialization: Jauch
-        real                            :: WaterLevelMin        = null_real, &  !initialization: Jauch
-                                           WaterColumn2D        = null_real     !initialization: Jauch
+        logical                         :: CorrectWaterLevel    = .false.       
+        real                            :: WaterLevelMin        = null_real, &  
+                                           WaterColumn2D        = null_real     
 
-        logical                         :: SlippingCondition    = .false., &  !initialization: Jauch
-                                           WaveStress           = .false., &  !initialization: Jauch
-                                           Obstacle             = .false., &  !initialization: Jauch
+        logical                         :: SlippingCondition    = .false., & 
+                                           WaveStress           = .false., & 
+                                           Obstacle             = .false., & 
                                            Scraper              = .false. 
 
         type (T_Time)                   :: RAMP_BeginTime
 
-        logical                         :: CentrifugalForce = .false., &  !initialization: Jauch
-                                           InertiaForces    = .false.     !initialization: Jauch
+        logical                         :: CentrifugalForce = .false., &  
+                                           InertiaForces    = .false.     
 
-        integer                         :: AdvectionMethodH = null_int, &  !initialization: Jauch
-                                           TVD_LimH         = null_int, &  !initialization: Jauch
-                                           AdvectionMethodV = null_int, &  !initialization: Jauch
-                                           TVD_LimV         = null_int     !initialization: Jauch
+        integer                         :: AdvectionMethodH = null_int, & 
+                                           TVD_LimH         = null_int, & 
+                                           AdvectionMethodV = null_int, & 
+                                           TVD_LimV         = null_int    
                    
-        logical                         :: Upwind2H = .false., &  !initialization: Jauch
-                                           Upwind2V = .false.     !initialization: Jauch
+        logical                         :: Upwind2H = .false., &  
+                                           Upwind2V = .false.     
                    
-        real                            :: VolumeRelMax = null_real !initialization: Jauch
+        real                            :: VolumeRelMax = null_real 
 
-        integer                         :: BaroclinicPoliDegree         = null_int, &  !initialization: Jauch
-                                           Vertical_AxiSymmetric_Model  = null_int     !initialization: Jauch
+        integer                         :: BaroclinicPoliDegree         = null_int, &  
+                                           Vertical_AxiSymmetric_Model  = null_int     
 
-        real                            :: FlatherColdPeriod    = null_real, & !initialization: Jauch
-                                           FlatherColdSeaLevel  = null_real    !initialization: Jauch
+        real                            :: FlatherColdPeriod    = null_real, & 
+                                           FlatherColdSeaLevel  = null_real    
         
         !PCL
         logical                         :: XZFlow   = .false.
@@ -1459,6 +1472,10 @@ Module ModuleHydrodynamic
          real,    dimension(:,:), pointer         :: MaxWaterColumn           => null()
          real,    dimension(:,:), pointer         :: VelocityAtMaxWaterColumn => null()
          real,    dimension(:,:), pointer         :: MaxFloodRisk             => null()
+         real,    dimension(:,:), pointer         :: MaxVelocity              => null()
+         real,    dimension(:,:), pointer         :: MaxWaterLevel            => null()
+         real,    dimension(:,:), pointer         :: MapMax                   => null()
+         real,    dimension(:,:), pointer         :: MapMin                   => null()         
          character(Pathlength)                    :: FloodRiskRootPath        = null_str
          
     end type T_OutPut
@@ -1507,13 +1524,13 @@ Module ModuleHydrodynamic
         type (T_Size3D)                 :: Window
         type (T_Time)                   :: NextOutPut
         
-        real                            :: DtOut = null_real !initialization: Jauch
+        real                            :: DtOut = null_real 
     end type T_Energy
 
     
     private :: T_Astro
     type       T_Astro
-        logical                           :: Compute    = .false. !initialization: Jauch
+        logical                           :: Compute    = .false. 
         
         integer                           :: ComponentsNumber = 12
         
@@ -1526,9 +1543,47 @@ Module ModuleHydrodynamic
         integer, pointer, dimension (:  ) :: m  => null()
         
         type (T_Time)                     :: TimeRef        
-        real                              :: Alpha      = null_real !initialization: Jauch
-        integer                           :: Algorithm  = null_int  !initialization: Jauch
+        real                              :: Alpha      = null_real 
+        integer                           :: Algorithm  = null_int  
     end type T_Astro
+    
+    private ::  T_Fault
+    type        T_Fault
+        ! Fault input method (0 - Okada 1985 Model, 1 - input grid data file) 
+        integer                     :: InputMethod      = null_int
+        ! Filename of the input grid data file
+        character(len=PathLength)   :: FileName         = null_str
+        !Instance of ModuleGridData
+        integer                     :: ObjGridData      = 0
+        ! FOCAL DEPTH, MEASURED FROM MEAN EARTH SURFACE TO THE TOP EDGE OF FAULT PLANE
+        real                        :: HH               = null_real
+        ! LENGTH OF THE FAULT PLANE        
+        real                        :: L                = null_real
+        ! WIDTH OF THE FAULT PLANE
+        real                        :: W                = null_real		
+        ! DISLOCATION        			
+        real                        :: D                = null_real				
+        ! (=THETA) STRIKE DIRECTION        
+        real                        :: TH	            = null_real
+        ! (=DELTA) DIP ANGLE				
+        real                        :: DL		        = null_real
+        ! (=LAMDA) SLIP ANGLE 
+        real                        :: RD	            = null_real
+        ! EPICENTER (LATITUDE)
+        real                        :: Y0		        = null_real
+        ! EPICENTER (LONGITUDE)	    
+        real                        :: X0		        = null_real
+        ! TIME WHEN THE RUTPURE STARTS
+        type (T_Time)	            :: T0					
+        ! By default is 1. Allow s the amplifcation of the initial condition. Relevante for sensitive analysis
+        real                        :: Amplification    = null_real
+    end type T_Fault
+   
+    private :: T_Tsunami
+    type T_Tsunami
+        logical         :: ON       = .true.
+        type (T_Fault)  :: Fault 
+    end type T_Tsunami  
      
     private :: T_Relaxation
     type       T_Relaxation
@@ -1547,17 +1602,17 @@ Module ModuleHydrodynamic
 
     private :: T_SubModel
     type       T_SubModel
-        logical                              :: ON              = .false., & !initialization: Jauch
-                                                Set             = .false., & !initialization: Jauch
-                                                InterPolTime    = .false., & !initialization: Jauch
-                                                DeadZone        = .false., & !initialization: Jauch
-                                                MissingNull     = .false., & !initialization: Jauch
-                                                FatherHotStart  = .false.    !initialization: Jauch
+        logical                              :: ON              = .false., & 
+                                                Set             = .false., & 
+                                                InterPolTime    = .false., & 
+                                                DeadZone        = .false., & 
+                                                MissingNull     = .false., & 
+                                                FatherHotStart  = .false.    
                                                 
-        character (Len = PathLength)         :: DeadZoneFile    = null_str !initialization: Jauch
-        integer                              :: VertComunic     = null_int !initialization: Jauch
+        character (Len = PathLength)         :: DeadZoneFile    = null_str 
+        integer                              :: VertComunic     = null_int 
 
-        logical                              :: Extrapolate     = .false., & !initialization: Jauch
+        logical                              :: Extrapolate     = .false., & 
                                                 HotStartData    = .false.
 
         logical, dimension(:,:,:), pointer   :: DeadZonePoint   => null()
@@ -1609,8 +1664,8 @@ Module ModuleHydrodynamic
                                                 
         logical                              :: MomentConserv   = .false.
         
-        integer                              :: FatherKLB   = null_int, & !initialization: Jauch
-                                                FatherKUB   = null_int    !initialization: Jauch
+        integer                              :: FatherKLB   = null_int, & 
+                                                FatherKUB   = null_int    
                                                 
         type(T_Time)                         :: GetFatherTime 
 
@@ -1619,8 +1674,8 @@ Module ModuleHydrodynamic
     endtype   
 
     type T_HydroStatistic           
-        logical                              :: ON      = .false. !initialization: Jauch
-        character(len=StringLength)          :: File    = null_str !initialization: Jauch
+        logical                              :: ON      = .false. 
+        character(len=StringLength)          :: File    = null_str
         integer                              :: NProp   = 4
         
         integer, dimension(:), allocatable   :: PropList, &
@@ -1628,8 +1683,8 @@ Module ModuleHydrodynamic
     end type T_HydroStatistic
 
     type T_CyclicBoundary
-        logical                              :: ON          = .false.  !initialization: Jauch
-        integer                              :: Direction   = null_int !initialization: Jauch
+        logical                              :: ON          = .false.  
+        integer                              :: Direction   = null_int 
     end type T_CyclicBoundary
     
     type T_Emersion
@@ -1643,8 +1698,8 @@ Module ModuleHydrodynamic
         private
         type(T_Direction     ) :: Direction 
         type(T_State         ) :: State
-        integer                :: InstanceID    = null_int !initialization: Jauch
-        character(PathLength)  :: ModelName     = null_str !initialization: Jauch
+        integer                :: InstanceID    = null_int 
+        character(PathLength)  :: ModelName     = null_str 
         type(T_Size2D        ) :: Size2D
         type(T_Size2D        ) :: WorkSize2D
         type(T_Size3D        ) :: Size
@@ -1681,7 +1736,8 @@ Module ModuleHydrodynamic
         type(T_Thinwalls     ) :: Thinwalls
         type(T_WindWaves     ) :: WindWaves
         type(T_Emersion      ) :: Emersion
-        type(T_DDecomp)        :: DDecomp
+        type(T_DDecomp       ) :: DDecomp
+        type(T_Tsunami       ) :: Tsunami
                 
         logical                :: FirstIteration = .true.
 #ifdef _USE_SEQASSIMILATION
@@ -1772,7 +1828,7 @@ Module ModuleHydrodynamic
 #endif _ENABLE_CUDA
 
         !griflet
-        integer                         :: MaxThreads   = null_int !initialization: Jauch
+        integer                         :: MaxThreads   = null_int 
         type(T_THOMAS), pointer         :: THOMAS   => null()
         type(T_THOMAS2D), pointer       :: THOMAS2D => null()
 
@@ -2055,6 +2111,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructWindWaves 
         endif            
         
+        call ConstructTsunami
+        
         !call External Modules
         call ReadLock_External_Modules
         
@@ -2234,7 +2292,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%WaterFluxes%Z (:,:,:) = 0.
             Me%Waterlevel%New(:,:  ) = 0.
         endif
-
+        
         call Generic4thDimension
     
         if (Me%ComputeOptions%Continuous) then
@@ -3368,6 +3426,247 @@ d3:         do l = FirstLine+1, LastLine-1
 
     end subroutine ConstructWindWaves
 
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructTsunami
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_CALL, iflag
+
+        !----------------------------------------------------------------------
+        
+        call GetData(Me%Tsunami%ON,                                                     & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword        = 'TSUNAMI',                                        &
+                     Default        = .false.,                                          &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleHydrodynamic',                             &
+                     STAT           = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR10'
+        
+i1:     if (Me%Tsunami%ON) then
+
+            ! TIME WHEN THE RUTPURE STARTS [YYYY MM DD HH MM SS]       
+            call GetData(Me%Tsunami%Fault%T0,                                           & 
+                         Me%ObjEnterData, iflag,                                        & 
+                         Keyword        = 'FAULT_RUTPURE_START_TIME',                   &
+                         default        = Me%BeginTime,                                 &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         STAT           = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR20'
+            
+
+            ! Fault input method (0 - Okada 1985 Model, 1 - input grid data file) 
+            call GetData(Me%Tsunami%Fault%InputMethod,                                  & 
+                         Me%ObjEnterData, iflag,                                        & 
+                         Keyword        = 'FAULT_INPUT_METHOD',                         &
+                         default        = FaultOkada1985_,                              &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   = 'ModuleHydrodynamic',                         &
+                         STAT           = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR30'
+            
+            if (Me%Tsunami%Fault%InputMethod /= FaultFile_ .and.                        &
+                Me%Tsunami%Fault%InputMethod /= FaultOkada1985_) then
+                stop 'ConstructTsunami - ModuleHydrodynamic - ERR40'
+            endif
+            
+i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
+
+                ! Fault filemane of the input grid data file
+                call GetData(Me%Tsunami%Fault%FileName,                                 &
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_FILENAME',                         &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR50'
+                
+                if (iflag == 0) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR60'
+                endif
+                
+                call ConstructGridData(GridDataID       = Me%Tsunami%Fault%ObjGridData, &
+                                       HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                       FileName         = Me%Tsunami%Fault%FileName,    &
+                                       DefaultValue     = 0.,                           &
+                                       STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR70'
+                
+            
+            elseif  (Me%Tsunami%Fault%InputMethod == FaultOkada1985_) then i3
+            
+                ! FOCAL DEPTH, MEASURED FROM MEAN EARTH SURFACE TO THE TOP EDGE OF FAULT PLANE [m]
+                call GetData(Me%Tsunami%Fault%HH,                                       & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_FOCAL_DEPTH',                      &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR80'
+                
+                if (iflag /= 1) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR90'
+                endif
+
+                ! LENGTH OF THE FAULT PLANE [m]       
+                call GetData(Me%Tsunami%Fault%L,                                        & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_LENGTH',                           &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR100'        
+                
+                if (iflag /= 1) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR110'
+                endif
+                            
+                ! WIDTH OF THE FAULT PLANE [m]
+                call GetData(Me%Tsunami%Fault%W,                                        & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_WIDTH',                            &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR120'        
+                
+                if (iflag /= 1) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR130'
+                endif
+            
+                ! DISLOCATION [m]       			
+                call GetData(Me%Tsunami%Fault%D,                                        & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_DISLOCATION',                      &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR50'        
+                
+                if (iflag /= 1) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR140'
+                endif
+
+                ! (=THETA) STRIKE DIRECTION [º]       			
+                call GetData(Me%Tsunami%Fault%TH,                                       & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_STRIKE_DIRECTION',                 &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR150'        
+                
+                if (iflag /= 1) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR160'
+                endif
+
+                ! (=DELTA) DIP ANGLE [º]       			
+                call GetData(Me%Tsunami%Fault%DL,                                       & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_DIP_ANGLE',                        &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR170'        
+                
+                if (iflag /= 1) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR180'
+                endif
+
+                !  (=LAMDA) SLIP ANGLE [º]       			
+                call GetData(Me%Tsunami%Fault%RD,                                       & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_SLIP_ANGLE',                       &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR190'        
+                
+                if (iflag /= 1) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR200'
+                endif
+
+                !  EPICENTER (LATITUDE)[º]       			
+                call GetData(Me%Tsunami%Fault%Y0,                                       & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_EPICENTER_Y',                      &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR210'        
+                
+                if (iflag /= 1) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR220'
+                endif
+
+                !  EPICENTER (LONGITUDE)[º]       			
+                call GetData(Me%Tsunami%Fault%X0,                                       & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_EPICENTER_X',                      &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR230'
+                
+                if (iflag /= 1) then
+                    stop 'ConstructTsunami - ModuleHydrodynamic - ERR240'
+                endif
+
+                !  AMPLIFICATION OF THE TSUNAMI
+                call GetData(Me%Tsunami%Fault%Amplification,                            & 
+                             Me%ObjEnterData, iflag,                                    & 
+                             Keyword        = 'FAULT_AMPLIFICATION',                    &
+                             SearchType     = FromFile,                                 &
+                             ClientModule   = 'ModuleHydrodynamic',                     &
+                             default        = 1.,                                       &
+                             STAT           = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR245'
+
+            endif i3
+
+        endif i1
+        
+
+i2:     if (Me%Tsunami%ON) then
+            if (Me%Tsunami%Fault%T0 <= Me%BeginTime) then
+           
+                call GetOpenPoints3D(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami  - ModuleHydrodynamic - ERR250'
+                
+                call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                     &
+                                              GridLatitude  = Me%External_Var%LatitudeZ,&
+                                              GridLongitude = Me%External_Var%LongitudeZ,&
+                                              STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR260.'
+                
+                call WaterLevel_Tsunami
+                
+                Me%Tsunami%ON = .false.
+                
+                call UnGetMap(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami  - ModuleHydrodynamic - ERR270'
+                
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                          &
+                                         Me%External_Var%LatitudeZ,                     &
+                                         STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR280.'
+                
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                          &
+                                         Me%External_Var%LongitudeZ,                    &
+                                         STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR290.'
+
+            endif                
+        endif i2
+        
+
+    end subroutine ConstructTsunami
 
 
 
@@ -7780,6 +8079,10 @@ cd43:   if (.NOT. BlockFound) then
             Me%Velocity%Vertical%CartesianOld (:,:,:) = FillValueReal
             Me%NonHydrostatic%PressureCorrect (:,:,:) = FillValueReal
             Me%NonHydrostatic%PrevisionalQ(:, : ,:)   = FillValueReal
+
+            allocate (Me%NonHydrostatic%VerticalSurfLayerOld(ILB:Pad(ILB, IUB), JLB:JUB))
+            Me%NonHydrostatic%VerticalSurfLayerOld(:, :)   = FillValueReal
+            
         endif
 
 
@@ -9068,6 +9371,10 @@ do3:        do  k=KLB, KUB
                     Me%NonHydrostatic%PrevisionalQ      (i, j, k) = 0.
                 endif
             enddo 
+            
+            if (Me%NonHydrostatic%ON) then            
+                Me%NonHydrostatic%VerticalSurfLayerOld(i, j) = 0.
+            endif                
  
             !Tide potential
             Me%Forces%TidePotentialLevel   (i, j) = 0.
@@ -10466,6 +10773,12 @@ i1:         if (CoordON) then
             nullify  (Me%OutPut%MaxWaterColumn          )
             nullify  (Me%OutPut%VelocityAtMaxWaterColumn)
             nullify  (Me%OutPut%MaxFloodRisk            )
+            
+            nullify  (Me%OutPut%MaxVelocity             )
+            nullify  (Me%OutPut%MaxWaterLevel           )
+            nullify  (Me%OutPut%MapMax                  )
+            nullify  (Me%OutPut%MapMin                  )
+            
 
             allocate(Me%OutPut%MaxWaterColumn          (ILB:IUB, JLB:JUB),                     &
                      Me%OutPut%VelocityAtMaxWaterColumn(ILB:IUB, JLB:JUB),                     &
@@ -10476,12 +10789,29 @@ i1:         if (CoordON) then
             Me%OutPut%MaxWaterColumn          (:,:) = -99. 
             Me%OutPut%VelocityAtMaxWaterColumn(:,:) = -99. 
             Me%OutPut%MaxFloodRisk            (:,:) = -99. 
+
+            allocate(Me%OutPut%MaxVelocity             (ILB:IUB, JLB:JUB),                     &
+                     Me%OutPut%MaxWaterLevel           (ILB:IUB, JLB:JUB),                     &
+                     Me%OutPut%MapMax                  (ILB:IUB, JLB:JUB),                     &
+                     Me%OutPut%MapMin                  (ILB:IUB, JLB:JUB),                     &                     
+                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR30'
+            
+            Me%OutPut%MaxVelocity       (:,:) = -99
+            Me%OutPut%MaxWaterLevel     (:,:) = -99
+            Me%OutPut%MapMax            (:,:) = -99
+            Me%OutPut%MapMin            (:,:) = -99
             
             call ReadLock_ModuleHorizontalMap
             
             call SetMatrixValue(Me%OutPut%MaxWaterColumn,           Me%WorkSize2D, 0., Me%External_Var%WaterPoints2D)
             call SetMatrixValue(Me%OutPut%VelocityAtMaxWaterColumn, Me%WorkSize2D, 0., Me%External_Var%WaterPoints2D)
             call SetMatrixValue(Me%OutPut%MaxFloodRisk,             Me%WorkSize2D, 0., Me%External_Var%WaterPoints2D)
+
+            call SetMatrixValue(Me%OutPut%MaxVelocity,              Me%WorkSize2D,  0., Me%External_Var%WaterPoints2D)
+            call SetMatrixValue(Me%OutPut%MaxWaterLevel,            Me%WorkSize2D,-80., Me%External_Var%WaterPoints2D)
+            call SetMatrixValue(Me%OutPut%MapMax,                   Me%WorkSize2D,  0., Me%External_Var%WaterPoints2D)
+            call SetMatrixValue(Me%OutPut%MapMin,                   Me%WorkSize2D,  1., Me%External_Var%WaterPoints2D)            
             
             call ReadUnLock_ModuleHorizontalMap
 
@@ -12040,6 +12370,103 @@ cd3 :       if (present(Velocity_V)) then
         !----------------------------------------------------------------------
 
     end subroutine GetHorizontalVelocity
+
+    !--------------------------------------------------------------------------
+
+ !--------------------------------------------------------------------------
+
+    subroutine GetResidualVelocityON(HydrodynamicID, ResidualON, STAT)
+
+        !Arguments-------------------------------------------------------------
+   
+        integer,           intent(IN ) :: HydrodynamicID
+        logical                        :: ResidualON
+        integer, optional, intent(OUT) :: STAT
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_        
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            ResidualON = Me%ComputeOptions%Residual
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                               &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetResidualVelocityON
+
+    !--------------------------------------------------------------------------
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetResidualHorizontalVelocity(HydrodynamicID, VelocityResidual_U, VelocityResidual_V, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,                        intent(IN ) :: HydrodynamicID   
+        real, dimension(:,:,:), pointer, optional   :: VelocityResidual_U, VelocityResidual_V
+        integer, optional,              intent(OUT) :: STAT
+
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_        
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+cd2 :       if (present(VelocityResidual_U)) then
+                call Read_Lock(mHydrodynamic_, Me%InstanceID)
+                VelocityResidual_U => Me%Residual%Velocity_U
+            end if cd2
+
+cd3 :       if (present(VelocityResidual_V)) then
+                call Read_Lock(mHydrodynamic_, Me%InstanceID)
+                VelocityResidual_V => Me%Residual%Velocity_V
+            end if cd3
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetResidualHorizontalVelocity
 
     !--------------------------------------------------------------------------
 
@@ -21230,6 +21657,10 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                 do k= k_bottom, k_up
                     Prop(i, j, k) = 0.
                 enddo         
+                
+                iy = i
+                jx = j
+                
                 !null gradient horizontal open boundary condition
                 if       (Me%External_Var%BoundaryFacesU(i,j  ) == Boundary) then
                     
@@ -21462,7 +21893,6 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         real,    dimension (:,:,:), pointer  :: PressureCorrect
         real,    dimension (:,:  ), pointer  :: VerticalSurfLayerOld  
         
-        logical  , save                      :: FirstTime = .true.
         real                                 :: SZZaux, pcf
         
         !Begin----------------------------------------------------------------------
@@ -21518,18 +21948,12 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         WaterLevel_New      => Me%WaterLevel%New
         !non-hydrostatic
         PressureCorrect     => Me%NonHydroStatic%PressureCorrect
+        VerticalSurfLayerOld=> Me%NonHydrostatic%VerticalSurfLayerOld
+
         !Numerics        
         di = Me%Direction%di
         dj = Me%Direction%dj
         
-       
-        if (FirstTime) then
-            FirstTime = .false.
-            allocate(VerticalSurfLayerOld(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            VerticalSurfLayerOld(:,:) = 0.
-            !(WaterLevel_New(:,:) - WaterLevel_Old(:,:)) / DT
-        endif        
-                                                                  
 
         if (Me%Relaxation%Force) then        
 
@@ -21840,7 +22264,8 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
         !Water level        
         nullify (WaterLevel_Old, WaterLevel_New)
         !Non-hydrostatic
-        nullify (PressureCorrect)
+        nullify (PressureCorrect     )
+        nullify (VerticalSurfLayerOld)
 
     End Subroutine NonHydroStaticCorrection
     !End------------------------------------------------------------
@@ -24103,6 +24528,13 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
             call WaterLevel_CyclicBoundary
 
         endif
+        
+        if (Me%Tsunami%ON) then
+            if (Me%Tsunami%Fault%T0 <= Me%CurrentTime) then
+                call WaterLevel_Tsunami
+                Me%Tsunami%ON = .false.
+            endif                
+        endif
 
         if (Me%Relaxation%WaterLevel)                                               &
             call WaterLevelRelaxation
@@ -24111,9 +24543,9 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         if (Me%ComputeOptions%AltimetryAssimilation%Yes)                            &
             call WaterLevelRelaxationAltimetry
 
-            !In this subroutine model verifies if the level is below a critical level and 
-            !if this is the case water level is set equal to the critical level. 
-            call WaterLevelCorrection
+        !In this subroutine model verifies if the level is below a critical level and 
+        !if this is the case water level is set equal to the critical level. 
+        call WaterLevelCorrection
         
         if (Me%ComputeOptions%WaterLevelMaxMin)                                 &
             call WaterLevelMaxMin(WaterLevel_Max, WaterLevel_Min)
@@ -24130,9 +24562,345 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
    end Subroutine Compute_WaterLevel
 
+!------------------------------------------------------------------------------
 
-    !------------------------------------------------------------------------------
+!.....BASED ON OKADA'S PAPER (1985) 
+!.....CREATED BY XIAOMING WANG (JUN 2003)                          
+!----------------------------------------------------------------------
+    subroutine Dip_Slip (X2,Y1,Y2,DP,DD,F)  
 
+        !Arguments----------------------------------------------------------------------
+        real,   intent(IN) :: X2,Y1,Y2,DP,DD
+        real,   intent(OUT):: F
+        
+        !Local--------------------------------------------------------------------------
+        real    :: SN, CS, P, Q, D_BAR, R, XX, A5 
+        
+        !Begin--------------------------------------------------------------------------        
+               
+        SN      = SIN(DP)
+        CS      = COS(DP)
+
+        P       = X2*CS + DD*SN
+        Q       = X2*SN - DD*CS
+        D_BAR   = Y2*SN - Q*CS;
+        R       = SQRT(Y1**2 + Y2**2 + Q**2)
+        XX      = SQRT(Y1**2 + Q**2)
+        A5      = 0.5*2/CS*ATAN((Y2*(XX+Q*CS)+XX*(R+XX)*SN)/Y1/(R+XX)/CS)
+        F       = -(D_BAR*Q/R/(R+Y1) + SN*ATAN(Y1*Y2/Q/R)- A5*SN*CS)/2/3.14159
+    
+    end subroutine Dip_Slip
+!----------------------------------------------------------------------
+
+!.....USED FOR OKADA'S MODEL (CREATED BY XIAOMING WANG IN JUN 2003)
+!NOTE:
+!	 #. UPDATED ON FEB04 2009 (XIAOMING WANG, GNS)      
+    
+    subroutine Strike_Slip (X2,Y1,Y2,DP,DD,F) 
+    
+        !Arguments----------------------------------------------------------------------
+        real,   intent(IN) :: X2,Y1,Y2,DP,DD
+        real,   intent(OUT):: F
+        
+        !Local--------------------------------------------------------------------------
+        real    :: SN, CS, P, Q, D_BAR, R, XX, TMP1, TMP2, A4 
+        
+        !Begin--------------------------------------------------------------------------        
+
+        SN = SIN(DP)
+        CS = COS(DP)
+        P = X2*CS + DD*SN
+        Q = X2*SN - DD*CS
+        D_BAR = Y2*SN - Q*CS
+        R = SQRT(Y1**2 + Y2**2 + Q**2)
+        XX = SQRT(Y1**2 + Q**2)
+        TMP1 = R+D_BAR
+        TMP2 = R+Y2
+        IF (TMP1 .LE. AlmostZero) TMP1 = AlmostZero
+        IF (TMP2 .LE. AlmostZero) TMP2 = AlmostZero
+        A4 = 0.5*1/CS*(LOG(TMP1) - SN*LOG(TMP2))
+        F = -(D_BAR*Q/R/(R+Y2) + Q*SN/(R+Y2) + A4*SN)/2/3.14159
+
+    end subroutine Strike_Slip
+
+
+!......................................................................
+!DESCRIPTION:
+!     # MAPPING A POINT ON THE ELLIPSOID SURFACE ONTO A PLANE;
+!     # OBLIQUE STEREOGRAPHIC PROJECTION IS ADOPTED 
+!INPUT:
+!     LATIN: LATITUDE IN DEGREES
+!     LONIN: LONGITUDE IN DEGREES
+!     LAT0: LATITUDE OF TANGENTIAL POINT IN DEGREES (E.G., EPICENTER)
+!     LON0: LONGITUDE OF TANGENTIAL POINT IN DEGREES (E.G., EPICENTER)
+!OUTPUT:
+!     X: X COORDINATE/EASTING IN METERS RELATIVE TO ORIGIN (I.E., LON0)
+!     Y: Y COORDINATE/NORTHING IN METERS RELATIVE TO ORIGIN (I.E., LAT0)
+!REFERENCES:
+!	  #. SNYDER, J.P. (1987). MAP PROJECTIONS - A WORKING MANUAL.
+!                          USGS PROFESSIONAL PAPER 1395
+!     #. ELLIPSOIDAL DATUM: WGS84
+!WORKING NOTES:
+!     CREATED ON DEC18 2008 (XIAOMING WANG, GNS) 
+!     UPDATED ON JAN02 2009 (XIAOMING WANG, GNS)                              
+!----------------------------------------------------------------------
+
+!----------------------------------------------------------------------
+    subroutine STEREO_PROJECTION (X,Y,LONIN,LATIN,LON0,LAT0)
+
+        !Arguments----------------------------------------------------------------------
+        real,   intent(OUT) :: X,Y
+        real,   intent(IN)  :: LONIN,LATIN,LON0,LAT0
+                    
+        !Local--------------------------------------------------------------------------
+        real                :: POLE
+        real                :: LAT,LON,LT0,LN0,CS,SN,CS0,SN0,TMP,TMP0
+        real                :: A,B,K0,E,ES,N,C,R,S1,S2,W1,W2,SA,SB,BETA,XI,LM,XI0,LM0,F2
+        real                :: RHO0, NU0, SN_XI0, W
+        !COMMON /CONS/ ELMAX,GRAV,PI,R_EARTH,GX,EPS,ZERO,ONE,NUM_GRID,	&
+        !            NUM_FLT,V_LIMIT,RAD_DEG,RAD_MIN
+
+        !Begin--------------------------------------------------------------------------                    
+	  
+	    !AVOID SINGULARITY AT POLES
+	    POLE = PI/2.0 - AlmostZero	  
+	  
+        ! CONVERT DEGREE TO RADIAN
+        LAT = LATIN*RAD_DEG
+        LON = LONIN*RAD_DEG
+        LT0 = LAT0*RAD_DEG
+        LN0 = LON0*RAD_DEG
+        IF (LAT .GT.  POLE) LAT =  POLE
+        IF (LAT .LT. -POLE) LAT = -POLE
+        IF (LT0 .GT.  POLE) LT0 =  POLE
+        IF (LT0 .LT. -POLE) LT0 = -POLE
+
+        CS  = COS(LAT)
+        SN  = SIN(LAT)
+        CS0 = COS(LT0)
+        SN0 = SIN(LT0)
+
+        ! PARAMETERS
+        A  = 6378137.0000           ! ELLIPSOIDAL SEMI-MAJOR AXIS
+        B  = 6356752.3142			! ELLIPSOIDAL SEMI-MINOR AXIS
+        !F  = 0.00335281067183       ! FLATTENING, F = (A-B)/A
+        E  = 0.08181919092891		! ECCENTRICITY, E = SQRT(2.0*F-F**2)
+        F2 = 0.00669438000426		! F2 = E**2
+        ES = 0.00673949675659		! 2ND ECCENTRICITY, ES = E**2/(1-E**2)
+
+        K0 = 0.9996				    ! SCALE FACTOR
+
+        TMP  = SQRT(1.0-F2*SN**2)
+        TMP0 = SQRT(1.0-F2*SN0**2)
+        RHO0 = A*(1.0-F2)/TMP0**3
+        NU0  = A/TMP0
+        R    = SQRT(RHO0*NU0)
+        N    = SQRT(1.0+F2*CS0**4/(1.0-F2))
+
+        S1      = (1.0+SN0)/(1.0-SN0)
+        S2      = (1.0-E*SN0)/(1.0+E*SN0)
+        W1      = (S1*S2**E)**N
+        SN_XI0  = (W1-1.0)/(W1+1.0)
+        C       = (N+SN0)*(1.0-SN_XI0)/(N-SN0)/(1.0+SN_XI0)
+
+        W2 = C*W1
+        SA = (1.0+SN)/(1.0-SN)
+        SB = (1.0-E*SN)/(1.0+E*SN)
+        W  = C*(SA*SB**E)**N
+
+        XI0 = ASIN((W2-1.0)/(W2+1.0))
+        LM0 = LN0
+
+        LM = N*(LON-LM0)+LM0
+        XI = ASIN((W-1.0)/(W+1.0))
+
+        BETA = 1.0 + SIN(XI)*SIN(XI0) + COS(XI)*COS(XI0)*COS(LM-LM0)
+
+        Y = 2.0*R*K0*(SIN(XI)*COS(XI0) - COS(XI)*SIN(XI0)*COS(LM-LM0))/BETA
+        X = 2.0*R*K0*COS(XI)*SIN(LM-LM0)/BETA
+
+    end subroutine STEREO_PROJECTION
+
+!......................................................................
+!DESCRIPTION:
+!     #. CALCULATE SEAFLOOR DEFORMATION VIA OKADA'S MODEL (1985);
+!     #. STEREOGRAPHIC PROJECTION IS IMPLEMENTED TO CREATE MORE 
+!		 ACCURATE MAPPING BETWEEN THE EARTH SURFACE AND THE PLANE USED 
+!		 IN OKADA (1985)
+!INPUT:
+!	  #. FAULT PARAMETERS;
+!OUTPUT:
+!	  #. SEAFLOOR DEFORMATION;
+!NOTES:
+!     #. CREATED ON JUN ?? 2003 (XIAOMING WANG, CORNELL UNIVERSITY) 
+!     #. UPDATED ON DEC 18, 2008 (XIAOMING WANG, GNS) 
+!	  #. UPDATED ON FEB 03 2009 (XIAOMING WANG, GNS)
+!		 1. ADD DETECTION ON NAN/INF
+!	  #. UPDATED ON FEB 16 2009 (XIAOMING WANG, GNS)
+!		 1. ADD AN OPTION TO SELECT THE FOCUS LOCATION
+!----------------------------------------------------------------------
+    subroutine FaultOkada1985 
+                   
+        !Local--------------------------------------------------------------------------
+      
+        integer     :: ILB, IUB, JLB, JUB, KUB, i, j
+        
+	    !COMMON /CONS/ ELMAX,GRAV,PI,R_EARTH,GX,ONE,NUM_GRID,	&
+		!    			NUM_FLT,V_LIMIT,RAD_DEG,RAD_MIN
+		    			
+        real        :: ANG_L, ANG_R, ANG_T, HALFL
+        real        :: HH, DEL_X, DEL_Y, H1, H2
+        real        :: DS, DD, SN, CS, X_SHIFT, Y_SHIFT
+        real        :: LONIN, LATIN, LON0, LAT0
+        real        :: US, F1, F2, F3, F4
+        real        :: UD, G1, G2, G3, G4
+        real        :: X1, X2, X3, P
+
+        !Begin--------------------------------------------------------------------------
+      
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB        
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KUB = Me%WorkSize%KUB        
+
+
+        ANG_L = RAD_DEG*Me%Tsunami%Fault%DL
+        ANG_R = RAD_DEG*Me%Tsunami%Fault%RD
+        ANG_T = RAD_DEG*Me%Tsunami%Fault%TH
+        HALFL = 0.5*Me%Tsunami%Fault%L
+        !.....CALCULATE FOCAL DEPTH USED FOR OKADA'S MODEL
+        HH = Me%Tsunami%Fault%HH+0.5*Me%Tsunami%Fault%W*SIN(ANG_L)
+        !.....DISPLACEMENT DUE TO DIFFERENT EPICENTER DEFINITION
+        !	  EPICENTER IS DEFINED AT THE CENTER OF FAULT PLANE
+        DEL_X = 0.5*Me%Tsunami%Fault%W*COS(ANG_L)*COS(ANG_T)
+        DEL_Y = 0.5*Me%Tsunami%Fault%W*COS(ANG_L)*SIN(ANG_T)
+
+        H1 = HH/SIN(ANG_L)
+        H2 = HH/SIN(ANG_L)+Me%Tsunami%Fault%W
+
+        DS = Me%Tsunami%Fault%D*COS(ANG_R)
+        DD = Me%Tsunami%Fault%D*SIN(ANG_R)
+
+        SN = SIN(ANG_L)
+        CS = COS(ANG_L)
+
+        X_SHIFT = 0.0
+        Y_SHIFT = 0.0
+
+        LON0    = Me%Tsunami%Fault%X0
+        LAT0    = Me%Tsunami%Fault%Y0
+
+        do j = JLB, JUB
+        do i = ILB, IUB
+        
+            if (Me%External_Var%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                LONIN = Me%External_Var%LongitudeZ(i, j)
+                LATIN = Me%External_Var%LatitudeZ (i, j)
+                    
+                call STEREO_PROJECTION(X_SHIFT, Y_SHIFT, LONIN, LATIN, LON0, LAT0)
+                                
+                X_SHIFT = X_SHIFT - DEL_X
+                Y_SHIFT = Y_SHIFT + DEL_Y                
+                
+                X1      = X_SHIFT*SIN(ANG_T)+Y_SHIFT*COS(ANG_T)
+                X2      = X_SHIFT*COS(ANG_T)-Y_SHIFT*SIN(ANG_T)
+                X2      = -X2         
+                X3      = 0.0
+                P       = X2*CS+HH*SN
+                
+                CALL Strike_Slip (X2,X1+HALFL,P                   ,ANG_L,HH,F1)
+                CALL Strike_Slip (X2,X1+HALFL,P-Me%Tsunami%Fault%W,ANG_L,HH,F2)
+                CALL Strike_Slip (X2,X1-HALFL,P                   ,ANG_L,HH,F3)
+                CALL Strike_Slip (X2,X1-HALFL,P-Me%Tsunami%Fault%W,ANG_L,HH,F4)
+                
+                CALL Dip_Slip    (X2,X1+HALFL,P                   ,ANG_L,HH,G1)
+                CALL Dip_Slip    (X2,X1+HALFL,P-Me%Tsunami%Fault%W,ANG_L,HH,G2)
+                CALL Dip_Slip    (X2,X1-HALFL,P                   ,ANG_L,HH,G3)
+                CALL Dip_Slip    (X2,X1-HALFL,P-Me%Tsunami%Fault%W,ANG_L,HH,G4)
+                
+                US = (F1-F2-F3+F4)*DS
+                UD = (G1-G2-G3+G4)*DD
+
+                if (abs(US)>100.) then
+                    write(*,*) 'I, J, US', I, J, US
+                    stop 'FaultOkada1985 - ModuleHydrodynamic - ERR10'
+                endif
+                
+                if (abs(UD)>100.) then
+                    write(*,*) 'I, J, UD', I, J, UD
+                    stop 'FaultOkada1985 - ModuleHydrodynamic - ERR20'
+                endif            
+                  
+                if (abs(US) < 1e-5) US = 0.
+                if (abs(UD) < 1e-5) UD = 0.
+
+                !Water level actualization 
+                Me%WaterLevel%New(i, j) = Me%WaterLevel%New(i, j) + (US + UD) * Me%Tsunami%Fault%Amplification
+                
+            endif                
+        enddo
+        enddo
+
+        !	  WRITE (*,*) 'SUBROUTINE OKADA HAS BEEN CALLED'
+
+    end subroutine FaultOkada1985
+    
+!----------------------------------------------------------------------
+    subroutine FaultInputFile 
+                   
+        !Local--------------------------------------------------------------------------
+        real,   dimension(:,:), pointer :: Tsunami2D
+        integer                         :: ILB, IUB, JLB, JUB, KUB, i, j, STAT_CALL
+
+        !Begin--------------------------------------------------------------------------
+      
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB        
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KUB = Me%WorkSize%KUB        
+
+        call GetGridData(GridDataID   = Me%Tsunami%Fault%ObjGridData,                   &
+                         GridData2D   = Tsunami2D,                                      &
+                         STAT         = STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'FaultInputFile - ModuleHydrodynamic - ERR10'                           
+
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%External_Var%OpenPoints3D(i, j, KUB) == OpenPoint) then
+                !Water level actualization 
+                Me%WaterLevel%New(i, j) = Me%WaterLevel%New(i, j) + Tsunami2D(i, j) * Me%Tsunami%Fault%Amplification
+            endif                
+        enddo
+        enddo
+
+        call UnGetGridData(GridDataID   = Me%Tsunami%Fault%ObjGridData,                 &
+                           Array        = Tsunami2D,                                    &
+                           STAT         = STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'FaultInputFile - ModuleHydrodynamic - ERR20'
+
+        call KillGridData(GridDataID    = Me%Tsunami%Fault%ObjGridData,                 &
+                           STAT         = STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'FaultInputFile - ModuleHydrodynamic - ERR30'
+
+    end subroutine FaultInputFile
+
+    !-----------------------------------------------------------------------------------
+    
+    subroutine WaterLevel_Tsunami
+    
+    if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
+        call FaultInputFile
+    elseif  (Me%Tsunami%Fault%InputMethod == FaultOkada1985_) then
+        call FaultOkada1985
+    endif        
+    
+    end subroutine WaterLevel_Tsunami
+    
+    !-----------------------------------------------------------------------------------
+                                                
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -29809,7 +30577,7 @@ cd3:                    if (Manning) then
         integer, dimension(:,:),   pointer :: KFloor_UV
         real                               :: AuxZ, Hmin_Chezy, EP, WallDistance,        &
                                               Rugosity, Vmin_Chezy, Chezy, DT_Z,         &
-                                              VelMod_UV, DT_Velocity, ChezyWave
+                                              VelMod_UV, DT_Velocity !, ChezyWave
         logical                            :: Manning 
 
         integer                            :: iSouth, jWest, di, dj, i_North, j_East
@@ -29969,18 +30737,18 @@ cd3:                   if (Manning) then
                 ChezyVelUV(i, j) = Chezy  * DT_Z * VelMod_UV
 
 
-                if (Me%ComputeOptions%WaveStress) then
+!                if (Me%ComputeOptions%WaveStress) then
 
-                    ChezyWave = Face_Interpolation(Me%External_Var%WaveChezyVel(i, j), &
-                                                   Me%External_Var%WaveChezyVel(iSouth, jWest), &
-                                                   DUX_VY(I, J), DUX_VY(iSouth, jWest))
+!                    ChezyWave = Face_Interpolation(Me%External_Var%WaveChezyVel(i, j), &
+!                                                   Me%External_Var%WaveChezyVel(iSouth, jWest), &
+!                                                   DUX_VY(I, J), DUX_VY(iSouth, jWest))
 
                     ![]       = [m/s] * [s/m] 
-                    ChezyWave = ChezyWave * DT_Z
+!                    ChezyWave = ChezyWave * DT_Z
 
-                    ChezyVelUV(i, j) = ChezyVelUV(i, j) + ChezyWave
+!                    ChezyVelUV(i, j) = ChezyVelUV(i, j) + ChezyWave
 
-                endif
+!                endif
 
             else  cd2
 
@@ -30429,7 +31197,7 @@ do6 :           do  i = ILB, IUB
         real,    dimension(:,:),   pointer :: DZX_ZY
 
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ImposedNormalFacesUV
-        integer, dimension(:,:),   pointer :: KFloor_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV, KFloor_Z
 
         real(8), dimension(4)              :: V4
         real,    dimension(4)              :: CFace, Vel4, du4
@@ -30488,6 +31256,7 @@ do6 :           do  i = ILB, IUB
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         ImposedNormalFacesUV => Me%External_Var%ImposedNormalFacesUV
         KFloor_UV            => Me%External_Var%KFloor_UV
+        KFloor_Z             => Me%External_Var%KFloor_Z        
 
         !End - Shorten variables name 
 
@@ -30527,7 +31296,7 @@ do6 :           do  i = ILB, IUB
             ComputeFlux = .false.
 
             !This condition impose in the open boundary gradient null for the horizontal advection 
-            if (ComputeFaces3D_UV(i, j, KUB)            == Covered .and. &
+            if (ComputeFaces3D_UV(i, j, KUB)            == Covered .or. &
                 ComputeFaces3D_UV(iSouth, jWest, KUB) == Covered ) ComputeFlux = .true.
             
             if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == Me%Direction%XY .or. &
@@ -30543,7 +31312,8 @@ do6 :           do  i = ILB, IUB
 cd0:        if (ComputeFlux) then
 
 
-                Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
+                !Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
+                Kbottom  = KFloor_Z(iSouth, jWest)
 
         dok1:   do k = Kbottom, KUB
 
@@ -30592,9 +31362,10 @@ cd0:        if (ComputeFlux) then
                     Me%Aux3DFlux(i, j, k) = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         FaceFlux_WestSouth ![m/s*m^3/s]
-
-
-                    Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) +  Me%Aux3DFlux(i, j, k) 
+                                        
+                    if (ComputeFaces3D_UV(i, j, k) == Covered) then
+                        Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) +  Me%Aux3DFlux(i, j, k) 
+                    endif                                                                        
            
                 enddo dok1
                 
@@ -30612,7 +31383,9 @@ cd0:        if (ComputeFlux) then
             iSouth  = i -   di
             jWest   = j -   dj   
 
-            Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) - Me%Aux3DFlux(i, j, k) 
+            if (ComputeFaces3D_UV(iSouth, jWest, k) == Covered) then
+                Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) - Me%Aux3DFlux(i, j, k) 
+            endif                
 
         enddo
         enddo
@@ -30631,6 +31404,7 @@ cd0:        if (ComputeFlux) then
         nullify (Velocity_UV_Old     )
         nullify (ComputeFaces3D_UV   )
         nullify (KFloor_UV           )
+        nullify (KFloor_Z            )        
         nullify (ImposedNormalFacesUV)
 
         nullify (DZX_ZY              )
@@ -38981,7 +39755,7 @@ doj:    do j=JLB, JUB
 doi:    do i=ILB, IUB
 
             !This if impose in the open boundary gradient null for the vertical advection
-cd1:        if (    ComputeFaces3D_UV(i, j, KUB) == Covered  .and.              &
+cd1:        if (  ComputeFaces3D_UV(i, j, KUB) == Covered  .and.              &
                     WaterColumnUV(i, j) > WaterColumn2D .and.                   &
                     .not. (                                                     &
                         BoundaryFacesUV  (i, j) == Boundary .and.               &
@@ -39059,25 +39833,30 @@ dok1:           do  k = Kbottom + 1, KUB
                     MomentumFlux = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         Face_Flux ![m/s*m^3/s]
+                                        
+                    if (k < KUB) then                                        
 
-                    TiCoef_3D(i, j, k  )  = TiCoef_3D(i, j, k  ) + (1. - ImplicitVertAdvection) * &
-                                            MomentumFlux * Me%Velocity%DT / V4(3)
+                        TiCoef_3D(i, j, k  )  = TiCoef_3D(i, j, k  ) + (1. - ImplicitVertAdvection) * &
+                                                MomentumFlux * Me%Velocity%DT / V4(3)
 
-                    TiCoef_3D(i, j, k-1)  = TiCoef_3D(i, j, k-1) - (1. - ImplicitVertAdvection) * &
-                                            MomentumFlux * Me%Velocity%DT / V4(2)
+                        DCoef_3D (i, j, k  )  = DCoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
+                                                CFace(2) * Face_Flux *  Me%Velocity%DT / V4(3)
 
-                    DCoef_3D (i, j, k  )  = DCoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
-                                            CFace(2) * Face_Flux *  Me%Velocity%DT / V4(3)
+                        ECoef_3D (i, j, k  )  = ECoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
+                                                CFace(3) * Face_Flux *  Me%Velocity%DT / V4(3)
+                    endif
+                    
+                    if (k > kbottom + 1) then
+                        TiCoef_3D(i, j, k-1)  = TiCoef_3D(i, j, k-1) - (1. - ImplicitVertAdvection) * &
+                                                MomentumFlux * Me%Velocity%DT / V4(2)
 
-                    ECoef_3D (i, j, k  )  = ECoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
-                                            CFace(3) * Face_Flux *  Me%Velocity%DT / V4(3)
+                        ECoef_3D (i, j, k-1)  = ECoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
+                                                CFace(2) * Face_Flux *  Me%Velocity%DT / V4(2)
 
-                    ECoef_3D (i, j, k-1)  = ECoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
-                                            CFace(2) * Face_Flux *  Me%Velocity%DT / V4(2)
-
-                    FCoef_3D (i, j, k-1)  = FCoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
-                                            CFace(3) * Face_Flux *  Me%Velocity%DT / V4(2)
-
+                        FCoef_3D (i, j, k-1)  = FCoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
+                                                CFace(3) * Face_Flux *  Me%Velocity%DT / V4(2)
+                    endif
+                    
                 enddo dok1
 
             endif cd1
@@ -42307,6 +43086,9 @@ do5:            do i = ILB, IUB
 
         !Locals----------------------------------------------------------------
         integer                                 :: ILB,IUB, JLB, JUB, KUB, i, j
+        real                                    :: AuxFloodRisk
+        
+        !Begin-----------------------------------------------------------------        
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -42327,16 +43109,40 @@ do5:            do i = ILB, IUB
                    
                 endif
                 
-                if ((Me%Output%MaxWaterColumn(i, j) * (Me%OutPut%ModulusH(i, j, KUB) + Me%Output%FloodRiskVelCoef))   &
-                      > Me%Output%MaxFloodRisk(i,j)) then
-                    Me%Output%MaxFloodRisk(i,j) = Me%Output%MaxWaterColumn(i, j)                                      &
-                                                  * (Me%OutPut%ModulusH(i, j, KUB) + Me%Output%FloodRiskVelCoef)
+                AuxFloodRisk = Me%External_Var%WaterColumn(i, j) * (Me%OutPut%ModulusH(i, j, KUB) + Me%Output%FloodRiskVelCoef)
+                
+                if (AuxFloodRisk  > Me%Output%MaxFloodRisk(i,j)) then
+                    Me%Output%MaxFloodRisk(i,j) = AuxFloodRisk
                 endif
 
             endif
 
         enddo
         enddo
+        
+        do j = JLB, JUB
+        do i = ILB, IUB
+   
+            if (Me%External_Var%OpenPoints3D(i, j, KUB) == OpenPoint) then 
+
+                if (Me%OutPut%ModulusH(i, j, KUB) > Me%OutPut%MaxVelocity(i, j)) then
+                    Me%OutPut%MaxVelocity(i, j) = Me%OutPut%ModulusH(i, j, KUB)
+                endif          
+                
+                if (Me%WaterLevel%New(i, j)       > Me%OutPut%MaxWaterLevel(i, j)) then
+                    Me%OutPut%MaxWaterLevel(i, j) = Me%WaterLevel%New(i, j)
+                endif                    
+                          
+                Me%OutPut%MapMax(i, j) = 1
+
+            else
+            
+                Me%OutPut%MapMin(i, j) = 0
+
+            endif
+
+        enddo
+        enddo        
 
     end subroutine ComputeFloodRisk
 
@@ -43081,7 +43887,9 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             
             if (Me%External_Var%BackTracking) then
                 Index = Me%OutPut%Number - Index + 1 
-            endif                      
+            endif            
+            
+            if (Me%OutPut%Simple) SimpleOutPut = .true.             
             
         endif
         
@@ -46716,6 +47524,12 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
         character(len = PathLength)     :: MaxWaterColumnFile
         character(len = PathLength)     :: VelocityAtMaxWaterColumnFile
         character(len = PathLength)     :: MaxWaterFloodRiskFile
+        
+        character(len = PathLength)     :: MaxVelocityFile
+        character(len = PathLength)     :: MaxWaterLevelFile
+        character(len = PathLength)     :: MapMaxFile
+        character(len = PathLength)     :: MapMinFile
+                
         integer                         :: STAT_CALL
         
         !----------------------------------------------------------------------
@@ -46723,37 +47537,82 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
         VelocityAtMaxWaterColumnFile = trim(adjustl(Me%Output%FloodRiskRootPath))//"VelocityAtMaxWaterColumn.dat"       
         MaxWaterFloodRiskFile        = trim(adjustl(Me%Output%FloodRiskRootPath))//"MaxFloodRisk.dat"       
              
-        call WriteGridData  (MaxWaterColumnFile,                                   &
-                             COMENT1          = "MaxWaterColumnFile",              &
-                             COMENT2          = "MaxWaterColumnFile",              &
-                             HorizontalGridID = Me%ObjHorizontalGrid,              &
-                             FillValue        = -99.0,                             &
-                             OverWrite        = .true.,                            &
-                             GridData2D_Real  = Me%Output%MaxWaterColumn,          &
+        MaxVelocityFile              = trim(adjustl(Me%Output%FloodRiskRootPath))//"MaxVelocity.dat"       
+        MaxWaterLevelFile            = trim(adjustl(Me%Output%FloodRiskRootPath))//"MaxWaterLevel.dat"       
+        MapMaxFile                   = trim(adjustl(Me%Output%FloodRiskRootPath))//"MapMax.dat"       
+        MapMinFile                   = trim(adjustl(Me%Output%FloodRiskRootPath))//"MapMin.dat"               
+
+        call WriteGridData  (MaxWaterColumnFile,                                        &
+                             COMENT1          = "MaxWaterColumnFile",                   &
+                             COMENT2          = "MaxWaterColumnFile",                   &
+                             HorizontalGridID = Me%ObjHorizontalGrid,                   &
+                             FillValue        = -99.0,                                  &
+                             OverWrite        = .true.,                                 &
+                             GridData2D_Real  = Me%Output%MaxWaterColumn,               &
                              STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR10'
 
-        call WriteGridData  (VelocityAtMaxWaterColumnFile,                         &
-                             COMENT1          = "VelocityAtMaxWaterColumn",        &
-                             COMENT2          = "VelocityAtMaxWaterColumn",        &
-                             HorizontalGridID = Me%ObjHorizontalGrid,              &
-                             FillValue        = -99.0,                             &
-                             OverWrite        = .true.,                            &
-                             GridData2D_Real  = Me%Output%VelocityAtMaxWaterColumn,&
+        call WriteGridData  (VelocityAtMaxWaterColumnFile,                              &
+                             COMENT1          = "VelocityAtMaxWaterColumn",             &
+                             COMENT2          = "VelocityAtMaxWaterColumn",             &
+                             HorizontalGridID = Me%ObjHorizontalGrid,                   &
+                             FillValue        = -99.0,                                  &
+                             OverWrite        = .true.,                                 &
+                             GridData2D_Real  = Me%Output%VelocityAtMaxWaterColumn,     &
                              STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR20'
 
-
-        call WriteGridData  (MaxWaterFloodRiskFile,                                &
-                             COMENT1          = "MaxFloodRisk",                    &
-                             COMENT2          = "MaxFloodRisk",                    &
-                             HorizontalGridID = Me%ObjHorizontalGrid,              &
-                             FillValue        = -99.0,                             &
-                             OverWrite        = .true.,                            &
-                             GridData2D_Real  = Me%Output%MaxFloodRisk,            &
+        call WriteGridData  (MaxWaterFloodRiskFile,                                     &
+                             COMENT1          = "MaxFloodRisk",                         &
+                             COMENT2          = "MaxFloodRisk",                         &
+                             HorizontalGridID = Me%ObjHorizontalGrid,                   &
+                             FillValue        = -99.0,                                  &
+                             OverWrite        = .true.,                                 &
+                             GridData2D_Real  = Me%Output%MaxFloodRisk,                 &
                              STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR30'
+        
+        call WriteGridData  (MaxVelocityFile,                                           &
+                             COMENT1          = "MaxVelocity",                          &
+                             COMENT2          = "MaxVelocity",                          &
+                             HorizontalGridID = Me%ObjHorizontalGrid,                   &
+                             FillValue        = -99.0,                                  &
+                             OverWrite        = .true.,                                 &
+                             GridData2D_Real  = Me%Output%MaxVelocity,                  &
+                             STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR40'
+
+        call WriteGridData  (MaxWaterLevelFile,                                         &
+                             COMENT1          = "MaxWaterLevel",                        &
+                             COMENT2          = "MaxWaterLevel",                        &
+                             HorizontalGridID = Me%ObjHorizontalGrid,                   &
+                             FillValue        = -99.0,                                  &
+                             OverWrite        = .true.,                                 &
+                             GridData2D_Real  = Me%Output%MaxWaterLevel,                &
+                             STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR50'
     
+        call WriteGridData  (MapMaxFile,                                                &
+                             COMENT1          = "MapMax",                               &
+                             COMENT2          = "MapMax",                               &
+                             HorizontalGridID = Me%ObjHorizontalGrid,                   &
+                             FillValue        = -99.,                                   &
+                             OverWrite        = .true.,                                 &
+                             GridData2D_Real  = Me%Output%MapMax,                       &
+                             STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR60'
+
+        call WriteGridData  (MapMinFile,                                                &
+                             COMENT1          = "MapMin",                               &
+                             COMENT2          = "MapMin",                               &
+                             HorizontalGridID = Me%ObjHorizontalGrid,                   &
+                             FillValue        = -99.,                                   &
+                             OverWrite        = .true.,                                 &
+                             GridData2D_Real  = Me%Output%MapMin,                       &
+                             STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputFloodRisk - ModuleHydrodynamic - ERR70'
+
+
     end subroutine OutputFloodRisk
     
     !--------------------------------------------------------------------------
@@ -47507,21 +48366,28 @@ cd2:    if (Me%SubModel%DeadZone) then
 
             deallocate (Me%NonHydrostatic%PrevisionalQ, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11b.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11c.' 
 
             nullify (Me%NonHydrostatic%PrevisionalQ) 
 
             deallocate (Me%NonHydrostatic%CCoef, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11b.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11d.' 
 
             nullify (Me%NonHydrostatic%CCoef) 
 
             deallocate (Me%NonHydrostatic%GCoef, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11b.' 
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11e.' 
 
             nullify (Me%NonHydrostatic%GCoef) 
+            
+            deallocate (Me%NonHydrostatic%VerticalSurfLayerOld, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR11f.' 
+
+            nullify (Me%NonHydrostatic%VerticalSurfLayerOld) 
+            
 
         endif
 
@@ -48133,6 +48999,18 @@ ic1:    if (Me%CyclicBoundary%ON) then
             
             deallocate(Me%Output%MaxFloodRisk, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR180'
+
+            deallocate(Me%Output%MaxVelocity, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR190'
+            
+            deallocate(Me%Output%MaxWaterLevel, STAT = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR200'
+            
+            deallocate(Me%Output%MapMax, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR210'
+            
+            deallocate(Me%Output%MapMin, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR210'
            
         endif
 
@@ -48718,8 +49596,16 @@ cd1:    if (HydrodynamicID > 0) then
             
 
         endif
+        
 
+        call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                             &
+                                      GridLatitude  = Me%External_Var%LatitudeZ,        &
+                                      GridLongitude = Me%External_Var%LongitudeZ,       &
+                                      STAT          = STAT_CALL)
 
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR50.'
+        
     End Subroutine ReadLock_ModuleHorizontalGrid
 
     !End----------------------------------------------------------------------
@@ -48809,6 +49695,18 @@ cd1:    if (HydrodynamicID > 0) then
                 stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR09.'
 
         endif
+
+        !Longitude Z
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
+                                 Me%External_Var%LongitudeZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                            &
+            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR100.'
+
+        !Latitude Z
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
+                                 Me%External_Var%LatitudeZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                            &
+            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR110.'
 
 
         !---------------------------------------------------------------------

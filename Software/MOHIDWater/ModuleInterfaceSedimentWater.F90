@@ -158,7 +158,9 @@ Module ModuleInterfaceSedimentWater
     use ModuleHydrodynamic,         only: GetChezy,GetHorizontalVelocity, UnGetHydrodynamic,&
                                           SetHydrodynamicManning, SetBottomWaterFlux,       &
                                           SetHydrodynamicRugosityMatrix, GetWavesStressON,  &
-                                          SetWaveChezyVel, SetHydrodynamicChezy
+                                          SetWaveChezyVel, SetHydrodynamicChezy,            &
+                                          GetResidualVelocityON, GetResidualHorizontalVelocity
+                                          
 #ifndef _LAGRANGIAN_                                         
 #ifdef  _LAGRANGIAN_GLOBAL_                                         
     use ModuleLagrangianGlobal,     only: SetLagrangianShearGlobal
@@ -419,6 +421,11 @@ Module ModuleInterfaceSedimentWater
         real,    pointer, dimension(:,:  )          :: Ubw              => null(), &
                                                        Abw              => null()
         type(T_Time)                                :: LastComputeWave
+        
+        real,    pointer, dimension(:,:,:)          :: VelocityResidual_U       => null()
+        real,    pointer, dimension(:,:,:)          :: VelocityResidual_V       => null()
+        logical                                     :: ResidualON               = .false. 
+        
     end type T_Ext_Water
 
     type       T_Ext_Sed
@@ -557,13 +564,15 @@ Module ModuleInterfaceSedimentWater
   
 
     type       T_Shear
-         real, pointer, dimension (:,:)             :: CurrentVel   => null()
-         real, pointer, dimension (:,:)             :: CurrentU     => null()
-         real, pointer, dimension (:,:)             :: CurrentV     => null()
-         real, pointer, dimension (:,:)             :: UFace        => null()
-         real, pointer, dimension (:,:)             :: VFace        => null()         
-         real, pointer, dimension (:,:)             :: Velocity     => null()
-         real, pointer, dimension (:,:)             :: Tension      => null()
+         real, pointer, dimension (:,:)             :: CurrentVel       => null()
+         real, pointer, dimension (:,:)             :: CurrentU         => null()
+         real, pointer, dimension (:,:)             :: CurrentV         => null()
+         real, pointer, dimension (:,:)             :: CurrentResidualU => null()
+         real, pointer, dimension (:,:)             :: CurrentResidualV => null()
+         real, pointer, dimension (:,:)             :: UFace            => null()
+         real, pointer, dimension (:,:)             :: VFace            => null()         
+         real, pointer, dimension (:,:)             :: Velocity         => null()
+         real, pointer, dimension (:,:)             :: Tension          => null()
          logical                                    :: Limitation           = .false.      
          real                                       :: ReferenceDepth       = null_real !initialization: Jauch
          real                                       :: ReferenceShearStress = null_real !initialization: Jauch
@@ -1361,6 +1370,16 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             if(STAT_CALL .ne. SUCCESS_)&
                 stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR80'
             Me%Shear_Stress%VFace(:,:) = FillValueReal
+
+            allocate(Me%Shear_Stress%CurrentResidualU(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR90'
+            Me%Shear_Stress%CurrentResidualU(:,:) = FillValueReal
+
+            allocate(Me%Shear_Stress%CurrentResidualV(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)&
+                stop 'ConstructSandTransport - ModuleInterfaceSedimentWater - ERR100'
+            Me%Shear_Stress%CurrentResidualV(:,:) = FillValueReal
 
 
         endif
@@ -4259,7 +4278,7 @@ do1 :   do while (associated(PropertyX))
                                    Velocity_V     = Me%ExtWater%Velocity_V, &
                                    STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR13'
-
+        
         call GetGridData(Me%ObjWaterGridData, Me%ExtWater%Bathymetry, STAT = STAT_CALL)  
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleWaterProperties - ERR14'
 
@@ -4292,7 +4311,21 @@ do1 :   do while (associated(PropertyX))
         endif
 #endif
 
+        call GetResidualVelocityON(HydrodynamicID = Me%ObjHydrodynamic,                 &
+                                   ResidualON     = Me%ExtWater%ResidualON,             &     
+                                   STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR200'
+        
+        if (Me%ExtWater%ResidualON) then
 
+            call GetResidualHorizontalVelocity(HydrodynamicID     = Me%ObjHydrodynamic,             &
+                                               VelocityResidual_U = Me%ExtWater%VelocityResidual_U, &
+                                               VelocityResidual_V = Me%ExtWater%VelocityResidual_V, &
+                                               STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalWater - ModuleInterfaceSedimentWater - ERR210'
+
+        endif
+        
     end subroutine ReadLockExternalWater
 
 
@@ -4539,7 +4572,16 @@ do1 :   do while (associated(PropertyX))
 
         endif
 #endif
+        
+        if (Me%ExtWater%ResidualON) then
 
+            call UnGetHydrodynamic(Me%ObjHydrodynamic, Me%ExtWater%VelocityResidual_U, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR130'
+
+            call UnGetHydrodynamic(Me%ObjHydrodynamic, Me%ExtWater%VelocityResidual_V, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnlockExternalWater - ModuleInterfaceSedimentWater - ERR140'
+
+        endif
 
     end subroutine ReadUnlockExternalWater
 
@@ -4801,6 +4843,7 @@ do1 :       do while (associated(Property))
 
         !Local-----------------------------------------------------------------
         real,    pointer, dimension(:, :, :)    :: Velocity_U, Velocity_V
+        real,    pointer, dimension(:, :, :)    :: VelRes_U, VelRes_V
         real,    pointer, dimension(:, :   )    :: Chezy
         integer, pointer, dimension(:, :, :)    :: LandPoints3D, OpenPoints3D
         integer, pointer, dimension(:, :   )    :: KFloorZ
@@ -4831,6 +4874,8 @@ do1 :       do while (associated(Property))
 
             Velocity_U      => Me%ExtWater%Velocity_U
             Velocity_V      => Me%ExtWater%Velocity_V
+            VelRes_U        => Me%ExtWater%VelocityResidual_U
+            VelRes_V        => Me%ExtWater%VelocityResidual_V
             Chezy           => Me%ExtWater%Chezy
             WaterDensity    =  SigmaDensityReference
             LandPoints3D    => Me%ExtWater%LandPoints3D
@@ -4912,20 +4957,41 @@ do1 :       do while (associated(Property))
                             Me%Shear_Stress%VFace     (i, j) = Velocity_V(i,j,kbottom)
 
                         endif
+                        
+                        if (Me%RunsSandTransport) then
+                            if (Me%ExtWater%ResidualON) then        
+                            
+                                Me%Shear_Stress%CurrentResidualU(i, j) = (VelRes_U(i,  j,kbottom)+VelRes_U(i,j+1,kbottom))/2.
+                                Me%Shear_Stress%CurrentResidualV(i, j) = (VelRes_V(i+1,j,kbottom)+VelRes_V(i,j,  kbottom))/2.
+                                
+                            else
+                            
+                                if (associated(Me%Shear_Stress%CurrentResidualU)) then
+                                    deallocate(Me%Shear_Stress%CurrentResidualU)
+                                    nullify   (Me%Shear_Stress%CurrentResidualU)
+                                endif
+
+                                if (associated(Me%Shear_Stress%CurrentResidualV)) then
+                                    deallocate(Me%Shear_Stress%CurrentResidualV)
+                                    nullify   (Me%Shear_Stress%CurrentResidualV)
+                                endif
+
+                            endif                
+                        endif
 
                         if (Me%WaveShear_Stress%Yes) then
 
-                            if (Me%WaveShear_Stress%NonLinear) then
+                            !if (Me%WaveShear_Stress%NonLinear) then
 
-                                Me%WaveShear_Stress%Tension (i,j) = Me%WaveShear_Stress%ChezyVel   (i,j) * &
-                                                                    sqrt(UVC2) * WaterDensity
+                            !    Me%WaveShear_Stress%Tension (i,j) = Me%WaveShear_Stress%ChezyVel   (i,j) * &
+                            !                                        sqrt(UVC2) * WaterDensity
 
 
-                            else
+                            !else
 
                                 Me%WaveShear_Stress%Tension (i,j) = Me%WaveShear_Stress%ChezyVel   (i,j) * &
                                                                     Me%ExtWater%Ubw (i,j) * WaterDensity
-                            endif
+                            !endif
 
                             !Currents contribution 
                             if (Me%RunsSandTransport) then
@@ -7071,6 +7137,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         Me%ExtWater%MinWaterColumn,                              &
                         Me%Shear_Stress%UFace,                                   &
                         Me%Shear_Stress%VFace,                                   &
+                        Me%Shear_Stress%CurrentResidualU,                        &
+                        Me%Shear_Stress%CurrentResidualV,                        &
                         STAT = STAT_CALL)
         if(STAT_CALL /= SUCCESS_)                                                &
             stop 'ModifySandTransport - ModuleInterfaceSedimentWater - ERR02'
@@ -9374,6 +9442,20 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     nullify(Me%Shear_Stress%CurrentV)
 
 
+                    if (associated(Me%Shear_Stress%CurrentResidualU)) then
+                        deallocate(Me%Shear_Stress%CurrentResidualU,   STAT = STAT_CALL) 
+                        if(STAT_CALL .ne. SUCCESS_)&
+                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR290'
+                        nullify(Me%Shear_Stress%CurrentResidualU)
+                    endif
+
+                    if (associated(Me%Shear_Stress%CurrentResidualV)) then
+                        deallocate(Me%Shear_Stress%CurrentResidualV,   STAT = STAT_CALL) 
+                        if(STAT_CALL .ne. SUCCESS_)&
+                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR300'
+                        nullify(Me%Shear_Stress%CurrentResidualV)
+                    endif
+                
                     deallocate(Me%Shear_Stress%UFace,   STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27d'

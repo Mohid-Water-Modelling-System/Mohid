@@ -369,6 +369,7 @@ if2 :           if (BlockFound) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, HDF5_READ, STAT_CALL, IDIn, IDOut
         logical                                     :: CheckOK
+        logical                                     :: Vert3D, Open3D
 
         !Begin-----------------------------------------------------------------
        
@@ -388,11 +389,18 @@ if2 :           if (BlockFound) then
 
         if (.not.CheckOK) then
             write(*,*) trim(Me%FileNameIn(i))//" is not a compatible file"
-            stop 'CheckVGCompatibility - ModuleGlueHDF5Files - ERR01'
+            stop 'CheckVGCompatibility - ModuleGlueHDF5Files - ERR10'
         endif
+        
+        call GetHDF5GroupExist(Me%ObjHDF5_Out, "/Grid/VerticalZ", Me%Vert3D, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CheckVGCompatibility - ModuleGlueHDF5Files - ERR20'
+
+
+        call GetHDF5GroupExist(Me%ObjHDF5_Out, "/Grid/OpenPoints", Me%Open3D, STAT = STAT_CALL)
+        if (STAT_CALL /= 0) stop 'CheckVGCompatibility - ModuleGlueHDF5Files - ERR30'
 
         call KillHDF5(Me%ObjHDF5_In, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'CheckVGCompatibility - ModuleGlueHDF5Files - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'CheckVGCompatibility - ModuleGlueHDF5Files - ERR40'
 
         
 

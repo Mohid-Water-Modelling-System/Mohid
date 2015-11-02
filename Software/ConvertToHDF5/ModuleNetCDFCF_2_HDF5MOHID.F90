@@ -184,6 +184,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real, dimension(:,:),     pointer       :: Value2DOut
         real, dimension(:,:,:),   pointer       :: Value3DOut
         logical                                 :: Accumulated2StepGFS
+        logical                                 :: Accumulated2Step
         logical                                 :: FromDir2Vector
         logical                                 :: FromMeteo2Algebric
         character(len=StringLength)             :: DirX
@@ -2625,6 +2626,20 @@ BF:         if (BlockFound) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2730'
                     
+                    call GetData(Me%Field(ip)%Accumulated2Step,                         &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'STEP_ACCUMULATED',                     &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2735'
+                    
+                    if (Me%Field(ip)%Accumulated2StepGFS) then
+                        Me%Field(ip)%Accumulated2Step = .true.
+                    endif
+
+
                     call GetData(Me%Field(ip)%Reflectivity2Precipitation,               &
                                  Me%ObjEnterData, iflag,                                &
                                  SearchType   = FromBlockInBlock,                       &
@@ -6278,6 +6293,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         type (T_Time)                                   :: CurrentTime 
         real(8)                                         :: Aux
         real                                            :: HoursOut
+        logical                                         :: ComputeAccumlatedDif
         !Begin-----------------------------------------------------------------
         
         !Bounds
@@ -6340,17 +6356,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             enddo
             enddo
             
-            ! The option Accumulated2StepGFS was developed specifically to face a problem 
-            ! identify in the GFS opendap service and grib output files. Precipitation 
-            ! in mm has a variable accumulation period. For precipitations at 
-            ! 3h, 9h, 15h and 21h the precipitation in mm is relative to an accumulation period 
-            ! of 3h the precipitations at 0h,6h,12h,18h and 24h is relative to a 6 h accumulation 
-            ! period. The approach followed to solve the problem consists in subtract the instants 
-            ! with an accumulated period of 6 h by the precipitation of the previous instant 
-            ! (accumulated period of 3 h). This way the precipitation is always the accumulated 
-            ! value since the last instant.
-            
-            if (Me%Field(iP)%Accumulated2StepGFS) then
+            if (Me%Field(iP)%Accumulated2Step) then
             
                 Aux         = Me%Date%ValueInTotal(iFinal)            
                 CurrentTime = Me%Date%RefDateTimeOut + Aux
@@ -6362,10 +6368,32 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             
                 AccumulatedPropName = trim(Me%Field(iP)%ID%Name)//" accumulated"
                 
+                ComputeAccumlatedDif = .true. 
+                
+                if (iFinal == 1) then
+                    ComputeAccumlatedDif = .false. 
+                endif
+                
+                if (Me%Field(iP)%Accumulated2StepGFS) then
+                    ! The option Accumulated2StepGFS was developed specifically to face a problem 
+                    ! identify in the GFS opendap service and grib output files. Precipitation 
+                    ! in mm has a variable accumulation period. For precipitations at 
+                    ! 3h, 9h, 15h and 21h the precipitation in mm is relative to an accumulation period 
+                    ! of 3h the precipitations at 0h,6h,12h,18h and 24h is relative to a 6 h accumulation 
+                    ! period. The approach followed to solve the problem consists in subtract the instants 
+                    ! with an accumulated period of 6 h by the precipitation of the previous instant 
+                    ! (accumulated period of 3 h). This way the precipitation is always the accumulated 
+                    ! value since the last instant.
+                
+                    !Instant is 0h, 6h, 12h, 18h, 24h 
+                    if (mod(HoursOut,6.) /= 0) then
+                        ComputeAccumlatedDif = .false.
+                    endif
+                endif                    
 
-                !Instant is 0h, 6h, 12h, 18h, 24h 
-                if (mod(HoursOut,6.) == 0) then
 
+                if (ComputeAccumlatedDif) then
+                
                     allocate(Aux2DAcc(WorkILB:WorkIUB, WorkJLB:WorkJUB))
                     
                     call HDF5ReadData  (Me%ObjHDF5, "/Results/"//trim(AccumulatedPropName),&

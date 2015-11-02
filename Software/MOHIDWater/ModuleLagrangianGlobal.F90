@@ -1594,8 +1594,10 @@ Module ModuleLagrangianGlobal
     end type T_Statistic
 
     type T_Field
-        character(Len=PathLength)                   :: FileName
-        integer                                     :: ID                   = 0
+        character(Len=PathLength)                           :: FileName
+        integer                                             :: ID           = 0
+        character(Len=PathLength), dimension(:), pointer    :: FileNameList
+        integer                                             :: NFilesList        
     end type T_Field
 
     type T_MetOceanProp
@@ -1605,6 +1607,7 @@ Module ModuleLagrangianGlobal
         integer                                     :: MaskDim              = null_int
         integer                                     :: LagPropI             = null_int
         logical                                     :: EqualToAmbient       = .false.
+        logical                                     :: FileListMode         = .false.  
     end type T_MetOceanProp
 
     type T_MeteoOcean
@@ -2067,6 +2070,8 @@ em2:            do em =1, Me%EulerModelNumber
 
             if (Me%State%Oil) then
                 call AllocateOil
+                !Important for the output of particles tickness
+                Me%ExternalVar%VWaterContent = 0. 
                 call FillGridThickness
                 call ComputeAreaVolume
                 call GetOilOptions
@@ -3150,55 +3155,36 @@ i1:         if (PropertyFound) then
 
                 Me%MeteoOcean%Prop(nProp)%ID = PropertyID
                         
-                call ReadMeteoOceanFiles (ClientNumber, nProp)
+                call GetData(Me%MeteoOcean%Prop(nProp)%MaskDim,                     &
+                             Me%ObjEnterData,                                       &
+                             flag,                                                  &
+                             SearchType   = FromBlockInBlock,                       &
+                             keyword      ='MASK_DIM',                              &
+                             default      = 2,                                      &
+                             ClientModule ='ModuleLagrangianGlobal',                &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR20'
                 
-di:             do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
-                
-                    call GetData(Me%MeteoOcean%Prop(nProp)%MaskDim,                     &
-                                 Me%ObjEnterData,                                       &
-                                 flag,                                                  &
-                                 SearchType   = FromBlockInBlock,                       &
-                                 keyword      ='MASK_DIM',                              &
-                                 default      = 2,                                      &
-                                 ClientModule ='ModuleLagrangianGlobal',                &
-                                 STAT         = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR20'
-                    
-                    if (Me%MeteoOcean%Prop(nProp)%MaskDim /= 2 .and. Me%MeteoOcean%Prop(nProp)%MaskDim /=3 &
-                        .and. Me%MeteoOcean%Prop(nProp)%MaskDim /= -99) then
-                        stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR30'
-                    endif
-                    
-                    emMax = Me%EulerModelNumber                     
-                    
-                    call GetGridBorderLimits(Me%EulerModel(emMax)%ObjHorizontalGrid,    &
-                                             West, East, South, North, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR40'
-                    
-                    
-                    WindowLimitsXY(2,1) = South
-                    WindowLimitsXY(2,2) = North
-                    WindowLimitsXY(1,1) = West
-                    WindowLimitsXY(1,2) = East
+                if (Me%MeteoOcean%Prop(nProp)%MaskDim /= 2 .and. Me%MeteoOcean%Prop(nProp)%MaskDim /=3 &
+                    .and. Me%MeteoOcean%Prop(nProp)%MaskDim /= -99) then
+                    stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR30'
+                endif
 
-                    call ConstructField4D(Field4DID     = Me%MeteoOcean%Prop(nProp)%Field(i)%ID,        &
-                                          EnterDataID   = Me%ObjEnterData,                              &
-                                          ExtractType   = FromBlockinBlock,                             &
-                                          FileName      = Me%MeteoOcean%Prop(nProp)%Field(i)%FileName,  &
-                                          TimeID        = Me%ExternalVar%ObjTime,                       &   
-                                          MaskDim       = Me%MeteoOcean%Prop(nProp)%MaskDim,            &
-                                          LatReference  = Me%EulerModel(emMax)%Grid%LatDefault,         &
-                                          LonReference  = Me%EulerModel(emMax)%Grid%LongDefault,        & 
-                                          WindowLimitsXY= WindowLimitsXY,                               &
-                                          Extrapolate   = .false.,                                      &    
-                                          STAT          = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR50'
-                                        
-                enddo di              
+                call GetData(Me%MeteoOcean%Prop(nProp)%FileListMode,                &
+                             Me%ObjEnterData,                                       &
+                             flag,                                                  &
+                             SearchType   = FromBlockInBlock,                       &
+                             keyword      ='FILE_LIST_MODE',                        &
+                             default      = .false.,                                &
+                             ClientModule ='ModuleLagrangianGlobal',                &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR30'
+                
+                call ConstructMeteoOceanProperties(nProp, ClientNumber)                
 
             else i1
             
-                stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR70'
+                stop 'ReadMeteoOceanProperties - ModuleLagrangianGlobal - ERR40'
 
             endif i1
             
@@ -3220,6 +3206,87 @@ dw1:        do while (associated(CurrentProperty))
 
 
     end subroutine ReadMeteoOceanProperties
+                
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructMeteoOceanProperties(nProp, ClientNumber)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: nProp, ClientNumber
+
+        !Local-----------------------------------------------------------------
+        type(T_Property),   pointer                     :: CurrentProperty
+        type(T_PropertyID)                              :: PropertyID
+        real, dimension(1:2,1:2)                        :: WindowLimitsXY
+        real                                            :: West, East, South, North
+        logical                                         :: PropertyFound
+        integer                                         :: STAT_CALL, i, flag, emMax, iP
+        !Begin-----------------------------------------------------------------
+
+                
+        emMax = Me%EulerModelNumber                     
+        
+        call GetGridBorderLimits(Me%EulerModel(emMax)%ObjHorizontalGrid,    &
+                                 West, East, South, North, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMeteoOceanProperties - ModuleLagrangianGlobal - ERR10'
+        
+        
+        WindowLimitsXY(2,1) = South
+        WindowLimitsXY(2,2) = North
+        WindowLimitsXY(1,1) = West
+        WindowLimitsXY(1,2) = East
+        
+        if (Me%MeteoOcean%Prop(nProp)%FileListMode) then
+
+            call ReadMeteoOceanListFiles (ClientNumber, nProp)
+
+ d1:        do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
+ 
+                if (Me%MeteoOcean%Prop(nProp)%Field(i)%NFilesList > 0) then
+            
+                    call ConstructField4D(Field4DID     = Me%MeteoOcean%Prop(nProp)%Field(i)%ID,        &
+                                          EnterDataID   = Me%ObjEnterData,                              &
+                                          ExtractType   = FromBlockinBlock,                             &
+                                          TimeID        = Me%ExternalVar%ObjTime,                       &   
+                                          MaskDim       = Me%MeteoOcean%Prop(nProp)%MaskDim,            &
+                                          LatReference  = Me%EulerModel(emMax)%Grid%LatDefault,         &
+                                          LonReference  = Me%EulerModel(emMax)%Grid%LongDefault,        & 
+                                          WindowLimitsXY= WindowLimitsXY,                               &
+                                          Extrapolate   = .false.,                                      &
+                                          FileNameList  = Me%MeteoOcean%Prop(nProp)%Field(i)%FileNameList, &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMeteoOceanProperties - ModuleLagrangianGlobal - ERR20'
+                    
+                endif
+                                                    
+            enddo d1
+        
+        else
+        
+            call ReadMeteoOceanFiles (ClientNumber, nProp)
+
+d2:         do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
+            
+                call ConstructField4D(Field4DID     = Me%MeteoOcean%Prop(nProp)%Field(i)%ID,        &
+                                      EnterDataID   = Me%ObjEnterData,                              &
+                                      ExtractType   = FromBlockinBlock,                             &
+                                      FileName      = Me%MeteoOcean%Prop(nProp)%Field(i)%FileName,  &
+                                      TimeID        = Me%ExternalVar%ObjTime,                       &   
+                                      MaskDim       = Me%MeteoOcean%Prop(nProp)%MaskDim,            &
+                                      LatReference  = Me%EulerModel(emMax)%Grid%LatDefault,         &
+                                      LonReference  = Me%EulerModel(emMax)%Grid%LongDefault,        & 
+                                      WindowLimitsXY= WindowLimitsXY,                               &
+                                      Extrapolate   = .false.,                                      &    
+                                      STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructMeteoOceanProperties - ModuleLagrangianGlobal - ERR30'
+                                    
+            enddo d2
+
+        endif
+
+    end subroutine ConstructMeteoOceanProperties
                 
     !--------------------------------------------------------------------------
 
@@ -3277,6 +3344,93 @@ i1:     if (BlockInBlockFound) then
                 
     !--------------------------------------------------------------------------
     
+    !--------------------------------------------------------------------------
+
+    subroutine ReadMeteoOceanListFiles(ClientNumber, nProp)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ClientNumber, nProp
+
+        !Local-----------------------------------------------------------------
+        logical                                         :: BlockInBlockFound
+        integer                                         :: STAT_CALL, FirstLine, LastLine, i, iflag
+        integer                                         :: n, FileNumber, FieldNumber 
+        !Begin-----------------------------------------------------------------
+
+        call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR10'
+        
+        FieldNumber = 0
+        
+        do 
+
+            call ExtractBlockFromBlockFromBlock(Me%ObjEnterData, ClientNumber,          &
+                                                meteo_ocean_begin_files,                &
+                                                meteo_ocean_end_files,                  &
+                                                BlockInBlockFound,                      &
+                                                FirstLine, LastLine,                    &
+                                                STAT = STAT_CALL)                                        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR20'
+                
+    i1:     if (BlockInBlockFound) then
+    
+                FieldNumber = FieldNumber + 1
+
+            elseif (FieldNumber == 0) then i1
+                if (Me%MeteoOcean%Prop(nProp)%ID%IDNumber == bathymetry_) then        
+                    exit
+                else
+                    stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR30'
+                endif
+            else i1
+                exit                                 
+            endif i1
+            
+        enddo            
+        
+        Me%MeteoOcean%Prop(nProp)%FieldNumber = FieldNumber
+        
+        allocate (Me%MeteoOcean%Prop(nProp)%Field(Me%MeteoOcean%Prop(nProp)%FieldNumber))        
+        
+        call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR40'
+        
+        do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
+
+            call ExtractBlockFromBlockFromBlock(Me%ObjEnterData, ClientNumber,          &
+                                                meteo_ocean_begin_files,                &
+                                                meteo_ocean_end_files,                  &
+                                                BlockInBlockFound,                      &
+                                                FirstLine, LastLine,                    &
+                                                STAT = STAT_CALL)                                        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR50'
+                
+            FileNumber = LastLine - FirstLine - 1
+            
+            Me%MeteoOcean%Prop(nProp)%Field(i)%NFilesList = FileNumber
+
+            allocate(Me%MeteoOcean%Prop(nProp)%Field(i)%FileNameList(FileNumber))
+            
+            Me%MeteoOcean%Prop(nProp)%Field(i)%ID = 0
+
+            do n = 1, FileNumber
+
+                call GetData(Me%MeteoOcean%Prop(nProp)%Field(i)%FileNameList(n),           &
+                             Me%ObjEnterData,  iflag, Buffer_Line  = FirstLine + n, &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR60'
+
+            enddo
+
+        enddo            
+
+        call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR70'
+
+    end subroutine ReadMeteoOceanListFiles
+                
+    !--------------------------------------------------------------------------
+
     subroutine ReadParticStatisticOptions
 
         !Arguments-------------------------------------------------------------
@@ -12368,6 +12522,11 @@ d1:     do while (associated(CurrentOrigin))
                 Prop1D   (:) = FillValueReal                                
 
     do4:        do nF = 1, nFiles_total
+    
+                    if (Me%MeteoOcean%Prop(nMOP)%FileListMode) then
+                        if (Me%MeteoOcean%Prop(nMOP)%Field(nF)%NFilesList < 1) cycle
+                    endif
+    
                     call ModifyField4DXYZ(Field4DID             = Me%MeteoOcean%Prop(nMOP)%Field(nF)%ID, &
                                           PropertyIDNumber      = Me%MeteoOcean%Prop(nMOP)%ID%IDNumber,  &
                                           CurrentTime           = Me%ExternalVar%Now,               &
@@ -27278,6 +27437,11 @@ d2:         do em = 1, Me%EulerModelNumber
 do1:    do nMOP = 1, nMOPtotal
             nFiles_total = Me%MeteoOcean%Prop(nMOP)%FieldNumber
 do2:        do nF = 1, nFiles_total
+
+                if (Me%MeteoOcean%Prop(nMOP)%FileListMode) then
+                    if (Me%MeteoOcean%Prop(nMOP)%Field(nF)%NFilesList < 1) cycle
+                endif
+
                 call KillField4D(Field4DID             = Me%MeteoOcean%Prop(nMOP)%Field(nF)%ID, &
                                  STAT                  = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillMeteoOcean - ModuleLagrangianGlobal - ERR10' 

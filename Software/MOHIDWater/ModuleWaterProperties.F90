@@ -20402,11 +20402,14 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                             if (WaterPoints3D(i, j, k) == 1) then
                                 
-                                if(.not.Me%Density%Variable) Me%Density%Sigma(i, j, k) = Me%Density%Reference - SigmaDensityReference
+                                if(.not.Me%Density%Variable) then
+                                    Me%Density%Sigma(i, j, k) = Me%Density%Reference - SigmaDensityReference
+                                endif                                    
                                 
                                 Me%Density%Sigma(i, j, k) = Me%Density%Sigma(i, j, k) + PropertyX%Concentration(i,j,k)* &
                                                                                         PropertyX%IScoefficient       * &
-                                                            (Me%Density%NonCohesiveSed - Me%Density%Reference) / Me%Density%Reference
+                                                            (Me%Density%NonCohesiveSed - Me%Density%Reference) /        &
+                                                            Me%Density%Reference
                             endif
 
                         enddo

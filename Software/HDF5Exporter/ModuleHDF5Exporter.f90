@@ -1011,7 +1011,7 @@ Module ModuleExportHDF5ToTimeSerie
             if (Me%EndTSTime .eq. Me%StartTSTime) then
                 write (*,*) 'Time Serie End Time is EQUAL Time Serie Start Time'
                 write (*,*) 'Module :','ExportHDF5ToTimeSerie'
-                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR090'
+                write (*,*) 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR090'
             endif
         endif
             
@@ -1438,6 +1438,9 @@ cd2 :           if (BlockFound) then
 
         HDF5FileX => Me%FirstHDF5File
         
+        AuxDT    = 0.
+        LastDT   = 0.
+        
         !In a DO cycle open all HDF5 files provided by the user
         do while (associated(HDF5FileX))
 
@@ -1586,8 +1589,8 @@ cd2 :           if (BlockFound) then
                         call ExtractDate(HDF5FileX%StartFieldTime, Year, Month,     & 
                              Day, Hour, Minute, Second)
                         write(*,fmt=100) Year, Month, Day, Hour, Minute, Second
-                        write(*,*) 'This is not allowed.'
-                        stop 'OpenAndDateHDF5Files - ModuleExportHDF5ToTimeSerie - ERR70'
+                        !write(*,*) 'This is not allowed.'
+                        !stop 'OpenAndDateHDF5Files - ModuleExportHDF5ToTimeSerie - ERR70'
                     end if
                 end if
 

@@ -3137,6 +3137,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                         :: in, jn
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
+        integer                                         :: nInstant_        
 
         !Begin-----------------------------------------------------------------
 
@@ -3176,6 +3177,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         
             ! 1) 2D (variable in horizontaly)
             ! 2) 3D (variable in horizontaly and in time)
+            ! 3) 3D (variable in horizontaly and one layer)
             
             STAT_CALL=nf90_inq_varid(Me%ncid,trim(Name),VarID)
             if (STAT_CALL /= nf90_noerr) then
@@ -3188,8 +3190,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             if (numDims /= 2 .and. numDims /= 3) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR60' 
             
-            if (numDims == 3 .and. .not. present(nInstant)) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR70' 
-            
+            if (numDims == 3) then
+                if (present(nInstant)) then
+                    nInstant_ = nInstant
+                else                    
+                    nInstant_ = 1
+                    !stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR70' 
+                endif    
+            endif
             
             jn = 1-JLB_+JUB_
             in = 1-ILB_+IUB_
@@ -3206,7 +3214,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 !Read 3D Field
                 STAT_CALL = NF90_GET_VAR(Me%ncid,VarID,Aux2D,                           &
-                    start = (/ JLB_, ILB_,  ninstant /),                                &
+                    start = (/ JLB_, ILB_,  ninstant_ /),                                &
                     count = (/   jn,   in, 1       /))                             
                 if (STAT_CALL /= nf90_noerr) stop 'NETCDFReadDataI4_2D - ModuleNETCDF - ERR90'            
             
