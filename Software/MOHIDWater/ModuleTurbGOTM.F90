@@ -623,6 +623,9 @@ dok4 :              do k=Kbottom,KUB+1
                 if(BoundaryPoints2D(i,j) == 1) then
                     Kbottom = Me%ExternalVar%KFloorZ(I,J)
                     do k=Kbottom,KUB+1
+                        Me%Tke   (i,j,k) = Me%Tke(i-1,j,k) 
+                        Me%L     (i,j,k) = Me%L(i-1,j,k) 
+                        Me%eps   (i,j,k) = Me%eps(i-1,j,k) 
                         Me%num   (i,j,k) = Me%num(i-1,j,k)  
                         Me%nuh   (i,j,k) = Me%nuh(i-1,j,k)
                     end do
@@ -638,6 +641,9 @@ dok4 :              do k=Kbottom,KUB+1
                 if(BoundaryPoints2D(i,j) == 1) then
                     Kbottom = Me%ExternalVar%KFloorZ(I,J)
                     do k=Kbottom,KUB+1
+                        Me%Tke   (i,j,k) = Me%Tke(i+1,j,k)  
+                        Me%L     (i,j,k) = Me%L(i+1,j,k)  
+                        Me%eps   (i,j,k) = Me%eps(i+1,j,k)  
                         Me%num   (i,j,k) = Me%num(i+1,j,k)  
                         Me%nuh   (i,j,k) = Me%nuh(i+1,j,k)
                     end do 
@@ -654,6 +660,9 @@ dok4 :              do k=Kbottom,KUB+1
                 if(BoundaryPoints2D(i,j) == 1) then
                     Kbottom = Me%ExternalVar%KFloorZ(I,J)
                     do k=Kbottom,KUB+1
+                        Me%Tke   (i,j,k) = Me%Tke(i,j-1,k)
+                        Me%L     (i,j,k) = Me%L(i,j-1,k)
+                        Me%eps   (i,j,k) = Me%eps(i,j-1,k)
                         Me%num   (i,j,k) = Me%num(i,j-1,k)  
                         Me%nuh   (i,j,k) = Me%nuh(i,j-1,k)
                     end do 
@@ -669,6 +678,9 @@ dok4 :              do k=Kbottom,KUB+1
                 if(BoundaryPoints2D(i,j) == 1) then
                     Kbottom = Me%ExternalVar%KFloorZ(I,J)
                     do k=Kbottom,KUB+1
+                        Me%Tke   (i,j,k) = Me%Tke(i,j+1,k)
+                        Me%L     (i,j,k) = Me%L(i,j+1,k)
+                        Me%eps   (i,j,k) = Me%eps(i,j+1,k) 
                         Me%num   (i,j,k) = Me%num(i,j+1,k)  
                         Me%nuh   (i,j,k) = Me%nuh(i,j+1,k)
                     end do 

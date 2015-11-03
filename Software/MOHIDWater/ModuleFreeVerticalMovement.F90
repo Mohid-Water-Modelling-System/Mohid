@@ -1896,6 +1896,9 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                         elseif (log(SPM(i,j,k)) >= 4.0) then
                             r = 1
                         endif
+                        
+                        WM = min(WM, 0.005)
+                        Wu = min(Wu, 0.001)
                     
                         WS = r * WM + (1 - r) * Wu
                         WS = max(WS, 0.0002) 
@@ -2076,7 +2079,6 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
     subroutine OutPut_TimeSeries
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: PropertyX
-        real, dimension(:,:,:), pointer         :: WS
         integer                                 :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
@@ -2085,18 +2087,13 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         !Calls Time Serie for every property
         PropertyX   => Me%FirstProperty
         do while (associated(PropertyX))
-            
-            WS => PropertyX%Velocity
-            
-            !To write positive values
-            WS(:,:,:) = - WS(:,:,:)
            
             call WriteTimeSerie(Me%ObjTimeSerie,                                     &
-                                Data3D = WS, STAT = STAT_CALL)
+                                Data3D = PropertyX%Velocity, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                               &
                 stop 'OutPut_TimeSeries - ModuleFreeVerticalMovement - ERR01'
                 
-            PropertyX=>PropertyX%Next
+            PropertyX => PropertyX%Next
 
         enddo
 
