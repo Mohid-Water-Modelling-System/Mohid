@@ -1,5 +1,4 @@
-This is a Subversion repository; use the 'svnadmin' tool to examine
-it.  Do not add, delete, or modify files here unless you know how
-to avoid corrupting the repository.
+This is the MOHID Water Modelling System OFFICIAL repository
 
-Visit http://subversion.tigris.org/ for more information.
+www.maretec.org
+www.mohid.com
