@@ -1701,7 +1701,7 @@ cd2:    if (NewProperty%Statistics%ON) then
         logical                                     :: isdefined
         !External--------------------------------------------------------------
         integer                                     :: ready_           
-        integer                                     :: STAT_CALL
+        !integer                                     :: STAT_CALL
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
