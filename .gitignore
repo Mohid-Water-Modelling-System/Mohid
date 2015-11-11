@@ -262,3 +262,4 @@ _Pvt_Extensions
 
 #Guarantees that the ExternalLib folder is not ignored.
 !ExternalLibs/*
+*.u2d
