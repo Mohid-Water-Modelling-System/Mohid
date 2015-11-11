@@ -39,7 +39,7 @@
         type(T_Time)                        :: time_
         integer                             :: STAT
         
-        !Local-----------------------------------------------------------
+        !Local---------------------------------------------------------
         real                                :: Year, Hour
         real                                :: Minute, Second
 C        character (len=132)                 :: AuxChar

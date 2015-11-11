@@ -571,51 +571,102 @@ Module ModuleBenthicEcology
         type(T_BiSV)                                :: BiSv
         type(T_BivalveDEB    ), pointer             :: Next
                                               
-        real                                        :: Em               = null_real  ! Max. equilibrium energy density in J m-3
-        real                                        :: Eg               = null_real  ! Energetic growth cost per unit growth in structural
-                                                                                           ! body volume in J m-3
-        real                                        :: Pxm              = null_real  ! Max. surface-area-specific ingestion rate
-                                                                                           ! in J m-2 s -1
-        real                                        :: ka               = null_real  ! Assimilation efficiency (= Pam/Pxm)
-        real                                        :: Pm               = null_real  ! Somatic maintenance cost in J m -3 s -1
-        real                                        :: kappa            = null_real  ! Fraction of flux from reserve spent on somatic
-                                                                                            ! maintenance
-        real                                        :: Xk               = null_real  ! Saturation coefficient - food density at which
-                                                                                           ! ingestion rate is half the maximum
-                                                                                           ! in mg (chl-a) m -3
-        real                                        :: kR               = null_real  ! Reproduction efficiency
-        real                                        :: Conv_fac         = null_real  ! Energy content of 1g of reserve
-        real                                        :: St_DW_perc       = null_real  ! WW to DW converter
-        real                                        :: spawn_eff        = null_real  ! proportion of the reproductive buffer emptied at each spawning
-        real                                        :: Tspawn           = null_real  ! temperature threshold triggering spawning
-        real                                        :: RGS              = null_real  ! Gonado-somatic index triggering spawning (fraction)
+        ! Max. equilibrium energy density in J m-3
+        real                                        :: Em               = null_real
+        
+        ! Energetic growth cost per unit growth in structural body volume in J m-3
+        real                                        :: Eg               = null_real
+        
+        ! Max. surface-area-specific ingestion rate in J m-2 s -1
+        real                                        :: Pxm              = null_real
+        
+        ! Assimilation efficiency (= Pam/Pxm)
+        real                                        :: ka               = null_real
+        
+        ! Somatic maintenance cost in J m -3 s -1
+        real                                        :: Pm               = null_real
+        
+        ! Fraction of flux from reserve spent on somatic maintenance
+        real                                        :: kappa            = null_real
+        
+        ! Saturation coefficient - food density at which ingestion rate is half the maximum in mg (chl-a) m -3
+        real                                        :: Xk               = null_real  
+        
+        ! Reproduction efficiency
+        real                                        :: kR               = null_real  
+        
+        ! Energy content of 1g of reserve
+        real                                        :: Conv_fac         = null_real  
+        
+        ! WW to DW converter
+        real                                        :: St_DW_perc       = null_real  
+        
+        ! proportion of the reproductive buffer emptied at each spawning
+        real                                        :: spawn_eff        = null_real  
+        
+        ! temperature threshold triggering spawning
+        real                                        :: Tspawn           = null_real  
+        
+        ! Gonado-somatic index triggering spawning (fraction)
+        real                                        :: RGS              = null_real  
  
-        integer                                     :: spawnD                        ! Number of spawning days in a year (MUST be same as SpawnDay array dimension)
-        integer, dimension(:), pointer              :: spawnDay                      ! Julian Day(s) to spawn (if no spawning then set spawnD to zero)
-        integer                                     :: NInd                          ! Number of individuals per m2
+        ! Number of spawning days in a year (MUST be same as SpawnDay array dimension)
+        integer                                     :: spawnD
         
-        real                                        :: volp             = null_real  ! volume specifying a change from juvenile to adult
-                                                                                           ! in m 3
-        real                                        :: delm             = null_real  ! shape parameter
-        real                                        :: Tref             = null_real  ! Ref. temp for rate constants in K
-        real                                        :: Ta               = null_real  ! Arrhenius temperature in K
-        real                                        :: TL               = null_real  ! Lower boundary of tolerance range in K
-        real                                        :: THresp           = null_real  ! Upper boundary of tolerance range for respiration in K
-        real                                        :: THing            = null_real  ! Upper boundary of tolerance range for ingestion in K
-        real                                        :: TAL              = null_real  ! Arrhenius temp. for rate of decrease at lower boundary in K
-        real                                        :: TAHresp          = null_real  ! Arrhenius temp. for rate of decrease at upper boundary for respiration in K
-        real                                        :: TAHing           = null_real  ! Arrhenius temp. for rate of decrease at upper boundary for ingestion in K
+        ! Julian Day(s) to spawn (if no spawning then set spawnD to zero)
+        integer, dimension(:), pointer              :: spawnDay
         
-        real                                        :: kd               = null_real  ! Corresponds to T90 of 3hrs assumed after document 'MOHID modules', in s-1
+        ! Number of individuals per m2
+        integer                                     :: NInd
         
-        real                                        :: Ec               = null_real  ! energetic value of phyt C in J mg-1 C (Platt and Irwin, 1973)
+        ! volume specifying a change from juvenile to adult in m 3
+        real                                        :: volp             = null_real
         
-        real                                        :: etaO2            = null_real  ! energetic value of oxygen (=14.3 J mg-1 O2)
+        ! shape parameter
+        real                                        :: delm             = null_real
+        
+        ! Ref. temp for rate constants in K
+        real                                        :: Tref             = null_real
+        
+        ! Arrhenius temperature in K
+        real                                        :: Ta               = null_real
+        
+        ! Lower boundary of tolerance range in K
+        real                                        :: TL               = null_real
+        
+        ! Upper boundary of tolerance range for respiration in K
+        real                                        :: THresp           = null_real
+        
+        ! Upper boundary of tolerance range for ingestion in K
+        real                                        :: THing            = null_real
+        
+        ! Arrhenius temp. for rate of decrease at lower boundary in K
+        real                                        :: TAL              = null_real
+        
+        ! Arrhenius temp. for rate of decrease at upper boundary for respiration in K
+        real                                        :: TAHresp          = null_real
+        
+        ! Arrhenius temp. for rate of decrease at upper boundary for ingestion in K
+        real                                        :: TAHing           = null_real
+        
+        ! Corresponds to T90 of 3hrs assumed after document 'MOHID modules', in s-1
+        real                                        :: kd               = null_real
+        
+        ! energetic value of phyt C in J mg-1 C (Platt and Irwin, 1973)
+        real                                        :: Ec               = null_real
+        
+        ! energetic value of oxygen (=14.3 J mg-1 O2)
+        real                                        :: etaO2            = null_real
  
         !  Accessory variables (not in the original algorithm)
-        real                                        :: CtoChla          = null_real  ! C to Chla ratio used in the bivalve DEB model to converto Phyto to Chla 
-        integer                                     :: NH4Frac                       ! To define NH4 excretion as a fraction of N ingested
-        real                                        :: BiLen1           = null_real  ! Initial bivalve lenght in m
+        ! C to Chla ratio used in the bivalve DEB model to converto Phyto to Chla
+        real                                        :: CtoChla          = null_real
+        
+        ! To define NH4 excretion as a fraction of N ingested
+        integer                                     :: NH4Frac
+        
+        ! Initial bivalve lenght in m
+        real                                        :: BiLen1           = null_real
  
  end type T_BivalveDEB
  
@@ -633,7 +684,7 @@ Module ModuleBenthicEcology
         real                                             :: BETA20            = null_real
         real                                             :: TemperatureFactor = null_real
         real                                             :: GRMAX             = null_real ! l/day/gC
-        real                                             :: RESP20            = null_real  ! [1/day]
+        real                                             :: RESP20            = null_real ! [1/day]
         real                                             :: NCratio           = null_real
         real                                             :: PCratio           = null_real    
         real                                             :: TOptMin           = null_real
@@ -4197,10 +4248,10 @@ d1:     do while(associated(Consumer))
                
                
                 ! Kg N = 1/day * Kg N * day * [-]
-               Me%Matrix(Index, FoodIndexN, Consumer_N) = IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index)        *   &  ! 1/day * Kg N
-                                                          Consumer%NCRatio                                            *   &
-                                                          Me%DTDay                                                    *   &  ! day
-                                                          FoodDens / ( FoodDens + Consumer%Grazing%KFoodC)                   ! [-]
+               Me%Matrix(Index, FoodIndexN, Consumer_N) = IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index) * &  ! 1/day * Kg N
+                                                          Consumer%NCRatio                                     * &
+                                                          Me%DTDay                                             * &  ! day
+                                                          FoodDens / ( FoodDens + Consumer%Grazing%KFoodC)          ! [-]
                 endif
                 
                 
@@ -4251,10 +4302,10 @@ d1:     do while(associated(Consumer))
                 else
                 
                 ! Kg P
-                Me%Matrix(Index, FoodIndexP, Consumer_P) = IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index)     *   &  ! 1/day * Kg C
-                                                           Consumer%PCRatio                                         *   &
-                                                           Me%DTDay                                                 *   &  ! day
-                                                           FoodDens /( FoodDens + Consumer%Grazing%KFoodC)                ! [-]
+                Me%Matrix(Index, FoodIndexP, Consumer_P) = IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index) * & ! 1/day * Kg C
+                                                           Consumer%PCRatio                                     * &
+                                                           Me%DTDay                                             * & ! day
+                                                           FoodDens /( FoodDens + Consumer%Grazing%KFoodC)          ! [-]
                 endif
                 
                 Me%ExternalVar%Mass(FoodIndexP, Index)=    Me%ExternalVar%Mass(FoodIndexP, Index)                   -   &
@@ -4292,9 +4343,9 @@ d1:     do while(associated(Consumer))
                 ! for deposit feeders, the Michaelis-Menten kinetic was used
                 ! IngestionRate has dimension of 1/day
                 ! Kg C
-                Me%Matrix(Index, FoodIndexC, Consumer_C) =IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index)      *  & ! 1/day * Kg C
-                                                          Me%DTDay                                                  *  & ! day
-                                                          FoodDens/ ( FoodDens + Consumer%Grazing%KFoodC)                ! [-]
+                Me%Matrix(Index, FoodIndexC, Consumer_C) =IngestionRate*Me%ExternalVar%Mass(Consumer_C, Index) * & ! 1/day * Kg C
+                                                          Me%DTDay                                             * & ! day
+                                                          FoodDens/ ( FoodDens + Consumer%Grazing%KFoodC)          ! [-]
                                                         
                 endif
                 
@@ -4429,12 +4480,15 @@ d1:     do while(associated(Consumer))
         real                                       :: consump_O2                     ! O2 consuption rate in kg O2
         
         ! DEB model parameters
-        real                                       :: Pxm_T,Pam_T,Pm_T,Jw_T          ! Temperature adjusted values of Pxm, Pam, Pm and Jw
-        real                                       :: fresp                          ! Holling II Organism response function to available food
+        real                                       :: Pxm_T,Pam_T,Pm_T               ! Temperature adjusted values of Pxm, Pam, Pm 
+        real                                       :: fresp                          ! Holling II Organism response function to 
+                                                                                     ! available food
         real                                       :: Px                             ! Energy ingestion rate in J s-1
         real                                       :: Pa                             ! The assimilation rate in J s-1
-        real                                       :: Pc                             ! Energy utilisation rate i.e. energy both fixed and
-                                                                                     ! dissipated consumed by body tissues from reserve in J s-1
+        real                                       :: Pc                             ! Energy utilisation rate i.e. energy both 
+                                                                                     ! fixed and
+                                                                                     ! dissipated consumed by body tissues from 
+                                                                                     ! reserve in J s-1
         real                                       :: Pj                             ! Energy flow to maturity maintanence in J s-1
         real                                       :: Pr                             ! Energy flow to reproductive buffer in J s-1
         real                                       :: shrink_Pm, shrink_Pj           ! Shrinking (maintanence, maturity, 
@@ -4442,9 +4496,12 @@ d1:     do while(associated(Consumer))
         real                                       :: dV                             ! Change in the volume of bivalve in m-3 s-1
         real                                       :: dE                             ! Change in the energy reserve in J s-1
         real                                       :: dEr                            ! Change in reproductive energy store in J s-1
-        real                                       :: bi_area_scale                  ! Bivalve area scale in m2 - NOT ACTUAL SHELL AREA
-        real                                       :: Pam                            ! Max. surface area specific assimilation rate in J m-2 s-1
-        real                                       :: energy_surplus                 ! Energy which goes to structural growth  in J s-1
+        real                                       :: bi_area_scale                  ! Bivalve area scale in m2 - NOT ACTUAL SHELL 
+                                                                                     ! AREA
+       !real                                       :: Pam                            ! Max. surface area specific assimilation rate
+                                                                                     ! in J m-2 s-1
+        real                                       :: energy_surplus                 ! Energy which goes to structural growth  in 
+                                                                                     ! J s-1
         real                                       :: e_dens                         ! Energy density in J m-3
         real                                       :: cff1,cff2                      ! temporary variables
         real                                       :: Tresp,Ting                     ! temperature correction factor
@@ -4459,7 +4516,7 @@ d1:     do while(associated(Consumer))
         real                                       :: Nexcrt                ! N-NH4 excretion rate mmol N s-1 
         real                                       :: Ceg, Neg              ! egested C and N in faeces in mmolC s-1 and mmolN s-1
         real                                       :: Cresp                 ! respired C in mmol C s-1                               
-        real                                       :: Cs                    ! Fecal contamination in bivalves in CFU (or MPN)  
+       !real                                       :: Cs                    ! Fecal contamination in bivalves in CFU (or MPN)  
         real                                       :: bi_consump_oxy_mass   ! oxygen consumption rate in mmolO2 s-1
         
       
@@ -4476,7 +4533,8 @@ d1:     do while(associated(Consumer))
 
            !********* PATHOGEN ************************
         !real                                       :: ku, Csdep           ! filtration rate (m3 s-1 g-1), new CFU in bivalves
-        !real                                       :: bi_consump_CH2O     ! E coli consumption rate in CFU s-1 (per individual mussel)
+        !real                                       :: bi_consump_CH2O     ! E coli consumption rate in CFU s-1 (per individual 
+                                                                           ! mussel)
         
         
         BivalveDEB => Me%FirstBivalveDEB
@@ -4629,7 +4687,9 @@ d1:     do while(associated(BivalveDEB))
 
     tot_DW = (Me%ExternalVar%Mass(BivalveDEB_V, Index) / Me%ExternalVar%CellArea(Index))* BivalveDEB%St_DW_perc * 1.0e6 + &
              (Me%ExternalVar%Mass(BivalveDEB_E, Index)/ Me%ExternalVar%CellArea(Index) + &
-              Me%ExternalVar%Mass(BivalveDEB_ER, Index)/ Me%ExternalVar%CellArea(Index)) / BivalveDEB%Conv_fac   ! *1e6 is for converting bi_vol from m3 to cm3
+              Me%ExternalVar%Mass(BivalveDEB_ER, Index)/ Me%ExternalVar%CellArea(Index)) / BivalveDEB%Conv_fac   !*1e6 is for 
+                                                                                                                 !converting bi_vol
+                                                                                                                 !from m3 to cm3
 
     ! Calculate individusl DW in kg
     Me%ExternalVar%Mass(BivalveDEB_IDW, Index) = (tot_DW/1000) * Me%ExternalVar%CellArea(Index)
@@ -4656,7 +4716,8 @@ d1:     do while(associated(BivalveDEB))
        
 
         Me%ExternalVar%Mass(BivalveDEB_E, Index) = max(0.0 , (Me%ExternalVar%Mass(BivalveDEB_E, Index) + &
-                                                    ((dE * Me%ExternalVar%CellArea(Index))* Me%DT))) !LLP max in order to avoid negative values
+                                                    ((dE * Me%ExternalVar%CellArea(Index))* Me%DT))) !LLP max in order to avoid 
+                                                                                                     !negative values
 
         Me%ExternalVar%Mass(BivalveDEB_ER, Index) = max(0.0 ,(Me%ExternalVar%Mass(BivalveDEB_ER, Index) + &
                                                      ((dEr * Me%ExternalVar%CellArea(Index))* Me%DT))) !LLP
@@ -4679,7 +4740,8 @@ d2:  do seq = 1, BivalveDEB%spawnD
             
                     Me%ExternalVar%Mass(BivalveDEB_ER, Index) = max(0.0, Me%ExternalVar%Mass(BivalveDEB_ER, Index) - &
                                                                 Me%ExternalVar%Mass(BivalveDEB_ER, Index) * &
-                                                                BivalveDEB%spawn_eff) !LLP add max(0.0,...) to avoid negative values
+                                                                BivalveDEB%spawn_eff) !LLP add max(0.0,...) to avoid negative 
+                                                                                      !values
                     
                     tot_DW = (Me%ExternalVar%Mass(BivalveDEB_V, Index) / Me%ExternalVar%CellArea(Index)) * &
                              BivalveDEB%St_DW_perc * 1.0e6 + &
@@ -4688,7 +4750,7 @@ d2:  do seq = 1, BivalveDEB%spawnD
                               
                     Me%ExternalVar%Mass(BivalveDEB_IDW, Index) = (tot_DW*1000) * Me%ExternalVar%CellArea(Index)
                     
-                    Me%ExternalVar%Mass(BivalveDEB_TDW, Index) = Me%ExternalVar%Mass(BivalveDEB_IDW, Index) * (BivalveDEB%NInd) !LLP
+                    Me%ExternalVar%Mass(BivalveDEB_TDW, Index) = Me%ExternalVar%Mass(BivalveDEB_IDW, Index) * (BivalveDEB%NInd)!LLP
             
             if (Me%ExternalVar%Mass(BivalveDEB_ER, Index) .LT. 0.0) then
               write(*,*)'ER negativo2', Index, Me%ExternalVar%Mass(BivalveDEB_ER, Index),dEr, Me%DT, Me%ExternalVar%CellArea(Index)

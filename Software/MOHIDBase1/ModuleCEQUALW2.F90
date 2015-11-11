@@ -4383,7 +4383,7 @@ cd0:            if (CalcPoint) then
         real                                    :: NONZERO = 1.0E-20
         type(T_Algae),      pointer             :: Algae
         type(T_Epiphyton),  pointer             :: Epiphyton
-        character (len = StringLength)          :: StrWarning
+        !character (len = StringLength)          :: StrWarning
 
         !-----------------------------------------------------------------------
 

@@ -1778,7 +1778,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         integer, dimension(:), pointer                       :: CEQUALW2List
         integer, dimension(:), pointer                       :: MacroAlgaeList
         integer                                              :: i,PropLB, PropUB
-        integer, dimension(:), pointer                       :: BenthosList, LifeList, BivalveList
+        integer, dimension(:), pointer                       :: BenthosList, LifeList!, BivalveList
         integer, dimension(:), pointer                       :: BenthicEcologyList
         integer, dimension(:), pointer                       :: SeagrassSedimInteractionList
         integer, dimension(:), pointer                       :: SeagrassWaterInteractionList
@@ -3665,16 +3665,16 @@ cd4 :           if (ReadyToCompute) then
 
 
                             call WWTPQ(Me%ObjWWTPQ,                   &
-                                              Me%Salinity,                          &
+                                              !Me%Salinity,                          &
                                               Me%Temperature,                       &
-                                              Me%ShortWaveTop,                      &
-                                              Me%LightExtCoefField,                 &
-                                              Me%Thickness,                         &
+                                              !Me%ShortWaveTop,                      &
+                                              !Me%LightExtCoefField,                 &
+                                              !Me%Thickness,                         &
                                               Me%Mass,                              &
                                               Me%Array%ILB,                         &
                                               Me%Array%IUB,                         &
                                               Me%OpenPoints,                        &
-                                              FishFood = Me%FishFood,               &
+                                              !FishFood = Me%FishFood,               &
                                               STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface3D - ModuleInterface - ERR15'
                             
@@ -4485,16 +4485,16 @@ cd4 :           if (ReadyToCompute) then
 
 
                             call WWTPQ(Me%ObjWWTPQ,                   &
-                                              Me%Salinity,                          &
+                                              !Me%Salinity,                          &
                                               Me%Temperature,                       &
-                                              Me%ShortWaveTop,                      &
-                                              Me%LightExtCoefField,                 &
-                                              Me%Thickness,                         &
+                                              !Me%ShortWaveTop,                      &
+                                              !Me%LightExtCoefField,                 &
+                                              !Me%Thickness,                         &
                                               Me%Mass,                              &
                                               Me%Array%ILB,                         &
                                               Me%Array%IUB,                         &
                                               Me%OpenPoints,                        &
-                                              FishFood = Me%FishFood,               &
+                                              !FishFood = Me%FishFood,               &
                                               STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR10'
                             

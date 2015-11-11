@@ -545,7 +545,7 @@ cd2:        if (.NOT. Me%CalcMethod%ExplicitMethod) then
 !? What does it subroutine do? 
 
         !Local-----------------------------------------------------------------
-        logical :: Consistent
+        !logical :: Consistent
 
         !----------------------------------------------------------------------
         
@@ -1080,29 +1080,29 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine WWTPQ(WWTPQID,                                                   &
-                            Salinity,                                           &
+                            !Salinity,                                           &
                             Temperature,                                        &
-                            ShortWaveRadiation,                                 &
-                            LightExtCoefField,                                  &
-                            Thickness,                                          &
+                            !ShortWaveRadiation,                                 &
+                            !LightExtCoefField,                                  &
+                            !Thickness,                                          &
                             Mass,                                               &
                             WWTPQArrayLB, WWTPQArrayUB,                         &
                             OpenPoints,                                         &               
-                            FishFood,                                           &
+                            !FishFood,                                           &
                             STAT)  
 
 !? What does it subroutine do?
 
         !Arguments---------------------------------------------------------------
         integer                                       :: WWTPQID
-        real,                 pointer, dimension(:  ) :: Salinity
+        !real,                 pointer, dimension(:  ) :: Salinity
         real,                 pointer, dimension(:  ) :: Temperature
-        real,                 pointer, dimension(:  ) :: ShortWaveRadiation
-        real,                 pointer, dimension(:  ) :: LightExtCoefField
-        real,                 pointer, dimension(:  ) :: Thickness
+        !real,                 pointer, dimension(:  ) :: ShortWaveRadiation
+        !real,                 pointer, dimension(:  ) :: LightExtCoefField
+        !real,                 pointer, dimension(:  ) :: Thickness
         real,                 pointer, dimension(:,:) :: Mass
         integer, optional,    pointer, dimension(:  ) :: OpenPoints
-        real,    optional,    pointer, dimension(:  ) :: FishFood
+        !real,    optional,    pointer, dimension(:  ) :: FishFood
         integer,              intent(IN )             :: WWTPQArrayLB, WWTPQArrayUB  
         integer, optional,    intent(OUT)             :: STAT
          

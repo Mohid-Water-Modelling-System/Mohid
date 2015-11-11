@@ -10653,12 +10653,14 @@ if2:        if (Volume > PoolVolume) then
                         if (Me%CheckMass) then
                             if (Me%DischargesFlow(iDis) .lt. 0.0) then                        
                                 !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
-                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis)           &
-                                                                 * LocalDT * Property%Concentration(NodePos) * Property%IScoefficient)
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis) &
+                                                                 * LocalDT * Property%Concentration(NodePos) * &
+                                                                 Property%IScoefficient)
                             else
                                 !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
-                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis)           &
-                                                                 * LocalDT * Me%DischargesConc(iDis, iProp) * Property%IScoefficient)
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis) &
+                                                                 * LocalDT * Me%DischargesConc(iDis, iProp) * &
+                                                                 Property%IScoefficient)
                         
                             endif
                         endif
@@ -11180,7 +11182,8 @@ if2:        if (Volume > PoolVolume) then
                 if (Property%ComputeOptions%AdvectionDiffusion) then
                         
                     !Save conc before zeroing
-                    Me%Reservoirs%NodeConc(ReservoirPos, iProp) = Property%Concentration(Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos))
+                    Me%Reservoirs%NodeConc(ReservoirPos, iProp) = &
+                        Property%Concentration(Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos))
                     !No water no conc
                     Property%Concentration(Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos)) = 0.0
                         
