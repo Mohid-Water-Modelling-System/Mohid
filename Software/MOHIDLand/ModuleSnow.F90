@@ -270,7 +270,7 @@ cd0 : if (ready_ .EQ. OFF_ERR_) then
          call GetComputeTimeStep     (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
          if (STAT_CALL /= SUCCESS_) stop 'ConstructSnow - ModuleSnow - ERR020'
 
-         call ReadLockExternalVar (StaticOnly = .false.)
+         call ReadLockExternalVar ()
 
          !Gets the size of the grid
          call GetHorizontalGridSize (Me%ObjHorizontalGrid,                            &
@@ -298,7 +298,7 @@ cd0 : if (ready_ .EQ. OFF_ERR_) then
             call SnowOutput
          endif
 
-         call ReadUnLockExternalVar (StaticOnly = .false.)
+         call ReadUnLockExternalVar ()
 
          !Returns ID
          SnowID = Me%InstanceID
@@ -359,16 +359,7 @@ cd0 : if (ready_ .EQ. OFF_ERR_) then
 
       !Local-----------------------------------------------------------------        
       integer                                     :: STAT_CALL
-      type(T_PropertyID)                          :: InitialSnowColumnID
-      type(T_PropertyID)                          :: DailyAverageTemperatureID
-      type(T_PropertyID)                          :: AlbedoID
-      type(T_PropertyID)                          :: ForestCoverFractionID
-      type(T_PropertyID)                          :: SlopeFactorID
       integer                                     :: iflag
-      integer                                     :: ClientNumber
-      logical                                     :: BlockFound
-      integer                                     :: i, j
-      real                                        :: dummy
 
       !Reads the name of the data file from nomfich
       call ReadFileName ('SNOW_DATA', Me%Files%DataFile, "Snow Data File", STAT = STAT_CALL)
@@ -614,7 +605,6 @@ cd2 :       if (BlockFound) then
       if(STAT_CALL .NE. SUCCESS_) stop 'ConstructProperty - ModuleSnow - ERR010'
               
       call ConstructPropertyID        (NewProperty%ID, Me%ObjEnterData, FromBlock)
-      call ConstructPropertyState     (NewProperty)
       call ConstructPropertyEvolution (NewProperty)
       call ConstructPropertyValues    (NewProperty)
       call ConstructPropertyOutPut    (NewProperty)
@@ -635,49 +625,7 @@ cd2 :       if (BlockFound) then
    end subroutine ConstructProperty
     
    !-------------------------------------------------------------------------  
-   
-   subroutine ConstructPropertyState (NewProperty)
 
-      !Arguments-------------------------------------------------------------
-      type(T_property), pointer       :: NewProperty
-
-      !External--------------------------------------------------------------
-      integer                         :: STAT_CALL, iflag
-      !----------------------------------------------------------------------        
-
-      !!<BeginKeyword>
-      !   !Keyword          : PARTICULATE
-      !   !<BeginDescription>
-      !   !<EndDescription>
-      !   !Type             : logical   
-      !   !Default          : Dissolved
-      !   !File keyword     : SEDPROP
-      !   !Multiple Options : 1 (.true.), 0 (.false.)
-      !   !Search Type      : From Block
-      !   !Begin Block      : <beginproperty>
-      !   !End Block        : <endproperty>
-      !!<EndKeyword>
-      !
-      !call GetData(NewProperty%Particulate,                                            &
-      !            Me%ObjEnterData,  iflag,                                            &
-      !            SearchType   = FromBlock,                                           &
-      !            keyword      = 'PARTICULATE',                                       &
-      !            ClientModule = 'ModuleSnow',                       &
-      !            STAT         = STAT_CALL)
-      !if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModuleSnow - ERR01'
-      !  
-      !if (NewProperty%Particulate)then
-      !   if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-      !         write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
-      !         write(*,*) 'recognised as PARTICULATE'
-      !         stop 'Construct_PropertyState - ModuleSnow - ERR03'
-      !   end if
-      !endif
-                
-   end subroutine ConstructPropertyState
-
-   !--------------------------------------------------------------------------   
-   
    subroutine ConstructPropertyEvolution (NewProperty)
 
       !Arguments-------------------------------------------------------------
@@ -699,7 +647,7 @@ cd2 :       if (BlockFound) then
       type(T_property),              pointer      :: NewProperty
 
       !External--------------------------------------------------------------
-      integer                                     :: STAT_CALL, i, j
+      integer                                     :: STAT_CALL
 
       !Local-----------------------------------------------------------------
       integer                                     :: iflag
@@ -1315,9 +1263,6 @@ i1:      if (CoordON) then
       integer                                     :: STAT_, ready_
       integer                                     :: STAT_CALL
       real                                        :: M
-      logical                                     :: Restart
-      integer                                     :: Niter, iter
-      integer                                     :: n_restart
       integer                                     :: ILB, IUB, JLB, JUB, I, J
       logical                                     :: IsFinalFile      
       !----------------------------------------------------------------------
@@ -1419,7 +1364,6 @@ i1:      if (CoordON) then
    subroutine ModifyProperties
  
       !Local-----------------------------------------------------------------
-      integer :: i, j      
       type (T_Property), pointer                  :: PropertyX
       integer                                     :: STAT_CALL
       
@@ -1517,8 +1461,6 @@ i1:      if (CoordON) then
       real, dimension(6), target                  :: AuxTime
       real, dimension(:), pointer                 :: TimePtr
       type (T_Time)                               :: Actual           
-      real                                        :: Total_Mass_Created
-      character (Len = StringLength)              :: str_mass_created, string_to_be_written         
       !Begin----------------------------------------------------------------
 
       !Gets a pointer to Topography
@@ -1877,10 +1819,9 @@ cd1:    if (SnowID > 0) then
 
    !--------------------------------------------------------------------------
 
-   subroutine ReadLockExternalVar (StaticOnly)
+   subroutine ReadLockExternalVar ()
         
       !Arguments-------------------------------------------------------------
-      logical                                     :: StaticOnly
 
       !Local-----------------------------------------------------------------
       integer                                     :: STAT_CALL
@@ -1933,10 +1874,9 @@ cd1:    if (SnowID > 0) then
    
    !--------------------------------------------------------------------------
    
-   subroutine ReadUnLockExternalVar(StaticOnly)
+   subroutine ReadUnLockExternalVar()
         
       !Arguments-------------------------------------------------------------
-      logical                                     :: StaticOnly
         
       !Local-----------------------------------------------------------------
       integer                                     :: STAT_CALL

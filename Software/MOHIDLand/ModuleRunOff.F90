@@ -296,16 +296,19 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: OverLandCoefficientX     => null() !Manning or Chezy
         real,    dimension(:,:), pointer            :: OverLandCoefficientY     => null() !Manning or Chezy
         real,    dimension(:,:), pointer            :: StormWaterDrainageCoef   => null() !Sewer System Percentagem (area)
-        real,    dimension(:,:), pointer            :: StormWaterVolume         => null() !Volume of storm water stored in each cell
+        real,    dimension(:,:), pointer            :: StormWaterVolume         => null() !Volume of storm water stored in each 
+                                                                                          !cell
         real,    dimension(:,:), pointer            :: StormWaterFlowX          => null() !Auxilizary Var for explicit routing
         real,    dimension(:,:), pointer            :: StormWaterFlowY          => null() !Auxilizary Var for explicit routing
         real,    dimension(:,:), pointer            :: StormWaterCenterFlowX    => null() !Output
         real,    dimension(:,:), pointer            :: StormWaterCenterFlowY    => null() !Output
         real,    dimension(:,:), pointer            :: StormWaterCenterModulus  => null() !Output 
         real,    dimension(:,:), pointer            :: BuildingsHeight          => null() !Height of building in cell
-        real,    dimension(:,:), pointer            :: StormWaterInteraction    => null() !Points where interaction with SWMM occurs
-        real,    dimension(:,:), pointer            :: StormWaterGutterInteraction  => null() !Points where gutter interaction with SWMM occurs 
-                                                                                              !(default is the same as StormWaterInteraction)
+        real,    dimension(:,:), pointer            :: StormWaterInteraction    => null() !Points where interaction with SWMM 
+                                                                                          !occurs
+        real,    dimension(:,:), pointer            :: StormWaterGutterInteraction  => null() !Points where gutter interaction with
+                                                                                              !SWMM occurs (default is the same as 
+                                                                                              !StormWaterInteraction)
         real,    dimension(:,:), pointer            :: StreetGutterLength       => null() !Length of Stret Gutter in a given cell
         real,    dimension(:,:), pointer            :: MassError                => null() !Contains mass error
         real,    dimension(:,:), pointer            :: CenterFlowX              => null()
@@ -321,8 +324,10 @@ Module ModuleRunOff
         type(T_PropertyID)                          :: OverLandCoefficientID
         logical                                     :: StormWaterModel          = .false.          !If connected to SWMM
         real,    dimension(:,:), pointer            :: StormWaterModelFlow      => null() !Flow from SWMM (inflow + outflow)
-        real,    dimension(:,:), pointer            :: StreetGutterFlow         => null() !Inflow at street gutters (per target junction)
-        real,    dimension(:,:), pointer            :: SewerInflow              => null() !Integrated inflow at sewer manholes (per junction)
+        real,    dimension(:,:), pointer            :: StreetGutterFlow         => null() !Inflow at street gutters (per target 
+                                                                                          !junction)
+        real,    dimension(:,:), pointer            :: SewerInflow              => null() !Integrated inflow at sewer manholes 
+                                                                                          !(per junction)
                                                                                           !(potential)
         real,    dimension(:,:), pointer            :: StormInteractionFlow     => null() !Interaction Flow 
                                                                                           !(at gutters + sewer manholes) (real)
@@ -1535,15 +1540,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR693'
             
-            !Look for keyword to filter SWMM nodes (regular expresion on node names) that can recieve MOHID Land flow (e.g. pluvial nodes)
-            !This can only be used in conjunction with <BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction> to have
-            !gutter interaction number of nodes. this latter griddata needs to have been built with same regular exression 
+            !Look for keyword to filter SWMM nodes (regular expresion on node names) that can recieve MOHID Land flow (e.g. pluvial
+            !nodes) This can only be used in conjunction with <BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction> 
+            !to have gutter interaction number of nodes. this latter griddata needs to have been built with same regular exression 
             !(saved in grid data comment2 during grid data build with tool)
             call GetData(StormWaterGutterRegExpression,                                        &
                             Me%ObjEnterData,                                                   &
                             FoundSWMMRegExpression,                                            &
                             SearchType   = FromFile,                                           &
-                            keyword      = 'SWMM_JUNCTIONS_GUTTER_REGEX',                      &                                      
+                            keyword      = 'SWMM_JUNCTIONS_GUTTER_REGEX',                      &
                             ClientModule = 'ModuleBasin',                                      &
                             STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleRunoff - ERR694.5'              
@@ -1640,7 +1645,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 !do not allow to filter SWMM nodes (inside SWMM wrapper)
                 if (FoundSWMMRegExpression /= 0) then                
                     write(*,*)'With trying to filter SWMM nodes with SWMM_JUNCTIONS_GUTTER_REGEX '
-                    write(*,*)'<BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction> must be defined in module Runoff.'
+                    write(*,*)'<BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction> must be defined in'
+                    write(*,*) 'module Runoff.'
                     stop 'ReadDataFile - ModuleRunOff - ERR0696.5'     
                 endif
                 
@@ -6018,7 +6024,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     if (sign > 0.0) then
                         MaxFlow  = min(VertArea * sqrt(Gravity * WaveHeight) * Me%ExtVar%DT, Me%myWaterVolume (i, j)) / Me%ExtVar%DT
                     else
-                        MaxFlow  = sign * min(VertArea * sqrt(Gravity * WaveHeight) * Me%ExtVar%DT, Me%myWaterVolume (it, jt)) / Me%ExtVar%DT
+                        MaxFlow  = sign * min(VertArea * sqrt(Gravity * WaveHeight) * Me%ExtVar%DT, Me%myWaterVolume (it, jt)) / &
+                            Me%ExtVar%DT
                     endif                    
                     
                     if (abs(Flow) > abs(MaxFlow)) then
@@ -6386,7 +6393,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 
                 !Flow Rate into street Gutter - needs to be per gutter interaction points because the cell value
                 !will be passed to all SWMM gutter interaction junctions
-                Me%StreetGutterFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT) / Me%StormWaterGutterInteraction(targetI, targetJ)
+                Me%StreetGutterFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT) / &
+                    Me%StormWaterGutterInteraction(targetI, targetJ)
                 
             else
             
@@ -6450,12 +6458,16 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         
         !The algorithm below has the following assumptions
-        !1. MOHID Land calculates the POTENTIAL inflow into the sewer system through the street gutters. values per target gutter points (matrix StreetGutterFlow)
-        !2. The values of the StreetGutterFlow are integrated at the nearest StormWaterInteraction points. values per gutter points (matrix SewerInflow)
+        !1. MOHID Land calculates the POTENTIAL inflow into the sewer system through the street gutters. values per target gutter 
+        !points (matrix StreetGutterFlow)
+        !2. The values of the StreetGutterFlow are integrated at the nearest StormWaterInteraction points. values per gutter points
+        !(matrix SewerInflow)
         !3. This matrix (SewerInflow) is provide to SWMM
-        !4. Swmm calculates the EFFECTIVE inflow and returns the efective flow (inflow or outflow) at each interaction point (matrix StormWaterModelFlow)
+        !4. Swmm calculates the EFFECTIVE inflow and returns the efective flow (inflow or outflow) at each interaction point 
+        !(matrix StormWaterModelFlow)
         !5. The algorithm below calculates the efective flow in each cell
-        !5a  - if the flow in the gutter target point is negative (inflow into the sewer system) the flow at each gutter will be affected 
+        !5a  - if the flow in the gutter target point is negative (inflow into the sewer system) the flow at each gutter will be 
+        !affected 
         !      by the ratio of StormWaterModelFlow/SewerInflow (will be reduced in the same ratio as EFFECTIVE/POTENTIAL inflow)
         !5b  - if the flow in the cell is positive (outflow from the sewer system), the flow flows out ("saltam as tampas"). 
         !6. The Water Column is reduced/increased due to the final flow

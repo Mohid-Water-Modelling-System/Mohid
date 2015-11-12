@@ -898,7 +898,8 @@ if2:            if (BlockFound) then
                         if (l > 1) then
                             if (NewReservoir%Management%OperationCurve(l, 1) <=     &
                                  NewReservoir%Management%OperationCurve(l - 1, 1)) then
-                                write(*,*) 'operation curve needs to be in ascending order of level or percentage volume (1st column)'
+                                write(*,*) 'operation curve needs to be in ascending order of level or'
+                                write(*,*) 'percentage volume (1st column)'
                                 write(*,*) 'in reservoir ID : ', NewReservoir%ID
                                 stop 'ConstructReservoir - ModuleReservoirs - ERR0112'  
                             endif
@@ -3371,7 +3372,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
             enddo                
             !DNInflow Flows - always positive (computed from volume in node)
-            CurrReservoir%VolumeNew = CurrReservoir%VolumeNew + Me%ReservoirInflows(CurrReservoir%Position) * Me%ExtVar%DT            
+            CurrReservoir%VolumeNew = CurrReservoir%VolumeNew + Me%ReservoirInflows(CurrReservoir%Position) * Me%ExtVar%DT
             
             
             
@@ -3451,8 +3452,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                     
                             iProp = iProp + 1
                     
-                            Concentration = DischargeProperty (Me%ReservoirDischargeFlow(iDis), Me%ReservoirDischargeConc(iDis, iProp), &
-                                                                            CurrReservoir,  Property, Property%IScoefficient, .false.) 
+                            Concentration = DischargeProperty (Me%ReservoirDischargeFlow(iDis), &
+                                                               Me%ReservoirDischargeConc(iDis, iProp), &
+                                                               CurrReservoir,  Property, Property%IScoefficient, .false.) 
                     
                             !instant mixing in case of positive discharge, if neative it does not matter
                             if (Me%ReservoirDischargeFlow(iDis) .le. 0.0     &
@@ -3473,8 +3475,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                     Property%Concentration(CurrReservoir%Position) = Concentration
                             
                                 else                            
-                                    Property%Concentration(CurrReservoir%Position) = Property%Concentration(CurrReservoir%Position)      &
-                                                                                      + (ConcDif * Me%ExtVar%DT / RetentionTime)
+                                    Property%Concentration(CurrReservoir%Position) = &
+                                                        Property%Concentration(CurrReservoir%Position) &
+                                                        + (ConcDif * Me%ExtVar%DT / RetentionTime)
                                 endif                                                           
                         
                             endif

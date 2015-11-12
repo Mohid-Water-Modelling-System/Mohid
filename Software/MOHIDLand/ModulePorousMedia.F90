@@ -1248,17 +1248,17 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime = Me%ExtVar%Now,                                 &
                            EndTime     = Me%EndTime,                                    &
-                           keyword     = 'INTEGRATION_TIME',						    &
+                           keyword     = 'INTEGRATION_TIME',                            &
                            SearchType  = FromFile,                                      &
                            OutPutsTime = Me%IntegrationOutput%OutTime,                  &
-                           OutPutsOn   = Me%IntegrationOutput%Yes,					    &
+                           OutPutsOn   = Me%IntegrationOutput%Yes,                      &
                            STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR191' 
         Me%IntegrationOutput%NextOutput = 1
         
         if (Me%IntegrationOutput%Yes) then
-            call ReadFileName('POROUS_INT_HDF', Me%Files%IntegrationHDFFile,	        &
-                              Message = "Porous Media Integration HDF File",		    &
+            call ReadFileName('POROUS_INT_HDF', Me%Files%IntegrationHDFFile,            &
+                              Message = "Porous Media Integration HDF File",            &
                               STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR192'
             
@@ -1639,7 +1639,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !if (STAT_CALL /= SUCCESS_) & 
         !    call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModulePorousMedia - ERR071")            
 
-        Me%DomainCellsNumber = CountDomainPoints(ChunkKFactor, ChunkJFactor, ChunkIFactor)
+        Me%DomainCellsNumber = CountDomainPoints(ChunkKFactor)
         
         call GetData(Me%CV%Stabilize,                                           &
                      Me%ObjEnterData, iflag,                                    &  
@@ -1879,12 +1879,10 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
     
     !--------------------------------------------------------------------------
     
-    integer function CountDomainPoints (ChunkKFactor, ChunkJFactor, ChunkIFactor)
+    integer function CountDomainPoints (ChunkKFactor)
     
         !Arguments-------------------------------------------------------------
-        integer                                     :: ChunkKFactor,    &
-                                                       ChunkJFactor,    &
-                                                       ChunkIFactor        
+        integer                                     :: ChunkKFactor        
         
         !Local----------------------------------------------------------------- 
         integer                                     :: i, j, k
@@ -1935,12 +1933,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         enddo
         
         ChunkK = max((Me%Size%KUB - Me%Size%KLB) / ChunkKFactor, 1)
-        !Me%ChunkJ = max((Me%Size%JUB - Me%Size%JLB) / ChunkJFactor, 1)
-        !Me%ChunkI = max((Me%Size%IUB - Me%Size%ILB) / ChunkIFactor, 1)
-        
-        !write (*,*) 'CHUNK factors:', ChunkKFactor, ChunkJFactor, ChunkIFactor, Me%ChunkK, Me%ChunkJ, Me%ChunkI
-        !stop
-        
+
         CountDomainPoints = count_k
         
         call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
@@ -6156,14 +6149,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real                                    :: LocalDT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, i
         integer                                     :: JLB, JUB, j
         integer                                     :: KLB, KUB, k
         type (T_IntegrationInfo), pointer           :: Info
-        type (T_IntegrationByHorizon), pointer      :: Horizon
-        integer                                     :: hor_i
-        real                                        :: aux, dwz
         
         !----------------------------------------------------------------------        
 
@@ -10025,10 +10014,7 @@ do1:                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i,j), -1
         integer                                     :: KLB, KUB, k
         real, dimension(6), target                  :: AuxTime
         real, dimension(:), pointer                 :: TimePointer       
-        real, dimension(:,:,:), pointer             :: Modulus3D
-        real, dimension(:,:,:), pointer             :: CenterU3D, CenterV3D, CenterW3D
-        real, dimension(:,:), pointer               :: SurfaceSlice
-        real, dimension(:,:), pointer               :: Output2D, ThetaFOutput
+        real, dimension(:,:), pointer               :: Output2D
         real, dimension(:,:,:), pointer             :: Output3D
         type (T_IntegrationInfo), pointer           :: Info
         type (T_IntegrationByHorizon), pointer      :: Horizon   

@@ -222,7 +222,8 @@ program MohidLand
         if(SyncDT) NextSyncTime = BeginTime + SyncDTInterval
         
         !Constructs Basin
-        call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, StopOnBathymetryChange = StopOnBathymetryChange, STAT = STAT_CALL)
+        call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, &
+                               StopOnBathymetryChange = StopOnBathymetryChange, STAT = STAT_CALL)
 
         ModelConstructed = .true.
 
