@@ -30635,8 +30635,9 @@ cd3:                    if (Manning) then
 
         !$OMP PARALLEL PRIVATE( AuxZ, EP, WallDistance,         &
         !$OMP                   Rugosity, Chezy, DT_Z,          &
-        !$OMP                   VelMod_UV, ChezyWave,          &
-        !$OMP                   iSouth, jWest, i_North, j_East,    &
+        !$OMP                   VelMod_UV,                      &
+        !!$OMP                   VelMod_UV, ChezyWave,           &
+        !$OMP                   iSouth, jWest, i_North, j_East, &
         !$OMP                   I, J, kbottom, ChezyVelUV)
 
         ChezyVelUV        => Me%External_Var%ChezyVelUV
