@@ -658,7 +658,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     !                                                                      
     !     TIME_END  -> instante da simulacao para gerar nome.                     
 
-    subroutine ReadFileName(KEYWORD, FILE_NAME, Message, TIME_END, Extension, FilesInput, MPI_ID, DD_ON, STAT)
+    subroutine ReadFileName(KEYWORD, FILE_NAME, Message, TIME_END, Extension, FilesInput, MPI_ID, DD_ON, PRINT_MESSAGE, STAT)
 
         !Arguments-------------------------------------------------------------
 
@@ -673,6 +673,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         type(T_Time),       optional, intent(IN ) :: TIME_END
         integer           , optional              :: MPI_ID
         logical           , optional              :: DD_ON
+        logical, optional                         :: PRINT_MESSAGE
 
         !External--------------------------------------------------------------
 
@@ -690,11 +691,18 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                      :: STAT_             
         integer                      :: I, ipath, iFN
         character(LEN = StringLength):: AuxChar
+        logical                      :: print_message_
 
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
+        
+        if (present(PRINT_MESSAGE)) then
+            print_message_ = PRINT_MESSAGE
+        else
+            print_message_ = .false.
+        endif
         
         !FilesName inital value is defined in GlobalData 
         !The name is change in main.f90 calling SetFilesName subroutine
@@ -705,6 +713,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Files name is defined in the ModuleGlobalData
         call ConstructEnterData(ObjEnterData, trim(FileNomfich), STAT = STAT_CALL)
 cd4 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
+    
+            if (print_message_) then
+                print *, "File not found."
+                print *, "Path to file: ", trim(FileNomFich)
+            endif
+            
             STAT_ = FILE_NOT_FOUND_ERR_
         
         else if (STAT_CALL .EQ. SUCCESS_           ) then cd4
@@ -752,7 +766,12 @@ cd5 :               if (flag .EQ. 0) then
 
                 else cd3
 
+                    if (print_message_) then
+                        print *, "Keyword not found."
+                        print *, "Keyword: ", trim(KEYWORD)
+                    endif
                     STAT_ = KEYWORD_NOT_FOUND_ERR_
+                    
                 end if cd3
 
             else if (flag .EQ. 1) then cd2
@@ -3610,8 +3629,12 @@ cd5 :           if      (       FoundBegin  .AND.        FoundEnd ) then
                                                 block_end       = BlockEnd,       &
                                                 BlockFound      = block_found_,   &   
                                                 STAT            = stat_)
-                    if (stat_ /= SUCCESS_) &
-                        stop 'ModuleEnterData - GetNumberOfBlocks - ERR020.'
+                    if (stat_ /= SUCCESS_) then
+                        print *, "Error when trying to extract a block from an input file"
+                        print *, "The block is "//trim(BlockBegin)//trim(BlockEnd)
+                        print *, "The error returned was: ", stat_
+                        return
+                    endif
                     
                     if (block_found_) then
                         NumberOfBlocks = NumberOfBlocks + 1
