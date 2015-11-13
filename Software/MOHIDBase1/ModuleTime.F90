@@ -68,6 +68,7 @@ Module ModuleTime
     private :: Calendario
     public  :: ExtractDate
     public  :: SetDate
+    public  :: SetSDate
     public  :: TimeHours            !Function -> computes number of hours in a day
     public  :: null_time            !Turns type(time) to FillValueInt
     public  :: PrintProgress        !Writes a message to the screen         !Frank 3-8-99
@@ -100,6 +101,16 @@ Module ModuleTime
 
 
     !Type----------------------------------------------------------------------
+    public :: T_STime
+    type     T_STime
+        real :: Year
+        real :: Month
+        real :: Day
+        real :: Hour
+        real :: Minute
+        real :: Second
+    end type T_STime
+    
     public :: T_Time
     type      T_Time
         private
@@ -152,6 +163,14 @@ Module ModuleTime
         module procedure SetDateInteger
     end interface  SetDate
 
+
+    private :: SetSDateFromDate
+    private :: SetDateFromSDate
+    interface  SetSDate
+        module procedure SetSDateFromDate
+        module procedure SetDateFromSDate
+    end interface  SetSDate
+    
     private :: TimeEarlierThan
     interface operator (.LT.)
         module procedure TimeEarlierThan
@@ -1757,6 +1776,88 @@ cd1 :   if ((J .LT. 1) .OR. (J .GT. 12)) then
 
     !--------------------------------------------------------------------------
 
+    subroutine SetSDateFromDate(to_set, from, ignore_time)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time), intent(IN)        :: from
+        type(T_STime), intent(OUT)      :: to_set
+        logical, optional, intent(IN)   :: ignore_time
+
+        !Local-----------------------------------------------------------------
+        real                        :: year, month, day, hour, minute, second
+        logical                     :: ignore_time_
+        
+        !----------------------------------------------------------------------
+
+        if (present(ignore_time)) then
+            ignore_time_ = ignore_time
+        else
+            ignore_time_ = .false.
+        endif
+        
+        call ExtractDate (from, year, month, day, hour, minute, second)
+        
+        to_set%Year = year
+        to_set%Month = month
+        to_set%Day = day
+        
+        if (.not. ignore_time_) then
+            to_set%Hour = hour
+            to_set%Minute = minute
+            to_set%Second = second
+        else
+            to_set%Hour = 0.0
+            to_set%Minute = 0.0
+            to_set%Second = 0.0            
+        endif
+        
+        !----------------------------------------------------------------------
+
+    end subroutine SetSDateFromDate
+
+    !--------------------------------------------------------------------------
+    
+    subroutine SetDateFromSDate(to_set, from, ignore_time)
+
+        !Arguments-------------------------------------------------------------
+        type(T_STime), intent(IN)       :: from
+        type(T_Time), intent(OUT)       :: to_set
+        logical, optional, intent(IN)   :: ignore_time
+
+        !Local-----------------------------------------------------------------
+        real                        :: year, month, day, hour, minute, second
+        logical                     :: ignore_time_
+        
+        !----------------------------------------------------------------------
+
+        if (present(ignore_time)) then
+            ignore_time_ = ignore_time
+        else
+            ignore_time_ = .false.
+        endif
+        
+       
+        if (.not. ignore_time_) then
+            call SetDate (to_set,       &
+                          from%Year,    &
+                          from%Month,   &
+                          from%Day,     &
+                          from%Hour,    &
+                          from%Minute,  &
+                          from%Second)
+        else
+            call SetDate (to_set,       &
+                          from%Year,    &
+                          from%Month,   &
+                          from%Day,     &
+                          0.0,          &
+                          0.0,          &
+                          0.0)
+        endif
+        
+        !----------------------------------------------------------------------
+
+    end subroutine SetDateFromSDate
 
     !--------------------------------------------------------------------------
 
