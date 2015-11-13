@@ -221,10 +221,16 @@ Module ModuleTime
         module procedure TimePlusDTinteger
     end interface
 
-
+    private :: TimeLessDTReal
     private :: TimeLess
+    private :: TimeLessDTReal4
+    private :: TimeLessDTReal8
+    private :: TimeLessDTinteger
     interface  operator (-)
         module procedure TimeLess
+        module procedure TimeLessDTReal4
+        module procedure TimeLessDTReal8
+        module procedure TimeLessDTinteger
     end interface
 
     !Global Variables
@@ -1257,6 +1263,155 @@ do1 :   do i = 1, 6
         !----------------------------------------------------------------------
 
     end function TimeLess
+    
+    !--------------------------------------------------------------------------
+    
+    function TimeLessDTreal(Time1, DT)
+
+        type(T_Time) :: TimeLessDTreal
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time), intent(IN)                    :: Time1
+        real,         intent(IN)                    :: DT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: GregDay2, GregDay1, Days
+        real                                        :: DT_seconds
+        type(T_Time)                                :: TimeAux
+        real                                        :: Hour, Minutes, Seconds
+
+        !----------------------------------------------------------------------
+
+        TimeAux = Time1
+
+        if (DT >= 86400.0) then
+
+            Days = int(DT/86400.0)
+
+            call DateToGregorianDay(TimeAux,GregDay1)
+
+            Hour    = TimeAux%Time_(4)
+            Minutes = TimeAux%Time_(5)
+            Seconds = TimeAux%Time_(6)
+
+
+            GregDay2 = GregDay1 - Days 
+            call GregorianDayToDate(GregDay2, TimeAux)
+
+            TimeAux%Time_(4)  = Hour
+            TimeAux%Time_(5)  = Minutes
+            TimeAux%Time_(6)  = Seconds
+
+            DT_seconds = DT - real(Days) * 86400.0
+        else 
+            DT_seconds = DT
+        end if 
+     
+        TimeAux%Time_(6) = TimeAux%Time_(6) - DT_seconds 
+
+        call Calendario(TimeAux)   
+        TimeLessDTreal = TimeAux
+
+        !----------------------------------------------------------------------
+        
+    end function TimeLessDTreal
+    
+    !--------------------------------------------------------------------------
+        
+    function TimeLessDTReal8(Time1, DT)
+
+        type(T_Time) :: TimeLessDTReal8
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time), intent(IN)                    :: Time1
+        real(8),      intent(IN)                    :: DT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: GregDay2, GregDay1, Days
+        real(8)                                     :: DT_seconds
+        type(T_Time)                                :: TimeAux
+        real                                        :: Hour, Minutes, Seconds
+
+        !----------------------------------------------------------------------
+
+        TimeAux = Time1
+
+        if (DT >= 86400.0) then
+
+            Days = int(DT/86400.0)
+
+            call DateToGregorianDay(TimeAux,GregDay1)
+
+            Hour    = TimeAux%Time_(4)
+            Minutes = TimeAux%Time_(5)
+            Seconds = TimeAux%Time_(6)
+
+
+            GregDay2 = GregDay1 - Days 
+            call GregorianDayToDate(GregDay2, TimeAux)
+
+            TimeAux%Time_(4)  = Hour
+            TimeAux%Time_(5)  = Minutes
+            TimeAux%Time_(6)  = Seconds
+
+            DT_seconds = DT - real(Days) * 86400.0
+        else 
+            DT_seconds = DT
+        end if 
+     
+        TimeAux%Time_(6) = TimeAux%Time_(6) - DT_seconds 
+
+        call Calendario(TimeAux)   
+        TimeLessDTReal8 = TimeAux
+
+        !----------------------------------------------------------------------
+
+    end function TimeLessDTReal8
+
+    !--------------------------------------------------------------------------
+
+    function TimeLessDTinteger(Time1, DT)
+
+        type(T_Time) :: TimeLessDTinteger
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time), intent(IN)                    :: Time1
+        integer,      intent(IN)                    :: DT
+
+        !Local-----------------------------------------------------------------
+        real                                        :: DT_seconds
+
+        !----------------------------------------------------------------------
+
+        DT_seconds          = DT
+        TimeLessDTinteger   = TimeLessDTreal(Time1, DT_seconds)
+
+        !----------------------------------------------------------------------
+
+    end function TimeLessDTinteger
+
+    !--------------------------------------------------------------------------
+
+    function TimeLessDTReal4(Time1, DT)
+
+        type(T_Time) :: TimeLessDTReal4
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time), intent(IN)                    :: Time1
+        real(4),      intent(IN)                    :: DT
+
+        !Local-----------------------------------------------------------------
+        real                                        :: DT_seconds
+        !----------------------------------------------------------------------
+
+        DT_seconds      = DT
+        TimeLessDTReal4 = TimeLessDTreal(Time1, DT_seconds)
+
+        !----------------------------------------------------------------------
+
+    end function TimeLessDTReal4
+
+    !--------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
