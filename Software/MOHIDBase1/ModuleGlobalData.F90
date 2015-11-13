@@ -1860,8 +1860,8 @@ Module ModuleGlobalData
     end type T_Instance
 
     type T_Module
-        integer                 :: ID   = null_int !initialization: jauch - or should be set to 0 (zero)? 
-        character(StringLength) :: Name = null_str !initialization: jauch
+        integer                 :: ID   = null_int  
+        character(StringLength) :: Name = null_str 
     end type T_Module
 
     type (T_Module), dimension(MaxModules), parameter  :: MohidModules =  (/             &
@@ -1919,19 +1919,20 @@ Module ModuleGlobalData
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules  = .false.
     character(LEN=PathLength)                                       :: FilesName          = 'nomfich.dat'
-    logical                                                         :: MonitorPerformance = .false.  !initialization: jauch
-    logical                                                         :: MonitorDT          = .false.  !initialization: jauch
-    integer                                                         :: UnitDT             = null_int !initialization: jauch
+    logical                                                         :: MonitorPerformance = .false.  
+    logical                                                         :: MonitorDT          = .false.  
+    integer                                                         :: UnitDT             = null_int 
     character(LEN=StringLength), dimension(:), pointer              :: PropNameList          => null()
     character(LEN=StringLength), dimension(:), pointer              :: DynamicPropNameList   => null()
     integer,                     dimension(:), pointer              :: PropNumberList        => null()
     integer,                     dimension(:), pointer              :: DynamicPropNumberList => null()
-    integer                                                         :: PropertiesNumber        = 0 !initialization: jauch
-    integer                                                         :: DynamicPropertiesNumber = 0 !initialization: jauch
+    integer                                                         :: PropertiesNumber        = 0 
+    integer                                                         :: DynamicPropertiesNumber = 0 
+    integer                                                         :: HighestPropertyID = 0
     integer, private                                                :: ErrorFileID     = 0
     integer, private                                                :: UsedKeyFileID   = 0
     integer, private                                                :: LogFileID       = 0
-    character(LEN=1024)                                             :: OnLineString    = null_str !initialization: jauch
+    character(LEN=1024)                                             :: OnLineString    = null_str 
     character(StringLength),     dimension(MaxErrorMessages)        :: ErrorMessagesStack
     
     !Used only when OpenMP is ON. 
@@ -1939,6 +1940,7 @@ Module ModuleGlobalData
     !that is passed to each thread. The Chunk(x) is the value of the chunk size and
     !is found by this equation:
     ! Chunk(X) = number_of_(rows or columns or layers) / Chunk(x)Factor
+    integer                                                         :: openmp_num_threads = 1
     integer                                                         :: ChunkIFactor = 99999, &
                                                                        ChunkJFactor = 99999, &
                                                                        ChunkKFactor = 99999
@@ -2218,7 +2220,7 @@ Module ModuleGlobalData
 
     end function  CheckPropertyName
 
-    !--------------------------------------------------------------------------           
+    !--------------------------------------------------------------------------
      
     logical function CheckDynamicPropertyName (PropertyName, Number)
 
@@ -2291,7 +2293,7 @@ do1:            do i=1, DynamicPropertiesNumber
                 DynamicPropertiesNumber = 1
                 allocate(DynamicPropNameList  (DynamicPropertiesNumber))
                 allocate(DynamicPropNumberList(DynamicPropertiesNumber))
-                UniqueIDNumber         = 30001
+                UniqueIDNumber         = HighestPropertyID + 1
 
                 DynamicPropNameList(1)      = trim(PropertyName)
                 DynamicPropNumberList(1)    = UniqueIDNumber
@@ -3136,6 +3138,7 @@ do2:            do i=1, DynamicPropertiesNumber
 
         endif      
 
+        if (PropNumber > HighestPropertyID) HighestPropertyID = PropNumber
 
     end subroutine AddPropList
 

@@ -179,8 +179,8 @@ Module ModuleModel
         real, dimension(:,:,:), pointer         :: VelocityY                => null()
         real, dimension(:,:,:), pointer         :: VelocityZ                => null()
         real, dimension(:,:  ), pointer         :: Chezy, WaterLevel        => null()
-        integer                                 :: DensMethod   = null_int !initialization: Jauch
-        logical                                 :: CorrecPress  = .false.  !initialization: Jauch
+        integer                                 :: DensMethod   = null_int 
+        logical                                 :: CorrecPress  = .false.  
     end type T_ExternalVar
 
     !Groups modules of the WaterColumn
@@ -195,7 +195,7 @@ Module ModuleModel
     type     T_Overlap
         logical                                 :: Yes                      = .false.
         integer                                 :: OverlapModelID           = 0
-        character(len=PathLength)               :: FileName                 = null_str !initialization: Jauch
+        character(len=PathLength)               :: FileName                 = null_str 
         integer, dimension(:,:), pointer        :: Cells                    => null()
     end type T_Overlap
 #endif OVERLAP
@@ -203,22 +203,22 @@ Module ModuleModel
     !public :: T_Model
     type T_Model 
 
-        integer                                 :: InstanceID   = null_int !initialization: Jauch
+        integer                                 :: InstanceID   = null_int 
 
         !integer, dimension(:,:), pointer        :: LagInstance
 
         !character(StringLength), dimension(:), pointer :: ModelNames
 
-        character(StringLength)                 :: ModelName    = null_str !initialization: Jauch
+        character(StringLength)                 :: ModelName    = null_str 
 
-        integer                                 :: NumberOfModels       = 0 !initialization: Jauch
+        integer                                 :: NumberOfModels       = 0 
         integer                                 :: MPI_ID               = null_int
         integer                                 :: MasterID             = null_int
         integer                                 :: LastSlaveID          = null_int        
         character(PathLength)                   :: ModelPath            = null_str
-        integer                                 :: ObjLagrangian        = 0 !initialization: Jauch
-!        integer                                 :: ObjLagrangianX       = 0 !initialization: Jauch
-        integer                                 :: ObjLagrangianGlobal  = 0 !initialization: Jauch
+        integer                                 :: ObjLagrangian        = 0 
+!        integer                                 :: ObjLagrangianX       = 0 
+        integer                                 :: ObjLagrangianGlobal  = 0 
 
         type (T_ExternalVar)                    :: ExternalVar
 
@@ -227,40 +227,40 @@ Module ModuleModel
         type (T_Time)                           :: BeginTime
         type (T_Time)                           :: EndTime
         
-        integer                                 :: Iteration    = null_int !initialization: Jauch
+        integer                                 :: Iteration    = null_int 
         
-        real                                    :: DT       = null_real, & !initialization: Jauch 
-                                                   MaxDT    = null_real    !initialization: Jauch
+        real                                    :: DT       = null_real, &  
+                                                   MaxDT    = null_real    
         
-        logical                                 :: VariableDT   = .false. !initialization: Jauch
+        logical                                 :: VariableDT   = .false. 
         
-        real                                    :: InitialDT    = null_real !initialization: Jauch
-        real                                    :: GmtReference = null_real !initialization: Jauch
-        real                                    :: DTPredictionInterval = null_real !initialization: Jauch
+        real                                    :: InitialDT    = null_real 
+        real                                    :: GmtReference = null_real 
+        real                                    :: DTPredictionInterval = null_real 
 
-        logical                                 :: RunSediments     = .false. !initialization: Jauch
+        logical                                 :: RunSediments     = .false. 
         logical                                 :: SedimentModule   = .false. 
-        logical                                 :: RunLagrangian    = .false. !initialization: Jauch
-        logical                                 :: RunWaves         = .false. !initialization: Jauch
-        logical                                 :: NoIsolatedCells  = .false. !initialization: Jauch
-        integer                                 :: OnLineType       = null_int !initialization: Jauch
+        logical                                 :: RunLagrangian    = .false. 
+        logical                                 :: RunWaves         = .false. 
+        logical                                 :: NoIsolatedCells  = .false. 
+        integer                                 :: OnLineType       = null_int 
 
         type (T_Size2D)                         :: SubModelWindow
-        logical                                 :: SubModelWindowON = .false. !initialization: Jauch
+        logical                                 :: SubModelWindowON = .false. 
         
-        logical                                 :: BackTracking = .false. !initialization: Jauch
+        logical                                 :: BackTracking = .false. 
         
         logical                                 :: StopOnBathymetryChange = .true.
 
 #ifdef OVERLAP
-        type (T_Overlap)                        :: Overlap  = .false. !initialization: Jauch
+        type (T_Overlap)                        :: Overlap  = .false. 
 #endif OVERLAP
         
 #ifdef _USE_SEQASSIMILATION
         !Sequential data assimilation variables:
-        logical                                 :: RunSeqAssimilation   = .false. !initialization: Jauch
-        logical                                 :: StateCovEvolution    = .false. !initialization: Jauch
-        integer                                 :: StateCovRank         = null_int !initialization: Jauch
+        logical                                 :: RunSeqAssimilation   = .false. 
+        logical                                 :: StateCovEvolution    = .false. 
+        integer                                 :: StateCovRank         = null_int 
         type (T_Time)                           :: SeqAssimilationTime  
 #endif _USE_SEQASSIMILATION
 
@@ -357,7 +357,6 @@ Module ModuleModel
         logical                                             :: HydroSeqAssim = .false.
         logical                                             :: WaterSeqAssim = .false.
 #endif _USE_SEQASSIMILATION
-        !$ integer                                             :: openmp_num_threads
         
 #ifdef _ENABLE_CUDA
         type(T_Size3D)                                      :: GeometrySize
@@ -616,8 +615,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !$       call omp_set_num_threads(openmp_num_threads)
             !$       write(*,*)"OPENMP: Number of threads implemented is ", openmp_num_threads
             !$    else
-            !$       write(*,*)"OPENMP: Using the minimum value between max number of threads available"
-            !$       write(*,*)"OPENMP: and OMP_NUM_THREADS environment variable value."
+            !$       openmp_num_threads = omp_get_max_threads()
+            !$       write(*,*)"OPENMP: Using the max number of threads available"
             !$    endif
             !$ else
             !$    if ( openmp_num_threads .gt. 0 ) then

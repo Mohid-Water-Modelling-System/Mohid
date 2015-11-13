@@ -1980,7 +1980,6 @@ cd1 :   if ((J .LT. 1) .OR. (J .GT. 12)) then
         logical, optional, intent(IN)   :: ignore_time
 
         !Local-----------------------------------------------------------------
-        real                        :: year, month, day, hour, minute, second
         logical                     :: ignore_time_
         
         !----------------------------------------------------------------------
