@@ -3350,15 +3350,15 @@ do4 :       DO II = KLB+1, KUB+1
 
         TKelvin = Temperature + 273.15
         
-        CO2mass = (CO2 / 44 / 1025)               !mg/l to mol/kg    water density = 1025 kg m-3
+        CO2mass = (CO2 / 44.0 / 1025.0)               !mg/l to mol/kg    water density = 1025 kg m-3
         
-        Ff = -1636.75 + 12.0408 * TKelvin - 0.0327957 * (TKelvin**2) + 3.16528 * (1E-5) * (TKelvin**3)
+        Ff = -1636.75 + 12.0408 * TKelvin - 0.0327957 * (TKelvin**2.0) + 3.16528 * (1.0E-5) * (TKelvin**3.0)
         
-        Fp = EXP(((Ff + 2 *(57.7-0.118 * TKelvin)) * Pressure) / (82.05675 * TKelvin))
+        Fp = EXP(((Ff + 2.0 *(57.7-0.118 * TKelvin)) * Pressure) / (82.05675 * TKelvin))
     
         K0 = CO2_K0(Temperature, Salinity)
     
-        CO2PartialPressure = (CO2mass / (Fp * K0)) * 1E6
+        CO2PartialPressure = (CO2mass / (Fp * K0)) * 1.0E6
     
     end function CO2PartialPressure
 
@@ -3378,8 +3378,8 @@ do4 :       DO II = KLB+1, KUB+1
 
         TKelvin = Temperature + 273.15
         
-            CO2_K0 = EXP(-60.2409 + 93.4517 * 100 / TKelvin + 23.3585 * LOG(TKelvin / 100) + Salinity * &
-                     (0.023517 - 0.023656 * TKelvin / 100 + 0.0047036 * (TKelvin / 100)**2))
+            CO2_K0 = EXP(-60.2409 + 93.4517 * 100.0 / TKelvin + 23.3585 * LOG(TKelvin / 100.0) + Salinity * &
+                     (0.023517 - 0.023656 * TKelvin / 100.0 + 0.0047036 * (TKelvin / 100.0)**2.0))
         
        end function CO2_K0
 
