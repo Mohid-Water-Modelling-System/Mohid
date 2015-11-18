@@ -4924,7 +4924,7 @@ do1 :       do while (associated(Property))
         real(8), dimension(:,:),  pointer       :: GrainRoughness
         real                                    :: VC,UC, UVC2,UVC, WaterDensity
         integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
-        integer                                 :: i, j, kbottom
+        integer                                 :: i, j, kbottom, KTOP
         integer                                 :: CHUNK
         integer                                 :: STAT_CALL
         real                                    :: CWphi,Cphi,Wphi,REW,REC,FWR,FWS
@@ -5152,13 +5152,26 @@ do2:            do i = ILB, IUB
                             Me%Shear_Stress%UFace     (i, j) = Velocity_U(i,j,kbottom)
                             Me%Shear_Stress%VFace     (i, j) = Velocity_V(i,j,kbottom)
                             
-                            ks = Me%Rugosity%Field(i,j) * 30 !z0 = ks/30
-                            H  = Me%ExtWater%WaterColumn(i,j)
+                            KTOP = Me%ExtSed%KTop(i, j)  
+                            
+                            if(Me%ExtSed%OpenPoints3D(i,j,KTOP) == OpenPoint) then
+                                
+                                ks = Me%Rugosity%Field(i,j) * 30 !z0 = ks/30
+                                
+                                if(GrainRoughness(i,j) .ge. ks) then
+                                    
+                                    Me%Shear_Stress%EficiencyFactorCurrent(i,j) = 1.
+                                else                                              
+                                    H  = Me%ExtWater%WaterColumn(i,j)
                         
-                            fc = 0.24*(log10(12*H/ks))**-2
-                            fc1= 0.24*(log10(12*H/GrainRoughness(i,j)))**-2
+                                    fc = 0.24*(log10(12*H/ks))**-2
+                                    fc1= 0.24*(log10(12*H/GrainRoughness(i,j)))**-2
                         
-                            Me%Shear_Stress%EficiencyFactorCurrent(i,j) = fc1/fc
+                                    Me%Shear_Stress%EficiencyFactorCurrent(i,j) = fc1/fc
+                                endif
+                            else
+                                Me%Shear_Stress%EficiencyFactorCurrent(i,j) = 0.
+                            endif
                             
 
                         endif
@@ -6527,7 +6540,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         do j = JLB, JUB
         do i = ILB, IUB
                     
-            if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
 
                 kbottom = Me%ExtWater%KFloor_Z(i, j)
 
@@ -6559,7 +6572,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
             do j = JLB, JUB
             do i = ILB, IUB
                     
-                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+                if(Me%ExtWater%WaterPoints2D(i,j) == OpenPoint)then
 
                     PropertyX%Mass_Available(i,j) = PropertyX%Mass_Available(i,j)       + &
                                                     PropertyX%DepositionFlux(i,j)       * &
@@ -7242,7 +7255,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         do j = JLB, JUB
         do i = ILB, IUB
 
-            if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
                 
                 kbottom = Me%ExtWater%KFloor_Z(i, j)
                 
