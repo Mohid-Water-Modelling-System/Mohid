@@ -177,7 +177,7 @@ Module ModuleInterfaceSedimentWater
     use ModuleFreeVerticalMovement, only: Get_FreeConvFlux, SetDepositionProbability,       &
                                           UngetFreeVerticalMovement, FreeVertPropertyExists,&
                                           Get_FreeVelocity, FreeVertPropertyHasDeposition,  &
-                                          SetShearVelocity
+                                          SetShearVelocity, GetDepositionIntertidalZones
 #ifndef _SEDIMENT_ 
     use ModuleSedimentProperties,   only: SedimentPropertyExists,GetSedimentPropertyOptions,&
                                           GetSedimentConcentration, UnGetSedimentProperties,&
@@ -650,7 +650,9 @@ Module ModuleInterfaceSedimentWater
         integer                                     :: BenthicRatesNumber       = 0
         type(T_Consolidation)                       :: Consolidation
         type(T_Seagrasses )                         :: Seagrasses   ! Isabella
-        real                                        :: Dewatering_Rate          = FillValueReal
+        real                                        :: Dewatering_Rate           = FillValueReal
+        logical                                     :: DepositionIntertidalZones = .false.
+        integer, pointer, dimension(:,:)            :: WaterPointsorOpenPoints2D   => null()
         
         !Instance of ModuleBoxDif                   
         integer                                     :: ObjBoxDif                = 0
@@ -3164,6 +3166,19 @@ do1 :   do while (associated(PropertyX))
             
             if(FreeVerticalMovementID /= 0)then
                 Me%ObjFreeVerticalMovement = AssociateInstance(mFREEVERTICALMOVEMENT_,FreeVerticalMovementID)
+                
+                call GetDepositionIntertidalZones(FreeVerticalMovementID = FreeVerticalMovementID, &
+                                                  DepositionIntertidalZones = Me%DepositionIntertidalZones, &
+                                                  STAT                   = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR04'
+                
+                if(Me%DepositionIntertidalZones) then
+                    Me%WaterPointsorOpenPoints2D => Me%ExtWater%WaterPoints2D
+                else
+                    Me%WaterPointsorOpenPoints2D => Me%ExtWater%OpenPoints2D
+                endif
+
             end if
             
             ILB = Me%Size2D%ILB
@@ -3173,7 +3188,7 @@ do1 :   do while (associated(PropertyX))
             
             allocate(Me%DepositionProbability(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
             if(STAT_CALL .ne. SUCCESS_)&
-                stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR04'
+                stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR05'
             Me%DepositionProbability(:,:) = 1.
 
             call CheckOptionsWaterFluxes
@@ -3244,7 +3259,7 @@ do1 :   do while (associated(PropertyX))
                                              MacroAlgae        = Me%MacroAlgae,         &
                                              STAT              = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR04' 
+            stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR06' 
 
 
     end subroutine Construct_Sub_Modules
@@ -6540,7 +6555,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         do j = JLB, JUB
         do i = ILB, IUB
                     
-            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+            if(Me%WaterPointsorOpenPoints2D(i,j) == WaterPoint)then
 
                 kbottom = Me%ExtWater%KFloor_Z(i, j)
 
@@ -6572,7 +6587,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
             do j = JLB, JUB
             do i = ILB, IUB
                     
-                if(Me%ExtWater%WaterPoints2D(i,j) == OpenPoint)then
+                if(Me%WaterPointsorOpenPoints2D(i,j) == OpenPoint)then
 
                     PropertyX%Mass_Available(i,j) = PropertyX%Mass_Available(i,j)       + &
                                                     PropertyX%DepositionFlux(i,j)       * &
@@ -7232,7 +7247,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         IUB = Me%WaterWorkSize3D%IUB
         JUB = Me%WaterWorkSize3D%JUB
         ILB = Me%WaterWorkSize3D%ILB
-        JLB = Me%WaterWorkSize3D%JLB        
+        JLB = Me%WaterWorkSize3D%JLB 
                     
         call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
                                 ConcentrationX    = WaterPropertyConcentration,       &
@@ -7255,7 +7270,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         do j = JLB, JUB
         do i = ILB, IUB
 
-            if(Me%ExtWater%WaterPoints2D(i,j) == WaterPoint)then
+            if(Me%WaterPointsorOpenPoints2D(i,j) == WaterPoint)then
                 
                 kbottom = Me%ExtWater%KFloor_Z(i, j)
                 
@@ -7274,7 +7289,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         
         call UngetFreeVerticalMovement(Me%ObjFreeVerticalMovement, FreeConvFlux, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ModifyDepositionFluxes - ModuleInterfaceSedimentWater - ERR40'
+            stop 'ModifyNonCohesiveDepositionFluxes - ModuleInterfaceSedimentWater - ERR40'
 
 #endif   
     end subroutine ModifyNonCohesiveDepositionFluxes

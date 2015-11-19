@@ -60,7 +60,7 @@ Module ModuleSediment
                                        GetGeometryDistances, GetGeometryKtop,                   &
                                        ComputeInitialGeometry, ComputeVerticalGeometry,         &
                                        GetGeometryVolumes, ReadGeometryHDF, WriteGeometryHDF
-    use ModuleFreeVerticalMovement,  only: SetSandParameters
+    use ModuleFreeVerticalMovement,  only: SetSandParameters, GetDepositionIntertidalZones
     
 #ifndef _WAVES_
     use ModuleWaves,            only : GetWaves, UnGetWaves
@@ -414,6 +414,7 @@ Module ModuleSediment
         real, pointer, dimension(:,:,:)            :: VerticalCoordinate    => null()
         integer, pointer, dimension(:,:)           :: KTop                  => null()
         integer, pointer, dimension (:,:)          :: OpenSediment          => null()
+        integer, pointer, dimension(:,:)           :: WaterPointsorOpenPoints2D  => null()
         real                                       :: MinLayerThickness    = null_real
         real                                       :: MaxLayerThickness    = null_real
 
@@ -422,6 +423,7 @@ Module ModuleSediment
         logical                                    :: BedSlopeEffects      = .false.
         logical                                    :: WavesOn              = .false.
         logical                                    :: ConsolidationOn      = .false.
+        logical                                    :: DepositionIntertidalZones = .false.
         
         !Instance of ModuleHDF5        
         integer                                    :: ObjHDF5               = 0
@@ -604,11 +606,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%OutPut%Yes) call Open_HDF5_OutPut_File(Me%Files%OutPutFields)
             
             if(FreeVerticalMovementID .ne. 0) then
-               do n=1, Me%NumberOfClasses
+                
+                do n=1, Me%NumberOfClasses
                     call SetSandParameters(FreeVerticalMovementID, Me%SandClass(n)%ID%IDNumber, Me%SandClass(n)%D50, & 
                                             Me%RelativeDensity, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR60'
                 enddo
+                
+                call GetDepositionIntertidalZones(FreeVerticalMovementID = FreeVerticalMovementID, &
+                                    DepositionIntertidalZones = Me%DepositionIntertidalZones, &
+                                    STAT                   = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                        stop 'ConstructSediment - ModuleSediment - ERR50'
+                
+                if(Me%DepositionIntertidalZones) then
+                    Me%WaterPointsorOpenPoints2D => Me%ExternalVar%WaterPoints2D
+                else
+                    Me%WaterPointsorOpenPoints2D => Me%ExternalVar%OpenPoints2D
+                endif
+                    
             endif
 
 
@@ -3288,7 +3304,7 @@ do1:        do n=1,Me%NumberOfClasses
                     do i=WILB, WIUB
                     do j=WJLB, WJUB 
                         
-                        if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then                    
+                        if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) then                    
                             SandClass%FluxToSediment(i,j) = SandClass%FluxToSediment(i,j) * Me%MorphologicalFactor
                         endif
                         
@@ -4886,7 +4902,7 @@ if5:            if (SandClass%SedimentWaterFluxes) then
 do3:                do j=WJLB, WJUB
 do4:                do i=WILB, WIUB
              
-if4:                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then  
+if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) then  
                 
                             WKUB = Me%KTop(i, j)          
                     

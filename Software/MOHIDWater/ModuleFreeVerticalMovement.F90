@@ -120,9 +120,9 @@ Module ModuleFreeVerticalMovement
     public  :: FreeVertPropertyHasDeposition            !Function
     public  :: SetSandParameters
     public  :: UngetFreeVerticalMovement
-
     public  :: SetDepositionProbability
     public  :: SetShearVelocity
+    public  :: GetDepositionIntertidalZones
 
     !Destructor
     public  :: Kill_FreeVerticalMovement
@@ -242,7 +242,10 @@ Module ModuleFreeVerticalMovement
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                             :: TICOEF3Ptr
 #endif _USE_PAGELOCKED
-                                                
+        
+        logical                                 :: DepositionIntertidalZones    = .false.
+        integer, pointer, dimension(:,:,:)      :: WaterPointsorOpenPoints      => null()
+        
         !Auxiliar thomas arrays                 
         real(8), pointer, dimension(:)          :: VECG => null()
         real(8), pointer, dimension(:)          :: VECW => null()
@@ -399,10 +402,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 stop 'Construct_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR03'
             
             if (Me%Output%TimeSerie)   call Construct_Time_Serie
+            
+            call GetData (Me%DepositionIntertidalZones,               &
+                      Me%ObjEnterData, flag,                          &
+                      Keyword      = 'DEPOSITION_INTERTIDAL_ZONES',   &
+                      ClientModule = 'ModuleFreeVerticalMovement',    &
+                      Default      = .false.,                         &
+                      STAT         = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)  &
+                stop 'Construct_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04'           
 
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)                                                 &
-                stop 'Construct_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR04'
+                stop 'Construct_FreeVerticalMovement - ModuleFreeVerticalMovement - ERR05'
             
             STAT_ = SUCCESS_
 
@@ -1410,17 +1422,24 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                                 :: i, j, k, CHUNK 
         
         !----------------------------------------------------------------------
-
+        
         !OpenPoints3D
         call GetOpenPoints3D(Me%ObjMap, Me%ExternalVar%OpenPoints3D, STAT = STAT_CALL)
         if (STAT_CALL .ne. SUCCESS_) stop 'FreeVerticalMovementIteration - ModuleFreeVerticalMovement - ERR01'
         
+        !WaterPoints
         call GetWaterPoints3D(Me%ObjMap, Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL/= SUCCESS_)    stop 'FreeVerticalMovementIteration - ModuleFreeVerticalMovement - ERR01a'
 
         !LandPoints
         call GetLandPoints3D(Me%ObjMap,Me%ExternalVar%LandPoints, STAT = STAT_CALL)
         if (STAT_CALL .ne. SUCCESS_) stop 'FreeVerticalMovementIteration - ModuleFreeVerticalMovement - ERR02'
+        
+        if(Me%DepositionIntertidalZones) then
+            Me%WaterPointsorOpenPoints => Me%ExternalVar%WaterPoints3D
+        else
+            Me%WaterPointsorOpenPoints => Me%ExternalVar%OpenPoints3D
+        endif
 
         call SetMatrixValue(Me%COEF3%D, Me%Size,                          0.0 )
         call SetMatrixValue(Me%COEF3%E, Me%Size,                     dble(1.0))
@@ -1557,7 +1576,7 @@ do3 :   do k=Me%WorkSize%KLB, Me%WorkSize%KUB
 do2 :   do j=Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                    
-cd4 :       if (Me%ExternalVar%WaterPoints3D (i, j, Me%WorkSize%KUB) == WaterPoint) then
+cd4 :       if (Me%WaterPointsorOpenPoints (i, j, Me%WorkSize%KUB) == WaterPoint) then
 
                 ! Variaveis auxiliares
                 DT_V = dble(Me%ExternalVar%DTProp) / VolumeZ(i, j, k) 
@@ -1653,7 +1672,7 @@ do3 :   do k=Me%WorkSize%KLB, Me%WorkSize%KUB
 do2 :   do j=Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
            
-            if (Me%ExternalVar%WaterPoints3D(i,j,k)== WaterPoint) then
+            if (Me%WaterPointsorOpenPoints(i,j,k)== WaterPoint) then
 
                 !PCL
                 ! [g/s] = c* [m^3/s] * [g/m^3]
@@ -1712,7 +1731,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-                    if (Me%ExternalVar%WaterPoints3D(i, j, k)== WaterPoint) then
+                    if (Me%WaterPointsorOpenPoints(i, j, k)== WaterPoint) then
                         if (Me%ExternalVar%SalinityField(i, j, k) .gt. PropertyX%SalinityLimit) then
                             PropertyX%Velocity(i, j, k)=-SettlingVelocity (SPM(i, j, k)*SPMISCoef,  &
                                                                            CHS,KL,KL1,M,ML,I,J,K)
@@ -1729,7 +1748,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-                    if (Me%ExternalVar%WaterPoints3D(i, j, k)== WaterPoint) then
+                    if (Me%WaterPointsorOpenPoints(i, j, k)== WaterPoint) then
                         PropertyX%Velocity(i, j, k)=-SettlingVelocity (SPM(i, j, k)*SPMISCoef,  &
                                                                        CHS,KL,KL1,M,ML,I,J,K)
                     end if
@@ -1762,7 +1781,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%ExternalVar%WaterPoints3D(i, j, k)== WaterPoint) then
+                if (Me%WaterPointsorOpenPoints(i, j, k)== WaterPoint) then
                 
                     PropertyX%Velocity(i, j, k)=-SettlingVelSecondaryClarifier (                &
                                                    Cx              = SPM(i, j, k)*SPMISCoef,    &
@@ -1781,7 +1800,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%ExternalVar%WaterPoints3D(i, j, k)== WaterPoint) then
+                if (Me%WaterPointsorOpenPoints(i, j, k)== WaterPoint) then
 
                     PropertyX%Velocity(i, j, k)=-SettlingVelPrimaryClarifier (Cx    = SPM(i, j, k)*SPMISCoef, &
                                                                               Rh_i  = PropertyX%Rh,           &
@@ -1806,7 +1825,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-                    if (Me%ExternalVar%WaterPoints3D(i, j, k)== WaterPoint) then
+                    if (Me%WaterPointsorOpenPoints(i, j, k)== WaterPoint) then
                         if (Me%ExternalVar%SalinityField(i, j, k) .gt. PropertyX%SalinityLimit) then
                             PropertyX%Velocity(i, j, k) = PropertyX%WS_Value
                         else
@@ -1878,7 +1897,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-                if (Me%ExternalVar%WaterPoints3D(i, j, k)== WaterPoint) then
+                if (Me%WaterPointsorOpenPoints(i, j, k)== WaterPoint) then
                     
                     if (Me%ExternalVar%ShearVelocity(i,j) > 0. .and.    &
                         SPM(i,j,k) > 0.) then
@@ -1941,7 +1960,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             do k=Me%WorkSize%KLB, Me%WorkSize%KUB 
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint .and.             &
+                if (Me%WaterPointsorOpenPoints(i, j, k) == WaterPoint .and.             &
                     Me%ExternalVar%NoFluxW     (i, j, k) == 1) then
                         PropertyX%Velocity(i, j, k) = 0.
                 end if
@@ -2035,7 +2054,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             do j=JLB, JUB
             do i=ILB, IUB
                 
-                if (Me%ExternalVar%WaterPoints3D (i,j, KUB) == WaterPoint) then
+                if (Me%WaterPointsorOpenPoints (i,j, KUB) == WaterPoint) then
 
                     Kbottom = Me%ExternalVar%KFloor_Z(i, j)
                     
@@ -2058,7 +2077,7 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             do j=JLB, JUB
             do i=ILB, IUB
                 
-                if (Me%ExternalVar%WaterPoints3D (i,j, KUB) == WaterPoint) then
+                if (Me%WaterPointsorOpenPoints (i,j, KUB) == WaterPoint) then
 
                     Kbottom = Me%ExternalVar%KFloor_Z(i, j)
 
@@ -2569,6 +2588,45 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         if (present(STAT)) STAT = STAT_
 
     end subroutine SetSandParameters
+    
+        !--------------------------------------------------------------------------
+
+    subroutine GetDepositionIntertidalZones(FreeVerticalMovementID, DepositionIntertidalZones, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                 :: FreeVerticalMovementID
+        logical, intent(OUT)                    :: DepositionIntertidalZones
+        integer, optional, Intent(OUT)          :: STAT
+     
+        !External--------------------------------------------------------------
+        integer                                 :: ready_          
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FreeVerticalMovementID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            DepositionIntertidalZones    = Me%DepositionIntertidalZones
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+            
+
+    end subroutine GetDepositionIntertidalZones
+    
+    !--------------------------------------------------------------------------
     !----------------------------------------------------------------------
 
 
