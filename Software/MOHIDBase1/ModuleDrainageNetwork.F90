@@ -6649,8 +6649,8 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         allocate (Me%Reservoirs%NodeConc                   (Me%Reservoirs%nReservoirs, Me%PropertiesNumber))
         allocate (Me%Reservoirs%ReservoirsExchangeNodePos  (Me%Reservoirs%nReservoirs))        
 
-        call SetMatrixValue(Me%Reservoirs%ReservoirsInflow          , Size1D, 0.0)
-        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsInflow          , Size1D, 0.0d0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0d0)
         call SetMatrixValue(Me%Reservoirs%ReservoirsConc            , Size2D, 0.0)
         call SetMatrixValue(Me%Reservoirs%NodeConc                  , Size2D, 0.0)        
         call SetMatrixValue(Me%Reservoirs%ReservoirsExchangeNodePos , Size1D, 0)      
@@ -11068,7 +11068,7 @@ if2:        if (Volume > PoolVolume) then
         integer                                     :: DownReachPos
         type (T_Node), pointer                      :: CurrNodeExchange, CurrNode
         type (T_Reach), pointer                     :: CurrReach
-        real(8)                                     :: Flow, TotalVerticalArea
+        real                                        :: Flow, TotalVerticalArea
         logical                                     :: Found
         type(T_Property), pointer                   :: Property    
         
@@ -11153,7 +11153,7 @@ if2:        if (Volume > PoolVolume) then
         Size2D%JLB = 1
         Size2D%JUB = Me%PropertiesNumber            
 
-        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0D0)
         call SetMatrixValue(Me%Reservoirs%NodeConc                  , Size2D, 0.0)        
                   
         
