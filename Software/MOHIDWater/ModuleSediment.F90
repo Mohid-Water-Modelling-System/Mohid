@@ -335,6 +335,7 @@ Module ModuleSediment
     type, extends (T_Property) :: T_CohesiveDryDensity
         real                                     :: Min                  = FillValueReal
         real                                     :: Max                  = FillValueReal
+        real                                     :: PES                  = FillValueReal
     end type T_CohesiveDryDensity
     
     private :: T_Files
@@ -368,7 +369,8 @@ Module ModuleSediment
         type (T_Evolution)                         :: Evolution
         real, dimension(:, :), pointer             :: BatimIncrement, DZ, DZ_Residual => null ()
         real, dimension(:, :), pointer             :: DZ_Consolidation      => null ()
-        real                                       :: ConsolidationRateMax  = FillValueReal
+        real                                       :: ConsolidationRate1    = FillValueReal
+        real                                       :: ConsolidationRate2    = FillValueReal
         real                                       :: MorphologicalFactor   = FillValueReal
         real                                       :: Density               = FillValueReal
         real                                       :: RelativeDensity       = FillValueReal
@@ -880,18 +882,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR200' 
         
-        !d-1
-        call GetData(Me%ConsolidationRateMax,                                            &
+        !Consolidation rate in the permeability regime (d-1)
+        call GetData(Me%ConsolidationRate1,                                              &
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
-                     keyword      = 'MAX_CONSOLIDATION_RATE',                            &
-                     default      = 0.1,                                                 &
+                     keyword      = 'CONSOLIDATION_RATE1',                               &
+                     default      = 0.9,                                                 &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR210' 
         
         !s-1
-        Me%ConsolidationRateMax = Me%ConsolidationRateMax/86400.
+        Me%ConsolidationRate1 = Me%ConsolidationRate1/86400.
+        
+        !Consolidation rate in the effective stress regime (d-1)
+        call GetData(Me%ConsolidationRate2,                                              &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'CONSOLIDATION_RATE2',                               &
+                     default      = 0.002,                                               &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR220' 
+        
+        !s-1
+        Me%ConsolidationRate2 = Me%ConsolidationRate2/86400. 
 
     end subroutine ConstructGlobalParameters
 
@@ -2068,16 +2083,26 @@ cd2 :           if (BlockFound) then
                      default      = 100.,                                                &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR12' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructCohesiveDryDensity - ModuleSediment - ERR10' 
         
         call GetData(Me%CohesiveDryDensity%MAX,                                          &
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
                      keyword      = 'MAX_DENSITY_COHESIVE',                              &
-                     default      = 1000.,                                               &
+                     default      = 650.,                                                &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR12' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructCohesiveDryDensity - ModuleSediment - ERR20' 
+        
+        !Dry density in which there is a transition from the permeability regime to the effective stress regime 
+        call GetData(Me%CohesiveDryDensity%PES,                                          &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'PERMEABILITY_EFFECTIVE_STRESS_DENSITY',             &
+                     default      = 250.,                                                &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructCohesiveDryDensity - ModuleSediment - ERR30' 
         
         if (Me%Evolution%Old) then
             
@@ -5749,7 +5774,7 @@ if9:        if (Me%CohesiveClass%Run) then
         !Local-----------------------------------------------------------------
         integer                     :: i, j, k, kaux
         integer                     :: WILB, WIUB, WJLB, WJUB, WKUB, TotalWKUB
-        real                        :: PorosityOld, Area, DZ, ConsolidationRate, n
+        real                        :: PorosityOld, Area, DZ, ConsolidationRate
         !----------------------------------------------------------------------
         
         WILB = Me%SedimentWorkSize3D%ILB
@@ -5772,18 +5797,19 @@ if9:        if (Me%CohesiveClass%Run) then
                 do k=1,Me%KTop(i, j)-1                    
                     
                     if(Me%CohesiveClass%Field3D(i,j,k) > Me%CohesiveClass%PM1_MAX .and. &
-                        Me%CohesiveDryDensity%Field3D(i,j,k) < Me%CohesiveDryDensity%MAX) then  
+                        Me%CohesiveDryDensity%Field3D(i,j,k) < Me%CohesiveDryDensity%MAX) then
                         
-                        n = 2.
+                        If(Me%CohesiveDryDensity%Field3D(i,j,k) < Me%CohesiveDryDensity%PES) then
                         
-                        ConsolidationRate = ((Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Field3D(i,j,k))/                    &
-                                            (Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Min))**n * Me%ConsolidationRateMax
-                                            
-                        Me%CohesiveDryDensity%Field3D(i,j,k) = Me%CohesiveDryDensity%Field3D(i,j,k) + ConsolidationRate *           &
-                             Me%CohesiveDryDensity%Field3D(i,j,k) * Me%Evolution%SedimentDT
-
-                        !Me%CohesiveDryDensity%Field3D(i,j,k) = Me%CohesiveDryDensity%Field3D(i,j,k) + Me%ConsolidationRate *          &
-                        !    (Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Field3D(i,j,k)) * Me%Evolution%SedimentDT
+                            ConsolidationRate = (Me%CohesiveDryDensity%PES- Me%CohesiveDryDensity%Field3D(i,j,k))/(Me%CohesiveDryDensity%PES- Me%CohesiveDryDensity%Min) * &
+                                (Me%ConsolidationRate1 * (Me%CohesiveDryDensity%PES- Me%CohesiveDryDensity%Field3D(i,j,k)) - &
+                                Me%ConsolidationRate2 * (Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Field3D(i,j,k))) + &
+                                Me%ConsolidationRate2 * (Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Field3D(i,j,k))
+                        else
+                            ConsolidationRate = Me%ConsolidationRate2 * (Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Field3D(i,j,k))
+                        endif
+                        
+                        Me%CohesiveDryDensity%Field3D(i,j,k) = Me%CohesiveDryDensity%Field3D(i,j,k) + ConsolidationRate * Me%Evolution%SedimentDT
                         
                         PorosityOld = Me%Porosity(i,j,k)
                         
