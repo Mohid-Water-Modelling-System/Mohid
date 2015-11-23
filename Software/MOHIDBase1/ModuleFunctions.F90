@@ -393,17 +393,16 @@ Module ModuleFunctions
         module procedure GetPointer3D_R8        
     end interface
 
-#ifdef _USE_MPI
     public ::  MPIKind
-
     interface MPIKind
+#ifdef _USE_MPI
         module procedure MPIKind0D
         module procedure MPIKind1D
         module procedure MPIKind2D
         module procedure MPIKind3D
+#endif        
     end interface MPIKind
     !include "mpif.f90"
-#endif
 
     !griflet: ersatz functions to minval and maxval. The goal is to lift
     !potential stacksize bottlenecks.
