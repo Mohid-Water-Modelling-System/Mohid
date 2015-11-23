@@ -212,6 +212,11 @@ Module ModuleWaterProperties
                                           GetDDecompMPI_ID, GetDDecompON,                       &
                                           WindowIntersectDomain, ReturnsIntersectionCorners,    &
                                           GetGridOutBorderPolygon, GetDDecompWorkSize2D
+                                          
+#ifdef _USE_MPI                                                  
+    use ModuleHorizontalGrid,       only: ReceiveSendProperitiesMPI
+#endif
+                                          
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryVolumes, UnGetGeometry,   &
                                           GetGeometryKFloor, GetGeometryWaterColumn,            &
                                           GetGeometryDistances, GetLayer4Level
@@ -9757,8 +9762,8 @@ cd0:    if (EXIST) then
                 
 ifMS:       if (MasterOrSlave) then
                     
-                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
-                                          WorkSize         = WindowLimitsJI,       &
+                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,      &
+                                          WorkSize         = WindowLimitsJI,            &
                                           STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR40'
                 
@@ -10847,10 +10852,12 @@ cd2 :       if (BlockFound) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: IUB, JUB, ILB, JLB 
+        integer                                     :: IUW, JUW, ILW, JLW        
         integer                                     :: STAT_CALL
         integer                                     :: HDF5_READ
         integer                                     :: ObjHDF5 = 0
-        logical                                     :: exist
+        logical                                     :: exist, MasterOrSlave
+        type (T_Size2D)                             :: WindowLimitsJI        
 
         !----------------------------------------------------------------------
 
@@ -10869,7 +10876,7 @@ cd2 :       if (BlockFound) then
             write(*,*) 
             write(*,*)     'Could not find the final WaterProperties file.'
             write(*,'(A)') 'Hdf5 file name = ', trim(Me%Files%InitialWaterProperties)//"5"
-            stop           'Read_Old_Properties_2D - WaterProperties - ERR00'    
+            stop           'Read_Old_Properties_2D - WaterProperties - ERR10'    
         end if
 
         !Gets File Access Code
@@ -10877,18 +10884,54 @@ cd2 :       if (BlockFound) then
 
         !Opens HDF5 File
         call ConstructHDF5 (ObjHDF5, trim(Me%Files%InitialWaterProperties)//"5", HDF5_READ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - WaterProperties - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - WaterProperties - ERR20'
+        
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                  MasterOrSlave    = MasterOrSlave,                 &
+                                  STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'read_Old_Properties_2D - WaterProperties - ERR30'
+        endif
+
+ifMS:   if (MasterOrSlave) then    
+
+            call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,      &
+                                      WorkSize         = WindowLimitsJI,            &
+                                      STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'read_Old_Properties_2D - WaterProperties - ERR40'
+            endif
+
+            ILW = WindowLimitsJI%ILB
+            IUW = WindowLimitsJI%IUB
+
+            JLW = WindowLimitsJI%JLB
+            JUW = WindowLimitsJI%JUB
+            
+        else ifMS
+
+            ILW = ILB 
+            IUW = IUB
+
+            JLW = JLB 
+            JUW = JUB 
+
+        endif ifMS                
+    
             
         !Reads from HDF file the Property concentration and open boundary values
-        call HDF5SetLimits  (ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - WaterProperties - ERR02'
-            
-        call HDF5ReadData(ObjHDF5, trim("/Results/"//PropertyName), &
-                          PropertyName, Array2D = Scalar_2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - WaterProperties - ERR03'            
+        call HDF5SetLimits  (ObjHDF5, ILW, IUW, JLW, JUW, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - WaterProperties - ERR50'
+                          
+        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                                  &
+                             GroupName      = trim("/Results/"//PropertyName),          &
+                             Name           = PropertyName,                             &
+                             Array2D        = Scalar_2D,                                &    
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - WaterProperties - ERR60'            
         
         call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - WaterProperties - ERR04'            
+        if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - WaterProperties - ERR70'            
 
     end subroutine Read_Old_Properties_2D
     !------------------------------------------------------------------------------------
@@ -12157,188 +12200,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
         end subroutine UpdateWaterMPI
 
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !                                                                                      !
-    ! This subroutine exchange properties between decompose domains                        !
-    ! coefficients of all domains                                                          !
-    !                                                                                      !
-    ! Input : Property3D halo region                                                       !
-    ! OutPut: Property3D halo region - boundary domains                                    !
-    ! Author: Paulo Chambel (2013/11)                                                      !
-    !                                                                                      !
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    subroutine ReceiveSendProperities3DMPI(Property3D)     
-
-        !Arguments------------------------------------------------------------
-
-        real   , dimension(:,:,:), pointer :: Property3D    
-
-
-
-        !Local---------------------------------------------------------------
-        integer                            :: STAT_CALL, IUB, ILB, JUB, JLB, KUB, KLB
-        integer                            :: IUB_R, ILB_R, JUB_R, JLB_R
-        integer                            :: IUB_S, ILB_S, JUB_S, JLB_S
-        integer                            :: Bandwidth
-        integer                            :: DomainA, DomainB, ifd, Direction
-        
-        integer                            :: Source, Destination         
-        integer                            :: iSize
-        integer, save                      :: Precision
-        integer                            :: status(MPI_STATUS_SIZE)       
-        
-        !Domain decomposition
-        logical                            :: MasterOrSlave
-        integer                            :: NInterfaces, Halo_Points, MPI_ID
-        integer, dimension(:,:), pointer   :: Interfaces
-        
-        !Begin---------------------------------------------------------------
-        
-        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
-                                              MasterOrSlave    = MasterOrSlave,         &
-                                              NInterfaces      = NInterfaces,           &
-                                              Interfaces       = Interfaces,            &
-                                              Halo_Points      = Halo_Points,           &
-                                              MPI_ID           = MPI_ID,                &
-                                              STAT             = STAT_CALL)
-                                              
-        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR10'            
-        
-idd:    if (MasterOrSlave) then
-
-            IUB = Me%WorkSize%IUB
-            ILB = Me%WorkSize%ILB
-            JUB = Me%WorkSize%JUB
-            JLB = Me%WorkSize%JLB
-            KUB = Me%WorkSize%KUB
-            KLB = Me%WorkSize%KLB    
-            
-            Precision   = MPIKind(Property3D)
-            
-    difd:   do ifd = 1, NInterfaces
-
-                DomainA   = Interfaces(ifd,1) 
-                DomainB   = Interfaces(ifd,2) 
-                Direction = Interfaces(ifd,3)
-            
-    iSN:        if (Direction == SouthNorth_) then
-            
-                    !Then North border communication
-    iN:             if (MPI_ID == DomainA) then
-
-                        Bandwidth   = Halo_Points 
-                        iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
-                        Source      = DomainB
-                        Destination = Source
-                        
-                        IUB_R = IUB                 
-                        ILB_R = IUB_R - Bandwidth   + 1 
-                        IUB_S = ILB_R               - 1
-                        ILB_S = IUB_S - Bandwidth   + 1
-                        
-                        !Receive
-                        call MPI_Recv (Property3D(ILB_R:IUB_R, JLB:JUB, KLB:KUB), iSize, Precision,      &
-                                       Source, 180001, MPI_COMM_WORLD, status, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR20'
-                        
-                        !Send
-                        call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
-                                       Destination, 180002, MPI_COMM_WORLD, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR30'
-                    
-                    endif iN
-
-                    !Then South border communication
-    iS:             if (MPI_ID == DomainB) then
-
-                        Bandwidth   = Halo_Points
-                        iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
-                        Source      = DomainA
-                        Destination = Source
-                        
-                        ILB_R = ILB
-                        IUB_R = ILB_R + Bandwidth - 1             
-                        ILB_S = IUB_R             + 1
-                        IUB_S = ILB_S + Bandwidth - 1 
-                        
-                        !Send
-                        call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
-                                       Destination, 180001, MPI_COMM_WORLD, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR40'
-
-                        !Receive
-                        call MPI_Recv (Property3D(ILB_R:IUB_R, JLB:JUB, KLB:KUB), iSize, Precision,      &
-                                       Source, 180002, MPI_COMM_WORLD, status, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR50'
-
-                    endif iS
-                    
-                endif iSN  
-                
-    iWE:        if (Direction == WestEast_) then
-                
-                    !Then East border communication
-    iE:             if (MPI_ID == DomainA) then
-
-                        Bandwidth   = Halo_Points 
-                        iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
-                        Source      = DomainB
-                        Destination = Source
-                        
-                        !Receive
-                        JUB_R = JUB                 
-                        JLB_R = JUB_R - Bandwidth   + 1 
-                        JUB_S = JLB_R               - 1
-                        JLB_S = JUB_S - Bandwidth   + 1
-                        
-                        call MPI_Recv (Property3D(ILB:IUB, JLB_R:JUB_R, KLB:KUB), iSize, Precision,      &
-                                       Source, 180005, MPI_COMM_WORLD, status, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR60'
-
-                        !Send
-                        call MPI_Send (Property3D(ILB:IUB, JLB_S:JUB_S, KLB:KUB), iSize, Precision,      &
-                                       Destination, 180006, MPI_COMM_WORLD, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR70'
-
-                    endif iE
-
-                    !Then West border communication
-    iW:             if (MPI_ID == DomainB) then
-
-                        Bandwidth   = Halo_Points 
-                        iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
-                        Source      = DomainA
-                        Destination = Source
-                        
-                        !Receive
-                        JLB_R = JLB
-                        JUB_R = JLB_R + Bandwidth - 1  
-                        JLB_S = JUB_R             + 1
-                        JUB_S = JLB_S + Bandwidth - 1 
-
-                        !Send
-                        call MPI_Send (Property3D(ILB:IUB, JLB_S:JUB_S, KLB:KUB), iSize, Precision,      &
-                                       Destination, 180005, MPI_COMM_WORLD, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR80'
-
-                        call MPI_Recv (Property3D(ILB:IUB, JLB_R:JUB_R, KLB:KUB), iSize, Precision,      &
-                                       Source, 180006, MPI_COMM_WORLD, status, STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR90'
-
-                    endif iW
-                    
-                endif iWE                
-                   
-            enddo difd
-
-        endif idd            
-        
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Interfaces, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR100'            
-
-    end subroutine ReceiveSendProperities3DMPI          
 
 #endif _USE_MPI
 
@@ -13854,7 +13715,15 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 #if _USE_MPI                    
                     !MPI and Domain Decomposition is ON exchanges data along domain interfaces
-                    call ReceiveSendProperities3DMPI(Property%Concentration)
+                    !call ReceiveSendProperities3DMPI(Property%Concentration)
+                    call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid,     & 
+                                                   Property3D       = Property%Concentration,   &
+                                                   KLB              = Me%WorkSize%KLB,          &
+                                                   KUB              = Me%WorkSize%KUB,          &
+                                                   STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR370'
+                    endif                        
 #endif _USE_MPI
                 end if cd2
 
@@ -13879,10 +13748,10 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         nullify(OpenPoints3D)
 
         call UnGetTurbulence(Me%ObjTurbulence, Me%ExternalVar%Visc_H, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR370'
+        if (STAT_CALL /= SUCCESS_) stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR380'
 
         call UnGetTurbulence(Me%ObjTurbulence, Me%ExternalVar%Diff_V, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR380'
+        if (STAT_CALL /= SUCCESS_) stop 'Advection_Diffusion_Processes - ModuleWaterProperties - ERR390'
 
         if (MonitorPerformance)                                         &
             call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")

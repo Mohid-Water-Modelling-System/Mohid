@@ -638,8 +638,8 @@ program MohidWater
             CurrentModel => CurrentModel%Next
 
             !Waits for all processes
-            call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR110'
+            !call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR110'
 
         enddo
 
@@ -1063,7 +1063,8 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
 
                     if (CurrentModel%FatherLink%Water) then
                     
-                        write(*,*) 'Son model', CurrentModel%MPI_ID , ' receive from ',CurrentModel%FatherModel%MPI_ID                   
+                        write(*,*) 'Son model', CurrentModel%MPI_ID ,                   &
+                                   ' receive from ',CurrentModel%FatherModel%MPI_ID                   
                         
                         do iProp = 1, CurrentModel%FatherLink%nProp
 
