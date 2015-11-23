@@ -318,9 +318,15 @@ if3 :           if (iMPI > 0) then
 
         !------------------------------------------------------------------------
 
-        position   = scan(AuxString, ":")
-        ModelPath  = AuxString(Level+1:position-5)//"res"
-
+        position  = scan(AuxString, "/", back = .true.)
+        if (position == 0) then
+            position = scan(AuxString, "\", back = .true.)
+        endif
+        if (position == 0) then
+            ModelPath = "../res"
+        else
+            ModelPath  = AuxString(Level+1:position)//"res"
+        endif
         !------------------------------------------------------------------------
 
     end function ModelPath
