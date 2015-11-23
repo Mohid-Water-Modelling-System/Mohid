@@ -5644,7 +5644,7 @@ cd2 :           if (BlockFound) then
         real, dimension(:, :   ), pointer           :: RPConcentration
         real, dimension(:      ), pointer           :: ReservoirConcentration
         integer, dimension(:, :), pointer           :: GWLayer
-        real(8), dimension(:), pointer              :: ReservoirFlowToChannels
+        real, dimension(:), pointer                 :: ReservoirFlowToChannels
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "DrainageNetworkProcesses")
         
@@ -6001,7 +6001,7 @@ cd2 :           if (BlockFound) then
         integer                                     :: nProperties, iProp 
         integer                                     :: PropID
         real, dimension(:   ), pointer              :: DNConcentration
-        real(8), dimension(:), pointer              :: ChannelFlowToReservoir
+        real, dimension(:), pointer                 :: ChannelFlowToReservoir
         logical                                     :: PropAdvDiff
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ReservoirProcesses")
