@@ -36,7 +36,8 @@ Module ModuleSand
     use ModuleTime              
     use ModuleDrawing 
     use ModuleHDF5,             only : ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,         &
-                                       HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
+                                       HDF5WriteData, HDF5FlushMemory, HDF5ReadData,            &
+                                       HDF5ReadWindow, KillHDF5
     use ModuleEnterData           
     use ModuleFillMatrix,       only : ConstructFillMatrix, GetDefaultValue, KillFillMatrix
     use ModuleGridData,         only : ConstructGridData, GetGridData, ModifyGridData,          &
@@ -50,8 +51,12 @@ Module ModuleSand
                                        GetComputeFaces2D, UnGetHorizontalMap
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,                  &
                                        GetHorizontalGridSize, UnGetHorizontalGrid, GetXYCellZ,  &
-                                       GetDDecompMPI_ID, GetDDecompON,  &
-                                       GetGridOutBorderPolygon
+                                       GetDDecompMPI_ID, GetDDecompON, GetGridOutBorderPolygon, &
+                                       GetDDecompParameters, GetDDecompWorkSize2D
+#ifdef _USE_MPI                                                  
+    use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI
+#endif
+    
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, BoxDif,         &
                                        UngetBoxDif, KillBoxDif
 #ifndef _WAVES_
@@ -350,6 +355,8 @@ Module ModuleSand
                        
         !Instance of ModuleHDF5        
         integer                                    :: ObjHDF5               = 0
+        !Instance of ModuleHDF5 initialization
+        integer                                    :: ObjHDF5In             = 0        
         !Instance of ModuleTimeSerie            
         integer                                    :: ObjTimeSerie          = 0
         !Instance of Module_EnterData           
@@ -478,15 +485,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'StartSand - ModuleSand - ERR30'
-
+            
+            if (Me%Evolution%OLD) then
+                call KillHDF5 (Me%ObjHDF5In, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'StartSand; ModuleSand - ERR40.'
+            endif
 
             if (Me%OutPut%Yes) call Open_HDF5_OutPut_File(Me%Files%OutPutFields)
+            
+            if (Me%OutPut%Yes) call OutPutSandHDF            
 
             if (Me%Discharges%Yes) then
             
                 if (ObjDischargesID == 0)  then                                                
                     write(*,*)'You need to define a water discharges in the hydrodynamic input' 
-                    stop      'StartSand - Sand - ERR01'
+                    stop      'StartSand - Sand - ERR50'
                 else
                     Me%ObjDischarges = AssociateInstance (mDISCHARGES_, ObjDischargesID)
 
@@ -505,7 +518,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         else cd0
             
-            stop 'ModuleSand - StartSand - ERR40' 
+            stop 'ModuleSand - StartSand - ERR60' 
 
         end if cd0
 
@@ -680,11 +693,11 @@ i1:     if (Me%Boxes%Yes) then
         !Arguments-------------------------------------------------------------
                                                     
         !Local-----------------------------------------------------------------
-        real    :: ModelDT
-        integer :: STAT_CALL, iflag
-        real(8) :: ErrorAux, auxFactor, DTaux
-
-
+        real            :: ModelDT
+        integer         :: STAT_CALL, iflag
+        real(8)         :: ErrorAux, auxFactor, DTaux
+        logical         :: EXIST
+        integer(4)      :: HDF5_READ        
 
         !Begin-----------------------------------------------------------------
 
@@ -899,8 +912,31 @@ i1:     if (Me%Boxes%Yes) then
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSand - ERR180' 
+        
+        if (Me%Evolution%OLD) then
+        
+            inquire (FILE=trim(Me%Files%InitialSand)//"5", EXIST = EXIST)
 
+cd0:        if (EXIST) then
 
+                !Gets File Access Code
+                call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+                Me%ObjHDF5In = 0
+
+                !Opens HDF5 File
+                call ConstructHDF5 (Me%ObjHDF5In,                                           &
+                                    trim(Me%Files%InitialSand)//"5", HDF5_READ, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'ReadResidualStartTime; ModuleSand - ERR10.'
+
+            else if(.not. EXIST) then cd0
+
+                stop 'ReadInitialField; ModuleSand - ERR70'
+
+            endif cd0
+        
+        endif
 
         call GetData(Me%Aceleration%Coef,                                                &
                      Me%ObjEnterData,iflag,                                              &
@@ -1133,10 +1169,10 @@ i1:     if (Me%Boxes%Yes) then
         Message   ='Instant fields of sand properties in HDF format.'
         Message   = trim(Message)
         
-        if (GetDDecompON    (Me%ObjHorizontalGrid)) then
-            write(*,*) 'Module Sand not ready to run in domain decomposition mode'
-            stop 'Read_Sand_Files_Name - ModuleSand - ERR20' 
-        endif
+        !if (GetDDecompON    (Me%ObjHorizontalGrid)) then
+        !    write(*,*) 'Module Sand not ready to run in domain decomposition mode'
+        !    stop 'Read_Sand_Files_Name - ModuleSand - ERR20' 
+        !endif
 
         call ReadFileName('SAND_OUT', Me%Files%OutPutFields,                             &
                            Message = Message, TIME_END = Me%EndTime,                     &
@@ -1168,8 +1204,6 @@ i1:     if (Me%Boxes%Yes) then
         call ReadFileName('SAND_INI', Me%Files%InitialSand,                              &
                            Message   = Message, TIME_END = Me%ExternalVar%Now,           &
                            Extension = 'sanlf',                                          &
-                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
 
 
@@ -2194,71 +2228,87 @@ cd2 :               if (BlockFound) then
         real, dimension(:,:), pointer               :: Field2D
 
         !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer               :: Aux2D
         logical                                     :: EXIST
-        integer                                     :: WorkILB, WorkIUB
-        integer                                     :: WorkJLB, WorkJUB
         integer                                     :: STAT_CALL
-        integer                                     :: ObjHDF5
-        integer(4)                                  :: HDF5_READ
         integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: ILW, IUW, JLW, JUW
+        type (T_Size2D)                             :: WindowLimitsJI
+        logical                                     :: MasterOrSlave          
 
         !----------------------------------------------------------------------
         
-        ILB = Me%Size%ILB 
-        IUB = Me%Size%IUB 
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
 
-        JLB = Me%Size%JLB 
-        JUB = Me%Size%JUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
 
+                        
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                  MasterOrSlave    = MasterOrSlave,                 &
+                                  STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadInitialField; ModuleSand - ERR20'
+        endif
 
-        WorkILB = Me%WorkSize%ILB 
-        WorkIUB = Me%WorkSize%IUB 
-
-        WorkJLB = Me%WorkSize%JLB 
-        WorkJUB = Me%WorkSize%JUB 
-
-
-        inquire (FILE=trim(Me%Files%InitialSand)//"5", EXIST = EXIST)
-
-cd0:    if (EXIST) then
-
-            !Gets File Access Code
-            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
-
-
-            ObjHDF5 = 0
-
-            !Opens HDF5 File
-            call ConstructHDF5 (ObjHDF5,                                                 &
-                                trim(Me%Files%InitialSand)//"5", HDF5_READ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField; ModuleSand - ERR03.'
-
-            Field2D(:,:) = FillValueReal
-
-            ! Reads from HDF file the Property concentration and open boundary values
-            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB,            &
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField; ModuleSand - ERR03.'
-
-            call HDF5ReadData   (ObjHDF5, "/Results",trim(FieldName),                    &
-                                 Array2D = Field2D,                                      &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField; ModuleSand - ERR03.'
+            
+ifMS:   if (MasterOrSlave) then
                 
-            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField; ModuleSand - ERR06.'
+            call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,      &
+                                      WorkSize         = WindowLimitsJI,            &
+                                      STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ReadInitialField; ModuleSand - ERR30'
+            endif
+
+            
+            ILW = WindowLimitsJI%ILB
+            IUW = WindowLimitsJI%IUB
+
+            JLW = WindowLimitsJI%JLB
+            JUW = WindowLimitsJI%JUB
+            
+            write(*,*) 'MPI 1', ILW, IUW, JLW, JUW
+                                                  
+        else ifMS
+
+            ILW = ILB 
+            IUW = IUB
+
+            JLW = JLB 
+            JUW = JUB 
+
+        endif ifMS                
+            
+        !Reads from HDF file the Property concentration and open boundary values
+        call HDF5SetLimits  (Me%ObjHDF5In, ILW, IUW, JLW, JUW, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadInitialField; ModuleSand - ERR40'
+        endif
+
+        allocate(Aux2D(ILW:IUW,JLW:JUW))
         
-        else if(.not. EXIST) then cd0
+        write(*,*) 'MPI 2', FieldName      
+                            
+        call HDF5ReadWindow (HDF5ID         = Me%ObjHDF5In,                             &
+                             GroupName      = "/Results",                               &
+                             Name           = trim(FieldName),                          &
+                             Array2D        = Aux2D,                                    &
+                             STAT           = STAT_CALL)
+        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialField; ModuleSand - ERR50'
+        
+        write(*,*) 'MPI 6', ILB,IUB, JLB,JUB,ILW,IUW,JLW,JUW
+            
+        Field2D(ILB:IUB, JLB:JUB) = Aux2D(ILW:IUW, JLW:JUW)
+        
+        write(*,*) 'MPI 5', Me%ObjHDF5In                                  
+        
+        deallocate(Aux2D)                
 
-                stop 'ReadInitialField; ModuleSand - ERR07.'
-
-        endif cd0
-
-
+        write(*,*) 'MPI 4', Me%ObjHDF5In                                  
+            
         !----------------------------------------------------------------------
 
     end subroutine ReadInitialField
@@ -2273,53 +2323,26 @@ cd0:    if (EXIST) then
         !Local-----------------------------------------------------------------
         logical                                    :: EXIST
         integer                                    :: STAT_CALL
-        integer                                    :: ObjHDF5
-        integer(4)                                 :: HDF5_READ
         real,    dimension(:    ), pointer         :: AuxTime
 
         !----------------------------------------------------------------------
 
-        inquire (FILE=trim(Me%Files%InitialSand)//"5", EXIST = EXIST)
 
-cd0:    if (EXIST) then
-
-            !Gets File Access Code
-            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
-
-            ObjHDF5 = 0
-
-            !Opens HDF5 File
-            call ConstructHDF5 (ObjHDF5,                                                 &
-                                trim(Me%Files%InitialSand)//"5", HDF5_READ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadResidualStartTime; ModuleSand - ERR10.'
-
-
-            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSand - ERR30'
-            
-            allocate(AuxTime(6))
-
-            call HDF5ReadData  (ObjHDF5, "/Results",                                    &
-                                 "Residual Start Time",                                 &
-                                 Array1D = AuxTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSand - ERR40'
-            
-            call SetDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3), &
-                            AuxTime(4), AuxTime(5), AuxTime(6))
-                      
-            deallocate(AuxTime)
-                
-            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadResidualStartTime; ModuleSand - ERR50.'
+        call HDF5SetLimits  (Me%ObjHDF5In, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSand - ERR30'
         
-        else if(.not. EXIST) then cd0
+        allocate(AuxTime(6))
 
-                stop 'ReadResidualStartTime; ModuleSand - ERR60.'
-
-        endif cd0
-
+        call HDF5ReadData  (Me%ObjHDF5In, "/Time",                                      &
+                            "Residual Start Time",                                      &
+                             Array1D = AuxTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSand - ERR40'
+        
+        call SetDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3),      &
+                        AuxTime(4), AuxTime(5), AuxTime(6))
+                  
+        deallocate(AuxTime)
+                
         !----------------------------------------------------------------------
 
     end subroutine ReadResidualStartTime
@@ -2602,6 +2625,17 @@ cd0:    if (EXIST) then
 
                         !Boundary Condition
                         call BoundaryCondition(Me%DZ%Field2D)
+                        
+#if _USE_MPI                    
+                        !MPI and Domain Decomposition is ON exchanges data along domain interfaces
+                        call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
+                                                       Property2D       = Me%DZ%Field2D,    &
+                                                       STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ModifySand - ModuleSand - ERR10'
+                        endif                        
+#endif _USE_MPI
+                        
 
                         call ComputeResidualEvolution
                         
@@ -2640,15 +2674,15 @@ cd0:    if (EXIST) then
 
                             !Bathymetry 
                             call UnGetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT_CALL)     
-                            if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR10'
+                            if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR20'
 
                             call ModifyGridData(Me%ObjBathym, Me%BatimIncrement%Field2D, Add = .false.,  &
                                                 STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR20.'
+                            if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR30.'
 
                             !Bathymetry
                             call GetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT_CALL)     
-                            if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR30'
+                            if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR40'
 
                             Me%BatimIncrement%Field2D(:,:) = 0.
 
@@ -5185,7 +5219,7 @@ if1:            if (Me%Classes%Number > 0) then
         call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR70'
 
-        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
+        call HDF5WriteData  (Me%ObjHDF5, "/Time",                                   &
                              "Residual Start Time", "YYYY/MM/DD HH:MM:SS",          &
                              Array1D = TimePtr, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR80'

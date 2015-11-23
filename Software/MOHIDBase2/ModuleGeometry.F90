@@ -70,7 +70,12 @@ Module ModuleGeometry
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       GetGridLatitudeLongitude, GetCoordTypeList,       &
                                       GetCheckDistortion, UnGetHorizontalGrid,          &
-                                      GetDDecompWorkSize2D
+                                      GetDDecompWorkSize2D, GetDDecompParameters 
+                                      
+#ifdef _USE_MPI       
+    use ModuleHorizontalGrid,   only: ReceiveSendLogicalMPI  
+#endif _USE_MPI           
+                                      
     use ModuleFunctions,        only: SetMatrixValue, SetMatrixValueAllocatable,        &
                                       Chunk_J, Chunk_K, GetPointer
     use ModuleHDF5
@@ -1758,13 +1763,15 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
         real                                        :: BottomDepth
         character(len=StringLength)                 :: BathymetryFile
         character(len=StringLength)                 :: Comment1, Comment2
-        logical                                     :: WriteNewBathymetry = .false., Distortion, ConvertsWaterInLand
+        logical                                     :: WriteNewBathymetry = .false., ConvertsWaterInLand        
+        !logical                                     :: WriteNewBathymetry = .false., Distortion, ConvertsWaterInLand
         type (T_Domain), pointer                    :: CurrentDomain
         type (T_Size2D)                             :: Size2D
         integer                                     :: LengthWithoutExt
         real                                        :: T1, Taux, Tmax, d1, d2
         character(len=StringLength)                 :: FileVersion
         integer                                     :: FileVersionInt
+        logical                                     :: WriteBathymAux, MasterOrSlave, Master
 
         !Begin-----------------------------------------------------------------
 
@@ -1996,15 +2003,41 @@ doi:                do i = ILB, IUB
             CurrentDomain => CurrentDomain%Next
 
         enddo do1
+        
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
+                                  MasterOrSlave    = MasterOrSlave,                     &
+                                  Master           = Master,                            &
+                                  STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR20'
+        
+        
+        if (MasterOrSlave) then
+
+            WriteBathymAux = WriteNewBathymetry
+        
+#ifdef _USE_MPI       
+        
+            !Check if at least one of the sub-domains need to change the bathymetry        
+            call ReceiveSendLogicalMPI(HorizontalGridID   = Me%ObjHorizontalGrid,       &
+                                       LogicalIn          = WriteBathymAux,             &
+                                       LogicalOut         = WriteNewBathymetry,         &                                       
+                                       STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR30'              
+
+#endif _USE_MPI           
+            
+        endif            
+
+        
 
         if (WriteNewBathymetry) then
             
             !Gets XX and YY
             call GetHorizontalGrid(Me%ObjHorizontalGrid, XX = XX, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR40'
 
             call GetHorizontalGrid(Me%ObjHorizontalGrid, YY = YY, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR50'
 
 
             call GetCoordTypeList (GEOG = GEOG, UTM = UTM, MIL_PORT = MIL_PORT,             &
@@ -2013,7 +2046,7 @@ doi:                do i = ILB, IUB
 
             !Gets the type of Coordinates
             call GetGridCoordType(Me%ObjHorizontalGrid, ICOORD_TIP, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR60'
  
             if    (ICOORD_TIP == SIMPLE_GEOG)then
         
@@ -2021,22 +2054,22 @@ doi:                do i = ILB, IUB
                                                 GridLatitudeConn  = YY_IE,                  &
                                                 GridLongitudeConn = XX_IE,                  &
                                                 STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR50'
+                if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR70'
 
             elseif(ICOORD_TIP == UTM        .or. ICOORD_TIP == MIL_PORT .or. &
                    ICOORD_TIP == GRID_COORD .or. ICOORD_TIP == NLRD)then
 
                 !Gets XX_IE and YY_IE
                 call GetHorizontalGrid(Me%ObjHorizontalGrid, XX_IE = XX_IE, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR60'
+                if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR80'
 
                 call GetHorizontalGrid(Me%ObjHorizontalGrid, YY_IE = YY_IE, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR70'
+                if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR90'
 
             else
 
                 write(*,*)'GEOG coordinate type cannot be used in digital terrain generation'
-                stop 'VerifyBathymetry - Geometry - ERR80'
+                stop 'VerifyBathymetry - Geometry - ERR100'
 
             end if
 
@@ -2044,23 +2077,23 @@ doi:                do i = ILB, IUB
 
             !Gets the Grid angle
             call GetGridAngle    (Me%ObjHorizontalGrid, GRID_ANGLE, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR110'
 
             !Gets the Latitude / Longitude
             call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude, Longitude, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR120'
 
             !Gets Zone of the Bathymetry
             call GetGridZone         (Me%ObjHorizontalGrid, Zone, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR130'
 
             !Gets Origin of the Bathymetry
             call GetGridOrigin      (Me%ObjHorizontalGrid, Xorig, Yorig, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR140'
 
             !Writes new Bathymetry
             call GetGridDataFileName(Me%ObjTopography, FileName = BathymetryFile, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR130'           
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR150'           
             
             BathymetryFile  = adjustl(BathymetryFile)
             Comment1        = "Automatic Generated Grid Data File"
@@ -2095,54 +2128,64 @@ doi:                do i = ILB, IUB
                 BathymetryFile  = BathymetryFile(1:LengthWithoutExt-2)//FileVersion//".dat"
             endif
                 
-            
-            
-            call GetCheckDistortion (Me%ObjHorizontalGrid, Distortion, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR140'
-
-            if (.not. Distortion) then
-
-                call WriteGridData  (FileName       = BathymetryFile,       &
-                                     XX             = XX,                   &
-                                     YY             = YY,                   &
-                                     COMENT1        = Comment1,             &
-                                     COMENT2        = Comment2,             &
-                                     WorkSize       = Size2D,               & 
-                                     CoordType      = ICOORD_TIP,           &
-                                     Xorig          = Xorig,                &
-                                     Yorig          = Yorig,                &
-                                     Zone           = Zone,                 &
-                                     GRID_ANGLE     = GRID_ANGLE,           &
-                                     Latitude       = Latitude,             &
-                                     Longitude      = Longitude,            &
-                                     GridData2D_Real= NewBathymetry,        &
-                                     FillValue      = -99.,                 &
-                                     Overwrite      = ON,                   &
-                                     STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR150'
-
-            else
-
-                call WriteGridData  (FileName       = BathymetryFile,       &
-                                     ConnectionX    = XX_IE,                &
-                                     ConnectionY    = YY_IE,                &
-                                     COMENT1        = "***",                &
-                                     COMENT2        = "***",                &
-                                     WorkSize       = Size2D,               & 
-                                     CoordType      = ICOORD_TIP,           &
-                                     Xorig          = Xorig,                &
-                                     Yorig          = Yorig,                &
-                                     Zone           = Zone,                 &
-                                     GRID_ANGLE     = GRID_ANGLE,           &
-                                     Latitude       = Latitude,             &
-                                     Longitude      = Longitude,            &
-                                     GridData2D_Real= NewBathymetry,        &
-                                     FillValue      = -99.,                 &
-                                     Overwrite      = ON,                   &
-                                     STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR160'
+            call WriteGridData (FileName            = BathymetryFile,                   &
+                                COMENT1             = Comment1,                         &
+                                COMENT2             = Comment2,                         &
+                                HorizontalGridID    = Me%ObjHorizontalGrid,             &
+                                FillValue           = -99.,                             &
+                                Overwrite           = ON,                               &
+                                GridData2D_Real     = NewBathymetry,                    &
+                                STAT                = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR160'         
                 
-            endif
+            
+            
+            !call GetCheckDistortion (Me%ObjHorizontalGrid, Distortion, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR140'
+
+            !if (.not. Distortion) then
+
+            !    call WriteGridData  (FileName       = BathymetryFile,       &
+            !                         XX             = XX,                   &
+            !                         YY             = YY,                   &
+            !                         COMENT1        = Comment1,             &
+            !                         COMENT2        = Comment2,             &
+            !                         WorkSize       = Size2D,               & 
+            !                         CoordType      = ICOORD_TIP,           &
+            !                         Xorig          = Xorig,                &
+            !                         Yorig          = Yorig,                &
+            !                         Zone           = Zone,                 &
+            !                         GRID_ANGLE     = GRID_ANGLE,           &
+            !                         Latitude       = Latitude,             &
+            !                         Longitude      = Longitude,            &
+            !                         GridData2D_Real= NewBathymetry,        &
+            !                         FillValue      = -99.,                 &
+            !                         Overwrite      = ON,                   &
+            !                         STAT           = STAT_CALL)
+            !    if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR150'
+
+            !else
+
+            !    call WriteGridData  (FileName       = BathymetryFile,       &
+            !                         ConnectionX    = XX_IE,                &
+            !                         ConnectionY    = YY_IE,                &
+            !                         COMENT1        = "***",                &
+            !                         COMENT2        = "***",                &
+            !                         WorkSize       = Size2D,               & 
+            !                         CoordType      = ICOORD_TIP,           &
+            !                         Xorig          = Xorig,                &
+            !                         Yorig          = Yorig,                &
+            !                         Zone           = Zone,                 &
+            !                         GRID_ANGLE     = GRID_ANGLE,           &
+            !                         Latitude       = Latitude,             &
+            !                         Longitude      = Longitude,            &
+            !                         GridData2D_Real= NewBathymetry,        &
+            !                         FillValue      = -99.,                 &
+            !                         Overwrite      = ON,                   &
+            !                         STAT           = STAT_CALL)
+            !    if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR160'
+                
+            !endif
 
             deallocate(NewBathymetry)
             nullify   (NewBathymetry)
@@ -2156,15 +2199,17 @@ doi:                do i = ILB, IUB
             write(*,*)'New Bathymetry file : ', trim(BathymetryFile)   
             write(*,*)''
             
-            if (Me%ExternalVar%StopOnBathymetryChange) then                
-                write(*,*)'Modify the file Nomfich.dat and Re-run the model'            
-                stop 'VerifyBathymetry - Geometry - ERR165'
+            if (Me%ExternalVar%StopOnBathymetryChange) then   
+                if (.not.MasterOrSlave .or. (MasterOrSlave .and. Master)) then
+                    write(*,*)'Modify the file Nomfich.dat and Re-run the model'            
+                    stop 'VerifyBathymetry - Geometry - ERR170'
+                endif                    
             endif
         endif
 
         !Disposes pointer to the Bathymetry
         call UngetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR170'
+        if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR180'
 
         !----------------------------------------------------------------------
 
