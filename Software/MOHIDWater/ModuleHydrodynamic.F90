@@ -1566,11 +1566,11 @@ Module ModuleHydrodynamic
         ! WIDTH OF THE FAULT PLANE
         real                        :: W                = null_real
         ! DISLOCATION        			
-        real                        :: D                = null_real				
+        real                        :: D                = null_real
         ! (=THETA) STRIKE DIRECTION        
-        real                        :: TH	            = null_real
+        real                        :: TH               = null_real
         ! (=DELTA) DIP ANGLE				
-        real                        :: DL		        = null_real
+        real                        :: DL               = null_real
         ! (=LAMDA) SLIP ANGLE 
         real                        :: RD	            = null_real
         ! EPICENTER (LATITUDE)

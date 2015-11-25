@@ -211,7 +211,8 @@ Module ModuleWaterProperties
                                           GetDDecompParameters,                                 &
                                           GetDDecompMPI_ID, GetDDecompON,                       &
                                           WindowIntersectDomain, ReturnsIntersectionCorners,    &
-                                          GetGridOutBorderPolygon, GetDDecompWorkSize2D
+                                          GetGridOutBorderPolygon, GetDDecompWorkSize2D,        &
+                                          GetDDecompMapping2D
                                           
 #ifdef _USE_MPI                                                  
     use ModuleHorizontalGrid,       only: ReceiveSendProperitiesMPI
@@ -299,6 +300,7 @@ Module ModuleWaterProperties
     private ::      AllocateInstance
     private ::      Construct_GlobalVariables
     private ::          Read_WaterProperties_Files_Name
+    private ::          ConstructDDecomp
     private ::      ConstructNoFluxInterior
 #ifdef _USE_SEQASSIMILATION
     private ::      ConstructBooleanSeqAssimilation
@@ -1123,7 +1125,16 @@ Module ModuleWaterProperties
            
         ! aggiungo il puntatore per i tassi: Me%SeagrassesLeaves%Rates(:,:) 
         real                                    :: DefaultValue, LBRatio
- end type   T_SeagrassesLeaves
+    end type   T_SeagrassesLeaves
+    
+    private :: T_DDecomp
+    type       T_DDecomp        
+        integer                                 :: MPI_ID           = FillValueInt
+        logical                                 :: ON               = .true.         
+        logical                                 :: MasterOrSlave    = .false. 
+        type (T_Size2D)                         :: WindowLimitsJI
+        type (T_Size2D)                         :: Mapping
+    end type T_DDecomp
     
     type      T_NoFlux
         integer, pointer, dimension(:,:,:)      :: U,V,W
@@ -1162,6 +1173,7 @@ Module ModuleWaterProperties
         type(T_Discharge)                       :: Discharge
         type(T_HybridWeights)                   :: HybridWeights
         type(T_NoFlux       )                   :: NoFlux
+        type(T_DDecomp      )                   :: DDecomp
         integer                                 :: PropertiesNumber         = 0
         integer                                 :: WQratesNumber            = 0
         integer                                 :: DoSatType
@@ -1697,7 +1709,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         nullify(Me%SolarRadiation%ShortWaveAverage)
         nullify(Me%SolarRadiation%LongWaveTop     )
 
-        
+        call ConstructDDecomp            
+
         call GetGeometrySize(Me%ObjGeometry,                &
                              Size     = Me%Size,            &
                              WorkSize = Me%WorkSize,        &
@@ -1733,9 +1746,44 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetXZFlow (Me%ObjHydrodynamic, XZFlow = Me%ExternalVar%XZFlow, STAT= STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                          &
             stop 'Construct_GlobalVariables - ModuleWaterProperties - ERR60'
-
-
+            
     end subroutine Construct_GlobalVariables
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructDDecomp
+
+        !Local-----------------------------------------------------------------
+        integer :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
+                                  MasterOrSlave    = Me%DDecomp%MasterOrSlave,          &
+                                  STAT             = STAT_CALL)
+                                              
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructDDecomp - ModuleWaterProperties - ERR10'
+            
+            
+ifMS:   if (Me%DDecomp%MasterOrSlave) then
+            
+            call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      WorkSize         = Me%DDecomp%WindowLimitsJI,     &
+                                      STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructDDecomp - ModuleWaterProperties - ERR20'
+            
+            call GetDDecompMapping2D(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Mapping2D        = Me%DDecomp%Mapping,             &
+                                     STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructDDecomp - ModuleWaterProperties - ERR30'
+            
+            Me%DDecomp%MPI_ID = GetDDecompMPI_ID(Me%ObjHorizontalGrid)
+            
+            Me%DDecomp%ON     = GetDDecompON    (Me%ObjHorizontalGrid)
+
+        endif ifMS
+
+    end subroutine ConstructDDecomp
 
     
     !--------------------------------------------------------------------------
@@ -3410,7 +3458,7 @@ cd2 :           if (BlockFound) then
         integer                                     :: WorkJLB, WorkJUB
         integer                                     :: WorkKLB, WorkKUB
         integer                                     :: HDF5_CREATE, ObjHDF5, i, n, j
-        logical                                     :: OutputOk, MasterOrSlave
+        logical                                     :: OutputOk
 
         !----------------------------------------------------------------------
         !Bounds
@@ -3444,14 +3492,8 @@ i2:     if (present(iW)) then
             
             Me%OutW%OutPutWindows(iW)%ON = .true.
             
-            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,  &
-                                      MasterOrSlave    = MasterOrSlave,         &
-                                      STAT             = STAT_CALL)
-                                                  
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR10'
             
-            
-            if (MasterOrSlave) then
+            if (Me%DDecomp%MasterOrSlave) then
 
                 if (WindowIntersectDomain(Me%ObjHorizontalGrid, WorkSize2D)) then
                 
@@ -4958,13 +5000,13 @@ do1 :   do while (associated(PropertyX))
         Message   ='Instant fields of bivalve in HDF format.'
         Message   = trim(Message)
 
-        call ReadFileName('BIV_HDF', FileName, &
-                           Message = Message, TIME_END = Me%EndTime,  &
-                           Extension = 'elt',                         &
-                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
+        call ReadFileName('BIV_HDF', FileName,                                          &
+                           Message = Message, TIME_END = Me%EndTime,                    &
+                           Extension = 'elt',                                           &
+                           MPI_ID    = Me%DDecomp%MPI_ID,                               &
+                           DD_ON     = Me%DDecomp%ON,                                   &
                            STAT      = STAT_CALL)                           
-        if (STAT_CALL .NE. SUCCESS_)                                  &
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'CoupleBivalve - ModuleWaterProperties - ERR00' 
             
         Me%Bivalve%BivalveHDFOutputFile = trim(FileName)//"5"
@@ -6059,8 +6101,8 @@ subroutine Construct_Discharges_Tracking
         call ReadFileName('EUL_HDF', Me%Files%OutPutFields,                             &
                            Message = Message, TIME_END = Me%EndTime,                    &
                            Extension = 'elt',                                           &
-                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),          &
-                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),          &
+                           MPI_ID    = Me%DDecomp%MPI_ID,                               &
+                           DD_ON     = Me%DDecomp%ON,                                   &
                            STAT      = STAT_CALL)                           
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Read_WaterProperties_Files_Name - ModuleWaterProperties - ERR02' 
@@ -6071,8 +6113,8 @@ subroutine Construct_Discharges_Tracking
         call ReadFileName('EUL_FIN', Me%Files%FinalWaterProperties,                     &
                            Message = Message, TIME_END = Me%EndTime,                    &
                            Extension = 'elf',                                           &
-                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),          &
-                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),          &
+                           MPI_ID    = Me%DDecomp%MPI_ID,                               &
+                           DD_ON     = Me%DDecomp%ON,                                   &
                            STAT      = STAT_CALL)                           
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'Read_WaterProperties_Files_Name - ModuleWaterProperties - ERR03' 
@@ -9722,9 +9764,7 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         integer(4)                                  :: HDF5_READ
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: ILW, IUW, JLW, JUW
-        type (T_Size2D)                             :: WindowLimitsJI
         real,    dimension(:,:,:), pointer          :: Aux3D
-        logical                                     :: MasterOrSlave
         
 
         !----------------------------------------------------------------------
@@ -9753,25 +9793,13 @@ cd0:    if (EXIST) then
             if (STAT_CALL /= SUCCESS_)                                                   &
                 stop 'ReadOldConcBoundariesHDF - ModuleWaterProperties - ERR01.'
                 
-            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
-                                      MasterOrSlave    = MasterOrSlave,                 &
-                                      STAT             = STAT_CALL)
-                                                  
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleWaterProperties - ERR10'
-                
-                
-ifMS:       if (MasterOrSlave) then
+ifMS:       if (Me%DDecomp%MasterOrSlave) then
                     
-                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,      &
-                                          WorkSize         = WindowLimitsJI,            &
-                                          STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR40'
-                
-                ILW = WindowLimitsJI%ILB
-                IUW = WindowLimitsJI%IUB
+                ILW = Me%DDecomp%WindowLimitsJI%ILB
+                IUW = Me%DDecomp%WindowLimitsJI%IUB
 
-                JLW = WindowLimitsJI%JLB
-                JUW = WindowLimitsJI%JUB
+                JLW = Me%DDecomp%WindowLimitsJI%JLB
+                JUW = Me%DDecomp%WindowLimitsJI%JUB
                                                       
             else ifMS
 
@@ -10856,8 +10884,7 @@ cd2 :       if (BlockFound) then
         integer                                     :: STAT_CALL
         integer                                     :: HDF5_READ
         integer                                     :: ObjHDF5 = 0
-        logical                                     :: exist, MasterOrSlave
-        type (T_Size2D)                             :: WindowLimitsJI        
+        logical                                     :: exist
 
         !----------------------------------------------------------------------
 
@@ -10886,27 +10913,13 @@ cd2 :       if (BlockFound) then
         call ConstructHDF5 (ObjHDF5, trim(Me%Files%InitialWaterProperties)//"5", HDF5_READ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - WaterProperties - ERR20'
         
-        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
-                                  MasterOrSlave    = MasterOrSlave,                 &
-                                  STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) then
-            stop 'read_Old_Properties_2D - WaterProperties - ERR30'
-        endif
+ifMS:   if (Me%DDecomp%MasterOrSlave) then    
 
-ifMS:   if (MasterOrSlave) then    
+            ILW = Me%DDecomp%WindowLimitsJI%ILB
+            IUW = Me%DDecomp%WindowLimitsJI%IUB
 
-            call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,      &
-                                      WorkSize         = WindowLimitsJI,            &
-                                      STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) then
-                stop 'read_Old_Properties_2D - WaterProperties - ERR40'
-            endif
-
-            ILW = WindowLimitsJI%ILB
-            IUW = WindowLimitsJI%IUB
-
-            JLW = WindowLimitsJI%JLB
-            JUW = WindowLimitsJI%JUB
+            JLW = Me%DDecomp%WindowLimitsJI%JLB
+            JUW = Me%DDecomp%WindowLimitsJI%JUB
             
         else ifMS
 
@@ -19862,13 +19875,39 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
         integer                                 :: STAT_CALL
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: i, j, k
+        integer                                 :: icILB, icIUB, icJLB, icJUB
+        integer                                 :: di_out, dj_out
         real(8)                                 :: RoRef
         real                                    :: Depth
         !$ integer                                 :: CHUNK
+        character(len=PathLength)               :: ModelName
         
         !Begin----------------------------------------------------------------- 
 
 cd10:   if (CurrentTime > Me%Density%LastActualization) then
+
+            ModelName = ' ' 
+
+            if (Me%DDecomp%MasterOrSlave) then
+                
+                icILB = Me%DDecomp%Mapping%ILB
+                icIUB = Me%DDecomp%Mapping%IUB
+                icJLB = Me%DDecomp%Mapping%JLB
+                icJUB = Me%DDecomp%Mapping%JUB
+            
+                write(ModelName,*) 'ModelName =', trim(Me%ModelName),' - MPI ID =', Me%DDecomp%MPI_ID, &
+                ' - domain corners(imin, imax, jmin, jmax)=',icILB, icIUB, icJLB, icJUB
+                
+                di_out = Me%DDecomp%WindowLimitsJI%ILB - 1
+                dj_out = Me%DDecomp%WindowLimitsJI%JLB - 1
+                
+            else
+                write(ModelName,*) 'ModelName =', trim(Me%ModelName)
+                di_out = 0
+                dj_out = 0
+            endif                                    
+
+
            
             ILB = Me%WorkSize%ILB 
             IUB = Me%WorkSize%IUB 
@@ -19958,9 +19997,9 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                         if (WaterPoints3D(i, j, k) == 1) then
                         
                             if (T(i, j, k)<-20. .or. T(i, j, k)>100. .or. S(i, j, k) < -5 .or. S(i, j, k)>100.) then
-                                write(*,*) Me%ModelName
+                                write(*,'(A256)') trim(ModelName)
                                 write(*,*) 'T,S,i,j,k'
-                                write(*,*) T(i, j, k), S(i, j, k), i,j,k
+                                write(*,*) T(i, j, k), S(i, j, k), i+di_out,j+dj_out,k
                             endif
 
                             Me%Density%Sigma(i, j, k) = SigmaUNESCO     (T(i, j, k), S(i, j, k))
@@ -20158,9 +20197,10 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                         Me%Density%Field(i, j, k) < 0. )  then
                         !$OMP CRITICAL (MD1WP_ERR04)
                         write(*,*) 'i,j,k'
-                        write(*,*) i,j,k
+                        write(*,*) i+di_out,j+dj_out,k
                         write(*,*) 'density,temperature,salinity'
-                        write(*,*) Me%Density%Field(i, j, k),T(i, j, k),S(i, j, k), Me%ModelName                     
+                        write(*,*) trim(ModelName)
+                        write(*,*) Me%Density%Field(i, j, k),T(i, j, k),S(i, j, k)
                         stop 'ModifyDensity - ModuleWaterProperties - ERR04'   
                         !$OMP END CRITICAL (MD1WP_ERR04)
                     end if                  
