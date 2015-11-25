@@ -135,6 +135,7 @@ Module ModuleHorizontalGrid
     public  :: GetDDecompSlaves
     public  :: GetDDecompSlavesSize
     public  :: GetDDecompWorkSize2D
+    public  :: GetDDecompMapping2D    
     public  :: GetDDecompMPI_ID    
     public  :: GetDDecompON
     
@@ -8734,6 +8735,48 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
+    subroutine GetDDecompMapping2D(HorizontalGridID, Mapping2D, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: HorizontalGridID   
+        type(T_Size2D)   , intent(OUT)              :: Mapping2D
+        integer, optional, intent(OUT)              :: STAT
+
+
+        !External--------------------------------------------------------------
+        integer :: ready_        
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Mapping2D%ILB = Me%DDecomp%Mapping%ILB
+            Mapping2D%IUB = Me%DDecomp%Mapping%IUB
+            Mapping2D%JLB = Me%DDecomp%Mapping%JLB
+            Mapping2D%JUB = Me%DDecomp%Mapping%JUB
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetDDecompMapping2D
+    
+    !--------------------------------------------------------------------------    
 
     subroutine UngetHorizontalGrid1D(HorizontalGridID, Array, STAT)
 
