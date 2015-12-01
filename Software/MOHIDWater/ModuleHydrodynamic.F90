@@ -140,6 +140,10 @@ Module ModuleHydrodynamic
                                        ReturnsIntersectionCorners,                       &                                       
                                        GetGridOutBorderPolygon,                          &
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV
+#ifdef _USE_MPI                                                  
+    use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI
+#endif
+                                           
                                        
     use ModuleGeometry,         only : GetGeometrySize, GetGeometryWaterColumn,          &
                                        GetGeometryDistances, GetGeometryKFloor,          &
@@ -1560,13 +1564,13 @@ Module ModuleHydrodynamic
         ! LENGTH OF THE FAULT PLANE        
         real                        :: L                = null_real
         ! WIDTH OF THE FAULT PLANE
-        real                        :: W                = null_real		
+        real                        :: W                = null_real
         ! DISLOCATION        			
-        real                        :: D                = null_real				
+        real                        :: D                = null_real
         ! (=THETA) STRIKE DIRECTION        
-        real                        :: TH	            = null_real
+        real                        :: TH               = null_real
         ! (=DELTA) DIP ANGLE				
-        real                        :: DL		        = null_real
+        real                        :: DL               = null_real
         ! (=LAMDA) SLIP ANGLE 
         real                        :: RD	            = null_real
         ! EPICENTER (LATITUDE)
@@ -2177,7 +2181,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                               HaloMap          = Me%DDecomp%HaloMap,        &
                               STAT             = STAT_CALL)
                                               
-        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleWaterProperties - ERR10'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHydrodynamic - ERR10'        
         
         if (Me%DDecomp%MasterOrSlave) then
 
@@ -3873,7 +3877,7 @@ cd1:    if (Evolution == Solve_Equations_) then
 
 
         ! ---> Hydrodynamic properties initial values in HDF format
-        Message   ='Water properties initial values in HDF format.'
+        Message   ='Hydrodynamic properties initial values in HDF format.'
         Message   = trim(Message)
         call ReadFileName('IN_CNDI', Me%Files%InitialHydrodynamic,                      &
                            Message   = Message, TIME_END = Me%BeginTime,                &
@@ -7138,7 +7142,7 @@ cd21:   if (Baroclinic) then
         call GetData(Me%NonHydroStatic%Residual,                                        & 
                      Me%ObjEnterData, iflag,                                            & 
                      Keyword    = 'NH_RESIDUAL',                                        &
-                     Default    = 10e-6,                                                &
+                     Default    = 1e-6,                                                 &
                      SearchType = FromFile,                                             &
                      ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = STAT_CALL)            
@@ -21658,8 +21662,9 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                     Prop(i, j, k) = 0.
                 enddo         
                 
-                iy = i
-                jx = j
+                iy      = i
+                jx      = j
+                k_first = k_bottom
                 
                 !null gradient horizontal open boundary condition
                 if       (Me%External_Var%BoundaryFacesU(i,j  ) == Boundary) then
@@ -23246,7 +23251,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         integer                          :: Grid
 
         !Local----------------------------------------------------------------
-
+        integer                          :: STAT_CALL
         !Begin----------------------------------------------------------------
         
         !Grid = Fix = 1
@@ -23276,7 +23281,21 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         endif
 
-    
+#if _USE_MPI
+        if (Me%WorkSize%KUB > 1) then
+            !if domain decomposition is On exchanges vertical velocity along the domains boundaries
+            !call ReceiveSendVelocity3DMPI(Property3D = Me%Velocity%Vertical%Across)
+            call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid,     & 
+                                           Property3D       = Me%Velocity%Vertical%Across,   &
+                                           KLB              = Me%WorkSize%KLB,          &
+                                           KUB              = Me%WorkSize%KUB,          &
+                                           STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'New_VerticalHydrodynamic - ModuleHydrodynamic - ERR10'
+            endif   
+        endif                    
+#endif _USE_MPI     
+        
     end subroutine New_VerticalHydrodynamic
     
     !End----------------------------------------------------------------------
@@ -24071,6 +24090,8 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         integer                             :: FaceAdjacentToWater, Coef
         
         integer                             :: CHUNK
+        
+        integer                             :: STAT_CALL        
         !Begin----------------------------------------------------------------
 
         !Begin - Shorten variables name 
@@ -24236,11 +24257,17 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
         if (Me%Relaxation%Velocity) call VelocityRelaxation 
 
 #if _USE_MPI
-        if (Me%ComputeOptions%HorizontalAdvection .or.                                  &
-            Me%ComputeOptions%HorizontalDiffusion) then
-            !if domain decomposition is On exchanges velocities along the domains boundaries
-            call ReceiveSendVelocity3DMPI(Property3D = Velocity_UV_New, Vector = .true.)
-        endif            
+        !if domain decomposition is On exchanges velocities along the domains boundaries
+        !call ReceiveSendVelocity3DMPI(Property3D = Velocity_UV_New, Vector = .true.)
+        call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid,     & 
+                                       Property3D       = Velocity_UV_New,          &
+                                       KLB              = Me%WorkSize%KLB,          &
+                                       KUB              = Me%WorkSize%KUB,          &
+                                       di               = Me%Direction%di,          &
+                                       dj               = Me%Direction%dj,          &
+                                       STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_Velocity - ModuleHydrodynamic - ERR10'        
+        
 #endif _USE_MPI
 
         !Nullify auxiliar variables
@@ -25026,88 +25053,11 @@ if2:        if (Me%DDecomp%Master) then
         integer, save                    :: Precision
         integer                          :: status(MPI_STATUS_SIZE)       
         
-        integer, pointer, dimension(:)   :: Aux1D
         type(T_Size2D)                   :: Inner, Mapping
         
         
         !Begin---------------------------------------------------------------
         
-        if (Me%FirstIteration) then
-        
-            !PCL - Master slave mapping
-            iSize = 16
-            allocate(Aux1D(iSize))
-                    
-            if (Me%DDecomp%Master) then
-            
-                do i=1, Me%DDecomp%Nslaves
-
-                    Precision = MPI_INTEGER
-                    Source    = Me%DDecomp%Slaves_MPI_ID(i)
-                    
-                    write(*,*) 'mpi_receive from to ', i, Me%DDecomp%MPI_ID                    
-                    
-                    call MPI_Recv (Aux1D(1:iSize), iSize, Precision,   Source, 30001, MPI_COMM_WORLD, status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
-                
-                    Me%DDecomp%Slaves_Inner  (i)%ILB = Aux1D(1)
-                    Me%DDecomp%Slaves_Inner  (i)%IUB = Aux1D(2)
-                    Me%DDecomp%Slaves_Inner  (i)%JLB = Aux1D(3)
-                    Me%DDecomp%Slaves_Inner  (i)%JUB = Aux1D(4)
-
-                    Me%DDecomp%Slaves_HaloMap(i)%ILB = Aux1D(5)
-                    Me%DDecomp%Slaves_HaloMap(i)%IUB = Aux1D(6)
-                    Me%DDecomp%Slaves_HaloMap(i)%JLB = Aux1D(7)
-                    Me%DDecomp%Slaves_HaloMap(i)%JUB = Aux1D(8)
-
-                    Me%DDecomp%Slaves_Size   (i)%ILB = Aux1D(9)
-                    Me%DDecomp%Slaves_Size   (i)%IUB = Aux1D(10)
-                    Me%DDecomp%Slaves_Size   (i)%JLB = Aux1D(11)
-                    Me%DDecomp%Slaves_Size   (i)%JUB = Aux1D(12)
-
-                    Me%DDecomp%Slaves_Mapping(i)%ILB = Aux1D(13)
-                    Me%DDecomp%Slaves_Mapping(i)%IUB = Aux1D(14)
-                    Me%DDecomp%Slaves_Mapping(i)%JLB = Aux1D(15)
-                    Me%DDecomp%Slaves_Mapping(i)%JUB = Aux1D(16)
-
-                enddo
-
-            else
-            
-                Aux1D(1) = Me%DDecomp%Inner%ILB
-                Aux1D(2) = Me%DDecomp%Inner%IUB
-                Aux1D(3) = Me%DDecomp%Inner%JLB
-                Aux1D(4) = Me%DDecomp%Inner%JUB
-                
-                Aux1D(5) = Me%DDecomp%HaloMap%ILB
-                Aux1D(6) = Me%DDecomp%HaloMap%IUB
-                Aux1D(7) = Me%DDecomp%HaloMap%JLB
-                Aux1D(8) = Me%DDecomp%HaloMap%JUB
-
-                Aux1D(9) = Me%WorkSize2D%ILB
-                Aux1D(10)= Me%WorkSize2D%IUB
-                Aux1D(11)= Me%WorkSize2D%JLB
-                Aux1D(12)= Me%WorkSize2D%JUB            
-
-                Aux1D(13) = Me%DDecomp%Mapping%ILB
-                Aux1D(14) = Me%DDecomp%Mapping%IUB
-                Aux1D(15) = Me%DDecomp%Mapping%JLB
-                Aux1D(16) = Me%DDecomp%Mapping%JUB
-           
-                Precision   = MPI_INTEGER
-                Destination = Me%DDecomp%Master_MPI_ID
-                
-                write(*,*) 'mpi_send', Me%DDecomp%MPI_ID
-                
-                call MPI_Send (Aux1D(1:iSize), iSize, Precision, Destination, 30001, MPI_COMM_WORLD, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'AggregatesThomasCoefs - ModuleHydrodynamic - ERR10'
-
-            endif
-            
-            deallocate(Aux1d)        
-            
-        endif            
-
         IUB = Me%DDecomp%Global%IUB
         ILB = Me%DDecomp%Global%ILB
         JUB = Me%DDecomp%Global%JUB
@@ -30636,8 +30586,7 @@ cd3:                    if (Manning) then
         !$OMP PARALLEL PRIVATE( AuxZ, EP, WallDistance,         &
         !$OMP                   Rugosity, Chezy, DT_Z,          &
         !$OMP                   VelMod_UV,                      &
-        !!$OMP                   VelMod_UV, ChezyWave,           &
-        !$OMP                   iSouth, jWest, i_North, j_East, &
+        !$OMP                   iSouth, jWest, i_North, j_East,    &
         !$OMP                   I, J, kbottom, ChezyVelUV)
 
         ChezyVelUV        => Me%External_Var%ChezyVelUV
@@ -39259,7 +39208,7 @@ dok:            do k = kbottom + 1, KUB
         !$OMP END DO
         enddo
         !$OMP END PARALLEL
-
+        
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Compute_VerticalVelocity")
         endif
@@ -44151,17 +44100,22 @@ sp:     if (.not. SimpleOutPut) then
             !$OMP END DO
             !$OMP END PARALLEL
 
-            call HDF5WriteData  (ObjHDF5, "/Results/Error",                              &
-                                 "Error", "m/s", Array2D = Me%OutPut%Aux2D,                 &
+            call HDF5WriteData  (ObjHDF5, "/Results/Error",                             &
+                                 "Error", "m/s", Array2D = Me%OutPut%Aux2D,             &
                                  OutputNumber = Index, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR300'
+
+            call HDF5WriteData  (ObjHDF5, "/Results/velocity W Across",                 &
+                                 "velocity W Across", "m/s", Array3D = Me%Velocity%Vertical%Across, &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR310'
 
 
             if (Me%TidePotential%Compute) then
                 
                 call HDF5WriteData  (ObjHDF5, "/Results/TidePotential",                  &
-                                     "TidePotential", "m",                                  &
-                                     Array2D = Me%Forces%TidePotentialLevel,                &
+                                     "TidePotential", "m",                               &
+                                     Array2D = Me%Forces%TidePotentialLevel,             &
                                      OutputNumber = Index, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR320'
 

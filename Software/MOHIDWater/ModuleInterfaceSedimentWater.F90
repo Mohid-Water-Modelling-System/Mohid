@@ -125,12 +125,14 @@ Module ModuleInterfaceSedimentWater
     use ModuleFunctions,            only: ConstructPropertyID, TimeToString, ChangeSuffix,  &
                                           CHUNK_J, CHUNK_I
     use ModuleHDF5,                 only: ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,  &
-                                          HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
+                                          HDF5WriteData, HDF5FlushMemory, HDF5ReadWindow,   &
+                                          KillHDF5
     use ModuleGridData,             only: GetGridData, UngetGridData
     use ModuleHorizontalGrid,       only: GetHorizontalGrid, GetHorizontalGridSize,         &
                                           WriteHorizontalGrid, UnGetHorizontalGrid,         &
                                           GetGridCellArea, GetXYCellZ, GetDDecompMPI_ID,    &
-                                          GetDDecompON, GetGridOutBorderPolygon
+                                          GetDDecompON, GetGridOutBorderPolygon,            &
+                                          GetDDecompParameters, GetDDecompWorkSize2D
     use ModuleHorizontalMap,        only: GetOpenPoints2D, GetWaterPoints2D, GetBoundaries, &
                                           UnGetHorizontalMap
     use ModuleGeometry,             only: GetGeometrySize, GetGeometryWaterColumn,          &
@@ -916,6 +918,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ConstructLog
             
+            if(Me%Coupled%OutputHDF%Yes) call OutPut_Results_HDF
+            
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                 &
                 stop 'StartInterfaceSedimentWater - InterfaceSedimentWater - ERR03'
@@ -1028,8 +1032,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Message   = trim(Message)
 
         call ReadFileName('BOT_INI', Me%Files%Initial, Message = Message, TIME_END = Me%ActualTime, &
-                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&                           
                            STAT      = STAT_CALL)
                                                                                                
 cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
@@ -4025,6 +4027,10 @@ do1 :   do while (associated(PropertyX))
         integer                                     :: HDF5_READ
         integer                                     :: ObjHDF5 = 0
         logical                                     :: exist
+        integer                                     :: ILW, IUW, JLW, JUW
+        type (T_Size2D)                             :: WindowLimitsJI
+        real,    dimension(:,:), pointer            :: Aux2D
+        logical                                     :: MasterOrSlave        
 
         !----------------------------------------------------------------------
 
@@ -4035,14 +4041,13 @@ do1 :   do while (associated(PropertyX))
 
         ObjHDF5 = 0
 
-
         inquire(File = trim(Me%Files%Initial)//"5", Exist = exist)
         
         if(.not. exist)then
             write(*,*) 
             write(*,*)     'Could not find the final InterfaceSedimentWater file.'
             write(*,'(A)') 'BoxFileName = ', trim(Me%Files%Initial)//"5"
-            stop           'Read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR00'    
+            stop           'Read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR10'    
         end if
 
         !Gets File Access Code
@@ -4050,24 +4055,65 @@ do1 :   do while (associated(PropertyX))
 
         !Opens HDF5 File
         call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial)//"5", HDF5_READ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR20'
+        
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                  MasterOrSlave    = MasterOrSlave,                 &
+                                  STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR30'            
+            
+ifMS:   if (MasterOrSlave) then
+                
+            call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      WorkSize         = WindowLimitsJI,                &
+                                      STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR40'
+            
+            ILW = WindowLimitsJI%ILB
+            IUW = WindowLimitsJI%IUB
+
+            JLW = WindowLimitsJI%JLB
+            JUW = WindowLimitsJI%JUB
+                                                  
+        else ifMS
+
+            ILW = ILB 
+            IUW = IUB
+
+            JLW = JLB 
+            JUW = JUB 
+
+        endif ifMS                
             
         !Reads from HDF file the Property concentration and open boundary values
-        call HDF5SetLimits  (ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR02'
+        call HDF5SetLimits  (ObjHDF5, ILW, IUW, JLW, JUW, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR50'
         
-        if(PropertyName == "Rugosity") then            
-            call HDF5ReadData(ObjHDF5, "/Rugosity/"//"Rugosity", &
-                            PropertyName, Array2D = Scalar_2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR03a'
+        allocate(Aux2D(ILW:IUW, JLW:JUW))
+        
+        if(PropertyName == "Rugosity") then       
+        
+           call HDF5ReadWindow (HDF5ID         = ObjHDF5,                               &
+                                GroupName      = "/Rugosity/"//"Rugosity",              &
+                                Name           = trim(PropertyName),                    &
+                                Array2D        = Aux2D,                                 &    
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR60'
         else            
-            call HDF5ReadData(ObjHDF5, "/Mass/"//PropertyName, &
-                              PropertyName, Array2D = Scalar_2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR03'
+           call HDF5ReadWindow (HDF5ID         = ObjHDF5,                               &
+                                GroupName      = "/Mass/"//trim(PropertyName),          &
+                                Name           = trim(PropertyName),                    &
+                                Array2D        = Aux2D,                                 &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR70'
         endif
         
+        Scalar_2D(ILB:IUB, JLB:JUB) = Aux2D(ILW:IUW, JLW:JUW)
+        
+        deallocate(Aux2D)
+        
         call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR04'            
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR80'
 
     end subroutine read_Old_Properties_2D
 

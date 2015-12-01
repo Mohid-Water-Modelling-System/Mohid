@@ -21,7 +21,7 @@ Module ModuleReservoirs
     use ModuleTime
     use ModuleDischarges
     use ModuleFunctions,    only: LinearInterpolation, ConstructPropertyID,      &
-                                  SetMatrixValue
+                                  SetMatrixValue, TimeToString, ChangeSuffix
     use ModuleTimeSerie,    only: StartTimeSerie, WriteTimeSerieLine, KillTimeSerie
     use ModuleHDF5
     
@@ -32,6 +32,8 @@ Module ModuleReservoirs
                                     UngetGridData
     use ModuleBasinGeometry,  only: ConstructBasinGeometry, KillBasinGeometry,   &
                                     GetBasinPoints, UngetBasin
+    
+    use ModuleFillMatrix,     only: ConstructFillMatrix, KillFillMatrix
     
     
     implicit none
@@ -119,11 +121,15 @@ Module ModuleReservoirs
     
     type       T_OutPut
          type (T_Time), pointer, dimension(:)       :: OutTime            => null()
+         type (T_Time), dimension(:), pointer       :: RestartOutTime     => null()
          logical                                    :: HDF                = .false.
          logical                                    :: HDFActive          = .false.
          integer                                    :: Number             = null_int 
          logical                                    :: TimeSerie          = .false.  
          integer                                    :: NextOutPut         = null_int
+         logical                                    :: WriteRestartFile     = .false.       
+         logical                                    :: RestartOverwrite     = .false.
+         integer                                    :: NextRestartOutput    = 1           
     end type T_OutPut    
     
     type T_ComputeOptions
@@ -171,6 +177,8 @@ Module ModuleReservoirs
         real                                        :: InitialValue             = null_real
         real                                        :: BottomMinConc            = null_real  !kg m-2
         real                                        :: BoundaryConcentration    = null_real
+        
+        logical                                     :: Old                      = .false.
         
         !Advection Diffusion
         real                                        :: Diffusivity              = null_real
@@ -228,13 +236,13 @@ Module ModuleReservoirs
         
         !Operation
         integer                                       :: OperationType        = null_int   
-        real(8), dimension(:,:), pointer              :: OperationCurve       => null()    
+        real, dimension(:,:), pointer                 :: OperationCurve       => null()    
         integer                                       :: OperationCurvePoints = 0
         
-        real(8)                                       :: MinOutflow          = null_real  !Environmental flow
-        real(8)                                       :: MaxOutflow          = null_real  !Projected
+        real                                          :: MinOutflow          = null_real  !Environmental flow
+        real                                          :: MaxOutflow          = null_real  !Projected
         
-        real(8), dimension(:,:), pointer              :: AccVolumeCurve       => null()
+        real, dimension(:,:), pointer                 :: AccVolumeCurve       => null()
         integer                                       :: AccVolumeCurvePoints = 0
         
     end type T_Management
@@ -255,18 +263,18 @@ Module ModuleReservoirs
         integer                                       :: DNNodeID             = null_int
         
         !State Variables
-        real(8)                                       :: VolumeOld            = null_real
-        real(8)                                       :: VolumeNew            = null_real
-        real(8)                                       :: PercFull             = null_real
+        real                                          :: VolumeOld            = null_real
+        real                                          :: VolumeNew            = null_real
+        real                                          :: PercFull             = null_real
         
         !Derived State variables
-        real(8)                                       :: WaterLevel           = null_real
+        real                                          :: WaterLevel           = null_real
         
         !Fluxes
-        real(8)                                       :: DNInflow             = null_real
-        real(8)                                       :: Outflow              = null_real
-        real(8)                                       :: Discharges           = null_real
-        real(8)                                       :: SurfaceFluxes        = null_real    
+        real                                          :: DNInflow             = null_real
+        real                                          :: Outflow              = null_real
+        real                                          :: Discharges           = null_real
+        real                                          :: SurfaceFluxes        = null_real    
         
         !Management
         type(T_Management)                            :: Management
@@ -275,9 +283,9 @@ Module ModuleReservoirs
         logical                                       :: IsWeir              = .false.
         
         !volumes
-        real(8)                                       :: MinVolume            = null_real
-        real(8)                                       :: MaxVolume            = null_real
-        real(8)                                       :: InitialVolume        = null_real
+        real                                          :: MinVolume            = null_real
+        real                                          :: MaxVolume            = null_real
+        real                                          :: InitialVolume        = null_real
         logical                                       :: InitialVolumeDefined = .false.
         !Geometry
         real                                          :: WallHeight           = null_real
@@ -302,17 +310,17 @@ Module ModuleReservoirs
         type (T_Size1D)                             :: Size1D, WorkSize1D
         
         !Matrix for interaction with other modules
-        real(8), dimension(:),  pointer             :: ReservoirVolumes      => null()
-        real(8), dimension(:),  pointer             :: ReservoirPercFull     => null()
-        real(8), dimension(:),  pointer             :: ReservoirInflows      => null()    !input from DN
-        real(8), dimension(:),  pointer             :: ReservoirOutflows     => null()    !output to DN
-        !real(8), dimension(:, :)),  pointer         :: ReservoirConc         => null()    !output to DN
+        real, dimension(:),  pointer                :: ReservoirVolumes      => null()
+        real, dimension(:),  pointer                :: ReservoirPercFull     => null()
+        real, dimension(:),  pointer                :: ReservoirInflows      => null()    !input from DN
+        real, dimension(:),  pointer                :: ReservoirOutflows     => null()    !output to DN
+        !real, dimension(:, :)),  pointer            :: ReservoirConc         => null()    !output to DN
         
         integer, dimension(:),  pointer             :: ReservoirsNodeIDs                  !DN Id's    
         
         integer, dimension(:),  pointer             :: ReservoirDischargeLink   => null()
-        real(8), dimension(:),  pointer             :: ReservoirDischargeFlow   => null()
-        real(8), dimension(:, :),  pointer          :: ReservoirDischargeConc   => null()
+        real, dimension(:),  pointer                :: ReservoirDischargeFlow   => null()
+        real, dimension(:, :),  pointer             :: ReservoirDischargeConc   => null()
         logical, dimension(:),  pointer             :: DischargesActive         => null()
         
         !Initial condition
@@ -422,10 +430,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL/=SUCCESS_) stop 'ConstructReservoirs - ModuleReservoirs - ERR01a'            
             
             
-            
-            !Read data file name
-            call ReadFileName('RESERVOIRS_DAT', Me%Files%ConstructData, Message = "Reservoirs Data File", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructReservoirs - ModuleReservoirs - ERR01b'            
+            call ReadFileNames
+          
             
             !Open data file
             call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL) 
@@ -442,11 +448,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ConstructDischarges
             endif
             
-            !Intial condition
+            !Intial volume condition
             if (Me%Continuous) then
-                call ReadFinalHDF
+                call ReadInitialVolume
             else
-                call InitializeReservoirs
+                call InitializeReservoirsVolume
             endif
             
             !Allocate and reset Variables
@@ -478,6 +484,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ConstructReservoirs
  
     !--------------------------------------------------------------------------
+    
+    subroutine ReadFileNames
+        
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------    
+        integer                                          :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+        
+        !Read data file name
+        call ReadFileName('RESERVOIRS_DAT', Me%Files%ConstructData, Message = "Reservoirs Data File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructReservoirs - ModuleReservoirs - ERR01b'      
+    
+        !Read the file name to place results
+        call ReadFileName('RESERVOIRS_HDF', Me%Files%ResultsFile, Message = "Reservoirs HDF File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructReservoirs - ModuleReservoirs - ERR01'        
+            
+        !Reads the name of the file where to write the final data
+        call ReadFileName ('RESERVOIRS_FIN', Me%Files%FinalFile, 'Reservors Initial File', STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialConc - ModuleReservoirs - ERR20'         
+        
+    
+    end subroutine ReadFileNames
+    
+    !--------------------------------------------------------------------------    
     
     subroutine AllocateInstance
 
@@ -898,8 +929,7 @@ if2:            if (BlockFound) then
                         if (l > 1) then
                             if (NewReservoir%Management%OperationCurve(l, 1) <=     &
                                  NewReservoir%Management%OperationCurve(l - 1, 1)) then
-                                write(*,*) 'operation curve needs to be in ascending order of level or'
-                                write(*,*) 'percentage volume (1st column)'
+                                write(*,*) 'operation curve needs to be in ascending order of level or percentage volume (1st column)'
                                 write(*,*) 'in reservoir ID : ', NewReservoir%ID
                                 stop 'ConstructReservoir - ModuleReservoirs - ERR0112'  
                             endif
@@ -1171,7 +1201,7 @@ if2:            if (BlockFound) then
                 Found = .TRUE.
                 exit
             end if
-
+            Reservoir => Reservoir%Next
         end do
 
     end subroutine FindReservoir
@@ -1282,29 +1312,99 @@ cd2 :           if (BlockFound) then
         integer                                     :: iflag
         real                                        :: BottomInitialConc
         real                                        :: ModelDT, auxFactor, errorAux, DTaux
-        
+        integer                                     :: ObjHorizontalGrid = 0
+        integer                                     :: ObjBasinGeometry  = 0        
+        integer, dimension(:,:), pointer            :: BasinPoints       => null()
+        real, dimension(:,:), pointer               :: ReservoirConc
+        type (T_Reservoir), pointer                 :: CurrReservoir
         !Begin-----------------------------------------------------------------
         
-        call GetData(NewProperty%InitialValue,                                  &
-                     Me%ObjEnterData, iflag,                                    &
-                     Keyword        = 'DEFAULTVALUE',                           &
-                     ClientModule   = 'ModuleReservoirs',                  &
-                     SearchType     = FromBlock,                                &
-                     Default        = 0.0,                                      &
-                     STAT           = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'ModuleReservoirs - ConstructPropertyValues - ERR02' 
+         !This variable is a logic one is true if the property is old
+        !and the user wants to continue the run with results of a previous run.
+        call GetData(NewProperty%Old,                                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     keyword      = 'OLD',                                              &
+                     Default      = .false.,                                            &                        
+                     SearchType   = FromBlock,                                          &
+                     ClientModule = 'ModuleReservoirs',                                 &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructPropertyValues - ModuleReservoirs - ERR120'
+          
+        ! if the property is not 'OLD' the property values in the domain and 
+        ! in the boundaries are initialized (user can provide a grid data or constant value)
+        ! if it's true ('OLD') this same values are read from the final file of the
+        ! previous run
+        if (.not. NewProperty%Old) then
 
+            call ConstructHorizontalGrid(ObjHorizontalGrid, Me%ExtVar%TopographicFile, &
+                                            STAT = STAT_CALL)           
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR010'
 
-        call GetData(NewProperty%BoundaryConcentration,                         &
-                     Me%ObjEnterData, iflag,                                    &
-                     Keyword        = 'DEFAULTBOUNDARY',                        &
-                     ClientModule   = 'ModuleReservoirs',                  &
-                     SearchType     = FromBlock,                                &
-                     Default        = NewProperty%InitialValue,                 &
-                     STAT           = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'ModuleReservoirs - ConstructPropertyValues - ERR02aa' 
+            !Gets BasinPoints
+            call GetBasinPoints         (ObjBasinGeometry, BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR040'     
+
+            allocate(ReservoirConc           (Me%ExtVar%WorkSize2D%ILB:Me%ExtVar%WorkSize2D%IUB,   &
+                                              Me%ExtVar%WorkSize2D%JLB:Me%ExtVar%WorkSize2D%JUB))
+            call SetMatrixValue (ReservoirConc,          Me%ExtVar%WorkSize2D, 0.0)            
+            
+            
+            call ConstructFillMatrix  (PropertyID           = NewProperty%ID,                   &
+                                       EnterDataID          = Me%ObjEnterData,                  &
+                                       TimeID               = Me%ObjTime,                       &
+                                       HorizontalGridID     = ObjHorizontalGrid,                &
+                                       ExtractType          = FromBlock,                        &
+                                       PointsToFill2D       = BasinPoints,                      &
+                                       Matrix2D             = ReservoirConc,                    &
+                                       TypeZUV              = TypeZ_,                           &
+                                       STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                          &
+                stop 'ConstructPropertyValues - ModuleReservoirs - ERR140'
+
+            if(.not. NewProperty%ID%SolutionFromFile)then
+
+                call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)&
+                    stop 'ConstructPropertyValues - ModuleReservoirs - ERR0150'
+                
+            else
+                write(*,*)
+                write(*,*)'Cant impose reservoir properties in time'
+                stop 'ConstructPropertyValues - ModuleReservoirs - ERR0151'
+            end if
+
+            
+            CurrReservoir => Me%FirstReservoir
+            do while (associated(CurrReservoir))
+                
+                NewProperty%Concentration(CurrReservoir%Position) = ReservoirConc(CurrReservoir%GridI, CurrReservoir%GridJ)
+                                                
+                CurrReservoir => CurrReservoir%Next
+            enddo                
+            
+            deallocate (ReservoirConc)
+            
+            !Ungets BasinPoints
+            call UngetBasin             (ObjBasinGeometry, BasinPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR150'  
+            
+            call KillHorizontalGrid     (ObjHorizontalGrid,  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR180'             
+
+        else
+
+            if (Me%Continuous) then
+                ! If the property is old then the program is going to try to find a property
+                ! with the same name in the Water properties initial file written in HDF format  
+                call ReadInitialConc(NewProperty)
+            else
+                write(*,*)
+                write(*,*)'Cant use OLD keyword on properties if CONTINUOUS is OFF'
+                write(*,*)'Property : ', trim(NewProperty%ID%Name)
+                stop 'ConstructPropertyValues - ModuleReservoirs - ERR190' 
+            endif
+
+        end if  
 
 
         call GetData(NewProperty%MinValue,                                      &
@@ -1885,6 +1985,114 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
     
     !---------------------------------------------------------------------------    
     
+    subroutine ReadInitialConc(NewProperty)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Property)                           :: NewProperty
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: EXIST
+        integer                                     :: WorkILB, WorkIUB
+        integer                                     :: WorkJLB, WorkJUB
+        integer                                     :: ObjHDF5
+        integer                                     :: HDF5_READ                      
+        real, dimension(:,:), pointer               :: ReservoirConc, ReservoirBottomConc      
+        type (T_Reservoir), pointer                 :: CurrReservoir   
+        !----------------------------------------------------------------------
+
+        !Bounds
+        WorkILB = Me%ExtVar%WorkSize2D%ILB 
+        WorkIUB = Me%ExtVar%WorkSize2D%IUB 
+
+        WorkJLB = Me%ExtVar%WorkSize2D%JLB 
+        WorkJUB = Me%ExtVar%WorkSize2D%JUB 
+
+        !----------------------------------------------------------------------
+
+        
+        allocate(ReservoirConc           (WorkILB:WorkIUB, WorkJLB:WorkJUB))
+        allocate(ReservoirBottomConc     (WorkILB:WorkIUB, WorkJLB:WorkJUB))
+        call SetMatrixValue (ReservoirConc,          Me%ExtVar%WorkSize2D, 0.0)
+        call SetMatrixValue (ReservoirBottomConc,    Me%ExtVar%WorkSize2D, 0.0)                
+
+
+        inquire (FILE=trim(Me%Files%InitialFile), EXIST = Exist)
+
+cd0:    if (Exist) then
+
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+
+            ObjHDF5 = 0
+
+            !Opens HDF5 File
+            call ConstructHDF5 (ObjHDF5,                                                 &
+                                trim(Me%Files%InitialFile),                              &
+                                HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialConc - ModuleReservoirs - ERR01'
+
+
+            ! Reads from HDF file the reservoir volume
+            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                              &
+                                 WorkJLB, WorkJUB,                                       &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialConc - ModuleReservoirs - ERR02'
+
+
+            call HDF5ReadData   (ObjHDF5, "/Results/"//trim(adjustl(NewProperty%ID%Name)),        &
+                                    trim(adjustl(NewProperty%ID%Name)),                              &
+                                    Array2D = ReservoirConc,                                         &
+                                    STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                          &
+                stop 'ReadInitialConc - ModuleReservoirs - ERR020'                
+                
+            if (NewProperty%ComputeOptions%BottomFluxes) then  
+                call HDF5ReadData   (ObjHDF5, "/Results/"//trim(adjustl(NewProperty%ID%Name))//"_Bottom",        &
+                                        trim(adjustl(NewProperty%ID%Name))//"_Bottom",                              &
+                                        Array2D = ReservoirBottomConc,                                 &
+                                        STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                          &
+                    stop 'ReadInitialConc - ModuleReservoirs - ERR030'                      
+            endif
+                
+            CurrReservoir => Me%FirstReservoir
+            do while (associated(CurrReservoir))
+                
+                NewProperty%Concentration(CurrReservoir%Position) = ReservoirConc(CurrReservoir%GridI, CurrReservoir%GridJ)
+                                                                           
+                if(NewProperty%ComputeOptions%BottomFluxes) then 
+                        
+                    NewProperty%BottomConc(CurrReservoir%Position) = ReservoirBottomConc(CurrReservoir%GridI,CurrReservoir%GridJ)
+
+                endif                                            
+                        
+                        
+                CurrReservoir => CurrReservoir%Next
+            enddo                                                                                               
+
+            deallocate(ReservoirConc           )   
+            deallocate(ReservoirBottomConc     )  
+            
+            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialConc - ModuleReservoirs - ERR040'
+
+        else
+            
+            write(*,*)
+            stop 'ReadInitialConc - ModuleReservoirs - ERR050'
+
+        end if cd0
+    
+    end subroutine ReadInitialConc
+    
+    !--------------------------------------------------------------------------    
+    
     subroutine ConstructGlobalVariables
         
         !External-----------------------------------------------------------------
@@ -1962,12 +2170,14 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleReservoirs - ERR10'           
         
-        if (Me%Continuous) then
+        if (Me%Continuous) then   
+
             !Reads the name of the file where to read initial data
             call ReadFileName ('RESERVOIRS_INI', Me%Files%InitialFile, 'Reservors Initial File', STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleReservoirs - ERR20'         
-        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialConc - ModuleReservoirs - ERR20'             
+            
         else
+        
             !Initial conditions when not defined already in reservoir
             call GetData(Me%InitialVolumeDefaultMethod,                                     &
                          Me%ObjEnterData, iflag,                                            &
@@ -2030,7 +2240,7 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
         type(T_Reservoir),           pointer     :: NewReservoir
 
 
-        if (.not.associated(Me%FirstProperty)) then
+        if (.not.associated(Me%FirstReservoir)) then
             Me%nReservoirs  = 1
             Me%FirstReservoir      => NewReservoir
             Me%LastReservoir      => NewReservoir
@@ -2134,18 +2344,116 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
 
     !--------------------------------------------------------------------------      
     
-    subroutine ReadFinalHDF()
+    subroutine ReadInitialVolume()
 
-        !Arguments------------------------------------------------------------
-        !Local-----------------------------------------------------------------        
+        !Arguments-------------------------------------------------------------
 
-        !Begin----------------------------------------------------------------
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: EXIST
+        integer                                     :: WorkILB, WorkIUB
+        integer                                     :: WorkJLB, WorkJUB
+        integer                                     :: ObjHDF5
+        integer                                     :: HDF5_READ                      
+        real, dimension(:,:), pointer               :: ReservoirVolume   
+        type (T_Reservoir), pointer                 :: CurrReservoir   
+        integer                                     :: ObjHorizontalGrid = 0
+        !----------------------------------------------------------------------
+
+        
+        !Constructs Horizontal Grid
+        call ConstructHorizontalGrid(ObjHorizontalGrid, Me%ExtVar%TopographicFile, &
+                                        STAT = STAT_CALL)           
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialVolume - ModuleReservoirs - ERR000'   
+        
+        !Gets the size of the grid
+        call GetHorizontalGridSize (ObjHorizontalGrid,                               &
+                                    Size     = Me%ExtVar%Size2D,                     &
+                                    WorkSize = Me%ExtVar%WorkSize2D,                 &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialVolume - ModuleReservoirs - ERR001'   
+                    
+        
+        
+        !Bounds
+        WorkILB = Me%ExtVar%WorkSize2D%ILB 
+        WorkIUB = Me%ExtVar%WorkSize2D%IUB 
+
+        WorkJLB = Me%ExtVar%WorkSize2D%JLB 
+        WorkJUB = Me%ExtVar%WorkSize2D%JUB 
+
+        !----------------------------------------------------------------------
+
+        
+        allocate(ReservoirVolume         (WorkILB:WorkIUB, WorkJLB:WorkJUB))
+        call SetMatrixValue (ReservoirVolume,        Me%ExtVar%WorkSize2D, 0.0)        
+
+
+        inquire (FILE=trim(Me%Files%InitialFile), EXIST = Exist)
+
+cd0:    if (Exist) then
+
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+
+            ObjHDF5 = 0
+
+            !Opens HDF5 File
+            call ConstructHDF5 (ObjHDF5,                                                 &
+                                trim(Me%Files%InitialFile),                              &
+                                HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialVolume - ModuleReservoirs - ERR01'
+
+
+            ! Reads from HDF file the reservoir volume
+            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                              &
+                                 WorkJLB, WorkJUB,                                       &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialVolume - ModuleReservoirs - ERR02'
+
+            call HDF5ReadData   (ObjHDF5, "/Results/volume",        &
+                                 "volume",                          &
+                                 Array2D = ReservoirVolume,         &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                              &
+                stop 'ReadInitialVolume - ModuleReservoirs - ERR03'     
+            
+            
+            CurrReservoir => Me%FirstReservoir
+            do while (associated(CurrReservoir))
+                
+                CurrReservoir%VolumeOld = ReservoirVolume(CurrReservoir%GridI, CurrReservoir%GridJ)
+                
+                CurrReservoir => CurrReservoir%Next
+            enddo                                                        
+
+            deallocate(ReservoirVolume         )
+            
+            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialVolume - ModuleReservoirs - ERR040'
+
+        else
+            
+            write(*,*)
+            stop 'ReadInitialVolume - ModuleReservoirs - ERR050'
+
+        end if cd0
+        
+
+        call KillHorizontalGrid     (ObjHorizontalGrid,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialVolume - ModuleReservoirs - ERR180'            
     
-    end subroutine ReadFinalHDF
+    end subroutine ReadInitialVolume
     
     !--------------------------------------------------------------------------
 
-    subroutine InitializeReservoirs()
+    subroutine InitializeReservoirsVolume()
 
         !Arguments------------------------------------------------------------
         !Local-----------------------------------------------------------------        
@@ -2173,11 +2481,11 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
             if (CurrentReservoir%Management%ON .and. associated(CurrentReservoir%Management%AccVolumeCurve)) then
                 CurrentReservoir%WaterLevel = ComputeReservoirLevel(CurrentReservoir)
             endif
-                
+                        
             CurrentReservoir => CurrentReservoir%Next
         enddo                
 
-    end subroutine InitializeReservoirs
+    end subroutine InitializeReservoirsVolume
 
     !--------------------------------------------------------------------------    
     
@@ -2188,8 +2496,8 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: i
-        real(8)                                 :: WaterLevel, ReservoirVolume, PreviousCurveLevel
-        real(8)                                 :: PreviousCurveVolume, NextCurveLevel, NextCurveVolume
+        real                                    :: WaterLevel, ReservoirVolume, PreviousCurveLevel
+        real                                    :: PreviousCurveVolume, NextCurveLevel, NextCurveVolume
         !Begin----------------------------------------------------------------
 
         if (CurrentReservoir%Management%ON .and. associated(CurrentReservoir%Management%AccVolumeCurve)) then        
@@ -2521,10 +2829,7 @@ if0:    if (Me%HasProperties) then
         integer                                     :: ObjBasinGeometry  = 0
         integer, dimension(:,:), pointer            :: BasinPoints       => null()
         !----------------------------------------------------------------------
-
-        !Read data file name
-        call ReadFileName('RESERVOIRS_HDF', Me%Files%ResultsFile, Message = "Reservoirs HDF File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructReservoirs - ModuleReservoirs - ERR01'           
+       
         
         
         !Build all Topography stuff
@@ -2715,7 +3020,7 @@ if0:    if (Me%HasProperties) then
 
         !Arguments--------------------------------------------------------------
         integer                                         :: ObjReservoirsID
-        real(8), dimension(:), pointer                  :: ReservoirInflow
+        real, dimension(:), pointer                     :: ReservoirInflow
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -2760,7 +3065,7 @@ if0:    if (Me%HasProperties) then
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjReservoirsID
-        real(8), dimension(:),  pointer                 :: Matrix
+        real, dimension(:),  pointer                    :: Matrix
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3105,7 +3410,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjReservoirsID
-        real(8), dimension(:), pointer                  :: Array
+        real, dimension(:), pointer                     :: Array
         integer, intent(OUT), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3323,7 +3628,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         type (T_Property), pointer              :: Property
         type (T_Reservoir), pointer             :: CurrReservoir
         integer                                 :: iDis, ReservoirID        
-        real(8)                                 :: VolumeNew    
+        real                                    :: VolumeNew    
         integer                                 :: STAT_CALL
         integer                                 :: iProp
         logical                                 :: IsImposedOutflow, Found
@@ -3452,9 +3757,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                     
                             iProp = iProp + 1
                     
-                            Concentration = DischargeProperty (Me%ReservoirDischargeFlow(iDis), &
-                                                               Me%ReservoirDischargeConc(iDis, iProp), &
-                                                               CurrReservoir,  Property, Property%IScoefficient, .false.) 
+                            Concentration = DischargeProperty (Me%ReservoirDischargeFlow(iDis), Me%ReservoirDischargeConc(iDis, iProp), &
+                                                                            CurrReservoir,  Property, Property%IScoefficient, .false.) 
                     
                             !instant mixing in case of positive discharge, if neative it does not matter
                             if (Me%ReservoirDischargeFlow(iDis) .le. 0.0     &
@@ -3475,9 +3779,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                     Property%Concentration(CurrReservoir%Position) = Concentration
                             
                                 else                            
-                                    Property%Concentration(CurrReservoir%Position) = &
-                                                        Property%Concentration(CurrReservoir%Position) &
-                                                        + (ConcDif * Me%ExtVar%DT / RetentionTime)
+                                    Property%Concentration(CurrReservoir%Position) = Property%Concentration(CurrReservoir%Position) &
+                                                                                      + (ConcDif * Me%ExtVar%DT / RetentionTime)
                                 endif                                                           
                         
                             endif
@@ -3543,8 +3846,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         logical                                     :: Accumulate
 
         !Local------------------------------------------------------------------
-        real(8)                                     :: DischargeVolume
-        real(8)                                     :: OldMass, NewMass
+        real                                        :: DischargeVolume
+        real                                        :: OldMass, NewMass
         real                                        :: ISDischargeConc, ISConcentration
 
         
@@ -3619,7 +3922,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Local-----------------------------------------------------------------
         type(T_Reservoir),           pointer    :: CurrentReservoir
-        real(8)                                 :: Outflow
+        real                                   :: Outflow
         !Begin----------------------------------------------------------------
 
         CurrentReservoir => Me%FirstReservoir
@@ -3748,7 +4051,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Local-----------------------------------------------------------------
         real                                     :: HeightAboveWeir
-        real(8)                                  :: Flow
+        real                                     :: Flow
         !---------------------------------------------------------------------
         
         !Q = cv * b * sqrt(2*g) * H^(1.5)            
@@ -3781,12 +4084,12 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: i
-        real(8)                                 :: Outflow, ReservoirPercentageVolume
-        real(8)                                 :: PreviousCurvePercentageVolume, PreviousCurveOutflow
-        real(8)                                 :: NextCurvePercentageVolume, NextCurveOutflow
-        real(8)                                 :: ReservoirLevel, PercentInflow
-        real(8)                                 :: PreviousCurvePercInflow, NextCurvePercInflow
-        real(8)                                 :: PreviousCurveLevel, NextCurveLevel
+        real                                    :: Outflow, ReservoirPercentageVolume
+        real                                    :: PreviousCurvePercentageVolume, PreviousCurveOutflow
+        real                                    :: NextCurvePercentageVolume, NextCurveOutflow
+        real                                    :: ReservoirLevel, PercentInflow
+        real                                    :: PreviousCurvePercInflow, NextCurvePercInflow
+        real                                    :: PreviousCurveLevel, NextCurveLevel
         !Begin----------------------------------------------------------------
         
         Outflow = 0.0
@@ -4004,6 +4307,7 @@ do4:            do i = 2, CurrentReservoir%Management%OperationCurvePoints
         !Arguments--------------------------------------------------------------
 
         !Local------------------------------------------------------------------
+        logical                                     :: IsFinalFile
   
         if (Me%Output%TimeSerie) then            
             call WriteTimeSeries            
@@ -4012,6 +4316,15 @@ do4:            do i = 2, CurrentReservoir%Management%OperationCurvePoints
         if (Me%Output%HDF .and. Me%Output%HDFActive) then
             call WriteOutputHDF
         endif
+        
+        !Restart Output
+        if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%ActualTime == Me%ExtVar%EndTime)) then
+            if(Me%ExtVar%ActualTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
+                IsFinalFile = .false.
+                call WriteFinalHDF(IsFinalFile)
+                Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
+            endif
+        endif        
         
     end subroutine ModifyOutput
     
@@ -4089,10 +4402,10 @@ if2:            if (Me%HasProperties) then
         integer                                     :: ILB, IUB, JLB, JUB
         real, dimension(6)  , target                :: AuxTime
         real, dimension(:)  , pointer               :: TimePointer       
-        real(8), dimension(:,:), pointer            :: ReservoirVolume, ReservoirPercFull
-        real(8), dimension(:,:), pointer            :: ReservoirDNInflow, ReservoirDischarges
-        real(8), dimension(:,:), pointer            :: ReservoirSurfaceFluxes, ReservoirOutflow
-        real(8), dimension(:,:), pointer            :: ReservoirConc
+        real, dimension(:,:), pointer               :: ReservoirVolume, ReservoirPercFull
+        real, dimension(:,:), pointer               :: ReservoirDNInflow, ReservoirDischarges
+        real, dimension(:,:), pointer               :: ReservoirSurfaceFluxes, ReservoirOutflow
+        real, dimension(:,:), pointer               :: ReservoirConc, ReservoirBottomConc
         type(T_Reservoir), pointer                  :: CurrReservoir
         type(T_Property), pointer                   :: CurrProperty
         
@@ -4133,6 +4446,7 @@ if2:            if (Me%HasProperties) then
             allocate(ReservoirSurfaceFluxes  (ILB:IUB, JLB:JUB))
             allocate(ReservoirOutflow        (ILB:IUB, JLB:JUB))
             allocate(ReservoirConc           (ILB:IUB, JLB:JUB))
+            allocate(ReservoirBottomConc     (ILB:IUB, JLB:JUB))
             call SetMatrixValue (ReservoirVolume,        Me%ExtVar%WorkSize2D, 0.0)
             call SetMatrixValue (ReservoirPercFull,      Me%ExtVar%WorkSize2D, 0.0)
             call SetMatrixValue (ReservoirDNInflow,      Me%ExtVar%WorkSize2D, 0.0)
@@ -4140,6 +4454,7 @@ if2:            if (Me%HasProperties) then
             call SetMatrixValue (ReservoirSurfaceFluxes, Me%ExtVar%WorkSize2D, 0.0)
             call SetMatrixValue (ReservoirOutflow,       Me%ExtVar%WorkSize2D, 0.0)
             call SetMatrixValue (ReservoirConc,          Me%ExtVar%WorkSize2D, 0.0)
+            call SetMatrixValue (ReservoirBottomConc,    Me%ExtVar%WorkSize2D, 0.0)
             
             !Create grid results
             CurrReservoir => Me%FirstReservoir
@@ -4208,28 +4523,33 @@ if2:            if (Me%HasProperties) then
                     CurrReservoir => Me%FirstReservoir
                     do while (associated(CurrReservoir))
                 
-                        ReservoirConc(CurrReservoir%GridI, CurrReservoir%GridJ) = CurrProperty%Concentration(CurrReservoir%Position)
-                
-                        call HDF5WriteData   (Me%ObjHDF5, "//Results/"//trim(CurrProperty%ID%Name),         &
-                                              trim(CurrProperty%ID%Name), "mg/L",                           &
-                                              Array2D      = ReservoirConc,                                 &
-                                              OutputNumber = Me%OutPut%NextOutPut,                          &
-                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputHDF - ModuleReservoirs - ERR070'                    
+                        ReservoirConc(CurrReservoir%GridI, CurrReservoir%GridJ) = CurrProperty%Concentration(CurrReservoir%Position) 
                                         
                         if(CurrProperty%ComputeOptions%BottomFluxes) then 
                         
-                            ReservoirConc(CurrReservoir%GridI,CurrReservoir%GridJ)= CurrProperty%BottomConc(CurrReservoir%Position)
+                            ReservoirBottomConc(CurrReservoir%GridI,CurrReservoir%GridJ)= CurrProperty%BottomConc(CurrReservoir%Position)
                         
-                            call HDF5WriteData   (Me%ObjHDF5, "//Results/"//trim(CurrProperty%ID%Name),         &
-                                                  trim(CurrProperty%ID%Name), "kg/m2",                          &
-                                                  Array2D      = ReservoirConc,                                 &
-                                                  OutputNumber = Me%OutPut%NextOutPut,                          &
-                                                  STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'WriteOutputHDF - ModuleReservoirs - ERR080'
                         endif
                         CurrReservoir => CurrReservoir%Next
                     enddo
+                    
+                    call HDF5WriteData   (Me%ObjHDF5, "//Results/"//trim(CurrProperty%ID%Name),         &
+                                            trim(CurrProperty%ID%Name), "mg/L",                           &
+                                            Array2D      = ReservoirConc,                                 &
+                                            OutputNumber = Me%OutPut%NextOutPut,                          &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'WriteOutputHDF - ModuleReservoirs - ERR070'                    
+                                        
+                    if(CurrProperty%ComputeOptions%BottomFluxes) then                         
+                        
+                        call HDF5WriteData   (Me%ObjHDF5, "//Results/"//trim(CurrProperty%ID%Name)//"_Bottom",  &
+                                                trim(CurrProperty%ID%Name)//"_Bottom", "kg/m2",                 &
+                                                Array2D      = ReservoirBottomConc,                           &
+                                                OutputNumber = Me%OutPut%NextOutPut,                          &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputHDF - ModuleReservoirs - ERR080'
+                    endif                    
+                    
                     
                 endif
                 
@@ -4244,6 +4564,7 @@ if2:            if (Me%HasProperties) then
             deallocate(ReservoirSurfaceFluxes  )
             deallocate(ReservoirOutflow        )
             deallocate(ReservoirConc           )
+            deallocate(ReservoirBottomConc     )
             
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
@@ -4257,6 +4578,286 @@ if2:            if (Me%HasProperties) then
     
     
     !---------------------------------------------------------------------------           
+    
+    subroutine WriteFinalHDF(IsFinalFile)
+    
+        !Arguments--------------------------------------------------------------
+        logical                                     :: IsFinalFile
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        integer                                     :: STAT_CALL
+        integer                                     :: HDF5_CREATE
+        character(LEN = PathLength)                 :: FileName
+        integer                                     :: ObjHDF5           = 0
+        integer                                     :: ObjHorizontalGrid = 0
+        integer                                     :: ObjGridData       = 0
+        integer                                     :: ObjBasinGeometry  = 0        
+        real, dimension(6), target                  :: AuxTime
+        real, dimension(:), pointer                 :: TimePtr
+        type (T_Time)                               :: Actual             
+        real                                        :: Total_Mass_Created
+        character (Len = StringLength)              :: str_mass_created, string_to_be_written     
+        real, dimension(:,:), pointer               :: ReservoirVolume
+        real, dimension(:,:), pointer               :: ReservoirConc, ReservoirBottomConc
+        real, dimension(:,:), pointer               :: ReservoirMassCreated
+        integer, dimension(:,:), pointer            :: BasinPoints       => null()
+        integer                                     :: WorkILB, WorkIUB
+        integer                                     :: WorkJLB, WorkJUB       
+        real, pointer, dimension(:, :)              :: GridData
+        type (T_Reservoir), pointer                 :: CurrReservoir        
+        !Begin------------------------------------------------------------------
+        
+            
+        
+       !Build all Topography stuff
+        
+        !Constructs Horizontal Grid
+        call ConstructHorizontalGrid(ObjHorizontalGrid, Me%ExtVar%TopographicFile, &
+                                        STAT = STAT_CALL)           
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR010'
+
+        !Constructs GridData
+        call ConstructGridData      (ObjGridData, ObjHorizontalGrid,           &
+                                        FileName = Me%ExtVar%TopographicFile,  &
+                                        STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR020'
+
+        !Constructs BasinGeometry
+        call ConstructBasinGeometry (ObjBasinGeometry, ObjGridData,            &
+                                        ObjHorizontalGrid, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHdf5Output - ModuleReservoirs - ERR030'
+
+        !Gets BasinPoints
+        call GetBasinPoints         (ObjBasinGeometry, BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR040'        
+        
+        !Gets the size of the grid
+        call GetHorizontalGridSize (ObjHorizontalGrid,                               &
+                                    Size     = Me%ExtVar%Size2D,                     &
+                                    WorkSize = Me%ExtVar%WorkSize2D,                 &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR050'                           
+            
+        !Bounds
+        WorkILB = Me%ExtVar%WorkSize2D%ILB 
+        WorkIUB = Me%ExtVar%WorkSize2D%IUB 
+
+        WorkJLB = Me%ExtVar%WorkSize2D%JLB 
+        WorkJUB = Me%ExtVar%WorkSize2D%JUB              
+        
+        
+        
+        
+        
+        !Checks if it's at the end of the run 
+        !or !if it's supposed to overwrite the final HDF file
+        !if ((Me%ExtVar%Now == Me%ExtVar%EndTime) .or. Me%Output%RestartOverwrite) then
+        if (IsFinalFile .or. Me%Output%RestartOverwrite) then
+
+            Filename = trim(Me%Files%FinalFile)
+
+        else
+
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%ExtVar%ActualTime))//".fin")
+
+        endif
+        
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+        
+        !Opens HDF5 File
+        call ConstructHDF5 (ObjHDF5,                                                     &
+                            trim(filename),                                              &
+                            HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'WriteFinalFile - ModuleReservoirs - ERR10'
+
+        
+        
+        
+        !Time
+        Actual   = Me%ExtVar%ActualTime
+         
+        call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
+                                    AuxTime(4), AuxTime(5), AuxTime(6))
+        !Writes Time
+        TimePtr => AuxTime
+        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleReservoirs - ERR11'
+
+        call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",      &
+                             Array1D = TimePtr, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleReservoirs - ERR12'
+                                                
+        
+        
+
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(ObjHorizontalGrid, ObjHDF5,       &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR070'
+
+        !Gets a pointer to GridData
+        call GetGridData      (ObjGridData, GridData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR080'
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,        &
+                              WorkJUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR090'
+
+        !Writes the GridData
+        call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",            &
+                              Array2D = GridData,                                      &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR100'
+
+        !Writes the WaterPoints
+        call HDF5WriteData   (ObjHDF5, "/Grid", "BasinPoints", "-",         &
+                              Array2D = BasinPoints,            &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR110'
+
+        
+        
+        !Output volume and conc
+        
+        allocate(ReservoirVolume         (WorkILB:WorkIUB, WorkJLB:WorkJUB))
+        allocate(ReservoirConc           (WorkILB:WorkIUB, WorkJLB:WorkJUB))
+        allocate(ReservoirBottomConc     (WorkILB:WorkIUB, WorkJLB:WorkJUB))
+        allocate(ReservoirMassCreated    (WorkILB:WorkIUB, WorkJLB:WorkJUB))
+        call SetMatrixValue (ReservoirVolume,        Me%ExtVar%WorkSize2D, 0.0)
+        call SetMatrixValue (ReservoirConc,          Me%ExtVar%WorkSize2D, 0.0)
+        call SetMatrixValue (ReservoirBottomConc,    Me%ExtVar%WorkSize2D, 0.0)
+        call SetMatrixValue (ReservoirMassCreated,   Me%ExtVar%WorkSize2D, 0.0)
+            
+        !Create grid results
+        CurrReservoir => Me%FirstReservoir
+        do while (associated(CurrReservoir))
+                
+            ReservoirVolume        (CurrReservoir%GridI, CurrReservoir%GridJ) = CurrReservoir%VolumeNew
+                
+            CurrReservoir => CurrReservoir%Next
+        enddo
+            
+
+        call HDF5WriteData   (ObjHDF5, "//Results/volume",              &
+                                "volume", "m3",                              &
+                                Array2D      = ReservoirVolume,              &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteOutputHDF - ModuleReservoirs - ERR010'        
+            
+      
+        
+        PropertyX => Me%FirstProperty
+        do while (associated(PropertyX))
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,        &
+                                  WorkJUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR090'
+
+            CurrReservoir => Me%FirstReservoir
+            do while (associated(CurrReservoir))
+                
+                ReservoirConc(CurrReservoir%GridI, CurrReservoir%GridJ) = PropertyX%Concentration(CurrReservoir%Position)
+                                                                           
+                if(PropertyX%ComputeOptions%BottomFluxes) then 
+                        
+                    ReservoirBottomConc(CurrReservoir%GridI,CurrReservoir%GridJ)= PropertyX%BottomConc(CurrReservoir%Position)
+
+                endif
+                        
+                if (PropertyX%ComputeOptions%MinConcentration .and. Me%ExtVar%ActualTime == Me%ExtVar%EndTime) then
+
+                    ReservoirMassCreated(CurrReservoir%GridI,CurrReservoir%GridJ)= PropertyX%MassCreated(CurrReservoir%Position)
+                    
+                endif                        
+                        
+                        
+                CurrReservoir => CurrReservoir%Next
+            enddo           
+            
+            
+            call HDF5WriteData   (ObjHDF5, "//Results/"//trim(PropertyX%ID%Name),         &
+                                    trim(PropertyX%ID%Name), "mg/L",                           &
+                                    Array2D      = ReservoirConc,                                 &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteOutputHDF - ModuleReservoirs - ERR070'                    
+                                        
+            if(PropertyX%ComputeOptions%BottomFluxes) then                         
+                        
+                call HDF5WriteData   (ObjHDF5, "//Results/"//trim(PropertyX%ID%Name),         &
+                                        trim(PropertyX%ID%Name), "kg/m2",                          &
+                                        Array2D      = ReservoirConc,                                 &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteOutputHDF - ModuleReservoirs - ERR080'
+            endif
+                        
+            if (PropertyX%ComputeOptions%MinConcentration .and. Me%ExtVar%ActualTime == Me%ExtVar%EndTime) then
+                            
+                call HDF5WriteData   (ObjHDF5,                                        &
+                                        "/Results/"//trim(PropertyX%ID%Name)//" Mass Created",& 
+                                        "Property Mass Created",                        &
+                                        "g",                                            &
+                                        Array2D      = ReservoirMassCreated,            &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleReservoirs - ERR10.5'
+
+                !g/1000 = kg, to avoid big numbers
+                Total_Mass_Created = SUM(PropertyX%MassCreated)/1000
+
+                write(str_mass_created, '(f20.8)') Total_Mass_Created
+      
+                string_to_be_written = 'Due to MinConcentration Reservoirs Total mass (kg) created on property ' //&
+                                        trim(adjustl(adjustr(PropertyX%ID%Name)))//' = ' //&
+                                        trim(adjustl(adjustr(str_mass_created))) 
+            
+                !Writes total mass created to "Error_and_Messages.log" file
+                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+                    
+            endif
+            
+
+            PropertyX => PropertyX%Next
+
+        enddo                        
+        
+        
+        !Writes everything to disk
+        call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR120'
+
+        
+        deallocate(ReservoirVolume         )
+        deallocate(ReservoirConc           )      
+        deallocate(ReservoirBottomConc     )   
+        deallocate(ReservoirMassCreated    )   
+        
+        !Unget all stuff
+        !Ungets the GridData
+        call UngetGridData (ObjGridData, GridData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR130'        
+                    
+        !Ungets BasinPoints
+        call UngetBasin             (ObjBasinGeometry, BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR150'                     
+        
+        
+        call KillBasinGeometry      (ObjBasinGeometry,   STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR160'
+
+        call KillGridData           (ObjGridData,        STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR170'
+
+        call KillHorizontalGrid     (ObjHorizontalGrid,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR180'            
+    
+    end subroutine WriteFinalHDF
+    
+    !---------------------------------------------------------------------------
+    
     
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4279,7 +4880,7 @@ if2:            if (Me%HasProperties) then
 
         !Local-------------------------------------------------------------------
         integer                             :: STAT_, nUsers           
-
+        logical                             :: IsFinalFile
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -4289,6 +4890,9 @@ if2:            if (Me%HasProperties) then
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             nUsers = DeassociateInstance(mReservoirs_,  Me%InstanceID)
+            
+            IsFinalFile = .true.
+            call WriteFinalHDF(IsFinalFile)            
 
             if (nUsers == 0) then
 

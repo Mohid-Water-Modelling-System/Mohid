@@ -847,8 +847,8 @@ Module ModuleDrainageNetwork
         real, dimension (:,:), pointer              :: ReservoirsConc          => null()
         real, dimension (:,:), pointer              :: NodeConc                => null()
         integer                                     :: nReservoirs             = null_int
-        real(8), dimension (:), pointer             :: ReservoirsInflow        => null()
-        real(8), dimension (:), pointer             :: ReservoirsOutflow       => null()          
+        real, dimension (:), pointer                :: ReservoirsInflow        => null()
+        real, dimension (:), pointer                :: ReservoirsOutflow       => null()          
     end type T_ReservoirLink
         
     type T_Converge
@@ -9040,7 +9040,7 @@ if0:    if (Me%HasProperties) then
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
-        real(8), dimension(:), pointer                  :: ReservoirInflow
+        real, dimension(:), pointer                     :: ReservoirInflow
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -9077,7 +9077,7 @@ if0:    if (Me%HasProperties) then
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
-        real(8), dimension(:), pointer                  :: ReservoirOutflow
+        real, dimension(:), pointer                     :: ReservoirOutflow
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -11068,7 +11068,7 @@ if2:        if (Volume > PoolVolume) then
         integer                                     :: DownReachPos
         type (T_Node), pointer                      :: CurrNodeExchange, CurrNode
         type (T_Reach), pointer                     :: CurrReach
-        real(8)                                     :: Flow, TotalVerticalArea
+        real                                        :: Flow, TotalVerticalArea
         logical                                     :: Found
         type(T_Property), pointer                   :: Property    
         

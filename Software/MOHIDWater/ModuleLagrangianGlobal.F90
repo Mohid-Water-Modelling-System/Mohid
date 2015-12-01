@@ -1372,7 +1372,7 @@ Module ModuleLagrangianGlobal
         real                                    :: VD_old                   = null_real
         real                                    :: WD_old                   = null_real
         logical                                 :: KillPartic               = OFF
-        logical                                 :: Freazed                  = OFF
+        logical                                 :: Freezed                  = OFF
         logical                                 :: Beached                  = OFF
         logical                                 :: Deposited                = OFF        
         logical                                 :: AtTheBottom              = OFF        
@@ -9541,6 +9541,8 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         type (T_Origin), pointer                    :: CurrentOrigin
 
         !Local-----------------------------------------------------------------
+        type (T_Property  ), pointer                :: CurrentProperty
+                
         real,   dimension(:,:,:), pointer           :: Temperature3D, Salinity3D
         real                                        :: PlumeDilution, PlumeX, PlumeY, PlumeZ,        &
                                                        PlumeDensity, PlumeTemperature, PlumeSalinity,&
@@ -9583,7 +9585,24 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
             OutPutJet = .false.
         endif
         
-        
+
+        CurrentProperty => CurrentOrigin%FirstProperty
+        do while (associated(CurrentProperty))
+
+            if (CurrentProperty%ConcVariable) then
+                if (CurrentProperty%ID == Salinity_) then
+                    CurrentOrigin%Movement%JetSalinity = CurrentProperty%Concentration
+                endif
+                if (CurrentProperty%ID == Temperature_) then
+                    CurrentOrigin%Movement%JetTemperature = CurrentProperty%Concentration
+                endif                
+            endif
+
+            CurrentProperty => CurrentProperty%Next
+        enddo
+
+        nullify(CurrentProperty)
+      
             
         call ModifyJet(JetID          = CurrentOrigin%Movement%ObjJet,                  &
                        Salinity       = Salinity3D,                                     &
@@ -15788,8 +15807,8 @@ iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Positi
 
                         else iOpen2D
 
-                            !If a particle doesnt move the freazed state is ON
-                            CurrentPartic%Freazed    = ON
+                            !If a particle doesnt move the Freezed state is ON
+                            CurrentPartic%Freezed    = ON
 
                             CurrentPartic%TpercursoH = abs(null_real)
 
@@ -15880,14 +15899,14 @@ dts:        do ts = 1, 2
                         !stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR30'
                         !If it is not possible to convert it is assumed an anomaly related with land points + plus nesting model interface
                         !In this case the particle do not move from the original position 
-                        !If a particle doesnt move the freazed state is ON
-                        CurrentPartic%Freazed    = ON
+                        !If a particle doesnt move the Freezed state is ON
+                        CurrentPartic%Freezed    = ON
                         CurrentPartic%TpercursoH = abs(null_real)
                         write(*,*) 'Particle ID=', CurrentPartic%ID
                         write(*,*) 'New model domain =',NewPosition%ModelID  
                         write(*,*) 'Anomalous movement was detected' 
                         write(*,*) 'New position = land point + nesting model interface' 
-                        write(*,*) 'Freazed condition is assumed'
+                        write(*,*) 'Freezed condition is assumed'
                         exit
                     endif
 
@@ -16036,7 +16055,7 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                     
     iFKP:           if (MovePartic) then
 
-                        CurrentPartic%Freazed = .false. 
+                        CurrentPartic%Freezed = .false. 
                         
                         NewPosition%I = CurrentPartic%Position%I
                         NewPosition%J = CurrentPartic%Position%J
@@ -16065,8 +16084,8 @@ dolp:                                       do lp = 1, CurrLine%nNodes
 
                              else isc
                             
-                                !If a particle doesnt move the freazed state is ON
-                                CurrentPartic%Freazed    = ON
+                                !If a particle doesnt move the Freezed state is ON
+                                CurrentPartic%Freezed    = ON
                              endif isc    
 
                         !Moves it 
@@ -16075,13 +16094,13 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                         
                         else
 
-                            !If a particle doesnt move the freazed state is ON
-                            CurrentPartic%Freazed    = ON                
+                            !If a particle doesnt move the Freezed state is ON
+                            CurrentPartic%Freezed    = ON                
                         
                         endif iconv
                         
                        
-        ie1:            if (CurrentPartic%Freazed) then
+        ie1:            if (CurrentPartic%Freezed) then
                             
                             CurrentPartic%TpercursoH = abs(null_real)
 
@@ -16102,8 +16121,8 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                                 endif
                            
 
-                                !If a particle moved the freazed state is OFF
-                                CurrentPartic%Freazed   = OFF
+                                !If a particle moved the Freezed state is OFF
+                                CurrentPartic%Freezed   = OFF
 
                                 !Stores New Position
                                 CurrentPartic%Position  = NewPosition
@@ -16131,7 +16150,7 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                 enddo dnp
                 
                 if (ts == 1) then
-                    if (MovePartic .and. .not. CurrentPartic%Freazed) exit 
+                    if (MovePartic .and. .not. CurrentPartic%Freezed) exit 
                 endif
                 
             enddo dts                
@@ -16240,21 +16259,21 @@ iy:                 if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, N
                     
                     else iy
 
-                        !If a particle doesnt move the freazed state is ON
-                        CurrentPartic%Freazed    = ON
+                        !If a particle doesnt move the Freezed state is ON
+                        CurrentPartic%Freezed    = ON
                       
                     endif iy
                     
                 else scy
-                    !If a particle doesnt move the freazed state is ON
-                    CurrentPartic%Freazed    = ON
+                    !If a particle doesnt move the Freezed state is ON
+                    CurrentPartic%Freezed    = ON
                 endif scy
                 
             endif ix
             
         else scx
-            !If a particle doesnt move the freazed state is ON
-            CurrentPartic%Freazed    = ON
+            !If a particle doesnt move the Freezed state is ON
+            CurrentPartic%Freezed    = ON
         endif scx
                                             
     end subroutine ParticSlipCondition
@@ -17439,7 +17458,7 @@ CurrOr: do while (associated(CurrentOrigin))
 
 DB:                 if (.not. CurrentPartic%Deposited .and.                             &
                         .not. CurrentPartic%Beached   .and.                             &
-                        .not. CurrentPartic%Freazed        ) then
+                        .not. CurrentPartic%Freezed        ) then
     
                         !Grid Cell of the particle
                         i     = CurrentPartic%Position%I
@@ -17581,7 +17600,7 @@ dw3:                do while (associated(CurrentPartic))
 
 DB:                     if (.not. CurrentPartic%Deposited .and.                         &
                             .not. CurrentPartic%Beached   .and.                         &
-                            .not. CurrentPartic%Freazed        ) then
+                            .not. CurrentPartic%Freezed        ) then
 
                             emp = CurrentPartic%Position%ModelID
 
@@ -22558,19 +22577,19 @@ i1:             if (nP>0) then
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR210'
                         endif
                         
-                        !Freazed
+                        !Freezed
                         CurrentPartic   => CurrentOrigin%FirstPartic
                         nP = 0
                         do while (associated(CurrentPartic))
                             nP = nP + 1
                             Matrix1D(nP)  = 0.
-                            if (CurrentPartic%Freazed) Matrix1D(nP)  = 1.
+                            if (CurrentPartic%Freezed) Matrix1D(nP)  = 1.
                             CurrentPartic => CurrentPartic%Next
                         enddo            
                         if (nP > 0) then
                             !HDF 5
-                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Freazed", &
-                                                "Freazed",  "[]", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Freezed", &
+                                                "Freezed",  "[]", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
                                                  STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR220'
                         endif                        

@@ -148,7 +148,11 @@ program MohidDDC
         write(*, *)
         write(*, 110)ElapsedSeconds, ElapsedHours, ElapsedMinutes,ElapsedSecremain
         write(*, 120)TotalCPUTime
-        write(*, 130)100.*TotalCPUTime/ElapsedSeconds
+        if (ElapsedSeconds>0) then
+            write(*, 130)100.*TotalCPUTime/ElapsedSeconds
+        else
+            write(*, 130) 0.
+        endif
         write(*, *)
         write(*, *)"----------------------------------------------------------"
 
