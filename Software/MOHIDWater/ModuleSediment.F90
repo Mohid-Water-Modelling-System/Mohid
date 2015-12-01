@@ -1865,92 +1865,81 @@ cd2 :           if (BlockFound) then
                         block_end       = cohesive_block_end,                    &
                         BlockFound      = BlockFound,                            &
                         STAT            = STAT_CALL)
-        if (STAT_CALL .EQ. SUCCESS_) then
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR111'
             
-            allocate(Me%CohesiveClass)
+        allocate(Me%CohesiveClass)
             
-            if (BlockFound) then               
+        if (BlockFound) then               
 
-                Me%CohesiveClass%Run = .true.
+            Me%CohesiveClass%Run = .true.
                 
-                call ConstructPropertyID(Me%CohesiveClass%ID, Me%ObjEnterData, FromBlock)
+            call ConstructPropertyID(Me%CohesiveClass%ID, Me%ObjEnterData, FromBlock)
    
-                call GetData(Me%CohesiveClass%D50,                               &
-                                Me%ObjEnterData,iflag,                           &
-                                SearchType   = FromBlock,                        &
-                                keyword      = 'D50',                            &
-                                ClientModule = 'ModuleSediment',                 &
-                                STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR115'
+            call GetData(Me%CohesiveClass%D50,                               &
+                            Me%ObjEnterData,iflag,                           &
+                            SearchType   = FromBlock,                        &
+                            keyword      = 'D50',                            &
+                            ClientModule = 'ModuleSediment',                 &
+                            STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR115'
                         
-                if (iflag .NE. 1) stop 'ConstructClasses - ModuleSediment - ERR120'
-                
-                !!Critical erosion shear stress for weak consolidated cohesive sediment 
-                ! call GetData(Me%CohesiveClass%WeakConsolidated_CSS,             &
-                !                Me%ObjEnterData,iflag,                           &
-                !                SearchType   = FromBlock,                        &
-                !                keyword      = 'WEAK_CONSOLIDATED_CRITICAL',     &
-                !                default      = 0.5,                              &
-                !                ClientModule = 'ModuleSediment',                 &
-                !                STAT         = STAT_CALL)
-                ! if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR125'
+            if (iflag .NE. 1) stop 'ConstructClasses - ModuleSediment - ERR120'
                  
-                 !Maximum mud percentage in which the bed starts to have a cohesive behaviour
-                 call GetData(Me%CohesiveClass%PM1_MAX,                              &
-                                Me%ObjEnterData,iflag,                           &
-                                SearchType   = FromBlock,                        &
-                                keyword      = 'PM1_MAX',                            &
-                                default      = 0.3,                              &
-                                ClientModule = 'ModuleSediment',                 &
-                                STAT         = STAT_CALL)
-                 if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR126'
+                !Maximum mud percentage in which the bed starts to have a cohesive behaviour
+                call GetData(Me%CohesiveClass%PM1_MAX,                              &
+                            Me%ObjEnterData,iflag,                           &
+                            SearchType   = FromBlock,                        &
+                            keyword      = 'PM1_MAX',                            &
+                            default      = 0.3,                              &
+                            ClientModule = 'ModuleSediment',                 &
+                            STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR126'
                  
-                !Mud percentage for a fully cohesive bed 
-                call GetData(Me%CohesiveClass%PM2,                              &
-                                Me%ObjEnterData,iflag,                           &
-                                SearchType   = FromBlock,                        &
-                                keyword      = 'PM2',                            &
-                                default      = 0.6,                              &
-                                ClientModule = 'ModuleSediment',                 &
+            !Mud percentage for a fully cohesive bed 
+            call GetData(Me%CohesiveClass%PM2,                              &
+                            Me%ObjEnterData,iflag,                           &
+                            SearchType   = FromBlock,                        &
+                            keyword      = 'PM2',                            &
+                            default      = 0.6,                              &
+                            ClientModule = 'ModuleSediment',                 &
+                            STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR127'
+                
+            !MASS_MIN [kg/m2]
+            call GetData(Me%CohesiveClass%Mass_Min,                                 &
+                                Me%ObjEnterData, iflag,                                &
+                                keyword      ='MASS_MIN',                              &
+                                SearchType   = FromBlock,                              &
+                                ClientModule = 'ModuleSediment',                       &
+                                Default      = 1e-2,                                   &
                                 STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR127'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR128'
                 
-                !MASS_MIN [kg/m2]
-                call GetData(Me%CohesiveClass%Mass_Min,                                 &
-                                 Me%ObjEnterData, iflag,                                &
-                                 keyword      ='MASS_MIN',                              &
-                                 SearchType   = FromBlock,                              &
-                                 ClientModule = 'ModuleSediment',                       &
-                                 Default      = 1e-2,                                   &
-                                 STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR128'
+            allocate(Me%CohesiveClass%CriticalShearStress(ILB:IUB, JLB:JUB))
+            Me%CohesiveClass%CriticalShearStress(:,:) = FillValueReal
                 
-                allocate(Me%CohesiveClass%CriticalShearStress(ILB:IUB, JLB:JUB))
-                Me%CohesiveClass%CriticalShearStress(:,:) = FillValueReal
-                
-                allocate(Me%CohesiveClass%PM1(ILB:IUB, JLB:JUB))
-                Me%CohesiveClass%PM1(:,:) = FillValueReal
+            allocate(Me%CohesiveClass%PM1(ILB:IUB, JLB:JUB))
+            Me%CohesiveClass%PM1(:,:) = FillValueReal
                         
-                allocate(Me%CohesiveClass%TopPercentage(ILB:IUB, JLB:JUB))
-                Me%CohesiveClass%TopPercentage(:,:) = null_real
+            allocate(Me%CohesiveClass%TopPercentage(ILB:IUB, JLB:JUB))
+            Me%CohesiveClass%TopPercentage(:,:) = null_real
                         
-                allocate(Me%CohesiveClass%DM(ILB:IUB, JLB:JUB))
-                Me%CohesiveClass%DM(:,:) = 0. 
+            allocate(Me%CohesiveClass%DM(ILB:IUB, JLB:JUB))
+            Me%CohesiveClass%DM(:,:) = 0. 
                 
-                allocate(Me%CohesiveClass%FluxToSediment(ILB:IUB, JLB:JUB))
-                Me%CohesiveClass%FluxToSediment(:,:) = 0. 
+            allocate(Me%CohesiveClass%FluxToSediment(ILB:IUB, JLB:JUB))
+            Me%CohesiveClass%FluxToSediment(:,:) = 0. 
             
-                allocate(Me%CohesiveClass%Mass(ILB:IUB, JLB:JUB, KLB:KUB))
-                Me%CohesiveClass%Mass(:,:,:) = 0. 
+            allocate(Me%CohesiveClass%Mass(ILB:IUB, JLB:JUB, KLB:KUB))
+            Me%CohesiveClass%Mass(:,:,:) = 0. 
             
-                allocate(Me%CohesiveClass%Porosity(ILB:IUB, JLB:JUB, KLB:KUB))
-                Me%CohesiveClass%Porosity(:,:,:) = null_real 
+            allocate(Me%CohesiveClass%Porosity(ILB:IUB, JLB:JUB, KLB:KUB))
+            Me%CohesiveClass%Porosity(:,:,:) = null_real 
             
-                call ConstructPropertyValue (Me%CohesiveClass, FromBlock)
+            call ConstructPropertyValue (Me%CohesiveClass, FromBlock)
             
-                call ConstructCohesiveDryDensity(ClientNumber)
-                
-            endif                    
+            call ConstructCohesiveDryDensity(ClientNumber)
+                                  
         endif
             
         call Block_UnLock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
@@ -2118,13 +2107,11 @@ cd2 :           if (BlockFound) then
                                     block_end         = cohesivedensity_block_end,    &
                                     BlockInBlockFound = BlockInBlockFound,            &
                                     STAT            = STAT_CALL)
-            if (STAT_CALL .EQ. SUCCESS_) then
+             if (STAT_CALL /= SUCCESS_) stop 'ConstructCohesiveDryDensity - ModuleSediment - ERR40'
     
-                if (BlockInBlockFound) then 
+            if (BlockInBlockFound) then 
           
-                    call ConstructPropertyValue (Me%CohesiveDryDensity, FromBlockInBlock)
-                
-                endif
+                call ConstructPropertyValue (Me%CohesiveDryDensity, FromBlockInBlock)
         
             else
     
@@ -2136,7 +2123,6 @@ cd2 :           if (BlockFound) then
                 write(*,*) 'Minimum value assumed', Me%CohesiveDryDensity%Min, 'kg/m3'  
         
             endif
-            
         endif
         
         call CheckFieldConsistence (Me%CohesiveDryDensity)
