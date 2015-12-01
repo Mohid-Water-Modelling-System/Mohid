@@ -21662,8 +21662,9 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                     Prop(i, j, k) = 0.
                 enddo         
                 
-                iy = i
-                jx = j
+                iy      = i
+                jx      = j
+                k_first = k_bottom
                 
                 !null gradient horizontal open boundary condition
                 if       (Me%External_Var%BoundaryFacesU(i,j  ) == Boundary) then
