@@ -1354,7 +1354,6 @@ Module ModuleWaterProperties
         integer                                     :: ready_, iW        
                        
         !Local-----------------------------------------------------------------
-        logical                                     :: ModelGOTM, ContinuousGOTM
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
@@ -12046,12 +12045,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 if(PropFatherVariable .and. .not. PropertySon%Evolution%Variable)then
                     write(*,*)'Property father is variable and property son is not.'
                     write(*,*)'Property : ', trim(PropertySon%ID%Name)
-                    stop 'RecvWaterPropertiesMPI - ModuleWaterProperties - ERR07'
+                    !stop 'RecvWaterPropertiesMPI - ModuleWaterProperties - ERR07'
                 end if
                 if(.not. PropFatherVariable .and. PropertySon%Evolution%Variable)then
                     write(*,*)'Property father is not variable and property son is.'
                     write(*,*)'Property : ', trim(PropertySon%ID%Name)
-                    stop 'RecvWaterPropertiesMPI - ModuleWaterProperties - ERR08'
+                    !stop 'RecvWaterPropertiesMPI - ModuleWaterProperties - ERR08'
                 end if
 
                 Precision = MPIKind(DT_Father)
@@ -18972,8 +18971,9 @@ dn:         do n=1, nCells
                 Me%Discharge%kmax   (AuxCell) = kmax
                 
                 if (DischVertical == DischUniform_) then
-                    if (kmin == FillValueInt) Me%Discharge%kmin = KFloor_Z(i, j)
-                    if (kmax == FillValueInt) Me%Discharge%kmax = KUB
+                    if (kmin < 0) Me%Discharge%kmin(AuxCell) = KFloor_Z(i, j)
+                    if (kmax < 0) Me%Discharge%kmax(AuxCell) = KUB
+                    if (k    < 0) k = Me%Discharge%kmax(AuxCell)
                 endif
 
                 nProperties = 1

@@ -3852,7 +3852,7 @@ cd1:    if (FacesOption == MinTickness) then
                         
                         call ComputeSigma(SurfaceElevation, CurrentDomain)  
                     
-                    else 
+                    else if (CurrentDomain%IsLagrangian) then
                         call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,   &
                                                   DT_Waterlevel, CurrentDomain)
                     endif
