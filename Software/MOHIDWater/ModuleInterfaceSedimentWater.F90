@@ -161,7 +161,9 @@ Module ModuleInterfaceSedimentWater
                                           SetHydrodynamicManning, SetBottomWaterFlux,       &
                                           SetHydrodynamicRugosityMatrix, GetWavesStressON,  &
                                           SetWaveChezyVel, SetHydrodynamicChezy,            &
-                                          GetResidualVelocityON, GetResidualHorizontalVelocity
+                                          GetResidualVelocityON,                            &
+                                          GetResidualHorizontalVelocity,                    &
+                                          SetShearStressMethod, SetWaveShearStress
                                           
 #ifndef _LAGRANGIAN_                                         
 #ifdef  _LAGRANGIAN_GLOBAL_                                         
@@ -1211,11 +1213,9 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      STAT         = STAT_CALL)            
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructWaveShearStress - ModuleInterfaceSedimentWater - ERR01'
-
-
+        
         call GetWavesStressON (Me%ObjHydrodynamic,                                  &
                                WavesStressON = Me%WaveShear_Stress%NonLinear, STAT = STAT_CALL)            
-
         if  (STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructWaveShearStress - ModuleInterfaceSedimentWater - ERR02'
 
@@ -4267,6 +4267,16 @@ ifMS:   if (MasterOrSlave) then
                                          STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'SetSubModulesConstructor - ModuleInterfaceSedimentWater - ERR50'
+        
+        call SetWaveShearStress(Me%ObjHydrodynamic,                                  &
+                               WaveShearStress = Me%WaveShear_Stress%Yes, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'SetSubModulesConstructor - ModuleInterfaceSedimentWater - ERR60'
+        
+        call SetShearStressMethod (Me%ObjHydrodynamic,                                  &
+                               ShearStressMethod = Me%Shear_Stress%Method, STAT = STAT_CALL)            
+        if  (STAT_CALL .ne. SUCCESS_)&
+            stop 'SetSubModulesConstructor - ModuleInterfaceSedimentWater - ERR70'
 
     end subroutine SetSubModulesConstructor
 
@@ -4990,7 +5000,7 @@ do1 :       do while (associated(Property))
         integer                                 :: STAT_CALL
         real                                    :: CWphi,Cphi,Wphi,REW,REC,FWR,FWS
         real                                    :: CDS,CDR,TAUMR,TAUMS,TAUWR,TAUWS,RECCR,REWCR,TAUM,TAUMAX
-        real                                    :: ar,T1,T2,T3,A1,A2,CDM,CDMAX,as,TAUMAXS,TAUW,TAUMAXR
+        real                                    :: ar,T1,T2,T3,A1,A2,CDM,CDMAX,as,TAUMAXS,TAUW,TAUMAXR, Z0
         real                                    :: DWZ, ks, fc1, fc, H
 
         !Begin-----------------------------------------------------------------
@@ -5232,134 +5242,110 @@ do2:            do i = ILB, IUB
                                 endif
                             else
                                 Me%Shear_Stress%EficiencyFactorCurrent(i,j) = 0.
-                            endif
-                            
-
+                            endif                           
                         endif
                         
-                        !REC=UVC*DWZ/WaterCinematicVisc
-                        !CDR=(0.40/(log(DWZ/Z0)-1.))**2
-                        !CDS=0.0001615
-                        !
-                        !if(UVC.gt.1.e-2)then !current-only flow
-                        !
-                        !    CDS=0.0001615*EXP(6.*REC**(-0.08))
-                        !
-                        !    if (REC.lt.2000)then !laminar flow
-                        !        TAUMAX=3*WaterDensity*WaterCinematicVisc*UVC/DWZ
-                        !        TAUM=TAUMAX
-                        !    else if(REC.gt.2000)then !turbulent flow
-                        !        TAUMR=WaterDensity*CDR*UVC**2 !rough
-                        !        TAUMS=WaterDensity*CDS*UVC**2 !smooth
-                        !        TAUMAX=MAX(TAUMR,TAUMS)
-                        !        TAUM=TAUMAX
-                        !    endif
-                        !endif
-                        !
-                        !if (Me%WaveShear_Stress%Yes) then
-                        !    
-                        !    !Current angle in cartesian convention (angle between the vector and positive x-axis)
-                        !    Cphi = atan2(VC, UC) * 180./pi
-                        !    !(0, 360)
-                        !    If(Cphi < 0.) Cphi = Cphi + 360                              
-                        !            
-                        !    Me%WaveShear_Stress%Cphi(i,j) = Cphi !Current angle
-                        !
-                        !    Wphi = Me%ExtWater%WaveDirection(i,j)
-                        !            
-                        !    Me%WaveShear_Stress%Wphi(i,j) = Wphi !Wave angle in relation to grid
-                        !            
-                        !    CWphi = Cphi - Wphi !Current-wave angle
-                        !            
-                        !    Me%WaveShear_Stress%CWphi(i,j) = CWphi
-                        !    
-                        !    if (Me%ExtWater%Ubw(i,j).gt.1.e-2)then !To avoid overflow errors
-                        !
-                        !         REW=Me%ExtWater%Ubw(i,j)*Me%ExtWater%Abw(i,j)/WaterCinematicVisc     
-                        !         FWS=0.0521*REW**(-0.187)
-                        !         FWR=1.39*(Me%ExtWater%Abw(i,j)/Z0)**(-0.52)
-                        !
-                        !        if(UVC.lt.1.e-2 .and. Me%ExtWater%Ubw(i,j).gt.1.e-2)then !wave-only flow
-                        !            if (REW.lt.1.5e5)then !laminar flow
-                        !                TAUM=0.
-                        !                TAUMAX=WaterDensity*REW**(-0.5)*Me%ExtWater%Ubw(i,j)**2
-                        !                
-                        !                Me%WaveShear_Stress%Tension(i,j) = TAUMAX
-                        !                
-                        !            else if (REW.gt.1.5e5)then !turbulent flow
-                        !                TAUWR=0.5*WaterDensity*FWR*Me%ExtWater%Ubw(i,j)**2
-                        !                TAUWS=0.5*WaterDensity*FWS*Me%ExtWater%Ubw(i,j)**2
-                        !                TAUM=0.
-                        !                TAUMAX=MAX(TAUWR,TAUWS)
-                        !                
-                        !                Me%WaveShear_Stress%Tension(i,j) = TAUMAX
-                        !            endif
-                        !
-                        !        else if(UVC.gt.1.e-2 .and. Me%ExtWater%Ubw(i,j).gt.1.e-2)then !combined wave and current flow
-                        !                
-                        !            RECCR=2000+(5.92*1.e5*REW)**0.35
-                        !            REWCR=1.5e5
-                        !            if(REC.lt.RECCR.and.REW.lt.REWCR)then !laminar flow
-                        !                TAUM=3*WaterDensity*WaterCinematicVisc*UVC/DWZ
-                        !                TAUW=WaterDensity*REW**(-0.5)*Me%ExtWater%Ubw(i,j)**2
-                        !                TAUMAX=((TAUM+TAUW*abs(COS(CWphi*pi/180.)))**2+(TAUW*abs(SIN(CWphi*pi/180.)))**2)**(0.5)
-                        !                
-                        !                Me%WaveShear_Stress%Tension(i,j) = TAUW 
-                        !                
-                        !            else if(REC.gt.RECCR.or.REW.gt.REWCR)then !turbulent flow
-                        !                !Rough-turbulent wave-plus-current shear-stress
-                        !                ar=0.24
-                        !                T1=MAX(ar*(FWR/2)**0.5*(Me%ExtWater%Abw(i,j)/Z0),12.)
-                        !                T2=DWZ/(T1*Z0)
-                        !                T3=(CDR**2+(FWR/2)**2*(Me%ExtWater%Ubw(i,j)/UVC)**4)**(1./4)
-                        !                A1=T3*(LOG(T2)-1)/(2*LOG(T1))
-                        !                A2=0.40*T3/LOG(T1)
-                        !                CDM=((A1**2+A2)**0.5-A1)**2
-                        !                CDMAX=((CDM+T3*Me%ExtWater%Ubw(i,j)/UVC*(FWR/2)**0.5*abs(COS(CWphi*pi/180.)))**2+        &
-                        !                (T3*Me%ExtWater%Ubw(i,j)/UVC*(FWR/2)**0.5*abs(SIN(CWphi*pi/180.)))**2)**0.5
-                        !                TAUMR=WaterDensity*CDM*UVC**2
-                        !                TAUMAXR=WaterDensity*CDMAX*UVC**2
-                        !                
-                        !                !Smooth-turbulent wave-plus-current shear-stress
-                        !                as=0.24
-                        !                T1=9*as*REW*(FWS/2)**0.5*(CDS**2*(UVC/Me%ExtWater%Ubw(i,j))**4+(FWS/2)**2)**(1./4)
-                        !                T2=(REC/REW)*(Me%ExtWater%Ubw(i,j)/UVC)*1/as*(2/FWS)**0.5
-                        !                T3=(CDS**2+(FWS/2)**2*(Me%ExtWater%Ubw(i,j)/UVC)**4)**(1./4)
-                        !                A1=T3*(LOG(T2)-1)/(2*LOG(T1))
-                        !                A2=0.40*T3/LOG(T1)
-                        !                CDM=((A1**2+A2)**0.5-A1)**2
-                        !                CDMAX=((CDM+T3*Me%ExtWater%Ubw(i,j)/UVC*(FWS/2)**0.5*abs(COS(CWphi*pi/180.)))**2+         &
-                        !                (T3*Me%ExtWater%Ubw(i,j)/UVC*(FWS/2)**0.5*abs(SIN(CWphi*pi/180.)))**2)**0.5
-                        !                TAUMS=WaterDensity*CDM*UVC**2
-                        !                TAUMAXS=WaterDensity*CDMAX*UVC**2
-                        !                
-                        !                if(TAUMAXR.gt.TAUMAXS)then !flow is rough turbulent
-                        !                    TAUM=TAUMR
-                        !                    TAUMAX=TAUMAXR
-                        !                    
-                        !                    Me%WaveShear_Stress%Tension(i,j) = 0.5*WaterDensity*FWR*Me%ExtWater%Ubw(i,j)**2
-                        !                    
-                        !                else if(TAUMAXR.lt.TAUMAXS)then !flow is smooth turbulent
-                        !                    TAUM=TAUMS
-                        !                    TAUMAX=TAUMAXS
-                        !                    
-                        !                    Me%WaveShear_Stress%Tension(i,j) = 0.5*WaterDensity*FWS*Me%ExtWater%Ubw(i,j)**2
-                        !                endif
-                        !            endif   
-                        !        endif
-                        !        
-                        !        Me%WaveShear_Stress%TensionMean(i,j) = TAUM
-                        !        
-                        !    else
-                        !        Me%WaveShear_Stress%TensionMean(i,j) = TAUM
-                        !        Me%WaveShear_Stress%Tension(i,j) = 0.
-                        !    endif  
-                        !endif
-                        !                                               
-                        !Me%Shear_Stress%Tension(i,j) = TAUMAX
-       
+                        Z0 = Me%Rugosity%Field(i,j)
+                        CDR = 0.
+                        if(Z0 > 0.) CDR=(0.40/(log(DWZ/Z0)-1.))**2
                         
-                        Me%Shear_Stress%Tension (i,j) = Chezy(i,j) * UVC2 * WaterDensity
+                        REC=UVC*DWZ/WaterCinematicVisc
+                        CDS = 0.
+                        if(UVC > 1e-6) CDS=0.0001615*EXP(6.*REC**(-0.08))
+                        
+                        !turbulent flow
+                        TAUMR=WaterDensity*CDR*UVC**2 !rough
+                        TAUMS=WaterDensity*CDS*UVC**2 !smooth
+                        TAUMAX=MAX(TAUMR,TAUMS)
+                        TAUM=TAUMAX
+                        
+                        if (Me%WaveShear_Stress%Yes) then
+                            
+                            !Current angle in cartesian convention (angle between the vector and positive x-axis)
+                            Cphi = atan2(VC, UC) * 180./pi
+                            !(0, 360)
+                            If(Cphi < 0.) Cphi = Cphi + 360                              
+                                    
+                            Me%WaveShear_Stress%Cphi(i,j) = Cphi !Current angle
+                        
+                            Wphi = Me%ExtWater%WaveDirection(i,j)
+                                    
+                            Me%WaveShear_Stress%Wphi(i,j) = Wphi !Wave angle in relation to grid
+                                    
+                            CWphi = Cphi - Wphi !Current-wave angle
+                                    
+                            Me%WaveShear_Stress%CWphi(i,j) = CWphi
+                            
+                            if (Me%ExtWater%Ubw(i,j).gt.0)then 
+                        
+                                 REW=Me%ExtWater%Ubw(i,j)*Me%ExtWater%Abw(i,j)/WaterCinematicVisc     
+                                 FWS=0.0521*REW**(-0.187)
+                                 FWR=1.39*(Me%ExtWater%Abw(i,j)/Z0)**(-0.52)
+                        
+                                if(UVC == 0.)then !wave-only flow
+                                        
+                                    !turbulent flow
+                                    TAUWR=0.5*WaterDensity*FWR*Me%ExtWater%Ubw(i,j)**2
+                                    TAUWS=0.5*WaterDensity*FWS*Me%ExtWater%Ubw(i,j)**2
+                                    TAUM=0.
+                                    TAUMAX=MAX(TAUWR,TAUWS)
+                                        
+                                    Me%WaveShear_Stress%Tension(i,j) = TAUMAX
+                        
+                                else if(UVC.gt.0.)then !combined wave and current flow
+                                    
+                                    !turbulent flow
+                                    !Rough-turbulent wave-plus-current shear-stress
+                                    ar=0.24
+                                    T1=MAX(ar*(FWR/2)**0.5*(Me%ExtWater%Abw(i,j)/Z0),12.)
+                                    T2=DWZ/(T1*Z0)
+                                    T3=(CDR**2+(FWR/2)**2*(Me%ExtWater%Ubw(i,j)/UVC)**4)**(1./4)
+                                    A1=T3*(LOG(T2)-1)/(2*LOG(T1))
+                                    A2=0.40*T3/LOG(T1)
+                                    CDM=((A1**2+A2)**0.5-A1)**2
+                                    CDMAX=((CDM+T3*Me%ExtWater%Ubw(i,j)/UVC*(FWR/2)**0.5*abs(COS(CWphi*pi/180.)))**2+        &
+                                    (T3*Me%ExtWater%Ubw(i,j)/UVC*(FWR/2)**0.5*abs(SIN(CWphi*pi/180.)))**2)**0.5
+                                    TAUMR=WaterDensity*CDM*UVC**2
+                                    TAUMAXR=WaterDensity*CDMAX*UVC**2
+                                        
+                                    !Smooth-turbulent wave-plus-current shear-stress
+                                    as=0.24
+                                    T1=9*as*REW*(FWS/2)**0.5*(CDS**2*(UVC/Me%ExtWater%Ubw(i,j))**4+(FWS/2)**2)**(1./4)
+                                    T2=(REC/REW)*(Me%ExtWater%Ubw(i,j)/UVC)*1/as*(2/FWS)**0.5
+                                    T3=(CDS**2+(FWS/2)**2*(Me%ExtWater%Ubw(i,j)/UVC)**4)**(1./4)
+                                    A1=T3*(LOG(T2)-1)/(2*LOG(T1))
+                                    A2=0.40*T3/LOG(T1)
+                                    CDM=((A1**2+A2)**0.5-A1)**2
+                                    CDMAX=((CDM+T3*Me%ExtWater%Ubw(i,j)/UVC*(FWS/2)**0.5*abs(COS(CWphi*pi/180.)))**2+         &
+                                    (T3*Me%ExtWater%Ubw(i,j)/UVC*(FWS/2)**0.5*abs(SIN(CWphi*pi/180.)))**2)**0.5
+                                    TAUMS=WaterDensity*CDM*UVC**2
+                                    TAUMAXS=WaterDensity*CDMAX*UVC**2
+                                        
+                                    if(TAUMAXR.gt.TAUMAXS)then !flow is rough turbulent
+                                        TAUM=TAUMR
+                                        TAUMAX=TAUMAXR
+                                            
+                                        Me%WaveShear_Stress%Tension(i,j) = 0.5*WaterDensity*FWR*Me%ExtWater%Ubw(i,j)**2
+                                            
+                                    else if(TAUMAXR.lt.TAUMAXS)then !flow is smooth turbulent
+                                        TAUM=TAUMS
+                                        TAUMAX=TAUMAXS
+                                            
+                                        Me%WaveShear_Stress%Tension(i,j) = 0.5*WaterDensity*FWS*Me%ExtWater%Ubw(i,j)**2
+                                    endif 
+                                endif
+                                
+                                Me%WaveShear_Stress%TensionMean(i,j) = TAUM
+                                
+                            else
+                                Me%WaveShear_Stress%TensionMean(i,j) = TAUM
+                                Me%WaveShear_Stress%Tension(i,j) = 0.
+                            endif 
+                        endif
+                                                                       
+                        Me%Shear_Stress%Tension(i,j) = TAUMAX
+                        
+                        !Me%Shear_Stress%Tension (i,j) = Chezy(i,j) * UVC2 * WaterDensity
                         ! [m/s]                       = [N/m^2/ (kg/m^3)]^0.5 = 
                         Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension(i,j)/ WaterDensity) 
                     
