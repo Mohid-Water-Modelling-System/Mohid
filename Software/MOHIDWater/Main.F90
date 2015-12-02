@@ -1573,7 +1573,7 @@ doNext:     do while (associated(NextModel))
             endif
 
             !Wait for all processes
-            call MPI_Barrier   (MPI_COMM_WORLD, STAT_CALL)
+            !call MPI_Barrier   (MPI_COMM_WORLD, STAT_CALL)
 
             CurrentModel => CurrentModel%Next
         enddo
