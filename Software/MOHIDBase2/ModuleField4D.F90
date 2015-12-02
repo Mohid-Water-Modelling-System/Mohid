@@ -2062,6 +2062,7 @@ flo:            if (Me%File%FileListON) then
             
                         call GetHDF5GroupNumberOfItems(Me%File%ObjList(n), "/Time", iaux, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) then
+                            write(*,*) 'FileName = ',trim(Me%File%FileName)
                             stop 'ConstructFile - ModuleField4D - ERR60'
                         endif
                         

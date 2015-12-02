@@ -1572,7 +1572,7 @@ Module ModuleHydrodynamic
         ! (=DELTA) DIP ANGLE				
         real                        :: DL               = null_real
         ! (=LAMDA) SLIP ANGLE 
-        real                        :: RD	            = null_real
+        real                        :: RD               = null_real
         ! EPICENTER (LATITUDE)
         real                        :: Y0		        = null_real
         ! EPICENTER (LONGITUDE)	    
