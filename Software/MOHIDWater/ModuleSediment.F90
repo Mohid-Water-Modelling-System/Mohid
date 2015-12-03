@@ -213,7 +213,7 @@ Module ModuleSediment
         real,    pointer, dimension(:,:)        :: Abw              => null()
         real,    pointer, dimension(:,:)        :: Ubw              => null()
         real,    pointer, dimension(:,:)        :: ShearStress      => null()
-        real,    pointer, dimension(:,:)        :: EficiencyFactorCurrent => null()
+        real,    pointer, dimension(:,:)        :: EfficiencyFactorCurrent => null()
         real,    pointer, dimension(:,:)        :: ShearStressMean  => null()
         real,    pointer, dimension(:,:)        :: VelU             => null()
         real,    pointer, dimension(:,:)        :: VelV             => null()
@@ -3574,13 +3574,13 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifySediment(ObjSedimentID, ShearStress, EficiencyFactorCurrent, &
+    subroutine ModifySediment(ObjSedimentID, ShearStress, EfficiencyFactorCurrent, &
                               VelU, VelV, VelMod,    &
                               TauWave, ShearStressMean, Cphi, CWphi, Wphi, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjSedimentID
-        real, dimension(:,:), pointer               :: ShearStress, EficiencyFactorCurrent, &
+        real, dimension(:,:), pointer               :: ShearStress, EfficiencyFactorCurrent, &
                                                        VelU, VelV, VelMod,           &
                                                        TauWave, ShearStressMean, &
                                                        Cphi, CWphi, Wphi   
@@ -3603,7 +3603,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment) 
 
                     Me%ExternalVar%ShearStress     => ShearStress
-                    Me%ExternalVar%EficiencyFactorCurrent  => EficiencyFactorCurrent
+                    Me%ExternalVar%EfficiencyFactorCurrent  => EfficiencyFactorCurrent
 
                     Me%ExternalVar%VelU            => VelU
                     Me%ExternalVar%VelV            => VelV
@@ -3836,7 +3836,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                 
                         SandClass%NDShearStress(i,j) = Me%ExternalVar%ShearStress(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50)                        
                         
-                        SandClass%NDShearStress(i,j) = Me%ExternalVar%EficiencyFactorCurrent(i,j)*SandClass%NDShearStress(i,j)
+                        SandClass%NDShearStress(i,j) = Me%ExternalVar%EfficiencyFactorCurrent(i,j)*SandClass%NDShearStress(i,j)
                 
                         if (Me%WavesOn) then
                     

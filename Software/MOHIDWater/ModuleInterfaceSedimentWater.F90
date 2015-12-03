@@ -298,6 +298,7 @@ Module ModuleInterfaceSedimentWater
     private ::      ModifySandTransport
     private ::      ModifySedimentTransport
     private ::      ModifyRugosity
+    private ::      ComputeEfficiencyFactor
     private ::      Output_TimeSeries
     private ::      Output_BoxTimeSeries  
     private ::      OutPut_Results_HDF
@@ -587,7 +588,7 @@ Module ModuleInterfaceSedimentWater
          type (T_Statistics)                        :: Statistics
          logical                                    :: IntertidalRunOff     = .false.
          integer                                    :: Method               = 1
-         real, pointer, dimension (:,:)             :: EficiencyFactorCurrent => null()
+         real, pointer, dimension (:,:)             :: EfficiencyFactorCurrent => null()
     end type T_Shear
 
     type       T_WaveShear
@@ -1470,11 +1471,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR80'
         Me%Shear_Stress%VFace(:,:) = FillValueReal
         
-        allocate(Me%Shear_Stress%EficiencyFactorCurrent(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        allocate(Me%Shear_Stress%EfficiencyFactorCurrent(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR90'
-         Me%Shear_Stress%EficiencyFactorCurrent(:,:) = FillValueReal
-        
+         Me%Shear_Stress%EfficiencyFactorCurrent(:,:) = FillValueReal
 
     end subroutine ConstructSedimentTransport
 
@@ -4913,6 +4913,9 @@ ifMS:   if (MasterOrSlave) then
             
             if(Me%ComputeRugosity)                  &
                 call ModifyRugosity
+            
+            if (Me%RunSedimentModule)               &
+                call ComputeEfficiencyFactor
 
 #ifndef _SEDIMENT_
             if(Me%RunsSediments.or.Me%RunSedimentModule) call ReadUnlockExternalSediment
@@ -4992,16 +4995,14 @@ do1 :       do while (associated(Property))
         real,    pointer, dimension(:, :   )    :: Chezy
         integer, pointer, dimension(:, :, :)    :: LandPoints3D, OpenPoints3D
         integer, pointer, dimension(:, :   )    :: KFloorZ
-        real(8), dimension(:,:),  pointer       :: GrainRoughness
         real                                    :: VC,UC, UVC2,UVC, WaterDensity
         integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
-        integer                                 :: i, j, kbottom, KTOP
+        integer                                 :: i, j, kbottom
         integer                                 :: CHUNK
-        integer                                 :: STAT_CALL
         real                                    :: CWphi,Cphi,Wphi,REW,REC,FWR,FWS
         real                                    :: CDS,CDR,TAUMR,TAUMS,TAUWR,TAUWS,RECCR,REWCR,TAUM,TAUMAX
         real                                    :: ar,T1,T2,T3,A1,A2,CDM,CDMAX,as,TAUMAXS,TAUW,TAUMAXR, Z0
-        real                                    :: DWZ, ks, fc1, fc, H
+        real                                    :: DWZ
 
         !Begin-----------------------------------------------------------------
 
@@ -5181,12 +5182,7 @@ do1 :       do while (associated(Property))
 
                 if (MonitorPerformance) then
                     call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method2")
-                endif
-                
-                if (Me%RunSedimentModule) then
-                    call GetGrainRoughness(Me%ObjSediment, GrainRoughness, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyShearStress - ModuleInterfaceSedimentWater - ERR10'
-                endif
+                endif                
                 
                 CHUNK = CHUNK_J(JLB, JUB)
                 
@@ -5215,34 +5211,14 @@ do2:            do i = ILB, IUB
 
                         UVC = sqrt(UVC2) 
                         
-                        if (Me%RunSedimentModule) then
+                        if (Me%RunSedimentModule.or.Me%RunsSandTransport) then
 
                             Me%Shear_Stress%CurrentVel(i, j) = sqrt(UVC2)
                             Me%Shear_Stress%CurrentU  (i, j) = UC
                             Me%Shear_Stress%CurrentV  (i, j) = VC
                             Me%Shear_Stress%UFace     (i, j) = Velocity_U(i,j,kbottom)
                             Me%Shear_Stress%VFace     (i, j) = Velocity_V(i,j,kbottom)
-                            
-                            KTOP = Me%ExtSed%KTop(i, j)  
-                            
-                            if(Me%ExtSed%OpenPoints3D(i,j,KTOP) == OpenPoint) then
                                 
-                                ks = Me%Rugosity%Field(i,j) * 30 !z0 = ks/30
-                                
-                                if(GrainRoughness(i,j) .ge. ks) then
-                                    
-                                    Me%Shear_Stress%EficiencyFactorCurrent(i,j) = 1.
-                                else                                              
-                                    H  = Me%ExtWater%WaterColumn(i,j)
-                        
-                                    fc = 0.24*(log10(12*H/ks))**-2
-                                    fc1= 0.24*(log10(12*H/GrainRoughness(i,j)))**-2
-                        
-                                    Me%Shear_Stress%EficiencyFactorCurrent(i,j) = fc1/fc
-                                endif
-                            else
-                                Me%Shear_Stress%EficiencyFactorCurrent(i,j) = 0.
-                            endif                           
                         endif
                         
                         Z0 = Me%Rugosity%Field(i,j)
@@ -5357,12 +5333,6 @@ do2:            do i = ILB, IUB
                 !!$OMP END DO
                 !!$OMP END PARALLEL
 
-        if (Me%RunSedimentModule) then
-            call UngetSediment(Me%ObjSediment, GrainRoughness, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ModifyShearStress - ModuleInterfaceSedimentWater - ERR20'
-        endif
-
                 if (MonitorPerformance) then
                     call StopWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method2")
                 endif
@@ -5387,6 +5357,62 @@ do2:            do i = ILB, IUB
     end subroutine ModifyShearStress
     
     !--------------------------------------------------------------------------
+    
+    subroutine ComputeEfficiencyFactor
+    
+        !Local-----------------------------------------------------------------
+        integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
+        integer                                 :: i, j, k, KTOP
+        real                                    :: ks, fc1, fc, H
+        real(8), dimension(:,:),  pointer       :: GrainRoughness
+        integer                                 :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+ 
+        IUB = Me%WaterWorkSize3D%IUB
+        JUB = Me%WaterWorkSize3D%JUB
+        ILB = Me%WaterWorkSize3D%ILB
+        JLB = Me%WaterWorkSize3D%JLB
+        KUB = Me%WaterWorkSize3D%KUB
+        KLB = Me%WaterWorkSize3D%KLB
+        
+        call GetGrainRoughness(Me%ObjSediment, GrainRoughness, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ComputeEfficiencyFactor - ModuleInterfaceSedimentWater - ERR10'
+        
+do1:    do j = JLB, JUB
+do2:    do i = ILB, IUB  
+    
+            KTOP = Me%ExtSed%KTop(i, j)  
+                            
+            if(Me%ExtSed%OpenPoints3D(i,j,KTOP) == OpenPoint) then
+                                
+                ks = Me%Rugosity%Field(i,j) * 30 !z0 = ks/30
+                                
+                if(GrainRoughness(i,j) .ge. ks) then
+                                    
+                    Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = 1.
+                else                                              
+                    H  = Me%ExtWater%WaterColumn(i,j)
+                        
+                    fc = 0.24*(log10(12*H/ks))**-2
+                    fc1= 0.24*(log10(12*H/GrainRoughness(i,j)))**-2
+                        
+                    Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = fc1/fc
+                endif
+            else
+                Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = 0.
+            endif   
+            
+        enddo do2
+        enddo do1
+    
+        call UngetSediment(Me%ObjSediment, GrainRoughness, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'ComputeEfficiencyFactor - ModuleInterfaceSedimentWater - ERR20'
+            
+    end subroutine ComputeEfficiencyFactor
+    !--------------------------------------------------------------------------
+    
     !Based on van Rijn (2007a)
     subroutine ModifyRugosity
 
@@ -7455,7 +7481,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
         call ModifySediment(Me%ObjSediment,                                      &
                         Me%Shear_Stress%Tension,                                 &
-                        Me%Shear_Stress%EficiencyFactorCurrent,                  &          
+                        Me%Shear_Stress%EfficiencyFactorCurrent,                 &          
                         Me%Shear_Stress%CurrentU,                                &
                         Me%Shear_Stress%CurrentV,                                &
                         Me%Shear_Stress%CurrentVel,                              &
@@ -9771,10 +9797,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 if (Me%RunSedimentModule) then
                 
-                    deallocate(Me%Shear_Stress%EficiencyFactorCurrent,   STAT = STAT_CALL) 
+                    deallocate(Me%Shear_Stress%EfficiencyFactorCurrent,   STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
                         stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27f'
-                    nullify(Me%Shear_Stress%EficiencyFactorCurrent)
+                    nullify(Me%Shear_Stress%EfficiencyFactorCurrent)
                 
                 endif
               
