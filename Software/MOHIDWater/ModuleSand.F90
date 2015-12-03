@@ -1953,7 +1953,7 @@ cd2 :               if (BlockFound) then
         Me%FluxXIntegral(:,:) = 0.
 
         allocate(Me%FluxYIntegral(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        Me%FluxXIntegral(:,:) = 0.
+        Me%FluxYIntegral(:,:) = 0.
 
         
 
