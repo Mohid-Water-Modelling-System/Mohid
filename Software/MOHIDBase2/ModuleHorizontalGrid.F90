@@ -92,6 +92,8 @@ Module ModuleHorizontalGrid
     public  :: LocateCell
     public  :: LocateCellPolygons
     public  :: RecenterHorizontalGrid    
+    public  :: Add_MPI_ID_2_Filename
+    public  :: No_BoxMap_HaloArea
 
     !Selector
     public  :: GetHorizontalGridSize
@@ -2452,7 +2454,12 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
                      ClientModule   = 'HorizontalGrid',                                 &
                      default        = 3,                                                &
                      STAT           = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR440'        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR440'      
+        
+        if (Me%DDecomp%Halo_Points < 2) then
+            write(*,*) 'HALOPOINTS must equal to 2 or bigger'
+            stop 'ConstructGlobalVariables - HorizontalGrid - ERR445'              
+        endif
         
         !Intialization of domain decomposition procedure
         call ConstructDDecomp                         
@@ -6207,7 +6214,176 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
 #endif _USE_MPI            
 
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine add the MPI ID to a Filename                                         !
+    !                                                                                      !
+    ! Input : Filename                                                                     !
+    ! OutPut: MPI_X_Filename                                                               !
+    ! Author: Paulo Chambel (2015/12)                                                      !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    subroutine Add_MPI_ID_2_Filename(HorizontalGridID, FileName, STAT)
+
+        !Arguments------------------------------------------------------------
+        integer            , intent(IN)    :: HorizontalGridID
+        character(len=*)   , intent(INOUT) :: FileName    
+        integer            , optional      :: STAT        
+        !Local---------------------------------------------------------------
+        integer                            :: STAT_CALL
+        integer                            :: I, ipath, iFN
+        character(LEN = StringLength)      :: AuxChar
+        integer                            :: STAT_, ready_
+        
+        !Begin---------------------------------------------------------------
+        
+       STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+       
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            if (Me%DDecomp%ON) then
+                if (STAT_ == SUCCESS_) then
+                    if (Me%DDecomp%MPI_ID > null_int) then
+                        write(AuxChar,fmt='(i5)') Me%DDecomp%MPI_ID
+                        Auxchar = "MPI_"//trim(adjustl(Auxchar))//"_"
+                        iFN = len_trim(Filename)
+                        ipath = 0
+                        do i = iFN, 1, -1
+                            if (Filename(i:i) == '/' .or. Filename(i:i) == '\') then
+                                ipath = i
+                                exit
+                            endif
+                        enddo    
+                        if (ipath > 0) then
+                            Filename = Filename(1:ipath)//trim(Auxchar)//Filename(ipath+1:iFN)
+                        endif
+                    endif                    
+                endif
+            endif                
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_                     
+        
+
+    end subroutine Add_MPI_ID_2_Filename     
+    
+   !--------------------------------------------------------------------------
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine assumes null box mapping in the halo area                            !
+    !                                                                                      !
+    ! Input : Box2D, Box3D                                                                 !
+    ! OutPut: Box2D, Box3D - no map in halo area                                           !
+    ! Author: Paulo Chambel (2015/12)                                                      !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine No_BoxMap_HaloArea(HorizontalGridID, Boxes2D, Boxes3D, KLB, KUB, STAT)
+
+        !Arguments------------------------------------------------------------
+        integer                                     , intent(IN)    :: HorizontalGridID
+        integer, dimension(:,:  ), pointer, optional, intent(INOUT) :: Boxes2D
+        integer, dimension(:,:,:), pointer, optional, intent(INOUT) :: Boxes3D
+        integer                           , optional, intent(IN)    :: KLB, KUB
+        integer                           , optional, intent(OUT)   :: STAT        
+        !Local---------------------------------------------------------------
+        integer                                                     :: STAT_CALL
+        integer                                                     :: I, ipath, iFN
+        character(LEN = StringLength)                               :: AuxChar
+        integer                                                     :: STAT_, ready_
+        integer                                                     :: NeighbourSouth, NeighbourWest
+        integer                                                     :: NeighbourEast, NeighbourNorth
+        integer                                                     :: Halo_Points, WILB, WIUB, WJLB, WJUB
+        
+        !Begin---------------------------------------------------------------
+        
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+       
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            if (Me%DDecomp%ON) then
+            
+                WILB = Me%WorkSize%ILB
+                WIUB = Me%WorkSize%IUB
+                WJLB = Me%WorkSize%JLB
+                WJUB = Me%WorkSize%JUB
+                
+                NeighbourSouth = Me%DDecomp%NeighbourSouth
+                NeighbourWest  = Me%DDecomp%NeighbourWest 
+                NeighbourEast  = Me%DDecomp%NeighbourEast 
+                NeighbourNorth = Me%DDecomp%NeighbourNorth
+                Halo_Points    = Me%DDecomp%Halo_Points   
+                
+                if (present(Boxes2D)) then
+                    
+                    if (NeighbourSouth /= null_int) then
+                        Boxes2D(WILB:WILB+Halo_Points-1,WJLB:WJUB) = -99
+                    endif
+
+                    if (NeighbourNorth /= null_int) then
+                        Boxes2D(WIUB-Halo_Points+2:WIUB,WJLB:WJUB) = -99
+                    endif
+                    
+                    if (NeighbourWest /= null_int) then
+                        Boxes2D(WILB:WIUB, WJLB:WJLB+Halo_Points-1) = -99
+                    endif
+
+                    if (NeighbourEast /= null_int) then
+                        Boxes2D(WILB:WIUB, WJUB-Halo_Points+2:WJUB) = -99
+                    endif                    
+                    
+                endif
+
+                if (present(Boxes3D)) then
+                
+                    if (present(KLB).and.present(KUB)) then
+                        if (NeighbourSouth /= null_int) then
+                            Boxes3D(WILB:WILB+Halo_Points-1,WJLB:WJUB,KLB:KUB) = -99
+                        endif
+
+                        if (NeighbourNorth /= null_int) then
+                            Boxes3D(WIUB-Halo_Points+2:WIUB,WJLB:WJUB,KLB:KUB) = -99
+                        endif
+                        
+                        if (NeighbourWest /= null_int) then
+                            Boxes3D(WILB:WIUB, WJLB:WJLB+Halo_Points-1,KLB:KUB) = -99
+                        endif
+
+                        if (NeighbourEast /= null_int) then
+                            Boxes3D(WILB:WIUB, WJUB-Halo_Points+2:WJUB,KLB:KUB) = -99
+                        endif   
+                    else
+                        stop "HorizontalGrid - No_BoxMap_HaloArea - ERR10"
+                    endif
+                
+                endif
+
+            endif                
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_                     
+        
+
+    end subroutine No_BoxMap_HaloArea     
+    
+    !--------------------------------------------------------------------------    
+    
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
