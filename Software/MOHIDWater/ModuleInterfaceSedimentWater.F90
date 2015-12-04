@@ -1215,10 +1215,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructWaveShearStress - ModuleInterfaceSedimentWater - ERR01'
         
-        call GetWavesStressON (Me%ObjHydrodynamic,                                  &
-                               WavesStressON = Me%WaveShear_Stress%NonLinear, STAT = STAT_CALL)            
-        if  (STAT_CALL .ne. SUCCESS_)&
-            stop 'ConstructWaveShearStress - ModuleInterfaceSedimentWater - ERR02'
+        !call GetWavesStressON (Me%ObjHydrodynamic,                                  &
+        !                       WavesStressON = Me%WaveShear_Stress%NonLinear, STAT = STAT_CALL)            
+        !if  (STAT_CALL .ne. SUCCESS_)&
+        !    stop 'ConstructWaveShearStress - ModuleInterfaceSedimentWater - ERR02'
 
         if(Me%WaveShear_Stress%Yes)then
             if(Me%ObjWaves == 0)then
@@ -1233,6 +1233,18 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
             allocate(Me%WaveShear_Stress%ChezyVel  (ILB:IUB, JLB:JUB)) 
             Me%WaveShear_Stress%ChezyVel  (:,:) = FillValueReal
+
+            allocate(Me%WaveShear_Stress%Cphi(ILB:IUB, JLB:JUB)) 
+            Me%WaveShear_Stress%Cphi(:,:) = FillValueReal
+            
+            allocate(Me%WaveShear_Stress%CWphi(ILB:IUB, JLB:JUB)) 
+            Me%WaveShear_Stress%CWphi(:,:) = FillValueReal
+            
+            allocate(Me%WaveShear_Stress%Wphi(ILB:IUB, JLB:JUB)) 
+            Me%WaveShear_Stress%Wphi(:,:) = FillValueReal
+            
+            allocate(Me%WaveShear_Stress%TensionMean(ILB:IUB, JLB:JUB)) 
+            Me%WaveShear_Stress%TensionMean(:,:) = FillValueReal
 
         end if
 
@@ -1417,27 +1429,6 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         IUB = Me%Size2D%IUB
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
-
-        if(Me%WaveShear_Stress%Yes)then
-            allocate(Me%WaveShear_Stress%Cphi(ILB:IUB, JLB:JUB)) 
-            Me%WaveShear_Stress%Cphi(:,:) = FillValueReal
-            
-            allocate(Me%WaveShear_Stress%CWphi(ILB:IUB, JLB:JUB)) 
-            Me%WaveShear_Stress%CWphi(:,:) = FillValueReal
-            
-            allocate(Me%WaveShear_Stress%Wphi(ILB:IUB, JLB:JUB)) 
-            Me%WaveShear_Stress%Wphi(:,:) = FillValueReal
-            
-            allocate(Me%WaveShear_Stress%TensionMean(ILB:IUB, JLB:JUB)) 
-            Me%WaveShear_Stress%TensionMean(:,:) = FillValueReal
-            
-        endif
-        
-        !call GetReferenceLevel(Me%ObjSediment,ReferenceLevel, STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_)                                                      &
-        !    stop 'ConstructSedimentTransport - ModuleInterfaceSedimentWater - ERR01'
-        !
-        !Me%ExtSed%ReferenceLevel = ReferenceLevel
         
         call SetWaveTensionON(ObjSedimentID = Me%ObjSediment,            &
                               WaveTensionON = Me%WaveShear_Stress%Yes,   &
@@ -5258,7 +5249,7 @@ do2:            do i = ILB, IUB
                                  FWS=0.0521*REW**(-0.187)
                                  FWR=1.39*(Me%ExtWater%Abw(i,j)/Z0)**(-0.52)
                         
-                                if(UVC == 0.)then !wave-only flow
+                                if(UVC < 1e-6)then !wave-only flow
                                         
                                     !turbulent flow
                                     TAUWR=0.5*WaterDensity*FWR*Me%ExtWater%Ubw(i,j)**2
@@ -5268,7 +5259,7 @@ do2:            do i = ILB, IUB
                                         
                                     Me%WaveShear_Stress%Tension(i,j) = TAUMAX
                         
-                                else if(UVC.gt.0.)then !combined wave and current flow
+                                else if(UVC.gt.1e-6)then !combined wave and current flow
                                     
                                     !turbulent flow
                                     !Rough-turbulent wave-plus-current shear-stress
@@ -9407,7 +9398,7 @@ PropX:      do while (associated(PropertyX))
     subroutine SetSubModulesModifier 
 
         !Local-----------------------------------------------------------------
-        logical                                         :: WavesStressON
+        !logical                                         :: WavesStressON
         integer                                         :: STAT_CALL 
         type(T_Property), pointer                       :: SPM
         type(T_Property), pointer                       :: PropertyX
@@ -9542,13 +9533,14 @@ PropX:      do while (associated(PropertyX))
 
         if (Me%ObjHydrodynamic /= 0) then
 
-            call GetWavesStressON(Me%ObjHydrodynamic,                                &
-                                 WavesStressON, STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_)                                              &
-                stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR130'
+            !call GetWavesStressON(Me%ObjHydrodynamic,                                &
+            !                     WavesStressON, STAT = STAT_CALL)
+            !if(STAT_CALL .ne. SUCCESS_)                                              &
+            !    stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR130'
 
             if (Me%WaveShear_Stress%Yes) then
-                if (WavesStressON) then
+                
+                if (Me%Shear_Stress%Method==1) then
 
                     call SetWaveChezyVel(Me%ObjHydrodynamic,                             &
                                          Me%WaveShear_Stress%ChezyVel,                   &
@@ -9556,11 +9548,6 @@ PropX:      do while (associated(PropertyX))
                     if(STAT_CALL .ne. SUCCESS_)                                          &
                         stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR140'
                 endif
-            else
-                if (WavesStressON) then
-                    write(*,*) 'Missing Keyword WAVETENSION    : 1 - in ModuleInterfaceSedimentWater'
-                    stop 'SetSubModulesModifier - ModuleInterfaceSedimentWater - ERR150'
-                endif                                
             endif
         endif
             
