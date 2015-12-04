@@ -1217,12 +1217,10 @@ Module ModuleHydrodynamic
                                               TauWavesV        => null(), &
                                               TauWaves_UV      => null()
         real,    pointer, dimension(:,:  ) :: WavePeriod       => null(), &
-                                              WaveHeight       => null(), &
-                                              WaveDirection    => null()
+                                              WaveHeight       => null()
         real,    pointer, dimension(:,:,:) :: DirectionH       => null()
         real,    pointer, dimension(:,:  ) :: Ubw              => null(), &
                                               Abw              => null()
-        type(T_Time)                       :: LastComputeWave
 
         !Altimetry Assimilation
         real,    dimension(:,:  ), pointer :: AltimWaterLevelAnalyzed   => null()
@@ -14213,7 +14211,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Output of the Turbulence variaveis
             call ReadUnLock_ModuleTurbulence  
 #ifndef _WAVES_
-            if (Me%ComputeOptions%WaveStress) call ReadUnLock_ModuleWaves
+
+            if (Me%ObjWaves /=0) then  
+                call ReadUnLock_ModuleWaves
+            endif
 #endif
             !Read UnLock variables external variables
             !The modules responsible for this variables were 
@@ -30472,7 +30473,7 @@ cd6:            if (NewInstant >= NextInstant) then
         integer                            :: IUB, ILB, JUB, JLB, KUB
         integer                            :: I, J, kbottom
         
-        real                               :: UC, VC, UVC, Cphi
+        real                               :: U, V, VelMod_Z, Ubw, Abw
 
         integer                            :: CHUNK
 
@@ -30563,18 +30564,21 @@ cd3:                    if (Manning) then
                                                         
                             elseif (Me%External_Var%ShearStressMethod == 2) then
                                 
-                                VC = (Me%Velocity%Horizontal%V%New(i+1,j,kbottom)+Me%Velocity%Horizontal%V%New(i,j,  kbottom))/2.
-                                UC = (Me%Velocity%Horizontal%U%New(i,  j,kbottom)+Me%Velocity%Horizontal%U%New(i,j+1,kbottom))/2.
+                                V = (Me%Velocity%Horizontal%V%New(i+1,j,kbottom)+Me%Velocity%Horizontal%V%New(i,j,  kbottom))/2.
+                                U = (Me%Velocity%Horizontal%U%New(i,  j,kbottom)+Me%Velocity%Horizontal%U%New(i,j+1,kbottom))/2.
                                 
-                                UVC = sqrt(UC*UC+VC*VC)
+                                VelMod_Z = sqrt(U*U+V*V)
+                                
+                                if (Me%ComputeOptions%WaveShearStress) then
+                                    
+                                    Ubw = Me%External_Var%Ubw(i,j)                                            
+                                    Abw = Me%External_Var%Abw(i,j)   
+                                    
+                                    ChezyZ(i, j) = CDM ( AuxZ, Rugosity, VelMod_Z, Ubw, Abw)
+                                else                                
+                                    ChezyZ(i, j) = CDM ( AuxZ, Rugosity, VelMod_Z)
+                                endif
 
-                                !Current angle in cartesian convention (angle between the vector and positive x-axis)                                
-                                Cphi = atan2(VC, UC) * 180./pi
-                               
-                                !(0, 360)
-                                If(Cphi < 0.) Cphi = Cphi + 360  
-                                
-                                ChezyZ(i, j) = CDM (i, j, AuxZ, Rugosity, Cphi, UVC)
                             endif
 
                 
@@ -30641,7 +30645,7 @@ cd3:                    if (Manning) then
         integer                            :: iSouth, jWest, di, dj, i_North, j_East
         integer                            :: IUB, ILB, JUB, JLB, KUB
         integer                            :: I, J, kbottom
-        real                               :: UC, VC, Cphi
+        real                               :: Ubw, Abw
     
         !$ integer                            :: CHUNK
 
@@ -30782,16 +30786,15 @@ cd3:                   if (Manning) then
                                 
                             elseif (Me%External_Var%ShearStressMethod == 2) then
                                 
-                                UC = Me%Velocity%Horizontal%U%New(i, j, Kbottom)
-                                VC = Me%Velocity%Horizontal%V%New(i, j, Kbottom)
-                                
-                                !Current angle in cartesian convention (angle between the vector and positive x-axis)                                
-                                Cphi = atan2(VC, UC) * 180./pi
-                               
-                                !(0, 360)
-                                If(Cphi < 0.) Cphi = Cphi + 360  
-                                
-                                Chezy = CDM (i, j, AuxZ, Rugosity, Cphi, VelMod_UV)
+                                if (Me%ComputeOptions%WaveShearStress) then
+                                    
+                                    Ubw = Me%External_Var%Ubw(i,j)                                            
+                                    Abw = Me%External_Var%Abw(i,j)   
+                                    
+                                    Chezy = CDM ( AuxZ, Rugosity, VelMod_UV, Ubw, Abw)
+                                else                                
+                                    Chezy = CDM ( AuxZ, Rugosity, VelMod_UV)
+                                endif
                             endif
 
                         endif cd3
@@ -30858,53 +30861,50 @@ cd3:                   if (Manning) then
 
     !------------------------------------------------------------------------------
     
-    real function CDM (i, j, AuxZ, Z0, Cphi, UVC) 
+    real function CDM (AuxZ, Z0, UC, Ubw, Abw) 
         
         !Arguments-----------------------------------------------------------------
-        real    :: AuxZ, Z0, Cphi, UVC
-        integer :: i, j
+        real                                    :: AuxZ, Z0, UC
+        real, intent(IN), optional              :: Ubw, Abw
         
         !Local---------------------------------------------------------------------
-        real    :: CDR, REC, CDS, Wphi, REW, FWS, FWR, ar, T1, T2, T3, A1, A2
-        real    :: CDMS, CDMR, CWphi, as 
+        real    ::  REC, REW, FWS, FWR, as, ar, T1, T2, T3, A1, A2
+        real    ::  CDS, CDR, CDMS, CDMR
+         
         !Begin----------------------------------------------------------------
     
     
         CDR = 0.
         if(Z0 > 0.) CDR=(0.40/(log(AuxZ/Z0)-1.))**2
                         
-        REC=UVC*AuxZ/WaterCinematicVisc
+        REC=UC*AuxZ/WaterCinematicVisc
         CDS = 0.
-        if(UVC > 1e-6) CDS=0.0001615*EXP(6.*REC**(-0.08))
+        if(UC > 1e-6) CDS=0.0001615*EXP(6.*REC**(-0.08))
                     
         CDM=MAX(CDR,CDS)
                         
         if (Me%ComputeOptions%WaveShearStress) then
-                                                    
-            Wphi = Me%External_Var%WaveDirection(i,j)
-                                    
-            CWphi = Cphi - Wphi !Current-wave angle
                             
-            if(UVC.gt.0. .and. Me%External_Var%Ubw(i,j).gt.0.)then !combined wave and current flow
+            if(UC.gt.1e-6 .and. Ubw.gt.0.)then !combined wave and current flow
                         
-                REW=Me%External_Var%Ubw(i,j)*Me%External_Var%Abw(i,j)/WaterCinematicVisc     
+                REW=Ubw*Abw/WaterCinematicVisc     
                 FWS=0.0521*REW**(-0.187)
-                FWR=1.39*(Me%External_Var%Abw(i,j)/Z0)**(-0.52)
+                FWR=1.39*(Abw/Z0)**(-0.52)
                           
                 !Rough-turbulent wave-plus-current shear-stress
                 ar=0.24
-                T1=MAX(ar*(FWR/2)**0.5*(Me%External_Var%Abw(i,j)/Z0),12.)
+                T1=MAX(ar*(FWR/2)**0.5*(Abw/Z0),12.)
                 T2=AuxZ/(T1*Z0)
-                T3=(CDR**2+(FWR/2)**2*(Me%External_Var%Ubw(i,j)/UVC)**4)**(1./4)
+                T3=(CDR**2+(FWR/2)**2*(Ubw/UC)**4)**(1./4)
                 A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                 A2=0.40*T3/LOG(T1)
                 CDMR=((A1**2+A2)**0.5-A1)**2
                                         
                 !Smooth-turbulent wave-plus-current shear-stress
                 as=0.24
-                T1=9*as*REW*(FWS/2)**0.5*(CDS**2*(UVC/Me%External_Var%Ubw(i,j))**4+(FWS/2)**2)**(1./4)
-                T2=(REC/REW)*(Me%External_Var%Ubw(i,j)/UVC)*1/as*(2/FWS)**0.5
-                T3=(CDS**2+(FWS/2)**2*(Me%External_Var%Ubw(i,j)/UVC)**4)**(1./4)
+                T1=9*as*REW*(FWS/2)**0.5*(CDS**2*(UC/Ubw)**4+(FWS/2)**2)**(1./4)
+                T2=(REC/REW)*(Ubw/UC)*1/as*(2/FWS)**0.5
+                T3=(CDS**2+(FWS/2)**2*(Ubw/UC)**4)**(1./4)
                 A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                 A2=0.40*T3/LOG(T1)
                 CDMS=((A1**2+A2)**0.5-A1)**2
@@ -49608,12 +49608,8 @@ cd1:    if (HydrodynamicID > 0) then
         if (Me%ComputeOptions%WaveShearStress)then
             
             call GetWaves (WavesID       = Me%ObjWaves,                                     &
-                           WavePeriod    = Me%External_Var%WavePeriod,                      &
-                           WaveHeight    = Me%External_Var%WaveHeight,                      &
-                           WaveDirection = Me%External_Var%WaveDirection,                   &
                            Abw           = Me%External_Var%Abw,                             &
                            Ubw           = Me%External_Var%Ubw,                             &
-                           LastCompute   = Me%External_Var%LastComputeWave,                 &
                            STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR30.'
@@ -49667,17 +49663,32 @@ cd1:    if (HydrodynamicID > 0) then
 
         !----------------------------------------------------------------------
 
-        call UnGetWaves(Me%ObjWaves,                                                     &
-                             Me%External_Var%TauWavesU, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR01.'
+        if (Me%ComputeOptions%WaveStress) then
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                                 Me%External_Var%TauWavesU, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR01.'
 
-        call UnGetWaves(Me%ObjWaves,                                                     &
-                             Me%External_Var%TauWavesV, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR02.'
-
-        !----------------------------------------------------------------------
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                                 Me%External_Var%TauWavesV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR02.'
+        endif
+    
+        if (Me%ComputeOptions%WaveShearStress) then
+            
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                                 Me%External_Var%Abw, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR03.'
+            
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                                 Me%External_Var%Ubw, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR04.'
+            
+    
+        endif
 
     End Subroutine ReadUnLock_ModuleWaves
 
