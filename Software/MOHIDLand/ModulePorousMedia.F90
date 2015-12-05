@@ -157,6 +157,7 @@ Module ModulePorousMedia
     public  ::  GetUnsatWFinal
 !    public  ::  GetWaterColumn
     public  ::  GetWaterContent
+    public  ::  GetRelativeWaterContent
     public  ::  GetHead
     public  ::  GetThetaR
     public  ::  GetThetaS
@@ -176,6 +177,8 @@ Module ModulePorousMedia
     public  ::  GetBoundaryFluxWalls
     public  ::  GetBoundaryFluxBottom
     public  ::  GetBoundaryCells
+    public  ::  GetWaterContentForHead
+    public  ::  GetPMObjMap
     public  ::  UnGetPorousMedia
     
     !Modifier
@@ -5184,7 +5187,37 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     end subroutine GetWaterContent
 
     !--------------------------------------------------------------------------
+    
+    subroutine GetRelativeWaterContent (ObjPorousMediaID, RWC, STAT)
 
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real,    pointer, dimension(:,:,:)              :: RWC
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            RWC => Me%RC%ThetaF
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetRelativeWaterContent
+    
+    !--------------------------------------------------------------------------
+    
     subroutine GetOldWaterContent (ObjPorousMediaID, WCold, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -5705,7 +5738,72 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
     
+    subroutine GetWaterContentForHead (id, head, array, mask, stat)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                         :: id
+        real                                            :: head
+        real, pointer, dimension(:,:,:)                 :: array
+        logical, pointer, dimension(:,:), optional      :: mask
+        integer, intent(OUT), optional                  :: stat
 
+        !Local-----------------------------------------------------------------
+        integer                                         :: stat_, ready_
+        
+        !----------------------------------------------------------------------
+        call Ready(id, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call ComputeThetaForHead (head, array, mask)                        
+
+            stat_ = SUCCESS_
+            
+        else
+                
+            stat_ = ready_
+            
+        end if
+
+        if (present(stat)) stat = stat_
+        
+    end subroutine GetWaterContentForHead
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetPMObjMap (id, obj, stat)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                         :: id
+        integer                                         :: obj
+        integer, intent(OUT), optional                  :: stat
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: stat_, ready_
+        
+        !----------------------------------------------------------------------
+        call Ready(id, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            obj = Me%ObjMap
+
+            stat_ = SUCCESS_
+            
+        else
+                
+            stat_ = ready_
+            
+        end if
+
+        if (present(stat)) stat = stat_
+        
+    end subroutine GetPMObjMap
+
+    !--------------------------------------------------------------------------
+    
     subroutine GetThetaField (ObjPorousMediaID, ThetaField, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -8704,6 +8802,71 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
 
     end function Theta_
 
+    !----------------------------------------------------------------------------
+    
+    subroutine ComputeThetaForHead (head, array, mask)
+    
+        !Arguments---------------------------------------------------------------
+        real                                            :: head
+        real, pointer, dimension(:,:,:)                 :: array
+        logical, pointer, dimension(:,:), optional      :: mask
+        
+        !Local-------------------------------------------------------------------
+        integer                                         :: i,j,k
+        integer                                         :: stat_call
+        
+        !------------------------------------------------------------------------
+
+        call GetGeometryKFloor(Me%ObjGeometry,                                          &
+                               Z    = Me%ExtVar%KFloor,                                 &
+                               STAT = stat_call)
+        if (stat_call /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR010") 
+        
+        if (present(mask)) then
+            
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                if (mask(i,j)) then
+                
+                    do k = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
+                        
+                        array(i,j,k) = Theta_(head, Me%SoilID(i,j,k))
+                        
+                    enddo
+                    
+                endif
+                
+            enddo
+            enddo
+            
+        else
+            
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                if (Me%ExtVar%BasinPoints(i,j)) then
+                
+                    do k = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
+                        
+                        array(i,j,k) = Theta_(head, Me%SoilID(i,j,k))
+                        
+                    enddo
+                    
+                endif
+                
+            enddo
+            enddo
+            
+        endif
+        
+        call UnGetGeometry(Me%ObjGeometry, Me%ExtVar%KFloor, STAT = stat_call)
+        if (stat_call /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR020")  
+        
+    end subroutine ComputeThetaForHead
+    
     !----------------------------------------------------------------------------
     
     real function ThetaF_ (th, SoilID)
