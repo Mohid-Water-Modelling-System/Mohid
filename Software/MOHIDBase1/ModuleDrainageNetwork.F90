@@ -847,8 +847,8 @@ Module ModuleDrainageNetwork
         real, dimension (:,:), pointer              :: ReservoirsConc          => null()
         real, dimension (:,:), pointer              :: NodeConc                => null()
         integer                                     :: nReservoirs             = null_int
-        real(8), dimension (:), pointer             :: ReservoirsInflow        => null()
-        real(8), dimension (:), pointer             :: ReservoirsOutflow       => null()          
+        real, dimension (:), pointer                :: ReservoirsInflow        => null()
+        real, dimension (:), pointer                :: ReservoirsOutflow       => null()          
     end type T_ReservoirLink
         
     type T_Converge
@@ -6649,8 +6649,8 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         allocate (Me%Reservoirs%NodeConc                   (Me%Reservoirs%nReservoirs, Me%PropertiesNumber))
         allocate (Me%Reservoirs%ReservoirsExchangeNodePos  (Me%Reservoirs%nReservoirs))        
 
-        call SetMatrixValue(Me%Reservoirs%ReservoirsInflow          , Size1D, 0.0d0)
-        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0d0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsInflow          , Size1D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0)
         call SetMatrixValue(Me%Reservoirs%ReservoirsConc            , Size2D, 0.0)
         call SetMatrixValue(Me%Reservoirs%NodeConc                  , Size2D, 0.0)        
         call SetMatrixValue(Me%Reservoirs%ReservoirsExchangeNodePos , Size1D, 0)      
@@ -9040,7 +9040,7 @@ if0:    if (Me%HasProperties) then
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
-        real(8), dimension(:), pointer                  :: ReservoirInflow
+        real, dimension(:), pointer                     :: ReservoirInflow
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -9077,7 +9077,7 @@ if0:    if (Me%HasProperties) then
 
         !Arguments--------------------------------------------------------------
         integer                                         :: DrainageNetworkID
-        real(8), dimension(:), pointer                  :: ReservoirOutflow
+        real, dimension(:), pointer                     :: ReservoirOutflow
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
@@ -11153,7 +11153,7 @@ if2:        if (Volume > PoolVolume) then
         Size2D%JLB = 1
         Size2D%JUB = Me%PropertiesNumber            
 
-        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0D0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0)
         call SetMatrixValue(Me%Reservoirs%NodeConc                  , Size2D, 0.0)        
                   
         

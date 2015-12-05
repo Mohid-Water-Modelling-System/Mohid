@@ -147,6 +147,9 @@ Module ModuleGlobalData
     !Vertical referentials
     integer,            parameter :: Hydrographic_  = 1
     integer,            parameter :: Topographic_   = 2
+    
+    !Join matrixes from sub-domains to global
+    integer, parameter :: Type1DI = 1, Type1DJ = 2
        
     !character
     character(LEN = 1), parameter :: space      = char(32)   !" "
