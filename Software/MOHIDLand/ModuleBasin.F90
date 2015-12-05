@@ -44,7 +44,8 @@ Module ModuleBasin
     use ModuleTimeSerie
     use ModuleHDF5
     use ModuleFunctions,      only : ReadTimeKeyWords, LatentHeat, ConstructPropertyID,  &
-                                     TimeToString, ChangeSuffix, CHUNK_J, SetMatrixValue
+                                     TimeToString, ChangeSuffix, CHUNK_J, SetMatrixValue,&
+                                     GetPointer, LinearInterpolation
                                      
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix,              &
                                      KillFillMatrix,GetIfMatrixRemainsConstant,          &
@@ -141,7 +142,7 @@ Module ModuleBasin
                                      GetCanopyHeight, GetTranspirationBottomLayer,       &
                                      GetPotLeafAreaIndex, GetCanopyStorageType, SetECw,  &
                                      GetVegetationAerialFluxes, GetVegetationGrowing,    &
-                                     UnGetVegetationAerialFluxes         
+                                     UnGetVegetationAerialFluxes, GetVegetationAccHU
                                      
     use ModuleStopWatch,      only : StartWatch, StopWatch
     
@@ -615,6 +616,9 @@ Module ModuleBasin
         !Used by PorousMediaProperties        
         real(8), dimension(:,:), pointer            :: WaterColumnEvaporated    => null() !in meters (m)
 
+        real, dimension(6)                          :: KcThresholds
+        logical                                     :: UseKCThresholds = .true.
+        
     end type  T_Basin
 
     !Global Module Variables
@@ -1588,6 +1592,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) & 
             call SetError(FATAL_, KEYWORD_, "ReadDataFile - ModuleBasin - ERR460")
 
+        call GetData(Me%KCThresholds,                                                       &
+                        Me%ObjEnterData, iflag,                                             &
+                        SearchType   = FromFile,                                            &
+                        keyword      = 'KC_THRESHOLDS',                                     &
+                        ClientModule = 'ModuleBasin',                                       &
+                        STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR470'
+        
     end subroutine ReadDataFile
     
     !--------------------------------------------------------------------------
@@ -4211,6 +4223,7 @@ cd2 :           if (BlockFound) then
         real, dimension(:,:), pointer               :: RelativeHumidity
         real, dimension(:,:), pointer               :: ATMTransmitivity
         real, dimension(:,:), pointer               :: DummyProp
+        real, dimension(:,:), pointer               :: AccHU
         real                                        :: Kc
         real,    parameter                          :: LatentHeatOfVaporization = 2.5e6         ![J/kg]
         real,    parameter                          :: ReferenceDensity         = 1000.         ![kg/m3]
@@ -4288,7 +4301,12 @@ cd2 :           if (BlockFound) then
             call GetAtmosphereProperty  (Me%ObjAtmosphere, RelativeHumidity, ID = RelativeHumidity_, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR05'
         endif
-                
+               
+        if (Me%UseKCThresholds) then
+            call GetVegetationAccHU  (Me%ObjVegetation, AccHU, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR02asd'
+        endif        
+        
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -4369,6 +4387,26 @@ cd2 :           if (BlockFound) then
                     else
                         Kc = Me%ExtVar%CropCoefficient(i, j)
                     endif
+                    
+                    if (Me%UseKCThresholds) then
+                        if (AccHU(i,j) <= Me%KCThresholds(2)) then
+                            Kc = Me%KCThresholds(1)
+                        else if (AccHU(i,j) <= Me%KCThresholds(3)) then
+                            Kc = LinearInterpolation(Me%KCThresholds(2), Me%KCThresholds(1), &
+                                                     Me%KCThresholds(3), Me%KCThresholds(4), &
+                                                     AccHU(i,j))
+                        else if (AccHU(i,j) <= Me%KCThresholds(5)) then
+                            Kc = Me%KCThresholds(4)
+                        else if (AccHU(i,j) < 1) then
+                            Kc = LinearInterpolation(Me%KCThresholds(5), Me%KCThresholds(4), &
+                                                     1.0, Me%KCThresholds(6), &
+                                                     AccHU(i,j))
+                        else
+                            Kc = Me%KCThresholds(6)
+                        endif
+                    endif
+                    
+                    Me%ExtVar%CropCoefficient(i,j) = Kc
                     
 !                    if (Kc < 0.0) then
 !                        write (*,*) 'Kc(', i, ',', j, ') NEGATIVO em ', days, Year, Month, Day, hour, minute, second
@@ -4638,6 +4676,11 @@ cd2 :           if (BlockFound) then
             call UnGetAtmosphere  (Me%ObjAtmosphere, RelativeHumidity,  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR10'
         endif
+        
+        if (Me%UseKCThresholds) then
+            call UnGetVegetation  (Me%ObjVegetation, AccHU, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CalcPotEvapoTranspiration - ModuleBasin - ERR02asdXXXX'
+        endif  
 
     end subroutine CalcPotEvapoTranspiration
 
