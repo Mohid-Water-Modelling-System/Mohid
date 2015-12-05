@@ -118,7 +118,9 @@ Module ModuleBasin
                                      GetGWToChannelsLayers, GetIgnoreWaterColumnOnEVAP,  &
                                      GetPMStoredVolume, GetEVTPVolumes,                  &
                                      GetPMBoundaryFlowVolume,                            &
-                                     GetPMTotalDischargeFlowVolume
+                                     GetPMTotalDischargeFlowVolume, GetWaterContent,     &
+                                     GetRelativeWaterContent, GetWaterContentForHead,    &
+                                     GetPMObjMap
                                      
     use ModulePorousMediaProperties,                                                     &
                               only : ConstructPorousMediaProperties,                     &
@@ -141,14 +143,19 @@ Module ModuleBasin
                                      GetCanopyHeight, GetTranspirationBottomLayer,       &
                                      GetPotLeafAreaIndex, GetCanopyStorageType, SetECw,  &
                                      GetVegetationAerialFluxes, GetVegetationGrowing,    &
-                                     UnGetVegetationAerialFluxes         
+                                     UnGetVegetationAerialFluxes, GetRootDepth,          &
+                                     GetLAISenescence, GetVegetationAccHU
                                      
     use ModuleStopWatch,      only : StartWatch, StopWatch
     
-    use ModuleGeometry,       only : GetGeometrySize
+    use ModuleGeometry,       only : GetGeometrySize, GetGeometryDistances, UnGetGeometry
     
     use ModuleSnow
     
+    use ModuleIrrigation
+    
+    use ModuleMap
+
     use ModuleReservoirs
     
 #ifdef _ENABLE_CUDA
@@ -243,18 +250,19 @@ Module ModuleBasin
     end type T_OutPut
 
     type T_Coupling
-        logical                                     :: Atmosphere           = .false.
-        logical                                     :: Evapotranspiration   = .false.
-        logical                                     :: RunOff               = .false.
-        logical                                     :: RunOffProperties     = .false.
-        logical                                     :: DrainageNetwork      = .false.
-        logical                                     :: PorousMedia          = .false.
+        logical                                     :: Atmosphere            = .false.
+        logical                                     :: Evapotranspiration    = .false.
+        logical                                     :: RunOff                = .false.
+        logical                                     :: RunOffProperties      = .false.
+        logical                                     :: DrainageNetwork       = .false.
+        logical                                     :: PorousMedia           = .false.
         logical                                     :: PorousMediaProperties = .false.
-        logical                                     :: Vegetation           = .false.
-        logical                                     :: Reservoirs           = .false.
-        logical                                     :: SimpleInfiltration   = .false.
-        logical                                     :: SCSCNRunOffModel     = .false.
-        logical                                     :: Snow                 = .false.
+        logical                                     :: Vegetation            = .false.
+        logical                                     :: Reservoirs            = .false.
+        logical                                     :: SimpleInfiltration    = .false.
+        logical                                     :: SCSCNRunOffModel      = .false.
+        logical                                     :: Snow                  = .false.
+        logical                                     :: Irrigation            = .false.
     end type T_Coupling
 
     type T_ExtVar
@@ -595,6 +603,7 @@ Module ModuleBasin
         integer                                     :: ObjVegetation            = 0
         integer                                     :: ObjReservoirs            = 0
         integer                                     :: ObjSnow                  = 0
+        integer                                     :: ObjIrrigation            = 0
         integer                                     :: ObjHDF5                  = 0
         integer                                     :: ObjEVTPHDF               = 0
         integer                                     :: ObjEVTPHDF2              = 0
@@ -1218,6 +1227,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR210'
 
+        !Verifies if the user wants to use the Irrigation Module
+        call GetData(Me%Coupled%Irrigation,                                              &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'IRRIGATION',                                        &
+                     default      = ON,                                                  &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR211'
+        
         !Verifies if the user wants to use the Atmosphere Condition
         call GetData(Me%Coupled%Evapotranspiration,                                      &
                      Me%ObjEnterData, iflag,                                             &
@@ -1689,6 +1708,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif                
             endif
             
+            if (Me%Coupled%Irrigation) then
+                if (.not. Me%Coupled%PorousMedia) then
+                    write(*,*)'Irrigation module is set to be used, but PorousMedia is not.'
+                    write(*,*)'In this case, only FixedIrrigation schedules can be used.'
+                endif
+                if (.not. Me%Coupled%Vegetation) then
+                    write(*,*)'Irrigation module is set to be used, but Vegetation is not.'
+                    write(*,*)'In this case, Root Depth must be set on Irrigation.'
+                endif
+            endif
+
             if (Me%Coupled%Reservoirs .and. .not. Me%Coupled%DrainageNetwork) then
                 write(*,*)'You must enable module Drainage Network if you want to use module Reservoirs'
                 stop 'VerifyOptions - ModuleBasin - ERR09a'
@@ -2856,6 +2886,16 @@ i1:         if (CoordON) then
         logical                                     :: VegParticFertilization
         logical                                     :: Pesticide, RiverPointsFromDN
         integer, dimension(:, :), pointer           :: ChannelsID
+        logical                                     :: finish
+        logical, pointer, dimension(:,:)            :: mask
+        real, pointer, dimension(:,:,:)             :: start_wc
+        real, pointer, dimension(:,:,:)             :: target_wc
+        real                                        :: start_head
+        real                                        :: target_head
+        integer                                     :: schedule
+        type (T_Size3D)                             :: WorkSize3D
+        integer, pointer, dimension(:,:,:)          :: mapping
+        integer                                     :: id
         integer, dimension(:),    pointer           :: ReservoirDNNodeID               => null()
         !Begin-----------------------------------------------------------------
 
@@ -3138,7 +3178,76 @@ i1:         if (CoordON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR090'
         endif
        
+        !ModuleIrrigation requires some information to be get from PorousMedia (if it exists)
+        if (Me%Coupled%Irrigation) then
+            call ConstructIrrigation (ModelName         = Me%ModelName,         &
+                                      id                = Me%ObjIrrigation,     &
+                                      ComputeTimeID     = Me%ObjTime,           &
+                                      HorizontalGridID  = Me%ObjHorizontalGrid, &
+                                      HorizontalMapID   = Me%ObjHorizontalMap,  &
+                                      GridDataID        = Me%ObjGridData,       &
+                                      BasinGeometryID   = Me%ObjBasinGeometry,  &
+                                      GeometryID        = Me%ObjGeometry,       &
+                                      STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR091'
+            
+            if (GetIrrigationPMIsRequired(Me%ObjIrrigation)) then
+                if (Me%Coupled%PorousMedia) then
+                    
+                    call GetGeometrySize (Me%ObjGeometry,             &    
+                                            WorkSize =  WorkSize3D,   &
+                                            STAT = STAT_CALL)                        
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR092a'                
+                        
+                    allocate (start_wc (WorkSize3D%ILB:WorkSize3D%IUB,WorkSize3D%JLB:WorkSize3D%JUB, WorkSize3D%KLB:WorkSize3D%KUB))
+                    allocate (target_wc (WorkSize3D%ILB:WorkSize3D%IUB,WorkSize3D%JLB:WorkSize3D%JUB, WorkSize3D%KLB:WorkSize3D%KUB))
+                    
+do1:                do
+                              
+                        call GetIrrigationThresholds (id            = Me%ObjIrrigation, &
+                                                      start_head    = start_head,       &
+                                                      target_head   = target_head,      &
+                                                      schedule_id   = schedule,         &
+                                                      finish        = finish,           &
+                                                      mask          = mask,             &
+                                                      stat          = stat_call)
+                        if (stat_call /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR092b'
+                        
+                        if (finish) exit do1
+                        
+                        call GetWaterContentForHead (Me%ObjPorousMedia, start_head, start_wc, mask = mask, stat = stat_call)
+                        if (stat_call /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR093'
+                        
+                        call GetWaterContentForHead (Me%ObjPorousMedia, target_head, target_wc, mask = mask, stat = stat_call)
+                        if (stat_call /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR094'
+                                                
+                        call GetPMObjMap (Me%ObjPorousMedia, id, STAT_CALL)
+                        if (stat_call /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR095a'
+            
+                        call GetWaterPoints3D (id, mapping, STAT = STAT_CALL) 
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR095b'
+                        
+                        call SetIrrigationThresholds (id            = Me%ObjIrrigation, &
+                                                      schedule      = schedule,         &
+                                                      start_wc      = start_wc,         &
+                                                      target_wc     = target_wc,        &
+                                                      mapping       = mapping,          &
+                                                      stat          = stat_call)
+                        if (stat_call /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR095c'
+                        
+                        call UnGetMap (id, mapping, STAT = STAT_CALL)
+                        if (stat_call /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR095d'
+                        
+                    enddo do1
+                    
+                    deallocate (mask, start_wc, target_wc)
 
+                else
+                    write(*,*)'ModuleIrrigation requires ModulePorousMedia to be active'
+                    stop 'ConstructCoupledModules - ModuleBasin - ERR096'
+                endif
+            endif
+        endif        
         
         !Constructs Simple Infiltration
         if (Me%Coupled%SimpleInfiltration) then
@@ -3601,6 +3710,11 @@ cd2 :           if (BlockFound) then
                 enddo               
             endif
 
+            !Irrigation processes
+            if (Me%Coupled%Irrigation) then
+                call IrrigationProcesses
+            endif            
+            
             !Atmospheric Processes 
             if (Me%Coupled%Atmosphere) then
 
@@ -3819,14 +3933,21 @@ cd2 :           if (BlockFound) then
         call GetAtmosphereProperty  (Me%ObjAtmosphere, PrecipitationFlux, ID = Precipitation_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR020'
 
-        !Gets Irrigation [m3/s]
-        call GetAtmosphereProperty  (Me%ObjAtmosphere, IrrigationFlux, ID = Irrigation_, STAT = STAT_CALL, ShowWarning = .false.)
-        if (STAT_CALL == SUCCESS_) then
+        if (Me%Coupled%Irrigation) then
+            call GetIrrigationFlux (Me%ObjIrrigation, IrrigationFlux, stat = stat_call)
+            if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR030'
+            
             IrrigationExists = .true.
-        elseif (STAT_CALL == NOT_FOUND_ERR_) then
-            IrrigationExists = .false.
-        else 
-            stop 'AtmosphereProcesses - ModuleBasin - ERR030'
+        else
+            !Gets Irrigation [m3/s]
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, IrrigationFlux, ID = Irrigation_, STAT = STAT_CALL, ShowWarning = .false.)
+            if (STAT_CALL == SUCCESS_) then
+                IrrigationExists = .true.
+            elseif (STAT_CALL == NOT_FOUND_ERR_) then
+                IrrigationExists = .false.
+            else 
+                stop 'AtmosphereProcesses - ModuleBasin - ERR040'
+            endif
         endif
         
         if (Me%Coupled%Vegetation) then 
@@ -3883,8 +4004,13 @@ cd2 :           if (BlockFound) then
 
 
         if (IrrigationExists) then
-            call UnGetAtmosphere    (Me%ObjAtmosphere, IrrigationFlux, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR050'
+            if (Me%Coupled%Irrigation) then
+                call UnGetIrrigation (Me%ObjIrrigation, IrrigationFlux, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR050'
+            else                
+                call UnGetAtmosphere (Me%ObjAtmosphere, IrrigationFlux, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR060'
+            endif            
         endif
         
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "AtmosphereProcesses")
@@ -6069,6 +6195,81 @@ cd2 :           if (BlockFound) then
 
     end subroutine ReservoirsProcesses
     
+    !--------------------------------------------------------------------------
+
+    subroutine IrrigationProcesses
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j
+        integer                                     :: stat_call
+        type(T_IrrigationData), target              :: data
+        type(T_IrrigationData), pointer             :: p_data
+        
+        !----------------------------------------------------------------------    
+    
+        if (MonitorPerformance) call StartWatch ("ModuleBasin", "IrrigationProcesses")
+        
+        p_data => data
+        
+        data%BasinPoints => Me%ExtVar%BasinPoints
+        data%Areas => Me%ExtVar%GridCellArea
+        data%Topography => Me%ExtVar%Topography
+
+        call GetGeometryDistances (Me%ObjGeometry, DWZ = data%DWZ, STAT = stat_call)
+        if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR010'
+        
+        if (Me%Coupled%PorousMedia) then
+        
+            call GetWaterContent (Me%ObjPorousMedia, data%SoilWaterContent, STAT = stat_call)
+            if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR020'
+        
+            call GetRelativeWaterContent (Me%ObjPorousMedia, data%SoilRelativeWaterContent, STAT = stat_call)
+            if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR030'
+        
+        endif
+        
+        if (Me%Coupled%Vegetation) then
+            
+            call GetRootDepth (Me%ObjVegetation, data%RootsDepth, STAT = stat_call)
+            if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR040'
+            
+            call GetLAISenescence(Me%ObjVegetation, data%LAISenescence, STAT = stat_call)
+            if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR041'
+            
+        endif
+        
+        call ModifyIrrigation (Me%ObjIrrigation, p_data, stat = stat_call)
+        
+        
+        if (Me%Coupled%Vegetation) then
+            
+            call UnGetVegetation (Me%ObjVegetation, data%RootsDepth, STAT = stat_call)
+            if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR50'
+            
+            call UnGetVegetation (Me%ObjVegetation, data%LAISenescence, STAT = stat_call)
+            if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR60'
+            
+        endif
+        
+        if (Me%Coupled%PorousMedia) then
+        
+            call UnGetPorousMedia (Me%ObjPorousMedia, data%SoilWaterContent, STAT = stat_call)
+            if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR70'
+        
+            call UnGetPorousMedia (Me%ObjPorousMedia, data%SoilRelativeWaterContent, STAT = stat_call)
+            if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR80'
+            
+        endif
+            
+        call UnGetGeometry (Me%ObjGeometry, data%DWZ, STAT = stat_call)        
+        if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR90'
+        
+        if (MonitorPerformance) call StopWatch ("ModuleBasin", "IrrigationProcesses")
+        
+    end subroutine IrrigationProcesses
+
     !--------------------------------------------------------------------------
 
     subroutine PorousMediaProcesses
