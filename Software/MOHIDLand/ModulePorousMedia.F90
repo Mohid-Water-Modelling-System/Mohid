@@ -8795,7 +8795,7 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         integer, intent(IN)                         :: SoilID
 
         !----------------------------------------------------------------------
-
+        
         Theta_ = Me%SoilTypes(SoilID)%ThetaR + ( Me%SoilTypes(SoilID)%ThetaS - Me%SoilTypes(SoilID)%ThetaR ) / &
                 ((1.0 + (Me%SoilTypes(SoilID)%alfa * (- head) ) ** Me%SoilTypes(SoilID)%Nfit ) **              &
                 Me%SoilTypes(SoilID)%MFit )
@@ -8823,12 +8823,16 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         if (stat_call /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR010") 
         
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (stat_call /= SUCCESS_) &
+            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR020") 
+        
         if (present(mask)) then
             
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
-                if (mask(i,j)) then
+                if (mask(i,j) .and. Me%ExtVar%BasinPoints(i,j)) then
                 
                     do k = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                         
@@ -8863,7 +8867,11 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         
         call UnGetGeometry(Me%ObjGeometry, Me%ExtVar%KFloor, STAT = stat_call)
         if (stat_call /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR020")  
+            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR030")  
+        
+        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR040") 
         
     end subroutine ComputeThetaForHead
     
