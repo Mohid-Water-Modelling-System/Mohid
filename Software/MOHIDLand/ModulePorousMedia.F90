@@ -8795,7 +8795,7 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         integer, intent(IN)                         :: SoilID
 
         !----------------------------------------------------------------------
-        
+
         Theta_ = Me%SoilTypes(SoilID)%ThetaR + ( Me%SoilTypes(SoilID)%ThetaS - Me%SoilTypes(SoilID)%ThetaR ) / &
                 ((1.0 + (Me%SoilTypes(SoilID)%alfa * (- head) ) ** Me%SoilTypes(SoilID)%Nfit ) **              &
                 Me%SoilTypes(SoilID)%MFit )
@@ -8827,15 +8827,15 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         if (stat_call /= SUCCESS_) &
             call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR020") 
         
-        if (present(mask)) then
+        if (present(mask) .and. associated(mask)) then
             
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
-                if (mask(i,j) .and. Me%ExtVar%BasinPoints(i,j)) then
+                if ((mask(i,j).eqv..true.) .and. (Me%ExtVar%BasinPoints(i,j)==1)) then
                 
                     do k = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
-                        
+
                         array(i,j,k) = Theta_(head, Me%SoilID(i,j,k))
                         
                     enddo
@@ -8850,7 +8850,7 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
-                if (Me%ExtVar%BasinPoints(i,j)) then
+                if (Me%ExtVar%BasinPoints(i,j)==1) then
                 
                     do k = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
                         

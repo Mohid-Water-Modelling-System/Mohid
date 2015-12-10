@@ -256,7 +256,7 @@ module ModuleIrrigation
         
         !ApplicationAreaMap(logical) - Application area map (mask)
         !type(T_IrriProperty), pointer               :: ApplicationAreaMap => null() 
-        type(T_IrriProperty)               :: ApplicationAreaMap 
+        type(T_IrriProperty)                        :: ApplicationAreaMap 
         
         !ApplicationArea(m2) - Application area
         real                                        :: ApplicationArea = 0.0 !In 'm2'
@@ -337,7 +337,6 @@ module ModuleIrrigation
     type T_IrrigationData
        
         integer, dimension(:,:), pointer            :: BasinPoints => null()
-        real, dimension(:,:), pointer               :: Topography => null()
         real, dimension(:,:), pointer               :: RootsDepth => null()
         real, dimension(:,:), pointer               :: LAISenescence => null()
         real, dimension(:,:,:), pointer             :: SoilWaterContent => null()
@@ -369,6 +368,7 @@ module ModuleIrrigation
         integer                                     :: ObjTimeSerie = 0
       
         type (T_IrrigationData), pointer            :: Data
+        real, dimension(:,:), pointer               :: Topography => null()
         type (T_Files)                              :: Files
         type (T_Output)                             :: Output
       
@@ -1231,18 +1231,17 @@ cd1 :       if (block_found) then
             if (stat_call /= SUCCESS_) &
                 stop 'ConstructPropertyValues - ModuleIrrigation - ERR010'
         
-            !print *, "Get to here..."
-            !print *, basin_points
-            
             do i = ILB, IUB
             do j = JLB, JUB
                 
-                if (basin_points(i,j)) then
-                    new_schedule%ApplicationAreaMap%LogicalField(i,j) = .true.
+                if (basin_points(i,j)==1) then
+
                     if (new_property%Field(i,j) > 0.5) then
+                    	new_schedule%ApplicationAreaMap%LogicalField(i,j) = .true.
                         new_property%LogicalField(i,j) = .true.
                     else
-                        new_property%LogicalField(i,j) = .false.
+                        new_schedule%ApplicationAreaMap%LogicalField(i,j) = .false.
+			new_property%LogicalField(i,j) = .false.
                     endif
                 else
                     new_schedule%ApplicationAreaMap%LogicalField(i,j) = .false.
@@ -1704,6 +1703,7 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
         schedule_id = -1
         finish = .true.
         stat_ = UNKNOWN_
+        mask => null() 
         
         must_continue = .true.
         
@@ -1734,8 +1734,8 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
                         schedule_id = schedule_
                         start_head = schedule%HeadWiltingPoint
                         target_head = schedule%HeadTarget
-                        schedule%ApplicationAreaMap%LogicalField = .false.
-                        schedule%ApplicationAreaMap%LogicalField(2,2) = .true.
+                        !schedule%ApplicationAreaMap%LogicalField = .false.
+                        !schedule%ApplicationAreaMap%LogicalField(2,2) = .true.
                         mask => schedule%ApplicationAreaMap%LogicalField
                         finish = .false.
                         must_continue = .false.
@@ -2167,7 +2167,7 @@ do1:    do i = 1, Me%NumberOfSchedules
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
-            if (Me%Data%BasinPoints(i,j)) then
+            if (Me%Data%BasinPoints(i,j)==1) then
             if (lai_senescence(i,j) < 1.0) then
                 
                 acc_depth = 0.0            
@@ -2179,7 +2179,6 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                     if (acc_depth >= roots_depth(i,j)) then
                     
                         schedule%RootsKLB(i,j) = k
-                        !print *, "Root KLB = ", k
                         exit do1
                     
                     endif
@@ -2210,22 +2209,16 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         !First, check if can compute irrigation and if can, compute the 
         !irrigation needs
         if (CanComputeIrrigationNeeds(schedule)) then
-        
-            !print *, "Can compute irrigation needs"
-            
+                   
             call FindRootsKLB (schedule, Me%Data%RootsDepth, Me%Data%LAISenescence)
             
             if (SetComputePoints (schedule, Me%ComputePoints)) then
-                
-                !print *, "Will check irrigation needs"
                 
                 irrigation = ComputeIrrigationNeed (schedule, Me%ComputePoints)
                 
                 if (irrigation > 0.0) then
 
-                    !print *, "Irrigation needs is = ", irrigation
                     Me%GlobalCounter = Me%GlobalCounter + 1
-                    !print *, Me%GlobalCounter
                     call SetupDailySchedule (schedule, irrigation)
             
                 endif
@@ -2292,7 +2285,7 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
-                    if (Me%Data%BasinPoints(i,j) == 1) then ! .AND. schedule%ApplicationAreaMap%LogicalField(i,j)) then                        
+                    if (schedule%ApplicationAreaMap%LogicalField(i,j).eqv..true.) then                        
                         ![mm]              =        [mm]        + (      [mm/s]       *  [s] )
                         Me%Irrigation(i,j) = Me%Irrigation(i,j) + (sch_day%Irrigation * Me%DT)
                     else
@@ -2311,7 +2304,7 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
-            if (Me%Data%BasinPoints(i,j) == 1) then ! .AND. schedule%ApplicationAreaMap%LogicalField(i,j)) then
+            if (schedule%ApplicationAreaMap%LogicalField(i,j).eqv..true.) then
                 ![m3/s]                =       [mm]         / [mm/m] *      [m2]          /  [s]
                 Me%IrrigationFlux(i,j) = Me%Irrigation(i,j) / 1000.0 * Me%Data%Areas(i,j) / Me%DT
             endif
@@ -2453,7 +2446,7 @@ do1:        do while (associated (sch_day))
             
             if (Me%Data%BasinPoints(i,j) == 1) then
                 
-                schedule%ApplicationAreaMap%LogicalField(i,j) = .true.
+                !schedule%ApplicationAreaMap%LogicalField(i,j) = .true.
                 must_apply_at_this_location = schedule%ApplicationAreaMap%LogicalField(i,j)
                 
                 if (Me%Data%RootsDepth(i,j) > 0.0) then
@@ -2463,9 +2456,6 @@ do1:        do while (associated (sch_day))
                 endif
                 
                 surface_is_saturated = IsSurfaceSaturated(schedule, i, j)
-                
-                !print *, "Before: ", schedule%ApplicationAreaMap%LogicalField(i,j), Me%Data%RootsDepth(i,j)
-                !print *, "Compute points: ", must_apply_at_this_location, there_are_roots, surface_is_saturated
                               
                 if (must_apply_at_this_location .AND. there_are_roots .AND. (.NOT. surface_is_saturated)) then
                     compute_points(i,j) = .true.
@@ -2694,19 +2684,9 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
                     start_instant = start_instant + 86400.0
                     call SetSDate (sstart_instant, start_instant)
                                                           
-                    !write (*, 100) int(new_day%SStartInstant%Year), int(new_day%SStartInstant%Month), int(new_day%SStartInstant%Day), int(new_day%SStartInstant%Hour), int(new_day%SStartInstant%Minute), int(new_day%SStartInstant%Second)
-                    !write (*, 110) int(new_day%SEndInstant%Year), int(new_day%SEndInstant%Month), int(new_day%SEndInstant%Day), int(new_day%SEndInstant%Hour), int(new_day%SEndInstant%Minute), int(new_day%SEndInstant%Second)
-                    !print *, 'Initial           (mm)  : ', rest
-                    !print *, 'Irrigation Volume (mm)  : ', irrigation_
-
                     !Compute the ammount of irrigation to apply next day
                     ![mm]= [mm] - [mm]
-                    rest = rest - irrigation_                    
-                    
-                    !print *, 'Rest                    : ', rest
-                    
-                    !100 format(1X, "Irrigation Start Instant: ",(i4,":"),4(i2, ":"), i2)
-                    !110 format(1X, "Irrigation End Instant  : ",(i4,":"),4(i2, ":"), i2)
+                    rest = rest - irrigation_
                     
                     if (rest <= 0.0) then
                         
@@ -2778,12 +2758,9 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
                     wc = Me%Data%SoilWaterContent(i,j,k)
                     twc = schedule%WaterContentTarget%Field3D(i,j,k)
                     
-                    !print *, "For k = ", k, ewc, wc, twc
-                    
                     if (ewc >= wc) then
                         
                         defice = defice + (twc - wc)
-                        !print *, "Defice (acc) = ", defice
                         
                     endif
             
@@ -2793,9 +2770,6 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
                     
                     acc_to_irrigate = acc_to_irrigate + max(0.0, defice * Me%Data%RootsDepth(i,j) * 1000)
                     acc_area = acc_area + Me%Data%Areas(i,j)
-                    
-                    !print *, "Acc to irrigate = ", acc_to_irrigate
-                    !print *, "Acc Area = ", acc_area
                     
                 endif
                 
@@ -2808,7 +2782,6 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
             
             iv = acc_to_irrigate / acc_area
             if (iv >= schedule%MinimumToIrrigate) then
-                !print *, "Irrigation ", iv, " >= minimum of ", schedule%MinimumToIrrigate
                 res = iv
             endif
         endif
@@ -2976,6 +2949,7 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
         integer                             :: ObjHDF5
         real, dimension(6), target          :: AuxTime
         real, dimension(:), pointer         :: TimePtr
+        integer, dimension(:,:), pointer    :: BasinPoints
         type (T_Time)                       :: Actual
         real, dimension(2), target          :: schedule_array
         real, dimension(15), target         :: daily_schedule_array
@@ -2983,11 +2957,12 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
         type(T_DailySchedule), pointer      :: day_schedule
         
         !Begin-------------------------------------------------------------------
+
         !Gets a pointer to Topography
-        call GetGridData (Me%ObjGridData, Me%Data%Topography, STAT = stat_call)
+        call GetGridData (Me%ObjGridData, Me%Topography, STAT = stat_call)
         if (stat_call /= SUCCESS_) stop 'WriteRestartFile - ModuleIrrigation - ERR010'
 
-        call GetBasinPoints   (Me%ObjBasinGeometry, Me%Data%BasinPoints, STAT = stat_call)
+        call GetBasinPoints   (Me%ObjBasinGeometry, BasinPoints, STAT = stat_call)
         if (stat_call /= SUCCESS_) stop 'WriteRestartFile - ModuleIrrigation - ERR020'
 
         !Gets File Access Code
@@ -3040,16 +3015,16 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
 
         !Writes the Grid
         call HDF5WriteData (ObjHDF5, "//Grid", "Topography", "m", &
-                            Array2D = Me%Data%Topography, STAT = stat_call)
+                            Array2D = Me%Topography, STAT = stat_call)
         if (stat_call /= SUCCESS_) &
             stop 'WriteRestartFile - ModuleIrrigation - ERR080'
 
         !WriteBasinPoints
         call HDF5WriteData (ObjHDF5, "//Grid", "BasinPoints", "-", &
-                            Array2D = Me%Data%BasinPoints, STAT = stat_call)
+                            Array2D = BasinPoints, STAT = stat_call)
         if (stat_call /= SUCCESS_) &
             stop 'WriteRestartFile - ModuleIrrigation - ERR090'
-        
+
         !Write each schedule to the file
         do schedule_i = 1, Me%NumberOfSchedules
             
@@ -3160,11 +3135,11 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
             stop 'WriteRestartFile - ModuleIrrigation - ERR030'
 
         !Unget
-        call UnGetBasin (Me%ObjBasinGeometry, Me%Data%BasinPoints, stat_call)
+        call UnGetBasin (Me%ObjBasinGeometry, BasinPoints, stat_call)
         if (stat_call /= SUCCESS_) stop 'WriteRestartFile - ModuleIrrigation - ERR90'  
 
         !UnGets Topography
-        call UnGetGridData (Me%ObjGridData, Me%Data%Topography, STAT = stat_call)
+        call UnGetGridData (Me%ObjGridData, Me%Topography, STAT = stat_call)
         if (stat_call /= SUCCESS_) &
             stop 'WriteRestartFile - ModuleIrrigation - ERR100'
 

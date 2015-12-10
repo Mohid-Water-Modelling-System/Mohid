@@ -3,7 +3,7 @@
 
 #Edit the prefix of the installed binaries
 # > make nix.install
-export VER = r8_omp_x64
+export VER = r8_x64
 
 #Where do you want to install the binary files?
 # > make nix.install
@@ -14,17 +14,17 @@ export INTEL_PATH = /opt/intel/lib/intel64/
 
 #Where are the hdf5 libraries (with --enable-fortran) in your system?
 # > sudo updatedb; locate hdf5.mod
-export HDF5MODINC = /home/user/mohid.external.libs/include
+export HDF5MODINC = /home/jauch/Development/Libraries/include
 # > sudo updatedb; locate libhdf5
-export HDF5LIBINC = /home/user/mohid.external.libs/lib
+export HDF5LIBINC = /home/jauch/Development/Libraries/lib
 
 #Where is the libz.a in your system?
-export ZLIBINC = /home/user/mohid.external.libs/lib
-export SZLIBINC = /home/user/mohid.external.libs/lib
+export ZLIBINC = /home/jauch/Development/Libraries/lib
+export SZLIBINC = /home/jauch/Development/Libraries/lib
 
 #Find CODEPLEX Respository revision and if there is local changes
-LOCAL_CHANGES := $(shell ./test_local_changes.sh)
-CODEPLEX_VERSION := $(shell ./get_last_version.sh)
+#LOCAL_CHANGES := $(shell ./test_local_changes.sh)
+#CODEPLEX_VERSION := $(shell ./get_last_version.sh)
 COMPILING_DATE := '$(shell date)'
 
 #Activate the extra modules that require the netcdf libraries in the 
@@ -51,7 +51,7 @@ FPP_DEFINES :=
 #FPP_DEFINES := ${FPP_DEFINES} -D_PHREEQC_X64_  #Not available yet
 FPP_DEFINES := ${FPP_DEFINES} -D_COMPILED_BY=\"user\"
 FPP_DEFINES := ${FPP_DEFINES} -D_COMPILING_DATE=\"${COMPILING_DATE}\"
-FPP_DEFINES := ${FPP_DEFINES} -D_CODEPLEX_VERSION=\"${CODEPLEX_VERSION}${LOCAL_CHANGES}\"
+#FPP_DEFINES := ${FPP_DEFINES} -D_CODEPLEX_VERSION=\"${CODEPLEX_VERSION}${LOCAL_CHANGES}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_NO_NETCDF
 FPP_DEFINES := ${FPP_DEFINES} -D_STACK_LIMITS_
 #FPP_DEFINES := ${FPP_DEFINES} -D_BIG_LINE_LENGTH

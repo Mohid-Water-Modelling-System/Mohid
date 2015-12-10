@@ -3228,11 +3228,13 @@ do1:                do
                         if (finish) exit do1
                         
                         call GetWaterContentForHead (Me%ObjPorousMedia, start_head, start_wc, mask = mask, stat = stat_call)
+                        !call GetWaterContentForHead (Me%ObjPorousMedia, start_head, start_wc, stat = stat_call)
                         if (stat_call /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR093'
-                        
+
                         call GetWaterContentForHead (Me%ObjPorousMedia, target_head, target_wc, mask = mask, stat = stat_call)
+                        !call GetWaterContentForHead (Me%ObjPorousMedia, target_head, target_wc, stat = stat_call)
                         if (stat_call /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR094'
-                                                
+
                         call GetPMObjMap (Me%ObjPorousMedia, id, STAT_CALL)
                         if (stat_call /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR095a'
             
@@ -3252,7 +3254,7 @@ do1:                do
                         
                     enddo do1
                     
-                    deallocate (mask, start_wc, target_wc)
+                    deallocate (start_wc, target_wc)
 
                 else
                     write(*,*)'ModuleIrrigation requires ModulePorousMedia to be active'
@@ -6258,7 +6260,7 @@ cd2 :           if (BlockFound) then
         
         data%BasinPoints => Me%ExtVar%BasinPoints
         data%Areas => Me%ExtVar%GridCellArea
-        data%Topography => Me%ExtVar%Topography
+        !data%Topography => Me%ExtVar%Topography
 
         call GetGeometryDistances (Me%ObjGeometry, DWZ = data%DWZ, STAT = stat_call)
         if (STAT_CALL /= SUCCESS_) stop 'IrrigationProcesses - ModuleBasin - ERR010'
@@ -9443,6 +9445,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 nUsers = DeassociateInstance(mTIME_,  Me%ObjTime)
                 if (nUsers == 0)           stop 'KillBasin - ModuleBasin - ERR010'
+
+                if (Me%Coupled%Irrigation) then
+
+                    call KillIrrigation (Me%ObjIrrigation, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR030'
+                    
+                endif
 
                 if (Me%Coupled%Runoff) then
                     if (Me%Coupled%RunoffProperties) then

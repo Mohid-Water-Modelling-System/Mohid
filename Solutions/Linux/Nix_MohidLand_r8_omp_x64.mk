@@ -13,8 +13,12 @@ export F = F90
 export Obj = o
 export MOD = mod
 export CC= ifort
-export CCFLAGS  = -openmp -fpp -r8 -std03 -m64 -ip -zero -xHost -axAVX -O3 -parallel -inline-level=1 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -openmp-link=static -static-libgcc -heap-arrays 64 -c $(FPP_DEFINES) 
-export LFLAGS   = -openmp -fpp -r8 -std03 -m64 -ip -zero -xHost -axAVX -O3 -parallel -inline-level=1 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -openmp-link=static -static-libgcc -heap-arrays 64 -Wl,-rpath,'$$$$ORIGIN/.',-rpath,$(INTEL_PATH) $(FPP_DEFINES)
+export CCFLAGS  = -openmp -fpp -r8 -std03 -m64 -zero -O3 -inline-level=0 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -openmp-link=static -static-libgcc -heap-arrays 64 -c $(FPP_DEFINES) 
+export LFLAGS   = -openmp -fpp -r8 -std03 -m64 -zero -O3 -inline-level=0 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -openmp-link=static -static-libgcc -heap-arrays 64 -Wl,-rpath,'$$$$ORIGIN/.',-rpath,$(INTEL_PATH) $(FPP_DEFINES)
+#export CCFLAGS  = -openmp -fpp -r8 -std03 -m64 -ip -zero -xHost -axAVX -O3 -parallel -inline-level=1 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -openmp-link=static -static-libgcc -heap-arrays 64 -c $(FPP_DEFINES) 
+#export LFLAGS   = -openmp -fpp -r8 -std03 -m64 -ip -zero -xHost -axAVX -O3 -parallel -inline-level=1 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -openmp-link=static -static-libgcc -heap-arrays 64 -Wl,-rpath,'$$$$ORIGIN/.',-rpath,$(INTEL_PATH) $(FPP_DEFINES)
+#export CCFLAGS  = -fpp -r8 -std03 -m64 -ip -zero -xHost -O3 -parallel -inline-level=1 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -static-libgcc -heap-arrays 64 -c $(FPP_DEFINES) 
+#export LFLAGS   = -fpp -r8 -std03 -m64 -ip -zero -xHost -O3 -parallel -inline-level=1 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -static-libgcc -heap-arrays 64 -Wl,-rpath,'$$$$ORIGIN/.',-rpath,$(INTEL_PATH) $(FPP_DEFINES)
 export LLFLAGS  =
 export MKFLAGS =
 export AR = ar rc
