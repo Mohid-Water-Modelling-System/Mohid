@@ -184,7 +184,7 @@ Module ModuleHydrodynamic
                                        AddStatisticLayers, KillStatistic         
     use ModuleHDF5       
 #ifndef _WAVES_
-    use ModuleWaves,            only : GetWavesStress, SetGeneric4DValues, UnGetWaves       
+    use ModuleWaves,            only : GetWavesStress, GetWaves, SetGeneric4DValues, UnGetWaves       
 #endif
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix, KillFillMatrix
     use ModuleDrawing
@@ -456,6 +456,8 @@ Module ModuleHydrodynamic
     public  :: SetWindStress
     public  :: SetAtmosphericPressure
     public  :: SetWaveChezyVel
+    public  :: SetShearStressMethod
+    public  :: SetWaveShearStress
 
 #ifdef _USE_SEQASSIMILATION
     !Set subroutines usable to point variables to external variables/memory space
@@ -1195,7 +1197,8 @@ Module ModuleHydrodynamic
                                               
         logical                            :: Manning = .false., &
                                               Chezy   = .false.
-
+        
+        integer                            :: ShearStressMethod = null_int
 
         !Surface
         real,    dimension(:,:),   pointer :: TauWindU      => null(), &
@@ -1210,9 +1213,14 @@ Module ModuleHydrodynamic
                                               AtmosphericPressure   => null()
 
         !Waves 
-        real,    dimension(:,:),   pointer :: TauWavesU     => null(), & 
-                                              TauWavesV     => null(), &
-                                              TauWaves_UV   => null()
+        real,    dimension(:,:),   pointer :: TauWavesU        => null(), & 
+                                              TauWavesV        => null(), &
+                                              TauWaves_UV      => null()
+        real,    pointer, dimension(:,:  ) :: WavePeriod       => null(), &
+                                              WaveHeight       => null()
+        real,    pointer, dimension(:,:,:) :: DirectionH       => null()
+        real,    pointer, dimension(:,:  ) :: Ubw              => null(), &
+                                              Abw              => null()
 
         !Altimetry Assimilation
         real,    dimension(:,:  ), pointer :: AltimWaterLevelAnalyzed   => null()
@@ -1388,7 +1396,8 @@ Module ModuleHydrodynamic
                                            WaterColumn2D        = null_real     
 
         logical                         :: SlippingCondition    = .false., & 
-                                           WaveStress           = .false., & 
+                                           WaveStress           = .false., & !Generation of currents by the waves
+                                           WaveShearStress      = .false., & !Enhancement of bed shear stress by the waves 
                                            Obstacle             = .false., & 
                                            Scraper              = .false. 
 
@@ -1572,7 +1581,7 @@ Module ModuleHydrodynamic
         ! (=DELTA) DIP ANGLE				
         real                        :: DL               = null_real
         ! (=LAMDA) SLIP ANGLE 
-        real                        :: RD	            = null_real
+        real                        :: RD               = null_real
         ! EPICENTER (LATITUDE)
         real                        :: Y0		        = null_real
         ! EPICENTER (LONGITUDE)	    
@@ -13974,8 +13983,82 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (present(STAT))STAT = STAT_
 
     end subroutine ReSetHydrodynamicProperties
-
+    
+    !--------------------------------------------------------------------------
+    
 #endif _USE_SEQASSIMILATION
+    
+    subroutine SetShearStressMethod (HydrodynamicID, ShearStressMethod, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                         :: HydrodynamicID
+        integer, intent(IN)             :: ShearStressMethod
+        integer, optional, intent(OUT)  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                         :: ready_              
+        integer                         :: STAT_            
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_)  
+        
+cd1 :   if (ready_ == IDLE_ERR_)then
+
+            Me%External_Var%ShearStressMethod     = ShearStressMethod                     
+   
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+        
+    end subroutine SetShearStressMethod
+        
+    !--------------------------------------------------------------------------
+    
+    subroutine SetWaveShearStress (HydrodynamicID, WaveShearStress, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                         :: HydrodynamicID
+        logical, intent(IN)             :: WaveShearStress
+        integer, optional, intent(OUT)  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                         :: ready_              
+        integer                         :: STAT_            
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_)  
+        
+cd1 :   if (ready_ == IDLE_ERR_)then
+
+            Me%ComputeOptions%WaveShearStress = WaveShearStress                     
+   
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+        
+    end subroutine SetWaveShearStress
+
+    !----------------------------------------------------------------------
+
+
 
     !--------------------------------------------------------------------------
 
@@ -14066,7 +14149,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             call ReadLock_ModuleTurbulence 
 #ifndef _WAVES_
-            if (Me%ComputeOptions%WaveStress) call ReadLock_ModuleWaves
+
+            if (Me%ObjWaves /=0) then  
+                call ReadLock_ModuleWaves
+            endif
 #endif
  
             call One_Iteration 
@@ -14125,7 +14211,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Output of the Turbulence variaveis
             call ReadUnLock_ModuleTurbulence  
 #ifndef _WAVES_
-            if (Me%ComputeOptions%WaveStress) call ReadUnLock_ModuleWaves
+
+            if (Me%ObjWaves /=0) then  
+                call ReadUnLock_ModuleWaves
+            endif
 #endif
             !Read UnLock variables external variables
             !The modules responsible for this variables were 
@@ -21662,8 +21751,9 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                     Prop(i, j, k) = 0.
                 enddo         
                 
-                iy = i
-                jx = j
+                iy      = i
+                jx      = j
+                k_first = k_bottom
                 
                 !null gradient horizontal open boundary condition
                 if       (Me%External_Var%BoundaryFacesU(i,j  ) == Boundary) then
@@ -30382,6 +30472,8 @@ cd6:            if (NewInstant >= NextInstant) then
 
         integer                            :: IUB, ILB, JUB, JLB, KUB
         integer                            :: I, J, kbottom
+        
+        real                               :: U, V, VelMod_Z, Ubw, Abw
 
         integer                            :: CHUNK
 
@@ -30456,18 +30548,39 @@ cd3:                    if (Manning) then
                              ChezyZ(i, j) = Gravity * Rugosity**2 / AUXZ**EP
                  
                          else cd3
+
+                            if(Me%External_Var%ShearStressMethod == 1) then                
+                                !To avoid wall distance values lower than rugosity
+                                WallDistance = AuxZ/2. + Rugosity
                 
-                             !To avoid wall distance values lower than rugosity
-                             WallDistance = AuxZ/2. + Rugosity
+                                if (WallDistance <= Rugosity) then                                    
+                                    !!!! $OMP CRITICAL (MCZ1_ERR04)
+                                    call SetError (FATAL_, INTERNAL_, "Modify_ChezyZ - Hydrodynamic - ERR04")        
+                                    !!!! $OMP END CRITICAL (MCZ1_ERR04)
+                                endif    
                 
-                             if (WallDistance <= Rugosity) then                                    
-                                 !!!! $OMP CRITICAL (MCZ1_ERR04)
-                                 call SetError (FATAL_, INTERNAL_, "Modify_ChezyZ - Hydrodynamic - ERR04")        
-                                 !!!! $OMP END CRITICAL (MCZ1_ERR04)
-                             endif    
-                
-                             ! [] = [] / log ([m]/[m])
-                             ChezyZ(i, j) = (Const_VonKarman / LOG(WallDistance / Rugosity))**2.
+                                ! [] = [] / log ([m]/[m])
+                                ChezyZ(i, j) = (Const_VonKarman / LOG(WallDistance / Rugosity))**2.                             
+                                                        
+                            elseif (Me%External_Var%ShearStressMethod == 2) then
+                                
+                                V = (Me%Velocity%Horizontal%V%New(i+1,j,kbottom)+Me%Velocity%Horizontal%V%New(i,j,  kbottom))/2.
+                                U = (Me%Velocity%Horizontal%U%New(i,  j,kbottom)+Me%Velocity%Horizontal%U%New(i,j+1,kbottom))/2.
+                                
+                                VelMod_Z = sqrt(U*U+V*V)
+                                
+                                if (Me%ComputeOptions%WaveShearStress) then
+                                    
+                                    Ubw = Me%External_Var%Ubw(i,j)                                            
+                                    Abw = Me%External_Var%Abw(i,j)   
+                                    
+                                    ChezyZ(i, j) = CDM ( AuxZ, Rugosity, VelMod_Z, Ubw, Abw)
+                                else                                
+                                    ChezyZ(i, j) = CDM ( AuxZ, Rugosity, VelMod_Z)
+                                endif
+
+                            endif
+
                 
                          endif cd3
                 
@@ -30532,6 +30645,7 @@ cd3:                    if (Manning) then
         integer                            :: iSouth, jWest, di, dj, i_North, j_East
         integer                            :: IUB, ILB, JUB, JLB, KUB
         integer                            :: I, J, kbottom
+        real                               :: Ubw, Abw
     
         !$ integer                            :: CHUNK
 
@@ -30604,6 +30718,22 @@ cd2:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
                 i_North = i + dj
                 j_East  = j + di
 
+                ![s/m]                    = [s] / [m^3] * [m] * [m]
+                DT_Z                      = DT_Velocity / Volume_UV(i, j, Kbottom)     &
+                                            * DZX_ZY(iSouth, jWest) * DYY_XX(I, J)
+
+                VelMod_UV                 = Face_Velocity_Modulus(                     &
+                                            Velocity_VU_New(I_North, jWest, kbottom),  &
+                                            Velocity_VU_New(I_North, J_East, kbottom), &
+                                            Velocity_VU_New(iSouth, jWest, kbottom),   &
+                                            Velocity_VU_New(iSouth, J_East, kbottom),  &
+                                            DXX_YY(I_North, jWest),                    &
+                                            DXX_YY(I_North, J_East),                   &
+                                            DXX_YY(iSouth, jWest),                     &
+                                            DXX_YY(iSouth, J_East),                    &
+                                            Velocity_UV_New(I,J,kbottom))                
+
+                
 cd0:            if (Me%External_Var%Chezy) then
 
                     Chezy = Me%External_Var%ChezyCoef
@@ -30616,7 +30746,7 @@ cd4:                if (abs(Velocity_UV_New(i, j, Kbottom)) < Vmin_Chezy) then
 
                     else  cd4
 
-                        AUXZ        = MAX(DUZ_VZ(i, j, Kbottom), 01.*Hmin_Chezy)
+                        AUXZ        = MAX(DUZ_VZ(i, j, Kbottom), 0.1*Hmin_Chezy)
 
                     endif cd4
 
@@ -30640,16 +30770,31 @@ cd3:                   if (Manning) then
                             Chezy = Gravity * Rugosity**2 / AUXZ**EP
                 
                         else cd3
-
-                            !To avoid wall distance values lower than rugosity
-                            WallDistance = AuxZ/2. + Rugosity
                             
-                            if (WallDistance > Rugosity) then
+                            if(Me%External_Var%ShearStressMethod == 1) then
+                           
+                                !To avoid wall distance values lower than rugosity
+                                WallDistance = AuxZ/2. + Rugosity
+                            
+                                if (WallDistance > Rugosity) then
 
-                                ! [] = [] / log ([m]/[m])
-                                Chezy = (Const_VonKarman / LOG(WallDistance / Rugosity))**2.
-                            else
-                                Chezy = 0.
+                                    ! [] = [] / log ([m]/[m])
+                                    Chezy = (Const_VonKarman / LOG(WallDistance / Rugosity))**2.
+                                else
+                                    Chezy = 0.
+                                endif
+                                
+                            elseif (Me%External_Var%ShearStressMethod == 2) then
+                                
+                                if (Me%ComputeOptions%WaveShearStress) then
+                                    
+                                    Ubw = Me%External_Var%Ubw(i,j)                                            
+                                    Abw = Me%External_Var%Abw(i,j)   
+                                    
+                                    Chezy = CDM ( AuxZ, Rugosity, VelMod_UV, Ubw, Abw)
+                                else                                
+                                    Chezy = CDM ( AuxZ, Rugosity, VelMod_UV)
+                                endif
                             endif
 
                         endif cd3
@@ -30657,22 +30802,7 @@ cd3:                   if (Manning) then
                     endif cd1
 
                 endif cd0
-
-                ![s/m]                    = [s] / [m^3] * [m] * [m]
-                DT_Z                      = DT_Velocity / Volume_UV(i, j, Kbottom)     &
-                                            * DZX_ZY(iSouth, jWest) * DYY_XX(I, J)
-
-                VelMod_UV                 = Face_Velocity_Modulus(                     &
-                                            Velocity_VU_New(I_North, jWest, kbottom),  &
-                                            Velocity_VU_New(I_North, J_East, kbottom), &
-                                            Velocity_VU_New(iSouth, jWest, kbottom),   &
-                                            Velocity_VU_New(iSouth, J_East, kbottom),  &
-                                            DXX_YY(I_North, jWest),                    &
-                                            DXX_YY(I_North, J_East),                   &
-                                            DXX_YY(iSouth, jWest),                     &
-                                            DXX_YY(iSouth, J_East),                    &
-                                            Velocity_UV_New(I,J,kbottom))                
-
+                
                 ![]              = []       [s/m] * [m/s]
                 !ChezyVelUV(i, j) = Chezy  * DT_Z * VelMod_UV
                 
@@ -30730,7 +30860,63 @@ cd3:                   if (Manning) then
     end Subroutine Modify_ChezyVelUV
 
     !------------------------------------------------------------------------------
+    
+    real function CDM (AuxZ, Z0, UC, Ubw, Abw) 
+        
+        !Arguments-----------------------------------------------------------------
+        real                                    :: AuxZ, Z0, UC
+        real, intent(IN), optional              :: Ubw, Abw
+        
+        !Local---------------------------------------------------------------------
+        real    ::  REC, REW, FWS, FWR, as, ar, T1, T2, T3, A1, A2
+        real    ::  CDS, CDR, CDMS, CDMR
+         
+        !Begin----------------------------------------------------------------
+    
+    
+        CDR = 0.
+        if(Z0 > 0.) CDR=(0.40/(log(AuxZ/Z0)-1.))**2
+                        
+        REC=UC*AuxZ/WaterCinematicVisc
+        CDS = 0.
+        if(UC > 1e-6) CDS=0.0001615*EXP(6.*REC**(-0.08))
+                    
+        CDM=MAX(CDR,CDS)
+                        
+        if (Me%ComputeOptions%WaveShearStress) then
+                            
+            if(UC.gt.1e-6 .and. Ubw.gt.0.)then !combined wave and current flow
+                        
+                REW=Ubw*Abw/WaterCinematicVisc     
+                FWS=0.0521*REW**(-0.187)
+                FWR=1.39*(Abw/Z0)**(-0.52)
+                          
+                !Rough-turbulent wave-plus-current shear-stress
+                ar=0.24
+                T1=MAX(ar*(FWR/2)**0.5*(Abw/Z0),12.)
+                T2=AuxZ/(T1*Z0)
+                T3=(CDR**2+(FWR/2)**2*(Ubw/UC)**4)**(1./4)
+                A1=T3*(LOG(T2)-1)/(2*LOG(T1))
+                A2=0.40*T3/LOG(T1)
+                CDMR=((A1**2+A2)**0.5-A1)**2
+                                        
+                !Smooth-turbulent wave-plus-current shear-stress
+                as=0.24
+                T1=9*as*REW*(FWS/2)**0.5*(CDS**2*(UC/Ubw)**4+(FWS/2)**2)**(1./4)
+                T2=(REC/REW)*(Ubw/UC)*1/as*(2/FWS)**0.5
+                T3=(CDS**2+(FWS/2)**2*(Ubw/UC)**4)**(1./4)
+                A1=T3*(LOG(T2)-1)/(2*LOG(T1))
+                A2=0.40*T3/LOG(T1)
+                CDMS=((A1**2+A2)**0.5-A1)**2
+                    
+                CDM = MAX(CDMR, CDMS)                  
+ 
+            endif
+        endif
 
+    end function CDM
+    
+    !------------------------------------------------------------------------------
 
     !Compute all the variables common to the velocities and elevation computing 
     Subroutine Explicit_Forces  
@@ -49402,19 +49588,32 @@ cd1:    if (HydrodynamicID > 0) then
         integer                          :: STAT_CALL 
 
         !Begin------------------------------------------------------------------
-        call SetGeneric4DValues(Me%ObjWaves, Me%Generic4D%CurrentValue, STAT = STAT_CALL)
+        
+        if (Me%ComputeOptions%WaveStress)then
+            call SetGeneric4DValues(Me%ObjWaves, Me%Generic4D%CurrentValue, STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR10.'
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR10.'
 
 
-        call GetWavesStress    (Me%ObjWaves,                                            &
-                                Me%External_Var%TauWavesU,                              &
-                                Me%External_Var%TauWavesV,                              &
-                                STAT = STAT_CALL)
+            call GetWavesStress    (Me%ObjWaves,                                            &
+                                    Me%External_Var%TauWavesU,                              &
+                                    Me%External_Var%TauWavesV,                              &
+                                    STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR20.'
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR20.'
+        endif
+        
+        if (Me%ComputeOptions%WaveShearStress)then
+            
+            call GetWaves (WavesID       = Me%ObjWaves,                                     &
+                           Abw           = Me%External_Var%Abw,                             &
+                           Ubw           = Me%External_Var%Ubw,                             &
+                           STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR30.'
+        endif
 
 
     End Subroutine ReadLock_ModuleWaves
@@ -49464,17 +49663,32 @@ cd1:    if (HydrodynamicID > 0) then
 
         !----------------------------------------------------------------------
 
-        call UnGetWaves(Me%ObjWaves,                                                     &
-                             Me%External_Var%TauWavesU, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR01.'
+        if (Me%ComputeOptions%WaveStress) then
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                                 Me%External_Var%TauWavesU, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR01.'
 
-        call UnGetWaves(Me%ObjWaves,                                                     &
-                             Me%External_Var%TauWavesV, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR02.'
-
-        !----------------------------------------------------------------------
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                                 Me%External_Var%TauWavesV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR02.'
+        endif
+    
+        if (Me%ComputeOptions%WaveShearStress) then
+            
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                                 Me%External_Var%Abw, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR03.'
+            
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                                 Me%External_Var%Ubw, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR04.'
+            
+    
+        endif
 
     End Subroutine ReadUnLock_ModuleWaves
 

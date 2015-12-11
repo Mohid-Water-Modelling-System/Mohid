@@ -2086,7 +2086,8 @@ do1 :   do while (associated(PropertyX))
 #endif
 
 #ifndef _WAVES_
-        if(Me%ObjWaves    /= 0)Me%ExtOptions%WavesWindYes             = ON
+        if(Me%ObjWaves    /= 0 .and. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_)) &
+			Me%ExtOptions%WavesWindYes             = ON
 #endif
         if(Me%ObjTurbGOTM /= 0)Me%ExtOptions%GOTMWindShearVelocityYes = ON
 
