@@ -260,6 +260,7 @@ Module ModuleSand
         integer                                 :: BathymType   = Time_
         real                                    :: Gama         = FillValueReal
         integer                                 :: NumericMethod= FillValueInt
+        logical                                 :: AddBedRock2Bathym = .false. 
     end type T_Evolution
 
     private :: T_Property
@@ -1731,6 +1732,49 @@ cd2 :               if (BlockFound) then
         character(Len = StringLength)       :: Auxchar
 
         !------------------------------------------------------------------------
+        
+        !<BeginKeyword>
+            !Keyword          : BATHYM_EVOLUTION
+            !<BeginDescription>       
+               ! Check if the user wants to let the bathymetry evolve due to sand transport
+               !
+            !<EndDescription>
+            !Type             : logical
+            !Default          : .true.
+            !File keyword     : SAND_DATA
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%Evolution%Bathym,                                                &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'BATHYM_EVOLUTION',                                  &
+                     default      = .true.,                                              &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR05'
+        
+        !<BeginKeyword>
+            !Keyword          : ADD_BEDROCK_2_BATHYM
+            !<BeginDescription>       
+               ! Check if the user wants to add the bedrock to the batymetry
+               !
+            !<EndDescription>
+            !Type             : logical
+            !Default          : .true.
+            !File keyword     : SAND_DATA
+            !Search Type      : FromFile
+        !<EndKeyword>
+
+        call GetData(Me%Evolution%AddBedRock2Bathym,                                     &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'ADD_BEDROCK_2_BATHYM',                              &
+                     default      = .false.,                                             &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR08'        
+                
 
         if (Me%Classes%Number == 0) then
 
@@ -1741,19 +1785,19 @@ cd2 :               if (BlockFound) then
                                         BlockFound      = BlockFound,                    &
                                         STAT            = STAT_CALL)
   
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR10'
 
             if (BlockFound) then
                 call ConstructSandProperty(Me%D35, FromBlock)
 
                 call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR02'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR20'
 
                 call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-                if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR07'
+                if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR30'
 
             else
-                stop 'ConstructGlobalParameters - ModuleSand - ERR02'
+                stop 'ConstructGlobalParameters - ModuleSand - ERR40'
             endif
 
             call ExtractBlockFromBuffer(Me%ObjEnterData,                                 &
@@ -1763,16 +1807,16 @@ cd2 :               if (BlockFound) then
                                         BlockFound      = BlockFound,                    &
                                         STAT            = STAT_CALL)
   
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR50'
 
             if (BlockFound) then
                 call ConstructSandProperty(Me%D50, FromBlock)
 
                 call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-                if (STAT_CALL .NE. SUCCESS_) stop 'CConstructGlobalParameters - ModuleSand - ERR04'
+                if (STAT_CALL .NE. SUCCESS_) stop 'CConstructGlobalParameters - ModuleSand - ERR60'
 
                 call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-                if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR07'
+                if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR70'
 
             else
                 stop 'ConstructGlobalParameters - ModuleSand - ERR04'
@@ -1786,7 +1830,7 @@ cd2 :               if (BlockFound) then
                                         BlockFound      = BlockFound,                    &
                                         STAT            = STAT_CALL)
   
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR80'
 
             if (BlockFound) then
                 call ConstructSandProperty(Me%D90, FromBlock)
@@ -1794,11 +1838,11 @@ cd2 :               if (BlockFound) then
                 call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
 
                 call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-                if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR07'
+                if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR90'
 
-                if (STAT_CALL .NE. SUCCESS_) stop 'CConstructGlobalParameters - ModuleSand - ERR02'
+                if (STAT_CALL .NE. SUCCESS_) stop 'CConstructGlobalParameters - ModuleSand - ERR100'
             else
-                stop 'ConstructGlobalParameters - ModuleSand - ERR06'
+                stop 'ConstructGlobalParameters - ModuleSand - ERR110'
             endif
 
         
@@ -1816,18 +1860,19 @@ cd2 :               if (BlockFound) then
                                     BlockFound      = BlockFound,                        &
                                     STAT            = STAT_CALL)
   
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR07'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR120'
 
         if (BlockFound) then
             call ConstructSandProperty(Me%BedRock, FromBlock)
 
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-            if (STAT_CALL .NE. SUCCESS_) stop 'CConstructGlobalParameters - ModuleSand - ERR02'
+            if (STAT_CALL .NE. SUCCESS_) stop 'CConstructGlobalParameters - ModuleSand - ERR130'
 
             call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-            if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR07'
+            if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR140'
+            
         else
-            stop 'ConstructGlobalParameters - ModuleSand - ERR08'
+            stop 'ConstructGlobalParameters - ModuleSand - ERR180'
         endif
 
 
@@ -1888,7 +1933,7 @@ cd2 :               if (BlockFound) then
                      default      = 0.01,                                                &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR11' 
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR190'
 
 
         !<BeginKeyword>
@@ -1910,10 +1955,10 @@ cd2 :               if (BlockFound) then
                      default      = 0.1,                                                 &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR12' 
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR200'
         
         if (Me%Porosity < 0. .or. Me%Porosity > 1.) then
-            stop 'ConstructGlobalParameters - ModuleSand - ERR120' 
+            stop 'ConstructGlobalParameters - ModuleSand - ERR210' 
         endif
 
 
@@ -1936,7 +1981,7 @@ cd2 :               if (BlockFound) then
                      default      = 2650.,                                               &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR13' 
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR220'
         
         Me%RhoSl           = Me%Density - Me%ExternalVar%WaterDensity
 
@@ -1999,7 +2044,7 @@ cd2 :               if (BlockFound) then
                      default      = 'MeyerPeter',                                        &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR14' 
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR230'
 
         SELECT CASE (trim(Auxchar))
 
@@ -2023,7 +2068,7 @@ cd2 :               if (BlockFound) then
             Me%TransportMethod = Bijker
 
         Case default
-            stop 'ConstructGlobalParameters - ModuleSand - ERR15' 
+            stop 'ConstructGlobalParameters - ModuleSand - ERR240'
                 
         END SELECT 
 
@@ -2032,9 +2077,9 @@ cd2 :               if (BlockFound) then
             .OR. Me%TransportMethod == Bijker )  then
     !.OR. Me%TransportMethod == VanRijn2 .OR. Me%TransportMethod == Bijker
      
-            if (Me%ObjWaves == 0) stop 'ConstructGlobalParameters - ModuleSand - ERR16' 
+            if (Me%ObjWaves == 0) stop 'ConstructGlobalParameters - ModuleSand - ERR250'
 
-            if (.not. Me%ExternalVar%WaveTensionON) stop 'ConstructGlobalParameters - ModuleSand - ERR20' 
+            if (.not. Me%ExternalVar%WaveTensionON) stop 'ConstructGlobalParameters - ModuleSand - ERR260'
 
             allocate (Me%Dast(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
@@ -2042,26 +2087,7 @@ cd2 :               if (BlockFound) then
 
         endif
 
-        !<BeginKeyword>
-            !Keyword          : BATHYM_EVOLUTION
-            !<BeginDescription>       
-               ! Check if the user wants to let the bathymetry evolve due to sand transport
-               !
-            !<EndDescription>
-            !Type             : logical
-            !Default          : .true.
-            !File keyword     : SAND_DATA
-            !Search Type      : FromFile
-        !<EndKeyword>
 
-        call GetData(Me%Evolution%Bathym,                                                &
-                     Me%ObjEnterData,iflag,                                              &
-                     SearchType   = FromFile,                                            &
-                     keyword      = 'BATHYM_EVOLUTION',                                  &
-                     default      = .true.,                                              &
-                     ClientModule = 'ModuleSand',                                        &
-                     STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR26' 
 
 
         call GetData(AuxChar,                                                            &
@@ -2071,7 +2097,7 @@ cd2 :               if (BlockFound) then
                      ClientModule = 'ModuleSand',                                        &
                      Default      = 'No Filter',                                         &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR27' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR280'
 
         Me%Filter%ON = .true.
 
@@ -2083,7 +2109,7 @@ cd2 :               if (BlockFound) then
         Case ("MODIFY LAX", "modify lax", "Modify Lax", "Modify lax")
             Me%Filter%Scheme = ModifyLax
         Case default
-            stop 'ConstructGlobalParameters - ModuleSand - ERR28' 
+            stop 'ConstructGlobalParameters - ModuleSand - ERR290'
         end select 
 
 
@@ -2097,7 +2123,7 @@ cd2 :               if (BlockFound) then
                          ClientModule = 'ModuleSand',                                   &
                          Default      = 4,                                              &
                          STAT         = STAT_CALL)              
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR29' 
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR300'
 
             allocate (Me%Filter%Field2D(Me%Size%ILB: Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
 
@@ -2113,7 +2139,7 @@ cd2 :               if (BlockFound) then
                      ClientModule = 'ModuleSand',                                        &
                      Default      = .false.,                                             &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR37' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR310'
 
 
         if (Me%SmoothSlope%ON) then
@@ -2126,7 +2152,7 @@ cd2 :               if (BlockFound) then
                          ClientModule = 'ModuleSand',                                   &
                          Default      = 0.1,                                            &
                          STAT         = STAT_CALL)              
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR39' 
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR320'
 
             !The flux perpendicular to the flux is a percentage of the paralel flux
             call GetData(Me%SmoothSlope%Factor,                                         &
@@ -2136,7 +2162,7 @@ cd2 :               if (BlockFound) then
                          ClientModule = 'ModuleSand',                                   &
                          Default      = 0.1,                                            &
                          STAT         = STAT_CALL)              
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR49' 
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR330'
 
         endif
 
@@ -2147,7 +2173,7 @@ cd2 :               if (BlockFound) then
                      ClientModule = 'ModuleSand',                                        &
                      Default      = NullGradient,                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR59' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR340'
 
         call GetData(Me%TransportFactor,                                                 &
                      Me%ObjEnterData,iflag,                                              &
@@ -2156,7 +2182,7 @@ cd2 :               if (BlockFound) then
                      default      = 1.,                                                  &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR69' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR350'
 
 
         call GetData(Me%TauMax,                                                          &
@@ -2166,7 +2192,7 @@ cd2 :               if (BlockFound) then
                      default      = 10.,                                                 &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR79' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR360'
 
 
         call GetData(Me%Discharges%Yes,                                                  &
@@ -2176,7 +2202,7 @@ cd2 :               if (BlockFound) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR89' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR370'
 
 
         if (Me%TransportMethod == VanRijn2007) then
@@ -2188,7 +2214,7 @@ cd2 :               if (BlockFound) then
                          default      = .true.,                                         &
                          ClientModule = 'ModuleSand',                                   &
                          STAT         = STAT_CALL)              
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR100'         
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR380'
 
             call GetData(Me%SuspendedLoad,                                              &
                          Me%ObjEnterData,iflag,                                         &
@@ -2197,7 +2223,7 @@ cd2 :               if (BlockFound) then
                          default      = .true.,                                         &
                          ClientModule = 'ModuleSand',                                   &
                          STAT         = STAT_CALL)              
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR110'         
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR390'
 
             call GetData(Me%WaveEffect,                                                 &
                          Me%ObjEnterData,iflag,                                         &
@@ -2206,7 +2232,7 @@ cd2 :               if (BlockFound) then
                          default      = .true.,                                         &
                          ClientModule = 'ModuleSand',                                   &
                          STAT         = STAT_CALL)              
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR400'
 
         endif    
 
@@ -2229,7 +2255,6 @@ cd2 :               if (BlockFound) then
 
         !Local-----------------------------------------------------------------
         real, dimension(:,:), pointer               :: Aux2D
-        logical                                     :: EXIST
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: ILW, IUW, JLW, JUW
@@ -2321,7 +2346,6 @@ ifMS:   if (MasterOrSlave) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        logical                                    :: EXIST
         integer                                    :: STAT_CALL
         real,    dimension(:    ), pointer         :: AuxTime
 
@@ -2576,6 +2600,24 @@ ifMS:   if (MasterOrSlave) then
         if (ready_ .EQ. IDLE_ERR_) then
 
             call ReadLockExternalVar
+            
+            if (Me%Evolution%Bathym .and. Me%Evolution%AddBedRock2Bathym) then
+
+                !Bathymetry 
+                call UnGetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT_CALL)     
+                if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR150'
+
+                call ModifyGridData(Me%ObjBathym, Me%BedRock%Field2D, Add = .false.,  &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR160'
+
+                !Bathymetry
+                call GetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT_CALL)     
+                if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR170'
+                
+                Me%Evolution%AddBedRock2Bathym = .false. 
+                
+            endif             
 
             if (Me%TransportMethod /= NoTransport) then
 
@@ -2602,7 +2644,7 @@ ifMS:   if (MasterOrSlave) then
                     Me%ExternalVar%ShearVelocity   => ShearVelocity
 
                     Me%ExternalVar%MinWaterColumn  =  MinWaterColumn
-
+                    
                     call ComputeFluxes
                     
                     if (Me%ExternalVar%Now >= Me%Evolution%NextDZ) then
@@ -2693,7 +2735,7 @@ ifMS:   if (MasterOrSlave) then
                             endif
 
                         endif
-
+                        
                     endif
 
                     !Selma

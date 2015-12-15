@@ -4939,8 +4939,6 @@ cd1:    if (Me%CornersXYInput .or. Me%CoordType == CIRCULAR_) then
 
                 Me%RotationY(i, j) = atan2(dy, dx)
 
-
-
             enddo
             enddo
 
@@ -10757,7 +10755,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"/"//trim(adjustl(Me%DDecomp%FilesListName))
 
                         open(file   = AuxFile,                                          &
-                             unit   = Me%DDecomp%FilesListID,               &
+                             unit   = Me%DDecomp%FilesListID,                           &
                              status = "unknown",                                        &
                              form   = "formatted",                                      &
                              IOSTAT = STAT_CALL)
@@ -10767,7 +10765,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                             AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"\"//trim(adjustl(Me%DDecomp%FilesListName))
                             
                             open(file   = AuxFile,                                      &
-                                 unit   = Me%DDecomp%FilesListID,           &
+                                 unit   = Me%DDecomp%FilesListID,                       &
                                  status = "unknown",                                    &
                                  form   = "formatted",                                  &
                                  IOSTAT = STAT_CALL)
@@ -10815,9 +10813,6 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
     end subroutine WriteHorizontalGrid 
 
     !--------------------------------------------------------------------------
-
-
-    !----------------------------------------------------------------------------
 
 
     subroutine WriteHorizontalGrid_UV (HorizontalGridID, ObjHDF5, WorkSize, STAT)
