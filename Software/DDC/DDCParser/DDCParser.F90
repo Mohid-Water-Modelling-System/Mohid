@@ -13,7 +13,7 @@
 !
 !------------------------------------------------------------------------------
 ! Run:
-! /opt/mpich/bin/mpiexec -n 1 /myDirectory/projects/lang/fortran/DDC/src/Solutions/Linux/DDCParser/DDCParser : -n 2  /myDirectory/projects/lang/fortran/DDC/src/Solutions/Linux/DCCWorker/DCCWorker
+! /opt/mpich/bin/mpiexec -n 1 /myDirectory/projects/lang/fortran/DDC/src/Solutions/Linux/DDCParser/DDCParser : -n 2  /myDirectory/projects/lang/fortran/DDC/src/Solutions/Linux/DDCWorker/DDCWorker
 
 program DCCParser
 
@@ -45,6 +45,8 @@ program DCCParser
 !    private ::      getMyMPI_id
 !    private ::      setNumprocs
 !    private ::      getNumprocs
+!    private ::      setDeleteHDFFiles
+!    private ::      getDeleteHDFFiles
 !    private ::      setSlash
 !    private ::      getSlash
 
@@ -85,6 +87,7 @@ program DCCParser
         type(T_DirectoryList),        pointer :: DirectoryList
         type(T_HashTable),            pointer :: hash_tasks     !list of tasks (HDF files to consolidate)
 
+        logical                               :: deleteHDFFiles =.FALSE.
         character(1)                          :: slash          = '/'
     end type  T_DDC
 
@@ -104,8 +107,10 @@ program DCCParser
 
     subroutine main()
         type (T_DDC), pointer       :: Me
-        integer                     :: STAT_CALL  = UNKNOWN_
-        character(len=1)            :: slash      = '*'
+        integer                     :: STAT_CALL            = UNKNOWN_
+
+        !To delete HDF files wut option 'DELFILES'
+        character(len=8)            :: commandDelHDFFIles   = '******'  !To
 
         nullify(Me)
         Me => constructDDC()
@@ -114,34 +119,30 @@ program DCCParser
 
 if7 :   if (command_argument_count() .GT. 0) then
             call get_command_argument(1,                                      &
-                                      slash,                                  &
+                                      commandDelHDFFIles,                     &
                                       STATUS = STAT_CALL)
 if2 :       if (STAT_CALL .NE. SUCCESS_) then
                 print*, "STAT_CALL = ", STAT_CALL
-                stop "subroutine main, program DDCParser, error calling setSlash, ERR07"
+                stop "subroutine main, program DDCParser, error calling get_command_argument, ERR07"
             end if if2
 
-            STAT_CALL = setSlash(Me, slash)
-if3 :       if (STAT_CALL .NE. SUCCESS_) then
+if3 :       if (setDeleteHDFFiles(Me, commandDelHDFFIles = commandDelHDFFIles) .NE. SUCCESS_) then
                 print*, "STAT_CALL = ", STAT_CALL
-                stop "subroutine main, program DDCParser, error calling setSlash, ERR03"
+                stop "subroutine main, program DDCParser, error calling setDeleteHDFFiles, ERR03"
             end if if3
         end if if7
 
-        STAT_CALL = createTasks(Me)
-if1 :   if (STAT_CALL .NE. SUCCESS_) then
+if1 :   if (createTasks(Me) .NE. SUCCESS_) then
             print*, "STAT_CALL = ", STAT_CALL
             stop "subroutine main, program DDCParser, error calling createTasks, ERR02"
         end if if1
 
-        STAT_CALL = barrier()
-if5 :   if (STAT_CALL .NE. SUCCESS_) then
+if5 :   if (barrier() .NE. SUCCESS_) then
             print*, "STAT_CALL = ", STAT_CALL
             stop "subroutine main, program DDCParser, error calling barrier, ERR05"
         end if if5
 
-        STAT_CALL = sendMyMPI_id(Me)
-if6 :   if (STAT_CALL .NE. SUCCESS_) then
+if6 :   if (sendMyMPI_id(Me) .NE. SUCCESS_) then
             print*, "STAT_CALL = ", STAT_CALL
             stop "subroutine main, program DDCParser, error calling sendMyMPI_id, ERR06"
         end if if6
@@ -254,17 +255,17 @@ if4 :   if (STAT_CALL .NE. SUCCESS_) then
         type (T_DDC), pointer       :: Me
 
         logical                     :: TreeExists           = .false.
-        logical                     :: TreeExistsCapitall   = .false. 
+        logical                     :: TreeExistsCapitall   = .false.
         integer                     :: STAT_                = UNKNOWN_
         integer                     :: STAT_CALL            = UNKNOWN_
-        integer                     :: iTree                = NULL_INT        
+        integer                     :: iTree                = NULL_INT
         character(StringLength)     :: Coment1              = NULL_STR
         character(StringLength)     :: Coment2              = NULL_STR
 
-        STAT_ = SUCCESS_        
-        
-        call UnitsManager(iTree, OPEN_FILE, STAT = STAT_CALL)          
-        
+        STAT_ = SUCCESS_
+
+        call UnitsManager(iTree, OPEN_FILE, STAT = STAT_CALL)
+
 if1 :   if (STAT_CALL .NE. SUCCESS_) then
             print*, "STAT_CALL = ", STAT_CALL
             stop "function readTreeFile, program DDCParser, error calling UnitsManager, ERR01"
@@ -280,27 +281,27 @@ if3 :       if (STAT_CALL .NE. SUCCESS_) then
                 print*, "STAT_CALL = ", STAT_CALL
                 stop "function readTreeFile, program DDCParser, error calling UnitsManager, ERR02"
             end if if3
-            
-        else if2          
+
+        else if2
 
             inquire(file='Tree.dat', EXIST = TreeExistsCapitall)
-            
+
 if4:        if (TreeExistsCapitall) then
 
                 open(UNIT = iTree, FILE = 'Tree.dat', status = 'OLD', IOSTAT = STAT_CALL)
-                
+
 if5 :           if (STAT_CALL .NE. SUCCESS_) then
                     print*, "STAT_CALL = ", STAT_CALL
                     stop "function readTreeFile, program DDCParser, error calling open, ERR03"
                 end if if5
-                
+
             else  if4
-                            
+
                 STAT_ = FILE_NOT_FOUND_ERR_
-                
+
             endif if4
-            
-        endif if2            
+
+        endif if2
 
         read(unit=iTree, fmt=*) Coment1
         read(unit=iTree, fmt=*) Coment2
@@ -420,12 +421,11 @@ if1 :   if (AuxString((Level+1):(Level+1)) == '+') then
         type(T_DDC),       pointer  :: Me
 
 if1 :   if (associated(Me%DirectoryList)) then
-            print*, 'Using slash -> ', getSlash(Me)
-
-            call scanDirectoryList(DirectoryList = Me%DirectoryList,          &
-                                   nbrModels     = Me%nbrModels,              &
-                                   hash_tasks    = Me%hash_tasks,             &
-                                   slash         = getSlash(Me))
+            call scanDirectoryList(DirectoryList    = Me%DirectoryList,          &
+                                   nbrModels        = Me%nbrModels,              &
+                                   hash_tasks       = Me%hash_tasks,             &
+                                   slash            = getSlash(Me),              &
+                                   deleteHDFFiles   = getDeleteHDFFiles(Me))
         endif if1
 
         createTasks = SUCCESS_
@@ -439,19 +439,22 @@ if1 :   if (associated(Me%DirectoryList)) then
     recursive subroutine scanDirectoryList(DirectoryList,                     &
                                            nbrModels,                         &
                                            hash_tasks,                        &
-                                           slash)
+                                           slash,                             &
+                                           deleteHDFFiles)
 
         type(T_DirectoryList), pointer  :: DirectoryList
         integer, intent(IN)             :: nbrModels
         character(PathLength)           :: FirstHDFFileOut  = NULL_STR
         type (T_HashTable),    pointer  :: hash_tasks
         character(1), intent(IN)        :: slash
+        logical, intent(IN)             :: deleteHDFFiles
 
-        call openDecomposedFiles(hash_map_out = DirectoryList%hash_map_out,   &
-                                 hash_map_in  = DirectoryList%hash_map_in,    &
-                                 Directory    = DirectoryList%Directory,      &
-                                 nbrModels    = nbrModels,                    &
-                                 slash        = slash)
+        call openDecomposedFiles(hash_map_out   = DirectoryList%hash_map_out,   &
+                                 hash_map_in    = DirectoryList%hash_map_in,    &
+                                 Directory      = DirectoryList%Directory,      &
+                                 nbrModels      = nbrModels,                    &
+                                 slash          = slash,                        &
+                                 deleteHDFFiles = deleteHDFFiles)
 
 if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
             FirstHDFFileOut = hash_get_first_key(DirectoryList%hash_map_out)
@@ -462,11 +465,12 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
                               hash_tasks   = hash_tasks)
         endif if1
 
-        if (associated(DirectoryList%Next))                                   &
-            call scanDirectoryList(DirectoryList = DirectoryList%Next,        &
-                                   nbrModels     = nbrModels,                 &
-                                   hash_tasks    = hash_tasks,                &
-                                   slash         = slash)
+        if (associated(DirectoryList%Next))                                     &
+            call scanDirectoryList(DirectoryList    = DirectoryList%Next,       &
+                                   nbrModels        = nbrModels,                &
+                                   hash_tasks       = hash_tasks,               &
+                                   slash            = slash,                    &
+                                   deleteHDFFiles   = deleteHDFFiles)
 
     end subroutine scanDirectoryList
 
@@ -476,13 +480,15 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
                                    hash_map_in,                               &
                                    Directory,                                 &
                                    nbrModels,                                 &
-                                   slash)
+                                   slash,                                     &
+                                   deleteHDFFiles)
 
         type(T_HashTable), pointer        :: hash_map_out
         type(T_HashTable), pointer        :: hash_map_in
         character(PathLength), intent(IN) :: Directory
         integer, intent(IN)               :: nbrModels
         character(1), intent(IN)          :: slash
+        logical, intent(IN)               :: deleteHDFFiles
         character(StringLength)           :: DecomposedFiles  = NULL_STR
         DecomposedFiles = adjustl(trim('DecomposedFiles'))
 
@@ -493,7 +499,8 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
                                   DecomposedFiles = DecomposedFiles,            &
                                   iModel          = 0,                          &
                                   nbrModels       = nbrModels,                  &
-                                  slash           = slash)
+                                  slash           = slash,                      &
+                                  deleteHDFFiles  = deleteHDFFiles)
 
     end subroutine openDecomposedFiles
 
@@ -505,7 +512,8 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
                                               DecomposedFiles,                  &
                                               iModel,                           &
                                               nbrModels,                        &
-                                              slash)
+                                              slash,                            &
+                                              deleteHDFFiles)
 
         type(T_HashTable), pointer          :: hash_map_out
         type(T_HashTable), pointer          :: hash_map_in
@@ -514,6 +522,7 @@ if1 :   if (hash_get_first_exists(DirectoryList%hash_map_in)) then
         integer, intent(IN)                 :: iModel
         integer, intent(IN)                 :: nbrModels
         character(1), intent(IN)            :: slash
+        logical, intent(IN)                 :: deleteHDFFiles
 
         logical                             :: DDFileExists
         integer                             :: STAT_CALL        = NULL_INT
@@ -538,11 +547,12 @@ if1 :       if (DDFileExists) then
                 if (STAT_CALL /= SUCCESS_)                                    &
                     stop "function openDecomposedFiles2, program DDCParser, error calling UnitsManager, ERR02"
 
-                call scanDecomposedFiles(iHDFFile      = iDDFile,             &
-                                         hash_map_out  = hash_map_out,        &
-                                         hash_map_in   = hash_map_in,         &
-                                         Directory     = Directory,           &
-                                         slash         = slash)
+                call scanDecomposedFiles(iHDFFile       = iDDFile,              &
+                                         hash_map_out   = hash_map_out,         &
+                                         hash_map_in    = hash_map_in,          &
+                                         Directory      = Directory,            &
+                                         slash          = slash,                &
+                                         deleteHDFFiles = deleteHDFFiles)
 
                 call UnitsManager(iDDFile, CLOSE_FILE, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                    &
@@ -555,7 +565,8 @@ if1 :       if (DDFileExists) then
                                       DecomposedFiles = DecomposedFiles,      &
                                       iModel          = iModel + 1,           &
                                       nbrModels       = nbrModels,            &
-                                      slash           = slash)
+                                      slash           = slash,                &
+                                      deleteHDFFiles  = deleteHDFFiles)
         endif if2
 
     end subroutine openDecomposedFiles2
@@ -566,13 +577,15 @@ if1 :       if (DDFileExists) then
                                              hash_map_out,                    &
                                              hash_map_in,                     &
                                              Directory,                       &
-                                             slash)
+                                             slash,                           &
+                                             deleteHDFFiles)
 
         character(PathLength)       :: Directory
         integer, intent(IN)         :: iHDFFile
         type(T_HashTable), pointer  :: hash_map_out
         type(T_HashTable), pointer  :: hash_map_in
         character(1), intent(IN)    :: slash
+        logical, intent(IN)         :: deleteHDFFiles
 
         integer                     :: iUnderScore
         integer                     :: iUnderScore2
@@ -599,8 +612,16 @@ if3 :           if (iUnderScore2 > 0) then
                     ConsolidatedFile = trim(adjustl(Directory)) // slash //   &
                                        trim(adjustl(HDFinfile(5+iUnderScore2:)))
 
-                    if (hash_get(hash_map_out, ConsolidatedFile) < 0)         &
+if4 :               if (hash_get(hash_map_out, ConsolidatedFile) < 0) then
                         call hash_set(hash_map_out, key = ConsolidatedFile)
+
+if5 :                   if (deleteHDFFiles) then
+if6 :                       if (deleteHDFFile(consolidatedFile = ConsolidatedFile) .NE. SUCCESS_) then
+                                print*, "STAT_CALL = ", STAT_CALL
+                                stop "subroutine scanDecomposedFiles, program DCCWorker, error calling deleteHDFFile, ERR06"
+                            end if if6
+                        end if if5
+                    endif if4
 
                     call hash_set(hash_map_in,                                  &
                                   key    = trim(adjustl(Directory)) // slash // &
@@ -609,14 +630,41 @@ if3 :           if (iUnderScore2 > 0) then
                 endif if3
             endif if2
 
-            call scanDecomposedFiles(iHDFFile     = iHDFFile,                 &
-                                     hash_map_out = hash_map_out,             &
-                                     hash_map_in  = hash_map_in,              &
-                                     Directory    = Directory,                &
-                                     slash        = slash)
+            call scanDecomposedFiles(iHDFFile       = iHDFFile,                 &
+                                     hash_map_out   = hash_map_out,             &
+                                     hash_map_in    = hash_map_in,              &
+                                     Directory      = Directory,                &
+                                     slash          = slash,                    &
+                                     deleteHDFFiles = deleteHDFFiles)
         endif if1
 
     end subroutine scanDecomposedFiles
+
+    !------------------------------------------------------------------------
+
+    integer function deleteHDFFile(consolidatedFile)
+        character(PathLength), intent(IN) :: consolidatedFile
+        integer                     :: STAT_CALL    = NULL_INT
+        integer                     :: iFile2       = NULL_INT
+
+
+            call UnitsManager(iFile2, OPEN_FILE, STAT = STAT_CALL)
+if3 :       if (STAT_CALL .NE. SUCCESS_) then
+                print*, "STAT_CALL = ", STAT_CALL
+                stop "function deleteHDFFile, program DCCWorker, error calling UnitsManager, ERR02"
+            end if if3
+
+            open(unit   = iFile2,                                               &
+                 file   = trim(adjustl(consolidatedFile)),                      &
+                 status = 'old',                                                &
+                 iostat = STAT_CALL)
+            if (STAT_CALL .EQ. SUCCESS_)                                        &
+                close(unit   = iFile2,                                          &
+                      status = 'delete')
+
+        deleteHDFFile = SUCCESS_
+
+    end function deleteHDFFile
 
     !--------------------------------------------------------------------------
 
@@ -750,6 +798,36 @@ do1 :   do while(continue_)
 
     !---------------------------------------------------------------------------
 
+    integer function setDeleteHDFFiles(Me, commandDelHDFFIles)
+        type (T_DDC), pointer           :: Me
+        character(len=8), intent(IN)    :: commandDelHDFFIles
+
+if1 :   if (commandDelHDFFIles .EQ. 'DELFILES') then
+            Me%deleteHDFFiles =.TRUE.
+        else
+            print*, 'The command option is not correct. To delete HDF files before '
+            print*, ' running DDCParser type DELFILES'
+            print*, 'function setDeleteHDFFiles, program DDCParser'
+            Me%deleteHDFFiles =.FALSE.
+        endif if1
+
+        Me%deleteHDFFiles =.TRUE.
+
+        setDeleteHDFFiles = SUCCESS_
+
+    end function setDeleteHDFFiles
+
+    !---------------------------------------------------------------------------
+
+    logical function getDeleteHDFFiles(Me)
+        type (T_DDC), pointer       :: Me
+
+        getDeleteHDFFiles = Me%deleteHDFFiles
+
+    end function getDeleteHDFFiles
+
+    !---------------------------------------------------------------------------
+
     integer function setSlash(Me, slash)
         type (T_DDC), pointer         :: Me
         character(len=1), intent(IN)  :: slash
@@ -833,7 +911,7 @@ if2 :       if (STAT_CALL .NE. SUCCESS_) then
         integer                     :: STAT_CALL    = NULL_INT
 
         nTaskFile = hash_get_first(hash_tasks)  !Picks a task to send to a worker
-print*, 'nTaskFile', nTaskFile
+
 if1 :   if (nTaskFile .GE. 0) then
             call MPI_SEND(nTaskFile,                                          &
                           1,                                                  &
