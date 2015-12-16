@@ -170,10 +170,14 @@ program MohidLand
     
     subroutine print_version ()
         print '(a)', ''
-#if defined (_CODEPLEX_VERSION)
-        print '(a, a)', 'MohidLand version (codeplex): ', _CODEPLEX_VERSION
-#else
-        print '(a)', 'MohidLand version : PERSONAL'
+#if defined (_BRANCH)
+        print '(a, a)', 'Git branch : ', _BRANCH
+#endif
+#if defined (_LASTCOMMIT)
+        print '(a, a)', 'Based on commit : ', _LASTCOMMIT
+#endif
+#if defined (_PERSONAL)
+        print '(a, a)', 'Personal version? : ', _PERSONAL
 #endif
 #if defined (_COMPILED_BY)
         print '(a, a)', 'Compiled by: ', _COMPILED_BY

@@ -1,0 +1,90 @@
+#!/bin/bash
+
+#PLEASE EDIT UNCOMMENTED LINES
+#BEFORE RUNNING THE MOHID MAKEFILE
+
+#Edit the prefix of the installed binaries
+# > make nix.install
+# ex.: export VER = x64_single
+export VER = 
+
+#Where do you want to install the binary files?
+# > make nix.install
+# ex.: export DESTDIR = /usr/bin/mohid
+export DESTDIR = 
+
+#Where are the hdf5 libraries (with --enable-fortran) in your system?
+# ex.: export HDF5INC = /home/Projects/hdf5/hdf5-1.6.5/hdf5/lib
+#      export HDF5LIB = /home/Projects/hdf5/hdf5-1.6.5/hdf5/lib 
+export HDF5INC = 
+export HDF5LIB = 
+
+#Where is the libz.a in your system?
+# ex.: export ZLIBINC = /usr/lib64
+export ZLIBINC = 
+
+#Activate the extra modules that require the netcdf libraries
+# Two valid options:
+#   true
+#   false
+# ex.: export IS_NETCDF = true
+export IS_NETCDF = false
+
+#Where is the netcdf.mod and libnetcdf.a (built with ./configure with --enable-fortran) in your system?
+# ex.: export NETCDFINC = /usr/include
+#    : export NETCDFLIB = /usr/lib64
+export NETCDFINC = 
+export NETCDFLIB = 
+
+#Activate the extra modules that require the proj4 libraries
+# Two valid options:
+#   true
+#   false
+# ex.: export IS_PROJ4F = true
+export IS_PROJ4F = false
+
+#Where is the proj4.inc and libfproj4.a (static)?
+# ex.: export PROJ4FINC=/home/arosa/Downloads/libfproj4/include
+#      export PROJ4FLIB=/home/arosa/Downloads/libfproj4/lib
+export PROJ4FINC=
+export PROJ4FLIB=
+
+FPP_DEFINES := 
+
+ifeq ($(IS_NETCDF),false)
+    FPP_DEFINES := ${FPP_DEFINES} -D_NO_NETCDF
+endif
+
+ifeq ($(IS_PROJ4F),true)
+    FPP_DEFINES := ${FPP_DEFINES} -D_USE_PROJ4
+endif
+
+#Find GIT Respository revision, branch and if there is local changes
+PERSONAL := $(shell ./test_local_changes.sh)
+LAST_COMMIT := $(shell ./get_last_version.sh)
+LOCAL_BRANCH := $(shell ./get_branch_name.sh)
+COMPILING_DATE := '$(shell date)'
+
+#Uncomment or add the desired pre-processing definitiions
+#FPP_DEFINES := ${FPP_DEFINES} -D_INCREASE_MAXINSTANCES
+#FPP_DEFINES := ${FPP_DEFINES} -D_SHORT_LINE_LENGTH
+#FPP_DEFINES := ${FPP_DEFINES} -D_LONG_LINE_LENGTH
+#FPP_DEFINES := ${FPP_DEFINES} -D_EXTRA_LONG_LINE_LENGTH
+#FPP_DEFINES := ${FPP_DEFINES} -D_EXTRA_SHORT_LINE_LENGTH
+#FPP_DEFINES := ${FPP_DEFINES} -D_USE_MPI
+#FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_
+#FPP_DEFINES := ${FPP_DEFINES} -D_WAVES_
+#FPP_DEFINES := ${FPP_DEFINES} -DOVERLAP
+#FPP_DEFINES := ${FPP_DEFINES} -D_SEDIMENT_
+#FPP_DEFINES := ${FPP_DEFINES} -D_AIR_
+#FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_GLOBAL_
+#FPP_DEFINES := ${FPP_DEFINES} -D_PHREEQC_      #Not available yet
+#Change 'user' to your name
+FPP_DEFINES := ${FPP_DEFINES} -D_COMPILED_BY=\"user\"
+FPP_DEFINES := ${FPP_DEFINES} -D_COMPILING_DATE=\"${COMPILING_DATE}\"
+FPP_DEFINES := ${FPP_DEFINES} -D_BRANCH=\"${LOCAL_BRANCH}\"
+FPP_DEFINES := ${FPP_DEFINES} -D_LASTCOMMIT=\"${LAST_COMMIT}\"
+FPP_DEFINES := ${FPP_DEFINES} -D_PERSONAL=\"${PERSONAL}\"
+FPP_DEFINES := ${FPP_DEFINES} -D_STACK_LIMITS_
+
+export FPP_DEFINES

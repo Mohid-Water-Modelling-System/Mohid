@@ -35,6 +35,8 @@ FILES = \
     ModulePorousMediaProperties.$(S) \
     ModuleRunOff.$(S) \
     ModuleRunoffProperties.$(S) \
+    ModuleReservoirs.$(S) \
+    ModuleSnow.$(S) \
     ModuleVegetation.$(S) \
     MohidLand.$(S)
 TARGET = MohidLand$(SUFFPROG)
@@ -51,7 +53,9 @@ ModulePorousMediaProperties.${Obj} 	: ModulePorousMedia.${Obj}
 ModuleRunoffProperties.${Obj} 		: ModuleRunOff.${Obj}
 ModuleBasin.${Obj} 			: ModuleRunoffProperties.${Obj} \
                     			  ModulePorousMediaProperties.${Obj} \
-                    			  ModuleVegetation.${Obj}
+                    			  ModuleVegetation.${Obj} \
+                                          ModuleReservoirs.${Obj} \
+                                          ModuleSnow.${Obj}
 
 #--------End of dependencies list---------
 
