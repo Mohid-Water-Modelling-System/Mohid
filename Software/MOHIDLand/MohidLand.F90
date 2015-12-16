@@ -171,23 +171,26 @@ program MohidLand
     subroutine print_version ()
         print '(a)', ''
 #if defined (_BRANCH)
-        print '(a, a)', 'Git branch : ', _BRANCH
+        print '(a, a)', 'Git branch        : ', _BRANCH
 #endif
 #if defined (_LASTCOMMIT)
-        print '(a, a)', 'Based on commit : ', _LASTCOMMIT
+        print '(a, a)', 'Based on commit   : ', _LASTCOMMIT
 #endif
 #if defined (_PERSONAL)
         print '(a, a)', 'Personal version? : ', _PERSONAL
 #endif
+#if defined (_REMOTE)
+        print '(a, a)', 'Remote Status     : ', _REMOTE
+#endif
 #if defined (_COMPILED_BY)
-        print '(a, a)', 'Compiled by: ', _COMPILED_BY
+        print '(a, a)', 'Compiled by       : ', _COMPILED_BY
 #else
-        print '(a)', 'Compiled by: Unknown'
+        print '(a)', 'Compiled by       : Unknown'
 #endif
 #if defined (_COMPILING_DATE)
-        print '(a, a)', 'Compiled on: ', _COMPILING_DATE
+        print '(a, a)', 'Compiled on       : ', _COMPILING_DATE
 #else
-        print '(a)', 'Compiled on: Unknown'
+        print '(a)', 'Compiled on      : Unknown'
 #endif
         print '(a)', ''
     end subroutine print_version

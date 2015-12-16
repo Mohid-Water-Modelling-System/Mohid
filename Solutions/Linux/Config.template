@@ -63,6 +63,7 @@ endif
 PERSONAL := $(shell ./test_local_changes.sh)
 LAST_COMMIT := $(shell ./get_last_version.sh)
 LOCAL_BRANCH := $(shell ./get_branch_name.sh)
+REMOTE := $(shell ./test_remote_changes.sh)
 COMPILING_DATE := '$(shell date)'
 
 #Uncomment or add the desired pre-processing definitiions
@@ -77,7 +78,7 @@ COMPILING_DATE := '$(shell date)'
 #FPP_DEFINES := ${FPP_DEFINES} -DOVERLAP
 #FPP_DEFINES := ${FPP_DEFINES} -D_SEDIMENT_
 #FPP_DEFINES := ${FPP_DEFINES} -D_AIR_
-#FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_GLOBAL_
+FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_GLOBAL_
 #FPP_DEFINES := ${FPP_DEFINES} -D_PHREEQC_      #Not available yet
 #Change 'user' to your name
 FPP_DEFINES := ${FPP_DEFINES} -D_COMPILED_BY=\"user\"
@@ -85,6 +86,7 @@ FPP_DEFINES := ${FPP_DEFINES} -D_COMPILING_DATE=\"${COMPILING_DATE}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_BRANCH=\"${LOCAL_BRANCH}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_LASTCOMMIT=\"${LAST_COMMIT}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_PERSONAL=\"${PERSONAL}\"
+FPP_DEFINES := ${FPP_DEFINES} -D_REMOTE=\"${REMOTE}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_STACK_LIMITS_
 
 export FPP_DEFINES
