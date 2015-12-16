@@ -30883,7 +30883,7 @@ cd3:                   if (Manning) then
                     
         CDM=MAX(CDR,CDS)
                         
-        if (Me%ComputeOptions%WaveShearStress) then
+        if (present(Ubw)) then
                             
             if(UC.gt.1e-6 .and. Ubw.gt.0.)then !combined wave and current flow
                         
@@ -30898,8 +30898,10 @@ cd3:                   if (Manning) then
                 T3=(CDR**2+(FWR/2)**2*(Ubw/UC)**4)**(1./4)
                 A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                 A2=0.40*T3/LOG(T1)
+                if (A1<0) A1 = 0
+                if (A2<0) A2 = 0                    
                 CDMR=((A1**2+A2)**0.5-A1)**2
-                                        
+                
                 !Smooth-turbulent wave-plus-current shear-stress
                 as=0.24
                 T1=9*as*REW*(FWS/2)**0.5*(CDS**2*(UC/Ubw)**4+(FWS/2)**2)**(1./4)
@@ -30907,6 +30909,8 @@ cd3:                   if (Manning) then
                 T3=(CDS**2+(FWS/2)**2*(Ubw/UC)**4)**(1./4)
                 A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                 A2=0.40*T3/LOG(T1)
+                if (A1<0) A1 = 0
+                if (A2<0) A2 = 0                    
                 CDMS=((A1**2+A2)**0.5-A1)**2
                     
                 CDM = MAX(CDMR, CDMS)                  
@@ -40500,6 +40504,8 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         real                               :: DT_Velocity
 
         real                               :: Aux_2D, TauFace, FaceDensity
+        
+        real                               :: SmoothCoef, RunPeriod
     
         integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
 
@@ -40541,6 +40547,20 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         !End - Shorten variables name 
 
 
+        SmoothCoef = 1.
+        
+        if (Me%ComputeOptions%AtmosphereRAMP) then
+
+            RunPeriod = Me%CurrentTime - Me%BeginTime
+
+            if (RunPeriod < Me%ComputeOptions%AtmospherePeriod) then
+
+                SmoothCoef = Me%ComputeOptions%AtmosphereCoef
+
+            endif
+
+        endif
+
   
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
@@ -40553,7 +40573,10 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
                 Kbottom          = KFloor_UV(i, j)
 
                 TauFace  = Face_Interpolation(TauWaves_UV(I,J), TauWaves_UV(iSouth, jWest), &
-                                              DUX_VY(I, J), DUX_VY(iSouth, jWest))                
+                                              DUX_VY(I, J), DUX_VY(iSouth, jWest))        
+
+                TauFace  = SmoothCoef * TauFace
+                                                      
                 ![M*m/s]   [s] * [m] * [m] * [M*m/s^2/m^2] 
                 Aux_2D   = DT_Velocity * DZX_ZY(iSouth, jWest) * DYY_XX(I, J) * TauFace 
 
@@ -44436,7 +44459,7 @@ cd2:    if (Me%OutPut%Run_End) then
             endif
 
             !Residual Velocity
-cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
+cd3:        if (Me%ComputeOptions%Residual) then
 
                 call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = ResidualVelocity)
                 
