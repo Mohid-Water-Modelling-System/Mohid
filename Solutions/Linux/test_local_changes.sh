@@ -1,6 +1,8 @@
-if [ -z "$(svn status)" ]; then 
-	LOCAL_CHANGES=""  
-else 
-	LOCAL_CHANGES="-Personal"
+#!/bin/bash
+
+if [[ `git status --porcelain` ]]; then
+    echo "YES"
+else
+    echo "NO"
 fi
-echo $LOCAL_CHANGES
+

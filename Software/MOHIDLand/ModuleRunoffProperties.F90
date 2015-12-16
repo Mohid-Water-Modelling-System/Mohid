@@ -7993,8 +7993,12 @@ if1:        if (Property%Evolution%BottomFluxes   &
 if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then   
                             
                             !generates new sediment with same property ratio as the one present (below soil is similar to top soil)
-                            EnrichmentRatio = Property%BottomConcentration (i,j) / BottomSedimentConc (i,j)
-    
+                            if (BottomSedimentConc (i,j) > AllmostZero) then                               
+                                EnrichmentRatio = Property%BottomConcentration (i,j) / BottomSedimentConc (i,j)
+                            else
+                                EnrichmentRatio = 1.0
+                            endif
+                            
                             ![kg.m-2] = [kg.m-2.s-1] * [s]
                             GenerationConc = SedimentGenerationRate(i,j) * Me%ExtVar%DT * EnrichmentRatio
                            

@@ -5249,8 +5249,8 @@ do2:            do i = ILB, IUB
                                 else if(UVC.gt.1e-6)then !combined wave and current flow                                    
                                     TAUM=WaterDensity*CDM*UVC**2
                                     TAUMAX=WaterDensity*CDMAX*UVC**2    
-                                    
-                                    Me%WaveShear_Stress%Tension(i,j) = 0.5*WaterDensity*FW*Ubw**2                                            
+
+                                    Me%WaveShear_Stress%Tension(i,j) = 0.5*WaterDensity*FW*Ubw**2
                                 endif
                                 
                                 Me%WaveShear_Stress%TensionMean(i,j) = TAUM
@@ -5348,6 +5348,8 @@ do2:            do i = ILB, IUB
                     T3=(CDR**2+(FWR/2)**2*(Ubw/UVC)**4)**(1./4)
                     A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                     A2=0.40*T3/LOG(T1)
+					if (A1<0) A1 = 0
+                    if (A2<0) A2 = 0
                     CDMR=((A1**2+A2)**0.5-A1)**2
                     CDMAXR=((CDMR+T3*Ubw/UVC*(FWR/2)**0.5*abs(COS(CWphi*pi/180.)))**2+        &
                     (T3*Ubw/UVC*(FWR/2)**0.5*abs(SIN(CWphi*pi/180.)))**2)**0.5
@@ -5359,6 +5361,8 @@ do2:            do i = ILB, IUB
                     T3=(CDS**2+(FWS/2)**2*(Ubw/UVC)**4)**(1./4)
                     A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                     A2=0.40*T3/LOG(T1)
+					if (A1<0) A1 = 0
+                    if (A2<0) A2 = 0
                     CDMS=((A1**2+A2)**0.5-A1)**2
                     CDMAXS=((CDMS+T3*Ubw/UVC*(FWS/2)**0.5*abs(COS(CWphi*pi/180.)))**2+         &
                     (T3*Ubw/UVC*(FWS/2)**0.5*abs(SIN(CWphi*pi/180.)))**2)**0.5  
@@ -10227,11 +10231,15 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Opens HDF5 File
         call ConstructHDF5 (ObjHDF5,trim(filename)//"5", HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR01'
+        
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+           stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR100'
 
         !Sets limits for next write operations
         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR02'
-
 
         !Writes the Grid
         call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
@@ -10247,19 +10255,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                               Array3D = Me%ExtWater%WaterPoints3D,                      &
                               STAT    = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR04'
-
-        call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR05'
-
-        call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionX", "m",                     &
-                              Array2D = Me%ExternalVar%XX_IE,                           &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR06'
-
-        call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionY", "m",                     &
-                              Array2D = Me%ExternalVar%YY_IE,                           &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR07'
 
         !Writes SZZ
         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                        &
