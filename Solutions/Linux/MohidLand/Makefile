@@ -35,6 +35,8 @@ FILES = \
     ModulePorousMediaProperties.$(S) \
     ModuleRunOff.$(S) \
     ModuleRunoffProperties.$(S) \
+    ModuleReservoirs.$(S) \
+    ModuleSnow.$(S) \
     ModuleVegetation.$(S) \
     ModuleIrrigation.$(S) \
     ModuleReservoirs.$(S) \
@@ -55,9 +57,9 @@ ModuleRunoffProperties.${Obj} 		: ModuleRunOff.${Obj}
 ModuleBasin.${Obj} 			: ModuleRunoffProperties.${Obj} \
                     			  ModulePorousMediaProperties.${Obj} \
                     			  ModuleVegetation.${Obj} \
-                                          ModuleSnow.${Obj} \
                                           ModuleIrrigation.${Obj} \
                                           ModuleReservoirs.${Obj}
+                                          ModuleSnow.${Obj}
 
 #--------End of dependencies list---------
 

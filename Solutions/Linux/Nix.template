@@ -2,7 +2,8 @@ SHELL = /bin/sh
 
 #------User configuration file---------------
 
-include ConvertToHDF5_Config.mk
+#Copy from Config.template and change for your system.
+include Config.mk
 
 #-- NIX platform specific global variables --
 
@@ -13,8 +14,8 @@ export F = F90
 export Obj = o
 export MOD = mod
 export CC= ifort
-export CCFLAGS  = -openmp -fpp -r8 -std03 -m64 -ip -zero -xHost -axAVX -O3 -parallel -inline-level=1 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -openmp-link=static -static-libgcc -heap-arrays 64 -c $(FPP_DEFINES) 
-export LFLAGS   = -openmp -fpp -r8 -std03 -m64 -ip -zero -xHost -axAVX -O3 -parallel -inline-level=1 -assume buffered_io -warn all -nologo -convert big_endian -fpe0 -D_USE_NIX -traceback -mcmodel=medium -shared-intel -openmp-link=static -static-libgcc -heap-arrays 64 -Wl,-rpath,'$$$$ORIGIN/.',-rpath,$(INTEL_PATH) $(FPP_DEFINES)
+export CCFLAGS  = -openmp -fpp -r8 -std03 -m64 -ip -zero -O1 -assume buffered_io -warn all -nologo -fpe0 -D_USE_NIX -traceback -mcmodel=medium -heap-arrays 64 -c $(FPP_DEFINES) 
+export LFLAGS   = -openmp -shared-intel -openmp-link=static -static-libgcc -Wl,-rpath,'$$$$ORIGIN/.',-rpath,$(INTEL_PATH) 
 export LLFLAGS  =
 export MKFLAGS =
 export AR = ar rc
@@ -59,15 +60,21 @@ export HDFLIBS := \
 #------Files and modules lists------
 
 METAFILES = \
-        README \
-        Editme_template.smk \
-        Nix.smk
+        README
 
 MODULES := 
 MODULES := $(MODULES) Makefiles
 MODULES := $(MODULES) Mohid_Base_2
 MODULES := $(MODULES) Mohid_Base_1
-MODULES := $(MODULES) ConvertToHDF5
+
+#Uncomment the module you want to compile
+#MODULES := $(MODULES) MohidLand
+#MODULES := $(MODULES) MohidWater
+#MODULES := $(MODULES) BasinDelineation
+#MODULES := $(MODULES) ConvertToHDF5
+#MODULES := $(MODULES) ConvertToXYZ
+#MODULES := $(MODULES) DigitalTerrainCreator
+#MODULES := $(MODULES) HDF5Extractor
 
 #------Makefile rules---------------
 
@@ -75,5 +82,11 @@ include Makefiles/Makemodules.mk
 
 #------Modules dependencies----------
 
-ConvertToHDF5.all : Mohid_Base_2.all
-Mohid_Base_2.all : Mohid_Base_1.all
+MohidLand.all             : Mohid_Base_2.all
+MohidWater.all            : Mohid_Base_2.all
+BasinDelineation.all      : Mohid_Base_2.all
+ConvertToHDF5.all         : Mohid_Base_2.all
+ConvertToXYZ.all          : Mohid_Base_2.all
+DigitalTerrainCreator.all : Mohid_Base_2.all
+HDF5Extractor.all         : Mohid_Base_2.all
+Mohid_Base_2.all          : Mohid_Base_1.all

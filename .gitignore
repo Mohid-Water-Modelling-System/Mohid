@@ -264,3 +264,9 @@ _Pvt_Extensions
 !ExternalLibs/*
 *.u2d
 *.bak
+
+#LINUX solution specific files
+Solutions/Linux/Nix.mk
+Solutions/Linux/Config.mk
+Solutions/Linux/MohidLand/MohidLand
+Solutions/Linux/MohidWater/MohidWater

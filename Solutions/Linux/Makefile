@@ -5,10 +5,10 @@ export MAKE = make
 .PHONY: default
 default:
 	@echo Please choose your platform from:
-	@echo Type "make (Win Nix).(' '  clean install)".
+	@echo Type "make Nix.(' '  clean install)".
 
-#make all (add other platforms "Nix Nix Nix_double Win" ...)
-PLAT := Nix Nix-debug Nix-gfortran  Nix-open64 Nix-gfortran-mpi Nix-gfortran-debug Nix_MohidLand_r8_omp_x64 Nix_MohidWater_r8_omp_x64
+#make all 
+PLAT := Nix
 .PHONY : $(PLAT)
 $(PLAT):
 	@$(MAKE) -f $@.mk all
