@@ -1,39 +1,38 @@
-A/ What are the prerequisites to build MOHID in Linux?
-1 - Install the zlib package (library file name is "libz.a").
-2 - Find, get and compile the HDF5 libraries with "the --enable-fortran" option.
-http://www.mohid.com/wiki/index.php?title=%2ANIX_platforms
-3 - Install the Intel Fortran Compiler (other fortran95 compilers may do as well, but extra configuring is required).
+MOHID compiling on Linux
 
-B/ How to build MOHID?
-1 - If building for the first time, rename the file "Editme_template.mk" to "Editme.mk" and edit its uncommented lines. (If a fortran95 compiler other than ifort is used, edit the "Nix.mk" file as well).
-2 - > make Nix
-3 - > make Nix.install
+1. Pre-requisites
 
-C/ How to erase the MOHID build?
-> make Nix.clean
+a) ZLib
+c) SZLib
+c) HDF5 library
 
-D/ Where do I get the latest version of the code?
-http://mohid.codeplex.com
+SZLib and HDF5 libraries must be compiled with the same compiler used to compile MOHID.
+Download the source code from these 3 libraries and run the scripts in /Solutions/Linux/Scripts/ folder in the following order
 
-E/ Can I contribute with improvements of the code?
-Not directly, but you can submit patches to the code in the codeplex site. We'll check them out and, hopefully, insert them in the new release of the code ;)
+  a) zlib.sh
+  b) szlib.sh
+  c) hdf5.sh
 
-2009/07/16 G.R.
+Change the options in these scripts to match your compiler and compiler options. The options are set to the INTEL compiler.
+If you need different options, consult your compiler manual.
 
-F/ How can I activate pre-processor definitions such as _USE_MPI?
-Simply edit your Editme.mk and uncomment the commented line containing the desired
-pre-processor definition. Then clean and build the makefile over again.
+2. Optional pre-requisites
 
-2010/05/06 G.R.
+a) proj4
+b) NetCDF (for some of the tools)
 
-G/ How can I activate the extra modules (e.g: in ConvertToHdf5) that require the netcdf libraries?
-1 - Firstly, install the netcdf libraries with the fortran interface and
-locate their whereabouts (path) in your computer.
-2 - Edit the Editme.mk file and correct the path to the netcdf library libnetcdf.a (NETCDFLIB)
-and the netcdf mod file netcdf.mod (NETCDFINC).
-3 - Activate to "true" the variable IS_NETCDF in the Editme.mk file
+3. Build MOHID
 
-H/ I get "segmentation fault" errors when using ConvertToHDF5 or some other tool, what should I do?
-Try to enlarge the cache memory for your programs to run. Simply type
- > ulimit -s unlimited
-before running the program.
+3.1 Copy Config.mk from Config.template and change the options according your PATH and requirements
+
+3.2 Copy Nix.mk from Nix.template and change the options according your PATH and requirements. The compiler options are set to the INTEL compiler.
+If you need different options, consult your compiler manual.
+
+3.3 Compiling
+execute the following commands:
+
+make Nix.clean
+make Nix
+
+4.4 Copy the executable and required libraries to the exe folder of your model.
+
