@@ -980,10 +980,11 @@ il:         if (Me%RunLagrangian) then
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR391'
 
                 
-                call ConstructSediment(ObjSedimentID        = Me%ObjSediment,                        &
-                                   ObjGridDataID        = Me%Water%ObjBathymetry,                   &
+                call ConstructSediment(ObjSedimentID    = Me%ObjSediment,                        &
+                                   ObjGridDataID        = Me%Water%ObjBathymetry,                &
+                                   GeometryID           = Me%Water%ObjGeometry,                  &
                                    ObjHorizontalGridID  = Me%ObjHorizontalGrid,                  &
-                                   ObjHorizontalMapID   = Me%Water%ObjMap,              &
+                                   ObjHorizontalMapID   = Me%Water%ObjMap,                       &
                                    ObjTimeID            = Me%ObjTime,                            &
                                    ObjWavesID           = Me%ObjWaves,                           &
                                    ObjDischargesID      = Me%ObjDischarges,                      &

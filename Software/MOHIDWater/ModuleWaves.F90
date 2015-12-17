@@ -88,12 +88,12 @@ Module ModuleWaves
                                        GetGridAngle, GetCheckDistortion, GetCoordTypeList,      &
                                        GetGridCoordType,  GetLatitudeLongitude,                 &
                                        UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID, &
-                                       GetDDecompON, WriteHorizontalGrid,           &
-                                       GetGridOutBorderPolygon
-    use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,  &
+                                       GetDDecompON, WriteHorizontalGrid,               &
+                                       GetGridOutBorderPolygon, RotateVectorFieldToGrid
+    use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,           &
                                        GetIfMatrixRemainsConstant, KillFillMatrix 
     use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry, GetGeometryDistances, GetGeometrySize
-    use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData, &
+    use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData,     &
                                        HDF5FlushMemory, GetHDF5FileAccess, KillHDF5
     use ModuleGridData,         only : GetGridData, UngetGridData, WriteGridData   
     use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,   &
@@ -146,7 +146,9 @@ Module ModuleWaves
     private ::      ComputeWaveLength
     private ::      Output_Results_HDF
     private ::      Output_TimeSeries
+    private ::      RotateWaveVectorFields    
     public  :: ComputeRadiationStress
+    
 
 
     !Destructor
@@ -219,6 +221,7 @@ Module ModuleWaves
         logical                                             :: Constant             = .false.
         integer                                             :: Source               = null_int
         real, dimension(:,:),  pointer                      :: Field                => null()
+        real, dimension(:,:),  pointer                      :: FieldGrid            => null()        
         logical                                             :: OutputHDF            = .false.
         logical                                             :: TimeSerieOn          = .false.
     end type T_WaveProperty
@@ -367,6 +370,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructGlobalVariables
 
             call ConstructWaveParameters
+            
+            call RotateWaveVectorFields(VectorX         = Me%RadiationStressX,          &
+                                        VectorY         = Me%RadiationStressY,          &
+                                        Constructing    = .true.)
             
             if (Me%OutPut%HDF) call Open_HDF5_OutPut_File
             
@@ -791,6 +798,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             allocate(Me%WaveLength_(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             Me%WaveLength_(:,:) =  FillValueReal
+
+            call ComputeWaveParameters
 
         endif
 
@@ -2478,10 +2487,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%RadiationStressX%ON .and. Me%RadiationStressY%ON) then
 
                 call Read_Lock(mWaves_, Me%InstanceID)
-                RadiationStressX => Me%RadiationStressX%Field
+                RadiationStressX => Me%RadiationStressX%FieldGrid
 
                 call Read_Lock(mWaves_, Me%InstanceID)
-                RadiationStressY => Me%RadiationStressY%Field
+                RadiationStressY => Me%RadiationStressY%FieldGrid
 
                 if (present(LastCompute)) LastCompute = Me%LastCompute
 
@@ -2774,7 +2783,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     endif
                 endif
             endif
-
+            
+            call RotateWaveVectorFields(VectorX         = Me%RadiationStressX,          &
+                                        VectorY         = Me%RadiationStressY,          &
+                                        Constructing    = .false.)            
             
             Me%LastCompute = Me%ActualTime
 
@@ -3916,8 +3928,65 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
                                                                                 
     end subroutine OutPut_TimeSeries                                            
                                                                                 
+
+    !--------------------------------------------------------------------------
+
+    subroutine RotateWaveVectorFields(VectorX, VectorY, Constructing)
+        !Arguments-------------------------------------------------------------
+        logical                                     :: Constructing
+        type (T_WaveProperty)                       :: VectorX, VectorY
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+
+        !----------------------------------------------------------------------
+        
+        !WaterPoints2D
+        call GetWaterPoints2D(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,        &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RotateWaveVectorFields - ModuleWaves - ERR10'
+        
+        if (VectorX%ON .and. VectorY%ON) then
+
+            if (Constructing) then 
+                nullify (VectorX%FieldGrid) 
+                allocate(VectorX%FieldGrid(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+
+                VectorX%FieldGrid(:,:) = null_real
+
+                nullify (VectorY%FieldGrid) 
+                allocate(VectorY%FieldGrid(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+
+                VectorY%FieldGrid(:,:) = null_real
+
+            endif
+
+
+            call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid,      &
+                                         VectorInX         = VectorX%Field,             &
+                                         VectorInY         = VectorY%Field,             &
+                                         VectorOutX        = VectorX%FieldGrid,         &
+                                         VectorOutY        = VectorY%FieldGrid,         &
+                                         WaterPoints2D     = Me%ExternalVar%WaterPoints2D,&
+                                         RotateX           = .true.,                    &
+                                         RotateY           = .true.,                    &
+                                         STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'RotateWaveVectorFields - ModuleWaves - ERR20'
+        endif
+
+        !WaterPoints2D
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,      &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RotateWaveVectorFields - ModuleWaves - ERR30'
+
+
+    end subroutine RotateWaveVectorFields
+
+
                                                                                 
     !--------------------------------------------------------------------------
+
 
 
 
@@ -4018,6 +4087,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%RadiationStressX%ON) then
 
                     deallocate(Me%RadiationStressX%Field)
+                    deallocate(Me%RadiationStressX%FieldGrid)                    
 
                     if (Me%RadiationStressX%ID%SolutionFromFile) then
                         call KillFillMatrix(Me%RadiationStressX%ID%ObjFillMatrix, STAT = STAT_CALL)
@@ -4028,6 +4098,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%RadiationStressY%ON) then
 
                     deallocate(Me%RadiationStressY%Field)
+                    deallocate(Me%RadiationStressY%FieldGrid)                    
 
                     if (Me%RadiationStressY%ID%SolutionFromFile) then
                         call KillFillMatrix(Me%RadiationStressY%ID%ObjFillMatrix, STAT = STAT_CALL)
