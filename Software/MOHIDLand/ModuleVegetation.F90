@@ -8781,6 +8781,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer                                        :: STAT_, ready_
         integer                                        :: STAT_CALL
         integer                                        :: JulDay
+        logical                                        :: IsFinalFile
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -8899,7 +8900,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             !Restart Output            
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExternalVar%Now == Me%EndTime)) then
                 if(Me%ExternalVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                    call Write_FinalVegetation_HDF
+                    IsFinalFile = .false.
+                    call Write_FinalVegetation_HDF(IsFinalFile)
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif           
@@ -15246,6 +15248,7 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
         !Local-------------------------------------------------------------------
         integer                                     :: ready_              
         integer                                     :: STAT_, nUsers          
+        logical                                     :: IsFinalFile
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -15259,7 +15262,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
 
                 !Write Output for continuous computation
-                call Write_FinalVegetation_HDF
+                IsFinalFile = .true.
+                call Write_FinalVegetation_HDF(IsFinalFile)
  !               call Write_FinalVegetation_File
 
                 nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid)
@@ -15331,8 +15335,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !   Write the final vegetation results in HDF format  !
   
-    subroutine Write_FinalVegetation_HDF
+    subroutine Write_FinalVegetation_HDF(IsFinalFile)
 
+        !Arguments--------------------------------------------------------------
+        logical                                 :: IsFinalFile    
         !Local--------------------------------------------------------------
         type(T_Property),           pointer     :: Property
         integer                                 :: ObjHDF5
@@ -15372,7 +15378,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Gets File Access Code
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
-        if (Me%ExternalVar%Now == Me%EndTime) then
+        !if (Me%ExternalVar%Now == Me%EndTime  .or. Me%Output%RestartOverwrite) then
+        if (IsFinalFile  .or. Me%Output%RestartOverwrite) then
             filename = trim(Me%Files%FinalFile)
         else
             filename = ChangeSuffix(trim(Me%Files%FinalFile),                            &
