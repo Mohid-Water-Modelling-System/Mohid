@@ -25075,27 +25075,16 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR10'
             
-        !call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionX", "m",                      &
-        !                      Array2D = Me%ExternalVar%XX_IE,                            &
-        !                      STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_)                                                       &
-        !    stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR60'
-
-        !call HDF5WriteData   (ObjHDF5, "/Grid", "ConnectionY", "m",                      &
-        !                      Array2D = Me%ExternalVar%YY_IE,                            &
-        !                      STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_)                                                       &
-        !    stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR70'
         
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR20'
 
 
         !Sets limits for next write operations
         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                        &
                               WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR20'
+            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR40'
 
 
         !Writes the Grid
@@ -25103,18 +25092,18 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                               Array2D = Me%ExternalVar%Bathymetry,                       &
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR30'
+            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR50'
 
         call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                    &
                               Array3D = Me%ExternalVar%WaterPoints3D,                    &
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR40'
+            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR60'
 
         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB,                      &
                               WorkJUB+1, WorkKLB, WorkKUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR50'
+            stop 'Write_FinalWaterProperties_HDF - ModuleWaterProperties - ERR70'
 
 
 

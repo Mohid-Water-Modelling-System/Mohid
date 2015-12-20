@@ -96,6 +96,7 @@ ModuleInterfaceSedimentWater.${Obj} 	: ModuleSand.${Obj} \
                                  	  ModuleLagrangianGlobal.${Obj} \
                                  	  ModuleSedimentProperties.${Obj} \
 					  ModuleSediment.${Obj}
+ModuleFreeVerticalMovement.${Obj}       : ModuleTurbulence.${Obj}
 ModuleModel.${Obj} 			: ModuleInterfaceWaterAir.${Obj} \
                 			  ModuleInterfaceSedimentWater.${Obj}
 ModuleHNS.${Obj}     			: ModuleOil_0D.${Obj}

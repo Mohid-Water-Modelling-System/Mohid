@@ -37,7 +37,8 @@ Module ModuleBoxDif
     use ModuleGridData,         only: WriteGridData
     use ModuleHorizontalGrid,   only: GetZCoordinates,  GetGridBorderPolygon,           &
                                       GetHorizontalGridSize, UnGetHorizontalGrid,       &
-                                      GetCornersCoordinates  
+                                      GetCornersCoordinates, Add_MPI_ID_2_Filename,     &
+                                      No_BoxMap_HaloArea  
     use ModuleTimeSerie,        only: StartTimeSerie, WriteTimeSerieLine, KillTimeSerie
     use ModuleDrawing
 
@@ -320,8 +321,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                        WorkSize    = Me%WorkSize2D,                     &
                                        STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'StartBoxDif2D - ModuleBoxDif - ERR01'
-
-
+            
+            call Add_MPI_ID_2_Filename(Me%ObjHorizontalGrid,                            &
+                                       Filename    = Me%BoxesFilePath ,                 &
+                                       STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'StartBoxDif2D - ModuleBoxDif - ERR20'            
+            
             call ConstructBoxes2D
 
             if(present(FluxesOutputList)) call ConstructOutputFluxes2D  (FluxesOutputList)
@@ -394,13 +399,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%BoxesFilePath             = trim(BoxesFilePath)
             Me%Size3D                    = Size3D  
             Me%WorkSize3D                = WorkSize3D
-
+            
             call GetHorizontalGridSize(Me%ObjHorizontalGrid,                            &
                                        Size        = Me%Size2D,                         &
                                        WorkSize    = Me%WorkSize2D,                     &
                                        STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'StartBoxDif3D - ModuleBoxDif - ERR02'
-
+            
+            call Add_MPI_ID_2_Filename(Me%ObjHorizontalGrid,                            &
+                                       Filename    = Me%BoxesFilePath ,                 &
+                                       STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'StartBoxDif3D - ModuleBoxDif - ERR20'            
 
             call ConstructBoxes3D
             
@@ -521,7 +530,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call ConstructEnterData (Me%ObjEnterData, Me%BoxesFilePath, STAT = STAT_CALL)
 
-        if(STAT_CALL .ne. SUCCESS_)stop 'ConstructBoxes - ModuleBoxDif - ERR02'
+        if (STAT_CALL /= SUCCESS_)then
+            stop 'ConstructBoxes2D - ModuleBoxDif - ERR10'
+        endif             
+
 
         call ReadGlobalOptions
 
@@ -535,6 +547,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call ConvertBoxesToMap2D(Me%ExternalVar%WaterPoints2D)
 
+        call No_BoxMap_HaloArea(HorizontalGridID = Me%ObjHorizontalGrid,                &
+                                Boxes2D          = Me%Boxes2D,                          &
+                                STAT             = STAT_CALL)                
+        if (STAT_CALL /= SUCCESS_)then
+            stop 'ConstructBoxes2D - ModuleBoxDif - ERR20'
+        endif             
+
         call FindAdjacentBoxesBoundaries2D
 
         if(Me%WriteBoxes) call WriteBoxes
@@ -542,7 +561,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadUnLockGridInformation
 
         call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'ConstructBoxes - ModuleBoxDif - ERR03'
+        if (STAT_CALL /= SUCCESS_)then
+            stop 'ConstructBoxes2D - ModuleBoxDif - ERR30'
+        endif             
+
 
 
     end subroutine ConstructBoxes2D
@@ -561,7 +583,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call ConstructEnterData (Me%ObjEnterData, Me%BoxesFilePath, STAT = STAT_CALL)
 
-        if(STAT_CALL .ne. SUCCESS_)stop 'ConstructBoxes - ModuleBoxDif - ERR02'
+        if (STAT_CALL /= SUCCESS_)then
+            stop 'ConstructBoxes3D - ModuleBoxDif - ERR10'
+        endif             
 
         call ReadGlobalOptions
 
@@ -578,6 +602,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ConvertBoxesToMap2D(Me%ExternalVar%WaterPoints3D)
 
         call ConvertBoxesToMap3D
+        
+        call No_BoxMap_HaloArea(HorizontalGridID = Me%ObjHorizontalGrid,                &
+                                Boxes3D          = Me%Boxes3D,                          &
+                                KLB              = Me%WorkSize3D%KLB,                   &
+                                KUB              = Me%WorkSize3D%KUB,                   &
+                                STAT             = STAT_CALL)                
+        if (STAT_CALL /= SUCCESS_)then
+            stop 'ConstructBoxes3D - ModuleBoxDif - ERR20'
+        endif             
+
 
         call FindAdjacentBoxesBoundaries3D
 
@@ -586,7 +620,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadUnLockGridInformation
 
         call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
-        if(STAT_CALL .ne. SUCCESS_)stop 'ConstructBoxes - ModuleBoxDif - ERR03'
+        if (STAT_CALL /= SUCCESS_)then
+            stop 'ConstructBoxes3D - ModuleBoxDif - ERR30'
+        endif             
+
 
 
     end subroutine ConstructBoxes3D
@@ -621,14 +658,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)        
         if(STAT_CALL .ne. SUCCESS_)stop 'ReadGlobalOptions - ModuleBoxDif - ERR20'
 
-        call GetData(Me%DT,                                 &
-                     Me%ObjEnterData, iflag,                &
-                     SearchType   = FromFile,               &
-                     keyword      = 'DT_BOXES',             &
-                     Default      = 300.,                  &
-                     ClientModule = 'ModuleBoxDif',        &
+        call GetData(Me%DT,                                                     &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromFile,                                   &
+                     keyword      = 'DT_BOXES',                                 &
+                     Default      = 300.,                                       &
+                     ClientModule = 'ModuleBoxDif',                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGlobalOptions - ModuleBoxDif - ERR40'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadGlobalOptions - ModuleBoxDif - ERR30'
 
         if(Me%WriteBoxes)then
 
@@ -638,13 +675,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword      ='OUTPUT_FILE',                           &
                          ClientModule = MohidModules(mBOXDIF_)%Name,            &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL .ne. SUCCESS_)stop 'ReadGlobalOptions - ModuleBoxDif - ERR30'
+            if(STAT_CALL .ne. SUCCESS_)stop 'ReadGlobalOptions - ModuleBoxDif - ERR40'
 
             if(iflag==0)then
                 write(*,*)'Option WRITE_BOXES is activated in boxes file'
                 write(*,*)trim(Me%BoxesFilePath)
                 write(*,*)'Please define keyword OUTPUT_FILE'
-                stop 'ReadGlobalOptions - ModuleBoxDif - ERR40'
+                stop 'ReadGlobalOptions - ModuleBoxDif - ERR50'
             endif
 
         end if
