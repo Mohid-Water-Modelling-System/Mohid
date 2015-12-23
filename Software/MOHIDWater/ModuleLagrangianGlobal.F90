@@ -3136,10 +3136,8 @@ i1:         if (PropertyFound) then
         !Local-----------------------------------------------------------------
         type(T_Property),   pointer                     :: CurrentProperty
         type(T_PropertyID)                              :: PropertyID
-        real, dimension(1:2,1:2)                        :: WindowLimitsXY
-        real                                            :: West, East, South, North
         logical                                         :: PropertyFound
-        integer                                         :: STAT_CALL, nProp, i, flag, emMax, iP
+        integer                                         :: STAT_CALL, nProp, flag, iP
         !Begin-----------------------------------------------------------------
 
 DOPROP: do nProp = 1, Me%MeteoOcean%PropNumber
@@ -3217,12 +3215,9 @@ dw1:        do while (associated(CurrentProperty))
         integer                                         :: nProp, ClientNumber
 
         !Local-----------------------------------------------------------------
-        type(T_Property),   pointer                     :: CurrentProperty
-        type(T_PropertyID)                              :: PropertyID
         real, dimension(1:2,1:2)                        :: WindowLimitsXY
         real                                            :: West, East, South, North
-        logical                                         :: PropertyFound
-        integer                                         :: STAT_CALL, i, flag, emMax, iP
+        integer                                         :: STAT_CALL, i, emMax
         !Begin-----------------------------------------------------------------
 
                 
