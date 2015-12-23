@@ -9462,6 +9462,7 @@ do2 :   do while (associated(PropertyX))
         type(T_Node), pointer                       :: UpNode, DownNode, CurrNode
         real                                        :: BottomMass
         integer                                     :: OutletPos
+        logical                                     :: IsFinalFile
         !Begin-------------------------------------------------------------------
        
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyDrainageNet")
@@ -9747,7 +9748,8 @@ do2 :   do while (associated(PropertyX))
         !Restart Output
         if (Me%Output%WriteRestartFile .and. .not. (Me%CurrentTime == Me%EndTime)) then
             if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
-                call WriteFinalFile
+                IsFinalFile = .false.
+                call WriteFinalFile(IsFinalFile)
                 Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
             endif
         endif
@@ -16080,7 +16082,7 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
         integer                             :: STAT_CALL, nUsers , i
         type (T_Property), pointer          :: Property
         type (T_WQRate  ),  pointer         :: WQRateX
-
+        logical                             :: IsFinalFile
 
         !-----------------------------------------------------------------------
 
@@ -16089,8 +16091,9 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
         call Ready(DrainageNetworkID, ready_)    
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
-
-            call WriteFinalFile
+            
+            IsFinalFile = .true.
+            call WriteFinalFile(IsFinalFile)
             
             if (Me%ComputeOptions%MinConcentration) call WriteCreatedMassHDF
                         
@@ -16328,9 +16331,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !---------------------------------------------------------------------------
     
-    subroutine WriteFinalFile
+    subroutine WriteFinalFile(IsFinalFile)
 
         !Arguments--------------------------------------------------------------
+        logical                                     :: IsFinalFile
 
         !Local------------------------------------------------------------------
         real                                        :: Year_File, Month_File, Day_File
@@ -16342,7 +16346,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !-----------------------------------------------------------------------
 
-        if (Me%CurrentTime == Me%EndTime) then
+        if (IsFinalFile  .or. Me%Output%RestartOverwrite) then
             FileName = Me%Files%FinalFile
         else
             FileName = ChangeSuffix(Me%Files%FinalFile,                                 &

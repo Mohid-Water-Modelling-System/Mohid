@@ -2221,6 +2221,29 @@ cd0:    if (Exist) then
 
         if (Me%OutPut%HDF) Me%OutPut%NextOutPut = 1
            
+
+        !Output for restart
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime  = Me%ExtVar%ActualTime,                         &
+                           EndTime      = Me%ExtVar%EndTime,                             &
+                           keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
+                           SearchType   = FromFile,                                     &
+                           OutPutsTime  = Me%OutPut%RestartOutTime,                     &
+                           OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
+                           STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleReservoirs - ERR51'
+
+        call GetData(Me%OutPut%RestartOverwrite,                                        &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESTART_FILE_OVERWRITE',                           &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ConstructGlobalVariables - ModuleReservoirs - ERR52' 
+        
+        
         call GetData(Me%OutPut%TimeSerie,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'TIME_SERIE',                                     &

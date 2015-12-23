@@ -9391,7 +9391,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         
         
         !if (Me%CurrentTime == Me%EndTime) then
-        if (IsFinalFile) then
+        if (IsFinalFile .or. Me%Output%RestartOverwrite) then
             FileName = Me%Files%FinalFile
         else
             FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
