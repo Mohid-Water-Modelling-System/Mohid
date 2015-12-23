@@ -38,12 +38,14 @@ Module ModuleGridData
                                       GetGridCoordType, GetGridAngle, GetGridZone,      &
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       UnGetHorizontalGrid, GetCoordTypeList,            &
-#ifndef _NO_HDF5                                      
-                                      WriteHorizontalGrid,                              &
-#endif
                                       GetCheckDistortion,                               &
                                       GetGridLatitudeLongitude, GetZCoordinates,        &
-                                      GetDDecompParameters, GetDDecompWorkSize2D 
+                                      GetDDecompParameters, GetDDecompWorkSize2D,       &
+                                      Add_MPI_ID_2_Filename 
+
+#ifndef _NO_HDF5                                      
+    use ModuleHorizontalGrid,   only: WriteHorizontalGrid
+#endif
 
 #ifdef _USE_MPI       
     use ModuleHorizontalGrid,   only: JoinGridData  
@@ -528,10 +530,14 @@ Module ModuleGridData
 
                 if (STAT_CALL /= SUCCESS_)                                              &
                     stop 'ReadGridDataFile - ModuleGridData - ERR80'
-
+                    
             endif
-
-
+            
+            call Add_MPI_ID_2_Filename(Me%ObjHorizontalGrid,                            &
+                                       Filename    = Me%Evolution%File,                 &
+                                       STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR85'
+            
             call GetData            (Me%Evolution%PropName, ObjEnterData, flag,         &
                                      keyword      = 'PROPERTY_NAME',                    &
                                      ClientModule = 'ModuleGridData',                   &
