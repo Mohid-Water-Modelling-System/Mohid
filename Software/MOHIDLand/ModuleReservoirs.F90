@@ -21,8 +21,10 @@ Module ModuleReservoirs
     use ModuleTime
     use ModuleDischarges
     use ModuleFunctions,    only: LinearInterpolation, ConstructPropertyID,      &
-                                  SetMatrixValue, TimeToString, ChangeSuffix
-    use ModuleTimeSerie,    only: StartTimeSerie, WriteTimeSerieLine, KillTimeSerie
+                                  SetMatrixValue, TimeToString, ChangeSuffix,    &
+                                  InterpolateValueInTime
+    use ModuleTimeSerie,    only: StartTimeSerie, WriteTimeSerieLine, KillTimeSerie, &
+                                  StartTimeSerieInput, GetTimeSerieValue
     use ModuleHDF5
     
     use ModuleHorizontalGrid, only: ConstructHorizontalGrid, KillHorizontalGrid, &
@@ -452,6 +454,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%Continuous) then
                 call ReadInitialVolume
             else
+                !Try to get timeserie of imposed volume (timeseries) available for all or some reservoirs
+                !this value will overwrite the defined in reservoirs file
+                call GetImposedReservoirVolume     
+                
+                !Initialize all reservoirs volume
                 call InitializeReservoirsVolume
             endif
             
@@ -816,7 +823,7 @@ if2:            if (BlockFound) then
                      ClientModule = 'ModuleReservoirs',                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR065'       
-        if (iflag /= 0) then
+        if (iflag /= 0 .and. NewReservoir%InitialVolume >= 0.0 .and. NewReservoir%InitialVolume <= NewReservoir%MaxVolume) then
             NewReservoir%InitialVolumeDefined = .true.            
         endif
         
@@ -2177,8 +2184,8 @@ cd0:    if (Exist) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialConc - ModuleReservoirs - ERR20'             
             
         else
-        
-            !Initial conditions when not defined already in reservoir
+            
+            !Initial conditions when not defined already (in reservoir file or in timeseries)
             call GetData(Me%InitialVolumeDefaultMethod,                                     &
                          Me%ObjEnterData, iflag,                                            &
                          Keyword        = 'INITIAL_VOLUME_DEFAULT_METHOD',                  &
@@ -2254,6 +2261,137 @@ cd0:    if (Exist) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleReservoirs - ERR60'        
         
     end subroutine ConstructGlobalVariables
+    
+    !-------------------------------------------------------------------------
+    
+    subroutine GetImposedReservoirVolume()
+    
+        !Arguments--------------------------------------------------------------
+        !Local------------------------------------------------------------------
+        integer                                         :: NumberOfSources, index, iflag
+        integer                                         :: ClientNumber, STAT_CALL
+        logical                                         :: FoundBlock, FoundReservoir
+        integer                                         :: ReservoirID, ObjTimeSerie
+        character(LEN = StringLength)                   :: FileName
+        type (T_Time)                                   :: Time1, Time2
+        real                                            :: Value1, Value2
+        logical                                         :: TimeCycle        
+        real                                            :: TimeSerieValue
+        type (T_Reservoir), pointer                     :: CurrReservoir 
+        integer                                         :: Column
+        !Begin------------------------------------------------------------------
+        
+        
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR01'        
+        
+        
+       !Gets the number of Source blocks
+        call GetNumberOfBlocks(Me%ObjEnterData, "<BeginInitialVolumeTimeSeries>", "<EndInitialVolumeTimeSeries>",   &
+                               FromFile, NumberOfSources,    &
+                               ClientNumber, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR010'        
+        
+        if (NumberOfSources > 0) then
+          
+            do index = 1, NumberOfSources
+
+                call ExtractBlockFromBuffer(Me%ObjEnterData,                       &
+                                           ClientNumber      = ClientNumber,     &
+                                           block_begin       = "<BeginInitialVolumeTimeSeries>",    &
+                                           block_end         = "<EndInitialVolumeTimeSeries>",      &
+                                           BlockFound        = FoundBlock,                          &
+                                           STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR020'
+
+                if (FoundBlock) then
+            
+                    call GetData(ReservoirID,                                  &
+                                 Me%ObjEnterData , iflag,                      &
+                                 SearchType   = FromBlock,                     &
+                                 keyword      = 'RESERVOIR_ID',                &
+                                 ClientModule = 'ModuleReservoirs',            &
+                                 STAT         = STAT_CALL)                                      
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR021'
+                    if (iflag /= 1) &
+                        stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR022'                    
+
+                
+                    !get the reservoir 
+                    call FindReservoir (ReservoirID, CurrReservoir, FoundReservoir)
+
+                    if (FoundReservoir) then
+                
+                        call GetData(FileName,                                     &
+                                     Me%ObjEnterData, iflag,                       &
+                                     SearchType   = FromBlock,                     &
+                                     keyword      = 'FILENAME',                    &                             
+                                     ClientModule = 'ModuleReservoirs',            &
+                                     STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR025'
+                        
+                        call GetData(Column,                                       &
+                                     Me%ObjEnterData , iflag,                      &
+                                     SearchType   = FromBlock,                     &
+                                     keyword      = 'DATA_COLUMN',                 &
+                                     ClientModule = 'ModuleReservoirs',            &
+                                     STAT         = STAT_CALL)                                      
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR026'
+                        if (iflag /= 1) &
+                            stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR027'                
+
+                        !Starts Time Serie
+                        ObjTimeSerie = 0
+                        call StartTimeSerieInput(ObjTimeSerie,                      &
+                                                 FileName,                          &
+                                                 Me%ObjTime,                        &
+                                                 STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR028'
+                    
+                    
+                        !Get value for start instant
+                        call GetTimeSerieValue (ObjTimeSerie, Me%ExtVar%ActualTime, Column,                     &
+                                                Time1, Value1, Time2, Value2, TimeCycle,                &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR29'
+     
+                        if (TimeCycle) then
+                            TimeSerieValue = Value1
+
+                        else
+
+                            !Interpolates Value for current instant
+                            call InterpolateValueInTime(Me%ExtVar%ActualTime, Time1, Value1, Time2, Value2, TimeSerieValue)
+
+                        endif     
+                    
+                        !apply reservoir value. it will overwrite value defined in reservoir file (if defined)
+                        if (TimeSerieValue <= CurrReservoir%MaxVolume .and. TimeSerieValue >= 0.0) then
+                            CurrReservoir%InitialVolume = TimeSerieValue
+                            CurrReservoir%InitialVolumeDefined = .true.                            
+                        endif
+                    
+                        call KillTimeSerie (ObjTimeSerie, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR30'                        
+                        
+                    endif
+                    
+                else
+
+                    stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR040'
+
+                endif
+
+            enddo          
+        
+        endif
+        
+    end subroutine GetImposedReservoirVolume
     
     !-------------------------------------------------------------------------
     
@@ -2488,8 +2626,11 @@ cd0:    if (Exist) then
             
         do while (associated(CurrentReservoir))
                 
+            !if value defined in reservoir file or in timeseries, aplly it
             if (CurrentReservoir%InitialVolumeDefined) then
                 CurrentReservoir%VolumeOld = CurrentReservoir%InitialVolume
+            
+            !if value was not defined, apply a default precentage of max volume
             else
                 if (Me%InitialVolumeDefaultMethod == StartPercentageFull_) then
                     CurrentReservoir%VolumeOld = CurrentReservoir%MaxVolume * Me%StartPercentageFull / 100.0
@@ -4849,9 +4990,9 @@ if2:            if (Me%HasProperties) then
         
         
         !Writes everything to disk
-        call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR120'
-
+       
         
         deallocate(ReservoirVolume         )
         deallocate(ReservoirConc           )      
@@ -4876,6 +5017,9 @@ if2:            if (Me%HasProperties) then
 
         call KillHorizontalGrid     (ObjHorizontalGrid,  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR180'            
+        
+        call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalHDF - ModuleReservoirs - ERR0190'         
     
     end subroutine WriteFinalHDF
     
