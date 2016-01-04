@@ -1563,7 +1563,10 @@ i1:      if (CoordON) then
       call UnGetGridData (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
       if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleSnow - ERR100'
             
-
+      call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+      if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleSnow - ERR0190'    
+      
+      
    end subroutine WriteFinalFile
 
    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
