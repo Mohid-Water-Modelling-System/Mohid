@@ -9687,6 +9687,8 @@ do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         call UnGetGridData      (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR100'
             
+        call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR0190'            
 
     end subroutine WriteFinalFile
 
