@@ -56,7 +56,7 @@ Module ModuleSediment
                                        GetGridOutBorderPolygon, RotateVectorGridToField
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, BoxDif,         &
                                        UngetBoxDif, KillBoxDif
-    use ModuleGeometry,         only:  GetGeometrySize, UnGetGeometry,                          &
+    use ModuleGeometry,         only:  GetGeometrySize, UnGetGeometry, GetGeometryWaterColumn,  &
                                        GetGeometryDistances, GetGeometryKtop,                   &
                                        ComputeInitialGeometry, ComputeVerticalGeometry,         &
                                        GetGeometryVolumes, ReadGeometryHDF, WriteGeometryHDF
@@ -124,6 +124,7 @@ Module ModuleSediment
     private ::          CurrentOnly
     private ::          CurrentPlusWaves
     private ::          WavesOnly
+    private ::          ComputeAsymmetryFactor
     private ::      ComputeFluxes
     private ::          ComputeBedSlopeEffects
     private ::          FluxesCorrection
@@ -210,10 +211,13 @@ Module ModuleSediment
         real,    pointer, dimension(:,:)        :: InitialBathym    => null()
         real,    pointer, dimension(:,:)        :: GridCellArea     => null()
         real,    pointer, dimension(:,:)        :: WaveDirection    => null()
+        real,    pointer, dimension(:,:)        :: WaveLength       => null()
         real,    pointer, dimension(:,:)        :: Abw              => null()
         real,    pointer, dimension(:,:)        :: Ubw              => null()
         real,    pointer, dimension(:,:)        :: ShearStress      => null()
         real,    pointer, dimension(:,:)        :: EfficiencyFactorCurrent => null()
+        real,    pointer, dimension(:,:)        :: EfficiencyFactorMean => null()
+        real,    pointer, dimension(:,:)        :: EfficiencyFactorWaves => null()
         real,    pointer, dimension(:,:)        :: ShearStressMean  => null()
         real,    pointer, dimension(:,:)        :: VelU             => null()
         real,    pointer, dimension(:,:)        :: VelV             => null()
@@ -221,9 +225,9 @@ Module ModuleSediment
         real,    pointer, dimension(:,:)        :: TauWave          => null()
         real,    pointer, dimension(:,:)        :: Cphi             => null()
         real,    pointer, dimension(:,:)        :: CWphi            => null()
-        real,    pointer, dimension(:,:)        :: Wphi             => null()
         real,    pointer, dimension(:,:)        :: WaveHeight       => null()
         real,    pointer, dimension(:,:)        :: WavePeriod       => null()
+        real,    pointer, dimension(:,:)        :: WaterColumn      => null()
         
         !Sediment
         real,    pointer, dimension(:,:,:)      :: DWZ              => null()
@@ -394,6 +398,7 @@ Module ModuleSediment
         real(8), dimension(:, :), pointer          :: FluxToSediment        => null ()
         real(8), dimension(:, :), pointer          :: BedloadMass           => null ()
         real(8), dimension(:, :), pointer          :: TotalFluxToSediment   => null ()
+        real, dimension(:, :), pointer             :: AsymmetryFactor       => null ()
         
         real                                       :: PorositySand          = null_real
         real                                       :: ConcRefFactor         = null_real
@@ -441,6 +446,8 @@ Module ModuleSediment
         integer                                    :: ObjHorizontalMap      = 0 
         !Instance of ModuleMap                  
         integer                                    :: ObjMap                = 0
+        !Instance of ModuleGeometry                 
+        integer                                    :: ObjGeometry           = 0
         !Instance of ModuleTime                 
         integer                                    :: ObjTime               = 0
         !Instance of ModuleDischarges           
@@ -485,6 +492,7 @@ Module ModuleSediment
 
     subroutine ConstructSediment(ObjSedimentID,                 &
                          ObjGridDataID,                         &
+                         GeometryID,                            &
                          ObjHorizontalGridID,                   &
                          ObjHorizontalMapID,                    &
                          ObjTimeID,                             &
@@ -500,6 +508,7 @@ Module ModuleSediment
         !Arguments-------------------------------------------------------------
         integer                                         :: ObjSedimentID 
         integer                                         :: ObjGridDataID
+        integer                                         :: GeometryID
         integer                                         :: ObjHorizontalGridID
         integer                                         :: ObjHorizontalMapID
         integer                                         :: ObjTimeID
@@ -514,8 +523,6 @@ Module ModuleSediment
            
         !External----------------------------------------------------------------
         integer                                         :: ready_, STAT_CALL
-        !real                                            :: WaterDensity
-        !logical                                         :: WaveTensionON
 
         !Local-------------------------------------------------------------------
         integer                                         :: STAT_
@@ -523,9 +530,6 @@ Module ModuleSediment
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
-        
-        !Jauch: Defined here because it will be passed as argument in the near future... :P
-        !WaveTensionON = .false.
 
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mSediment_)) then
@@ -541,6 +545,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             Me%ObjTime           = AssociateInstance (mTIME_,           ObjTimeID          )
             Me%ObjBathym         = AssociateInstance (mGRIDDATA_,       ObjGridDataID      )
+            Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID         )
             Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  ObjHorizontalMapID )
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, ObjHorizontalGridID)
             
@@ -555,7 +560,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             end if
 
             Me%ExternalVar%WaterDensity  = SigmaDensityReference
-            !Me%ExternalVar%WaveTensionON = WaveTensionON
 
             call GetHorizontalGridSize(Me%ObjHorizontalGrid,                             &
                                        Size        = Me%Size,                            &
@@ -694,17 +698,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                             :: STAT_CALL
 
         !Local-------------------------------------------------------------------
-        integer                             :: iflag
-        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB    
-        
+        integer                             :: iflag        
         !----------------------------------------------------------------------
-        
-        ILB = Me%SedimentSize3D%ILB
-        IUB = Me%SedimentSize3D%IUB
-        JLB = Me%SedimentSize3D%JLB
-        JUB = Me%SedimentSize3D%JUB
-        KLB = Me%SedimentSize3D%KLB
-        KUB = Me%SedimentSize3D%KUB
 
         call GetData(Me%MinLayerThickness,                                               &
                      Me%ObjEnterData,iflag,                                              &
@@ -757,16 +752,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR14' 
 
         !NoTransport = 0, CurrentOnly = 1, CurrentPlusWaves = 2, WavesOnly = 3
-       
-        if     ( Me%BedloadMethod == 2 &
-            .OR. Me%BedloadMethod == 3 )  then
-        
-            if (Me%ObjWaves == 0) stop 'ConstructGlobalParameters - ModuleSediment - ERR16' 
-
-            !if (.not. Me%ExternalVar%WaveTensionON) stop 'ConstructGlobalParameters - ModuleSediment - ERR20' 
-            
-            Me%WavesOn = .true. 
-
+    
+        if (Me%BedloadMethod == 2 .OR. Me%BedloadMethod == 3)  then        
+            if (Me%ObjWaves == 0) then
+                write(*,*) 'ModuleWaves must be activated to run BEDLOAD_METHOD 2 or 3'
+                stop 'ConstructGlobalParameters - ModuleSediment - ERR16'
+            endif            
+                Me%WavesOn = .true. 
         endif
             
          call GetData(Me%BedSlopeEffects,                                                &
@@ -843,15 +835,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR160' 
-        
-        !call GetData(Me%ReferenceLevel,                                                  &
-        !             Me%ObjEnterData,iflag,                                              &
-        !             SearchType   = FromFile,                                            &
-        !             keyword      = 'REFERENCE_LEVEL',                                   &
-        !             default      = 0.01,                                                &
-        !             ClientModule = 'ModuleSediment',                                    &
-        !             STAT         = STAT_CALL)              
-        !if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR170'
         
         call GetData(Me%RefConcMethod,                                                   &
                      Me%ObjEnterData,iflag,                                              &
@@ -979,6 +962,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate(Me%TotalFluxToSediment(ILB:IUB, JLB:JUB))
         Me%TotalFluxToSediment(:,:) = 0.
+        
+        if(Me%WavesOn) then
+            allocate(Me%AsymmetryFactor(ILB:IUB, JLB:JUB))
+            Me%AsymmetryFactor(:,:) = 0.
+        endif
         
         if (Me%Evolution%Bathym) then
             allocate(Me%BatimIncrement(ILB:IUB, JLB:JUB))
@@ -3292,10 +3280,6 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         WIUB = Me%SedimentWorkSize3D%IUB
         WJLB = Me%SedimentWorkSize3D%JLB
         WJUB = Me%SedimentWorkSize3D%JUB        
-
-        !OpenPoints2D
-        !call GetOpenPoints2D (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_) stop 'SetNonCohesiveFlux - ModuleSediment - ERR01'
         
         call GetWaterPoints2D(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'SetNonCohesiveFlux - ModuleSediment - ERR01'
@@ -3337,16 +3321,10 @@ do1:        do n=1,Me%NumberOfClasses
         end if cd1
 
         if (present(STAT)) STAT = STAT_
-
-        !!OpenPoints2D
-        !call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_) stop 'SetNonCohesiveFlux - ModuleSediment - ERR02'
         
         !WaterPoints2D
         call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'SetNonCohesiveFlux - ModuleSediment - ERR02'
-
-    
+        if (STAT_CALL /= SUCCESS_) stop 'SetNonCohesiveFlux - ModuleSediment - ERR02'    
     
     end subroutine SetNonCohesiveFlux
 
@@ -3385,10 +3363,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         if (present(STAT)) STAT = STAT_
     
         if(Me%WavesOn) then
-            if (.not. Me%ExternalVar%WaveTensionON) then                
+            if (Me%ExternalVar%WaveTensionON == .false.) then                
                 write(*,*)
                 write(*,*) 'Define WAVETENSION: 1 in module InterfaceSedimentWater'
                 stop 'SetWaveTensionON - ModuleSediment - ERR10'
+            endif
+        else           
+            if (Me%ExternalVar%WaveTensionON == .true.) then  
+                write(*,*)
+                write(*,*) 'WAVETENSION: 1 is defined in ModuleInterfaceSedimentWater'
+                write(*,*) 'Change BEDLOAD_METHOD to 2 or 3'
+                stop 'SetWaveTensionON - ModuleSediment - ERR20'
             endif
         endif
         
@@ -3575,16 +3560,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine ModifySediment(ObjSedimentID, ShearStress, EfficiencyFactorCurrent, &
-                              VelU, VelV, VelMod,    &
-                              TauWave, ShearStressMean, Cphi, CWphi, Wphi, STAT)
+                              VelU, VelV, VelMod, TauWave, ShearStressMean, Cphi,  & 
+                              CWphi, EfficiencyFactorMean,                   &
+                              EfficiencyFactorWaves, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjSedimentID
         real, dimension(:,:), pointer               :: ShearStress, EfficiencyFactorCurrent, &
-                                                       VelU, VelV, VelMod,           &
-                                                       TauWave, ShearStressMean, &
-                                                       Cphi, CWphi, Wphi   
-        integer, intent(OUT), optional              :: STAT
+                                                       VelU, VelV, VelMod,                  &
+                                                       TauWave, ShearStressMean,            &
+                                                       Cphi, CWphi,                         &
+                                                       EfficiencyFactorMean,                &
+                                                       EfficiencyFactorWaves
+        integer, intent(OUT), optional              :: STAT 
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_, STAT_CALL
@@ -3614,7 +3602,9 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     
                     Me%ExternalVar%Cphi            => Cphi
                     Me%ExternalVar%CWphi           => CWphi
-                    Me%ExternalVar%Wphi            => Wphi
+                    
+                    Me%ExternalVar%EfficiencyFactorMean  => EfficiencyFactorMean
+                    Me%ExternalVar%EfficiencyFactorWaves  => EfficiencyFactorWaves
                     
                     call ComputeOpenSediment
                         
@@ -3834,19 +3824,18 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                         
                     if(SandClass%Field3D(i,j,WKUB) > 0.) then
                 
-                        SandClass%NDShearStress(i,j) = Me%ExternalVar%ShearStress(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50)                        
-                        
-                        SandClass%NDShearStress(i,j) = Me%ExternalVar%EfficiencyFactorCurrent(i,j)*SandClass%NDShearStress(i,j)
+                        SandClass%NDShearStress(i,j) = Me%ExternalVar%ShearStress(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50) &                       
+                                                       * Me%ExternalVar%EfficiencyFactorCurrent(i,j)
                 
                         if (Me%WavesOn) then
                     
-                            SandClass%NDShearStressMean(i,j) = Me%ExternalVar%ShearStressMean(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50)
+                            SandClass%NDShearStressMean(i,j) = Me%ExternalVar%ShearStressMean(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50) &
+                                                               * Me%ExternalVar%EfficiencyFactorMean(i,j)
                 
-                            SandClass%NDShearStressWaves(i,j) = Me%ExternalVar%TauWave(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50)
-                        endif
-                
-
-                
+                            SandClass%NDShearStressWaves(i,j) = Me%ExternalVar%TauWave(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50) &
+                                                               * Me%ExternalVar%EfficiencyFactorWaves(i,j)
+                                                        
+                        endif                
                     endif
                 enddo
             endif
@@ -4320,7 +4309,7 @@ do1:    do n=1,Me%NumberOfClasses
         
         Me%Bedload(:, :) = 0.
         
-        Asym_Factor = 0.2 !It must be computed in a future version
+        Call ComputeAsymmetryFactor
         
 do1:    do n=1,Me%NumberOfClasses
     
@@ -4344,6 +4333,8 @@ do1:    do n=1,Me%NumberOfClasses
                         DeltaTau = SandClass%NDShearStress(i, j)-SandClass%NDCriticalShearStress(i, j)                  
                     
                         if (DeltaTau.GT.0.) then
+                            
+                            Asym_Factor = Me%AsymmetryFactor(i,j)
                             
                             Cphi = Me%ExternalVar%Cphi(i,j) * pi/180. !Current angle in radians
                         
@@ -4423,7 +4414,7 @@ do1:    do n=1,Me%NumberOfClasses
         
         Me%Bedload(:, :) = 0.
         
-        Asym_Factor = 0.2 !It must be computed in a future version
+        Call ComputeAsymmetryFactor
         
 do1:    do n=1,Me%NumberOfClasses
     
@@ -4445,9 +4436,11 @@ do1:    do n=1,Me%NumberOfClasses
                         DeltaTau = SandClass%NDShearStress(i, j)-SandClass%NDCriticalShearStress(i, j)                  
                     
                         if (DeltaTau.GT.0.) then
+                            
+                            Asym_Factor = Me%AsymmetryFactor(i,j)
                         
                             !Wave angle referenced to the grid in radians
-                            Wphi = Me%ExternalVar%Wphi(i,j) * pi/180.
+                            Wphi = Me%ExternalVar%Wavedirection(i,j) * pi/180.
                             
                             NDBedload = A*0.229*Asym_Factor* SandClass%NDShearStressWaves(i,j)**1.5                          
 
@@ -4506,6 +4499,55 @@ do1:    do n=1,Me%NumberOfClasses
         
     end function Cohesiveness_Adjust
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ComputeAsymmetryFactor
+        !Arguments-------------------------------------------------------------
+
+        
+        !Local-----------------------------------------------------------------
+        real    :: HW, LW, KW, h
+        integer :: i, j
+        integer :: WILB, WIUB, WJLB, WJUB, WKUB
+        
+        !Begin----------------------------------------------------------------
+        
+        WILB = Me%SedimentWorkSize3D%ILB
+        WIUB = Me%SedimentWorkSize3D%IUB
+        WJLB = Me%SedimentWorkSize3D%JLB
+        WJUB = Me%SedimentWorkSize3D%JUB
+        
+        do j=WJLB, WJUB
+        do i=WILB, WIUB
+            
+            if (Me%ExternalVar%OpenPoints2D(i,j) == OpenPoint) then
+
+                HW = Me%ExternalVar%WaveHeight(i,j)
+        
+                LW = Me%ExternalVar%WaveLength(i,j)
+                
+                if(HW > 0. .and. LW > 0.) then 
+        
+                    KW = 2*pi/LW
+        
+                    h = Me%ExternalVar%WaterColumn(i,j)
+        
+                    Me%AsymmetryFactor(i,j) = (3/4*pi*HW/(LW*(sinh(KW*h))**3))**2
+        
+                    Me%AsymmetryFactor(i,j) = min(Me%AsymmetryFactor(i,j), 0.2)
+                else
+                    Me%AsymmetryFactor(i,j) = 0.
+                endif
+            endif
+        
+        enddo
+        enddo
+        
+    end subroutine ComputeAsymmetryFactor
+        
+    !--------------------------------------------------------------------------
+        
 
     subroutine ComputeFluxes
       
@@ -6439,6 +6481,11 @@ do1 :               do i=1, Me%NumberOfClasses
                 deallocate(Me%TotalFluxToSediment)
                 nullify(Me%TotalFluxToSediment)
                 
+                if(Me%WavesOn) then
+                    deallocate(Me%AsymmetryFactor)
+                    nullify(Me%AsymmetryFactor)
+                endif
+                    
                 deallocate (Me%D50, STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_)                                          &            
                     stop 'KillSediment - ModuleSediment. ERR01.' 
@@ -6508,6 +6555,9 @@ do1 :               do i=1, Me%NumberOfClasses
 
                 nUsers = DeassociateInstance(mTIME_,            Me%ObjTime)
                 if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR40'
+                
+                nUsers = DeassociateInstance(mGEOMETRY_,        Me%ObjGeometry)
+                if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR45'
 
                 nUsers = DeassociateInstance(mGRIDDATA_,        Me%ObjBathym)
                 if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR50'
@@ -6856,7 +6906,8 @@ cd1:    if (ObjSediment_ID > 0) then
                            WaveHeight    = Me%ExternalVar%WaveHeight,                    &
                            Abw           = Me%ExternalVar%Abw,                           &
                            Ubw           = Me%ExternalVar%Ubw,                           &
-                           WaveDirection = Me%ExternalVar%WaveDirection,                 &
+                           WaveLength    = Me%ExternalVar%WaveLength,                    &        
+                           WaveDirection = Me%ExternalVar%WaveDirection,                 &                           
                            STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleSediment - ERR18'
 
@@ -6867,7 +6918,7 @@ cd1:    if (ObjSediment_ID > 0) then
                              Me%ExternalVar%OpenPoints3D,                           &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
-            call SetError(FATAL_, INTERNAL_, "ReadLockExternalVar; ModuleSediment. ERR08")
+            call SetError(FATAL_, INTERNAL_, "ReadLockExternalVar; ModuleSediment. ERR25")
 
 
         call GetWaterPoints3D(Me%ObjSedimentMap,                                    &
@@ -6879,6 +6930,11 @@ cd1:    if (ObjSediment_ID > 0) then
         call GetGridCellArea (Me%ObjHorizontalGrid, Me%ExternalVar%GridCellArea, STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
             call SetError(FATAL_, INTERNAL_, "ReadLockExternalVar; ModuleSediment. ERR20")
+        
+        call GetGeometryWaterColumn(Me%ObjGeometry,                            &
+                                    WaterColumn = Me%ExternalVar%WaterColumn,  &
+                                    STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleSediment - ERR30'
 
     end subroutine ReadLockExternalVar
 
@@ -6990,15 +7046,20 @@ cd1:    if (ObjSediment_ID > 0) then
 
             call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveDirection, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleSediment - ERR22'
+            
+            call UnGetWaves(Me%ObjWaves, Me%ExternalVar%WaveLength, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleSediment - ERR23'
 
         endif
 #endif
-
             call UnGetGeometry(Me%ObjSedimentGeometry, Me%ExternalVar%VolumeZ, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleSediment - ERR23'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleSediment - ERR24'
 
             call UnGetMap(Me%ObjSedimentMap, Me%ExternalVar%OpenPoints3D, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleSediment - ERR23' 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleSediment - ERR25' 
+            
+            call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleSediment - ERR26'
 
     end subroutine ReadUnLockExternalVar
     !--------------------------------------------------------------------------

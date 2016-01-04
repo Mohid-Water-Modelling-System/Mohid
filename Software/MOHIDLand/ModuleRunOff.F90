@@ -8986,7 +8986,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         
         
         !if (Me%ExtVar%Now == Me%EndTime) then
-        if (IsFinalFile) then
+        if (IsFinalFile .or. Me%Output%RestartOverwrite) then
             FileName = Me%Files%FinalFile
         else
             FileName = ChangeSuffix(Me%Files%FinalFile,                                 &

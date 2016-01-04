@@ -6468,7 +6468,7 @@ cd21:   if (Baroclinic) then
 
 
         !<BeginKeyword>
-            !Keyword          : SUBMODEL_EXTRAPOL
+            !Keyword          : SUBMODEL_EXTRAPOLATE
             !<BeginDescription>       
                ! 
                ! Check if the user wants to extrapolate the father velocities and water levels  
@@ -30883,7 +30883,7 @@ cd3:                   if (Manning) then
                     
         CDM=MAX(CDR,CDS)
                         
-        if (Me%ComputeOptions%WaveShearStress) then
+        if (present(Ubw)) then
                             
             if(UC.gt.1e-6 .and. Ubw.gt.0.)then !combined wave and current flow
                         
@@ -30898,8 +30898,10 @@ cd3:                   if (Manning) then
                 T3=(CDR**2+(FWR/2)**2*(Ubw/UC)**4)**(1./4)
                 A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                 A2=0.40*T3/LOG(T1)
+                if (A1<0) A1 = 0
+                if (A2<0) A2 = 0                    
                 CDMR=((A1**2+A2)**0.5-A1)**2
-                                        
+                
                 !Smooth-turbulent wave-plus-current shear-stress
                 as=0.24
                 T1=9*as*REW*(FWS/2)**0.5*(CDS**2*(UC/Ubw)**4+(FWS/2)**2)**(1./4)
@@ -30907,6 +30909,8 @@ cd3:                   if (Manning) then
                 T3=(CDS**2+(FWS/2)**2*(Ubw/UC)**4)**(1./4)
                 A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                 A2=0.40*T3/LOG(T1)
+                if (A1<0) A1 = 0
+                if (A2<0) A2 = 0                    
                 CDMS=((A1**2+A2)**0.5-A1)**2
                     
                 CDM = MAX(CDMR, CDMS)                  
@@ -31332,7 +31336,7 @@ do6 :           do  i = ILB, IUB
         real,    dimension(:,:),   pointer :: DZX_ZY
 
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ImposedNormalFacesUV
-        integer, dimension(:,:),   pointer :: KFloor_UV, KFloor_Z
+        integer, dimension(:,:),   pointer :: KFloor_UV
 
         real(8), dimension(4)              :: V4
         real,    dimension(4)              :: CFace, Vel4, du4
@@ -31391,7 +31395,6 @@ do6 :           do  i = ILB, IUB
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         ImposedNormalFacesUV => Me%External_Var%ImposedNormalFacesUV
         KFloor_UV            => Me%External_Var%KFloor_UV
-        KFloor_Z             => Me%External_Var%KFloor_Z        
 
         !End - Shorten variables name 
 
@@ -31431,7 +31434,7 @@ do6 :           do  i = ILB, IUB
             ComputeFlux = .false.
 
             !This condition impose in the open boundary gradient null for the horizontal advection 
-            if (ComputeFaces3D_UV(i, j, KUB)            == Covered .or. &
+            if (ComputeFaces3D_UV(i, j, KUB)            == Covered .and. &
                 ComputeFaces3D_UV(iSouth, jWest, KUB) == Covered ) ComputeFlux = .true.
             
             if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == Me%Direction%XY .or. &
@@ -31447,8 +31450,7 @@ do6 :           do  i = ILB, IUB
 cd0:        if (ComputeFlux) then
 
 
-                !Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
-                Kbottom  = KFloor_Z(iSouth, jWest)
+                Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
 
         dok1:   do k = Kbottom, KUB
 
@@ -31497,10 +31499,9 @@ cd0:        if (ComputeFlux) then
                     Me%Aux3DFlux(i, j, k) = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         FaceFlux_WestSouth ![m/s*m^3/s]
-                                        
-                    if (ComputeFaces3D_UV(i, j, k) == Covered) then
-                        Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) +  Me%Aux3DFlux(i, j, k) 
-                    endif                                                                        
+
+
+                    Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) +  Me%Aux3DFlux(i, j, k) 
            
                 enddo dok1
                 
@@ -31518,9 +31519,7 @@ cd0:        if (ComputeFlux) then
             iSouth  = i -   di
             jWest   = j -   dj   
 
-            if (ComputeFaces3D_UV(iSouth, jWest, k) == Covered) then
-                Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) - Me%Aux3DFlux(i, j, k) 
-            endif                
+            Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) - Me%Aux3DFlux(i, j, k) 
 
         enddo
         enddo
@@ -31539,7 +31538,6 @@ cd0:        if (ComputeFlux) then
         nullify (Velocity_UV_Old     )
         nullify (ComputeFaces3D_UV   )
         nullify (KFloor_UV           )
-        nullify (KFloor_Z            )        
         nullify (ImposedNormalFacesUV)
 
         nullify (DZX_ZY              )
@@ -39890,7 +39888,7 @@ doj:    do j=JLB, JUB
 doi:    do i=ILB, IUB
 
             !This if impose in the open boundary gradient null for the vertical advection
-cd1:        if (  ComputeFaces3D_UV(i, j, KUB) == Covered  .and.              &
+cd1:        if (    ComputeFaces3D_UV(i, j, KUB) == Covered  .and.              &
                     WaterColumnUV(i, j) > WaterColumn2D .and.                   &
                     .not. (                                                     &
                         BoundaryFacesUV  (i, j) == Boundary .and.               &
@@ -39968,30 +39966,25 @@ dok1:           do  k = Kbottom + 1, KUB
                     MomentumFlux = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         Face_Flux ![m/s*m^3/s]
-                                        
-                    if (k < KUB) then                                        
 
-                        TiCoef_3D(i, j, k  )  = TiCoef_3D(i, j, k  ) + (1. - ImplicitVertAdvection) * &
-                                                MomentumFlux * Me%Velocity%DT / V4(3)
+                    TiCoef_3D(i, j, k  )  = TiCoef_3D(i, j, k  ) + (1. - ImplicitVertAdvection) * &
+                                            MomentumFlux * Me%Velocity%DT / V4(3)
 
-                        DCoef_3D (i, j, k  )  = DCoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
-                                                CFace(2) * Face_Flux *  Me%Velocity%DT / V4(3)
+                    TiCoef_3D(i, j, k-1)  = TiCoef_3D(i, j, k-1) - (1. - ImplicitVertAdvection) * &
+                                            MomentumFlux * Me%Velocity%DT / V4(2)
 
-                        ECoef_3D (i, j, k  )  = ECoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
-                                                CFace(3) * Face_Flux *  Me%Velocity%DT / V4(3)
-                    endif
-                    
-                    if (k > kbottom + 1) then
-                        TiCoef_3D(i, j, k-1)  = TiCoef_3D(i, j, k-1) - (1. - ImplicitVertAdvection) * &
-                                                MomentumFlux * Me%Velocity%DT / V4(2)
+                    DCoef_3D (i, j, k  )  = DCoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
+                                            CFace(2) * Face_Flux *  Me%Velocity%DT / V4(3)
 
-                        ECoef_3D (i, j, k-1)  = ECoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
-                                                CFace(2) * Face_Flux *  Me%Velocity%DT / V4(2)
+                    ECoef_3D (i, j, k  )  = ECoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
+                                            CFace(3) * Face_Flux *  Me%Velocity%DT / V4(3)
 
-                        FCoef_3D (i, j, k-1)  = FCoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
-                                                CFace(3) * Face_Flux *  Me%Velocity%DT / V4(2)
-                    endif
-                    
+                    ECoef_3D (i, j, k-1)  = ECoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
+                                            CFace(2) * Face_Flux *  Me%Velocity%DT / V4(2)
+
+                    FCoef_3D (i, j, k-1)  = FCoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
+                                            CFace(3) * Face_Flux *  Me%Velocity%DT / V4(2)
+
                 enddo dok1
 
             endif cd1
@@ -40500,6 +40493,8 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         real                               :: DT_Velocity
 
         real                               :: Aux_2D, TauFace, FaceDensity
+        
+        real                               :: SmoothCoef, RunPeriod
     
         integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
 
@@ -40541,6 +40536,20 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         !End - Shorten variables name 
 
 
+        SmoothCoef = 1.
+        
+        if (Me%ComputeOptions%AtmosphereRAMP) then
+
+            RunPeriod = Me%CurrentTime - Me%BeginTime
+
+            if (RunPeriod < Me%ComputeOptions%AtmospherePeriod) then
+
+                SmoothCoef = Me%ComputeOptions%AtmosphereCoef
+
+            endif
+
+        endif
+
   
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
@@ -40553,7 +40562,10 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
                 Kbottom          = KFloor_UV(i, j)
 
                 TauFace  = Face_Interpolation(TauWaves_UV(I,J), TauWaves_UV(iSouth, jWest), &
-                                              DUX_VY(I, J), DUX_VY(iSouth, jWest))                
+                                              DUX_VY(I, J), DUX_VY(iSouth, jWest))        
+
+                TauFace  = SmoothCoef * TauFace
+                                                      
                 ![M*m/s]   [s] * [m] * [m] * [M*m/s^2/m^2] 
                 Aux_2D   = DT_Velocity * DZX_ZY(iSouth, jWest) * DYY_XX(I, J) * TauFace 
 
@@ -44436,7 +44448,7 @@ cd2:    if (Me%OutPut%Run_End) then
             endif
 
             !Residual Velocity
-cd3:        if (Me%ComputeOptions%Residual .and. .not.  SimpleOutPut) then
+cd3:        if (Me%ComputeOptions%Residual) then
 
                 call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = ResidualVelocity)
                 

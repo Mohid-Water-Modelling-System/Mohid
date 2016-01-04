@@ -87,18 +87,20 @@ Module ModuleWaves
     use ModuleHorizontalGrid,   only : LocateCell, GetHorizontalGridSize, GetHorizontalGrid,    &
                                        GetGridAngle, GetCheckDistortion, GetCoordTypeList,      &
                                        GetGridCoordType,  GetLatitudeLongitude,                 &
-                                       UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID, &
-                                       GetDDecompON, WriteHorizontalGrid,           &
+                                       UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID, 		&
+                                       GetDDecompON, WriteHorizontalGrid,               		&
                                        GetGridOutBorderPolygon
-    use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,  &
+    use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,           		&
                                        GetIfMatrixRemainsConstant, KillFillMatrix 
-    use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry, GetGeometryDistances, GetGeometrySize
-    use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData, &
+    use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry, 					&
+	                                   GetGeometryDistances, GetGeometrySize
+    use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData,     		&
                                        HDF5FlushMemory, GetHDF5FileAccess, KillHDF5
     use ModuleGridData,         only : GetGridData, UngetGridData, WriteGridData   
-    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,   &
-                                       GetTimeSerieLocation, CorrectsCellsTimeSerie,    &
-                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName
+    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,   		&
+                                       GetTimeSerieLocation, CorrectsCellsTimeSerie,    		&
+                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie, 				&
+									   GetTimeSerieName
     use ModuleDrawing         
 
     implicit none
@@ -147,6 +149,7 @@ Module ModuleWaves
     private ::      Output_Results_HDF
     private ::      Output_TimeSeries
     public  :: ComputeRadiationStress
+    
 
 
     !Destructor
@@ -2567,7 +2570,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 if (present(LastCompute)) LastCompute = Me%LastCompute
 
-
                 STAT_ = SUCCESS_
             endif
 
@@ -2846,8 +2848,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     endif
                 endif
             endif
-
-            
+           
             Me%LastCompute = Me%ActualTime
 
             !Ungets WaterPoints2D
@@ -4014,9 +4015,8 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
                                                                                 
     end subroutine OutPut_TimeSeries                                            
                                                                                 
-                                                                                
-    !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

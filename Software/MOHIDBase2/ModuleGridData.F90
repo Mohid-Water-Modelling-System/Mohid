@@ -38,12 +38,14 @@ Module ModuleGridData
                                       GetGridCoordType, GetGridAngle, GetGridZone,      &
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       UnGetHorizontalGrid, GetCoordTypeList,            &
-#ifndef _NO_HDF5                                      
-                                      WriteHorizontalGrid,                              &
-#endif
                                       GetCheckDistortion,                               &
                                       GetGridLatitudeLongitude, GetZCoordinates,        &
-                                      GetDDecompParameters, GetDDecompWorkSize2D 
+                                      GetDDecompParameters, GetDDecompWorkSize2D,       &
+                                      Add_MPI_ID_2_Filename 
+
+#ifndef _NO_HDF5                                      
+    use ModuleHorizontalGrid,   only: WriteHorizontalGrid
+#endif
 
 #ifdef _USE_MPI       
     use ModuleHorizontalGrid,   only: JoinGridData  
@@ -204,7 +206,7 @@ Module ModuleGridData
         real                            :: FillValue           = null_real
         integer                         :: TypeZUV             = null_int
         type (T_Evolution)              :: Evolution
-        type (T_DDecomp)    :: DDecomp
+        type (T_DDecomp)                :: DDecomp
         integer                         :: ObjHorizontalGrid   = 0
         type (T_GridData), pointer      :: Next
     end type T_GridData
@@ -528,10 +530,14 @@ Module ModuleGridData
 
                 if (STAT_CALL /= SUCCESS_)                                              &
                     stop 'ReadGridDataFile - ModuleGridData - ERR80'
-
+                    
             endif
-
-
+            
+            call Add_MPI_ID_2_Filename(Me%ObjHorizontalGrid,                            &
+                                       Filename    = Me%Evolution%File,                 &
+                                       STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR85'
+            
             call GetData            (Me%Evolution%PropName, ObjEnterData, flag,         &
                                      keyword      = 'PROPERTY_NAME',                    &
                                      ClientModule = 'ModuleGridData',                   &
@@ -1985,7 +1991,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         real, pointer,           dimension(:,:)     :: XX_IE_Out, YY_IE_Out
         real, pointer,           dimension(:,:)     :: LatConn_Out, LongConn_Out
         
-        type (T_Size2D)                             :: WorkSize
+        type (T_Size2D)                             :: WorkSize, Global
 
         integer                                     :: Unit
         integer                                     :: STAT_CALL
@@ -1993,6 +1999,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                                     :: PORTUGUESE_UTM_ZONE_, SIMPLE_GEOG_
         logical                                     :: exist, DistortionYes
         integer                                     :: i, j, k
+
+        logical                                     :: ON, Master, MasterOrSlave
 
         !------------------------------------------------------------------------
 
@@ -2037,9 +2045,19 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Gets WorkSize
         call GetHorizontalGridSize(HorizontalGridID, WorkSize = WorkSize, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_v1 - ModuleGridData - ERR100'
+
+        call GetDDecompParameters                                                   &
+                             (HorizontalGridID = HorizontalGridID,                  &
+                              ON               = ON,                     &
+                              Master           = Master,                 &
+                              MasterOrSlave    = MasterOrSlave,          &
+                              Global           = Global,                 &  
+                              STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_v1 - ModuleGridData - ERR110'
+        
         
 
-if3:    if (.not. Me%DDecomp%MasterOrSlave .or. Me%DDecomp%Master) then
+if3:    if (.not. MasterOrSlave .or. Master) then
 
             call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_v1 - ModuleGridData - ERR120'
@@ -2069,9 +2087,9 @@ if3:    if (.not. Me%DDecomp%MasterOrSlave .or. Me%DDecomp%Master) then
         endif if3        
 
         
-if1:    if (Me%DDecomp%MasterOrSlave) then
+if1:    if (MasterOrSlave) then
 
-            WorkSize = Me%DDecomp%Global
+            WorkSize = Global
             
 #ifdef _USE_MPI                        
             
@@ -2191,7 +2209,7 @@ if1:    if (Me%DDecomp%MasterOrSlave) then
         
         endif if1
         
-if2:    if (.not. Me%DDecomp%MasterOrSlave .or. Me%DDecomp%Master) then
+if2:    if (.not. MasterOrSlave .or. Master) then
 
             call WriteDataLine(unit, 'COMENT1', COMENT1)
             call WriteDataLine(unit, 'COMENT2', COMENT2)
@@ -2337,7 +2355,7 @@ if2:    if (.not. Me%DDecomp%MasterOrSlave .or. Me%DDecomp%Master) then
         if (STAT_CALL /= SUCCESS_) stop 'WriteGridData_v1 - ModuleGridData - ERR330'
 
 
-if31:   if (Me%DDecomp%MasterOrSlave) then
+if31:   if (MasterOrSlave) then
 
             if (associated(GridData2D_Real_Out)) deallocate(GridData2D_Real_Out   )
             if (associated(GridData2D_Int_Out )) deallocate(GridData2D_Int_Out    )
