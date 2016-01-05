@@ -1646,9 +1646,11 @@ doi3:   do J = JLB, JUB
             IJKLB = min (ILB, JLB, KLB)
             IJKUB = max (IUB, JUB, KUB)
 
-            Me%MaxThreads = 1
-            !$ Me%MaxThreads = omp_get_max_threads()
+            !Me%MaxThreads = 1
+            !!$ Me%MaxThreads = omp_get_max_threads()
 
+            Me%MaxThreads = openmp_num_threads
+            
             allocate(Me%THOMAS)
             allocate(Me%THOMAS%COEF3)
             allocate(Me%THOMAS%VEC(1:Me%MaxThreads))

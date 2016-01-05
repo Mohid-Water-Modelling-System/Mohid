@@ -90,8 +90,8 @@ Module ModuleWaves
                                        UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID, 		&
                                        GetDDecompON, WriteHorizontalGrid,               		&
                                        GetGridOutBorderPolygon
-    use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,           		&
-                                       GetIfMatrixRemainsConstant, KillFillMatrix 
+    use ModuleFillMatrix!,       only : ConstructFillMatrix, ModifyFillMatrix,           		&
+                        !               GetIfMatrixRemainsConstant, KillFillMatrix 
     use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry, 					&
 	                                   GetGeometryDistances, GetGeometrySize
     use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData,     		&
@@ -2833,14 +2833,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%RadiationStress%ON) then
                 if (.not. Me%RadiationStress%Constant) then
                     if (Me%RadiationStress%ID%SolutionFromFile) then
-                        call ModifyFillMatrix (FillMatrixID     = Me%RadiationStress%ID%ObjFillMatrix, &
-                                               Matrix2DU        = Me%RadiationStress%FieldU,           &
-                                               Matrix2DV        = Me%RadiationStress%FieldV,           &
-                                               Matrix2DX        = Me%RadiationStress%FieldX,           &
-                                               Matrix2DY        = Me%RadiationStress%FieldY,           & 
-                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,        &
-                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,       &
-                                               VectorialDummy_  = .true.,                              &
+                        call ModifyFillMatrix (FillMatrixID     = Me%RadiationStress%ID%ObjFillMatrix,  &
+                                               Matrix2DU        = Me%RadiationStress%FieldU,            &
+                                               Matrix2DV        = Me%RadiationStress%FieldV,            &
+                                               Matrix2DX        = Me%RadiationStress%FieldX,            &
+                                               Matrix2DY        = Me%RadiationStress%FieldY,            & 
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,         &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,        &
+                                               !VectorialDummy_  = .true.,                              &
                                                STAT           = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR70'
                     else

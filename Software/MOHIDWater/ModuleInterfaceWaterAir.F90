@@ -4832,7 +4832,7 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
                                   Matrix2DX         = PropWindStress%FieldX,               &
                                   Matrix2DY         = PropWindStress%FieldY,               & 
                                   PointsToFill2D    = Me%ExtWater%WaterPoints2D,           &
-                                  VectorialDummy_ = .true.,                                &
+                                  !VectorialDummy_ = .true.,                                &
                                   STAT              = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_) stop 'ModifyWindStress - ModuleInterfaceWaterAir - ERR01'
 

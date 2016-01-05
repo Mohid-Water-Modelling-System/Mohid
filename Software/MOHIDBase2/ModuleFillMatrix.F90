@@ -7582,9 +7582,21 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ModifyFillMatrixVectorial(FillMatrixID, Matrix2DU, Matrix2DV, Matrix3DU, Matrix3DV, Matrix3DW,  &
-                                Matrix2DX, Matrix2DY, Matrix3DX, Matrix3DY,  PointsToFill2D,       &
-                                PointsToFill3D, Generic_4D_Value, VectorialDummy_, STAT)
+    subroutine ModifyFillMatrixVectorial (FillMatrixID,     &
+                                          Matrix2DU,        &
+                                          Matrix2DV,        &
+                                          Matrix3DU,        &
+                                          Matrix3DV,        & 
+                                          Matrix3DW,        &
+                                          Matrix2DX,        &
+                                          Matrix2DY,        &
+                                          Matrix3DX,        &
+                                          Matrix3DY,        &
+                                          PointsToFill2D,   &
+                                          PointsToFill3D,   &
+                                          Generic_4D_Value, &
+                                          STAT)
+                                !PointsToFill3D, Generic_4D_Value, VectorialDummy_, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: FillMatrixID
@@ -7600,7 +7612,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
         real,                    intent( IN), optional  :: Generic_4D_Value
-        logical                                         :: VectorialDummy_  !dummy to create different signature 
+        !logical                                         :: VectorialDummy_  !dummy to create different signature 
                                                                             !under same interface
         integer,                 intent(OUT), optional  :: STAT
 

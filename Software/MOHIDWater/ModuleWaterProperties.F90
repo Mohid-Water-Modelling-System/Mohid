@@ -180,7 +180,7 @@ Module ModuleWaterProperties
     use ModuleEnterData,            only: ReadFileName, ConstructEnterData, GetData,            &
                                           ExtractBlockFromBuffer, Block_Unlock, GetOutPutTime,  &
                                           ExtractBlockFromBlock, KillEnterData, RewindBuffer,   &
-                                          GetOutPutTimeWindows
+                                          GetOutPutTimeWindows, GetNumberOfBlocks, RewindBlock
     use ModuleStopWatch,            only: StartWatch, StopWatch
     use ModuleDrawing
     use ModuleProfile,              only: StartProfile, WriteProfile, KillProfile
@@ -317,6 +317,8 @@ Module ModuleWaterProperties
     private ::                  Read_Reinitialize_Parameters
     private ::              Construct_PropertyOutPut
     private ::          Add_Property
+    private ::      ConstructChemLinks
+    private ::          ReadChemLink
     private ::      Construct_WQrateList
     private ::          Construct_WQrate 
     private ::              Construct_WqrateID
@@ -793,6 +795,7 @@ Module ModuleWaterProperties
         logical                                 :: Life                 = .false.
         logical                                 :: Bivalve              = .false. 
         logical                                 :: WWTPQ                = .false.
+        logical                                 :: PhreeqC              = .false.
         logical                                 :: Partitioning         = .false.
         logical                                 :: FreeVerticalMovement = .false.
         logical                                 :: AdvectionDiffusion   = .false. 
@@ -927,7 +930,8 @@ Module ModuleWaterProperties
         real, pointer, dimension(:,:,:)         :: Filtration  
         real, pointer, dimension(:    )         :: DischConc 
         real                                    :: MinValue             =   FillValueReal
-        real                                    :: MaxValue             = - FillValueReal   
+        real                                    :: MaxValue             = - FillValueReal
+        real                                    :: GFW = - FillValueReal !Gram formula weight
         type(T_Property), pointer               :: Next, Prev
 
 #ifdef _USE_SEQASSIMILATION
@@ -938,6 +942,26 @@ Module ModuleWaterProperties
 
     end type T_Property
 
+    !------------------------------------------------
+    !Mainly for use with PhreeqC
+    type T_ChemItem
+        type (T_Property), pointer              :: Property => null()
+        integer                                 :: NumberOfAtoms = 0
+    end type T_ChemItem
+    
+    type T_ChemLink
+        type (T_Property), pointer              :: Species => null()
+        integer                                 :: NumberOfComponents = 0
+        type (T_ChemItem), pointer              :: Components(:) => null()
+    end type T_ChemLink
+  
+    type T_ChemLinks
+        logical                                 :: Coupled = .false.
+        integer                                 :: NumberOfLinks = 0
+        type(T_ChemLink), pointer               :: Links(:)
+    end type T_ChemLinks
+    !-----------------------------------------------
+    
     type       T_WQRate
         type (T_ID)                             :: ID
         type (T_ID)                             :: FirstProp, SecondProp
@@ -980,6 +1004,7 @@ Module ModuleWaterProperties
          type(T_Coupling)                       :: Life           
          type(T_Coupling)                       :: Bivalve            
          type(T_Coupling)                       :: WWTPQM
+         type(T_Coupling)                       :: PhreeqC
          type(T_Coupling)                       :: Partition
          type(T_Coupling)                       :: FreeVerticalMovement  
          type(T_Coupling)                       :: SurfaceFluxes 
@@ -1173,6 +1198,7 @@ Module ModuleWaterProperties
         type(T_Discharge)                       :: Discharge
         type(T_HybridWeights)                   :: HybridWeights
         type(T_NoFlux       )                   :: NoFlux
+	type(T_ChemLinks)                       :: ChemLinks
         type(T_DDecomp      )                   :: DDecomp
         integer                                 :: PropertiesNumber         = 0
         integer                                 :: WQratesNumber            = 0
@@ -1194,6 +1220,11 @@ Module ModuleWaterProperties
         integer                                 :: MaxThreads
         
         logical                                 :: TempFirstTimeWarning  = .false.
+        
+        logical                                 :: MustStartPhreeqC = .true.
+        logical                                 :: PhreeqCOnlyForStart = .false.
+        
+        logical                                 :: Continuous = .false.
         
 #ifdef _USE_SEQASSIMILATION
         integer, pointer, dimension(:)          :: PropertiesID
@@ -1372,9 +1403,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Allocates a new Instance
             call AllocateInstance
-
-            Me%MaxThreads = 1
-            !$ Me%MaxThreads = omp_get_max_threads()
+            
+            Me%MaxThreads = openmp_num_threads            
             Me%ModelName = ModelName
             
             nullify (Me%FirstProperty)
@@ -1412,6 +1442,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_) &
                 stop 'Construct_WaterProperties - ModuleWaterProperties - ERR01'
                 
+            call ReadConfiguration
+            
             !Construct the variables necessary to impose 
             !a no flux condition in the model interior            
             call ConstructNoFluxInterior                
@@ -1422,6 +1454,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Constructs the property list 
             call Construct_PropertyList
+            
+            call ConstructChemLinks
             
             !Constructs the list of WQRates
             call Construct_WQRateList
@@ -1750,6 +1784,204 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
+    
+    subroutine ReadConfiguration
+    
+        integer     :: iflag
+        integer     :: status
+    
+        call GetData(Me%PhreeqCOnlyForStart,                    &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromFile,                   &
+                     keyword      = 'PHREEQC_ONLY_START',       &
+                     default      = .false.,                    &
+                     ClientModule = 'ModuleWaterProperties',    &
+                     STAT         = status)
+        if (status /= SUCCESS_) &
+            stop 'ReadConfiguration - ModuleWaterProperties - ERR10' 
+        
+        call GetData(Me%Continuous,                             &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromFile,                   &
+                     keyword      = 'CONTINUOUS',               &
+                     default      = .false.,                    &
+                     ClientModule = 'ModuleWaterProperties',    &
+                     STAT         = status)
+        if (status /= SUCCESS_) &
+            stop 'ReadConfiguration - ModuleWaterProperties - ERR10' 
+        
+        if (Me%Continuous) then
+            Me%MustStartPhreeqC = .false.
+        endif
+            
+        
+    end subroutine ReadConfiguration
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructChemLinks
+    
+        !Arguments-------------------------------------------------------------
+    
+        !Local-----------------------------------------------------------------
+        integer                                         :: client
+        logical                                         :: found
+        integer                                         :: status
+        integer                                         :: index
+        type(T_ChemLink), pointer                       :: ptr
+    
+        !----------------------------------------------------------------------
+    
+        call GetNumberOfBlocks (Me%ObjEnterData,           &
+                                '<beginchemlink>',         &
+                                '<endchemlink>',           &
+                                FromFile_,                 &
+                                Me%ChemLinks%NumberOfLinks,&
+                                STAT = status)
+        if (status /= SUCCESS_) &
+            stop 'ConstructChemLinks - ModuleWaterProperties - ERR010'
+
+        allocate (Me%ChemLinks%Links (1:Me%ChemLinks%NumberOfLinks))
+        
+        if (Me%ChemLinks%NumberOfLinks > 0) then
+            Me%ChemLinks%Coupled = .true.
+        
+            do index = 1, Me%ChemLinks%NumberOfLinks
+
+                call ExtractBlockFromBuffer(Me%ObjEnterData,                      &
+                                            ClientNumber = client,                &
+                                            block_begin  = '<beginchemlink>',     &
+                                            block_end    = '<endchemlink>',       &
+                                            BlockFound   = found,                 &
+                                            STAT         = status)
+                if (status /= SUCCESS_) &
+                    stop 'ConstructChemLinks - ModuleWaterProperties - ERR020'
+
+                if (found) then
+
+                    ptr => Me%ChemLinks%Links(index)
+                    call ReadChemLink (ptr, client)
+                
+                else
+
+                    stop 'ConstructChemLinks - ModuleWaterProperties - ERR030'
+
+                endif
+
+            enddo   
+
+            call Block_Unlock(Me%ObjEnterData, client, status)
+            if (status .NE. SUCCESS_) &
+                stop 'ConstructChemLinks - ModuleWaterProperties - ERR040'
+        
+            call RewindBuffer(Me%ObjEnterData, STAT = status)
+            if (status /= SUCCESS_) &
+                stop 'ConstructChemLinks - ModuleWaterProperties - ERR050.'
+    
+        endif
+        
+    end subroutine ConstructChemLinks
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ReadChemLink (link, client)
+    
+        !Arguments-------------------------------------------------------------
+        type (T_ChemLink), pointer                      :: link
+        integer                                         :: client
+    
+        !Local-----------------------------------------------------------------
+        logical                                         :: found
+        integer                                         :: status
+        integer                                         :: index
+        character(StringLength)                         :: item
+        integer                                         :: item_id
+        type (T_Property), pointer                      :: property
+        integer                                         :: iflag
+        integer                                         :: first
+        integer                                         :: last
+        integer                                         :: l
+        integer                                         :: n_atoms_l
+        integer                                         :: item_int
+    
+        !----------------------------------------------------------------------
+    
+        call GetData(item,                                      &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromBlock,                  &
+                     keyword      = 'SPECIES',                  &
+                     ClientModule = 'ModuleWaterProperties',    &
+                     STAT         = status)
+        if (status /= SUCCESS_) &
+            stop 'ReadChemLink - ModuleWaterProperties - ERR10' 
+        
+        if (WaterPropertyID (item, item_id, property = property) /= SUCCESS_) &
+            stop 'ReadChemLink - ModuleWaterProperties - ERR20' 
+        
+        if (property%GFW <= 0.0) &
+            stop 'ReadChemLink - ModuleWaterProperties - ERR30'
+            
+        link%Species => property
+        
+        call ExtractBlockFromBlock (Me%ObjEnterData, client,        &
+                                    '<<begincomp>>', '<<endcomp>>', &
+                                    found, first, last,             &
+                                    STAT = status)
+        if (status /= SUCCESS_) &
+            stop 'ReadChemLink - ModuleWaterProperties - ERR040'
+
+        if (.not. found) &
+            stop 'ReadChemLink - ModuleWaterProperties - ERR050'
+        
+        link%NumberOfComponents = (last - first - 1) / 2
+        
+        if (link%NumberOfComponents <= 0) &
+            stop 'ReadChemLink - ModuleWaterProperties - ERR060'
+                
+        allocate (link%Components (1:link%NumberOfComponents))                
+        
+        index = 0
+        do l = first + 1, last - 1, 2
+            
+            index = index + 1
+            
+            call GetData(item,                                      &
+                         Me%ObjEnterData, iflag,                    &
+                         Buffer_Line  = l,                          &
+                         ClientModule = 'ModuleWaterProperties',    &
+                         STAT         = status)               
+            if (status /= SUCCESS_) &
+                stop 'ReadChemLink - ModuleWaterProperties - ERR070'
+
+            if (WaterPropertyID (item, item_id, property = property) /= SUCCESS_) &
+                stop 'ReadChemLink - ModuleWaterProperties - ERR80' 
+        
+            if (property%GFW <= 0.0) &
+                stop 'ReadChemLink - ModuleWaterProperties - ERR90'
+            
+            n_atoms_l = l + 1
+            
+            call GetData(item_int,                                  &
+                         Me%ObjEnterData, iflag,                    &
+                         Buffer_Line  = n_atoms_l,                  &
+                         ClientModule = 'ModuleWaterProperties',    &
+                         STAT         = status)               
+            if (status /= SUCCESS_) &
+                stop 'ReadChemLink - ModuleWaterProperties - ERR100'
+            
+            link%Components(index)%NumberOfAtoms = item_int
+            link%Components(index)%Property => property
+            
+        enddo   
+
+        call RewindBlock(Me%ObjEnterData, client, STAT = status)
+        if (status /= SUCCESS_) &
+            stop 'ModuleEnterData - GetNumberOfBlocks - ERR110.'
+    
+    end subroutine ReadChemLink
+    
+    !--------------------------------------------------------------------------
+
     subroutine ConstructDDecomp
 
         !Local-----------------------------------------------------------------
@@ -1839,7 +2071,7 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
     
-    subroutine ConstructSpeciesList 
+    subroutine ConstructSpeciesList
 
         !Local-----------------------------------------------------------------
         type (T_Species),      pointer              :: NewSpecies
@@ -3997,6 +4229,9 @@ i1:     if (OutputOk) then
         Me%Coupled%Life%NumberOfProperties                  = 0
         Me%Coupled%Bivalve%NumberOfProperties               = 0
         Me%Coupled%WWTPQM%NumberOfProperties                = 0
+#ifdef _PHREEQC_        
+        Me%Coupled%PhreeqC%NumberOfProperties               = 0
+#endif
         Me%Coupled%AdvectionDiffusion%NumberOfProperties    = 0
         Me%Coupled%FreeVerticalMovement%NumberOfProperties  = 0
         Me%Coupled%SurfaceFluxes%NumberOfProperties         = 0
@@ -4069,6 +4304,14 @@ do1 :   do while (associated(PropertyX))
                 Me%Coupled%WWTPQM%NumberOfProperties                    + 1
                 Me%Coupled%WWTPQM%Yes                                   = ON
             endif
+            
+#ifdef _PHREEQC_            
+            if (PropertyX%Evolution%PhreeqC) then
+                Me%Coupled%PhreeqC%NumberOfProperties                   = &
+                Me%Coupled%PhreeqC%NumberOfProperties                   + 1
+                Me%Coupled%PhreeqC%Yes                                  = ON
+            endif
+#endif
 
             if (PropertyX%Evolution%LightExtinction) then
                 Me%Coupled%LightExtinction%NumberOfProperties           = &
@@ -4359,6 +4602,15 @@ do1 :   do while (associated(PropertyX))
             call CoupleWWTPQ
 
         end if
+        
+#ifdef _PHREEQC_
+        !PHREEQC
+        if(Me%Coupled%PhreeqC%Yes)then
+
+            call CouplePhreeqC
+
+        end if
+#endif
 
         !Free vertical movement   
         if(Me%Coupled%FreeVerticalMovement%Yes) then
@@ -4654,7 +4906,7 @@ do1 :   do while (associated(PropertyX))
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyState - ModuleWaterProperties - ERR01' 
+            stop 'ConstructAge - ModuleWaterProperties - ERR01' 
 
         if(Me%Age%UseWaterPoints)then
             write(*,*)'Property Age will be computed using WaterPoints'
@@ -5752,6 +6004,102 @@ cd12 :       if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
+#ifdef _PHREEQC_    
+    subroutine CouplePhreeqC
+
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX
+        real, pointer                                       :: SolutionMapping(:,:,:)
+        real, pointer                                       :: EquilibriumMapping(:,:,:)
+        real, pointer                                       :: ExchangeMapping(:,:,:)
+        real, pointer                                       :: SurfaceMapping(:,:,:)
+        real, pointer                                       :: GasPhaseMapping(:,:,:)
+        real, pointer                                       :: SolidSolutionMapping(:,:,:)
+        real, pointer                                       :: KineticsMapping(:,:,:)
+        integer, pointer, dimension(:)                      :: PropertyList
+        logical, pointer, dimension(:)                      :: IsOutputList
+        integer                                             :: STAT_CALL
+        real                                                :: DT
+        integer                                             :: Index = 0
+        !----------------------------------------------------------------------
+
+        Index = 0
+
+        nullify(SolutionMapping)
+        nullify(EquilibriumMapping)
+        nullify(ExchangeMapping)
+        nullify(SurfaceMapping)
+        nullify(GasPhaseMapping)
+        nullify(SolidSolutionMapping)
+        nullify(KineticsMapping)
+        
+        nullify (PropertyList)
+        allocate(PropertyList(1:Me%Coupled%PhreeqC%NumberOfProperties))
+        allocate(IsOutputList(1:Me%Coupled%PhreeqC%NumberOfProperties))
+
+        PropertyX => Me%FirstProperty
+            
+        do while(associated(PropertyX))
+
+            if(PropertyX%Evolution%PhreeqC)then
+
+                select case (PropertyX%ID%IDNumber)
+                case (SolutionMapping_)
+                    SolutionMapping => PropertyX%Concentration
+                case (EquilibriumMapping_)
+                    EquilibriumMapping => PropertyX%Concentration
+                case (ExchangeMapping_)
+                    ExchangeMapping => PropertyX%Concentration
+                case (SurfaceMapping_)
+                    SurfaceMapping => PropertyX%Concentration
+                case (GasPhaseMapping_)
+                    GasPhaseMapping => PropertyX%Concentration
+                case (SolidSolutionMapping_)
+                    SolidSolutionMapping => PropertyX%Concentration
+                case (KineticsMapping_)
+                    KineticsMapping => PropertyX%Concentration
+                case default
+                    Index = Index + 1
+                    PropertyList(Index) = PropertyX%ID%IDNumber    
+                end select                
+                
+            end if
+
+            PropertyX => PropertyX%Next
+        enddo
+        
+        nullify(PropertyX)
+
+        call ConstructInterface(InterfaceID             = Me%ObjInterface,              &
+                                TimeID                  = Me%ObjTime,                   &
+                                SinksSourcesModel       = PhreeqCModel,                 &
+                                DT                      = DT,                           &
+                                PropertiesList          = PropertyList,                 &
+                                WaterPoints3D           = Me%ExternalVar%WaterPoints3D, &
+                                Size3D                  = Me%WorkSize,                  &
+                                Vertical1D              = Me%ExternalVar%Vertical1D,    &
+                                SolutionMapping         = SolutionMapping,              &
+                                EquilibriumMapping      = EquilibriumMapping,           &
+                                ExchangeMapping         = ExchangeMapping,              &
+                                SurfaceMapping          = SurfaceMapping,               &
+                                GasPhaseMapping         = GasPhaseMapping,              &
+                                SolidSolutionMapping    = SolidSolutionMapping,         &
+                                KineticsMapping         = KineticsMapping,              &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'CoupleWaterQuality - ModuleWaterProperties - ERR01'
+        
+        Me%Coupled%PhreeqC%DT_Compute  = DT 
+        Me%Coupled%PhreeqC%NextCompute = Me%ExternalVar%Now
+        
+        deallocate(PropertyList)
+        nullify   (PropertyList)
+
+    end subroutine CouplePhreeqC
+
+    !--------------------------------------------------------------------------
+#endif
+
     subroutine CoupleFreeVerticalMovement (             &
 #ifdef _ENABLE_CUDA
                                             CudaID      &
@@ -6349,6 +6697,16 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)&
             stop 'Construct_PropertyState - ModuleWaterProperties - ERR04' 
+        
+        call GetData(NewProperty%GFW,                                                    &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'GFW',                                               &
+                     Default      = -FillValueReal,                                      &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)&
+            stop 'Construct_PropertyState - ModuleWaterProperties - ERR05' 
 
      end subroutine Construct_PropertyState
 
@@ -6648,7 +7006,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      Me%ObjEnterData,iflag,                                             &
                      SearchType     = FromBlock,                                        &
                      keyword        = 'OLD',                                            &
-                     Default        = .false.,                                          &
+                     Default        = Me%Continuous,                                    &
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_)                                                    &
@@ -7533,6 +7891,32 @@ case1 : select case(PropertyID)
 
         if(NewProperty%Evolution%WWTPQ) NewProperty%evolution%Variable = .true.
 
+        !<BeginKeyword>
+            !Keyword          : PHREEQC
+            !<BeginDescription>       
+               ! This property has PHREEQC Model as a sink and source
+            !<EndDescription>
+            !Type             : Logical 
+            !Default          : FALSE
+            !File keyword     : PHREEQC
+            !Multiple Options : NO, PHREEQC
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>       
+        call GetData(NewProperty%Evolution%PHREEQC,                                      &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'PHREEQC',                                           &
+                     Default      = OFF,                                                 &
+                     ClientModule = 'ModuleWaterProperties',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR73'
+
+        if(NewProperty%Evolution%PHREEQC) NewProperty%evolution%Variable = .true.
+        
+       
         !<BeginKeyword>
             !Keyword          : PARTITION
             !<BeginDescription>       
@@ -11458,6 +11842,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
  
             call ReadLockExternalVar
 
+#ifdef _PHREEQC_
+            if (Me%Coupled%PhreeqC%Yes .and. Me%MustStartPhreeqC) then
+                call PhreeqC_Processes (.true.)
+                if(Me%OutPut%Yes) &
+                    call OutPut_Results_HDF
+                Me%MustStartPhreeqC = .false.
+            endif
+#endif
             call TimeStepActualization
             
             if (Me%Coupled%SolutionFromFile%Yes)              &
@@ -11511,6 +11903,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%SurfaceFluxes%Yes)                 &
                 call Surface_Processes
+            
+            if (Me%ChemLinks%Coupled)                         &
+                call ChemicalLinks
                 
             !Sets Limits to the concentration                
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
@@ -11534,6 +11929,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%WWTPQM%Yes)                        &
                 call WWTPQ_Processes
+
+#ifdef _PHREEQC_
+            if (Me%Coupled%PhreeqC%Yes .and. .not. Me%PhreeqCOnlyForStart)                       &
+                call PhreeqC_Processes (.false.)
+#endif
 
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
@@ -12210,7 +12610,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         if (present(STAT)) STAT = STAT_
             
-        end subroutine UpdateWaterMPI
+    end subroutine UpdateWaterMPI
 
 
 #endif _USE_MPI
@@ -15824,6 +16224,135 @@ cd5:                if (TotalVolume > 0.) then
     
     !--------------------------------------------------------------------------
     
+#ifdef _PHREEQC_
+    subroutine PhreeqC_Processes (is_starting)
+
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL
+        logical                                 :: is_starting
+
+        !Local----------------------------------------------------------------- 
+        type (T_Property), pointer              :: PropertyX
+        type (T_Property), pointer              :: Temperature
+        type (T_Property), pointer              :: Density
+        type (T_Property), pointer              :: Pressure
+        type (T_Property), pointer              :: Porosity
+        type (T_Property), pointer              :: Saturation
+        integer                                 :: i, j, k
+
+        !Begin----------------------------------------------------------------- 
+
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "PhreeqC_Processes")
+
+        if (Me%ExternalVar%Now .GE. Me%Coupled%PhreeqC%NextCompute .or. is_starting) then
+            
+            PropertyX => Me%FirstProperty
+            do while(associated(PropertyX))
+
+                if (PropertyX%Evolution%PhreeqC) then
+
+                    select case (PropertyX%ID%IDNumber)
+                    case (Temperature_)
+                        Temperature => PropertyX
+                    case (Density_)
+                        Density => PropertyX
+                        Density%Concentration = Me%Density%Field !WARNING: Must be checked if the Density Field is already defined.
+                    case (CellPorosity_)
+                        Porosity => PropertyX
+                    case (Pressure_)
+                        Pressure => PropertyX
+                    case (WaterSaturation_)
+                        Saturation => PropertyX
+                    end select
+
+                end if
+
+                PropertyX => PropertyX%Next
+                
+            end do            
+            
+            PropertyX => Me%FirstProperty
+            do while(associated(PropertyX))
+
+                if (PropertyX%Evolution%PhreeqC) then
+                    
+                    select case (PropertyX%ID%IDNumber)
+                    case (Temperature_, Pressure_, Density_, WaterSaturation_, CellPorosity_, &
+                          SolutionMapping_,EquilibriumMapping_,ExchangeMapping_,SurfaceMapping_, &
+                          GasPhaseMapping_,SolidSolutionMapping_,KineticsMapping_)
+                        !Do nothing
+                    case default
+                        !print *, "1. Property "//trim(PropertyX%ID%Name)
+                        call Modify_Interface (InterfaceID       = Me%ObjInterface,                     &
+                                               PropertyID        = PropertyX%ID%IDNumber,               &
+                                               Concentration     = PropertyX%Concentration,             &
+                                               WaterPoints3D     = Me%ExternalVar%WaterPoints3D,        &
+                                               OpenPoints3D      = Me%ExternalVar%OpenPoints3D,         &
+                                               DWZ               = Me%ExternalVar%DWZ,                  &
+                                               Temperature       = Temperature%Concentration,           &
+                                               Pressure          = Pressure%Concentration,              &
+                                               Density           = Density%Concentration,               &
+                                               Porosity          = Porosity%Concentration,              &
+                                               WaterSaturation   = Saturation%Concentration,            &
+                                               IsPhreeqCStarting = is_starting,                         &
+                                               STAT              = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) &
+                            stop 'PhreeqC_Processes - ModuleWaterProperties - ERR02'
+                    end select
+                
+                endif
+                
+                PropertyX => PropertyX%Next
+
+            end do
+
+            if (.not. is_starting) &
+                Me%Coupled%PhreeqC%NextCompute = Me%Coupled%PhreeqC%NextCompute + Me%Coupled%PhreeqC%DT_Compute
+            
+        endif
+        
+        PropertyX => Me%FirstProperty
+        do while (associated(PropertyX))
+
+            if (PropertyX%Evolution%PhreeqC) then
+            if (Me%ExternalVar%Now .GE.PropertyX%Evolution%NextCompute .or. is_starting) then
+                
+                select case (PropertyX%ID%IDNumber)
+                case (Temperature_, Pressure_, Density_, WaterSaturation_, CellPorosity_, &
+                      SolutionMapping_,EquilibriumMapping_,ExchangeMapping_,SurfaceMapping_, &
+                      GasPhaseMapping_,SolidSolutionMapping_,KineticsMapping_)
+                    !Do nothing
+                case default
+                    !print *, "2. Property "//trim(PropertyX%ID%Name)
+                    call Modify_Interface (InterfaceID       = Me%ObjInterface,                     &
+                                           PropertyID        = PropertyX%ID%IDNumber,               &
+                                           Concentration     = PropertyX%Concentration,             &
+                                           DTProp            = PropertyX%Evolution%DTInterval,      &
+                                           WaterPoints3D     = Me%ExternalVar%WaterPoints3D,        &
+                                           OpenPoints3D      = Me%ExternalVar%OpenPoints3D,         &
+                                           IsPhreeqCStarting = is_starting,                         &
+                                           !IsPhreeqCOutput   = PropertyX%Evolution%IsPhreeqCOutput, &
+                                           STAT              = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) &
+                        stop 'PhreeqC_Processes - ModuleWaterProperties - ERR03'
+                    
+                endselect
+                
+            endif
+            endif
+            
+            PropertyX=>PropertyX%Next
+
+        enddo
+
+        nullify(PropertyX)
+         
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "PhreeqC_Processes")
+
+    end subroutine PhreeqC_Processes
+#endif
+    !--------------------------------------------------------------------------
+    
     subroutine Bivalve_Processes 
 
         !External--------------------------------------------------------------
@@ -17587,6 +18116,107 @@ do3:                                do k = kbottom, KUB
     end subroutine Reinitialize_Solution
 
     !--------------------------------------------------------------------------
+    
+    subroutine ChemicalLinks
+    
+        !Arguments-------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+        integer                                         :: index
+        integer                                         :: ILB, IUB, JLB, JUB, KUB
+        integer                                         :: i, j, comp_i
+        real                                            :: change_in_mass
+        type(T_Property), pointer                       :: species
+        type(T_Property), pointer                       :: component
+        type(T_ChemLink), pointer                       :: link
+        real                                            :: n_atoms
+        
+        !----------------------------------------------------------------------
+    
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB 
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        KUB = Me%WorkSize%KUB 
+        
+        do index = 1, Me%ChemLinks%NumberOfLinks
+        
+            link => Me%ChemLinks%Links(index)
+            species => link%Species
+            
+            select case (species%ID%IDNumber)
+            case (CarbonDioxide_)
+            
+                do j=JLB, JUB
+                do i=ILB, IUB                
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                    !The CO2 Surface Flux is in mmol.m-2.s-1
+                    !It is necessary to transform it to mg.
+                    !The equation to do this is: 
+                    !
+                    !mg      = mmol.m-2.s-1 * s  *    m2    * mg/mmol
+                    !CO2mass =   CO2Flux    * DT * CellArea * GFW
+                    !
+                    !The GFW is given in g/mol, but the value is the same when you 
+                    !change it to mg/mmol
+                    
+                    change_in_mass = species%SurfaceFlux(i,j) * species%Evolution%DTInterval *  &
+                                     Me%ExternalVar%gridCellArea(i, j) * species%GFW
+                    
+                    do comp_i = 1, link%NumberOfComponents
+                    
+                        component => link%Components(comp_i)%Property
+                        n_atoms = real(link%Components(comp_i)%NumberOfAtoms)
+                    
+                        component%Concentration(i,j,KUB) = component%Concentration(i,j,KUB) - &
+                                             (component%GFW * n_atoms / species%GFW) * change_in_mass / &
+                                             Me%ExternalVar%VolumeZ(i,j,KUB) / 1000.0
+                        
+                    enddo
+                
+                endif                
+                enddo
+                enddo
+            
+            case (Oxygen_)
+                
+                do j=JLB, JUB
+                do i=ILB, IUB                
+                if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                    !The O2 Surface Flux is in mg.s-1
+                    !It is necessary to transform it to mg.
+                    !The equation to do this is: 
+                    !
+                    !mg     =   mg.s-1 * s
+                    !O2mass =   O2Flux * DT
+                    
+                    change_in_mass = species%SurfaceFlux(i,j) * species%Evolution%DTInterval
+                    
+                    do comp_i = 1, link%NumberOfComponents
+                    
+                        component => link%Components(comp_i)%Property
+                        n_atoms = real(link%Components(comp_i)%NumberOfAtoms)
+                    
+                        component%Concentration(i,j,KUB) = component%Concentration(i,j,KUB) - &
+                                             (component%GFW * n_atoms / species%GFW) * change_in_mass / &
+                                             Me%ExternalVar%VolumeZ(i,j,KUB) / 1000.0
+                        
+                    enddo
+                
+                endif                
+                enddo
+                enddo
+                
+            case default
+                stop 'ChemicalLinks - ModuleWaterProperties - ERR010'
+            end select
+
+        enddo
+    
+    end subroutine ChemicalLinks
+    
+    !--------------------------------------------------------------------------
     ! This subroutine is responsable for computing the  
     ! surface processes                                  
 
@@ -17764,14 +18394,14 @@ case1 :     select case(Property%ID%IDNumber)
                     !Search the temperature
                     call Search_Property(PropTemperature, PropertyXID = Temperature_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) then
-                        write(*,*)'Cant calculate oxygen flux through surface without temperature'
+                        write(*,*)'Cant calculate carbon dioxide flux through surface without temperature'
                         stop 'Surface_Processes - ModuleWaterProperties - ERR04'
                     endif
 
                     !Search the salinity
                     call Search_Property(PropSalinity, PropertyXID = Salinity_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) then
-                        write(*,*)'Cant calculate oxygen flux through surface without salinity'
+                        write(*,*)'Cant calculate carbon dioxide flux through surface without salinity'
                         stop 'Surface_Processes - ModuleWaterProperties - ERR05'
                     endif
 
@@ -23474,6 +24104,42 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !----------------------------------------------------------------------
     
+    function WaterPropertyID (name, id, property) result (res)
+    
+        !Arguments--------------------------------------------------------
+        character (StringLength)                        :: name
+        integer                                         :: id
+        type (T_Property), pointer, optional            :: property
+        integer                                         :: res
+    
+        !Local------------------------------------------------------------
+        type (T_Property), pointer                      :: property_
+        
+        !-----------------------------------------------------------------
+    
+        property_ => Me%FirstProperty
+
+        do while (associated(property_)) 
+            if (trim(property_%ID%Name) == trim(name)) then
+                exit        
+            else
+                property_ => property_%Next                 
+            end if    
+        end do    
+
+       if (associated(property_)) then
+            res = SUCCESS_
+            if (present (property)) &
+                property => property_
+        else
+            res = NOT_FOUND_ERR_
+            if (present (property)) &
+                nullify(property)
+        end if 
+                
+    end function WaterPropertyID
+    
+    !----------------------------------------------------------------------
     
     subroutine Search_Property(PropertyX, PropertyXID, STAT)
 
@@ -24470,8 +25136,7 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'KillWaterProperties - ModuleWaterProperties - ERR180'
                 endif
-
-
+                
                 !Closes all time series from tracking discharges
                 DischargeTimeSerie => Me%FirstDischargeTimeSerie
                 
@@ -24729,7 +25394,11 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
 
                 !Interface
                 if (Me%Coupled%WQM%Yes  .or. Me%Coupled%CEQUALW2%Yes .or. &
-                    Me%Coupled%Life%Yes .or. Me%Coupled%WWTPQM%Yes   ) then
+                    Me%Coupled%Life%Yes .or. Me%Coupled%WWTPQM%Yes &
+#ifdef _PHREEQC_                    
+                    .or. Me%Coupled%PhreeqC%Yes &
+#endif                        
+                    ) then
                     call KillInterface(Me%ObjInterface, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'KillWaterProperties - ModuleWaterProperties - ERR410'
