@@ -740,6 +740,8 @@ cd0:    if (ready_ == OFF_ERR_) then
         !External----------------------------------------------------------------
         integer                             :: stat_call
         integer                             :: iflag
+        real, dimension(3), target          :: schedule_array
+        real, dimension(:), pointer         :: aux
 
         !Begin-------------------------------------------------------------------
         call GetData (new_schedule%ID%Name,                 &
@@ -801,7 +803,28 @@ cd0:    if (ready_ == OFF_ERR_) then
         if (stat_call /= SUCCESS_) &
             stop 'ConstructSchedule - ModuleIrrigation - ERR060'
         
-        new_schedule%TimeSinceLastEvent = new_schedule%MinimumIntervalBetweenEvents + 1
+        !This guarantees that if the threshold is met at the start of the simulation,
+        !The irrigation can be triggered.
+        !In case a continuation the value is read from the final HDF file
+        !if (Me%Continuous) then
+        !    
+        !    call HDF5SetLimits  (Me%ObjIniHDF5, 1, 3, STAT = stat_call)
+        !    if (stat_call /= SUCCESS_) stop 'WriteRestartFile - ModuleIrrigation - ERR090'
+        !    
+        !    aux => schedule_array
+        !    
+        !    call HDF5ReadData (Me%ObjIniHDF5,                                       &
+        !                       "/Schedules/"//trim(adjustl(new_schedule%ID%Name)),  &
+        !                       "info",                                              &
+        !                       Array1D = aux,                                       &
+        !                       STAT    = stat_call)
+        !    if (stat_call /= SUCCESS_) &
+        !        stop 'ConstructSchedule - ModuleIrrigation - ERR091'
+        !    
+        !    new_schedule%TimeSinceLastEvent = aux(3)    
+        !else
+            new_schedule%TimeSinceLastEvent = new_schedule%MinimumIntervalBetweenEvents + 1
+        !endif
         
         call GetData (new_schedule%MaxConsecutiveDays,              &
                       Me%ObjEnterData, iflag,                       &
@@ -1352,38 +1375,39 @@ cd1 :       if (block_found) then
 
         !Local-------------------------------------------------------------------
         integer                             :: stat_call
-        integer, dimension(2), target       :: schedule_array
+        real, dimension(3), target          :: schedule_array
         real, dimension(15), target         :: daily_sch_array
-        integer, dimension(:), pointer      :: array_integer_ptr
-        real, dimension(:), pointer         :: array_real_ptr
+        real, dimension(:), pointer         :: array_real_ptr, aux
         integer                             :: index
         type (T_DailySchedule), pointer     :: new_day
         
         !------------------------------------------------------------------------
-        array_integer_ptr => schedule_array
+        aux => schedule_array
         array_real_ptr => daily_sch_array
         
-        call HDF5SetLimits (Me%ObjIniHDF5, 1, 2, STAT = stat_call)
+        call HDF5SetLimits (obj_hdf, 1, 3, STAT = stat_call)
         if (stat_call /= SUCCESS_) &
             stop 'ConstructDailySchedules - ModuleIrrigation - ERR010'
         
         call HDF5ReadData (obj_hdf, "/Schedules/"//trim(adjustl(schedule%ID%Name)), &
                            "info",                                                  &
-                           Array1D = array_integer_ptr,                             &
+                           Array1D = aux,                                           &
                            STAT = stat_call)
         if (stat_call /= SUCCESS_) &
             stop 'ConstructDailySchedules - ModuleIrrigation - ERR020'
         
-        if (array_integer_ptr(2) > 0) then
+        schedule%TimeSinceLastEvent = aux(3)
+        
+        if (aux(2) > 0) then
             
-            call HDF5SetLimits (Me%ObjIniHDF5, 1, 15, STAT = stat_call)
+            call HDF5SetLimits (obj_hdf, 1, 15, STAT = stat_call)
             if (stat_call /= SUCCESS_) &
                 stop 'ConstructDailySchedules - ModuleIrrigation - ERR030'
             
-            do index = 1, array_integer_ptr(2)                            
+            do index = 1, aux(2)                            
                 
                 call HDF5ReadData (obj_hdf, "/Schedules/"//trim(adjustl(schedule%ID%Name))//"/daily schedules", &
-                                   "daily_schedule",                                                            &
+                                   "daily schedule",                                                            &
                                    Array1D = array_real_ptr,                                                    &
                                    OutputNumber = index,                                                        &
                                    STAT = stat_call)
@@ -2951,7 +2975,7 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
         real, dimension(:), pointer         :: TimePtr
         integer, dimension(:,:), pointer    :: BasinPoints
         type (T_Time)                       :: Actual
-        real, dimension(2), target          :: schedule_array
+        real, dimension(3), target          :: schedule_array
         real, dimension(15), target         :: daily_schedule_array
         real, dimension(:), pointer         :: aux
         type(T_DailySchedule), pointer      :: day_schedule
@@ -3030,13 +3054,14 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
             
             schedule_x => Me%Schedules(schedule_i)
             
-            call HDF5SetLimits  (ObjHDF5, 1, 2, STAT = stat_call)
+            call HDF5SetLimits  (ObjHDF5, 1, 3, STAT = stat_call)
             if (stat_call /= SUCCESS_) stop 'WriteRestartFile - ModuleIrrigation - ERR090'
             
             aux => schedule_array
             
             aux(1) = schedule_x%ID%IDNumber
             aux(2) = schedule_x%DailySchedulesNumber
+            aux(3) = schedule_x%TimeSinceLastEvent
 
             call HDF5WriteData (ObjHDF5,                                    &
                                 "/Schedules/"//trim(schedule_x%ID%Name),    &
@@ -3047,7 +3072,7 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
             if (stat_call /= SUCCESS_) &
                 stop 'WriteRestartFile - ModuleIrrigation - ERR110'
 
-            !if there are active daily schedules, save them to the file
+            !if there are active daily schedules, save them to the file            
             if (schedule_x%DailySchedulesNumber > 0) then
                 
                 call HDF5SetLimits  (ObjHDF5, 1, 15, STAT = stat_call)
