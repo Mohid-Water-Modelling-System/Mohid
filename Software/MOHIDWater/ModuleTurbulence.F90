@@ -246,6 +246,8 @@ Module ModuleTurbulence
          integer                                    :: ReadContinuousFormat  = null_int
          integer                                    :: WriteContinuousFormat = null_int
          integer                                    :: ContinuousFormat      = null_int        
+         logical                                    :: WaveBreaking          = .false. 
+         real                                       :: CoefBreaking          = null_real
     end type T_TurbOptions
 
     type       T_Statistics
@@ -315,37 +317,40 @@ Module ModuleTurbulence
         integer, pointer, dimension(:,:  )          :: KFloorZ      => null() !inicialization: Carina
 
         !Bathymetry    
-        real,    pointer, dimension(:,:  )          :: Bathymetry   => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )          :: Bathymetry   => null() 
 
         !HorizontalGrid
-        real,    pointer, dimension(:,:  )          :: DUX          => null() !inicialization: Carina
-        real,    pointer, dimension(:,:  )          :: DVY          => null() !inicialization: Carina
-        real,    pointer, dimension(:,:  )          :: DYY          => null() !inicialization: Carina
-        real,    pointer, dimension(:,:  )          :: DZX          => null() !inicialization: Carina
-        real,    pointer, dimension(:,:  )          :: DZY          => null() !inicialization: Carina
+        real,    pointer, dimension(:,:  )          :: DUX          => null() 
+        real,    pointer, dimension(:,:  )          :: DVY          => null() 
+        real,    pointer, dimension(:,:  )          :: DYY          => null() 
+        real,    pointer, dimension(:,:  )          :: DZX          => null() 
+        real,    pointer, dimension(:,:  )          :: DZY          => null() 
 
         !WaterProperties
-        real,    dimension(:,:,:), pointer          :: Temperature  => null() !inicialization: Carina
-        real,    dimension(:,:,:), pointer          :: Salinity     => null() !inicialization: Carina
-        real,    dimension(:,:,:), pointer          :: SigmaNoPressure  => null() !inicialization: Carina
-        integer                                     :: DensMethod   = null_int !inicialization: Carina
-        logical                                     :: CorrecPress  = .false. !inicialization: Carina
+        real,    dimension(:,:,:), pointer          :: Temperature      => null() 
+        real,    dimension(:,:,:), pointer          :: Salinity         => null() 
+        real,    dimension(:,:,:), pointer          :: SigmaNoPressure  => null() 
+        real,    dimension(:,:  ), pointer          :: WaterLevel       => null() 
+        real,    dimension(:,:  ), pointer          :: WaterLevelOld    => null()         
+        real                                        :: WaterLevelDT     =  null_real      
+        integer                                     :: DensMethod       =  null_int
+        logical                                     :: CorrecPress      =  .false. 
 
         !Bottom
-        real                                        :: BottomRugosity = null_real  !inicialization: Carina
+        real                                        :: BottomRugosity = null_real 
 
         !Map
-        integer, pointer, dimension(:,:,:)          :: WaterPoints3D     => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:)          :: OpenPoints3D      => null() !inicialization: Carina 
-        integer, pointer, dimension(:,:,:)          :: ComputeFacesU3D   => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:)          :: ComputeFacesV3D   => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:)          :: ComputeFacesW3D   => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:)          :: ImposedTangentialFacesU  => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:)          :: ImposedTangentialFacesV  => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:)          :: ImposedNormalFacesU      => null() !inicialization: Carina
-        integer, pointer, dimension(:,:,:)          :: ImposedNormalFacesV      => null() !inicialization: Carina
+        integer, pointer, dimension(:,:,:)          :: WaterPoints3D            => null()
+        integer, pointer, dimension(:,:,:)          :: OpenPoints3D             => null()
+        integer, pointer, dimension(:,:,:)          :: ComputeFacesU3D          => null()
+        integer, pointer, dimension(:,:,:)          :: ComputeFacesV3D          => null()
+        integer, pointer, dimension(:,:,:)          :: ComputeFacesW3D          => null()
+        integer, pointer, dimension(:,:,:)          :: ImposedTangentialFacesU  => null()
+        integer, pointer, dimension(:,:,:)          :: ImposedTangentialFacesV  => null()
+        integer, pointer, dimension(:,:,:)          :: ImposedNormalFacesU      => null()
+        integer, pointer, dimension(:,:,:)          :: ImposedNormalFacesV      => null()
 
-        integer, pointer, dimension(:,:  )          :: WaterPoints2D    => null() !inicialization: Carina 
+        integer, pointer, dimension(:,:  )          :: WaterPoints2D    => null() 
     end type T_External
 
     type       T_OutPut         
@@ -353,16 +358,16 @@ Module ModuleTurbulence
          logical                                    :: ON                       = .false.
          logical                                    :: WriteRestartFile         = .false.
          logical                                    :: RestartOverwrite         = .false.
-         logical                                    :: Run_End                  = .false. !inicialization: Carina
-         type (T_Time), dimension(:), pointer       :: OutTime, RestartOutTime  => null() !inicialization: Carina
-         real, dimension(:, :, :), pointer          :: Aux3D                    => null() !inicialization: Carina
+         logical                                    :: Run_End                  = .false. 
+         type (T_Time), dimension(:), pointer       :: OutTime, RestartOutTime  => null() 
+         real, dimension(:, :, :), pointer          :: Aux3D                    => null() 
          logical                                    :: TimeSerie                = .false.
          logical                                    :: ProfileON                = .false.
     end type T_OutPut
 
     type      T_Turbulence
-        integer                                     :: InstanceID = null_int !inicialization: Carina
-        character(PathLength)                       :: ModelName = null_str  !inicialization: Carina
+        integer                                     :: InstanceID   = null_int 
+        character(PathLength)                       :: ModelName    = null_str  
         type(T_Size3D     )                         :: Size   
         type(T_Size3D     )                         :: WorkSize
         logical                                     :: MixingLengthH = .false.
@@ -1416,7 +1421,7 @@ cd2 :   if (flag .EQ. 0) then
             !<EndDescription>
             !Type             : Logical
             !Default          : .false.
-            !File keyword     : MLD 
+            !File keyword     : IN_TURB 
             !Multiple Options : .true. , .false.
             !Search Type      : From File
         !<EndKeyword>
@@ -1440,7 +1445,7 @@ cd2 :   if (flag .EQ. 0) then
             !<EndDescription>
             !Type             : Logical
             !Default          : .false.
-            !File keyword     : MLD_BOTTOM 
+            !File keyword     : IN_TURB 
             !Multiple Options : .true. , .false.
             !Search Type      : From File
             !<EndKeyword>
@@ -1461,7 +1466,7 @@ cd2 :   if (flag .EQ. 0) then
             !<EndDescription>
             !Type             : Integer
             !Default          : 2
-            !File keyword     : MLD_Method
+            !File keyword     : IN_TURB
             !Multiple Options : 1 !TKE_min, 2 !Rich_crit 3 !
             !Search Type      : From File
             !<EndKeyword>
@@ -1483,7 +1488,7 @@ cd2 :   if (flag .EQ. 0) then
             !<EndDescription>
             !Type             : Real
             !Default          : 1e-5
-            !File keyword     : TKE_MLD
+            !File keyword     : IN_TURB
             !Search Type      : From File
         !<EndKeyword> 
            if(Me%TurbOptions%MLD_Method == TKE_MLD_) then
@@ -1519,7 +1524,7 @@ cd2 :   if (flag .EQ. 0) then
             !<EndDescription>
             !Type             : Real
             !Default          : 0.5
-            !File keyword     : RICH_MLD
+            !File keyword     : IN_TURB
             !Search Type      : From File
            !<EndKeyword> 
         
@@ -1627,7 +1632,7 @@ cd2 :   if (flag .EQ. 0) then
             !<EndDescription>
             !Type             : Integer 
             !Default          : HDF5_
-            !File keyword     : IN_DAD3D
+            !File keyword     : IN_TURB
             !Multiple Options : Do not have
             !Search Type      : FromFile
         !<EndKeyword>
@@ -1651,7 +1656,7 @@ cd2 :   if (flag .EQ. 0) then
             !<EndDescription>
             !Type             : Integer 
             !Default          : HDF5_
-            !File keyword     : IN_DAD3D
+            !File keyword     : IN_TURB
             !Multiple Options : Do not have
             !Search Type      : FromFile
         !<EndKeyword>
@@ -1678,7 +1683,7 @@ cd2 :   if (flag .EQ. 0) then
             !<EndDescription>
             !Type             : Integer 
             !Default          : HDF5_
-            !File keyword     : IN_DAD3D
+            !File keyword     : IN_TURB
             !Multiple Options : Do not have
             !Search Type      : FromFile
         !<EndKeyword>
@@ -1707,7 +1712,62 @@ cd2 :   if (flag .EQ. 0) then
             Me%TurbOptions%WriteContinuousFormat /= HDF5_) then
             call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR300.')
         endif
+                
+        
+       !<BeginKeyword>
+        !Keyword          : WAVE_BREAKING 
+        !<BeginDescription>       
+            ! Computes an add factor the the horizontal turbulent viscosity due to the 
+            ! wave breaking effect following
+            ! Kennedy A.B., Chen Q., Kirby J.T. and Dalrymple R.A., Boussinesq modeling of wave
+            ! transformation, breaking, and runup. Part I: 1D, Journal of Waterway, Port, 
+            ! Coastal, and Ocean Engineering, vol.126, no.1, 2000, pp.39–47. 
+        !<EndDescription>
+        !Type             : logical
+        !Default          : .false.
+        !File keyword     : IN_TURB
+        !Search Type      : From File
+       !<EndKeyword> 
+                                
+        call GetData(Me%TurbOptions%WaveBreaking,                                       &
+                     Me%ObjEnterData, flag,                                             &
+                     keyword      = 'WAVE_BREAKING',                                    &
+                     ClientModule = 'ModuleTurbulence',                                 &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)            
+         if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR14'
+         
+        if (Me%TurbOptions%WaveBreaking) then
 
+           !<BeginKeyword>
+            !Keyword          : COEF_BREAKING 
+            !<BeginDescription>       
+                !
+                ! The add factor due to wave breaking is a formula of the type 
+                !
+                ! Coef * B * HT * abs(dn/dt) and HT - Water column, n - water level and B is a function of dn/dt and HT 
+                ! 
+                ! Coef is a calibration factor that changes between 1.4 and 10 see 
+                ! 1DH Boussinesq modeling of wave transformation over fringing reefs Y Yao, Z Huang, SG Monismith, EYM Lo
+                ! Ocean Engineering 47, 30-42
+                
+            !<EndDescription>
+            !Type             : logical
+            !Default          : .false.
+            !File keyword     : IN_TURB
+            !Search Type      : From File
+           !<EndKeyword> 
+                                    
+            call GetData(Me%TurbOptions%CoefBreaking,                                   &
+                         Me%ObjEnterData, flag,                                         &
+                         keyword      = 'COEF_BREAKING',                                &
+                         ClientModule = 'ModuleTurbulence',                             &
+                         Default      = 1.4,                                            &
+                         STAT         = STAT_CALL)            
+             if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR20'
+        
+        endif
+    
     end subroutine TurbulenceOptions   
 
     !--------------------------------------------------------------------------
@@ -2134,10 +2194,10 @@ cd1 :   if (iflag .EQ. 0) then
         end if cd1
 
 cd2 :   if ((Me%TurbVar%HORCON .LT. 0.0) .OR.               &
-            (Me%TurbVar%HORCON .GT. 1.0)) then
+            (Me%TurbVar%HORCON .GT. 2.0)) then
             write(*,*) 
             write(*,*) 'Keyword - HORCON'
-            write(*,*) 'Value should be between 0.0 and 1.0'
+            write(*,*) 'Value should be between 0.0 and 2.0'
             write(*,*) 'Actual value is ', Me%TurbVar%HORCON
         end if cd2
         
@@ -3170,8 +3230,8 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
 
     subroutine Turbulence(TurbulenceID, VelocityX, VelocityY, VelocityZ, Chezy, &
-                          Temperature, Salinity, SigmaNoPressure, DensMethod,   &
-                          CorrecPress, STAT)
+                          Temperature, Salinity, SigmaNoPressure, WaterLevel,   &
+                          WaterLevelOld, WaterLevelDT, DensMethod, CorrecPress, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: TurbulenceID
@@ -3182,6 +3242,9 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         real, dimension(:,:,:), pointer                 :: Temperature
         real, dimension(:,:,:), pointer                 :: Salinity
         real, dimension(:,:,:), pointer                 :: SigmaNoPressure
+        real, dimension(:,:  ), pointer                 :: WaterLevel
+        real, dimension(:,:  ), pointer                 :: WaterLevelOld
+        real             , intent(IN )                  :: WaterLevelDT        
         integer          , intent(IN )                  :: DensMethod
         logical          , intent(IN )                  :: CorrecPress
         integer, optional, intent(OUT)                  :: STAT
@@ -3227,6 +3290,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%ExternalVar%Chezy              => Chezy
             
             Me%ExternalVar%SigmaNoPressure    => SigmaNoPressure
+            
+            Me%ExternalVar%WaterLevel         => WaterLevel            
+            Me%ExternalVar%WaterLevelOld      => WaterLevelOld            
+            Me%ExternalVar%WaterLevelDT       =  WaterLevelDT            
             
             Me%ExternalVar%Temperature        => Temperature
             Me%ExternalVar%Salinity           => Salinity
@@ -3406,6 +3473,10 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
                 stop 'Turbulence - ModuleTurbulence - ERR12'
             
             end if cd4
+            
+            if (Me%TurbOptions%WaveBreaking) then
+                call WaveBreaking
+            endif
 
             call TurbulentViscosity_CellCorner
             
@@ -4502,6 +4573,181 @@ do9 :               do k = kbottom, KUB-1
 
     !--------------------------------------------------------------------------
 
+
+    !--------------------------------------------------------------------------
+    ! Subroutine Wave Breaking.
+    ! 
+    ! Computes an add factor the the horizontal turbulent viscosity due to the 
+    ! wave breaking effect following
+    ! Kennedy A.B., Chen Q., Kirby J.T. and Dalrymple R.A., Boussinesq modeling of wave
+    ! transformation, breaking, and runup. Part I: 1D, Journal of Waterway, Port, 
+    ! Coastal, and Ocean Engineering, vol.126, no.1, 2000, pp.39–47. 
+    !
+    !--------------------------------------------------------------------------
+
+    subroutine WaveBreaking
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: ILB, IUB
+        integer                                 :: JLB, JUB
+        integer                                 :: KLB, KUB
+        integer                                 :: i, j, k, kbottom
+        !real                                    :: uc, vc, uvcm
+        real                                    :: WLcritc, WLt
+        real                                    :: B, CoefBreaking, TurbWaveBreaking
+        real                                    :: WaterLevelDT
+        real                                    :: AverageWL, SumWL, H
+        integer                                 :: nWL
+        real                                    :: AmpWL, MaxWL, MinWL, RelH, Coef
+        
+        !real,    dimension(:,:,:), pointer      :: VelocityX, VelocityY
+        real,    dimension(:,:  ), pointer      :: WaterLevel, WaterLevelOld, WaterColumnZ
+        real,    dimension(:,:  ), pointer      :: Bathymetry         
+        !integer, dimension(:,:,:), pointer      :: ComputeFacesU3D, ComputeFacesV3D
+        integer, dimension(:,:,:), pointer      :: OpenPoints3D        
+        integer, dimension(:,:  ), pointer      :: KFloorZ
+        
+        !----------------------------------------------------------------------
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+
+        KFloorZ         => Me%ExternalVar%KFloorZ
+        
+        !VelocityX       => Me%ExternalVar%VelocityX
+        !VelocityY       => Me%ExternalVar%VelocityY
+
+        WaterLevel      => Me%ExternalVar%WaterLevel
+        WaterLevelOld   => Me%ExternalVar%WaterLevelOld        
+        WaterLevelDT    =  Me%ExternalVar%WaterLevelDT        
+        
+        WaterColumnZ    => Me%ExternalVar%HT     
+        Bathymetry      => Me%ExternalVar%Bathymetry 
+
+        !ComputeFacesU3D => Me%ExternalVar%ComputeFacesU3D
+        !ComputeFacesV3D => Me%ExternalVar%ComputeFacesV3D      
+        OpenPoints3D    => Me%ExternalVar%OpenPoints3D              
+        
+        AverageWL = 0.
+        MaxWL     = FillValueReal
+        MinWL     = - FillValueReal        
+        SumWL     = 0.
+        nWL       = 0
+
+do22 :  do j = JLB, JUB
+do33 :  do i = ILB, IUB
+
+cd11 :      if (OpenPoints3D(i, j, KUB) == OpenPoint) then
+                SumWL = SumWL + WaterLevel(i, j)
+                if (WaterLevel(i, j) > MaxWL) MaxWL = WaterLevel(i, j)
+                if (WaterLevel(i, j) < MinWL) MinWL = WaterLevel(i, j)                
+                nWL   = nWL + 1
+            end if cd11
+                
+        end do do33
+        end do do22
+        
+        if (nWL > 0) AverageWL = SumWL / real(nWL)
+        AmpWL = MaxWL - MinWL
+
+do2 :   do j = JLB, JUB
+do3 :   do i = ILB, IUB
+
+cd1 :       if (OpenPoints3D(i, j, KUB) == OpenPoint)         then
+
+                kbottom = KFloorZ(i, j)
+            
+do1 :           do k = kbottom, KUB                         
+
+                    !uc
+                    !uc = (VelocityX(i ,  j,  k  ) * ComputeFacesU3D(i  ,  j,  k  )  +   &
+                    !      VelocityX(i, j+1,  k  ) * ComputeFacesU3D(i  ,j+1,  k  )) / 2.                
+                    
+                    !vc
+                    !vc = (VelocityY(i  ,j ,  k  ) * ComputeFacesV3D(i  ,  j,  k  )  +   &
+                    !      VelocityY(i+1,j ,  k  ) * ComputeFacesV3D(i+1,  j,  k  )) / 2.   
+                          
+                    !uvm
+                    !uvcm = sqrt(uc*uc+vc*vc) 
+                    
+                    ![m] = [m] + [m]
+                    H    = Bathymetry(i, j) + AverageWL 
+                    
+                    if (H >0) then
+                        RelH = AmpWL / H
+                    else
+                        RelH = - FillValueReal
+                    endif                        
+                    
+                    ![m/s]    = [] *    [m/s^2*m]^0.5
+                    if (RelH < 0.65) then                    
+                        Coef = .65 
+                    elseif (RelH > 1.3) then                    
+                        Coef = .15
+                    else
+                        Coef = 1.15 -0.77 * RelH
+                    endif                        
+                    
+                    if (H >0) then
+                        WLcritc = Coef*sqrt(Gravity*H)
+                    else
+                        WLcritc = FillValueReal
+                    endif                        
+                    
+                    ![m/s]  = ([m] - [m])/[s]
+                    WLt     = (WaterLevel(i, j) - WaterLevelOld(i, j)) / WaterLevelDT
+                                                          
+                    if (WLt <= WLcritc) then
+                        B = 0.
+                    else if (WLt > WLcritc .and. WLt <= 2*WLcritc) then
+                        if (WLcritc >0) then
+                            B = WLt / WLcritc - 1
+                        else
+                            B = 1
+                        endif                            
+                    else if (WLt > 2*WLcritc) then
+                        B = 1
+                    endif
+                    
+                    CoefBreaking = Me%TurbOptions%CoefBreaking
+                    
+                    ! [m^2/s]        = [ ] * [ ] * [m] * [m/s]
+                    TurbWaveBreaking = CoefBreaking * B * WaterColumnZ(i, j) * abs(WLt)
+
+                    Me%Viscosity%HorizontalCenter(i, j, k) = Me%Viscosity%HorizontalCenter(i, j, k) + TurbWaveBreaking
+                                                                 
+                    if (Me%Viscosity%HorizontalCenter(i, j, k) > Me%TurbVar%MaxHorizontalViscosity) then
+                        Me%Viscosity%HorizontalCenter(i, j, k) = Me%TurbVar%MaxHorizontalViscosity
+                    endif
+                        
+                enddo do1
+            end if cd1          
+
+        end do do3
+        end do do2
+        
+        
+        nullify(KFloorZ         )
+
+        !nullify(VelocityX       )
+        !nullify(VelocityY       )
+
+        !nullify(ComputeFacesU3D )
+        !nullify(ComputeFacesV3D )
+        nullify(OpenPoints3D    )
+
+        nullify(WaterLevel      ) 
+        nullify(WaterLevelOld   )
+        nullify(WaterColumnZ    )
+        nullify(Bathymetry      )
+
+    end subroutine WaveBreaking
+
+    !--------------------------------------------------------------------------
 
 
 
