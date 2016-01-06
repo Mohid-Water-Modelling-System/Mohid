@@ -141,7 +141,7 @@ Module ModuleHydrodynamic
                                        GetGridOutBorderPolygon,                          &
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV
 #ifdef _USE_MPI                                                  
-    use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI
+    use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
                                            
                                        
@@ -12643,12 +12643,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetWaterLevel(HydrodynamicID, WaterLevel, WaterLevelOld, STAT)
+    subroutine GetWaterLevel(HydrodynamicID, WaterLevel, WaterLevelOld, DT, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )           :: HydrodynamicID   
-        real, dimension(:,:), optional, pointer  :: WaterLevelOld
         real, dimension(:,:), pointer            :: WaterLevel
+        real, dimension(:,:), optional, pointer  :: WaterLevelOld
+        real,    optional, intent(OUT)           :: DT        
         integer, optional, intent(OUT)           :: STAT
 
 
@@ -12678,6 +12679,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             if(present(WaterLevelOld))then
                 WaterLevelOld => Me%WaterLevel%Old
                 call Read_Lock(mHydrodynamic_, Me%InstanceID)
+            endif
+            
+            if (present(DT)) then
+                DT = Me%WaterLevel%DT
             endif
 
             STAT_ = SUCCESS_
@@ -22627,6 +22632,7 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
         integer                              :: di, dj    ! index change due to calculation direction
         integer                              :: ILB, IUB, JLB, JUB !bounds
         integer                              :: IJmin, IJmax, JImin, JImax
+        integer                              :: STAT_CALL
         
         !Begin----------------------------------------------------------------------
         
@@ -22649,25 +22655,47 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
         s2D (:,:) = s (:,:,1)
         p2D (:,:) = p (:,:,1)        
         n2D (:,:) = n (:,:,1)
-        q2D (:,:) = q (:,:,1)        
+        q2D (:,:) = q (:,:,1)  
+        
 
-        IJmin = ILB * dj + JLB * di
-        IJmax = IUB * dj + JUB * di
+if1:    if (Me%DDecomp%MasterOrSlave) then
 
-        JImin = ILB * di + JLB * dj
-        JImax = IUB * di + JUB * dj
+#ifdef _USE_MPI
 
-        call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, s2D, p2D,       &
-                       n2D, q2D, pc2D, Me%VECG_2D, Me%VECW_2D)
+            call THOMAS_DDecompHorizGrid(HorizontalGridID    = Me%ObjHorizontalGrid,    &
+                                         DCoef_2D            = s2D,                     &
+                                         FCoef_2D            = n2D,                     &
+                                         TiCoef_2D           = q2D,                     &
+                                         ECoef_2D            = p2D,                     & 
+                                         Results_2D          = pc2D,                    &
+                                         di                  = Me%Direction%di,         & 
+                                         dj                  = Me%Direction%dj,         &
+                                         STAT                = STAT_CALL)                 
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'THOMAS_2D_NonHydroCorrection - ModuleHydrodynamic - ERR10'                
+            endif                
+
+#endif _USE_MPI
+
+        else if1
+              
+
+            IJmin = ILB * dj + JLB * di
+            IJmax = IUB * dj + JUB * di
+
+            JImin = ILB * di + JLB * dj
+            JImax = IUB * di + JUB * dj
+
+            call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, s2D, p2D,                &
+                           n2D, q2D, pc2D, Me%VECG_2D, Me%VECW_2D)
+                           
+        endif if1                           
                        
         pc(:,:,1) = pc2D(:,:)
                        
         deallocate(s2D, p2D, n2D, q2D, pc2D)                       
                                                                   
     End Subroutine THOMAS_2D_NonHydroCorrection
-    
-    
-    
     
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !
@@ -24347,6 +24375,7 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
         !PCL
         if (Me%Relaxation%Velocity) call VelocityRelaxation 
 
+        STAT_CALL = SUCCESS_
 #if _USE_MPI
         !if domain decomposition is On exchanges velocities along the domains boundaries
         !call ReceiveSendVelocity3DMPI(Property3D = Velocity_UV_New, Vector = .true.)
@@ -24357,9 +24386,8 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
                                        di               = Me%Direction%di,          &
                                        dj               = Me%Direction%dj,          &
                                        STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Compute_Velocity - ModuleHydrodynamic - ERR10'        
-        
 #endif _USE_MPI
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_Velocity - ModuleHydrodynamic - ERR10'        
 
         !Nullify auxiliar variables
         nullify (DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D)
@@ -25038,14 +25066,11 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         !Arguments------------------------------------------------------------
 
         !Local---------------------------------------------------------------
-        real,    dimension(:,:), pointer :: DCoef_2D, FCoef_2D, TiCoef_2D
-        real(8), dimension(:,:), pointer :: ECoef_2D
-        real,    dimension(:,:), pointer :: WaterLevel_New
-        real(8), dimension(:  ), pointer :: VECG, VECW        
         integer                          :: IUB, ILB, JUB, JLB
         integer                          :: IJmin, IJmax
         integer                          :: JImin, JImax
         integer                          :: di,    dj
+        integer                          :: STAT_CALL
         
         
         !Begin---------------------------------------------------------------
@@ -25054,44 +25079,21 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         dj          =  Me%Direction%dj
         
 if1:    if (Me%DDecomp%MasterOrSlave) then
-            !Joins all the sub-domain coefficients in a global domain
+!            
+            call THOMAS_DDecompHorizGrid(HorizontalGridID    = Me%ObjHorizontalGrid,    &
+                                         DCoef_2D            = Me%Coef%D2%D,            &
+                                         FCoef_2D            = Me%Coef%D2%F,            &
+                                         TiCoef_2D           = Me%Coef%D2%Ti,           &
+                                         ECoef_2D            = Me%Coef%D2%E,            & 
+                                         Results_2D          = Me%WaterLevel%New,       &
+                                         di                  = Me%Direction%di,         & 
+                                         dj                  = Me%Direction%dj,         &
+                                         STAT                = STAT_CALL)                 
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'THOMAS_2D_DDecomp - ModuleHydrodynamic - ERR10'                
+            endif                
             
-            call AggregatesThomasCoefs
-            
-if2:        if (Me%DDecomp%Master) then
-            
-                IUB = Me%DDecomp%Global%IUB
-                ILB = Me%DDecomp%Global%ILB
-                JUB = Me%DDecomp%Global%JUB
-                JLB = Me%DDecomp%Global%JLB
-
-                DCoef_2D  => Me%DDecomp%Coef%D
-                ECoef_2D  => Me%DDecomp%Coef%E
-                FCoef_2D  => Me%DDecomp%Coef%F
-                TiCoef_2D => Me%DDecomp%Coef%Ti
-                
-                VECG      => Me%DDecomp%VECG
-                VECW      => Me%DDecomp%VECW
-                
-                WaterLevel_New  => Me%DDecomp%WaterLevel_New
-                
-                IJmin = ILB * dj + JLB * di
-                IJmax = IUB * dj + JUB * di
-
-                JImin = ILB * di + JLB * dj
-                JImax = IUB * di + JUB * dj        
-                
-                call THOMAS_2D(IJmin, IJmax, JImin, JImax, di,    dj,                   &
-                               DCoef_2D, ECoef_2D, FCoef_2D, TiCoef_2D,                 &
-                               WaterLevel_New, VECG, VECW)                           
-            
-            endif if2
-            
-            !Send for each the water level result
-            call BroadcastThomasResult()
-                
         else if1
-        
         
             IUB = Me%WorkSize%IUB
             ILB = Me%WorkSize%ILB

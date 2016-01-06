@@ -521,18 +521,21 @@ Module ModuleGlobalData
     integer, parameter :: WindModulus_                      = 614
     integer, parameter :: WindDirection_                    = 615
     integer, parameter :: SpecificHumidity_                 = 616
-    integer, parameter :: CO2AtmosphericPressure_           = 617
-    integer, parameter :: O2AtmosphericPressure_            = 618
     integer, parameter :: WindModulusBeaufort_              = 619
-    integer, parameter :: HydrogenSulfide_                  = 620
-    integer, parameter :: MethylMercaptan_                  = 621
-    integer, parameter :: AtmospDeposOxidNO3_               = 622
-    integer, parameter :: AtmospDeposReduNH4_               = 623
     integer, parameter :: WindGust_                         = 624
     integer, parameter :: PBLHeight_                        = 625
     integer, parameter :: Reflectivity_                     = 626
     !vectorial
     integer, parameter :: WindVelocity_                     = 627
+    !air quality 
+    integer, parameter :: CO2AtmosphericPressure_           = 617
+    integer, parameter :: O2AtmosphericPressure_            = 618
+    integer, parameter :: HydrogenSulfide_                  = 620
+    integer, parameter :: MethylMercaptan_                  = 621
+    integer, parameter :: AtmospDeposOxidNO3_               = 622
+    integer, parameter :: AtmospDeposReduNH4_               = 623
+    integer, parameter :: Visibility_                       = 628
+    integer, parameter :: Dust_                             = 629    
 
     
     !Basin Properties
@@ -1443,13 +1446,17 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WindModulusBeaufort      = 'wind modulus beaufort'    
     character(StringLength), private, parameter :: Char_WindDirection            = 'wind direction'
     character(StringLength), private, parameter :: Char_SpecificHumidity         = 'specific humidity'    
+    character(StringLength), private, parameter :: Char_WindGust                 = 'wind gust'  
+    !Air quality    
     character(StringLength), private, parameter :: Char_CO2AtmosphericPressure   = 'CO2 atmospheric pressure'    
     character(StringLength), private, parameter :: Char_O2AtmosphericPressure    = 'O2 atmospheric pressure'    
     character(StringLength), private, parameter :: Char_HydrogenSulfide          = 'hydrogen sulfide'           ! H2S
     character(StringLength), private, parameter :: Char_MethylMercaptan          = 'methyl mercaptan'           ! or methanethiol 
     character(StringLength), private, parameter :: Char_AtmospDeposOxidNO3       = 'atmospheric deposition oxidized NO3' !LLP
     character(StringLength), private, parameter :: Char_AtmospDeposReduNH4       = 'atmospheric deposition reduced NH4'  !LLP
-    character(StringLength), private, parameter :: Char_WindGust                 = 'wind gust'  
+    character(StringLength), private, parameter :: Char_Visibility               = 'visibility'
+    character(StringLength), private, parameter :: Char_Dust                     = 'dust'
+
     
 
     
@@ -2834,6 +2841,8 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (WindDirection_ ,          Char_WindDirection       ,      ListNumber)
             call AddPropList (HydrogenSulfide_ ,        Char_HydrogenSulfide     ,      ListNumber)
             call AddPropList (MethylMercaptan_ ,        Char_MethylMercaptan     ,      ListNumber)            
+            call AddPropList (Visibility_ ,             Char_Visibility          ,      ListNumber)
+            call AddPropList (Dust_ ,                   Char_Dust                ,      ListNumber)
          
             call AddPropList (RPOM_ ,                   Char_RPOM                ,      ListNumber)
             call AddPropList (LPOM_ ,                   Char_LPOM                ,      ListNumber)

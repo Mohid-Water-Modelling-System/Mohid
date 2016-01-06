@@ -37,7 +37,11 @@ Module ModuleAdvectionDiffusion
                                      null_time, operator(+), operator(-),            &
                                      operator (.eq.), operator (.ne.)
     use ModuleStopWatch     , only : StartWatch, StopWatch     
-    use ModuleHorizontalGrid, only : KillHorizontalGrid, GetHorizontalGrid, UnGetHorizontalGrid
+    use ModuleHorizontalGrid, only : KillHorizontalGrid, GetHorizontalGrid, UnGetHorizontalGrid, GetDDecompParameters
+#ifdef _USE_MPI    
+    use ModuleHorizontalGrid, only : THOMAS_DDecompHorizGrid
+#endif _USE_MPI        
+    
     use ModuleHorizontalMap , only : KillHorizontalMap, GetBoundaries, UnGetHorizontalMap
     use ModuleGeometry      , only : GetGeometrySize, GetGeometryKFloor, GetGeometryWaterColumn, &
                                      GetGeometryAreas, GetGeometryDistances, UnGetGeometry
@@ -265,6 +269,13 @@ Module ModuleAdvectionDiffusion
 
 
     end type T_External
+    
+    private :: T_DDecomp
+    type       T_DDecomp        
+        logical                                 :: ON               = .false. 
+        logical                                 :: MasterOrSlave    = .false. 
+    end type T_DDecomp
+    
 
     !For performance reasons the coeffiecient are order in the way the are allocated
     type      T_AdvectionDiffusion
@@ -310,6 +321,7 @@ Module ModuleAdvectionDiffusion
         logical                                 :: Vertical1D           = .false.
         logical                                 :: XZFlow               = .false.
     
+        type(T_DDecomp   )                      :: DDecomp
    
         !Instance of ModuleHorizontalMap
         integer                                 :: ObjHorizontalMap     = 0
@@ -1298,27 +1310,37 @@ cd66 :      if (ImpExp_AdvXX == ImplicitScheme .and. ImpExp_AdvYY == ImplicitSch
 
 
             !DUX, DVY, DZX, DZY
-            call GetHorizontalGrid(Me%ObjHorizontalGrid,              &
-                                   DUX = Me%ExternalVar%DUX,          &
-                                   DVY = Me%ExternalVar%DVY,          &
-                                   DZX = Me%ExternalVar%DZX,          &
-                                   DZY = Me%ExternalVar%DZY,          &
+            call GetHorizontalGrid(Me%ObjHorizontalGrid,                                &
+                                   DUX = Me%ExternalVar%DUX,                            &
+                                   DVY = Me%ExternalVar%DVY,                            &
+                                   DZX = Me%ExternalVar%DZX,                            &
+                                   DZY = Me%ExternalVar%DZY,                            &
                                    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR04'
+                
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      ON               = Me%DDecomp%ON,                 &
+                                      MasterOrSlave    = Me%DDecomp%MasterOrSlave,      &
+                                      STAT             = STAT_CALL)
+                                                  
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR04a'
+            endif                
+
 
             !BoundaryPoints2D
-            call GetBoundaries(Me%ObjHorizontalMap,                   &
-                               Me%ExternalVar%BoundaryPoints2D,       &  
+            call GetBoundaries(Me%ObjHorizontalMap,                                     &
+                               Me%ExternalVar%BoundaryPoints2D,                         &  
                                STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR05'
 
             !KFloorZ
-            call GetGeometryKFloor(Me%ObjGeometry,                    &
-                                   Z = Me%ExternalVar%KFloorZ,        &
+            call GetGeometryKFloor(Me%ObjGeometry,                                      &
+                                   Z = Me%ExternalVar%KFloorZ,                          &
                                    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06'
 
             !AreaU, AreaV
@@ -1430,6 +1452,7 @@ cd5 :       if (Me%State%CellFluxes) then
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                             :: i, j, k, di, dj
         integer                             :: CHUNK
+        integer                             :: STAT_CALL
 
         !----------------------------------------------------------------------
 
@@ -1545,35 +1568,84 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
 
             di = 0
             dj = 1
+            
+            if (Me%DDecomp%MasterOrSlave) then
+            
+#if _USE_MPI            
+            
+                call THOMAS_DDecompHorizGrid(HorizontalGridID = Me%ObjHorizontalGrid,   &
+                                             DCoef_3D         = Me%COEF3%D,             &
+                                             FCoef_3D         = Me%COEF3%F,             &
+                                             TiCoef_3D        = Me%TICOEF3,             &
+                                             ECoef_3D         = Me%COEF3%E,             &
+                                             Results_3D       = Me%ExternalVar%PROP,    &
+                                             di               = di,                     &
+                                             dj               = dj,                     &
+                                             KLB              = KLB,                    &
+                                             KUB              = KUB,                    &
+                                             STAT             = STAT_CALL)
+                                             
+                if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR10'
+                                             
+#endif _USE_MPI
 
-            call THOMAS_3D(ILBWS, IUBWS,                                                &
-                           JLBWS, JUBWS,                                                &
-                           KLBWS, KUBWS,                                                &
-                           di, dj,                                                      &
-                           Me%THOMAS,                                                   &
-                           Me%ExternalVar%PROP                                          &     
+            else
+                                                         
+                call THOMAS_3D(ILBWS, IUBWS,                                                &
+                               JLBWS, JUBWS,                                                &
+                               KLBWS, KUBWS,                                                &
+                               di, dj,                                                      &
+                               Me%THOMAS,                                                   &
+                               Me%ExternalVar%PROP                                          &     
 #ifdef _ENABLE_CUDA
-                           , Me%ObjCuda,                                                &
-                           .FALSE.                                                      &
+                               , Me%ObjCuda,                                                &
+                               .FALSE.                                                      &
 #endif _ENABLE_CUDA
-                           )
-                            
+                               )
+                               
+            endif      
+                                  
         else if (KUBWS == 1 .and. ImpExp_AdvYY == ImplicitScheme) then cd3 !ImplicitScheme = 0
 
             di = 1
             dj = 0
+            
+            if (Me%DDecomp%MasterOrSlave) then
 
-            call THOMAS_3D(JLBWS, JUBWS,                                                &
-                           ILBWS, IUBWS,                                                &
-                           KLBWS, KUBWS,                                                &
-                           di, dj,                                                      &
-                           Me%THOMAS,                                                   &
-                           Me%ExternalVar%PROP                                          &      
+#if _USE_MPI
+            
+                call THOMAS_DDecompHorizGrid(HorizontalGridID = Me%ObjHorizontalGrid,   &
+                                             DCoef_3D         = Me%COEF3%D,             &
+                                             FCoef_3D         = Me%COEF3%F,             &
+                                             TiCoef_3D        = Me%TICOEF3,             &
+                                             ECoef_3D         = Me%COEF3%E,             &
+                                             Results_3D       = Me%ExternalVar%PROP,    &
+                                             di               = di,                     &
+                                             dj               = dj,                     &
+                                             KLB              = KLB,                    &
+                                             KUB              = KUB,                    &
+                                             STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR20'
+                                             
+#endif _USE_MPI
+
+
+            else            
+
+                call THOMAS_3D(JLBWS, JUBWS,                                            &
+                               ILBWS, IUBWS,                                            &
+                               KLBWS, KUBWS,                                            &
+                               di, dj,                                                  &
+                               Me%THOMAS,                                               &
+                               Me%ExternalVar%PROP                                      &      
 #ifdef _ENABLE_CUDA
-                           , Me%ObjCuda,                                                &
-                           .FALSE.                                                      &
+                               , Me%ObjCuda,                                            &
+                               .FALSE.                                                  &
 #endif _ENABLE_CUDA
-                           )
+                               )
+                               
+            endif
+                                           
         else cd3
  
             ! If the model is 3D the vertical diffusion must be implicit so is necessary to 
@@ -3182,6 +3254,7 @@ fl:                         if (Flow > 0.) then
         integer                             :: di,    dj    
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                             :: ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS
+        integer                             :: STAT_CALL        
 
         !----------------------------------------------------------------------
 
@@ -3233,48 +3306,76 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
 
                     di = 0
                     dj = 1
+                        
+                    if (Me%DDecomp%MasterOrSlave) then
+                    
+#if _USE_MPI                    
+                    
+                        call THOMAS_DDecompHorizGrid(HorizontalGridID = Me%ObjHorizontalGrid,   &
+                                                     DCoef_3D         = Me%COEF3%D,             &
+                                                     FCoef_3D         = Me%COEF3%F,             &
+                                                     TiCoef_3D        = Me%TICOEF3,             &
+                                                     ECoef_3D         = Me%COEF3%E,             &
+                                                     Results_3D       = Me%ExternalVar%PROP,    &
+                                                     di               = di,                     &
+                                                     dj               = dj,                     &
+                                                     KLB              = KLB,                    &
+                                                     KUB              = KUB,                    &
+                                                     STAT             = STAT_CALL)
 
-                    !griflet: old call
-                    !call THOMAS_3D(ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS, di, dj,    &
-                    !     Me%COEF3%D,                                                    &
-                    !     Me%COEF3%E,                                                    &
-                    !     Me%COEF3%F,                                                    &
-                    !     Me%TICOEF3,                                                    &
-                    !     Me%ExternalVar%PROP,                                           &
-                    !     Me%VECG,                                                       &
-                    !     Me%VECW)     
-                    !griflet: new call 
-                    call THOMAS_3D(ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS, di, dj,    &
-                         Me%THOMAS,                                                     &
-                         Me%ExternalVar%PROP                                            &
+                        if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR30'
+                                             
+#endif _USE_MPI
+
+                    else                    
+
+                        call THOMAS_3D(ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS, di, dj,    &
+                             Me%THOMAS,                                                     &
+                             Me%ExternalVar%PROP                                            &
 #ifdef _ENABLE_CUDA
-                         , Me%ObjCuda,                                                  &
-                         .FALSE.                                                         &
+                             , Me%ObjCuda,                                                  &
+                             .FALSE.                                                         &
 #endif _ENABLE_CUDA
-                         )
+                             )
+                    endif
+                                                 
                 else if (ImpExp_AdvYY == ImplicitScheme) then cd2
 
                     di = 1
                     dj = 0
 
-                    !griflet: old call
-                    !call THOMAS_3D(JLBWS, JUBWS, ILBWS, IUBWS, KLBWS, KUBWS, di, dj,    &
-                    !     Me%COEF3%D,                                                    &
-                    !     Me%COEF3%E,                                                    &
-                    !     Me%COEF3%F,                                                    &
-                    !     Me%TICOEF3,                                                    &
-                    !     Me%ExternalVar%PROP,                                           &
-                    !     Me%VECG,                                                       &
-                    !     Me%VECW)      
-                    !griflet: new call
-                    call THOMAS_3D(JLBWS, JUBWS, ILBWS, IUBWS, KLBWS, KUBWS, di, dj,    &
-                         Me%THOMAS,                                                     &
-                         Me%ExternalVar%PROP                                            &      
+                    if (Me%DDecomp%MasterOrSlave) then
+
+#if _USE_MPI
+                    
+                        call THOMAS_DDecompHorizGrid(HorizontalGridID = Me%ObjHorizontalGrid,   &
+                                                     DCoef_3D         = Me%COEF3%D,             &
+                                                     FCoef_3D         = Me%COEF3%F,             &
+                                                     TiCoef_3D        = Me%TICOEF3,             &
+                                                     ECoef_3D         = Me%COEF3%E,             &
+                                                     Results_3D       = Me%ExternalVar%PROP,    &
+                                                     di               = di,                     &
+                                                     dj               = dj,                     &
+                                                     KLB              = KLB,                    &
+                                                     KUB              = KUB,                    &
+                                                     STAT             = STAT_CALL)
+
+                        if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR40'
+                                             
+#endif _USE_MPI
+
+                    else                    
+
+                        call THOMAS_3D(JLBWS, JUBWS, ILBWS, IUBWS, KLBWS, KUBWS, di, dj,    &
+                             Me%THOMAS,                                                     &
+                             Me%ExternalVar%PROP                                            &      
 #ifdef _ENABLE_CUDA
-                         , Me%ObjCuda,                                                  &
-                         .FAlSE.                                                         &
+                             , Me%ObjCuda,                                                  &
+                             .FAlSE.                                                         &
 #endif _ENABLE_CUDA
-                         )
+                             )
+                    endif
+                                                 
                 endif cd2
 
                 
