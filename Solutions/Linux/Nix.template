@@ -48,9 +48,9 @@ export BASELIBS := \
        $(BASE1INC)/$(BASE1)
 
 export HDFLIBS := \
-       $(HDF5LIBINC)/$(LHDF5FORTRANLIB) \
-       $(HDF5LIBINC)/$(LHDF5LIB) \
-       $(HDF5LIBINC)/$(LHDF5HLLIB) \
+       $(HDF5LIB)/$(LHDF5FORTRANLIB) \
+       $(HDF5LIB)/$(LHDF5LIB) \
+       $(HDF5LIB)/$(LHDF5HLLIB) \
        $(ZLIBINC)/$(ZLIB) \
        $(ZLIBINC)/$(SZLIB)
 
