@@ -241,7 +241,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type(T_Depth)                           :: Depth
         type(T_Mapping)                         :: Mapping
         type(T_Bathym)                          :: Bathym
-        logical                                 :: OutHDF5, OutNetcdf, ReadInvertXY 
+        logical                                 :: OutHDF5, OutNetcdf, ReadInvertXY
+        logical                                 :: ReadInvertLat
         integer                                 :: OutCountProp = 0
         type(T_WindowOut)                       :: WindowOut
         logical                                 :: MeridionalSplit
@@ -1576,6 +1577,16 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
+        
+        call GetData(Me%ReadInvertLat,                                                  &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'READ_INVERT_LAT',                                  &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+        
 
         call GetData(Aux4,                                                              &
                      Me%ObjEnterData, iflag,                                            &
@@ -4646,6 +4657,11 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
         
         if      (numDims == 2) then     
+        
+            if (Me%ReadInvertLat) then
+                write(*,*) 'Can only invert the latitude reading if the Grid in not 2D'
+                stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR45' 
+            endif
 
             status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%imax)
             if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50' 
@@ -6085,7 +6101,11 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         if (Me%ReadInvertXY .and. Dim >=2) then
             Dim1_ = Dim2
             Dim2_ = Dim1
-        endif        
+        endif      
+        
+        if (Me%ReadInvertLat .and. Dim >=2) then
+            Dim2_ = Me%LongLat%imax - Dim2_ + 1 
+        endif  
 
         if      (Dim==1) then
         
@@ -6202,8 +6222,12 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         if (Me%ReadInvertXY .and. Dim >=2) then
             Dim1_ = Dim2
             Dim2_ = Dim1
-        endif           
-
+        endif         
+        
+        if (Me%ReadInvertLat .and. Dim >=2) then
+            Dim2_ = Me%LongLat%imax - Dim2_ + 1 
+        endif          
+        
         if      (Dim==1) then
         
             if      (DataTypeIn == Real8_   ) then
