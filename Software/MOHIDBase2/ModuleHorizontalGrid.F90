@@ -31,22 +31,15 @@
 Module ModuleHorizontalGrid
 
     use ModuleGlobalData
+    
+    use ModuleFunctions, only   : Rodaxy, FromCartesianToGrid, FromGridToCartesian,     &
+                                  UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
+                                  LatLonToLambertSP2, RelativePosition4VertPolygon,     &
+                                  CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
+                                  AngleFromGridToField, THOMAS_2D, THOMAS_3D
 #ifdef _USE_PROJ4
-    use ModuleFunctions, only   : Rodaxy, FromCartesianToGrid, FromGridToCartesian,     &
-                                  UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
-                                  LatLonToLambertSP2, RelativePosition4VertPolygon,     &
-                                  GeographicToCartesian, CartesianToGeographic,         &
-                                  CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
-                                  AngleFromGridToField
-
-#else                                  
-    use ModuleFunctions, only   : Rodaxy, FromCartesianToGrid, FromGridToCartesian,     &
-                                  UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
-                                  LatLonToLambertSP2, RelativePosition4VertPolygon,     &
-                                  CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
-                                  AngleFromGridToField
-
-#endif
+    use ModuleFunctions, only   : GeographicToCartesian, CartesianToGeographic
+#endif _USE_PROJ4
 
 #ifdef _USE_MPI       
     use ModuleFunctions, only   : MPIKind  
@@ -262,13 +255,48 @@ Module ModuleHorizontalGrid
     end interface  ComputeAngleFromGridComponents    
 
 #ifdef _USE_MPI           
+    public :: THOMAS_DDecompHorizGrid
+    interface THOMAS_DDecompHorizGrid
+        module procedure THOMAS_2D_DDecompHorizGrid
+        module procedure THOMAS_3D_DDecompHorizGrid        
+    end interface    
+
     public :: JoinGridData
     interface JoinGridData
         module procedure JoinGridData_1D
-        module procedure JoinGridData_2D
+        module procedure JoinGridData_2D_R4
+        module procedure JoinGridData_2D_R8        
         module procedure JoinGridData_2Dint        
-        module procedure JoinGridData_3D                
+        module procedure JoinGridData_3D_R4
+        module procedure JoinGridData_3D_R8        
         module procedure JoinGridData_3Dint
+    end interface 
+    
+    public :: JoinGridData_In
+    interface JoinGridData_In
+        module procedure JoinGridData_1D_In
+        module procedure JoinGridData_2D_R4_In
+        module procedure JoinGridData_2D_R8_In        
+        module procedure JoinGridData_2Dint_In        
+        module procedure JoinGridData_3D_R4_In
+        module procedure JoinGridData_3D_R8_In        
+        module procedure JoinGridData_3Dint_In
+    end interface 
+
+    public :: BroadcastGridData
+    interface BroadcastGridData
+        module procedure BroadcastGridData2D_R4
+        module procedure BroadcastGridData2D_R8      
+        module procedure BroadcastGridData3D_R4
+        module procedure BroadcastGridData3D_R8      
+    end interface 
+
+    public :: BroadcastGridData_In
+    interface BroadcastGridData_In
+        module procedure BroadcastGridData2D_R4_In
+        module procedure BroadcastGridData2D_R8_In        
+        module procedure BroadcastGridData3D_R4_In
+        module procedure BroadcastGridData3D_R8_In        
     end interface 
 
     public :: ReceiveSendProperitiesMPI
@@ -282,7 +310,7 @@ Module ModuleHorizontalGrid
         module procedure AtLeastOneDomainIsTrue    
     endinterface
 
-#endif _USE_MPI                   
+#endif _USE_MPI
     
     
 
@@ -381,8 +409,36 @@ Module ModuleHorizontalGrid
     type T_Border
         !Grid boundary
         type(T_Polygon),          pointer       :: Polygon_ => null()
-        integer                                 :: Type_    = null_int !initialization: jauch - or should be set to 0 (zero)?
+        integer                                 :: Type_    = null_int 
     end type T_Border
+    
+    private :: T_Coef2D
+    type       T_Coef2D
+        logical                                 :: AllocateON       = .false.
+        real(8), pointer, dimension(:)          :: VECG             => null() 
+        real(8), pointer, dimension(:)          :: VECW             => null()
+        real,    pointer, dimension(:,:)        :: Results2D        => null()
+        real,    pointer, dimension(:,:)        :: D                => null()
+        real(8), pointer, dimension(:,:)        :: E                => null()        
+        real   , pointer, dimension(:,:)        :: F                => null()        
+        real   , pointer, dimension(:,:)        :: Ti               => null()        
+    end type T_Coef2D    
+
+    private :: T_Coef3D
+    type       T_Coef3D
+        logical                                 :: AllocateON       = .false. 
+        real(8), pointer, dimension(:)          :: VECG             => null() 
+        real(8), pointer, dimension(:)          :: VECW             => null()
+        real,    pointer, dimension(:,:,:)      :: Results3D        => null()
+        real,    pointer, dimension(:,:,:)      :: D                => null()
+        real(8), pointer, dimension(:,:,:)      :: E                => null()        
+        real,    pointer, dimension(:,:,:)      :: F                => null()        
+        real,    pointer, dimension(:,:,:)      :: Ti               => null()        
+        real,    pointer, dimension(:,:,:)      :: C                => null()        
+        real,    pointer, dimension(:,:,:)      :: G                => null()        
+        integer                                 :: KLB              = FillValueInt
+        integer                                 :: KUB              = FillValueInt        
+    end type T_Coef3D    
     
     private :: T_DDecomp
     type       T_DDecomp        
@@ -414,6 +470,8 @@ Module ModuleHorizontalGrid
         logical                                 :: FilesListOpen  = .false.
         integer                                 :: FilesListID    = null_int
         character(PathLength)                   :: ModelPath      = null_str  
+        type (T_Coef2D)                         :: Coef2D
+        type (T_Coef3D)                         :: Coef3D        
     end type T_DDecomp
     
 
@@ -5091,23 +5149,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
         real,   dimension(:), pointer               :: In1D
-        real,   dimension(:), pointer, optional     :: Out1D
+        real,   dimension(:), pointer               :: Out1D
         integer                                     :: Type1DIJ
         integer             , optional              :: di, dj
         integer             , optional              :: STAT
 
         !Local---------------------------------------------------------------
-
-        integer                                     :: STAT_CALL
-        integer                                     :: di_, dj_, ILB, IUB, JLB, JUB, imin, imax, i
-        
-        integer                                     :: Source, Destination         
-        integer                                     :: iSize
-        integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
-        real, pointer, dimension(:)                 :: Aux1D
-        type(T_Size2D)                              :: Inner, Mapping
+        integer                                     :: di_, dj_
         integer                                     :: STAT_, ready_        
         
         !Begin---------------------------------------------------------------
@@ -5130,78 +5178,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             else
                 dj_ = 0
             endif
-            
-            IUB     = Me%DDecomp%Global%IUB
-            ILB     = Me%DDecomp%Global%ILB 
-            JUB     = Me%DDecomp%Global%JUB
-            JLB     = Me%DDecomp%Global%JLB
-            
-            if (Type1DIJ /= Type1DI .and. Type1DIJ /= Type1DJ) then
-                stop 'JoinGridData_1D - ModuleHorizontalGrid - ERR10'
-            endif                        
-            
-            if (Me%DDecomp%Master) then
 
-                Inner   = Me%DDecomp%Inner
-                Mapping = Me%DDecomp%Mapping
-
-                !Copy form Master (input) to Global (output)
-                if (.not. present(Out1D   )) stop 'JoinGridData_1D - ModuleHorizontalGrid - ERR20'                
-                if (Type1DIJ == Type1DI) then
-                    allocate(Out1D(ILB:IUB+di_))
-                    Out1D(Mapping%ILB:Mapping%IUB+di_) = In1D(Inner%ILB:Inner%IUB+di_)
-                endif                    
-                if (Type1DIJ == Type1DJ) then
-                    allocate(Out1D(JLB:JUB+dj_))
-                    Out1D(Mapping%JLB:Mapping%JUB+dj_) = In1D(Inner%JLB:Inner%JUB+dj_)
-                endif                    
-                
-                !Receive from slaves (input) to Global (output)
-                do i=1, Me%DDecomp%Nslaves            
-                
-                    Mapping = Me%DDecomp%Slaves_Mapping(i)                
-                    
-                    if     (Type1DIJ == Type1DI) then
-                        imin      = Mapping%ILB
-                        imax      = Mapping%IUB + di_                        
-                    elseif (Type1DIJ == Type1DJ) then          
-                        imin      = Mapping%JLB
-                        imax      = Mapping%JUB + dj_                                               
-                    endif
-                    
-                    iSize     = (imax-imin+1)    
-                    
-                    Precision = MPIKind(In1D)
-                    
-                    Source    = Me%DDecomp%Slaves_MPI_ID(i)
-                    
-                    call MPI_Recv (Out1D(imin:imax), iSize, Precision, Source, 9001, MPI_COMM_WORLD, status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_1D - ModuleHorizontalGrid - ERR40'
-                    
-                enddo
-                
-            else
-
-                Inner       = Me%DDecomp%Inner
-                
-                if     (Type1DIJ == Type1DI) then
-                    imin      = Inner%ILB
-                    imax      = Inner%IUB + di_
-                elseif (Type1DIJ == Type1DJ) then          
-                    imin      = Inner%JLB
-                    imax      = Inner%JUB + dj_               
-                endif              
-                
-                iSize     = (imax-imin+1)    
-                
-                Precision   = MPIKind(In1D)
-                
-                Destination = Me%DDecomp%Master_MPI_ID
-                
-                call MPI_Send (In1D(imin:imax), iSize, Precision, Destination, 9001, MPI_COMM_WORLD, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_1D - ModuleHorizontalGrid - ERR50'
-                
-            endif
+            call JoinGridData_In(In1D, Out1D, Type1DIJ, dj_, di_)
             
             STAT_ = SUCCESS_
         else 
@@ -5212,12 +5190,113 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_            
 
     end subroutine JoinGridData_1D         
+
+    !-----------------------------------------------------------------------------------
+
+    subroutine JoinGridData_1D_In(In1D, Out1D, Type1DIJ, dj_, di_)
+   
+
+        !Arguments------------------------------------------------------------
+        real,   dimension(:), pointer               :: In1D
+        real,   dimension(:), pointer               :: Out1D
+        integer                                     :: Type1DIJ
+        integer                                     :: di_, dj_
+
+        !Local---------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, JLB, JUB, imin, imax, i
+        
+        integer                                     :: Source, Destination         
+        integer                                     :: iSize
+        integer, save                               :: Precision
+        integer                                     :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                              :: Inner, Mapping
+        
+        !Begin---------------------------------------------------------------
+
+        
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+        
+        if (Type1DIJ /= Type1DI .and. Type1DIJ /= Type1DJ) then
+            stop 'JoinGridData_1D - ModuleHorizontalGrid - ERR10'
+        endif                        
+        
+        if (Me%DDecomp%Master) then
+
+            Inner   = Me%DDecomp%Inner
+            Mapping = Me%DDecomp%Mapping
+
+            !Copy form Master (input) to Global (output)
+            if (Type1DIJ == Type1DI) then
+                if (.not. associated(Out1D)) allocate(Out1D(ILB:IUB+di_))
+                Out1D(Mapping%ILB:Mapping%IUB+di_) = In1D(Inner%ILB:Inner%IUB+di_)
+            endif                    
+            if (Type1DIJ == Type1DJ) then
+                if (.not. associated(Out1D)) allocate(Out1D(JLB:JUB+dj_))
+                Out1D(Mapping%JLB:Mapping%JUB+dj_) = In1D(Inner%JLB:Inner%JUB+dj_)
+            endif                    
+            
+            !Receive from slaves (input) to Global (output)
+            do i=1, Me%DDecomp%Nslaves            
+            
+                Mapping = Me%DDecomp%Slaves_Mapping(i)                
+                
+                if     (Type1DIJ == Type1DI) then
+                    imin      = Mapping%ILB
+                    imax      = Mapping%IUB + di_                        
+                elseif (Type1DIJ == Type1DJ) then          
+                    imin      = Mapping%JLB
+                    imax      = Mapping%JUB + dj_                                               
+                endif
+                
+                iSize     = (imax-imin+1)    
+                
+                Precision = MPIKind(In1D)
+                
+                Source    = Me%DDecomp%Slaves_MPI_ID(i)
+                
+                call MPI_Recv (Out1D(imin:imax), iSize, Precision, Source, 9001, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_1D_In - ModuleHorizontalGrid - ERR40'
+                
+            enddo
+            
+        else
+
+            Inner       = Me%DDecomp%Inner
+            
+            if     (Type1DIJ == Type1DI) then
+                imin      = Inner%ILB
+                imax      = Inner%IUB + di_
+            elseif (Type1DIJ == Type1DJ) then          
+                imin      = Inner%JLB
+                imax      = Inner%JUB + dj_               
+            endif              
+            
+            iSize     = (imax-imin+1)    
+            
+            Precision   = MPIKind(In1D)
+            
+            Destination = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Send (In1D(imin:imax), iSize, Precision, Destination, 9001, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_1D_In - ModuleHorizontalGrid - ERR50'
+            
+        endif
+        
+
+    end subroutine JoinGridData_1D_In       
+    
+    !-----------------------------------------------------------------------------------  
     
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
     ! When using a domain decomposition approach this subroutine aggregates in one global  !
-    ! domain 2D matrixes associated with a specific sub-domain                             !
+    ! domain 2D single precision matrixes associated with a specific sub-domain            !
     !                                                                                      !
     ! Input : specific domain 2D matrixes                                                  !
     ! OutPut: global domain 2D matrixes                                                    !
@@ -5225,29 +5304,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    subroutine JoinGridData_2D(HorizontalGridID, In2D, Out2D, dj, di, STAT)
+    subroutine JoinGridData_2D_R4(HorizontalGridID, In2D, Out2D, dj, di, STAT)
    
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
-        real,   dimension(:,:), pointer             :: In2D
-        real,   dimension(:,:), pointer, optional   :: Out2D
+        real(4),dimension(:,:), pointer             :: In2D
+        real(4),dimension(:,:), pointer             :: Out2D
         integer               , optional            :: di, dj
         integer               , optional            :: STAT
 
         !Local---------------------------------------------------------------
-
-        integer                                     :: STAT_CALL
-        integer                                     :: di_, dj_, ILB, IUB, JLB, JUB
-        integer                                     :: imin, imax, jmin, jmax
-        
-        integer                                     :: Source, Destination         
-        integer                                     :: iSize, i
-        integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
-        real, pointer, dimension(:)                 :: Aux1D
-        type(T_Size2D)                              :: Inner, Mapping
+        integer                                     :: di_, dj_
         integer                                     :: STAT_, ready_        
         
         !Begin---------------------------------------------------------------
@@ -5271,68 +5339,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 dj_ = 0
             endif
             
-            IUB     = Me%DDecomp%Global%IUB
-            ILB     = Me%DDecomp%Global%ILB 
-            JUB     = Me%DDecomp%Global%JUB
-            JLB     = Me%DDecomp%Global%JLB
-            
-            if (Me%DDecomp%Master) then
-
-                !Copy form Master (input) to Global (output)
-                if (.not. present(Out2D   )) stop 'JoinGridData_2D - ModuleHorizontalGrid - ERR10'
-
-                Inner   = Me%DDecomp%Inner
-                Mapping = Me%DDecomp%Mapping                
-                
-                allocate(Out2D(ILB:IUB+di_,JLB:JUB+dj_))
-
-                Out2D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_) =        &
-                In2D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_)
-                
-                
-                !Receive from slaves (input) to Global (output)
-                do i=1, Me%DDecomp%Nslaves            
-                
-                    Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                    
-                    imax      = Mapping%IUB+di_
-                    imin      = Mapping%ILB
-                    jmax      = Mapping%JUB+dj_
-                    jmin      = Mapping%JLB
-                    
-                    iSize     = (imax-imin+1)*(jmax-jmin+1)
-
-                    Precision = MPIKind(Out2D)
-                    
-                    Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                    
-                    !Receive from sub-domanins to global output
-                    call MPI_Recv (Out2D(imin:imax,jmin:jmax),                          &
-                                   iSize, Precision, Source, 9002, MPI_COMM_WORLD, status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D - ModuleHorizontalGrid - ERR40'
-
-                enddo
-                
-            else
-
-                Inner       = Me%DDecomp%Inner
-                        
-                imax        = Inner%IUB+di_
-                imin        = Inner%ILB
-                jmax        = Inner%JUB+dj_
-                jmin        = Inner%JLB
-                
-                iSize       = (imax-imin+1)*(jmax-jmin+1)                
-                
-                Precision   = MPIKind(In2D)
-                                                          
-                Destination = Me%DDecomp%Master_MPI_ID
-                
-                call MPI_Send (In2D(imin:imax,jmin:jmax), iSize, Precision,             &
-                               Destination, 9002, MPI_COMM_WORLD, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D - ModuleHorizontalGrid - ERR50'
-                
-            endif
+            call JoinGridData_In(In2D, Out2D, dj_, di_)
+ 
             
             STAT_ = SUCCESS_
         else 
@@ -5342,7 +5350,241 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         if (present(STAT)) STAT = STAT_            
 
-    end subroutine JoinGridData_2D         
+    end subroutine JoinGridData_2D_R4
+
+    !-----------------------------------------------------------------------------------
+
+    subroutine JoinGridData_2D_R4_In(In2D, Out2D, dj_, di_)
+   
+
+        !Arguments------------------------------------------------------------
+        real(4),dimension(:,:), pointer             :: In2D
+        real(4),dimension(:,:), pointer             :: Out2D
+        integer                                     :: di_, dj_
+        !Local---------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: imin, imax, jmin, jmax
+        
+        integer                                     :: Source, Destination         
+        integer                                     :: iSize, i
+        integer, save                               :: Precision
+        integer                                     :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                              :: Inner, Mapping
+
+        !Begin---------------------------------------------------------------
+            
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+        
+        if (Me%DDecomp%Master) then
+
+            !Copy form Master (input) to Global (output)
+            Inner   = Me%DDecomp%Inner
+            Mapping = Me%DDecomp%Mapping                
+            
+            if (.not. associated(Out2D)) allocate(Out2D(ILB:IUB+di_,JLB:JUB+dj_))
+
+            Out2D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_) =        &
+            In2D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_)
+            
+            
+            !Receive from slaves (input) to Global (output)
+            do i=1, Me%DDecomp%Nslaves            
+            
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
+                
+                imax      = Mapping%IUB+di_
+                imin      = Mapping%ILB
+                jmax      = Mapping%JUB+dj_
+                jmin      = Mapping%JLB
+                
+                iSize     = (imax-imin+1)*(jmax-jmin+1)
+
+                Precision = MPI_REAL
+                
+                Source    =  Me%DDecomp%Slaves_MPI_ID(i)
+                
+                !Receive from sub-domanins to global output
+                call MPI_Recv (Out2D(imin:imax,jmin:jmax),                          &
+                               iSize, Precision, Source, 9002, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D_R4_In - ModuleHorizontalGrid - ERR40'
+
+            enddo
+            
+        else
+
+            Inner       = Me%DDecomp%Inner
+                    
+            imax        = Inner%IUB+di_
+            imin        = Inner%ILB
+            jmax        = Inner%JUB+dj_
+            jmin        = Inner%JLB
+            
+            iSize       = (imax-imin+1)*(jmax-jmin+1)                
+            
+            Precision   = MPI_REAL
+                                                      
+            Destination = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Send (In2D(imin:imax,jmin:jmax), iSize, Precision,             &
+                           Destination, 9002, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D - ModuleHorizontalGrid - ERR50'
+            
+        endif
+        
+
+    end subroutine JoinGridData_2D_R4_In
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! When using a domain decomposition approach this subroutine aggregates in one global  !
+    ! domain 2D single precision matrixes associated with a specific sub-domain            !
+    !                                                                                      !
+    ! Input : specific domain 2D matrixes                                                  !
+    ! OutPut: global domain 2D matrixes                                                    !
+    ! Author: Paulo Chambel (2015/11)                                                      !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine JoinGridData_2D_R8(HorizontalGridID, In2D, Out2D, dj, di, STAT)
+   
+
+        !Arguments------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        real(8),dimension(:,:), pointer             :: In2D
+        real(8),dimension(:,:), pointer             :: Out2D
+        integer               , optional            :: di, dj
+        integer               , optional            :: STAT
+
+        !Local---------------------------------------------------------------
+        integer                                     :: di_, dj_
+        integer                                     :: STAT_, ready_        
+        
+        !Begin---------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            if (present(di     )) then
+                di_ = di
+            else
+                di_ = 0
+            endif
+            
+            if (present(dj     )) then
+                dj_ = dj
+            else
+                dj_ = 0
+            endif
+            
+            call JoinGridData_In(In2D, Out2D, dj_, di_)
+ 
+            
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_            
+
+    end subroutine JoinGridData_2D_R8
+
+    !-----------------------------------------------------------------------------------
+
+    subroutine JoinGridData_2D_R8_In(In2D, Out2D, dj_, di_)
+   
+
+        !Arguments------------------------------------------------------------
+        real(8),dimension(:,:), pointer             :: In2D
+        real(8),dimension(:,:), pointer             :: Out2D
+        integer                                     :: di_, dj_
+        !Local---------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: imin, imax, jmin, jmax
+        
+        integer                                     :: Source, Destination         
+        integer                                     :: iSize, i
+        integer, save                               :: Precision
+        integer                                     :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                              :: Inner, Mapping
+
+        !Begin---------------------------------------------------------------
+            
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+        
+        if (Me%DDecomp%Master) then
+
+            !Copy form Master (input) to Global (output)
+            Inner   = Me%DDecomp%Inner
+            Mapping = Me%DDecomp%Mapping                
+            
+            if (.not. associated(Out2D)) allocate(Out2D(ILB:IUB+di_,JLB:JUB+dj_))
+
+            Out2D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_) =        &
+            In2D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_)
+            
+            
+            !Receive from slaves (input) to Global (output)
+            do i=1, Me%DDecomp%Nslaves            
+            
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
+                
+                imax      = Mapping%IUB+di_
+                imin      = Mapping%ILB
+                jmax      = Mapping%JUB+dj_
+                jmin      = Mapping%JLB
+                
+                iSize     = (imax-imin+1)*(jmax-jmin+1)
+
+                Precision = MPI_DOUBLE_PRECISION
+                
+                Source    =  Me%DDecomp%Slaves_MPI_ID(i)
+                
+                !Receive from sub-domanins to global output
+                call MPI_Recv (Out2D(imin:imax,jmin:jmax),                          &
+                               iSize, Precision, Source, 9003, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D_R8_In - ModuleHorizontalGrid - ERR40'
+
+            enddo
+            
+        else
+
+            Inner       = Me%DDecomp%Inner
+                    
+            imax        = Inner%IUB+di_
+            imin        = Inner%ILB
+            jmax        = Inner%JUB+dj_
+            jmin        = Inner%JLB
+            
+            iSize       = (imax-imin+1)*(jmax-jmin+1)                
+            
+            Precision   = MPI_DOUBLE_PRECISION
+                                                      
+            Destination = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Send (In2D(imin:imax,jmin:jmax), iSize, Precision,             &
+                           Destination, 9003, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D_R8_In - ModuleHorizontalGrid - ERR50'
+            
+        endif
+        
+
+    end subroutine JoinGridData_2D_R8_In
+    
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -5361,24 +5603,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
         integer,dimension(:,:), pointer             :: In2D
-        integer,dimension(:,:), pointer, optional   :: Out2D
+        integer,dimension(:,:), pointer             :: Out2D
         integer               , optional            :: di, dj
         integer               , optional            :: STAT
 
-
         !Local---------------------------------------------------------------
-
-        integer                                 :: STAT_CALL
-        integer                                 :: di_, dj_, ILB, IUB, JLB, JUB
-        integer                                 :: imin, imax, jmin, jmax, i        
-        
-        integer                                 :: Source, Destination         
-        integer                                 :: iSize
-        integer, save                           :: Precision
-        integer                                 :: status(MPI_STATUS_SIZE)       
-        
-        real, pointer, dimension(:)             :: Aux1D
-        type(T_Size2D)                          :: Inner, Mapping
+        integer                                 :: di_, dj_
         integer                                 :: STAT_, ready_        
         
         !Begin---------------------------------------------------------------
@@ -5402,67 +5632,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 dj_ = 0
             endif
             
-            IUB     = Me%DDecomp%Global%IUB
-            ILB     = Me%DDecomp%Global%ILB 
-            JUB     = Me%DDecomp%Global%JUB
-            JLB     = Me%DDecomp%Global%JLB
-            
-            if (Me%DDecomp%Master) then
-
-                Inner   = Me%DDecomp%Inner
-                Mapping = Me%DDecomp%Mapping
-
-                !Copy form Master (input) to Global (output)
-                if (.not. present(Out2D   )) stop 'JoinGridData_2D - ModuleHorizontalGrid - ERR10'
-
-                allocate(Out2D(ILB:IUB+di_,JLB:JUB+dj_))
-
-                Out2D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_) =        &
-                In2D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_)
-                
-                !Receive from slaves (input) to Global (output)
-                do i=1, Me%DDecomp%Nslaves            
-                
-                    Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                    
-                    imax      = Mapping%IUB+di_
-                    imin      = Mapping%ILB
-                    jmax      = Mapping%JUB+dj_
-                    jmin      = Mapping%JLB
-                    
-                    iSize     = (imax-imin+1)*(jmax-jmin+1)
-
-                    Precision = MPI_INTEGER
-                    
-                    Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                    
-                    !Receive from sub-domanins to global output
-                    call MPI_Recv (Out2D(imin:imax,jmin:jmax),                          &
-                                   iSize, Precision, Source, 9002, MPI_COMM_WORLD, status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D - ModuleHorizontalGrid - ERR40'
-
-                enddo
-                
-            else
-
-                Inner       = Me%DDecomp%Inner
-                        
-                imax        = Inner%IUB+di_
-                imin        = Inner%ILB
-                jmax        = Inner%JUB+dj_
-                jmin        = Inner%JLB
-                
-                iSize       = (imax-imin+1)*(jmax-jmin+1)                
-                
-                Precision   = MPI_INTEGER
-                                                          
-                Destination = Me%DDecomp%Master_MPI_ID
-                
-                call MPI_Send (In2D(imin:imax,jmin:jmax), iSize, Precision,             &
-                               Destination, 9002, MPI_COMM_WORLD, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D - ModuleHorizontalGrid - ERR50'
-                
-            endif
+            call JoinGridData_In(In2D, Out2D, dj_, di_)
             
             STAT_ = SUCCESS_
         else 
@@ -5473,6 +5643,94 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_            
 
     end subroutine JoinGridData_2Dint         
+    
+    !-----------------------------------------------------------------------------------
+    
+    subroutine JoinGridData_2Dint_In(In2D, Out2D, dj_, di_)
+   
+
+        !Arguments------------------------------------------------------------
+        integer,dimension(:,:), pointer         :: In2D
+        integer,dimension(:,:), pointer         :: Out2D
+        integer                                 :: di_, dj_
+
+        !Local---------------------------------------------------------------
+        integer                                 :: STAT_CALL
+        integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: imin, imax, jmin, jmax, i        
+        
+        integer                                 :: Source, Destination         
+        integer                                 :: iSize
+        integer, save                           :: Precision
+        integer                                 :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                          :: Inner, Mapping
+        
+        !Begin---------------------------------------------------------------
+           
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+        
+        if (Me%DDecomp%Master) then
+
+            Inner   = Me%DDecomp%Inner
+            Mapping = Me%DDecomp%Mapping
+
+            !Copy form Master (input) to Global (output)
+            if (.not. associated(Out2D)) allocate(Out2D(ILB:IUB+di_,JLB:JUB+dj_))
+
+            Out2D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_) =        &
+            In2D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_)
+            
+            !Receive from slaves (input) to Global (output)
+            do i=1, Me%DDecomp%Nslaves            
+            
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
+                
+                imax      = Mapping%IUB+di_
+                imin      = Mapping%ILB
+                jmax      = Mapping%JUB+dj_
+                jmin      = Mapping%JLB
+                
+                iSize     = (imax-imin+1)*(jmax-jmin+1)
+
+                Precision = MPI_INTEGER
+                
+                Source    =  Me%DDecomp%Slaves_MPI_ID(i)
+                
+                !Receive from sub-domanins to global output
+                call MPI_Recv (Out2D(imin:imax,jmin:jmax),                          &
+                               iSize, Precision, Source, 9004, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2Dint_In - ModuleHorizontalGrid - ERR40'
+
+            enddo
+            
+        else
+
+            Inner       = Me%DDecomp%Inner
+                    
+            imax        = Inner%IUB+di_
+            imin        = Inner%ILB
+            jmax        = Inner%JUB+dj_
+            jmin        = Inner%JLB
+            
+            iSize       = (imax-imin+1)*(jmax-jmin+1)                
+            
+            Precision   = MPI_INTEGER
+                                                      
+            Destination = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Send (In2D(imin:imax,jmin:jmax), iSize, Precision,             &
+                           Destination, 9004, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2Dint_In - ModuleHorizontalGrid - ERR50'
+            
+        endif
+        
+
+    end subroutine JoinGridData_2Dint_In         
+    
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -5485,30 +5743,20 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    subroutine JoinGridData_3D(HorizontalGridID, In3D, Out3D, KLB, KUB, dj, di, STAT)
+    subroutine JoinGridData_3D_R4(HorizontalGridID, In3D, Out3D, KLB, KUB, dj, di, STAT)
    
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
-        real,   dimension(:,:,:), pointer           :: In3D
-        real,   dimension(:,:,:), pointer, optional :: Out3D
+        real(4),dimension(:,:,:), pointer           :: In3D
+        real(4),dimension(:,:,:), pointer           :: Out3D
         integer                                     :: KLB, KUB
         integer                 , optional          :: di, dj
         integer                 , optional          :: STAT
                 
 
         !Local---------------------------------------------------------------
-
-        integer                                     :: STAT_CALL
-        integer                                     :: di_, dj_, ILB, IUB, JLB, JUB
-        integer                                     :: imin, imax, jmin, jmax, i        
-        integer                                     :: Source, Destination         
-        integer                                     :: iSize
-        integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
-        real, pointer, dimension(:)                 :: Aux1D
-        type(T_Size2D)                              :: Inner, Mapping
+        integer                                     :: di_, dj_
         integer                                     :: STAT_, ready_        
         
         !Begin---------------------------------------------------------------
@@ -5532,67 +5780,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 dj_ = 0
             endif
             
-            IUB     = Me%DDecomp%Global%IUB
-            ILB     = Me%DDecomp%Global%ILB 
-            JUB     = Me%DDecomp%Global%JUB
-            JLB     = Me%DDecomp%Global%JLB
-            
-            if (Me%DDecomp%Master) then
-
-                Inner   = Me%DDecomp%Inner
-                Mapping = Me%DDecomp%Mapping
-
-                !Copy form Master (input) to Global (output)
-                if (.not. present(Out3D   )) stop 'JoinGridData_3D - ModuleHorizontalGrid - ERR10'
-
-                allocate(Out3D(ILB:IUB+di_,JLB:JUB+dj_,KLB:KUB))
-
-                Out3D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_,KLB:KUB) =        &
-                In3D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_,KLB:KUB)
-                
-                !Receive from slaves (input) to Global (output)
-                do i=1, Me%DDecomp%Nslaves            
-                
-                    Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                    
-                    imax      = Mapping%IUB+di_
-                    imin      = Mapping%ILB
-                    jmax      = Mapping%JUB+dj_
-                    jmin      = Mapping%JLB
-                    
-                    iSize     = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
-
-                    Precision = MPIKind(Out3D)
-                    
-                    Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                    
-                    !Receive from sub-domanins to global output
-                    call MPI_Recv (Out3D(imin:imax,jmin:jmax,KLB:KUB),                  &
-                                   iSize, Precision, Source, 9003, MPI_COMM_WORLD, status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D - ModuleHorizontalGrid - ERR40'
-
-                enddo
-                
-            else
-
-                Inner       = Me%DDecomp%Inner
-                        
-                imax        = Inner%IUB+di_
-                imin        = Inner%ILB
-                jmax        = Inner%JUB+dj_
-                jmin        = Inner%JLB
-                
-                iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)                
-                
-                Precision   = MPIKind(In3D)
-                                                          
-                Destination = Me%DDecomp%Master_MPI_ID
-                
-                call MPI_Send (In3D(imin:imax,jmin:jmax,KLB:KUB), iSize, Precision,             &
-                               Destination, 9003, MPI_COMM_WORLD, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D - ModuleHorizontalGrid - ERR50'
-                
-            endif
+            call JoinGridData_In(In3D, Out3D, KLB, KUB, dj_, di_)
             
             STAT_ = SUCCESS_
         else 
@@ -5603,9 +5791,241 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_            
 
 
-    end subroutine JoinGridData_3D
+    end subroutine JoinGridData_3D_R4
+
+    !-----------------------------------------------------------------------------------
+    
+    
+    subroutine JoinGridData_3D_R4_In(In3D, Out3D, KLB, KUB, dj_, di_)
+   
+
+        !Arguments------------------------------------------------------------
+        real(4),dimension(:,:,:), pointer           :: In3D
+        real(4),dimension(:,:,:), pointer           :: Out3D
+        integer                                     :: KLB, KUB
+        integer                                     :: di_, dj_
+                
+
+        !Local---------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: imin, imax, jmin, jmax, i        
+        integer                                     :: Source, Destination         
+        integer                                     :: iSize
+        integer, save                               :: Precision
+        integer                                     :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                              :: Inner, Mapping
+        
+        !Begin---------------------------------------------------------------
+
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+        
+        if (Me%DDecomp%Master) then
+
+            Inner   = Me%DDecomp%Inner
+            Mapping = Me%DDecomp%Mapping
+
+            !Copy form Master (input) to Global (output)
+            if (.not. associated(Out3D)) allocate(Out3D(ILB:IUB+di_,JLB:JUB+dj_,KLB:KUB))
+
+            Out3D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_,KLB:KUB) =        &
+            In3D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_,KLB:KUB)
+            
+            !Receive from slaves (input) to Global (output)
+            do i=1, Me%DDecomp%Nslaves            
+            
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
+                
+                imax      = Mapping%IUB+di_
+                imin      = Mapping%ILB
+                jmax      = Mapping%JUB+dj_
+                jmin      = Mapping%JLB
+                
+                iSize     = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
+
+                Precision = MPI_REAL
+                
+                Source    =  Me%DDecomp%Slaves_MPI_ID(i)
+                
+                !Receive from sub-domanins to global output
+                call MPI_Recv (Out3D(imin:imax,jmin:jmax,KLB:KUB),                  &
+                               iSize, Precision, Source, 9005, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D_R4_In - ModuleHorizontalGrid - ERR40'
+
+            enddo
+            
+        else
+
+            Inner       = Me%DDecomp%Inner
+                    
+            imax        = Inner%IUB+di_
+            imin        = Inner%ILB
+            jmax        = Inner%JUB+dj_
+            jmin        = Inner%JLB
+            
+            iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)                
+            
+            Precision   = MPI_REAL
+                                                      
+            Destination = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Send (In3D(imin:imax,jmin:jmax,KLB:KUB), iSize, Precision,             &
+                           Destination, 9005, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D_R4_In - ModuleHorizontalGrid - ERR50'
+            
+        endif
+            
+
+    end subroutine JoinGridData_3D_R4_In
+
+    !-----------------------------------------------------------------------------------
+
+    subroutine JoinGridData_3D_R8(HorizontalGridID, In3D, Out3D, KLB, KUB, dj, di, STAT)
+   
+
+        !Arguments------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        real(8),dimension(:,:,:), pointer           :: In3D
+        real(8),dimension(:,:,:), pointer           :: Out3D
+        integer                                     :: KLB, KUB
+        integer                 , optional          :: di, dj
+        integer                 , optional          :: STAT
+                
+
+        !Local---------------------------------------------------------------
+        integer                                     :: di_, dj_
+        integer                                     :: STAT_, ready_        
+        
+        !Begin---------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (present(di     )) then
+                di_ = di
+            else
+                di_ = 0
+            endif
+            
+            if (present(dj     )) then
+                dj_ = dj
+            else
+                dj_ = 0
+            endif
+            
+            call JoinGridData_In(In3D, Out3D, KLB, KUB, dj_, di_)
+            
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
 
 
+        if (present(STAT)) STAT = STAT_            
+
+
+    end subroutine JoinGridData_3D_R8
+
+    !-----------------------------------------------------------------------------------
+    
+    
+    subroutine JoinGridData_3D_R8_In(In3D, Out3D, KLB, KUB, dj_, di_)
+   
+
+        !Arguments------------------------------------------------------------
+        real(8),dimension(:,:,:), pointer           :: In3D
+        real(8),dimension(:,:,:), pointer           :: Out3D
+        integer                                     :: KLB, KUB
+        integer                                     :: di_, dj_
+                
+
+        !Local---------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: imin, imax, jmin, jmax, i        
+        integer                                     :: Source, Destination         
+        integer                                     :: iSize
+        integer, save                               :: Precision
+        integer                                     :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                              :: Inner, Mapping
+        
+        !Begin---------------------------------------------------------------
+
+
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+        
+        if (Me%DDecomp%Master) then
+
+            Inner   = Me%DDecomp%Inner
+            Mapping = Me%DDecomp%Mapping
+
+            !Copy form Master (input) to Global (output)
+            if (.not. associated(Out3D)) allocate(Out3D(ILB:IUB+di_,JLB:JUB+dj_,KLB:KUB))
+
+            Out3D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_,KLB:KUB) =        &
+            In3D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_,KLB:KUB)
+            
+            !Receive from slaves (input) to Global (output)
+            do i=1, Me%DDecomp%Nslaves            
+            
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
+                
+                imax      = Mapping%IUB+di_
+                imin      = Mapping%ILB
+                jmax      = Mapping%JUB+dj_
+                jmin      = Mapping%JLB
+                
+                iSize     = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
+
+                Precision = MPI_DOUBLE_PRECISION
+                
+                Source    =  Me%DDecomp%Slaves_MPI_ID(i)
+                
+                !Receive from sub-domanins to global output
+                call MPI_Recv (Out3D(imin:imax,jmin:jmax,KLB:KUB),                  &
+                               iSize, Precision, Source, 9006, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D_R8_In - ModuleHorizontalGrid - ERR40'
+
+            enddo
+            
+        else
+
+            Inner       = Me%DDecomp%Inner
+                    
+            imax        = Inner%IUB+di_
+            imin        = Inner%ILB
+            jmax        = Inner%JUB+dj_
+            jmin        = Inner%JLB
+            
+            iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)                
+            
+            Precision   = MPI_DOUBLE_PRECISION
+                                                      
+            Destination = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Send (In3D(imin:imax,jmin:jmax,KLB:KUB), iSize, Precision,             &
+                           Destination, 9006, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D_R8_In - ModuleHorizontalGrid - ERR50'
+            
+        endif
+        
+
+    end subroutine JoinGridData_3D_R8_In
+
+    !-----------------------------------------------------------------------------------
+    
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
     ! When using a domain decomposition approach this subroutine aggregates in one global  !
@@ -5623,25 +6043,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Arguments------------------------------------------------------------
         integer                                         :: HorizontalGridID
         integer, dimension(:,:,:), pointer              :: In3D
-        integer, dimension(:,:,:), pointer, optional    :: Out3D
+        integer, dimension(:,:,:), pointer              :: Out3D
         integer                                         :: KLB, KUB
         integer                  , optional             :: di, dj
         integer                  , optional             :: STAT        
 
         !Local---------------------------------------------------------------
 
-        integer                                         :: STAT_CALL
-        integer                                         :: di_, dj_, ILB, IUB, JLB, JUB
-
-        integer                                         :: imin, imax, jmin, jmax, i        
-        
-        integer                                         :: Source, Destination         
-        integer                                         :: iSize
-        integer, save                                   :: Precision
-        integer                                         :: status(MPI_STATUS_SIZE)       
-        
-        real, pointer, dimension(:)                     :: Aux1D
-        type(T_Size2D)                                  :: Inner, Mapping
+        integer                                         :: di_, dj_
         integer                                         :: STAT_, ready_        
         
         !Begin---------------------------------------------------------------
@@ -5665,67 +6074,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 dj_ = 0
             endif
             
-            IUB     = Me%DDecomp%Global%IUB
-            ILB     = Me%DDecomp%Global%ILB 
-            JUB     = Me%DDecomp%Global%JUB
-            JLB     = Me%DDecomp%Global%JLB
-            
-            if (Me%DDecomp%Master) then
-
-                Inner   = Me%DDecomp%Inner
-                Mapping = Me%DDecomp%Mapping
-
-                !Copy form Master (input) to Global (output)
-                if (.not. present(Out3D   )) stop 'JoinGridData_3D - ModuleHorizontalGrid - ERR10'
-
-                allocate(Out3D(ILB:IUB+di_,JLB:JUB+dj_,KLB:KUB))
-
-                Out3D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_,KLB:KUB) =        &
-                In3D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_,KLB:KUB)
-                
-                !Receive from slaves (input) to Global (output)
-                do i=1, Me%DDecomp%Nslaves            
-                
-                    Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                    
-                    imax      = Mapping%IUB+di_
-                    imin      = Mapping%ILB
-                    jmax      = Mapping%JUB+dj_
-                    jmin      = Mapping%JLB
-                    
-                    iSize     = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
-
-                    Precision = MPI_INTEGER
-                    
-                    Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                    
-                    !Receive from sub-domanins to global output
-                    call MPI_Recv (Out3D(imin:imax,jmin:jmax,KLB:KUB),                  &
-                                   iSize, Precision, Source, 9003, MPI_COMM_WORLD, status, STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D - ModuleHorizontalGrid - ERR40'
-
-                enddo
-                
-            else
-
-                Inner       = Me%DDecomp%Inner
-                        
-                imax        = Inner%IUB+di_
-                imin        = Inner%ILB
-                jmax        = Inner%JUB+dj_
-                jmin        = Inner%JLB
-                
-                iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)                
-                
-                Precision   = MPI_INTEGER
-                                                          
-                Destination = Me%DDecomp%Master_MPI_ID
-                
-                call MPI_Send (In3D(imin:imax,jmin:jmax,KLB:KUB), iSize, Precision,             &
-                               Destination, 9003, MPI_COMM_WORLD, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D - ModuleHorizontalGrid - ERR50'
-                
-            endif
+            call JoinGridData_In(In3D, Out3D, KLB, KUB, dj_, di_)
             
             STAT_ = SUCCESS_
         else 
@@ -5736,8 +6085,952 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_            
 
     end subroutine JoinGridData_3Dint
+
+    !------------------------------------------------------------------------------
+
+    subroutine JoinGridData_3Dint_In(In3D, Out3D, KLB, KUB, dj_, di_)
+   
+
+        !Arguments------------------------------------------------------------
+        integer, dimension(:,:,:), pointer              :: In3D
+        integer, dimension(:,:,:), pointer              :: Out3D
+        integer                                         :: KLB, KUB
+        integer                                         :: di_, dj_
+
+        !Local---------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: ILB, IUB, JLB, JUB
+
+        integer                                         :: imin, imax, jmin, jmax, i        
+        
+        integer                                         :: Source, Destination         
+        integer                                         :: iSize
+        integer, save                                   :: Precision
+        integer                                         :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                                  :: Inner, Mapping
+
+        !Begin---------------------------------------------------------------
+
+            
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+        
+        if (Me%DDecomp%Master) then
+
+            Inner   = Me%DDecomp%Inner
+            Mapping = Me%DDecomp%Mapping
+
+            !Copy form Master (input) to Global (output)
+            if (.not. associated(Out3D)) allocate(Out3D(ILB:IUB+di_,JLB:JUB+dj_,KLB:KUB))
+
+            Out3D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_,KLB:KUB) =        &
+            In3D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_,KLB:KUB)
+            
+            !Receive from slaves (input) to Global (output)
+            do i=1, Me%DDecomp%Nslaves            
+            
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
+                
+                imax      = Mapping%IUB+di_
+                imin      = Mapping%ILB
+                jmax      = Mapping%JUB+dj_
+                jmin      = Mapping%JLB
+                
+                iSize     = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
+
+                Precision = MPI_INTEGER
+                
+                Source    =  Me%DDecomp%Slaves_MPI_ID(i)
+                
+                !Receive from sub-domanins to global output
+                call MPI_Recv (Out3D(imin:imax,jmin:jmax,KLB:KUB),                  &
+                               iSize, Precision, Source, 9007, MPI_COMM_WORLD, status, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3Dint_In - ModuleHorizontalGrid - ERR40'
+
+            enddo
+            
+        else
+
+            Inner       = Me%DDecomp%Inner
+                    
+            imax        = Inner%IUB+di_
+            imin        = Inner%ILB
+            jmax        = Inner%JUB+dj_
+            jmin        = Inner%JLB
+            
+            iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)                
+            
+            Precision   = MPI_INTEGER
+                                                      
+            Destination = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Send (In3D(imin:imax,jmin:jmax,KLB:KUB), iSize, Precision,             &
+                           Destination, 9007, MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3Dint_In - ModuleHorizontalGrid - ERR50'
+            
+        endif            
+
+    end subroutine JoinGridData_3Dint_In
+
+    !------------------------------------------------------------------------------
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine broadcast for each domain a 2D matrix                                !
+    !                                                                                      !
+    ! Input : global domain 2D matrixes                                                    !
+    ! OutPut: specific domain 2D matrixes                                                  !
+    ! Author: Paulo Chambel (2015/12)                                                      !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine BroadcastGridData2D_R4(HorizontalGridID, In2D, Out2D, STAT)
+   
+
+        !Arguments------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        real(4),   dimension(:,:), pointer          :: In2D
+        real(4),   dimension(:,:), pointer          :: Out2D
+        integer               , optional            :: STAT
+
+        !Local---------------------------------------------------------------
+        integer                                     :: STAT_, ready_        
+        
+        !Begin---------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call BroadcastGridData_In(In2D, Out2D)
+            
+            STAT_ = SUCCESS_
+            
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_            
+
+    end subroutine BroadcastGridData2D_R4         
+
+    !------------------------------------------------------------------------------
+
+    subroutine BroadcastGridData2D_R4_In(In2D, Out2D)
+   
+
+        !Arguments------------------------------------------------------------
+        real(4),   dimension(:,:), pointer          :: In2D
+        real(4),   dimension(:,:), pointer          :: Out2D
+
+        !Local---------------------------------------------------------------
+        real(8), dimension(:,:), pointer            :: Aux2D
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, JLB, JUB
+        
+        integer                                     :: Source, Destination         
+        integer                                     :: iSize, i
+        integer, save                               :: Precision
+        integer                                     :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                              :: WorkSize, HaloMap
+        
+        !Begin---------------------------------------------------------------
+        
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+
+        if (Me%DDecomp%Master) then
+        
+            WorkSize = Me%WorkSize
+            HaloMap  = Me%DDecomp%HaloMap
+        
+            Out2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =           &
+                In2D(HaloMap%ILB:HaloMap%IUB,HaloMap%JLB:HaloMap%JUB)
+
+            do i=1, Me%DDecomp%Nslaves
+            
+                WorkSize =  Me%DDecomp%Slaves_Size   (i)
+                HaloMap  =  Me%DDecomp%Slaves_HaloMap(i)
+                
+                allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))
+                
+                Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =       &
+                    In2D(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB)
+                    
+                iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
+                
+                Precision   = MPI_REAL
+                
+                Destination =  Me%DDecomp%Slaves_MPI_ID(i)
+
+                call MPI_Send (Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
+                               Destination, 90016, MPI_COMM_WORLD, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData2D_R4_In - ModuleHorizontalGrid - ERR10'
+
+                deallocate(Aux2D)
+                nullify   (Aux2D)
+
+            enddo
+            
+        else
+            WorkSize    = Me%WorkSize        
+        
+            allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))     
+            
+       
+            iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
+            Precision   = MPI_REAL
+            Source      = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Recv (Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
+                           Source, 90016, MPI_COMM_WORLD, status, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData2D_R4_In - ModuleHorizontalGrid - ERR20'
+
+            Out2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) = &
+                Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB)
+
+            deallocate(Aux2D)
+            nullify   (Aux2D)                
+
+        endif
+
+    end subroutine BroadcastGridData2D_R4_In
+
+    !------------------------------------------------------------------------------
+
+    subroutine BroadcastGridData2D_R8(HorizontalGridID, In2D, Out2D, STAT)
+   
+
+        !Arguments------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        real(8),   dimension(:,:), pointer          :: In2D
+        real(8),   dimension(:,:), pointer          :: Out2D
+        integer               , optional            :: STAT
+
+        !Local---------------------------------------------------------------
+
+        integer                                     :: STAT_, ready_        
+        
+        !Begin---------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call BroadcastGridData_In(In2D, Out2D)
+            
+            STAT_ = SUCCESS_
+            
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_            
+
+    end subroutine BroadcastGridData2D_R8         
+
+    !------------------------------------------------------------------------------
+
+    subroutine BroadcastGridData2D_R8_In(In2D, Out2D)
+   
+
+        !Arguments------------------------------------------------------------
+        real(8),   dimension(:,:), pointer          :: In2D
+        real(8),   dimension(:,:), pointer          :: Out2D
+
+        !Local---------------------------------------------------------------
+        real(8), dimension(:,:), pointer            :: Aux2D
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, JLB, JUB
+        
+        integer                                     :: Source, Destination         
+        integer                                     :: iSize, i
+        integer, save                               :: Precision
+        integer                                     :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                              :: WorkSize, HaloMap
+        
+        !Begin---------------------------------------------------------------
+        
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+
+        if (Me%DDecomp%Master) then
+        
+            WorkSize = Me%WorkSize
+            HaloMap  = Me%DDecomp%HaloMap
+        
+            Out2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =           &
+                In2D(HaloMap%ILB:HaloMap%IUB,HaloMap%JLB:HaloMap%JUB)
+
+            do i=1, Me%DDecomp%Nslaves
+            
+                WorkSize =  Me%DDecomp%Slaves_Size   (i)
+                HaloMap  =  Me%DDecomp%Slaves_HaloMap(i)
+                
+                allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))
+                
+                Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =       &
+                    In2D(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB)
+                    
+                iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
+                
+                Precision   = MPI_DOUBLE_PRECISION
+                
+                Destination =  Me%DDecomp%Slaves_MPI_ID(i)
+
+                call MPI_Send (Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
+                               Destination, 90026, MPI_COMM_WORLD, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData2D_R8_In - ModuleHorizontalGrid - ERR10'
+
+                deallocate(Aux2D)
+                nullify   (Aux2D)
+
+            enddo
+            
+        else
+            WorkSize    = Me%WorkSize        
+        
+            allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))     
+            
+       
+            iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
+            Precision   = MPI_DOUBLE_PRECISION
+            Source      = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Recv (Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
+                           Source, 90026, MPI_COMM_WORLD, status, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData2D_R8_In - ModuleHorizontalGrid - ERR20'
+
+            Out2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) = &
+                Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB)
+
+            deallocate(Aux2D)
+            nullify   (Aux2D)                
+
+        endif
+
+    end subroutine BroadcastGridData2D_R8_In
+    !------------------------------------------------------------------------------
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine broadcast for each domain a 3D matrix                                !
+    !                                                                                      !
+    ! Input : global domain 3D matrixes                                                    !
+    ! OutPut: specific domain 3D matrixes                                                  !
+    ! Author: Paulo Chambel (2015/12)                                                      !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine BroadcastGridData3D_R4(HorizontalGridID, In3D, Out3D, KLB, KUB, STAT)
+   
+
+        !Arguments------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        real(4),   dimension(:,:,:), pointer        :: In3D
+        real(4),   dimension(:,:,:), pointer        :: Out3D
+        integer                                     :: KLB, KUB
+        integer               , optional            :: STAT
+
+        !Local---------------------------------------------------------------
+        integer                                     :: STAT_, ready_        
+        
+        !Begin---------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call BroadcastGridData_In(In3D, Out3D, KLB, KUB)
+
+            STAT_ = SUCCESS_
+            
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_            
+
+    end subroutine BroadcastGridData3D_R4
+
+    !-----------------------------------------------------------------------------------
     
 
+    subroutine BroadcastGridData3D_R4_In(In3D, Out3D, KLB, KUB)
+   
+
+        !Arguments------------------------------------------------------------
+        real(4),   dimension(:,:,:), pointer        :: In3D
+        real(4),   dimension(:,:,:), pointer        :: Out3D
+        integer                                     :: KLB, KUB
+        !Local---------------------------------------------------------------
+        real(8), dimension(:,:,:), pointer          :: Aux3D
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, JLB, JUB
+        
+        integer                                     :: Source, Destination         
+        integer                                     :: iSize, i
+        integer, save                               :: Precision
+        integer                                     :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                              :: WorkSize, HaloMap
+        
+        !Begin---------------------------------------------------------------
+        
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+
+        if (Me%DDecomp%Master) then
+        
+            WorkSize = Me%WorkSize
+            HaloMap  = Me%DDecomp%HaloMap
+        
+            Out3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) =  &
+                In3D(HaloMap%ILB:HaloMap%IUB,HaloMap%JLB:HaloMap%JUB, KLB:KUB)
+
+            do i=1, Me%DDecomp%Nslaves
+            
+                WorkSize =  Me%DDecomp%Slaves_Size   (i)
+                HaloMap  =  Me%DDecomp%Slaves_HaloMap(i)
+                
+                allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))
+                
+                Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) = &
+                    In3D(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB, KLB:KUB)
+                    
+                iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)*(KUB-KLB+1)
+                
+                Precision   = MPI_REAL
+                
+                Destination =  Me%DDecomp%Slaves_MPI_ID(i)
+
+                call MPI_Send (Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB), iSize, Precision,   &
+                               Destination, 90018, MPI_COMM_WORLD, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData3D_R4_In - ModuleHorizontalGrid - ERR10'
+
+                deallocate(Aux3D)
+                nullify   (Aux3D)
+
+            enddo
+            
+        else
+            WorkSize    = Me%WorkSize        
+        
+            allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))     
+            
+       
+            iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1) * (KUB-KLB+1)
+            Precision   = MPI_REAL
+            Source      = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Recv (Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB), iSize, Precision,   &
+                           Source, 90018, MPI_COMM_WORLD, status, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData3D_R4_In - ModuleHorizontalGrid - ERR20'
+
+            Out3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) = &
+                Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB)
+
+            deallocate(Aux3D)
+            nullify   (Aux3D)                
+        
+        endif  
+
+    end subroutine BroadcastGridData3D_R4_In         
+
+    !-----------------------------------------------------------------------------------
+
+    subroutine BroadcastGridData3D_R8(HorizontalGridID, In3D, Out3D, KLB, KUB, STAT)
+   
+
+        !Arguments------------------------------------------------------------
+        integer                                     :: HorizontalGridID
+        real(8),   dimension(:,:,:), pointer        :: In3D
+        real(8),   dimension(:,:,:), pointer        :: Out3D
+        integer                                     :: KLB, KUB
+        integer               , optional            :: STAT
+
+        !Local---------------------------------------------------------------
+        integer                                     :: STAT_, ready_        
+        
+        !Begin---------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call BroadcastGridData_In(In3D, Out3D, KLB, KUB)
+
+            STAT_ = SUCCESS_
+            
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_            
+
+    end subroutine BroadcastGridData3D_R8
+
+    !-----------------------------------------------------------------------------------
+    
+
+    subroutine BroadcastGridData3D_R8_In(In3D, Out3D, KLB, KUB)
+   
+
+        !Arguments------------------------------------------------------------
+        real(8),   dimension(:,:,:), pointer        :: In3D
+        real(8),   dimension(:,:,:), pointer        :: Out3D
+        integer                                     :: KLB, KUB
+        !Local---------------------------------------------------------------
+        real(8), dimension(:,:,:), pointer          :: Aux3D
+        integer                                     :: STAT_CALL
+        integer                                     :: ILB, IUB, JLB, JUB
+        
+        integer                                     :: Source, Destination         
+        integer                                     :: iSize, i
+        integer, save                               :: Precision
+        integer                                     :: status(MPI_STATUS_SIZE)       
+        
+        type(T_Size2D)                              :: WorkSize, HaloMap
+        
+        !Begin---------------------------------------------------------------
+        
+        IUB     = Me%DDecomp%Global%IUB
+        ILB     = Me%DDecomp%Global%ILB 
+        JUB     = Me%DDecomp%Global%JUB
+        JLB     = Me%DDecomp%Global%JLB
+
+        if (Me%DDecomp%Master) then
+        
+            WorkSize = Me%WorkSize
+            HaloMap  = Me%DDecomp%HaloMap
+        
+            Out3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) =  &
+                In3D(HaloMap%ILB:HaloMap%IUB,HaloMap%JLB:HaloMap%JUB, KLB:KUB)
+
+            do i=1, Me%DDecomp%Nslaves
+            
+                WorkSize =  Me%DDecomp%Slaves_Size   (i)
+                HaloMap  =  Me%DDecomp%Slaves_HaloMap(i)
+                
+                allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))
+                
+                Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) = &
+                    In3D(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB, KLB:KUB)
+                    
+                iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)*(KUB-KLB+1)
+                
+                Precision   = MPI_DOUBLE_PRECISION
+                
+                Destination =  Me%DDecomp%Slaves_MPI_ID(i)
+
+                call MPI_Send (Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB), iSize, Precision,   &
+                               Destination, 90019, MPI_COMM_WORLD, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData3D_R8_In - ModuleHorizontalGrid - ERR10'
+
+                deallocate(Aux3D)
+                nullify   (Aux3D)
+
+            enddo
+            
+        else
+            WorkSize    = Me%WorkSize        
+        
+            allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))     
+            
+       
+            iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1) * (KUB-KLB+1)
+            Precision   = MPI_DOUBLE_PRECISION
+            Source      = Me%DDecomp%Master_MPI_ID
+            
+            call MPI_Recv (Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB), iSize, Precision,   &
+                           Source, 90019, MPI_COMM_WORLD, status, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData3D_R8_In - ModuleHorizontalGrid - ERR20'
+
+            Out3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) = &
+                Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB)
+
+            deallocate(Aux3D)
+            nullify   (Aux3D)                
+        
+        endif  
+
+    end subroutine BroadcastGridData3D_R8_In           
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine computes the thomaz 2D in parallel following a                       ! 
+    ! domain decomposition approach                                                        !
+    !                                                                                      !
+    ! Input : Coefficients of the  linear system equation                                  !
+    ! OutPut: Water level                                                                  !
+    ! Author: Paulo Chambel (2013/2)                                                       !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine THOMAS_2D_DDecompHorizGrid(HorizontalGridID, DCoef_2D, FCoef_2D,         &
+                                          TiCoef_2D, ECoef_2D, Results_2D, di, dj, STAT)     
+    
+        !Arguments------------------------------------------------------------
+        integer                          :: HorizontalGridID
+        real,    dimension(:,:), pointer :: DCoef_2D, FCoef_2D, TiCoef_2D
+        real(8), dimension(:,:), pointer :: ECoef_2D
+        real,    dimension(:,:), pointer :: Results_2D
+        integer                          :: di,    dj
+        integer, optional                :: STAT
+
+        !Local---------------------------------------------------------------
+        integer                          :: STAT_, ready_
+        real(8), pointer, dimension(:)   :: VECG
+        real(8), pointer, dimension(:)   :: VECW
+        real,    pointer, dimension(:,:) :: R2D 
+        real,    pointer, dimension(:,:) :: D   
+        real(8), pointer, dimension(:,:) :: E          
+        real,    pointer, dimension(:,:) :: F          
+        real,    pointer, dimension(:,:) :: Ti         
+        integer                          :: IUB, ILB, JUB, JLB
+        integer                          :: IJmin, IJmax
+        integer                          :: JImin, JImax
+        
+        !Begin---------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call AllocateMasterCoef2D
+ 
+            !Joins all the sub-domain coefficients in a global domain
+            call JoinGridData_In(In2D = DCoef_2D,  Out2D = Me%DDecomp%Coef2D%D , dj_= 0, di_ = 0)
+            call JoinGridData_In(In2D = ECoef_2D,  Out2D = Me%DDecomp%Coef2D%E , dj_= 0, di_ = 0)
+            call JoinGridData_In(In2D = FCoef_2D,  Out2D = Me%DDecomp%Coef2D%F , dj_= 0, di_ = 0)
+            call JoinGridData_In(In2D = TiCoef_2D, Out2D = Me%DDecomp%Coef2D%Ti, dj_= 0, di_ = 0)
+            
+            nullify(R2D)            
+            
+if2:        if (Me%DDecomp%Master) then
+               
+                IUB = Me%DDecomp%Global%IUB
+                ILB = Me%DDecomp%Global%ILB
+                JUB = Me%DDecomp%Global%JUB
+                JLB = Me%DDecomp%Global%JLB
+
+                D   => Me%DDecomp%Coef2D%D
+                E   => Me%DDecomp%Coef2D%E
+                F   => Me%DDecomp%Coef2D%F
+                Ti  => Me%DDecomp%Coef2D%Ti
+                R2D => Me%DDecomp%Coef2D%Results2D                            
+                
+                VECG    => Me%DDecomp%Coef2D%VECG
+                VECW    => Me%DDecomp%Coef2D%VECW
+                       
+                IJmin = ILB * dj + JLB * di
+                IJmax = IUB * dj + JUB * di
+
+                JImin = ILB * di + JLB * dj
+                JImax = IUB * di + JUB * dj        
+                
+                !call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, D, E, F, Ti, R2D, VECG, VECW)    
+                
+                call THOMAS_2D(IJmin       = IJmin,                                    &
+                               IJmax       = IJmax,                                    &
+                               JImin       = JImin,                                    &
+                               JImax       = JImax,                                    &
+                               di          = di,                                       &
+                               dj          = dj,                                       &
+                               DCoef_2D    = D,                                        &
+                               ECoef_2D    = E,                                        &
+                               FCoef_2D    = F,                                        &
+                               TiCoef_2D   = Ti,                                       &
+                               ANSWER      = R2D,                                      &
+                               VECG        = VECG,                                     &
+                               VECW        = VECW)                
+                
+                nullify(D, E, F, Ti, VECG, VECW)
+               
+            endif if2
+            
+            !Send for each the water level result
+            call BroadcastGridData_In(In2D = R2D, Out2D = Results_2D)
+            
+            nullify(R2D)            
+            
+            STAT_ = SUCCESS_
+            
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_            
+
+
+    end subroutine THOMAS_2D_DDecompHorizGrid         
+
+    !------------------------------------------------------------------------------
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine computes the thomaz 3D in parallel following a                       ! 
+    ! domain decomposition approach                                                        !
+    !                                                                                      !
+    ! Input : Coefficients of the  linear system equation                                  !
+    ! OutPut: Water level                                                                  !
+    ! Author: Paulo Chambel (2013/2)                                                       !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine THOMAS_3D_DDecompHorizGrid(HorizontalGridID, DCoef_3D, FCoef_3D,         &
+                                          TiCoef_3D, ECoef_3D, Results_3D, di, dj,      &
+                                          KLB, KUB, STAT)     
+    
+        !Arguments------------------------------------------------------------
+        integer                             :: HorizontalGridID
+        real,    dimension(:,:,:), pointer  :: DCoef_3D, FCoef_3D, TiCoef_3D
+        real(8), dimension(:,:,:), pointer  :: ECoef_3D
+        real,    dimension(:,:,:), pointer  :: Results_3D
+        integer                             :: di,    dj
+        integer                             :: KLB, KUB
+        integer, optional                   :: STAT
+
+        !Local---------------------------------------------------------------
+        integer                             :: STAT_, ready_
+        real(8), pointer, dimension(:)      :: VECG
+        real(8), pointer, dimension(:)      :: VECW
+        real,    pointer, dimension(:,:,:)  :: R3D 
+        real,    pointer, dimension(:,:,:)  :: D   
+        real(8), pointer, dimension(:,:,:)  :: E          
+        real,    pointer, dimension(:,:,:)  :: F          
+        real,    pointer, dimension(:,:,:)  :: Ti         
+        integer                             :: IUB, ILB, JUB, JLB
+        integer                             :: IJmin, IJmax
+        integer                             :: JImin, JImax
+        
+        !Begin---------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            Me%DDecomp%Coef3D%KLB = KLB
+            Me%DDecomp%Coef3D%KUB = KUB
+        
+            call AllocateMasterCoef3D
+ 
+            !Joins all the sub-domain coefficients in a global domain
+            call JoinGridData_In(In3D = DCoef_3D,  Out3D = Me%DDecomp%Coef3D%D , KLB = KLB, KUB = KUB, dj_= 0, di_ = 0)
+            call JoinGridData_In(In3D = ECoef_3D,  Out3D = Me%DDecomp%Coef3D%E , KLB = KLB, KUB = KUB, dj_= 0, di_ = 0)
+            call JoinGridData_In(In3D = FCoef_3D,  Out3D = Me%DDecomp%Coef3D%F , KLB = KLB, KUB = KUB, dj_= 0, di_ = 0)
+            call JoinGridData_In(In3D = TiCoef_3D, Out3D = Me%DDecomp%Coef3D%Ti, KLB = KLB, KUB = KUB, dj_= 0, di_ = 0)
+            
+            nullify(R3D)            
+            
+if2:        if (Me%DDecomp%Master) then
+               
+                IUB = Me%DDecomp%Global%IUB
+                ILB = Me%DDecomp%Global%ILB
+                JUB = Me%DDecomp%Global%JUB
+                JLB = Me%DDecomp%Global%JLB
+
+                D   => Me%DDecomp%Coef3D%D
+                E   => Me%DDecomp%Coef3D%E
+                F   => Me%DDecomp%Coef3D%F
+                Ti  => Me%DDecomp%Coef3D%Ti
+                R3D => Me%DDecomp%Coef3D%Results3D                            
+                
+                VECG    => Me%DDecomp%Coef3D%VECG
+                VECW    => Me%DDecomp%Coef3D%VECW
+                       
+                IJmin = ILB * dj + JLB * di
+                IJmax = IUB * dj + JUB * di
+
+                JImin = ILB * di + JLB * dj
+                JImax = IUB * di + JUB * dj        
+                
+                call THOMAS_3D(IJmin       = IJmin,                                    &
+                               IJmax       = IJmax,                                    &
+                               JImin       = JImin,                                    &
+                               JImax       = JImax,                                    &
+                               Kmin        = KLB,                                      &
+                               Kmax        = KUB,                                      &
+                               di          = di,                                       &
+                               dj          = dj,                                       &
+                               DCoef_3D    = D,                                        &
+                               ECoef_3D    = E,                                        &
+                               FCoef_3D    = F,                                        &
+                               TiCoef_3D   = Ti,                                       &
+                               ANSWER      = R3D,                                      &
+                               VECG        = VECG,                                     &
+                               VECW        = VECW)
+                
+                nullify(D, E, F, Ti, VECG, VECW)
+               
+            endif if2
+            
+            !Send for each the water level result
+            call BroadcastGridData_In(In3D = R3D, Out3D = Results_3D, KLB = KLB, KUB = KUB)
+            
+            nullify(R3D)            
+            
+            STAT_ = SUCCESS_
+            
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_            
+
+
+    end subroutine THOMAS_3D_DDecompHorizGrid         
+
+    !------------------------------------------------------------------------------
+
+
+    subroutine AllocateMasterCoef2D            
+
+        !Arguments------------------------------------------------------------
+        
+        !Local---------------------------------------------------------------
+        integer                          :: IUB, ILB, JUB, JLB
+        integer                          :: IUS, ILS, JUS, JLS
+        integer                          :: JImin, JImax
+        
+        !Begin---------------------------------------------------------------
+
+        if  (.not. Me%DDecomp%Coef2D%AllocateON .and. Me%DDecomp%Master) then
+        
+            IUB = Me%DDecomp%Global%IUB
+            ILB = Me%DDecomp%Global%ILB
+            JUB = Me%DDecomp%Global%JUB
+            JLB = Me%DDecomp%Global%JLB
+
+            ILS = ILB-1
+            IUS = IUB+1
+            JLS = JLB-1
+            JUS = JUB+1
+            
+            write(*,*) 'ILS, IUS, JLS, JUS', ILS, IUS, JLS, JUS
+
+            allocate(Me%DDecomp%Coef2D%D        (ILS:IUS, JLS:JUS))
+            allocate(Me%DDecomp%Coef2D%E        (ILS:IUS, JLS:JUS))
+            allocate(Me%DDecomp%Coef2D%F        (ILS:IUS, JLS:JUS))
+            allocate(Me%DDecomp%Coef2D%Ti       (ILS:IUS, JLS:JUS))
+            allocate(Me%DDecomp%Coef2D%Results2D(ILS:IUS, JLS:JUS))                
+            
+            Me%DDecomp%Coef2D%D        (:,:) = 0.
+            Me%DDecomp%Coef2D%E        (:,:) = 1.
+            Me%DDecomp%Coef2D%F        (:,:) = 0.
+            Me%DDecomp%Coef2D%Ti       (:,:) = 0.
+            Me%DDecomp%Coef2D%Results2D(:,:) = 0.
+            
+        
+            JImin = MIN(ILS,JLS)
+            JImax = MAX(IUS,JUS)            
+
+            allocate(Me%DDecomp%Coef2D%VECG(JImin:JImax))
+            allocate(Me%DDecomp%Coef2D%VECW(JImin:JImax))
+            
+            Me%DDecomp%Coef2D%VECG(:) = 0
+            Me%DDecomp%Coef2D%VECW(:) = 0
+            
+            Me%DDecomp%Coef2D%AllocateON = .true. 
+
+        endif
+
+    end subroutine AllocateMasterCoef2D            
+    
+    
+
+    subroutine AllocateMasterCoef3D            
+
+        !Arguments------------------------------------------------------------
+        
+        !Local---------------------------------------------------------------
+        integer                          :: IUB, ILB, JUB, JLB
+        integer                          :: IUS, ILS, JUS, JLS
+        integer                          :: JImin, JImax
+        integer                          :: KLB, KUB, KLS, KUS
+        
+        !Begin---------------------------------------------------------------
+
+        if  (.not. Me%DDecomp%Coef3D%AllocateON .and. Me%DDecomp%Master) then
+        
+            IUB = Me%DDecomp%Global%IUB
+            ILB = Me%DDecomp%Global%ILB
+            JUB = Me%DDecomp%Global%JUB
+            JLB = Me%DDecomp%Global%JLB
+            
+            KLB = Me%DDecomp%Coef3D%KLB
+            KUB = Me%DDecomp%Coef3D%KUB            
+
+            ILS = ILB-1
+            IUS = IUB+1
+            JLS = JLB-1
+            JUS = JUB+1
+            KLS = KLB-1
+            KUS = KUB+1            
+            
+            allocate(Me%DDecomp%Coef3D%D        (ILS:IUS, JLS:JUS, KLS:KUS))
+            allocate(Me%DDecomp%Coef3D%E        (ILS:IUS, JLS:JUS, KLS:KUS))
+            allocate(Me%DDecomp%Coef3D%F        (ILS:IUS, JLS:JUS, KLS:KUS))
+            allocate(Me%DDecomp%Coef3D%Ti       (ILS:IUS, JLS:JUS, KLS:KUS))
+            allocate(Me%DDecomp%Coef3D%Results3D(ILS:IUS, JLS:JUS, KLS:KUS))
+            
+            Me%DDecomp%Coef3D%D        (:,:,:) = 0.
+            Me%DDecomp%Coef3D%E        (:,:,:) = 1.
+            Me%DDecomp%Coef3D%F        (:,:,:) = 0.
+            Me%DDecomp%Coef3D%Ti       (:,:,:) = 0.
+            Me%DDecomp%Coef3D%Results3D(:,:,:) = 0.
+            
+        
+            JImin = MIN(ILS,JLS)
+            JImax = MAX(IUS,JUS)            
+
+            allocate(Me%DDecomp%Coef3D%VECG(JImin:JImax))
+            allocate(Me%DDecomp%Coef3D%VECW(JImin:JImax))
+            
+            Me%DDecomp%Coef3D%VECG(:) = 0
+            Me%DDecomp%Coef3D%VECW(:) = 0
+            
+            Me%DDecomp%Coef3D%AllocateON = .true. 
+
+        endif
+
+    end subroutine AllocateMasterCoef3D             
+    
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -6229,7 +7522,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         character(len=*)   , intent(INOUT) :: FileName    
         integer            , optional      :: STAT        
         !Local---------------------------------------------------------------
-        integer                            :: STAT_CALL
         integer                            :: I, ipath, iFN
         character(LEN = StringLength)      :: AuxChar
         integer                            :: STAT_, ready_
@@ -6294,9 +7586,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                           , optional, intent(IN)    :: KLB, KUB
         integer                           , optional, intent(OUT)   :: STAT        
         !Local---------------------------------------------------------------
-        integer                                                     :: STAT_CALL
-        integer                                                     :: I, ipath, iFN
-        character(LEN = StringLength)                               :: AuxChar
         integer                                                     :: STAT_, ready_
         integer                                                     :: NeighbourSouth, NeighbourWest
         integer                                                     :: NeighbourEast, NeighbourNorth
@@ -12618,12 +13907,64 @@ do1 :   do while(associated(FatherGrid))
             if (STAT_CALL /= SUCCESS_) stop 'KillDDecomp - HorizontalGrid - ERR10'                                 
 
         endif
-        !----------------------------------------------------------------------
         
+        call DeAllocateMasterCoef2D
+
+        call DeAllocateMasterCoef3D        
+        
+        !----------------------------------------------------------------------
         
 #endif _USE_MPI        
 
     end subroutine KillDDecomp
+    
+
+    subroutine DeAllocateMasterCoef2D            
+
+        !Arguments------------------------------------------------------------
+        
+        !Local---------------------------------------------------------------
+        
+        !Begin---------------------------------------------------------------
+
+        if  (Me%DDecomp%Coef2D%AllocateON .and. Me%DDecomp%Master) then
+        
+            deallocate(Me%DDecomp%Coef2D%D        )
+            deallocate(Me%DDecomp%Coef2D%E        )
+            deallocate(Me%DDecomp%Coef2D%F        )
+            deallocate(Me%DDecomp%Coef2D%Ti       )
+            deallocate(Me%DDecomp%Coef2D%Results2D)                
+            deallocate(Me%DDecomp%Coef2D%VECG     )
+            deallocate(Me%DDecomp%Coef2D%VECW     )
+            
+        endif
+
+    end subroutine DeAllocateMasterCoef2D        
+
+    !End----------------------------------------------------------------
+
+
+    subroutine DeAllocateMasterCoef3D
+
+        !Arguments------------------------------------------------------------
+        
+        !Local---------------------------------------------------------------
+        
+        !Begin---------------------------------------------------------------
+
+        if  (Me%DDecomp%Coef3D%AllocateON .and. Me%DDecomp%Master) then
+        
+            deallocate(Me%DDecomp%Coef3D%D        )
+            deallocate(Me%DDecomp%Coef3D%E        )
+            deallocate(Me%DDecomp%Coef3D%F        )
+            deallocate(Me%DDecomp%Coef3D%Ti       )
+            deallocate(Me%DDecomp%Coef3D%Results3D)
+            deallocate(Me%DDecomp%Coef3D%VECG     )
+            deallocate(Me%DDecomp%Coef3D%VECW     )
+            
+        endif
+
+    end subroutine DeAllocateMasterCoef3D        
 
     !End----------------------------------------------------------------
 
