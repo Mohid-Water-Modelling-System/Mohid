@@ -26,7 +26,7 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5MODINC) -I$(BASE1INC) -I$(BASE2INC)
+INCS = -I$(HDF5INC) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS) $(HDFLIBS)
 SRCDIR = $(SRCREP)/MOHIDLand
 FILES = \
@@ -58,7 +58,7 @@ ModuleBasin.${Obj} 			: ModuleRunoffProperties.${Obj} \
                     			  ModulePorousMediaProperties.${Obj} \
                     			  ModuleVegetation.${Obj} \
                                           ModuleIrrigation.${Obj} \
-                                          ModuleReservoirs.${Obj}
+                                          ModuleReservoirs.${Obj} \
                                           ModuleSnow.${Obj}
 
 #--------End of dependencies list---------
