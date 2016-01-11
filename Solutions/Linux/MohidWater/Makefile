@@ -27,7 +27,7 @@
 #------------------------------------------------------------------------------
 
 INCS = -I$(HDF5MODINC) -I$(BASE1INC) -I$(BASE2INC)
-LIBS = $(BASELIBS) $(HDFLIBS)
+LIBS = $(BASELIBS) $(HDFLIBS) $(MPILIBS)
 SRCDIR = $(SRCREP)/MOHIDWater
 FILES = \
        ModuleAssimilation.$(S) \

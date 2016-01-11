@@ -42,17 +42,27 @@ export LHDF5HLLIB = libhdf5_hl.a
 export ZLIB = libz.so
 export SZLIB = libsz.so
 
+# MPI lib
+export MPILIB = mpi.a
+
 # All libs folders
 export BASELIBS := \
        $(BASE2INC)/$(BASE2) \
        $(BASE1INC)/$(BASE1)
 
 export HDFLIBS := \
-       $(HDF5LIBINC)/$(LHDF5FORTRANLIB) \
-       $(HDF5LIBINC)/$(LHDF5LIB) \
-       $(HDF5LIBINC)/$(LHDF5HLLIB) \
+       $(HDF5LIB)/$(LHDF5FORTRANLIB) \
+       $(HDF5LIB)/$(LHDF5LIB) \
+       $(HDF5LIB)/$(LHDF5HLLIB) \
        $(ZLIBINC)/$(ZLIB) \
        $(ZLIBINC)/$(SZLIB)
+
+
+MPILIBS :=
+ifeq ($(IS_MPI),true)
+    MPILIBS := $(MPILIBPATH)/$(MPILIB)
+endif
+export MPILIBS
 
 # All libs folders (including netcdf)
 # Order of libraries *is relevant* at link-time
