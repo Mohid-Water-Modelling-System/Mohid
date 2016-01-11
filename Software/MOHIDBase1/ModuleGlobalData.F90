@@ -3277,17 +3277,17 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
 
             Check_Particulate_Property = .TRUE. 
             
-        elseif(associated(DynamicPropNameList)) then            
-
-                do i=1, DynamicPropertiesNumber
-
-                    if (Property == DynamicPropNumberList(i)) then
-                        
-                        Check_Particulate_Property = .TRUE. 
-
-                    endif
-
-                enddo
+!        elseif(associated(DynamicPropNameList)) then            
+!
+!                do i=1, DynamicPropertiesNumber
+!
+!                    if (Property == DynamicPropNumberList(i)) then
+!                        
+!                        Check_Particulate_Property = .TRUE. 
+!
+!                    endif
+!
+!                enddo
                 
         else
             Check_Particulate_Property = .FALSE.
@@ -3315,17 +3315,17 @@ cd1 :   if ((Property == WindDirection_          )  .OR. (Property == MeanWaveDi
 
             Check_Angle_Property = .TRUE. 
             
-        elseif(associated(DynamicPropNameList)) then            
-
-                do i=1, DynamicPropertiesNumber
-
-                    if (Property == DynamicPropNumberList(i)) then
-                        
-                        Check_Angle_Property = .TRUE. 
-
-                    endif
-
-                enddo
+!        elseif(associated(DynamicPropNameList)) then            
+!
+!                do i=1, DynamicPropertiesNumber
+!
+!                    if (Property == DynamicPropNumberList(i)) then
+!                        
+!                        Check_Angle_Property = .TRUE. 
+!
+!                    endif
+!
+!                enddo
                 
         else
             Check_Angle_Property = .FALSE.
@@ -3387,17 +3387,17 @@ cd1 :   if ((Property == WindVelocity_          ) .OR. (Property == WaveStress_ 
 
             Check_Vectorial_Property = .TRUE. 
             
-        elseif(associated(DynamicPropNameList)) then            
-
-                do i=1, DynamicPropertiesNumber
-
-                    if (Property == DynamicPropNumberList(i)) then
-                        
-                        Check_Vectorial_Property = .TRUE. 
-
-                    endif
-
-                enddo
+!        elseif(associated(DynamicPropNameList)) then            
+!
+!                do i=1, DynamicPropertiesNumber
+!
+!                    if (Property == DynamicPropNumberList(i)) then
+!                        
+!                        Check_Vectorial_Property = .TRUE. 
+!
+!                    endif
+!
+!                enddo
                 
         else
             Check_Vectorial_Property = .FALSE.
