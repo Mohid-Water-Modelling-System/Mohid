@@ -26,12 +26,16 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5MODINC)
+INCS = -I$(HDF5INC)
 LIBS =
 
 ifeq ($(IS_PROJ4F),true)
     INCS := $(INCS) -I$(PROJ4FINC)
     LIBS := $(LIBS) $(PROJ4FLIBS)
+endif
+
+ifeq ($(IS_MPI),true)
+    INCS := $(INCS) -I$(MPIINC)
 endif
 
 SRCDIR = $(SRCREP)/MOHIDBase1
