@@ -5845,8 +5845,8 @@ PropX:          do while (associated(PropertyX))
                                     stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR06a'     
                                 
                                 !just for debbuging
-                                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyNameX//"_Grid",     &
-                                                     PropertyNameX//"_Grid", PropertyX%ID%Units,          &
+                                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(PropertyNameX)//"_Grid",     &
+                                                     trim(PropertyNameX)//"_Grid", PropertyX%ID%Units,          &
                                                      Array2D      = PropertyX%FieldU,            &
                                                      OutputNumber = OutPutNumber,                &
                                                      STAT         = STAT_CALL)
@@ -5862,8 +5862,8 @@ PropX:          do while (associated(PropertyX))
                                     stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR07a'     
                                 
                                 !just for debbuging
-                                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyNameY//"_Grid",     &
-                                                     PropertyNameY//"_Grid", PropertyX%ID%Units,          &
+                                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(PropertyNameY)//"_Grid",     &
+                                                     trim(PropertyNameY)//"_Grid", PropertyX%ID%Units,          &
                                                      Array2D      = PropertyX%FieldV,            &
                                                      OutputNumber = OutPutNumber,                &
                                                      STAT         = STAT_CALL)
