@@ -1606,7 +1606,8 @@ cd2 :           if (BlockFound) then
         end if
         
         if (NewProperty%ComputeOptions%BottomFluxes) then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+			if(.not. NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
                 write(*,*) 'recognised as PARTICULATE'
                 stop 'ModuleReservoirs - ConstructPropertyValues - ERR100' 
@@ -1616,8 +1617,8 @@ cd2 :           if (BlockFound) then
        !in Reservoirs all properties recognized by the model as particulate need to
        !have Bottom Fluxes because if all water exits reservoir the mass needs to go somewhere
        !and so needs the bottom concentration 
-        if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
-           .not. NewProperty%ComputeOptions%BottomFluxes) then 
+!~         if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
+		if (.not. NewProperty%ID%IsParticulate .and. (.not. NewProperty%ComputeOptions%BottomFluxes)) then 
             write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not BOTTOM_FLUXES ON'
             write(*,*) 'but is recognised by the model as particulate.'
             write(*,*) 'Particulated recognized properties can accumulate in bottom and'
@@ -1871,7 +1872,8 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ModuleReservoirs - ConstructPropertyValues - ERR300'
 
         if (NewProperty%ComputeOptions%SumTotalConc) then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+			if (.not. NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
                 write(*,*) 'recognised as PARTICULATE and does not have Bottom_ or total_Conc'
                 stop 'ModuleReservoirs - ConstructPropertyValues - ERR16b' 
@@ -3472,7 +3474,8 @@ if0:    if (Me%HasProperties) then
             ID          = CurrProp%ID%IDNumber
             
             if (present (Particulate)) then
-                Particulate = Check_Particulate_Property(CurrProp%ID%IDNumber)
+!~                 Particulate = Check_Particulate_Property(CurrProp%ID%IDNumber)
+				Particulate = CurrProp%ID%IsParticulate
             endif
             
             if (present (OutputName)) then

@@ -518,7 +518,7 @@ Module ModulePorousMediaProperties
         real, pointer, dimension(:,:,:)         :: ViscosityU               => null()
         real, pointer, dimension(:,:,:)         :: ViscosityV               => null()
         type (T_Property), pointer              :: Next, Prev               => null()
-        logical                                 :: Particulate              = .false.
+!~         logical                                 :: Particulate              = .false.
         logical                                 :: Pesticide                = .false.
         type (T_Evolution)                      :: Evolution       
         type (T_MassBalance)                    :: MB
@@ -1149,7 +1149,7 @@ doi3:   do J = JLB, JUB
             write(*, *)"---Sediment Quality : ", CurrentProperty%Evolution%SoilQuality
             write(*, *)"---PREEQC           : ", CurrentProperty%Evolution%SoilChemistry
             write(*, *)"---Partitioning     : ", CurrentProperty%Evolution%Partitioning
-            write(*, *)"---Particulate      : ", CurrentProperty%Particulate
+            write(*, *)"---Particulate      : ", CurrentProperty%ID%IsParticulate
             write(*, *)"---Discharges       : ", CurrentProperty%Evolution%Discharges
             write(*, *)
 
@@ -1646,9 +1646,11 @@ doi3:   do J = JLB, JUB
             IJKLB = min (ILB, JLB, KLB)
             IJKUB = max (IUB, JUB, KUB)
 
-            Me%MaxThreads = 1
-            !$ Me%MaxThreads = omp_get_max_threads()
+            !Me%MaxThreads = 1
+            !!$ Me%MaxThreads = omp_get_max_threads()
 
+            Me%MaxThreads = openmp_num_threads
+            
             allocate(Me%THOMAS)
             allocate(Me%THOMAS%COEF3)
             allocate(Me%THOMAS%VEC(1:Me%MaxThreads))
@@ -1920,34 +1922,35 @@ cd2 :           if (BlockFound) then
         !----------------------------------------------------------------------
         
 
-        !<BeginKeyword>
-            !Keyword          : PARTICULATE
-            !<BeginDescription>
-            !<EndDescription>
-            !Type             : logical   
-            !Default          : Dissolved
-            !File keyword     : SEDPROP
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : From Block
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
+!~         !<BeginKeyword>
+!~             !Keyword          : PARTICULATE
+!~             !<BeginDescription>
+!~             !<EndDescription>
+!~             !Type             : logical   
+!~             !Default          : Dissolved
+!~             !File keyword     : SEDPROP
+!~             !Multiple Options : 1 (.true.), 0 (.false.)
+!~             !Search Type      : From Block
+!~             !Begin Block      : <beginproperty>
+!~             !End Block        : <endproperty>
+!~         !<EndKeyword>
 
-        call GetData(NewProperty%Particulate,                                            &
-                     Me%ObjEnterData,  iflag,                                            &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'PARTICULATE',                                       &
-                     ClientModule = 'ModulePorousMediaProeprties',                       &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR010'
+!~         call GetData(NewProperty%Particulate,                                            &
+!~                      Me%ObjEnterData,  iflag,                                            &
+!~                      SearchType   = FromBlock,                                           &
+!~                      keyword      = 'PARTICULATE',                                       &
+!~                      ClientModule = 'ModulePorousMediaProeprties',                       &
+!~                      STAT         = STAT_CALL)
+!~         if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR010'
 
-        if (NewProperty%Particulate)then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-                write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
-                write(*,*) 'recognised as PARTICULATE'
-                stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR020'
-            end if
-        endif
+!~         if (NewProperty%Particulate)then
+!~             !if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~ 			if(.not. NewProperty%ID%IsParticulate) then
+!~                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
+!~                 write(*,*) 'recognised as PARTICULATE'
+!~                 stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR020'
+!~             end if
+!~         endif
         
         call GetData(NewProperty%UseToCalcECw,                                           &
                      Me%ObjEnterData,  iflag,                                            &
@@ -2016,11 +2019,12 @@ cd2 :           if (BlockFound) then
         !(particulates do not enter or leave soil) ModuleBasin will not give the concentration 
         !of this species (it will remain FillValueReal) and advection in soil has problems
         if (NewProperty%Evolution%AdvectionDiffusion) then 
-            if (NewProperty%Particulate) then
+            if (NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has PARTICULATE option ON'
                 write(*,*) 'and can not have ADVECTION_DIFFUSION ON in Porus Media Properties'
                 stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR030'      
-            elseif (Check_Particulate_Property(NewProperty%ID%IDNumber)) then
+!~             elseif (Check_Particulate_Property(NewProperty%ID%IDNumber)) then
+			elseif (NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not PARTICULATE option ON'
                 write(*,*) 'but is recognized by the model as being particulate tupe'
                 write(*,*) 'and can not have ADVECTION_DIFFUSION ON in Porus Media Properties'
@@ -2641,7 +2645,7 @@ do1 :   do
             !End Block        : <endproperty>
         !<EndKeyword>
         
-        if(NewProperty%Particulate)then
+        if(NewProperty%ID%IsParticulate)then
             DefaultFraction = 0.9
         else
             DefaultFraction = 0.1
@@ -3305,7 +3309,7 @@ do1 :   do
             
 do1:    do while(associated(Property))
 
-            if (Property%Evolution%Partitioning .and. .not. Property%Particulate) then
+            if (Property%Evolution%Partitioning .and. .not. Property%ID%IsParticulate) then
 
                 DissolvedProperty => Property 
 
@@ -3329,7 +3333,8 @@ do1:    do while(associated(Property))
                     write(*,*) 'Particulate property was not found'
                     stop 'ConstructPartition - ModulePorousMediaProperties - ERR10'
                 else
-                    if(.not. Check_Particulate_Property (Couple_ID)) then
+!~                     if(.not. Check_Particulate_Property (Couple_ID)) then
+					if (.not. ParticulateProperty%ID%IsParticulate) then
                         write(*,*)
                         write(*,*) 'Couple property', trim(GetPropertyName(Couple_ID))
                         write(*,*) 'is not recognized by the model as being particulate'
@@ -10568,7 +10573,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         PropertyX => Me%FirstProperty
 
 do0:    do while(associated(PropertyX))
-cd0:        if(.not. PropertyX%Particulate .and. PropertyX%Evolution%Partitioning) then
+cd0:        if(.not. PropertyX%ID%IsParticulate .and. PropertyX%Evolution%Partitioning) then
 
                 !days
                 !if DTInterval, only update at given time
@@ -11242,7 +11247,8 @@ do1 :   do while (associated(Property))
                   
         if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then            
     
-            if (Check_Particulate_Property(Property%ID%IDNumber)) then
+!~             if (Check_Particulate_Property(Property%ID%IDNumber)) then
+			if (Property%ID%IsParticulate) then
 
                 call SearchProperty(SoilDryDensity, SoilDryDensity_, .false., STAT = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'DecayFirstOrder - ModulePorousMediaProperties - ERR01'
@@ -11956,7 +11962,8 @@ First:          if (LastTime.LT.Actual) then
         PropertyX%AverageAquiferConc = null_real
         PropertyX%AverageVadozeConc  = null_real
         
-        if (Check_Particulate_Property(PropertyX%ID%IDNumber)) then
+!~         if (Check_Particulate_Property(PropertyX%ID%IDNumber)) then
+		if (PropertyX%ID%IsParticulate) then
 
             call SearchProperty(SoilDryDensity, SoilDryDensity_        , .false., STAT = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ComputeAverageConc - ModulePorousMediaProperties - ERR003'
@@ -12186,7 +12193,8 @@ First:          if (LastTime.LT.Actual) then
                 
         DT = Me%ExtVar%DT/86400.
 
-        if (Check_Particulate_Property(PropertyX%ID%IDNumber)) then
+!~         if (Check_Particulate_Property(PropertyX%ID%IDNumber)) then
+		if (PropertyX%ID%IsParticulate) then
 
             call SearchProperty(SoilDryDensity, SoilDryDensity_        , .false., STAT = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ComputeIntegratedDecay - ModulePorousMediaProperties - ERR003'
@@ -12302,7 +12310,8 @@ First:          if (LastTime.LT.Actual) then
                
                 Me%CellMass(:,:,:) = 0.
                 
-                if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
+!~                 if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
+				if (CurrProperty%ID%IsParticulate) then
 
                     CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                     !$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
@@ -12715,7 +12724,8 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         do while (associated(CurrProperty)) 
             
-            if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
+!~             if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
+			if (CurrProperty%ID%IsParticulate) then
                
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB

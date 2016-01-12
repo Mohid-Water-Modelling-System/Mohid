@@ -8248,8 +8248,10 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
         !griflet
         !griflet start                
-        Me%MaxThreads=1
-        !$ Me%MaxThreads = omp_get_max_threads()
+        !Me%MaxThreads=1
+        !!$ Me%MaxThreads = omp_get_max_threads()
+        
+        Me%MaxThreads = openmp_num_threads
         
         allocate(Me%THOMAS)
         allocate(Me%THOMAS%COEF3)

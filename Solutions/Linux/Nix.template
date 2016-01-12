@@ -7,6 +7,18 @@ include Config.mk
 
 #-- NIX platform specific global variables --
 
+export OMP_CCFLAGS = 
+export OMP_LFLAGS =
+ifeq ($(IS_OPENMP),true)
+    export OMP_CCFLAGS = -openmp
+    export OMP_LFLAGS = -openmp -openmp-link=static
+endif
+
+export DEBUG_FLAGS =
+ifeq ($(IS_DEBUG),true)
+    export DEBUG_CCFLAGS = -g -check all
+endif
+
 export ORIGIN = ORIGIN
 export CP  = sudo cp
 export DEL = rm
@@ -14,8 +26,8 @@ export F = F90
 export Obj = o
 export MOD = mod
 export CC= ifort
-export CCFLAGS  = -openmp -fpp -r8 -std03 -m64 -ip -zero -O1 -assume buffered_io -warn all -nologo -fpe0 -D_USE_NIX -traceback -mcmodel=medium -heap-arrays 64 -c $(FPP_DEFINES) 
-export LFLAGS   = -openmp -shared-intel -openmp-link=static -static-libgcc -Wl,-rpath,'$$$$ORIGIN/.',-rpath,$(INTEL_PATH) 
+export CCFLAGS  = $(OMP_CCFLAGS) $(DEBUG_CCFLAGS) -fpp -r8 -std03 -m64 -ip -zero -O1 -assume buffered_io -warn all -nologo -fpe0 -D_USE_NIX -traceback -mcmodel=medium -heap-arrays 64 -c $(FPP_DEFINES) 
+export LFLAGS   = $(OMP_LFLAGS) -shared-intel -static-libgcc -Wl,-rpath,'$$$$ORIGIN/.',-rpath,$(INTEL_PATH) 
 export LLFLAGS  =
 export MKFLAGS =
 export AR = ar rc
@@ -42,6 +54,9 @@ export LHDF5HLLIB = libhdf5_hl.a
 export ZLIB = libz.so
 export SZLIB = libsz.so
 
+# MPI lib
+export MPILIB = mpi.a
+
 # All libs folders
 export BASELIBS := \
        $(BASE2INC)/$(BASE2) \
@@ -53,6 +68,13 @@ export HDFLIBS := \
        $(HDF5LIB)/$(LHDF5HLLIB) \
        $(ZLIBINC)/$(ZLIB) \
        $(ZLIBINC)/$(SZLIB)
+
+
+MPILIBS :=
+ifeq ($(IS_MPI),true)
+    MPILIBS := $(MPILIBPATH)/$(MPILIB)
+endif
+export MPILIBS
 
 # All libs folders (including netcdf)
 # Order of libraries *is relevant* at link-time

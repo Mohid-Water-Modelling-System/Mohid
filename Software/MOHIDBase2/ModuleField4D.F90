@@ -215,6 +215,8 @@ Module ModuleField4D
 
     type T_File
         character(PathLength)                           :: FileName             = null_str
+        character(PathLength)                           :: FieldName            = null_str
+        logical                                         :: FieldNameArgument    = .false.
         type (T_Time)                                   :: StartTime
         type (T_Time)                                   :: EndTime        
         integer                                         :: Obj                  = null_int
@@ -361,7 +363,7 @@ Module ModuleField4D
                                 MaskDim, HorizontalGridID, BathymetryID,                &
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
-                                Extrapolate, PropertyID, ClientID, FileNameList, STAT)
+                                Extrapolate, PropertyID, ClientID, FileNameList, FieldName, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                        intent(INOUT) :: Field4DID
@@ -383,6 +385,7 @@ Module ModuleField4D
         type (T_PropertyID),                  optional, intent(IN )   :: PropertyID
         integer,                              optional, intent(IN )   :: ClientID
         character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList             
+        character(*),                         optional, intent(IN )   :: FieldName                 
         integer,                              optional, intent(OUT)   :: STAT     
         
         !Local-------------------------------------------------------------------
@@ -441,6 +444,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 stop 'ConstructField4D - ModuleField4D - ERR20' 
             endif                
             
+            
+            
+            !Set field name
+            if (present(FieldName)) then
+                Me%File%FieldNameArgument = ON
+                Me%File%FieldName         = trim(FieldName)
+            endif
             
             if (present(MaskDim)) then
                 Me%MaskDim  = MaskDim
@@ -1577,27 +1587,32 @@ wwd1:       if (Me%WindowWithData) then
         if (iflag == 1)then
             PropField%HasAddingFactor = .true.
         end if
-
-        call GetData(PropField%FieldName,                                               &
-                     Me%ObjEnterData , iflag,                                           &
-                     SearchType   = ExtractType,                                        &
-                     keyword      = 'FIELD_NAME',                                       &
-                     default      = trim(PropField%ID%Name),                            &
-                     ClientModule = 'ModuleField4D',                                    &
-                     STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR70'
         
-        if (iflag == 0) then
-            call GetData(PropField%FieldName,                                           &
-                         Me%ObjEnterData , iflag,                                       &
-                         SearchType   = ExtractType,                                    &
-                         keyword      = 'HDF_FIELD_NAME',                               &
-                         default      = trim(PropField%ID%Name),                        &
-                         ClientModule = 'ModuleField4D',                                &
+        !Field NAme was setted by argument?
+        if (.not. Me%File%FieldNameArgument) then
+            call GetData(PropField%FieldName,                                               &
+                         Me%ObjEnterData , iflag,                                           &
+                         SearchType   = ExtractType,                                        &
+                         keyword      = 'FIELD_NAME',                                       &
+                         default      = trim(PropField%ID%Name),                            &
+                         ClientModule = 'ModuleField4D',                                    &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR75'
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR70'
+        
+            if (iflag == 0) then
+                call GetData(PropField%FieldName,                                           &
+                             Me%ObjEnterData , iflag,                                       &
+                             SearchType   = ExtractType,                                    &
+                             keyword      = 'HDF_FIELD_NAME',                               &
+                             default      = trim(PropField%ID%Name),                        &
+                             ClientModule = 'ModuleField4D',                                &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR75'
+            endif
+        else
+            PropField%FieldName = Me%File%FieldName
         endif
-
+        
         call GetData(LastGroupEqualField,                                               &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &

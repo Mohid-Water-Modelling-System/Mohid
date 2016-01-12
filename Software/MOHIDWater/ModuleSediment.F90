@@ -1660,8 +1660,7 @@ do1 :   do n=1, Me%NumberOfClasses
 cd1 :       if (STAT_CALL .EQ. SUCCESS_) then    
 cd2 :           if (BlockFound) then
     
-                    call ConstructPropertyID(Me%SandClass(n)%ID, Me%ObjEnterData, FromBlock, CheckProperty = .false.)
-                        Me%SandClass(n)%ID%IDNumber = RegisterDynamicProperty (Me%SandClass(n)%ID%Name)
+                    call ConstructPropertyID(Me%SandClass(n)%ID, Me%ObjEnterData, FromBlock)
           
                     call GetData(Me%SandClass(n)%D50,                                     &
                                     Me%ObjEnterData,iflag,                                 &

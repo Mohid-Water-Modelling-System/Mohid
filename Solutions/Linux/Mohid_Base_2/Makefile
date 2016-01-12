@@ -38,6 +38,10 @@ ifeq ($(IS_PROJ4F),true)
     LIBS := $(LIBS) $(PROJ4FLIBS)
 endif
 
+ifeq ($(IS_MPI),true)
+    INCS := $(INCS) -I$(MPIINC)
+endif
+
 SRCDIR = $(SRCREP)/MOHIDBase2
 FILES = \
        ModuleStatistic.$(S) \

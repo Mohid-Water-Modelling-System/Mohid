@@ -388,9 +388,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         KUB = Me%Size%KUB
  
         !griflet start
-        Me%MaxThreads=1
-        !$ Me%MaxThreads = omp_get_max_threads()
-                
+        !Me%MaxThreads=1
+        !!$ Me%MaxThreads = omp_get_max_threads()
+         
+        Me%MaxThreads = openmp_num_threads
+        
         allocate(Me%ObjGotm(1:Me%MaxThreads))        
 
         do p=1,Me%MaxThreads

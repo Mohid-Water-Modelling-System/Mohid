@@ -13,6 +13,13 @@ export VER =
 # ex.: export DESTDIR = /usr/bin/mohid
 export DESTDIR = 
 
+#Must compile for DEBUG?
+# Two valid options:
+#   true
+#   false
+# ex.: export IS_DEBUG = true
+export IS_DEBUG =
+
 #Where are your intel libraries?
 export INTEL_PATH =
 
@@ -25,6 +32,27 @@ export HDF5LIB =
 #Where is the libz.a in your system?
 # ex.: export ZLIBINC = /usr/lib64
 export ZLIBINC = 
+
+#Activate the extra modules that require the mpi libraries
+# Two valid options:
+#   true
+#   false
+# ex.: export IS_MPI = true
+export IS_MPI =
+
+#Where is the netcdf.mod and libnetcdf.a (built with ./configure with --enable-fortran) in your system?
+#    : export MPILIBPATH = /usr/lib64
+
+export MPILIBPATH = 
+export MPIINC =
+
+#Activate the extra modules that require the OpenMP libraries
+# Two valid options:
+#   true
+#   false
+# ex.: export IS_OPENMP = true
+
+export IS_OPENMP = 
 
 #Activate the extra modules that require the netcdf libraries
 # Two valid options:
@@ -60,6 +88,10 @@ endif
 
 ifeq ($(IS_PROJ4F),true)
     FPP_DEFINES := ${FPP_DEFINES} -D_USE_PROJ4
+endif
+
+ifeq ($(IS_MPI),true)
+    FPP_DEFINES := ${FPP_DEFINES} -D_USE_MPI
 endif
 
 #Find GIT Respository revision, branch and if there is local changes
