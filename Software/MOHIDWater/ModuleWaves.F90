@@ -48,11 +48,11 @@
 ! OUTPUT_FETCH_DEPTHS       : logical     .false.    !Output fetch depths in each direction (grid data) (read if WAVEGEN_TYPE : 1)
 
 ! Poligon block for DISTANCE_TO_LAND_METHOD : 1
-! <Begin_LandAreaFiles>
+! <BeginLandAreaFiles>
 !   Polygon1.xy
 !   Poligon2.xy
 !    ...
-! <End_LandAreaFiles>
+! <EndLandAreaFiles>
 
 !<begin_[property]>
 ! NAME                      : wave height/ wave period / ... 
