@@ -851,7 +851,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (BlockFound) then
 
             
-            if (Check_Vectorial_Property(WaveProperty%ID%IDNumber)) then    
+!~             if (Check_Vectorial_Property(WaveProperty%ID%IDNumber)) then
+			if (WaveProperty%ID%IsVectorial) then
             
                 !converted field to cell referential
                 allocate (WaveProperty%FieldU (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
@@ -879,7 +880,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 WaveProperty%Field(:,:) = null_real
             
                 !if angle needs also original field (for output)
-                if (Check_Angle_Property(WaveProperty%ID%IDNumber)) then
+!~                 if (Check_Angle_Property(WaveProperty%ID%IDNumber)) then
+				if (WaveProperty%ID%IsAngle) then
                     allocate (WaveProperty%FieldInputRef (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR05'            
                     WaveProperty%FieldInputRef(:,:) = null_real
@@ -888,7 +890,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif            
             
             
-            if (Check_Vectorial_Property(WaveProperty%ID%IDNumber)) then              
+!~             if (Check_Vectorial_Property(WaveProperty%ID%IDNumber)) then              
+			if (WaveProperty%ID%IsVectorial) then
 
                 call ConstructFillMatrix  (PropertyID           = WaveProperty%ID,                  &
                                            EnterDataID          = Me%ObjEnterData,                  &
@@ -906,7 +909,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
             else
                 
-                if (Check_Angle_Property(WaveProperty%ID%IDNumber)) then  
+!~                 if (Check_Angle_Property(WaveProperty%ID%IDNumber)) then 
+				if (WaveProperty%ID%IsAngle) then
                     
                     call ConstructFillMatrix  (PropertyID           = WaveProperty%ID,                  &
                                                EnterDataID          = Me%ObjEnterData,                  &

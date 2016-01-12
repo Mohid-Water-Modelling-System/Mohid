@@ -824,7 +824,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
                 !vectorial property - need to get data in user referential - X and Y
-                if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+!~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+				if (PropertyX%ID%IsVectorial) then
                     nProperties = nProperties + 2
                 else
                     nProperties = nProperties + 1
@@ -847,8 +848,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     nProperties = nProperties + 1
                     
                     !vectorial property - need to get data in user referential - X and Y
-                    if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then                    
-                        
+!~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then                    
+                    if (PropertyX%ID%IsVectorial) then
                         !get the correct names of the properties
                         call Get_Vectorial_PropertyNames(PropertyX%ID%IDNumber, PropertyNameX, PropertyNameY)
                         PropertyList(nProperties) = trim(adjustl(PropertyNameX))
@@ -1336,8 +1337,8 @@ cd2 :           if (BlockFound) then
 
         !Fills Matrix
         !Vectorial prop will have u and v fields (rotated to cell)
-        if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then    
-            
+!~         if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then    
+        if (NewProperty%ID%IsVectorial) then
             !converted field to cell referential
             allocate (NewProperty%FieldU (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR00'        
@@ -1363,7 +1364,8 @@ cd2 :           if (BlockFound) then
             NewProperty%Field(:,:) = null_real
             
             !if angle needs also original field (for output)
-            if (Check_Angle_Property(NewProperty%ID%IDNumber)) then
+!~             if (Check_Angle_Property(NewProperty%ID%IDNumber)) then
+			if (NewProperty%ID%IsAngle) then
                 allocate (NewProperty%FieldInputRef (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR018'            
                 NewProperty%FieldInputRef(:,:) = null_real
@@ -1431,7 +1433,8 @@ cd2 :           if (BlockFound) then
         endif        
         
         
-        if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then   
+!~         if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then 
+		if (NewProperty%ID%IsVectorial) then
             
             call ConstructFillMatrix(PropertyID         = NewProperty%ID,                   &
                                      EnterDataID        = Me%ObjEnterData,                  &
@@ -1453,7 +1456,8 @@ cd2 :           if (BlockFound) then
             
         else
             
-            if (Check_Angle_Property(NewProperty%ID%IDNumber)) then  
+!~             if (Check_Angle_Property(NewProperty%ID%IDNumber)) then  
+			if (NewProperty%ID%IsAngle) then
                 
                 call ConstructFillMatrix(PropertyID         = NewProperty%ID,                   &
                                          EnterDataID        = Me%ObjEnterData,                  &
@@ -1541,7 +1545,8 @@ cd2 :           if (BlockFound) then
             write(*,*)
         end if
 
-        if(NewProperty%HasRandomComponent .and. Check_Vectorial_Property(NewProperty%ID%IDNumber)) then
+!~         if(NewProperty%HasRandomComponent .and. Check_Vectorial_Property(NewProperty%ID%IDNumber)) then
+		if (NewProperty%HasRandomComponent .and. NewProperty%ID%IsVectorial) then
             write(*,*)
             write(*,*)'ERROR - Atmosphere vectorial property cant have for now random component'
             write(*,*)'Property name : ', trim(NewProperty%ID%Name)
@@ -1735,7 +1740,8 @@ cd2 :           if (BlockFound) then
         
 cd2:    if (NewProperty%Statistics%ON) then
 
-            if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then
+!~             if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then
+			if (NewProperty%ID%IsVectorial) then
                 write(*,*)
                 write(*,*)'ERROR - Atmosphere vectorial property cant have for now statistics'
                 write(*,*)'Property name : ', trim(NewProperty%ID%Name)
@@ -4429,8 +4435,8 @@ First:      if (LastTime.LT.Actual) then
                 if (PropertyX%OutputHDF) then
                     
                     !vectorial property - need to get data in user referential - X and Y
-                    if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
-                        
+!~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+					if (PropertyX%ID%IsVectorial) then
                         
                         !get the correct names of the properties
                         call Get_Vectorial_PropertyNames(PropertyX%ID%IDNumber, PropertyNameX, PropertyNameY)
@@ -4474,7 +4480,8 @@ First:      if (LastTime.LT.Actual) then
                         
                         
                     !Angle property - need to get data in user referential
-                    else if (Check_Angle_Property(PropertyX%ID%IDNumber)) then                        
+!~                     else if (Check_Angle_Property(PropertyX%ID%IDNumber)) then                        
+                    elseif (PropertyX%ID%IsAngle) then
                         
                         call HDF5WriteData   (Me%ObjHDF5,                                    &
                                               "/Results/"//trim(PropertyX%ID%Name),          &
@@ -4575,7 +4582,8 @@ First:      if (LastTime.LT.Actual) then
         if (PropertyX%TimeSerie) then
 
             !vectorial property - need to get data in user referential - X and Y
-            if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then                                                       
+!~             if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+			if (PropertyX%ID%IsVectorial) then
 
                 call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldX, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR010'
@@ -4585,7 +4593,8 @@ First:      if (LastTime.LT.Actual) then
                                  
                 
             !Angle property - need to get data in user referential
-            else if (Check_Angle_Property(PropertyX%ID%IDNumber)) then
+!~             else if (Check_Angle_Property(PropertyX%ID%IDNumber)) then
+			elseif (PropertyX%ID%IsAngle) then
                     
                 call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldInputRef, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR040'                                    

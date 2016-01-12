@@ -42,7 +42,7 @@ Module ModuleGlobalData
     public  ::  GetPropertyIDNumber
     private ::      ConstructPropList
     private ::          AddPropList
-    public  ::  CheckDynamicPropertyName
+!~     public  ::  CheckDynamicPropertyName
     public  ::  RegisterDynamicProperty
     public  ::  GetDynamicPropertyIDNumber
 
@@ -1880,6 +1880,10 @@ Module ModuleGlobalData
         integer                 :: IDNumber          = null_int    
         integer                 :: ObjFillMatrix     = 0
         logical                 :: SolutionFromFile  = OFF
+        logical                 :: IsAngle           = OFF
+        logical	                :: IsParticulate     = OFF
+        logical                 :: IsVectorial       = OFF
+        logical                 :: IsDynamic         = OFF
     end type T_PropertyID
 
     type T_Instance
@@ -2250,39 +2254,39 @@ Module ModuleGlobalData
 
     end function  CheckPropertyName
 
-    !--------------------------------------------------------------------------
+!~     !--------------------------------------------------------------------------
      
-    logical function CheckDynamicPropertyName (PropertyName, Number)
+!~     logical function CheckDynamicPropertyName (PropertyName, Number)
 
-        !Arguments-------------------------------------------------------------
-        character(len=*), intent (IN)               :: PropertyName
-        integer,          intent (OUT), optional    :: Number
+!~         !Arguments-------------------------------------------------------------
+!~         character(len=*), intent (IN)               :: PropertyName
+!~         integer,          intent (OUT), optional    :: Number
 
-        !Local-----------------------------------------------------------------
-        integer :: i
+!~         !Local-----------------------------------------------------------------
+!~         integer :: i
 
-        !----------------------------------------------------------------------
+!~         !----------------------------------------------------------------------
 
-        CheckDynamicPropertyName = .false.
+!~         CheckDynamicPropertyName = .false.
 
-        if(associated(DynamicPropNameList)) then            
+!~         if(associated(DynamicPropNameList)) then            
 
-            do i=1, DynamicPropertiesNumber
+!~             do i=1, DynamicPropertiesNumber
 
-                if (PropertyName == DynamicPropNameList(i)) then
+!~                 if (PropertyName == DynamicPropNameList(i)) then
 
-                    if (present(Number)) Number = DynamicPropNumberList(i)
-                    CheckDynamicPropertyName = .TRUE.
+!~                     if (present(Number)) Number = DynamicPropNumberList(i)
+!~                     CheckDynamicPropertyName = .TRUE.
 
-                endif
+!~                 endif
 
-            enddo
+!~             enddo
         
-        endif
+!~         endif
 
-        !----------------------------------------------------------------------
+!~         !----------------------------------------------------------------------
 
-    end function  CheckDynamicPropertyName
+!~     end function  CheckDynamicPropertyName
 
     !--------------------------------------------------------------------------
     
@@ -3215,7 +3219,6 @@ cd1 :   if ((Property == Phytoplankton_         ) .OR.  (Property == Diatoms_   
 
         !Arguments-------------------------------------------------------------
         integer, intent (IN) :: Property
-        integer              :: i
 
         !----------------------------------------------------------------------
 
@@ -3276,20 +3279,9 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == CellPercentContamin_   )) then
 
             Check_Particulate_Property = .TRUE. 
-            
-!        elseif(associated(DynamicPropNameList)) then            
-!
-!                do i=1, DynamicPropertiesNumber
-!
-!                    if (Property == DynamicPropNumberList(i)) then
-!                        
-!                        Check_Particulate_Property = .TRUE. 
-!
-!                    endif
-!
-!                enddo
-                
+        
         else
+        
             Check_Particulate_Property = .FALSE.
 
         end if cd1
@@ -3302,32 +3294,16 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
     logical function Check_Angle_Property(Property)
 
         !Arguments-------------------------------------------------------------
-        integer, intent (IN) :: Property
-        integer              :: i
-
+		integer, intent (IN) :: Property
+		
         !----------------------------------------------------------------------
 
-cd1 :   if ((Property == WindDirection_          )  .OR. (Property == MeanWaveDirection_     ) & !.OR.
-            !(Property == WindAngle_             ) .OR.  (Property == VelocityDirection_     ) .OR.          &
-            !(Property == WaveDirection_         ) .OR.  (Property == PeakDiretion_          ) .OR.          &
-            !(Property == WindSeaPeakDirection_  ) 
-            ) then
+cd1 :   if ((Property == WindDirection_) .OR. (Property == MeanWaveDirection_)) then
 
             Check_Angle_Property = .TRUE. 
-            
-!        elseif(associated(DynamicPropNameList)) then            
-!
-!                do i=1, DynamicPropertiesNumber
-!
-!                    if (Property == DynamicPropNumberList(i)) then
-!                        
-!                        Check_Angle_Property = .TRUE. 
-!
-!                    endif
-!
-!                enddo
                 
         else
+
             Check_Angle_Property = .FALSE.
 
         end if cd1
@@ -3339,33 +3315,29 @@ cd1 :   if ((Property == WindDirection_          )  .OR. (Property == MeanWaveDi
 
     !--------------------------------------------------------------------------
             
-    integer function Get_Angle_Referential(Property)
+    integer function Get_Angle_Referential(PropertyID)
 
         !Arguments-------------------------------------------------------------
-        integer, intent (IN) :: Property
-        !integer              :: i
+        type(T_PropertyID), pointer :: PropertyID
 
         !----------------------------------------------------------------------
-        if (Check_Angle_Property(Property)) then
+        if (PropertyID%IsAngle) then
             
-cd1 :       if ((Property == WindDirection_          )  .OR. (Property == MeanWaveDirection_     ) & !.OR.
-                !(Property == WindAngle_             ) .OR.  (Property == VelocityDirection_     ) .OR.          &
-                !(Property == WaveDirection_         ) .OR.  (Property == PeakDiretion_          ) .OR.          &
-                !(Property == WindSeaPeakDirection_  ) 
-                ) then
+cd1 :       if ((PropertyID%IDNumber == WindDirection_) .OR. (PropertyID%IDNumber == MeanWaveDirection_)) then
 
-                Get_Angle_Referential = NauticalReferential_ 
-        
-            !else if(Property == VelocityDirection_     ) then
+                Get_Angle_Referential = NauticalReferential_          
 
-            !    Get_Angle_Referential = CurrentsReferential_            
+			else
+			
+				stop  'Get_Angle_Referential - ModuleGlobalData - ERR010'
 
             end if cd1
         else
-            stop  'Get_Angle_Referential - ModuleGlobalData - ERR01'
+        
+            stop  'Get_Angle_Referential - ModuleGlobalData - ERR020'
+        
         endif
-                    
-
+    
     end function Get_Angle_Referential
 
         
@@ -3377,29 +3349,16 @@ cd1 :       if ((Property == WindDirection_          )  .OR. (Property == MeanWa
 
         !Arguments-------------------------------------------------------------
         integer, intent (IN) :: Property
-        integer              :: i
 
         !----------------------------------------------------------------------
 
-cd1 :   if ((Property == WindVelocity_          ) .OR. (Property == WaveStress_            )  .OR.          &
-            (Property == WindStress_            ) &  ! .OR. (Property == Velocity_              ).OR.          &
-            ) then
+cd1 :   if ((Property == WindVelocity_) .OR. (Property == WaveStress_) .OR. &
+            (Property == WindStress_)) then
 
             Check_Vectorial_Property = .TRUE. 
-            
-!        elseif(associated(DynamicPropNameList)) then            
-!
-!                do i=1, DynamicPropertiesNumber
-!
-!                    if (Property == DynamicPropNumberList(i)) then
-!                        
-!                        Check_Vectorial_Property = .TRUE. 
-!
-!                    endif
-!
-!                enddo
-                
+         
         else
+
             Check_Vectorial_Property = .FALSE.
 
         end if cd1

@@ -531,7 +531,8 @@ Module ModuleFillMatrix
         !Local-------------------------------------------------------------------
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
         integer                                         :: PredictDTMethod_, Referential
- 
+		type (T_PropertyID), pointer                    :: Prop
+		
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -554,7 +555,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
             
-            if (Check_Vectorial_Property(PropertyID%IDNumber)) then
+!~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
+			if (PropertyID%IsVectorial) then
                 write(*,*) 'Constructing vectorial property but expected scalar'
                 stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR00'
             endif
@@ -603,7 +605,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%PointsToFill2D => PointsToFill2D
             
             !!get the orginal field. will be given to user to output
-            if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
+!~             if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
+			if (Me%PropertyID%IsAngle) then
                 Me%AngleProp = .true.
                 if (.not. present(Matrix2DInputRef)) then
                     write(*,*) 'Constructing angle property but not given original field'
@@ -663,7 +666,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%AngleProp) then
 
                 !angle referential
-                Referential = Get_Angle_Referential(Me%PropertyID%IDNumber)                                    
+                Prop => Me%PropertyID
+                Referential = Get_Angle_Referential(Prop)                                    
                 
                 !!Need to rotate input field            
                 call RotateAngleFieldToGrid(HorizontalGridID      = Me%ObjHorizontalGrid,                 &
@@ -774,7 +778,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             Me%VectorialProp = .true.
             
-            if (.not. Check_Vectorial_Property(PropertyID%IDNumber)) then
+!~             if (.not. Check_Vectorial_Property(PropertyID%IDNumber)) then
+			if (.not. PropertyID%IsVectorial) then
                 write(*,*) 'Constructing scalar property but expected vectorial'
                 stop 'ConstructFillMatrix2DVectorial - ModuleFillMatrix - ERR00'
             endif            
@@ -966,6 +971,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real                                            :: FillMatrix_
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
         integer                                         :: PredictDTMethod_, Referential
+        type (T_PropertyID), pointer                    :: Prop
  
         !------------------------------------------------------------------------
 
@@ -989,7 +995,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
 
-            if (Check_Vectorial_Property(PropertyID%IDNumber)) then
+!~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
+			if (PropertyID%IsVectorial) then
                 write(*,*) 'Constructing vectorial property but expected scalar'
                 stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR00'
             endif               
@@ -1043,7 +1050,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%PointsToFill3D => PointsToFill3D
             
             !!get the orginal field. will be given to user to output
-            if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
+!~             if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
+			if (Me%PropertyID%IsAngle) then
                 Me%AngleProp = .true.
                 if (.not. present(Matrix3DInputRef)) then
                     write(*,*) 'Constructing angle property but not given original field'
@@ -1116,7 +1124,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%AngleProp) then
                     
                 !angle referential
-                Referential = Get_Angle_Referential(Me%PropertyID%IDNumber)                               
+                Prop => Me%PropertyID
+                Referential = Get_Angle_Referential(Prop)
                 
                 !!Need to rotate input field         
                 call RotateAngleFieldToGrid(HorizontalGridID      = Me%ObjHorizontalGrid,               &
@@ -1232,7 +1241,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             Me%VectorialProp = .true.
 
-            if (.not. Check_Vectorial_Property(PropertyID%IDNumber)) then
+!~             if (.not. Check_Vectorial_Property(PropertyID%IDNumber)) then
+			if (.not. PropertyID%IsVectorial) then
                 write(*,*) 'Constructing scalar property but expected vectorial'
                 stop 'ConstructFillMatrix3DVectorial - ModuleFillMatrix - ERR00'
             endif                                     
@@ -6784,7 +6794,8 @@ if2D:   if (Me%Dim == Dim2D) then
             
             call Read_Lock(mFILLMATRIX_, Me%InstanceID)
             
-            if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
+!~             if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
+			if (Me%PropertyID%IsAngle) then
                 Field = Me%Matrix2DFieldAngle
             else
                 Field => null()          
@@ -6824,7 +6835,8 @@ if2D:   if (Me%Dim == Dim2D) then
             
             call Read_Lock(mFILLMATRIX_, Me%InstanceID)
             
-            if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
+!~             if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
+			if (Me%PropertyID%IsAngle) then
                 Field = Me%Matrix3DFieldAngle
             else
                 Field => null()          
@@ -7416,6 +7428,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         logical                                         :: ModifyError = .false.
         type(T_Field4D), pointer                        :: CurrentHDF
         type(T_TimeSerie), pointer                      :: CurrentTimeSerie
+        type (T_PropertyID), pointer                    :: Prop
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -7526,7 +7539,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 if (Me%AngleProp) then
                     
                     !angle referential
-                    Referential = Get_Angle_Referential(Me%PropertyID%IDNumber)
+                    Prop => Me%PropertyID
+                    Referential = Get_Angle_Referential(Prop)
                     
                     if (Me%Dim == Dim2D) then                          
                         

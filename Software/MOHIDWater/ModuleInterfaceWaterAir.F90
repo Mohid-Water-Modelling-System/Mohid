@@ -1220,7 +1220,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         SizeJUB = Me%Size2D%JUB
 
         
-        if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then  
+!~         if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then 
+		if (NewProperty%ID%IsVectorial) then
                         
             allocate(NewProperty%FieldU(SizeILB:SizeIUB, SizeJLB:SizeJUB))
             NewProperty%FieldU(:,:) = FillValueReal
@@ -1765,7 +1766,8 @@ do1 :   do while (associated(PropertyX))
 
             if (PropertyX%BoxTimeSerie) then
                 
-                if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+!~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+				if (PropertyX%ID%IsVectorial) then
                     write(*,*) 'No box time serie available yet to vectorial properties'
                     write(*,*) 'Property : ', trim(PropertyX%ID%Name)
                     stop 'Construct_Sub_Modules - ModuleInterfaceWaterAir - ERR01'
@@ -1822,7 +1824,8 @@ do1 :   do while (associated(PropertyX))
         do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
                 nProperties = nProperties + 1
-                if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+!~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+				if (PropertyX%ID%IsVectorial) then
                     nProperties = nProperties + 1  !x and y comp
                 endif
             endif
@@ -1841,7 +1844,8 @@ do1 :   do while (associated(PropertyX))
             do while (associated(PropertyX))
                 if (PropertyX%TimeSerie) then
                     
-                    if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+!~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+					if (PropertyX%ID%IsVectorial) then
                         nProperties = nProperties + 1
                         PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name)//" X")
                         nProperties = nProperties + 1
@@ -5641,7 +5645,8 @@ do4:    do i=ILB, IUB
             if (PropertyX%TimeSerie) then
                 
                 !vectorial property - need to get data in user referential - X and Y
-                if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then                                                       
+!~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then 
+				if (PropertyX%ID%IsVectorial) then
 
                     call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldX, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleInterfaceWaterAir - ERR010'
@@ -5831,7 +5836,8 @@ PropX:          do while (associated(PropertyX))
                         if (PropertyX%ID%IDNumber /= SpecificOxygenFlux_ ) then
                             
                             !vectorial property - need to get data in user referential - X and Y
-                            if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+!~                             if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+							if (PropertyX%ID%IsVectorial) then
                                 
                                 !get the correct names of the properties
                                 call Get_Vectorial_PropertyNames(PropertyX%ID%IDNumber, PropertyNameX, PropertyNameY)    
@@ -6397,7 +6403,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 do while(associated(PropertyX))
                     
                     
-                    if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+!~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+					if (PropertyX%ID%IsVectorial) then
                         
                         deallocate(PropertyX%FieldU,   STAT = STAT_CALL) 
                         if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR146'    
@@ -6409,7 +6416,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR148'    
                         
                         deallocate(PropertyX%FieldY,   STAT = STAT_CALL) 
-                        if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR149'                            
+                        if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR149'
                         
                     else
                         

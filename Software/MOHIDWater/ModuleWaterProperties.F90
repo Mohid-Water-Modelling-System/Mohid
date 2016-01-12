@@ -257,7 +257,7 @@ Module ModuleWaterProperties
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
-                                          ExtraPol3DNearestCell, Pad
+                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad
     use mpi
 #else _USE_MPI
     use ModuleFunctions,            only: SigmaLeendertse, SigmaUNESCO, SigmaWang,              &
@@ -269,7 +269,7 @@ Module ModuleWaterProperties
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
-                                          ExtraPol3DNearestCell, Pad
+                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad
 #endif _USE_MPI
                                           
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -325,7 +325,7 @@ Module ModuleWaterProperties
     private ::              Construct_WQRateValues
     private ::          Add_WqRate
     private ::      ConstructDensity
-    private ::          Check_Particulate_Property          !Function
+!~     private ::          Check_Particulate_Property          !Function
     private ::      ConstructSpecificHeat
     private ::      ConstructGlobalOutput
     private ::      ModifyOxygenSaturation
@@ -2706,59 +2706,114 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property length
         allocate (NewProperty)
         
-        CohortPropName      = 'LENGTH'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" length"
-    
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        call ConstructPropertyIDOnFly (NewProperty%ID,								&
+                                       trim(adjustl(NewCohort%ID%Name))//" length",	&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'LENGTH')
+                                       
+        !CohortPropName      = 'LENGTH'
+        !NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" length"    
+        !call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
 
         nullify(NewProperty)
 
         !generate property structure
         allocate (NewProperty)
         
-        CohortPropName      = 'STRUCTURE'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" structure"
+        call ConstructPropertyIDOnFly (NewProperty%ID,									&
+                                       trim(adjustl(NewCohort%ID%Name))//" structure",	&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'STRUCTURE')
         
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        !CohortPropName      = 'STRUCTURE'
+        !NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" structure"        
+        !call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
                        
         nullify(NewProperty)
 
         !generate property reserves
         allocate (NewProperty)
+        
+        call ConstructPropertyIDOnFly (NewProperty%ID,									&
+                                       trim(adjustl(NewCohort%ID%Name))//" reserves",	&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'RESERVES')        
 
-        CohortPropName      = 'RESERVES'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reserves"
-                
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        !CohortPropName      = 'RESERVES'
+        !NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reserves"                
+        !call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
         !generate property maturity
         allocate (NewProperty)
         
-        CohortPropName      = 'MATURITY'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" maturity"
+        call ConstructPropertyIDOnFly (NewProperty%ID,									&
+                                       trim(adjustl(NewCohort%ID%Name))//" maturity",	&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'MATURITY')
         
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+!~         CohortPropName      = 'MATURITY'
+!~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" maturity"        
+!~         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
         !generate property reproduction
         allocate (NewProperty)
         
-        CohortPropName      = 'REPRODUCTION'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reproduction"
-                
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        call ConstructPropertyIDOnFly (NewProperty%ID,										&
+                                       trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
+                                       .false.,												&
+                                       .false.,												&
+                                       .false.,												&
+                                       .false.,												&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'REPRODUCTION')
+        
+!~         CohortPropName      = 'REPRODUCTION'
+!~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reproduction"
+!~         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
         !generate property age
         allocate (NewProperty)
         
-        CohortPropName       = 'AGE'
-        NewProperty%ID%Name  = trim(adjustl(NewCohort%ID%Name))//" age"
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        call ConstructPropertyIDOnFly (NewProperty%ID,								&
+                                       trim(adjustl(NewCohort%ID%Name))//" AGE",	&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'AGE')
+        
+!~         CohortPropName       = 'AGE'
+!~         NewProperty%ID%Name  = trim(adjustl(NewCohort%ID%Name))//" age"
+!~         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
         NewProperty%Evolution%AdvectionDiffusion  = .false. !age has no advection-diffusion
         
         nullify(NewProperty)
@@ -2766,10 +2821,19 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property number
         allocate (NewProperty)
         
-        CohortPropName = 'NUMBER'
-        NewProperty%ID%Name               = trim(adjustl(NewCohort%ID%Name))//" number"
-                
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        call ConstructPropertyIDOnFly (NewProperty%ID,								&
+                                       trim(adjustl(NewCohort%ID%Name))//" number",	&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'NUMBER')        
+        
+!~         CohortPropName = 'NUMBER'
+!~         NewProperty%ID%Name               = trim(adjustl(NewCohort%ID%Name))//" number"                
+!~         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
         
         Me%Coupled%MinimumConcentration%Yes            = ON
         NewProperty%Evolution%MinConcentration         = ON
@@ -2875,10 +2939,10 @@ do1:        do while (associated(ObjCohort%Next))
         
         nullify(NewProperty%SubModel%PreviousField, NewProperty%SubModel%NextField)
         
-        NewProperty%ID%IDNumber                        = RegisterDynamicProperty(NewProperty%ID%Name)
+        !NewProperty%ID%IDNumber                        = RegisterDynamicProperty(NewProperty%ID%Name)        
 
         NewProperty%Old                                = Species%Old
-        NewProperty%ID%Units                           = Species%ID%Units
+        !NewProperty%ID%Units                           = Species%ID%Units
         NewProperty%WarnOnNegativeValues               = Species%WarnOnNegativeValues
         NewProperty%OutputHDF                          = Species%CohortOutputHDF
         NewProperty%TimeSerie                          = .false.
@@ -2904,7 +2968,7 @@ do1:        do while (associated(ObjCohort%Next))
             Me%Coupled%Statistics%Yes                  = ON
         endif
 
-        NewProperty%Particulate                        = .false.
+!~         NewProperty%Particulate                        = .false.
         NewProperty%IScoefficient                      = 0.0
         
         NewProperty%Evolution%Bivalve                  = .true.
@@ -3171,10 +3235,19 @@ do6 :                       do K = WKLB, WKUB
         !generate property length
         allocate (NewProperty)
         
-        CohortPropName = 'LENGTH'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" length"
+        call ConstructPropertyIDOnFly (NewProperty%ID,								&
+                                       trim(adjustl(NewCohort%ID%Name))//" length",	&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'LENGTH')
         
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         CohortPropName = 'LENGTH'
+!~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" length"        
+!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
         
         Property_L => NewProperty
         
@@ -3183,40 +3256,80 @@ do6 :                       do K = WKLB, WKUB
         !generate property structure
         allocate (NewProperty)
         
-        CohortPropName = 'STRUCTURE'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" structure"
+        call ConstructPropertyIDOnFly (NewProperty%ID,									&
+                                       trim(adjustl(NewCohort%ID%Name))//" structure",	&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'STRUCTURE')
         
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         CohortPropName = 'STRUCTURE'
+!~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" structure"
+        
+!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
                     
         nullify(NewProperty)
 
         !generate property reserves
         allocate (NewProperty)
         
-        CohortPropName = 'RESERVES'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reserves"
+        call ConstructPropertyIDOnFly (NewProperty%ID,									&
+                                       trim(adjustl(NewCohort%ID%Name))//" reserves",	&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'RESERVES')
+        
+!~         CohortPropName = 'RESERVES'
+!~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reserves"
        
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
         !generate property maturity
         allocate (NewProperty)
         
-        CohortPropName = 'MATURITY'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" maturity"
+        call ConstructPropertyIDOnFly (NewProperty%ID,									&
+                                       trim(adjustl(NewCohort%ID%Name))//" maturity",	&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       .false.,											&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'MATURITY')
+        
+!~         CohortPropName = 'MATURITY'
+!~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" maturity"
 
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
         !generate property reproduction
         allocate (NewProperty)
         
-        CohortPropName = 'REPRODUCTION'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reproduction"
+        call ConstructPropertyIDOnFly (NewProperty%ID,										&
+                                       trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
+                                       .false.,												&
+                                       .false.,												&
+                                       .false.,												&
+                                       .false.,												&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'REPRODUCTION')
         
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         CohortPropName = 'REPRODUCTION'
+!~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reproduction"
+        
+!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
 
         nullify(NewProperty)
 
@@ -3224,20 +3337,40 @@ do6 :                       do K = WKLB, WKUB
         !generate property age
         allocate (NewProperty)
         
-        CohortPropName = 'AGE'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" age"
+        call ConstructPropertyIDOnFly (NewProperty%ID,								&
+                                       trim(adjustl(NewCohort%ID%Name))//" age",	&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'AGE')
         
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         CohortPropName = 'AGE'
+!~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" age"
+        
+!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
         NewProperty%Evolution%AdvectionDiffusion  = .false. !age has no advection-diffusion    
         nullify(NewProperty)
 
         !generate property number
         allocate (NewProperty)
         
-        CohortPropName = 'NUMBER'
-        NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" number"
+        call ConstructPropertyIDOnFly (NewProperty%ID,								&
+                                       trim(adjustl(NewCohort%ID%Name))//" number",	&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       .false.,										&
+                                       Units = trim(Species%ID%Units))
+                                       
+        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'NUMBER')
         
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         CohortPropName = 'NUMBER'
+!~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" number"
+        
+!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
         
         Me%Coupled%MinimumConcentration%Yes            = ON
         NewProperty%Evolution%MinConcentration         = ON
@@ -3310,7 +3443,7 @@ do6 :                       do K = WKLB, WKUB
         
         nullify(NewProperty%SubModel%PreviousField, NewProperty%SubModel%NextField)
         
-        NewProperty%ID%IDNumber                  = RegisterDynamicProperty(NewProperty%ID%Name)
+!~         NewProperty%ID%IDNumber                  = RegisterDynamicProperty(NewProperty%ID%Name)
 
         NewProperty%Old                          = Species%Old
         NewProperty%WarnOnNegativeValues         = Species%WarnOnNegativeValues
@@ -3323,10 +3456,7 @@ do6 :                       do K = WKLB, WKUB
         NewProperty%Statistics                   = Species%CohortStatistics
         NewProperty%StatisticsFile               = Species%CohortStatisticsFile
         
-        NewProperty%Particulate                  = .false.
-        NewProperty%IScoefficient                = 0.0
-        
-        NewProperty%Particulate                  = .false.
+!~         NewProperty%Particulate                  = .false.
         NewProperty%IScoefficient                = 0.0
         
         NewProperty%Evolution%Bivalve            = .true.
@@ -6237,7 +6367,7 @@ cd12 :       if (BlockFound) then
             
 do1:    do while(associated(Property))
 
-            if (Property%Evolution%Partitioning .and. .not. Property%Particulate) then
+            if (Property%Evolution%Partitioning .and. .not. Property%ID%IsParticulate) then
 
                 DissolvedProperty => Property 
 
@@ -6628,38 +6758,38 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
       
         !----------------------------------------------------------------------
 
-        !<BeginKeyword>
-            !Keyword          : PARTICULATE
-            !<BeginDescription>      
-                !Checks if the user wants this property to be particulate.
-                !This property will be used to define particulated properties
-            !<EndDescription>
-            !Type             : Boolean   
-            !Default          : .false.
-            !File keyword     : DISPQUAL
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : From Block
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
+!~         !<BeginKeyword>
+!~             !Keyword          : PARTICULATE
+!~             !<BeginDescription>      
+!~                 !Checks if the user wants this property to be particulate.
+!~                 !This property will be used to define particulated properties
+!~             !<EndDescription>
+!~             !Type             : Boolean   
+!~             !Default          : .false.
+!~             !File keyword     : DISPQUAL
+!~             !Multiple Options : 1 (.true.), 0 (.false.)
+!~             !Search Type      : From Block
+!~             !Begin Block      : <beginproperty>
+!~             !End Block        : <endproperty>
+!~         !<EndKeyword>
 
-        call GetData(NewProperty%Particulate,                                           &
-                     Me%ObjEnterData,iflag,                                            &
-                     SearchType   = FromBlock,                                          &
-                     keyword      = 'PARTICULATE',                                      &
-                     Default      = .false.,                                            &
-                     ClientModule = 'ModuleWaterProperties',                            &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_PropertyState - ModuleWaterProperties - ERR01' 
+!~         call GetData(NewProperty%Particulate,                                           &
+!~                      Me%ObjEnterData,iflag,                                            &
+!~                      SearchType   = FromBlock,                                          &
+!~                      keyword      = 'PARTICULATE',                                      &
+!~                      Default      = .false.,                                            &
+!~                      ClientModule = 'ModuleWaterProperties',                            &
+!~                      STAT         = STAT_CALL)
+!~         if (STAT_CALL .NE. SUCCESS_)                                                    &
+!~             stop 'Construct_PropertyState - ModuleWaterProperties - ERR01' 
 
-        if (NewProperty%Particulate)then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-                write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
-                write(*,*) 'recognised as PARTICULATE'
-                stop 'Construct_PropertyState - ModuleWaterProperties - ERR02'
-            end if
-        endif
+!~         if (NewProperty%Particulate)then
+!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
+!~                 write(*,*) 'recognised as PARTICULATE'
+!~                 stop 'Construct_PropertyState - ModuleWaterProperties - ERR02'
+!~             end if
+!~         endif
 
 
         !<BeginKeyword>
@@ -9284,7 +9414,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
             !End Block        : <endproperty>
         !<EndKeyword>
         
-        if(NewProperty%Particulate)then
+        if(NewProperty%ID%IsParticulate)then
             DefaultFraction = 0.9
         else
             DefaultFraction = 0.1
@@ -17540,7 +17670,7 @@ TOut:   if (CurrentTime >= OutTime) then
         PropertyX => Me%FirstProperty
 
 do0:    do while(associated(PropertyX))
-cd0:        if(.not. PropertyX%Particulate .and. PropertyX%Evolution%Partitioning) then
+cd0:        if(.not. PropertyX%ID%IsParticulate .and. PropertyX%Evolution%Partitioning) then
 
 cd1:            if(Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
 
