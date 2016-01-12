@@ -5222,8 +5222,11 @@ do2:            do i = ILB, IUB
                         Z0 = Me%Rugosity%Field(i,j)
                         
                         if (Me%WaveShear_Stress%Yes) then
+
+                            Ubw = Me%ExtWater%Ubw(i,j)
+                            Abw = Me%ExtWater%Abw(i,j)
                             
-                            if (Me%ExtWater%Ubw(i,j).gt.0) then
+                            if (Ubw.gt.0) then
                             
                                 !Current angle in cartesian convention (angle between the vector and positive x-axis)
                                 Cphi = atan2(VC, UC) * 180./pi
@@ -5234,11 +5237,8 @@ do2:            do i = ILB, IUB
                                 CWphi = Cphi - Wphi !Current-wave angle
                                 Me%WaveShear_Stress%CWphi(i,j) = CWphi
                             
-                                Ubw = Me%ExtWater%Ubw(i,j)
-                                Abw = Me%ExtWater%Abw(i,j)
-                            
                                 !Compute drag coefficient
-                                call Compute_DragCoef(DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw)                            
+                                call Compute_DragCoef(DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw)        
                         
                                 if(UVC < 1e-6)then !wave-only flow                                    
                                     TAUM=0.
@@ -5298,9 +5298,9 @@ do2:            do i = ILB, IUB
 
     
     end subroutine ModifyShearStress
-    
+        
     !--------------------------------------------------------------------------
-     subroutine Compute_DragCoef (DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw) 
+    subroutine Compute_DragCoef (DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw) 
      
         !Arguments-----------------------------------------------------------------
         real                                    :: DWZ, Z0, UVC
@@ -5311,6 +5311,8 @@ do2:            do i = ILB, IUB
         real    ::  CDS, CDR, CDMS, CDMAXS, CDMR, CDMAXR
          
         !Begin----------------------------------------------------------------
+        
+        if (DWZ < Z0*Exp(1.001)) DWZ = Z0*Exp(1.001)
     
         CDR = 0.
         if(Z0 > 0.) CDR=(0.40/(log(DWZ/Z0)-1.))**2
@@ -5323,7 +5325,7 @@ do2:            do i = ILB, IUB
         CDM = CDMAX
         FW = 0.
 
-        if (Me%WaveShear_Stress%Yes) then
+        if (present(Ubw)) then
                             
             if (Ubw.gt.0)then 
                         

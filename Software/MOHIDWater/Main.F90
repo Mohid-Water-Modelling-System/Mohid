@@ -183,7 +183,7 @@ program MohidWater
 
 #ifdef _USE_MPI
     character(MPI_MAX_PROCESSOR_NAME)                       :: myMPI_Processor      = null_str
-    integer                                                 :: Precision            = null_int
+    !integer                                                 :: Precision            = null_int
 #else  _USE_MPI
     character(StringLength)                                 :: myMPI_Processor      = null_str
 #endif _USE_MPI
@@ -531,6 +531,7 @@ program MohidWater
         integer                                     :: iProc
         logical                                     :: SubModelWindowON, NotDefinedCells
         type(T_Time)                                :: SubModelBeginTime, SubModelEndTime
+        integer                                     :: Precision
 
         !Begin-----------------------------------------------------------------
 
@@ -785,6 +786,9 @@ program MohidWater
 
         call MPI_Bcast(AuxBeg, 6, Precision, 0, MPI_COMM_WORLD, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR250'
+
+        Precision = MPIKind(AuxEnd(1))
+        
         call MPI_Bcast(AuxEnd, 6, Precision, 0, MPI_COMM_WORLD, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR260'
         
@@ -1439,7 +1443,10 @@ doNext:     do while (associated(NextModel))
                             call SendInformationMPI (CurrentModel)
 
                         endif
+                        
+                        
                     endif
+                    
                 endif
                 CurrentModel => CurrentModel%Next
             enddo
@@ -1798,6 +1805,9 @@ do1:        do i=2,StringLength
         type (T_MohidWater), pointer                :: CurrentModel
         integer                                     :: status(MPI_STATUS_SIZE)
         logical                                     :: Variable
+        integer                                     :: Precision
+        
+        !Begin-----------------------------------------------------------------        
 
         !Get the DT of the current model
         CurrentModel => FirstModel
@@ -1815,6 +1825,8 @@ do1:        do i=2,StringLength
             endif
             CurrentModel => CurrentModel%Next
         enddo
+
+        Precision = MPIKind(DT)
 
         !Sends the information to all the others 
         call MPI_Allgather(DT, 1, Precision, ModelDTs, 1, Precision, MPI_COMM_WORLD, status)
@@ -1916,12 +1928,15 @@ do1:        do i=2,StringLength
         integer                                     :: STAT_CALL, iProp
         integer                                     :: status(MPI_STATUS_SIZE)
         real, dimension(6)                          :: AuxTime
-        
+        logical                                     :: ReceiveOk
+        integer                                     :: Precision                
         !Begin-----------------------------------------------------------------
+        
+        Precision = MPIKind(AuxTime(1))        
 
         call MPI_Recv (AuxTime, 6, Precision, CurrentModel%FatherModel%MPI_ID, 999, MPI_COMM_WORLD, status,  &
                        STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReceiveInformationMPI - MohidWater - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReceiveInformationMPI - MohidWater - ERR10'
 
         call SetDate     (CurrentModel%StartFatherIteration, AuxTime(1), AuxTime(2), AuxTime(3),     &
                           AuxTime(4), AuxTime(5), AuxTime(6))
@@ -1933,6 +1948,7 @@ do1:        do i=2,StringLength
                                       InitialField = .false.,                  &
                                       FatherGridID = CurrentModel%FatherGridID,&
                                       STAT = STAT_CALL)
+             if (STAT_CALL /= SUCCESS_) stop 'ReceiveInformationMPI - MohidWater - ERR20'                                      
         endif
 
         if (CurrentModel%FatherLink%Water) then
@@ -1950,6 +1966,20 @@ do1:        do i=2,StringLength
 
         end if
 
+        !  Father waits for the son models in the end of each iteration
+        !  This way it is avoid accumulation of send/receive variables in queue 
+        !  If the accumulation is to large a stack error happens. This receive aims
+        !  to avoid stack errors
+        !  This MPI_Send force a sycronization point 
+
+        Precision = MPI_LOGICAL
+        
+        ReceiveOk = .true.
+        
+        call MPI_Send (ReceiveOk, 1, Precision, CurrentModel%FatherModel%MPI_ID, 9999, MPI_COMM_WORLD, status,  &
+                       STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReceiveInformationMPI - MohidWater - ERR30'
+        
 #else _USE_MPI
 
     !Disable unused variable warnings
@@ -1970,16 +2000,20 @@ do1:        do i=2,StringLength
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, iSub, iProp
         real, dimension(6)                          :: AuxTime
-
-
+        logical                                     :: ReceiveOk
+        integer                                     :: Precision, status
+        !Begin-----------------------------------------------------------------
+        
         call ExtractDate (CurrentModel%StartIteration, AuxTime(1), AuxTime(2), AuxTime(3),  &
                                                        AuxTime(4), AuxTime(5), AuxTime(6))
                                                        
         do iSub = 1, CurrentModel%nSubModels
-        
+
+            Precision = MPIKind(AuxTime(1))
+
             call MPI_Send (AuxTime, 6, Precision, CurrentModel%SubMPIID(iSub), 999,       &
                            MPI_COMM_WORLD, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR10'
             
 
             if (CurrentModel%SubmodelLink(iSub)%Hydro) then
@@ -1987,6 +2021,8 @@ do1:        do i=2,StringLength
                                           CurrentModel%SubMPIID(iSub),                   &
                                           CurrentModel%SubmodelLink(iSub)%Window,        &
                                           InitialField = .false., STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR20'
+                                                      
             endif
 
             if(CurrentModel%SubmodelLink(iSub)%Water)then
@@ -1999,10 +2035,28 @@ do1:        do i=2,StringLength
                                          InitialField = .false.,                                            &
                                          PropIDNumber = CurrentModel%SubmodelLink(iSub)%PropertyIDNumbers(iProp),   &
                                          STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR30'
 
                 enddo
 
             end if
+            
+            !  Father waits for the son models in the end of each iteration
+            !  This way it is avoid accumulation of send/receive variables in queue 
+            !  If the accumulation is to large a stack error happens. This receive aims
+            !  to avoid stack errors
+            !  This MPI_Recv force a sycronization point             
+            
+            Precision = MPI_LOGICAL
+            
+            call MPI_Recv(ReceiveOk, 1, Precision, CurrentModel%SubMPIID(iSub), 9999, MPI_COMM_WORLD, status,  &
+                           STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR40'         
+            
+            if (.not. ReceiveOk) then
+                write(*,*) 'Father - son submodel communication not syncronized'
+                stop 'SendInformationMPI - MohidWater - ERR50'
+            endif
             
         enddo
 
@@ -2051,7 +2105,8 @@ do1:        do i=2,StringLength
 #endif _USE_MPI
 
     end subroutine UpdateSubModelValues
-
+    
+    !-----------------------------------------------------------------------------------    
 
 #ifdef _OPENMI_
 
