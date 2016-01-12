@@ -254,6 +254,7 @@ Module ModuleBoxDif
         integer                                             :: ObjHorizontalGrid    = 0
         integer                                             :: ObjEnterData         = 0
         type(T_BoxDif), pointer                             :: Next => null()
+        logical                                             :: IntegrationON        = .false. 
     end type  T_BoxDif
 
     !Global Module Variables
@@ -326,12 +327,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                        Filename    = Me%BoxesFilePath ,                 &
                                        STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'StartBoxDif2D - ModuleBoxDif - ERR20'            
+
+            if(present(FluxesOutputList)) Me%IntegrationON = .true.
+            if(present(ScalarOutputList)) Me%IntegrationON = .true.
             
             call ConstructBoxes2D
 
             if(present(FluxesOutputList)) call ConstructOutputFluxes2D  (FluxesOutputList)
                 
-            if(present(ScalarOutputList)) call ConstructOutputScalar2D   (ScalarOutputList)
+            if(present(ScalarOutputList)) call ConstructOutputScalar2D  (ScalarOutputList)
 
             !Returns ID
             BoxDifID = Me%InstanceID
@@ -546,14 +550,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call InitializeEnvironmentBox2D
 
         call ConvertBoxesToMap2D(Me%ExternalVar%WaterPoints2D)
-
-        call No_BoxMap_HaloArea(HorizontalGridID = Me%ObjHorizontalGrid,                &
-                                Boxes2D          = Me%Boxes2D,                          &
-                                STAT             = STAT_CALL)                
-        if (STAT_CALL /= SUCCESS_)then
-            stop 'ConstructBoxes2D - ModuleBoxDif - ERR20'
-        endif             
-
+        
+        if (Me%IntegrationON) then
+            call No_BoxMap_HaloArea(HorizontalGridID = Me%ObjHorizontalGrid,            &
+                                    Boxes2D          = Me%Boxes2D,                      &
+                                    STAT             = STAT_CALL)                
+            if (STAT_CALL /= SUCCESS_)then
+                stop 'ConstructBoxes2D - ModuleBoxDif - ERR20'
+            endif             
+        endif
+        
         call FindAdjacentBoxesBoundaries2D
 
         if(Me%WriteBoxes) call WriteBoxes

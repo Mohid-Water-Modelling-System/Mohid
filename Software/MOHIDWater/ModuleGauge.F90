@@ -1656,23 +1656,27 @@ if2 :       if (flag .EQ. 2) then
                 if (AuxWave(1) < 0.) then
                     write(*,*) 'Tidal component ', trim(WaveName),' in the tidal gauge named ', trim(PresentGauge%Name)
                     write(*,*) 'has an amplitude below ZERO'
-                    stop
+                    write(*,*) 'null value is assumed'
+                    AuxWave(1) = 0.
                 endif
                 if (AuxWave(1) > 20.) then
                     write(*,*) 'Tidal component ', trim(WaveName),' in the tidal gauge named ', trim(PresentGauge%Name)
                     write(*,*) 'has an amplitude above 20'
-                    stop
+                    write(*,*) 'null value is assumed'
+                    AuxWave(1) = 0.
                 endif
 
                 if (AuxWave(2) < -360.) then
                     write(*,*) 'Tidal component ', trim(WaveName),' in the tidal gauge named ', trim(PresentGauge%Name)
                     write(*,*) 'has a phase below -360'
-                    stop
+                    write(*,*) 'null value is assumed'
+                    AuxWave(2) = 0.
                 endif
                 if (AuxWave(2) >  360.) then
                     write(*,*) 'Tidal component ', trim(WaveName),' in the tidal gauge named ', trim(PresentGauge%Name)
                     write(*,*) 'has a phase above +360'
-                    stop
+                    write(*,*) 'null value is assumed'
+                    AuxWave(2) = 0.
                 endif
 
 
