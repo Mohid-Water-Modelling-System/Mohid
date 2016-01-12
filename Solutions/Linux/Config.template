@@ -13,6 +13,13 @@ export VER =
 # ex.: export DESTDIR = /usr/bin/mohid
 export DESTDIR = 
 
+#Must compile for DEBUG?
+# Two valid options:
+#   true
+#   false
+# ex.: export IS_DEBUG = true
+export IS_DEBUG =
+
 #Where are your intel libraries?
 export INTEL_PATH =
 
@@ -31,12 +38,21 @@ export ZLIBINC =
 #   true
 #   false
 # ex.: export IS_MPI = true
-export IS_MPI = false
+export IS_MPI =
 
 #Where is the netcdf.mod and libnetcdf.a (built with ./configure with --enable-fortran) in your system?
 #    : export MPILIBPATH = /usr/lib64
 
 export MPILIBPATH = 
+export MPIINC =
+
+#Activate the extra modules that require the OpenMP libraries
+# Two valid options:
+#   true
+#   false
+# ex.: export IS_OPENMP = true
+
+export IS_OPENMP = 
 
 #Activate the extra modules that require the netcdf libraries
 # Two valid options:
