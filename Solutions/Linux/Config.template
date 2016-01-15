@@ -6,19 +6,19 @@
 #Edit the prefix of the installed binaries
 # > make nix.install
 # ex.: export VER = x64_single
-export VER = 
+export VER = x64_double 
 
 #Where do you want to install the binary files?
 # > make nix.install
 # ex.: export DESTDIR = /usr/bin/mohid
-export DESTDIR = 
+export DESTDIR =
 
 #Must compile for DEBUG?
 # Two valid options:
 #   true
 #   false
 # ex.: export IS_DEBUG = true
-export IS_DEBUG =
+export IS_DEBUG = false
 
 #Where are your intel libraries?
 export INTEL_PATH =
@@ -26,33 +26,46 @@ export INTEL_PATH =
 #Where are the hdf5 libraries (with --enable-fortran) in your system?
 # ex.: export HDF5INC = /home/Projects/hdf5/hdf5-1.6.5/hdf5/lib
 #      export HDF5LIB = /home/Projects/hdf5/hdf5-1.6.5/hdf5/lib 
-export HDF5INC = 
-export HDF5LIB = 
+export HDF5INC =
+export HDF5LIB =
 
 #Where is the libz.a in your system?
 # ex.: export ZLIBINC = /usr/lib64
-export ZLIBINC = 
+export ZLIBINC =
 
 #Activate the extra modules that require the mpi libraries
 # Two valid options:
 #   true
 #   false
 # ex.: export IS_MPI = true
-export IS_MPI =
+export IS_MPI = false
 
 #Where is the netcdf.mod and libnetcdf.a (built with ./configure with --enable-fortran) in your system?
 #    : export MPILIBPATH = /usr/lib64
-
-export MPILIBPATH = 
+export MPILIBPATH =
 export MPIINC =
+
+#Activate the extra modules that require the PhreeqcRM libraries
+# Two valid options:
+#   true
+#   false
+# ex.: export IS_PHREEQCRM = true
+export IS_PHREEQCRM = false
+
+#Where is libphreeqcrm.a in your system?
+#    : export PHREEQCRMLIBPATH = /usr/lib64
+export PHREEQCRMLIBPATH =
+
+#StdC++ libraries. If IS_PHREEQCRM = true, it will be used automatically
+export CPPLIBS = -lstdc++
+export IS_STDCPP = false
 
 #Activate the extra modules that require the OpenMP libraries
 # Two valid options:
 #   true
 #   false
 # ex.: export IS_OPENMP = true
-
-export IS_OPENMP = 
+export IS_OPENMP = false
 
 #Activate the extra modules that require the netcdf libraries
 # Two valid options:
@@ -94,6 +107,10 @@ ifeq ($(IS_MPI),true)
     FPP_DEFINES := ${FPP_DEFINES} -D_USE_MPI
 endif
 
+ifeq ($(IS_PHREEQCRM),true)
+    FPP_DEFINES := ${FPP_DEFINES} -D_PHREEQC_
+endif
+
 #Find GIT Respository revision, branch and if there is local changes
 PERSONAL := '$(shell ./test_local_changes.sh)'
 LAST_COMMIT := '$(shell ./get_last_version.sh)'
@@ -107,14 +124,14 @@ COMPILING_DATE := '$(shell date)'
 #FPP_DEFINES := ${FPP_DEFINES} -D_LONG_LINE_LENGTH
 #FPP_DEFINES := ${FPP_DEFINES} -D_EXTRA_LONG_LINE_LENGTH
 #FPP_DEFINES := ${FPP_DEFINES} -D_EXTRA_SHORT_LINE_LENGTH
-#FPP_DEFINES := ${FPP_DEFINES} -D_USE_MPI
 #FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_
 #FPP_DEFINES := ${FPP_DEFINES} -D_WAVES_
 #FPP_DEFINES := ${FPP_DEFINES} -DOVERLAP
 #FPP_DEFINES := ${FPP_DEFINES} -D_SEDIMENT_
 #FPP_DEFINES := ${FPP_DEFINES} -D_AIR_
+FPP_DEFINES := ${FPP_DEFINES} -D_STACK_LIMITS_
 FPP_DEFINES := ${FPP_DEFINES} -D_LAGRANGIAN_GLOBAL_
-#FPP_DEFINES := ${FPP_DEFINES} -D_PHREEQC_      #Not available yet
+
 #Change 'user' to your name
 FPP_DEFINES := ${FPP_DEFINES} -D_COMPILED_BY=\"user\"
 FPP_DEFINES := ${FPP_DEFINES} -D_COMPILING_DATE=\"${COMPILING_DATE}\"
@@ -122,6 +139,5 @@ FPP_DEFINES := ${FPP_DEFINES} -D_BRANCH=\"${LOCAL_BRANCH}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_LASTCOMMIT=\"${LAST_COMMIT}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_PERSONAL=\"${PERSONAL}\"
 FPP_DEFINES := ${FPP_DEFINES} -D_REMOTE=\"${REMOTE}\"
-FPP_DEFINES := ${FPP_DEFINES} -D_STACK_LIMITS_
 
 export FPP_DEFINES
