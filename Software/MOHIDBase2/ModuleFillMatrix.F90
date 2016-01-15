@@ -1594,6 +1594,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !normal case, found only one value (STAT_CALL size err and iflag = 1). ignore
             !vectorial 2D case, found only two values (STAT_CALL size err and iflag = 2). ignore
             if (STAT_CALL /= SIZE_ERR_) then
+                write trim(Me%PropertyID%Name)
                 stop 'ReadOptions - ModuleFillMatrix - ERR090'                
             endif          
             
