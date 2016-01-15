@@ -646,8 +646,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%RadiationStress%ON) then
 
-            Me%RadiationStress%ID%Name     = GetPropertyName(WaveStress_)
-            Me%RadiationStress%ID%IDNumber = WaveStress_                                    
+            call ConstructPropertyIDOnFly (Me%RadiationStress%ID,                       &
+                                           GetPropertyName(WaveStress_),                &
+                                           .false.,                                     &
+                                           .false.,                                     &
+                                           .false.,                                     &
+                                           .true.)
+            
+            !Me%RadiationStress%ID%Name     = GetPropertyName(WaveStress_)
+            !Me%RadiationStress%ID%IDNumber = WaveStress_                                    
 
             call ReadWaveParameters(WaveProperty = Me%RadiationStress,                 &
                                     BeginBlock   = "<begin_radiationstress>",         &
