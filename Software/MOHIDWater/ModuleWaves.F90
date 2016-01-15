@@ -80,7 +80,7 @@
 Module ModuleWaves
 
     use ModuleGlobalData
-    use ModuleFunctions,        only : Secant, SetMatrixValue
+    use ModuleFunctions,        only : Secant, SetMatrixValue, ConstructPropertyIDOnFly
     use ModuleEnterData        
     use ModuleTime
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetOpenPoints2D, UnGetHorizontalMap
