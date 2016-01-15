@@ -15105,7 +15105,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: VelModH
         real                                        :: StandardDeviation, MixingLength, HD, TlagrangeH
         real                                        :: RAND, R1, R2
-        type (T_Position)                           :: NewPosition
+        type (T_Position)                           :: NewPosition, AuxPosition
         integer                                     :: NewI, NewJ, KUB
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB
         logical                                     :: PositionCorrected
@@ -15123,7 +15123,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: WaterDensity, UDrift = 0., VDrift = 0.
         logical                                     :: InterpolVel3D
         integer                                     :: nn, Npi, Npj, ts, lp
-        real                                        :: LineAngle, AuxAngle, IntersectVel, DXn, DYn
+        real                                        :: DXn, DYn
         !new method for stokes drift
         real                                        :: WaveLength
 !        real                                        :: Celerity
@@ -15134,9 +15134,8 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: C_Term
         real                                        :: OilViscCin, OWInterfacialTension
         real                                        :: Wind
-        type (T_PointF),   pointer                  :: ParticPoint, LinePoint
-        type (T_Lines),    pointer                  :: CurrLine
-        logical                                     :: ParticleInsideBuffer
+        logical                                     :: exitDoCycle
+
         !Begin-----------------------------------------------------------------------------------------
         
         if (Me%State%Oil) then
@@ -15184,8 +15183,6 @@ CT:         do while (ComputeTrajectory)
 
                 ID_Group = CurrentOrigin%GroupID
 
-                emp       = CurrentPartic%Position%ModelID
-                
                 !Shorten Var
                 if (Me%OverLay) then
                     Velocity_U => Me%EulerModel(emp)%OverLay%VelUFinal
@@ -15786,17 +15783,21 @@ d1:             do em = 1, Me%EulerModelNumber
                 
 iHD:                if (HaveDomain) then
 
-                        !Convert Coordinates
-                        call Convert_XY_CellIJ(Me%EulerModel(em),CurrentPartic%Position, Referential = GridCoord_)
+                        AuxPosition = CurrentPartic%Position
 
-iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Position%i, CurrentPartic%Position%j, &
+                        !Convert Coordinates
+                        call Convert_XY_CellIJ(Me%EulerModel(em), AuxPosition, Referential = GridCoord_)
+
+iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(AuxPosition%i, AuxPosition%j, &
                                                             Me%EulerModel(em)%WorkSize%KUB) == OpenPoint) then
 
 
-                            call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(em), CurrentPartic%Position, PositionCorrected)
-                            call Convert_CellK_K (                                  CurrentPartic%Position)
+                            call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(em), AuxPosition, PositionCorrected)
+                            call Convert_CellK_K (                                  AuxPosition)
 
                             CurrentPartic%Position%ModelID = em
+                            
+                            CurrentPartic%Position         = AuxPosition
 
                             ComputeTrajectory = .true.
 
@@ -15841,9 +15842,6 @@ iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Positi
             !   2 - Only the random components are considered
 dts:        do ts = 1, 2
 
-                !As a first approach
-                NewPosition%ModelID = CurrentPartic%Position%ModelID
-                
                 if     (ts == 1) then
                     !New Position
                     NewPosition%X = CurrentPartic%Position%X + DX 
@@ -15861,8 +15859,10 @@ dts:        do ts = 1, 2
                     DYn           = DYrand                              
                 endif    
                 
-                NewPosition%I = CurrentPartic%Position%I
-                NewPosition%J = CurrentPartic%Position%J
+                !As a first approach
+                NewPosition%ModelID = CurrentPartic%Position%ModelID
+                NewPosition%I       = CurrentPartic%Position%I
+                NewPosition%J       = CurrentPartic%Position%J
                 
                 call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
                                        Referential = AlongGrid_, ConvertOK = ConvertOK)                 
@@ -15905,6 +15905,7 @@ dts:        do ts = 1, 2
                         exit
                     endif
 
+                    HaveDomain = .false. 
                     
     d11:            do em = 1, Me%EulerModelNumber
                    
@@ -15917,8 +15918,25 @@ dts:        do ts = 1, 2
                             stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR40'
                         endif       
                         
-                        if (HaveDomain) exit                 
-                    
+                        if (HaveDomain) then
+                            
+                            NewPosition%ModelID = em
+                            NewPosition%I       = null_int
+                            NewPosition%J       = null_int
+                        
+                            !Needs to change to along grid referential
+                            call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
+                                                                 Referential = GridCoord_,          &
+                                                                 ConvertOK   = ConvertOK)                
+                                                                 
+                            if (.not. ConvertOK) then                                                        
+                                stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR60'
+                            endif               
+                                         
+                            exit                 
+                            
+                        endif
+                            
                     enddo d11
                     
                     if (.not.HaveDomain) then
@@ -15926,146 +15944,33 @@ dts:        do ts = 1, 2
                         CurrentPartic%KillPartic = ON 
                         exit
                     endif                      
-                    
-                    NewPosition%ModelID = em
-                    !If particle changes domain
-                    if (NewPosition%ModelID /= CurrentPartic%Position%ModelID) then
-                    
-                        NewPosition%I = null_int
-                        NewPosition%J = null_int
-                    
-                        !Needs to change to along grid referential
-                        call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
-                                                             Referential = GridCoord_,          &
-                                                             ConvertOK   = ConvertOK)                
-                                                             
-                        if (.not. ConvertOK) then                                                        
-                            stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR60'
-                        endif
-                    endif         
                                      
-                    if (MovePartic) then
+iMP:                if (MovePartic) then
 
-                        if ((Me%Booms%ON .and. CurrentPartic%Position%Surface) .or. Me%ThinWallsON) then
+                        exitDoCycle = .false. 
+
+                        call CheckThinStructures(MovePartic, CurrentPartic, NewPosition, exitDoCycle)
+                        
+                        if (exitDoCycle) exit
                     
-                            if (ConvertOK) then                                                         
-
-                                if (Me%Booms%ON .and. CurrentPartic%Position%Surface) then
-                        
-donn:                               do nn = 1, Me%Booms%Number
-                                        !if has buffer check if particle movement intersects buffer around boom points
-                                        !this is usefull if boom moves and/or between time steps particles go trough the boom
-ifbuf:                                  if (Me%Booms%Individual(nn)%BoomHasBuffer) then
-                                            
-                                            ParticleInsideBuffer = .false.
-                                            allocate(ParticPoint)
-                                            allocate(LinePoint)
-                                 
-                                            CurrLine => Me%Booms%Individual(nn)%Lines
-                                            
-                                            !go for all line points and check if particle is inside the buffer
-dolp:                                       do lp = 1, CurrLine%nNodes
-                                                
-                                                LinePoint%X = CurrLine%X(lp)
-                                                LinePoint%Y = CurrLine%Y(lp)
-                                                ParticPoint%X = CurrentPartic%Position%CoordX
-                                                ParticPoint%Y = CurrentPartic%Position%CoordY
-                                                
-                                                if(IsPointInsideCircle(ParticPoint, LinePoint, &
-                                                                       Me%Booms%Individual(nn)%BoomBufferDist))then 
-                                                    ParticleInsideBuffer = .true.
-                                                    exit dolp                                               
-                                                else
-                                                    
-                                                    ParticPoint%X = NewPosition%CoordX
-                                                    ParticPoint%Y = NewPosition%CoordY
-                                                    
-                                                    if(IsPointInsideCircle(ParticPoint, LinePoint, &
-                                                                           Me%Booms%Individual(nn)%BoomBufferDist))then
-                                                        ParticleInsideBuffer = .true.
-                                                        exit dolp                                                   
-                                                    endif                                                
-                                                
-                                                endif
-                                                
-                                            enddo dolp
-                                                                                 
-                                            deallocate(ParticPoint)
-                                            deallocate(LinePoint)
-                                            nullify(CurrLine)
-                                            
-                                            if (ParticleInsideBuffer) then
-                                            
-                                                if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit) then
-                                                    MovePartic = .false.
-                                                    exit donn
-                                                endif   
-                                            endif
-                                                
-                                        else !intersect old and new particle position segment with boom segments                                               
-                                            
-                                            if (SegIntersectLine(                               &
-                                                x1      = CurrentPartic%Position%CoordX,        &
-                                                y1      = CurrentPartic%Position%CoordY,        &
-                                                x2      = NewPosition%CoordX,                   &
-                                                y2      = NewPosition%CoordY,                   &
-                                                LineX   = Me%Booms%Individual(nn)%Lines,        &    
-                                                LineAng = LineAngle)) then                                            
-                                                
-                                                AuxAngle = atan2(CurrentPartic%CurrentY,CurrentPartic%CurrentX) - (LineAngle+Pi/2.)
-                                            
-                                                IntersectVel = abs(cos(AuxAngle) * sqrt(CurrentPartic%CurrentX**2+ &
-                                                                                        CurrentPartic%CurrentY**2))
-                                            
-                                                if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit .and. &
-                                                    IntersectVel             < Me%Booms%Individual(nn)%VelLimit) then
-                                                    MovePartic = .false.
-                                                    exit donn
-                                                endif 
-                                           endif
-                                        endif ifbuf
-                                    enddo donn
-                                endif
-                                
-                                if (MovePartic .and. Me%ThinWallsON) then
-                        
-                                    if (SegIntersectPolygon(                                &
-                                        x1      = CurrentPartic%Position%CoordX,            &
-                                        y1      = CurrentPartic%Position%CoordY,            &
-                                        x2      = NewPosition%CoordX,                       &
-                                        y2      = NewPosition%CoordY,                       &
-                                        PolygonX= Me%ThinWalls)) then
-                                        MovePartic = .false.
-                                        exit
-                                    endif
-                                endif
-
-                            else
-                                write(*,*) 'Conversion of the new position from along grid to coordinates did not work'
-                                stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR70'
-                            endif
-                        endif                                        
-
-                    endif 
+                    endif iMP
                     
     iFKP:           if (MovePartic) then
 
                         CurrentPartic%Freezed = .false. 
                         
-                        NewPosition%I = CurrentPartic%Position%I
-                        NewPosition%J = CurrentPartic%Position%J
+                        !NewPosition%I = CurrentPartic%Position%I
+                        !NewPosition%J = CurrentPartic%Position%J
                         
                         !Convert Coordinates
-                        call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
-                                                             Referential = AlongGrid_, ConvertOK = ConvertOK)
+                        !call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
+                        !                                     Referential = AlongGrid_, ConvertOK = ConvertOK)
 
                         !Verifies new position
                         NewI = NewPosition%i
                         NewJ = NewPosition%j
-
                         KUB  = Me%EulerModel(NewPosition%ModelID)%WorkSize%KUB                   
                         
-    iconv:              if (ConvertOK) then
                         !It assumes that is no water point
     ie:                 if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ, KUB) /= OpenPoint) then
 
@@ -16073,8 +15978,9 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                             CurrentPartic%TpercursoH = abs(null_real)
                             
                             
-    isc:                    if (CurrentOrigin%Movement%SlipCondition) then
-
+    isc:                    if (CurrentOrigin%Movement%SlipCondition .and.              &
+                                CurrentPartic%Position%ModelID == NewPosition%ModelID) then
+                                !Slip condition should not be used when there as jump between domains
                                 call ParticSlipCondition(CurrentPartic, NewPosition)
 
                              else isc
@@ -16083,18 +15989,10 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                                 CurrentPartic%Freezed    = ON
                              endif isc    
 
-                        !Moves it 
+                        !else Moves it 
                         
                         endif ie
                         
-                        else
-
-                            !If a particle doesnt move the Freezed state is ON
-                            CurrentPartic%Freezed    = ON                
-                        
-                        endif iconv
-                        
-                       
         ie1:            if (CurrentPartic%Freezed) then
                             
                             CurrentPartic%TpercursoH = abs(null_real)
@@ -16157,6 +16055,127 @@ dolp:                                       do lp = 1, CurrLine%nNodes
     end subroutine MoveParticHorizontal
 
     !--------------------------------------------------------------------------
+    
+    subroutine CheckThinStructures(MovePartic, CurrentPartic, NewPosition, exitDoCycle)
+    
+        !Arguments----------------------------------------------------------------------
+        logical                                     :: MovePartic
+        type (T_Partic),   pointer                  :: CurrentPartic        
+        type (T_Position)                           :: NewPosition
+        logical                                     :: exitDoCycle
+        
+        !Local--------------------------------------------------------------------------
+        integer                                     :: nn, lp
+        real                                        :: LineAngle, AuxAngle, IntersectVel        
+        type (T_PointF),   pointer                  :: ParticPoint, LinePoint
+        type (T_Lines),    pointer                  :: CurrLine
+        logical                                     :: ParticleInsideBuffer
+        
+        
+        !Begin--------------------------------------------------------------------------        
+        
+        exitDoCycle = .false. 
+    
+        if ((Me%Booms%ON .and. CurrentPartic%Position%Surface) .or. Me%ThinWallsON) then
+    
+            !if (ConvertOK) then                                                         
+
+            if (Me%Booms%ON .and. CurrentPartic%Position%Surface) then
+    
+donn:           do nn = 1, Me%Booms%Number
+                    !if has buffer check if particle movement intersects buffer around boom points
+                    !this is usefull if boom moves and/or between time steps particles go trough the boom
+ifbuf:              if (Me%Booms%Individual(nn)%BoomHasBuffer) then
+                        
+                        ParticleInsideBuffer = .false.
+                        allocate(ParticPoint)
+                        allocate(LinePoint)
+             
+                        CurrLine => Me%Booms%Individual(nn)%Lines
+                        
+                        !go for all line points and check if particle is inside the buffer
+dolp:                   do lp = 1, CurrLine%nNodes
+                            
+                            LinePoint%X = CurrLine%X(lp)
+                            LinePoint%Y = CurrLine%Y(lp)
+                            ParticPoint%X = CurrentPartic%Position%CoordX
+                            ParticPoint%Y = CurrentPartic%Position%CoordY
+                            
+                            if(IsPointInsideCircle(ParticPoint, LinePoint, &
+                                                   Me%Booms%Individual(nn)%BoomBufferDist))then 
+                                ParticleInsideBuffer = .true.
+                                exit dolp                                               
+                            else
+                                
+                                ParticPoint%X = NewPosition%CoordX
+                                ParticPoint%Y = NewPosition%CoordY
+                                
+                                if(IsPointInsideCircle(ParticPoint, LinePoint, &
+                                                       Me%Booms%Individual(nn)%BoomBufferDist))then
+                                    ParticleInsideBuffer = .true.
+                                    exit dolp                                                   
+                                endif                                                
+                            
+                            endif
+                            
+                        enddo dolp
+                                                             
+                        deallocate(ParticPoint)
+                        deallocate(LinePoint)
+                        nullify(CurrLine)
+                        
+                        if (ParticleInsideBuffer) then
+                        
+                            if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit) then
+                                MovePartic = .false.
+                                exit donn
+                            endif   
+                        endif
+                            
+                    else !intersect old and new particle position segment with boom segments                                               
+                        
+                        if (SegIntersectLine(                               &
+                            x1      = CurrentPartic%Position%CoordX,        &
+                            y1      = CurrentPartic%Position%CoordY,        &
+                            x2      = NewPosition%CoordX,                   &
+                            y2      = NewPosition%CoordY,                   &
+                            LineX   = Me%Booms%Individual(nn)%Lines,        &    
+                            LineAng = LineAngle)) then                                            
+                            
+                            AuxAngle = atan2(CurrentPartic%CurrentY,CurrentPartic%CurrentX) - (LineAngle+Pi/2.)
+                        
+                            IntersectVel = abs(cos(AuxAngle) * sqrt(CurrentPartic%CurrentX**2+ &
+                                                                    CurrentPartic%CurrentY**2))
+                        
+                            if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit .and. &
+                                IntersectVel             < Me%Booms%Individual(nn)%VelLimit) then
+                                MovePartic = .false.
+                                exit donn
+                            endif 
+                       endif
+                    endif ifbuf
+                enddo donn
+            endif
+            
+            if (MovePartic .and. Me%ThinWallsON) then
+    
+                if (SegIntersectPolygon(                                &
+                    x1      = CurrentPartic%Position%CoordX,            &
+                    y1      = CurrentPartic%Position%CoordY,            &
+                    x2      = NewPosition%CoordX,                       &
+                    y2      = NewPosition%CoordY,                       &
+                    PolygonX= Me%ThinWalls)) then
+                    MovePartic  = .false.
+                    exitDoCycle = .true.
+                endif
+            endif
+
+        endif                                        
+
+    end subroutine CheckThinStructures
+
+    !----------------------------------------------------------------------
+    
     
     subroutine ParticSlipCondition(CurrentPartic, NewPosition)
 
