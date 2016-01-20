@@ -626,7 +626,7 @@ Module ModuleBasin
         real(8), dimension(:,:), pointer            :: WaterColumnEvaporated    => null() !in meters (m)
 
         real, dimension(6)                          :: KcThresholds
-        logical                                     :: UseKCThresholds = .true.
+        logical                                     :: UseKCThresholds = .false.
         
     end type  T_Basin
 
@@ -1618,6 +1618,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         ClientModule = 'ModuleBasin',                                       &
                         STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR470'
+        if (iflag > 0) then
+            Me%UseKcThresholds = .true.
+        else
+            Me%UseKcThresholds = .false.
+        endif
         
     end subroutine ReadDataFile
     
