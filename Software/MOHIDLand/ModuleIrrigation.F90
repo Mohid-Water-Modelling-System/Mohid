@@ -267,9 +267,9 @@ module ModuleIrrigation
         !Irrigation(mm) - Property Irrigation        
         type(T_IrriProperty), pointer               :: Irrigation => null() !in 'mm'
         real                                        :: ActualIrrigation = 0.0
-                
-        !HeadWiltingPoint(m) - Head value to start irrigating
-        real                                        :: HeadWiltingPoint = 0 
+        
+        !HeadThreshold(m) - Head value to start irrigating
+        real                                        :: HeadThreshold = 0 
                 
         !HeadTarget(m) - Head value to be achieved by irrigation
         real                                        :: HeadTarget = 0
@@ -301,8 +301,7 @@ module ModuleIrrigation
         !type(T_IrriProperty), pointer               :: ToIrrigate => null() !In 'mm'
         
         type(T_IrriProperty), pointer               :: WaterContentTarget => null() !In Theta % (0 - 100). Must be higher than the Theta Residual and lower than the Theta Saturation
-        type(T_IrriProperty), pointer               :: WaterContentEasy => null() !
-        type(T_IrriProperty), pointer               :: WaterContentWiltingPoint => null() !In Theta % (0 - 100). Must be higher than the Theta Residual and lower than the Theta Saturation
+        type(T_IrriProperty), pointer               :: WaterContentThreshold => null() !In Theta % (0 - 100). Must be higher than the Theta Residual and lower than the Theta Saturation
         
         integer                                     :: PropertiesNumber = 0
         type(T_IrriProperty), pointer               :: FirstProperty => null()
@@ -653,14 +652,10 @@ cd0:    if (ready_ == OFF_ERR_) then
             allocate (Me%Schedules(i)%WaterContentTarget%Field3D (ILB:IUB,JLB:JUB,KLB:KUB))
             Me%Schedules(i)%WaterContentTarget%Field3D = 0.0
             
-            allocate (Me%Schedules(i)%WaterContentWiltingPoint)
-            allocate (Me%Schedules(i)%WaterContentWiltingPoint%Field3D (ILB:IUB,JLB:JUB,KLB:KUB))
-            Me%Schedules(i)%WaterContentWiltingPoint%Field3D = 0.0
-            
-            allocate (Me%Schedules(i)%WaterContentEasy)
-            allocate (Me%Schedules(i)%WaterContentEasy%Field3D (ILB:IUB,JLB:JUB,KLB:KUB))
-            Me%Schedules(i)%WaterContentEasy%Field3D = 0.0
-            
+            allocate (Me%Schedules(i)%WaterContentThreshold)
+            allocate (Me%Schedules(i)%WaterContentThreshold%Field3D (ILB:IUB,JLB:JUB,KLB:KUB))
+            Me%Schedules(i)%WaterContentThreshold%Field3D = 0.0
+                       
             allocate (Me%Schedules(i)%RootsKLB (ILB:IUB,JLB:JUB))
             Me%Schedules(i)%RootsKLB = 0.0
         enddo
@@ -773,11 +768,11 @@ cd0:    if (ready_ == OFF_ERR_) then
         if (stat_call /= SUCCESS_) &
             stop 'ConstructSchedule - ModuleIrrigation - ERR030'
         
-        call GetData (new_schedule%HeadWiltingPoint,        &
+        call GetData (new_schedule%HeadThreshold,        	&
                       Me%ObjEnterData, iflag,               &
-                      Keyword      = 'HEAD_WILTING_POINT',  &
+                      Keyword      = 'HEAD_THRESHOLD',      &
                       ClientModule = 'ModuleIrrigation',    &
-                      Default      = -150.0,                &
+                      Default      = -6.0,                  &
                       SearchType   = FromBlock,             &
                       STAT = stat_call)
         if (stat_call /= SUCCESS_) &
@@ -1092,51 +1087,12 @@ cd1 :       if (block_found) then
             !new_schedule%ApplicationAreaMap => new_property
             allocate (new_schedule%ApplicationAreaMap%LogicalField(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))            
             new_property%IsLogical = .true.
-            
-        !elseif (trim(new_property%ID%Name) == "start head threshold") then
-        !    new_property%ID%IDNumber = StartHeadThreshold_
-        !    new_schedule%HeadWiltingPoint => new_property
-        !    
-        !elseif (trim(new_property%ID%Name) == "start head limit threshold") then
-        !    new_property%ID%IDNumber = StartHeadLimitThreshold_
-        !    new_schedule%HeadTarget => new_property
-        !    
-        !elseif (trim(new_property%ID%Name) == "end head threshold") then
-        !    new_property%ID%IDNumber = EndHeadThreshold_
-        !    new_schedule%EndHeadTreshold => new_property
-        !    
+              
         elseif (trim(new_property%ID%Name) == "fixed irrigation") then
             
             new_property%ID%IDNumber = IrrigationProperty_
             new_schedule%Irrigation => new_property
             
-        !elseif (trim(new_property%ID%Name) == "minimum interval between events") then
-        !    new_property%ID%IDNumber = MinimumIntervalBetweenEvents_
-        !    new_schedule%MinimumIntervalBetweenEvents => new_property
-        !    
-        !elseif (trim(new_property%ID%Name) == "start instant threshold") then
-        !    new_property%ID%IDNumber = StartInstantThreshold_
-        !    new_schedule%StartInstantThreshold => new_property
-        !    
-        !elseif (trim(new_property%ID%Name) == "gear type") then
-        !    new_property%ID%IDNumber = GearType_
-        !    new_schedule%GearType => new_property
-        !    
-        !elseif (trim(new_property%ID%Name) == "gear efficiency") then
-        !    new_property%ID%IDNumber = GearEfficiency_
-        !    new_schedule%GearEfficiency => new_property
-        !    
-        !elseif (trim(new_property%ID%Name) == "debit") then
-        !    new_property%ID%IDNumber = Debit_
-        !    new_schedule%Debit => new_property
-        !    
-        !elseif (trim(new_property%ID%Name) == "position") then
-        !    new_property%ID%IDNumber = Position_
-        !    new_schedule%Position => new_property
-        !    
-        !elseif (trim(new_property%ID%Name) == "acc. irrigation") then
-        !    new_property%ID%IDNumber = AccIrrigation_
-        !    
         elseif (trim(new_property%ID%Name) == "acc. irrigation") then
             new_property%ID%IDNumber = AccIrrigation_
             
@@ -1756,10 +1712,8 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
                     else
                         
                         schedule_id = schedule_
-                        start_head = schedule%HeadWiltingPoint
+                        start_head = schedule%HeadThreshold
                         target_head = schedule%HeadTarget
-                        !schedule%ApplicationAreaMap%LogicalField = .false.
-                        !schedule%ApplicationAreaMap%LogicalField(2,2) = .true.
                         mask => schedule%ApplicationAreaMap%LogicalField
                         finish = .false.
                         must_continue = .false.
@@ -1936,24 +1890,7 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
             !call Read_Lock(mIrrigation_, Me%InstanceID) 
 
             call SetMatrixValue (Me%Schedules(schedule)%WaterContentTarget%Field3D, Me%WorkSize, target_wc)
-            call SetMatrixValue (Me%Schedules(schedule)%WaterContentWiltingPoint%Field3D, Me%WorkSize, start_wc)
-            
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                
-                if (mapping(i,j,k) == 1) then
-                    Me%Schedules(schedule)%WaterContentEasy%Field3D(i,j,k) =                    &
-                             Me%Schedules(schedule)%WaterContentWiltingPoint%Field3D(i,j,k) +   &
-                             (Me%Schedules(schedule)%WaterContentTarget%Field3D(i,j,k) -        &
-                             Me%Schedules(schedule)%WaterContentWiltingPoint%Field3D(i,j,k)) / 2
-                else
-                    Me%Schedules(schedule)%WaterContentEasy%Field3D(i,j,k) = 0.0
-                endif
-            enddo
-            enddo
-            enddo
-                
+            call SetMatrixValue (Me%Schedules(schedule)%WaterContentThreshold%Field3D, Me%WorkSize, start_wc)               
 
             STAT_ = SUCCESS_
             
@@ -2778,7 +2715,7 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
                 
                 do k = schedule%RootsKLB(i,j), Me%WorkSize%KUB
                     
-                    ewc = schedule%WaterContentEasy%Field3D(i,j,k)
+                    ewc = schedule%WaterContentThreshold%Field3D(i,j,k)
                     wc = Me%Data%SoilWaterContent(i,j,k)
                     twc = schedule%WaterContentTarget%Field3D(i,j,k)
                     
