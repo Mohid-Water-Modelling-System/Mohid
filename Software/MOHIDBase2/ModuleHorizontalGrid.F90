@@ -4484,10 +4484,6 @@ Inp:    if (Me%CornersXYInput) then
 
             endif
             
-            !The last vertix equal to the first 
-            
-            Nvert = Nvert + 1
-                
 
 !        else if (GridBorder%Type_ == RotatedRectang_) then 
         else
@@ -4495,6 +4491,10 @@ Inp:    if (Me%CornersXYInput) then
             Nvert = 4
 
         endif
+        
+        !The last vertix equal to the first 
+        Nvert = Nvert + 1
+        
         
 
         allocate(GridBorder%Polygon_)
@@ -4544,7 +4544,7 @@ Inp:    if (Me%CornersXYInput) then
             
         else    
 
-            GridBorder%Polygon_%Count = 4
+            GridBorder%Polygon_%Count = Nvert
 
             GridBorder%Polygon_%VerticesF(1)%X = XX2D(ILB+1, JLB+1)
             GridBorder%Polygon_%VerticesF(1)%Y = YY2D(ILB+1, JLB+1)
@@ -4558,6 +4558,9 @@ Inp:    if (Me%CornersXYInput) then
 
             GridBorder%Polygon_%VerticesF(4)%X = XX2D(IUB,   JLB+1)
             GridBorder%Polygon_%VerticesF(4)%Y = YY2D(IUB,   JLB+1)
+            
+            !Last vertex equal to first 
+            GridBorder%Polygon_%VerticesF(5)   = GridBorder%Polygon_%VerticesF(1)
             
         endif
 
