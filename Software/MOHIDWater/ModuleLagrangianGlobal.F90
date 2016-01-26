@@ -424,7 +424,7 @@ Module ModuleLagrangianGlobal
     use ModuleDrawing,          only : T_Polygon, T_PointF, PointDistanceToPolygon, New,    &
                                        Add, SetLimits, T_Lines, IsVisible, SegIntersectLine,&
                                        SegIntersectPolygon, IsPointInsidePolygon,           &
-                                       IsPointInsideCircle
+                                       IsPointInsideCircle, WriteItem
     use ModuleWaterQuality,     only : StartWaterQuality, WaterQuality, GetDTWQM,           &
                                        GetWQPropIndex, KillWaterQuality
     use ModuleGridData,         only : GetGridData, GetMaximumValue, ModifyGridData,        &
@@ -1698,6 +1698,7 @@ Module ModuleLagrangianGlobal
         type(T_EulerModel ), pointer, dimension(:) :: EulerModel        => null()
         integer                                 :: EulerModelNumber     = null_int
         
+        type (T_Polygon), pointer               :: GridsBounds          => null()        
         type (T_Polygon), pointer               :: CoastLine            => null()
         character(StringLength)                 :: CoastLineFile        = null_str
         logical                                 :: CoastLineON          = .false.
@@ -3745,6 +3746,7 @@ d2:     do em =1, Me%EulerModelNumber
         integer                                     :: GEOG, UTM, MIL_PORT, SIMPLE_GEOG
         integer                                     :: GRID_COORD, CoordType, NLRD
         integer, dimension (:, :), pointer          :: DefineCellsMap
+        type (T_Polygon), pointer                   :: GridBound
 
         !Begin-----------------------------------------------------------------
 
@@ -3825,6 +3827,11 @@ d2:     do em =1, Me%EulerModelNumber
 
         call UnGetHorizontalGrid(EulerModel%ObjHorizontalGrid, DefineCellsMap, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructParticleGrid - ModuleLagrangianGlobal - ERR90'
+        
+        call GetGridOutBorderPolygon(EulerModel%ObjHorizontalGrid, GridBound)
+        
+        call Add(Me%GridsBounds, GridBound)
+        
 
 
     end subroutine ConstructParticleGrid    
@@ -4069,7 +4076,7 @@ d2:     do em =1, Me%EulerModelNumber
             Me%CoastLineON  = .false.
         else
             Me%CoastLineON  = .true.
-            call New(Me%CoastLine, Me%CoastLineFile)
+            call New(Me%CoastLine, Me%CoastLineFile, Me%GridsBounds)
         endif       
         
 
@@ -4086,7 +4093,7 @@ d2:     do em =1, Me%EulerModelNumber
             Me%ThinWallsON  = .false.
         else
             Me%ThinWallsON  = .true.
-            call New(Me%ThinWalls, Me%ThinWallsFile)
+            call New(Me%ThinWalls, Me%ThinWallsFile, Me%GridsBounds)
         endif                 
 
         call GetData(Aux2,                                                              &
@@ -6831,7 +6838,8 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             Me%RedefineMapping = OFF
             
             Me%ThinWallsON  = .true.
-            call New(Me%ThinWalls, Me%CoastLineFile)
+            !call New(Me%ThinWalls, Me%CoastLineFile, Me%GridsBounds)
+            call Add (Me%ThinWalls, Me%CoastLine)
             
         endif
         
@@ -10549,68 +10557,93 @@ em1:    do em =1, Me%EulerModelNumber
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR05'
 
 
-!            if (.not. Me%RunOnline) then
-                !Write the Horizontal Grid
-                call WriteHorizontalGrid(EulerModel%ObjHorizontalGrid, Me%ObjHDF5(em),  &
-                                         STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR06'
+            !Write the Horizontal Grid
+            call WriteHorizontalGrid(EulerModel%ObjHorizontalGrid, Me%ObjHDF5(em),  &
+                                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR06'
 
-                !Gets a pointer to Bathymetry
-                call GetGridData        (EulerModel%ObjGridData, Bathymetry, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR01'
-                
+            !Gets a pointer to Bathymetry
+            call GetGridData        (EulerModel%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR01'
+            
 
-                !Gets WaterPoints3D
-                call GetWaterPoints3D   (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR03'
-
-
-                !Sets limits for next write operations
-                call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB,               &
-                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
+            !Gets WaterPoints3D
+            call GetWaterPoints3D   (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR03'
 
 
-                !Writes the Grid
-                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Bathymetry", "m",       &
-                                      Array2D = Bathymetry,                             &
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB,               &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
+
+
+            !Writes the Grid
+            call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Bathymetry", "m",       &
+                                  Array2D = Bathymetry,                             &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR18'
+
+            if (Me%State%DistanceToCoast) then
+
+                !Writes distance of each cell to the coast 
+                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Distance to the coast", "m", &
+                                      Array2D = Me%EulerModel(em)%DistanceToCoast,     &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR18'
 
-                if (Me%State%DistanceToCoast) then
+            endif
 
-                    !Writes distance of each cell to the coast 
-                    call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Distance to the coast", "m", &
-                                          Array2D = Me%EulerModel(em)%DistanceToCoast,     &
-                                          STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR18'
-
-                endif
-
-                !Sets limits for next write operations
-                call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB, KLB, KUB,     &
-                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB, KLB, KUB,     &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
 
 
-                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "WaterPoints3D", "-",    &
-                                      Array3D = WaterPoints3D,                          &
-                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR19'
+            call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "WaterPoints3D", "-",    &
+                                  Array3D = WaterPoints3D,                          &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR19'
+            
+            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                   Polygons         = Me%GridsBounds,                   & 
+                                   DataFieldName    = 'GridBoundary')
 
+            if (associated(Me%GridsBounds)) then
+                call WriteItem(Polygon  = Me%GridsBounds,                               &
+                               FilePath = trim(Me%OutPut%RootPath)//'GridsBounds.xy')
+            endif
+                                                       
+            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                   Polygons         = Me%CoastLine,                     & 
+                                   DataFieldName    = 'CoastLine')
+                                   
+            if (associated(Me%CoastLine)) then
+                call WriteItem(Polygon  = Me%CoastLine,                                 &
+                               FilePath = trim(Me%OutPut%RootPath)//'CoastLine.xy')
+            endif                
 
-                !Flushes All pending HDF5 commands
-                call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =                    &
-                                    'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23', STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23'
+            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                   Polygons         = Me%ThinWalls,                     & 
+                                   DataFieldName    = 'ThinWalls')
 
-                !Ungets the Bathymetry
-                call UngetGridData (EulerModel%ObjGridData, Bathymetry, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR24'
+            if (associated(Me%ThinWalls)) then
+                call WriteItem(Polygon  = Me%ThinWalls,                                 &
+                               FilePath = trim(Me%OutPut%RootPath)//'ThinWalls.xy')
+            endif
+            
+            !Flushes All pending HDF5 commands
+            call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =                    &
+                                'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23', STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23'
 
-                !Ungets the Waterpoints3D
-                call UnGetMap        (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR25'
+            !Ungets the Bathymetry
+            call UngetGridData (EulerModel%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR24'
+
+            !Ungets the Waterpoints3D
+            call UnGetMap        (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR25'
 
 
 
@@ -10623,6 +10656,77 @@ em1:    do em =1, Me%EulerModelNumber
     end subroutine ConstructHDF5Output
   
     !--------------------------------------------------------------------------
+
+    subroutine WriteHDF5Polygons(ObjHDF5, Polygons, DataFieldName)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjHDF5
+        type (T_Polygon), pointer                   :: Polygons
+        character (len=*)                           :: DataFieldName
+        
+        !Local-----------------------------------------------------------------
+        type (T_Polygon), pointer                   :: AuxPolygon
+        integer                                     :: count, i, STAT_CALL
+        character(len = StringLength)               :: AuxFieldName
+        real(8), dimension(:), pointer              :: Array1D
+ 
+        !Begin-----------------------------------------------------------------
+
+        ! Write each polygon
+        AuxPolygon => Polygons
+        i = 1         
+        do while (associated(AuxPolygon))
+
+            Count = AuxPolygon%Count
+            
+            !Sets limits for next write operations
+            call HDF5SetLimits   (ObjHDF5, 1, count, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR10'
+
+            allocate(Array1D(1:Count))
+            
+            Array1D(1:Count) = AuxPolygon%VerticesF(1:Count)%X
+        
+            AuxFieldName = trim(DataFieldName)//'_X'
+
+            !Writes the Grid
+            call HDF5WriteData   (HDF5ID        = ObjHDF5,                              &
+                                  GroupName     = "/Grid/Polygons/"//trim(AuxFieldName),&
+                                  Name          = trim(AuxFieldName),                   &
+                                  Units         = "-",                                  &
+                                  Array1D       = Array1D,                              &
+                                  OutputNumber  = i,                                    &                                    
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR20'
+
+            Array1D(1:Count) = AuxPolygon%VerticesF(1:Count)%Y
+        
+            AuxFieldName = trim(DataFieldName)//'_Y'
+
+            !Writes the Grid
+            call HDF5WriteData   (HDF5ID        = ObjHDF5,                              &
+                                  GroupName     = "/Grid/Polygons/"//trim(AuxFieldName),&
+                                  Name          = trim(AuxFieldName),                   &
+                                  Units         = "-",                                  &
+                                  Array1D       = Array1D,                              &
+                                  OutputNumber  = i,                                    &                                    
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR30'
+            
+            deallocate(Array1D)
+        
+            i = i + 1
+            
+            AuxPolygon => AuxPolygon%Next
+            
+        enddo
+
+        nullify(AuxPolygon)
+
+
+    end subroutine WriteHDF5Polygons
+  
+    !--------------------------------------------------------
 
     subroutine ConstructParticStatistic
 
@@ -15949,9 +16053,9 @@ iMP:                if (MovePartic) then
 
                         exitDoCycle = .false. 
 
-                        call CheckThinStructures(MovePartic, CurrentPartic, NewPosition, exitDoCycle)
+                        call CheckThinStructures(CurrentOrigin, CurrentPartic, NewPosition, MovePartic, exitDoCycle)
                         
-                        if (exitDoCycle) exit
+                        if (exitDoCycle) exit dts
                     
                     endif iMP
                     
@@ -16056,12 +16160,13 @@ iMP:                if (MovePartic) then
 
     !--------------------------------------------------------------------------
     
-    subroutine CheckThinStructures(MovePartic, CurrentPartic, NewPosition, exitDoCycle)
+    subroutine CheckThinStructures(CurrentOrigin, CurrentPartic, NewPosition, MovePartic, exitDoCycle)
     
         !Arguments----------------------------------------------------------------------
-        logical                                     :: MovePartic
+        type (T_Origin),   pointer                  :: CurrentOrigin
         type (T_Partic),   pointer                  :: CurrentPartic        
         type (T_Position)                           :: NewPosition
+        logical                                     :: MovePartic
         logical                                     :: exitDoCycle
         
         !Local--------------------------------------------------------------------------
@@ -16070,7 +16175,8 @@ iMP:                if (MovePartic) then
         type (T_PointF),   pointer                  :: ParticPoint, LinePoint
         type (T_Lines),    pointer                  :: CurrLine
         logical                                     :: ParticleInsideBuffer
-        
+        integer                                     :: it, jt, kt, emt
+        real                                        :: Rand1
         
         !Begin--------------------------------------------------------------------------        
         
@@ -16159,14 +16265,34 @@ dolp:                   do lp = 1, CurrLine%nNodes
             
             if (MovePartic .and. Me%ThinWallsON) then
     
-                if (SegIntersectPolygon(                                &
-                    x1      = CurrentPartic%Position%CoordX,            &
-                    y1      = CurrentPartic%Position%CoordY,            &
-                    x2      = NewPosition%CoordX,                       &
-                    y2      = NewPosition%CoordY,                       &
-                    PolygonX= Me%ThinWalls)) then
+                if (SegIntersectPolygon(                                        &
+                    x1              = CurrentPartic%Position%CoordX,            &
+                    y1              = CurrentPartic%Position%CoordY,            &
+                    x2              = NewPosition%CoordX,                       &
+                    y2              = NewPosition%CoordY,                       &
+                    PolygonX        = Me%ThinWalls,                             &
+                    AreaOfInterest  = Me%GridsBounds)) then
+                    
                     MovePartic  = .false.
+
+                    if(CurrentOrigin%Beaching .and. .not. CurrentOrigin%CoastlineBeaching)then
+
+                        call RANDOM_NUMBER(Rand1)
+                        
+                        it  = CurrentPartic%Position%i
+                        jt  = CurrentPartic%Position%j                        
+                        kt  = CurrentPartic%Position%k                        
+                        emt = CurrentPartic%Position%ModelID
+                        
+                        if ((Me%EulerModel(emt)%BeachingProbability(it,jt,kt) .GT. Rand1) .OR.   &
+                            (Me%EulerModel(emt)%BeachingProbability(it,jt,kt) .EQ. 1)) then  
+                            CurrentPartic%Beached = ON
+                        endif
+
+                    endif
+                    
                     exitDoCycle = .true.
+                    
                 endif
             endif
 
