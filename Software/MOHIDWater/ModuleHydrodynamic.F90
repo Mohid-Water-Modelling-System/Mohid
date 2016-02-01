@@ -141,7 +141,7 @@ Module ModuleHydrodynamic
                                        GetGridOutBorderPolygon,                          &
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV
 #ifdef _USE_MPI                                                  
-    use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI
+    use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
                                            
                                        
@@ -6468,7 +6468,7 @@ cd21:   if (Baroclinic) then
 
 
         !<BeginKeyword>
-            !Keyword          : SUBMODEL_EXTRAPOL
+            !Keyword          : SUBMODEL_EXTRAPOLATE
             !<BeginDescription>       
                ! 
                ! Check if the user wants to extrapolate the father velocities and water levels  
@@ -12641,12 +12641,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetWaterLevel(HydrodynamicID, WaterLevel, WaterLevelOld, STAT)
+    subroutine GetWaterLevel(HydrodynamicID, WaterLevel, WaterLevelOld, DT, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )           :: HydrodynamicID   
-        real, dimension(:,:), optional, pointer  :: WaterLevelOld
         real, dimension(:,:), pointer            :: WaterLevel
+        real, dimension(:,:), optional, pointer  :: WaterLevelOld
+        real,    optional, intent(OUT)           :: DT        
         integer, optional, intent(OUT)           :: STAT
 
 
@@ -12676,6 +12677,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             if(present(WaterLevelOld))then
                 WaterLevelOld => Me%WaterLevel%Old
                 call Read_Lock(mHydrodynamic_, Me%InstanceID)
+            endif
+            
+            if (present(DT)) then
+                DT = Me%WaterLevel%DT
             endif
 
             STAT_ = SUCCESS_
@@ -22625,6 +22630,7 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
         integer                              :: di, dj    ! index change due to calculation direction
         integer                              :: ILB, IUB, JLB, JUB !bounds
         integer                              :: IJmin, IJmax, JImin, JImax
+        integer                              :: STAT_CALL
         
         !Begin----------------------------------------------------------------------
         
@@ -22647,25 +22653,47 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
         s2D (:,:) = s (:,:,1)
         p2D (:,:) = p (:,:,1)        
         n2D (:,:) = n (:,:,1)
-        q2D (:,:) = q (:,:,1)        
+        q2D (:,:) = q (:,:,1)  
+        
 
-        IJmin = ILB * dj + JLB * di
-        IJmax = IUB * dj + JUB * di
+if1:    if (Me%DDecomp%MasterOrSlave) then
 
-        JImin = ILB * di + JLB * dj
-        JImax = IUB * di + JUB * dj
+#ifdef _USE_MPI
 
-        call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, s2D, p2D,       &
-                       n2D, q2D, pc2D, Me%VECG_2D, Me%VECW_2D)
+            call THOMAS_DDecompHorizGrid(HorizontalGridID    = Me%ObjHorizontalGrid,    &
+                                         DCoef_2D            = s2D,                     &
+                                         FCoef_2D            = n2D,                     &
+                                         TiCoef_2D           = q2D,                     &
+                                         ECoef_2D            = p2D,                     & 
+                                         Results_2D          = pc2D,                    &
+                                         di                  = Me%Direction%di,         & 
+                                         dj                  = Me%Direction%dj,         &
+                                         STAT                = STAT_CALL)                 
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'THOMAS_2D_NonHydroCorrection - ModuleHydrodynamic - ERR10'                
+            endif                
+
+#endif _USE_MPI
+
+        else if1
+              
+
+            IJmin = ILB * dj + JLB * di
+            IJmax = IUB * dj + JUB * di
+
+            JImin = ILB * di + JLB * dj
+            JImax = IUB * di + JUB * dj
+
+            call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, s2D, p2D,                &
+                           n2D, q2D, pc2D, Me%VECG_2D, Me%VECW_2D)
+                           
+        endif if1                           
                        
         pc(:,:,1) = pc2D(:,:)
                        
         deallocate(s2D, p2D, n2D, q2D, pc2D)                       
                                                                   
     End Subroutine THOMAS_2D_NonHydroCorrection
-    
-    
-    
     
      !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !
@@ -24345,6 +24373,7 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
         !PCL
         if (Me%Relaxation%Velocity) call VelocityRelaxation 
 
+        STAT_CALL = SUCCESS_
 #if _USE_MPI
         !if domain decomposition is On exchanges velocities along the domains boundaries
         !call ReceiveSendVelocity3DMPI(Property3D = Velocity_UV_New, Vector = .true.)
@@ -24355,9 +24384,8 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
                                        di               = Me%Direction%di,          &
                                        dj               = Me%Direction%dj,          &
                                        STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Compute_Velocity - ModuleHydrodynamic - ERR10'        
-        
 #endif _USE_MPI
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_Velocity - ModuleHydrodynamic - ERR10'        
 
         !Nullify auxiliar variables
         nullify (DCoef_3D, ECoef_3D, FCoef_3D, TiCoef_3D)
@@ -25036,14 +25064,11 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         !Arguments------------------------------------------------------------
 
         !Local---------------------------------------------------------------
-        real,    dimension(:,:), pointer :: DCoef_2D, FCoef_2D, TiCoef_2D
-        real(8), dimension(:,:), pointer :: ECoef_2D
-        real,    dimension(:,:), pointer :: WaterLevel_New
-        real(8), dimension(:  ), pointer :: VECG, VECW        
         integer                          :: IUB, ILB, JUB, JLB
         integer                          :: IJmin, IJmax
         integer                          :: JImin, JImax
         integer                          :: di,    dj
+        integer                          :: STAT_CALL
         
         
         !Begin---------------------------------------------------------------
@@ -25052,44 +25077,21 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         dj          =  Me%Direction%dj
         
 if1:    if (Me%DDecomp%MasterOrSlave) then
-            !Joins all the sub-domain coefficients in a global domain
+!            
+            call THOMAS_DDecompHorizGrid(HorizontalGridID    = Me%ObjHorizontalGrid,    &
+                                         DCoef_2D            = Me%Coef%D2%D,            &
+                                         FCoef_2D            = Me%Coef%D2%F,            &
+                                         TiCoef_2D           = Me%Coef%D2%Ti,           &
+                                         ECoef_2D            = Me%Coef%D2%E,            & 
+                                         Results_2D          = Me%WaterLevel%New,       &
+                                         di                  = Me%Direction%di,         & 
+                                         dj                  = Me%Direction%dj,         &
+                                         STAT                = STAT_CALL)                 
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'THOMAS_2D_DDecomp - ModuleHydrodynamic - ERR10'                
+            endif                
             
-            call AggregatesThomasCoefs
-            
-if2:        if (Me%DDecomp%Master) then
-            
-                IUB = Me%DDecomp%Global%IUB
-                ILB = Me%DDecomp%Global%ILB
-                JUB = Me%DDecomp%Global%JUB
-                JLB = Me%DDecomp%Global%JLB
-
-                DCoef_2D  => Me%DDecomp%Coef%D
-                ECoef_2D  => Me%DDecomp%Coef%E
-                FCoef_2D  => Me%DDecomp%Coef%F
-                TiCoef_2D => Me%DDecomp%Coef%Ti
-                
-                VECG      => Me%DDecomp%VECG
-                VECW      => Me%DDecomp%VECW
-                
-                WaterLevel_New  => Me%DDecomp%WaterLevel_New
-                
-                IJmin = ILB * dj + JLB * di
-                IJmax = IUB * dj + JUB * di
-
-                JImin = ILB * di + JLB * dj
-                JImax = IUB * di + JUB * dj        
-                
-                call THOMAS_2D(IJmin, IJmax, JImin, JImax, di,    dj,                   &
-                               DCoef_2D, ECoef_2D, FCoef_2D, TiCoef_2D,                 &
-                               WaterLevel_New, VECG, VECW)                           
-            
-            endif if2
-            
-            !Send for each the water level result
-            call BroadcastThomasResult()
-                
         else if1
-        
         
             IUB = Me%WorkSize%IUB
             ILB = Me%WorkSize%ILB
@@ -30873,7 +30875,7 @@ cd3:                   if (Manning) then
          
         !Begin----------------------------------------------------------------
     
-    
+        if (AuxZ < Z0*Exp(1.001)) AuxZ = Z0*Exp(1.001)
         CDR = 0.
         if(Z0 > 0.) CDR=(0.40/(log(AuxZ/Z0)-1.))**2
                         
@@ -30919,6 +30921,7 @@ cd3:                   if (Manning) then
         endif
 
     end function CDM
+    
     
     !------------------------------------------------------------------------------
 
@@ -31336,7 +31339,7 @@ do6 :           do  i = ILB, IUB
         real,    dimension(:,:),   pointer :: DZX_ZY
 
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ImposedNormalFacesUV
-        integer, dimension(:,:),   pointer :: KFloor_UV, KFloor_Z
+        integer, dimension(:,:),   pointer :: KFloor_UV
 
         real(8), dimension(4)              :: V4
         real,    dimension(4)              :: CFace, Vel4, du4
@@ -31395,7 +31398,6 @@ do6 :           do  i = ILB, IUB
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         ImposedNormalFacesUV => Me%External_Var%ImposedNormalFacesUV
         KFloor_UV            => Me%External_Var%KFloor_UV
-        KFloor_Z             => Me%External_Var%KFloor_Z        
 
         !End - Shorten variables name 
 
@@ -31435,7 +31437,7 @@ do6 :           do  i = ILB, IUB
             ComputeFlux = .false.
 
             !This condition impose in the open boundary gradient null for the horizontal advection 
-            if (ComputeFaces3D_UV(i, j, KUB)            == Covered .or. &
+            if (ComputeFaces3D_UV(i, j, KUB)            == Covered .and. &
                 ComputeFaces3D_UV(iSouth, jWest, KUB) == Covered ) ComputeFlux = .true.
             
             if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == Me%Direction%XY .or. &
@@ -31451,8 +31453,7 @@ do6 :           do  i = ILB, IUB
 cd0:        if (ComputeFlux) then
 
 
-                !Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
-                Kbottom  = KFloor_Z(iSouth, jWest)
+                Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
 
         dok1:   do k = Kbottom, KUB
 
@@ -31501,10 +31502,9 @@ cd0:        if (ComputeFlux) then
                     Me%Aux3DFlux(i, j, k) = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         FaceFlux_WestSouth ![m/s*m^3/s]
-                                        
-                    if (ComputeFaces3D_UV(i, j, k) == Covered) then
-                        Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) +  Me%Aux3DFlux(i, j, k) 
-                    endif                                                                        
+
+
+                    Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) +  Me%Aux3DFlux(i, j, k) 
            
                 enddo dok1
                 
@@ -31522,9 +31522,7 @@ cd0:        if (ComputeFlux) then
             iSouth  = i -   di
             jWest   = j -   dj   
 
-            if (ComputeFaces3D_UV(iSouth, jWest, k) == Covered) then
-                Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) - Me%Aux3DFlux(i, j, k) 
-            endif                
+            Horizontal_Transport(iSouth, jWest, k) = Horizontal_Transport(iSouth, jWest, k) - Me%Aux3DFlux(i, j, k) 
 
         enddo
         enddo
@@ -31543,7 +31541,6 @@ cd0:        if (ComputeFlux) then
         nullify (Velocity_UV_Old     )
         nullify (ComputeFaces3D_UV   )
         nullify (KFloor_UV           )
-        nullify (KFloor_Z            )        
         nullify (ImposedNormalFacesUV)
 
         nullify (DZX_ZY              )
@@ -39894,7 +39891,7 @@ doj:    do j=JLB, JUB
 doi:    do i=ILB, IUB
 
             !This if impose in the open boundary gradient null for the vertical advection
-cd1:        if (  ComputeFaces3D_UV(i, j, KUB) == Covered  .and.              &
+cd1:        if (    ComputeFaces3D_UV(i, j, KUB) == Covered  .and.              &
                     WaterColumnUV(i, j) > WaterColumn2D .and.                   &
                     .not. (                                                     &
                         BoundaryFacesUV  (i, j) == Boundary .and.               &
@@ -39972,30 +39969,25 @@ dok1:           do  k = Kbottom + 1, KUB
                     MomentumFlux = dble(Vel4(1) * CFace(1)  + Vel4(2) * CFace(2)  +     &
                                         Vel4(3) * CFace(3)  + Vel4(4) * CFace(4)) *     &
                                         Face_Flux ![m/s*m^3/s]
-                                        
-                    if (k < KUB) then                                        
 
-                        TiCoef_3D(i, j, k  )  = TiCoef_3D(i, j, k  ) + (1. - ImplicitVertAdvection) * &
-                                                MomentumFlux * Me%Velocity%DT / V4(3)
+                    TiCoef_3D(i, j, k  )  = TiCoef_3D(i, j, k  ) + (1. - ImplicitVertAdvection) * &
+                                            MomentumFlux * Me%Velocity%DT / V4(3)
 
-                        DCoef_3D (i, j, k  )  = DCoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
-                                                CFace(2) * Face_Flux *  Me%Velocity%DT / V4(3)
+                    TiCoef_3D(i, j, k-1)  = TiCoef_3D(i, j, k-1) - (1. - ImplicitVertAdvection) * &
+                                            MomentumFlux * Me%Velocity%DT / V4(2)
 
-                        ECoef_3D (i, j, k  )  = ECoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
-                                                CFace(3) * Face_Flux *  Me%Velocity%DT / V4(3)
-                    endif
-                    
-                    if (k > kbottom + 1) then
-                        TiCoef_3D(i, j, k-1)  = TiCoef_3D(i, j, k-1) - (1. - ImplicitVertAdvection) * &
-                                                MomentumFlux * Me%Velocity%DT / V4(2)
+                    DCoef_3D (i, j, k  )  = DCoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
+                                            CFace(2) * Face_Flux *  Me%Velocity%DT / V4(3)
 
-                        ECoef_3D (i, j, k-1)  = ECoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
-                                                CFace(2) * Face_Flux *  Me%Velocity%DT / V4(2)
+                    ECoef_3D (i, j, k  )  = ECoef_3D (i, j, k  ) - ImplicitVertAdvection *  &
+                                            CFace(3) * Face_Flux *  Me%Velocity%DT / V4(3)
 
-                        FCoef_3D (i, j, k-1)  = FCoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
-                                                CFace(3) * Face_Flux *  Me%Velocity%DT / V4(2)
-                    endif
-                    
+                    ECoef_3D (i, j, k-1)  = ECoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
+                                            CFace(2) * Face_Flux *  Me%Velocity%DT / V4(2)
+
+                    FCoef_3D (i, j, k-1)  = FCoef_3D (i, j, k-1) + ImplicitVertAdvection *  &
+                                            CFace(3) * Face_Flux *  Me%Velocity%DT / V4(2)
+
                 enddo dok1
 
             endif cd1

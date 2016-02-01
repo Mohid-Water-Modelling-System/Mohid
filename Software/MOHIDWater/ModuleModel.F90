@@ -179,6 +179,8 @@ Module ModuleModel
         real, dimension(:,:,:), pointer         :: VelocityY                => null()
         real, dimension(:,:,:), pointer         :: VelocityZ                => null()
         real, dimension(:,:  ), pointer         :: Chezy, WaterLevel        => null()
+        real, dimension(:,:  ), pointer         :: WaterLevelOld            => null()
+        real                                    :: WaterLevelDT = null_real        
         integer                                 :: DensMethod   = null_int 
         logical                                 :: CorrecPress  = .false.  
     end type T_ExternalVar
@@ -1669,8 +1671,7 @@ if2:            if (Global_CurrentTime .GE. Me%CurrentTime) then
                     call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'UpdateTimeAndMapping - ModuleModel - ERR05'
 
-                    call GetWaterLevel(Me%ObjHydrodynamic, Me%ExternalVar%WaterLevel,    &
-                                       STAT = STAT_CALL)
+                    call GetWaterLevel(Me%ObjHydrodynamic, Me%ExternalVar%WaterLevel, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'UpdateTimeAndMapping - ModuleModel - ERR06'
 
                     !Update the moving boundary  (boundary of the tidal areas covered)
@@ -1958,6 +1959,11 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         call GetChezy(Me%ObjHydrodynamic, Me%ExternalVar%Chezy, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR150'
+        
+        call GetWaterLevel(Me%ObjHydrodynamic, Me%ExternalVar%WaterLevel,               &
+                           Me%ExternalVar%WaterLevelOld, Me%ExternalVar%WaterLevelDT,   &
+                           STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR155'
                     
         call Turbulence(Me%ObjTurbulence,                                               &
                         Me%ExternalVar%VelocityX,                                       &
@@ -1967,6 +1973,9 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                         Me%ExternalVar%Temperature,                                     &
                         Me%ExternalVar%Salinity,                                        &
                         Me%ExternalVar%SigmaNoPressure,                                 &
+                        Me%ExternalVar%WaterLevel,                                      &
+                        Me%ExternalVar%WaterLevelOld,                                   &                        
+                        Me%ExternalVar%WaterLevelDT,                                    &
                         Me%ExternalVar%DensMethod,                                      &
                         Me%ExternalVar%CorrecPress,                                     &
                         STAT = STAT_CALL)
@@ -1987,6 +1996,14 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         call UnGetHydrodynamic(Me%ObjHydrodynamic,                                      &
                                Me%ExternalVar%Chezy, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR200'
+
+        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                      &
+                               Me%ExternalVar%WaterLevel, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR205'
+
+        call UnGetHydrodynamic(Me%ObjHydrodynamic,                                      &
+                               Me%ExternalVar%WaterLevelOld, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunOneModel - ModuleModel - ERR207'
         
         PredictedDT%DT = Me%DT             
         call Modify_Hydrodynamic(Me%ObjHydrodynamic,                                    &

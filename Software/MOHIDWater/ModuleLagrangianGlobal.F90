@@ -424,7 +424,7 @@ Module ModuleLagrangianGlobal
     use ModuleDrawing,          only : T_Polygon, T_PointF, PointDistanceToPolygon, New,    &
                                        Add, SetLimits, T_Lines, IsVisible, SegIntersectLine,&
                                        SegIntersectPolygon, IsPointInsidePolygon,           &
-                                       IsPointInsideCircle
+                                       IsPointInsideCircle, WriteItem
     use ModuleWaterQuality,     only : StartWaterQuality, WaterQuality, GetDTWQM,           &
                                        GetWQPropIndex, KillWaterQuality
     use ModuleGridData,         only : GetGridData, GetMaximumValue, ModifyGridData,        &
@@ -1698,6 +1698,7 @@ Module ModuleLagrangianGlobal
         type(T_EulerModel ), pointer, dimension(:) :: EulerModel        => null()
         integer                                 :: EulerModelNumber     = null_int
         
+        type (T_Polygon), pointer               :: GridsBounds          => null()        
         type (T_Polygon), pointer               :: CoastLine            => null()
         character(StringLength)                 :: CoastLineFile        = null_str
         logical                                 :: CoastLineON          = .false.
@@ -3136,10 +3137,8 @@ i1:         if (PropertyFound) then
         !Local-----------------------------------------------------------------
         type(T_Property),   pointer                     :: CurrentProperty
         type(T_PropertyID)                              :: PropertyID
-        real, dimension(1:2,1:2)                        :: WindowLimitsXY
-        real                                            :: West, East, South, North
         logical                                         :: PropertyFound
-        integer                                         :: STAT_CALL, nProp, i, flag, emMax, iP
+        integer                                         :: STAT_CALL, nProp, flag, iP
         !Begin-----------------------------------------------------------------
 
 DOPROP: do nProp = 1, Me%MeteoOcean%PropNumber
@@ -3217,12 +3216,9 @@ dw1:        do while (associated(CurrentProperty))
         integer                                         :: nProp, ClientNumber
 
         !Local-----------------------------------------------------------------
-        type(T_Property),   pointer                     :: CurrentProperty
-        type(T_PropertyID)                              :: PropertyID
         real, dimension(1:2,1:2)                        :: WindowLimitsXY
         real                                            :: West, East, South, North
-        logical                                         :: PropertyFound
-        integer                                         :: STAT_CALL, i, flag, emMax, iP
+        integer                                         :: STAT_CALL, i, emMax
         !Begin-----------------------------------------------------------------
 
                 
@@ -3750,6 +3746,7 @@ d2:     do em =1, Me%EulerModelNumber
         integer                                     :: GEOG, UTM, MIL_PORT, SIMPLE_GEOG
         integer                                     :: GRID_COORD, CoordType, NLRD
         integer, dimension (:, :), pointer          :: DefineCellsMap
+        type (T_Polygon), pointer                   :: GridBound
 
         !Begin-----------------------------------------------------------------
 
@@ -3830,6 +3827,11 @@ d2:     do em =1, Me%EulerModelNumber
 
         call UnGetHorizontalGrid(EulerModel%ObjHorizontalGrid, DefineCellsMap, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructParticleGrid - ModuleLagrangianGlobal - ERR90'
+        
+        call GetGridOutBorderPolygon(EulerModel%ObjHorizontalGrid, GridBound)
+        
+        call Add(Me%GridsBounds, GridBound)
+        
 
 
     end subroutine ConstructParticleGrid    
@@ -4074,7 +4076,7 @@ d2:     do em =1, Me%EulerModelNumber
             Me%CoastLineON  = .false.
         else
             Me%CoastLineON  = .true.
-            call New(Me%CoastLine, Me%CoastLineFile)
+            call New(Me%CoastLine, Me%CoastLineFile, Me%GridsBounds)
         endif       
         
 
@@ -4091,7 +4093,7 @@ d2:     do em =1, Me%EulerModelNumber
             Me%ThinWallsON  = .false.
         else
             Me%ThinWallsON  = .true.
-            call New(Me%ThinWalls, Me%ThinWallsFile)
+            call New(Me%ThinWalls, Me%ThinWallsFile, Me%GridsBounds)
         endif                 
 
         call GetData(Aux2,                                                              &
@@ -6836,7 +6838,8 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             Me%RedefineMapping = OFF
             
             Me%ThinWallsON  = .true.
-            call New(Me%ThinWalls, Me%CoastLineFile)
+            !call New(Me%ThinWalls, Me%CoastLineFile, Me%GridsBounds)
+            call Add (Me%ThinWalls, Me%CoastLine)
             
         endif
         
@@ -10554,68 +10557,93 @@ em1:    do em =1, Me%EulerModelNumber
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR05'
 
 
-!            if (.not. Me%RunOnline) then
-                !Write the Horizontal Grid
-                call WriteHorizontalGrid(EulerModel%ObjHorizontalGrid, Me%ObjHDF5(em),  &
-                                         STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR06'
+            !Write the Horizontal Grid
+            call WriteHorizontalGrid(EulerModel%ObjHorizontalGrid, Me%ObjHDF5(em),  &
+                                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR06'
 
-                !Gets a pointer to Bathymetry
-                call GetGridData        (EulerModel%ObjGridData, Bathymetry, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR01'
-                
+            !Gets a pointer to Bathymetry
+            call GetGridData        (EulerModel%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR01'
+            
 
-                !Gets WaterPoints3D
-                call GetWaterPoints3D   (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR03'
-
-
-                !Sets limits for next write operations
-                call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB,               &
-                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
+            !Gets WaterPoints3D
+            call GetWaterPoints3D   (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR03'
 
 
-                !Writes the Grid
-                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Bathymetry", "m",       &
-                                      Array2D = Bathymetry,                             &
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB,               &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
+
+
+            !Writes the Grid
+            call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Bathymetry", "m",       &
+                                  Array2D = Bathymetry,                             &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR18'
+
+            if (Me%State%DistanceToCoast) then
+
+                !Writes distance of each cell to the coast 
+                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Distance to the coast", "m", &
+                                      Array2D = Me%EulerModel(em)%DistanceToCoast,     &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR18'
 
-                if (Me%State%DistanceToCoast) then
+            endif
 
-                    !Writes distance of each cell to the coast 
-                    call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "Distance to the coast", "m", &
-                                          Array2D = Me%EulerModel(em)%DistanceToCoast,     &
-                                          STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR18'
-
-                endif
-
-                !Sets limits for next write operations
-                call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB, KLB, KUB,     &
-                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjHDF5(em), ILB, IUB, JLB, JUB, KLB, KUB,     &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR17'
 
 
-                call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "WaterPoints3D", "-",    &
-                                      Array3D = WaterPoints3D,                          &
-                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR19'
+            call HDF5WriteData   (Me%ObjHDF5(em), "/Grid", "WaterPoints3D", "-",    &
+                                  Array3D = WaterPoints3D,                          &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR19'
+            
+            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                   Polygons         = Me%GridsBounds,                   & 
+                                   DataFieldName    = 'GridBoundary')
 
+            if (associated(Me%GridsBounds)) then
+                call WriteItem(Polygon  = Me%GridsBounds,                               &
+                               FilePath = trim(Me%OutPut%RootPath)//'GridsBounds.xy')
+            endif
+                                                       
+            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                   Polygons         = Me%CoastLine,                     & 
+                                   DataFieldName    = 'CoastLine')
+                                   
+            if (associated(Me%CoastLine)) then
+                call WriteItem(Polygon  = Me%CoastLine,                                 &
+                               FilePath = trim(Me%OutPut%RootPath)//'CoastLine.xy')
+            endif                
 
-                !Flushes All pending HDF5 commands
-                call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =                    &
-                                    'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23', STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23'
+            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                   Polygons         = Me%ThinWalls,                     & 
+                                   DataFieldName    = 'ThinWalls')
 
-                !Ungets the Bathymetry
-                call UngetGridData (EulerModel%ObjGridData, Bathymetry, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR24'
+            if (associated(Me%ThinWalls)) then
+                call WriteItem(Polygon  = Me%ThinWalls,                                 &
+                               FilePath = trim(Me%OutPut%RootPath)//'ThinWalls.xy')
+            endif
+            
+            !Flushes All pending HDF5 commands
+            call HDF5FlushMemory (Me%ObjHDF5(em), ErrorMessage =                    &
+                                'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23', STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR23'
 
-                !Ungets the Waterpoints3D
-                call UnGetMap        (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR25'
+            !Ungets the Bathymetry
+            call UngetGridData (EulerModel%ObjGridData, Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR24'
+
+            !Ungets the Waterpoints3D
+            call UnGetMap        (EulerModel%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR25'
 
 
 
@@ -10628,6 +10656,77 @@ em1:    do em =1, Me%EulerModelNumber
     end subroutine ConstructHDF5Output
   
     !--------------------------------------------------------------------------
+
+    subroutine WriteHDF5Polygons(ObjHDF5, Polygons, DataFieldName)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjHDF5
+        type (T_Polygon), pointer                   :: Polygons
+        character (len=*)                           :: DataFieldName
+        
+        !Local-----------------------------------------------------------------
+        type (T_Polygon), pointer                   :: AuxPolygon
+        integer                                     :: count, i, STAT_CALL
+        character(len = StringLength)               :: AuxFieldName
+        real(8), dimension(:), pointer              :: Array1D
+ 
+        !Begin-----------------------------------------------------------------
+
+        ! Write each polygon
+        AuxPolygon => Polygons
+        i = 1         
+        do while (associated(AuxPolygon))
+
+            Count = AuxPolygon%Count
+            
+            !Sets limits for next write operations
+            call HDF5SetLimits   (ObjHDF5, 1, count, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR10'
+
+            allocate(Array1D(1:Count))
+            
+            Array1D(1:Count) = AuxPolygon%VerticesF(1:Count)%X
+        
+            AuxFieldName = trim(DataFieldName)//'_X'
+
+            !Writes the Grid
+            call HDF5WriteData   (HDF5ID        = ObjHDF5,                              &
+                                  GroupName     = "/Grid/Polygons/"//trim(AuxFieldName),&
+                                  Name          = trim(AuxFieldName),                   &
+                                  Units         = "-",                                  &
+                                  Array1D       = Array1D,                              &
+                                  OutputNumber  = i,                                    &                                    
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR20'
+
+            Array1D(1:Count) = AuxPolygon%VerticesF(1:Count)%Y
+        
+            AuxFieldName = trim(DataFieldName)//'_Y'
+
+            !Writes the Grid
+            call HDF5WriteData   (HDF5ID        = ObjHDF5,                              &
+                                  GroupName     = "/Grid/Polygons/"//trim(AuxFieldName),&
+                                  Name          = trim(AuxFieldName),                   &
+                                  Units         = "-",                                  &
+                                  Array1D       = Array1D,                              &
+                                  OutputNumber  = i,                                    &                                    
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR30'
+            
+            deallocate(Array1D)
+        
+            i = i + 1
+            
+            AuxPolygon => AuxPolygon%Next
+            
+        enddo
+
+        nullify(AuxPolygon)
+
+
+    end subroutine WriteHDF5Polygons
+  
+    !--------------------------------------------------------
 
     subroutine ConstructParticStatistic
 
@@ -15110,7 +15209,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: VelModH
         real                                        :: StandardDeviation, MixingLength, HD, TlagrangeH
         real                                        :: RAND, R1, R2
-        type (T_Position)                           :: NewPosition
+        type (T_Position)                           :: NewPosition, AuxPosition
         integer                                     :: NewI, NewJ, KUB
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB, WS_KLB, WS_KUB
         logical                                     :: PositionCorrected
@@ -15128,7 +15227,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: WaterDensity, UDrift = 0., VDrift = 0.
         logical                                     :: InterpolVel3D
         integer                                     :: nn, Npi, Npj, ts, lp
-        real                                        :: LineAngle, AuxAngle, IntersectVel, DXn, DYn
+        real                                        :: DXn, DYn
         !new method for stokes drift
         real                                        :: WaveLength
 !        real                                        :: Celerity
@@ -15139,9 +15238,8 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: C_Term
         real                                        :: OilViscCin, OWInterfacialTension
         real                                        :: Wind
-        type (T_PointF),   pointer                  :: ParticPoint, LinePoint
-        type (T_Lines),    pointer                  :: CurrLine
-        logical                                     :: ParticleInsideBuffer
+        logical                                     :: exitDoCycle
+
         !Begin-----------------------------------------------------------------------------------------
         
         if (Me%State%Oil) then
@@ -15189,8 +15287,6 @@ CT:         do while (ComputeTrajectory)
 
                 ID_Group = CurrentOrigin%GroupID
 
-                emp       = CurrentPartic%Position%ModelID
-                
                 !Shorten Var
                 if (Me%OverLay) then
                     Velocity_U => Me%EulerModel(emp)%OverLay%VelUFinal
@@ -15791,17 +15887,21 @@ d1:             do em = 1, Me%EulerModelNumber
                 
 iHD:                if (HaveDomain) then
 
-                        !Convert Coordinates
-                        call Convert_XY_CellIJ(Me%EulerModel(em),CurrentPartic%Position, Referential = GridCoord_)
+                        AuxPosition = CurrentPartic%Position
 
-iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Position%i, CurrentPartic%Position%j, &
+                        !Convert Coordinates
+                        call Convert_XY_CellIJ(Me%EulerModel(em), AuxPosition, Referential = GridCoord_)
+
+iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(AuxPosition%i, AuxPosition%j, &
                                                             Me%EulerModel(em)%WorkSize%KUB) == OpenPoint) then
 
 
-                            call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(em), CurrentPartic%Position, PositionCorrected)
-                            call Convert_CellK_K (                                  CurrentPartic%Position)
+                            call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(em), AuxPosition, PositionCorrected)
+                            call Convert_CellK_K (                                  AuxPosition)
 
                             CurrentPartic%Position%ModelID = em
+                            
+                            CurrentPartic%Position         = AuxPosition
 
                             ComputeTrajectory = .true.
 
@@ -15846,9 +15946,6 @@ iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(CurrentPartic%Positi
             !   2 - Only the random components are considered
 dts:        do ts = 1, 2
 
-                !As a first approach
-                NewPosition%ModelID = CurrentPartic%Position%ModelID
-                
                 if     (ts == 1) then
                     !New Position
                     NewPosition%X = CurrentPartic%Position%X + DX 
@@ -15866,8 +15963,10 @@ dts:        do ts = 1, 2
                     DYn           = DYrand                              
                 endif    
                 
-                NewPosition%I = CurrentPartic%Position%I
-                NewPosition%J = CurrentPartic%Position%J
+                !As a first approach
+                NewPosition%ModelID = CurrentPartic%Position%ModelID
+                NewPosition%I       = CurrentPartic%Position%I
+                NewPosition%J       = CurrentPartic%Position%J
                 
                 call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
                                        Referential = AlongGrid_, ConvertOK = ConvertOK)                 
@@ -15910,6 +16009,7 @@ dts:        do ts = 1, 2
                         exit
                     endif
 
+                    HaveDomain = .false. 
                     
     d11:            do em = 1, Me%EulerModelNumber
                    
@@ -15922,8 +16022,25 @@ dts:        do ts = 1, 2
                             stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR40'
                         endif       
                         
-                        if (HaveDomain) exit                 
-                    
+                        if (HaveDomain) then
+                            
+                            NewPosition%ModelID = em
+                            NewPosition%I       = null_int
+                            NewPosition%J       = null_int
+                        
+                            !Needs to change to along grid referential
+                            call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
+                                                                 Referential = GridCoord_,          &
+                                                                 ConvertOK   = ConvertOK)                
+                                                                 
+                            if (.not. ConvertOK) then                                                        
+                                stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR60'
+                            endif               
+                                         
+                            exit                 
+                            
+                        endif
+                            
                     enddo d11
                     
                     if (.not.HaveDomain) then
@@ -15931,146 +16048,33 @@ dts:        do ts = 1, 2
                         CurrentPartic%KillPartic = ON 
                         exit
                     endif                      
-                    
-                    NewPosition%ModelID = em
-                    !If particle changes domain
-                    if (NewPosition%ModelID /= CurrentPartic%Position%ModelID) then
-                    
-                        NewPosition%I = null_int
-                        NewPosition%J = null_int
-                    
-                        !Needs to change to along grid referential
-                        call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
-                                                             Referential = GridCoord_,          &
-                                                             ConvertOK   = ConvertOK)                
-                                                             
-                        if (.not. ConvertOK) then                                                        
-                            stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR60'
-                        endif
-                    endif         
                                      
-                    if (MovePartic) then
+iMP:                if (MovePartic) then
 
-                        if ((Me%Booms%ON .and. CurrentPartic%Position%Surface) .or. Me%ThinWallsON) then
+                        exitDoCycle = .false. 
+
+                        call CheckThinStructures(CurrentOrigin, CurrentPartic, NewPosition, MovePartic, exitDoCycle)
+                        
+                        if (exitDoCycle) exit dts
                     
-                            if (ConvertOK) then                                                         
-
-                                if (Me%Booms%ON .and. CurrentPartic%Position%Surface) then
-                        
-donn:                               do nn = 1, Me%Booms%Number
-                                        !if has buffer check if particle movement intersects buffer around boom points
-                                        !this is usefull if boom moves and/or between time steps particles go trough the boom
-ifbuf:                                  if (Me%Booms%Individual(nn)%BoomHasBuffer) then
-                                            
-                                            ParticleInsideBuffer = .false.
-                                            allocate(ParticPoint)
-                                            allocate(LinePoint)
-                                 
-                                            CurrLine => Me%Booms%Individual(nn)%Lines
-                                            
-                                            !go for all line points and check if particle is inside the buffer
-dolp:                                       do lp = 1, CurrLine%nNodes
-                                                
-                                                LinePoint%X = CurrLine%X(lp)
-                                                LinePoint%Y = CurrLine%Y(lp)
-                                                ParticPoint%X = CurrentPartic%Position%CoordX
-                                                ParticPoint%Y = CurrentPartic%Position%CoordY
-                                                
-                                                if(IsPointInsideCircle(ParticPoint, LinePoint, &
-                                                                       Me%Booms%Individual(nn)%BoomBufferDist))then 
-                                                    ParticleInsideBuffer = .true.
-                                                    exit dolp                                               
-                                                else
-                                                    
-                                                    ParticPoint%X = NewPosition%CoordX
-                                                    ParticPoint%Y = NewPosition%CoordY
-                                                    
-                                                    if(IsPointInsideCircle(ParticPoint, LinePoint, &
-                                                                           Me%Booms%Individual(nn)%BoomBufferDist))then
-                                                        ParticleInsideBuffer = .true.
-                                                        exit dolp                                                   
-                                                    endif                                                
-                                                
-                                                endif
-                                                
-                                            enddo dolp
-                                                                                 
-                                            deallocate(ParticPoint)
-                                            deallocate(LinePoint)
-                                            nullify(CurrLine)
-                                            
-                                            if (ParticleInsideBuffer) then
-                                            
-                                                if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit) then
-                                                    MovePartic = .false.
-                                                    exit donn
-                                                endif   
-                                            endif
-                                                
-                                        else !intersect old and new particle position segment with boom segments                                               
-                                            
-                                            if (SegIntersectLine(                               &
-                                                x1      = CurrentPartic%Position%CoordX,        &
-                                                y1      = CurrentPartic%Position%CoordY,        &
-                                                x2      = NewPosition%CoordX,                   &
-                                                y2      = NewPosition%CoordY,                   &
-                                                LineX   = Me%Booms%Individual(nn)%Lines,        &    
-                                                LineAng = LineAngle)) then                                            
-                                                
-                                                AuxAngle = atan2(CurrentPartic%CurrentY,CurrentPartic%CurrentX) - (LineAngle+Pi/2.)
-                                            
-                                                IntersectVel = abs(cos(AuxAngle) * sqrt(CurrentPartic%CurrentX**2+ &
-                                                                                        CurrentPartic%CurrentY**2))
-                                            
-                                                if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit .and. &
-                                                    IntersectVel             < Me%Booms%Individual(nn)%VelLimit) then
-                                                    MovePartic = .false.
-                                                    exit donn
-                                                endif 
-                                           endif
-                                        endif ifbuf
-                                    enddo donn
-                                endif
-                                
-                                if (MovePartic .and. Me%ThinWallsON) then
-                        
-                                    if (SegIntersectPolygon(                                &
-                                        x1      = CurrentPartic%Position%CoordX,            &
-                                        y1      = CurrentPartic%Position%CoordY,            &
-                                        x2      = NewPosition%CoordX,                       &
-                                        y2      = NewPosition%CoordY,                       &
-                                        PolygonX= Me%ThinWalls)) then
-                                        MovePartic = .false.
-                                        exit
-                                    endif
-                                endif
-
-                            else
-                                write(*,*) 'Conversion of the new position from along grid to coordinates did not work'
-                                stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR70'
-                            endif
-                        endif                                        
-
-                    endif 
+                    endif iMP
                     
     iFKP:           if (MovePartic) then
 
                         CurrentPartic%Freezed = .false. 
                         
-                        NewPosition%I = CurrentPartic%Position%I
-                        NewPosition%J = CurrentPartic%Position%J
+                        !NewPosition%I = CurrentPartic%Position%I
+                        !NewPosition%J = CurrentPartic%Position%J
                         
                         !Convert Coordinates
-                        call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
-                                                             Referential = AlongGrid_, ConvertOK = ConvertOK)
+                        !call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
+                        !                                     Referential = AlongGrid_, ConvertOK = ConvertOK)
 
                         !Verifies new position
                         NewI = NewPosition%i
                         NewJ = NewPosition%j
-
                         KUB  = Me%EulerModel(NewPosition%ModelID)%WorkSize%KUB                   
                         
-    iconv:              if (ConvertOK) then
                         !It assumes that is no water point
     ie:                 if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, NewJ, KUB) /= OpenPoint) then
 
@@ -16078,8 +16082,9 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                             CurrentPartic%TpercursoH = abs(null_real)
                             
                             
-    isc:                    if (CurrentOrigin%Movement%SlipCondition) then
-
+    isc:                    if (CurrentOrigin%Movement%SlipCondition .and.              &
+                                CurrentPartic%Position%ModelID == NewPosition%ModelID) then
+                                !Slip condition should not be used when there as jump between domains
                                 call ParticSlipCondition(CurrentPartic, NewPosition)
 
                              else isc
@@ -16088,18 +16093,10 @@ dolp:                                       do lp = 1, CurrLine%nNodes
                                 CurrentPartic%Freezed    = ON
                              endif isc    
 
-                        !Moves it 
+                        !else Moves it 
                         
                         endif ie
                         
-                        else
-
-                            !If a particle doesnt move the Freezed state is ON
-                            CurrentPartic%Freezed    = ON                
-                        
-                        endif iconv
-                        
-                       
         ie1:            if (CurrentPartic%Freezed) then
                             
                             CurrentPartic%TpercursoH = abs(null_real)
@@ -16162,6 +16159,149 @@ dolp:                                       do lp = 1, CurrLine%nNodes
     end subroutine MoveParticHorizontal
 
     !--------------------------------------------------------------------------
+    
+    subroutine CheckThinStructures(CurrentOrigin, CurrentPartic, NewPosition, MovePartic, exitDoCycle)
+    
+        !Arguments----------------------------------------------------------------------
+        type (T_Origin),   pointer                  :: CurrentOrigin
+        type (T_Partic),   pointer                  :: CurrentPartic        
+        type (T_Position)                           :: NewPosition
+        logical                                     :: MovePartic
+        logical                                     :: exitDoCycle
+        
+        !Local--------------------------------------------------------------------------
+        integer                                     :: nn, lp
+        real                                        :: LineAngle, AuxAngle, IntersectVel        
+        type (T_PointF),   pointer                  :: ParticPoint, LinePoint
+        type (T_Lines),    pointer                  :: CurrLine
+        logical                                     :: ParticleInsideBuffer
+        integer                                     :: it, jt, kt, emt
+        real                                        :: Rand1
+        
+        !Begin--------------------------------------------------------------------------        
+        
+        exitDoCycle = .false. 
+    
+        if ((Me%Booms%ON .and. CurrentPartic%Position%Surface) .or. Me%ThinWallsON) then
+    
+            !if (ConvertOK) then                                                         
+
+            if (Me%Booms%ON .and. CurrentPartic%Position%Surface) then
+    
+donn:           do nn = 1, Me%Booms%Number
+                    !if has buffer check if particle movement intersects buffer around boom points
+                    !this is usefull if boom moves and/or between time steps particles go trough the boom
+ifbuf:              if (Me%Booms%Individual(nn)%BoomHasBuffer) then
+                        
+                        ParticleInsideBuffer = .false.
+                        allocate(ParticPoint)
+                        allocate(LinePoint)
+             
+                        CurrLine => Me%Booms%Individual(nn)%Lines
+                        
+                        !go for all line points and check if particle is inside the buffer
+dolp:                   do lp = 1, CurrLine%nNodes
+                            
+                            LinePoint%X = CurrLine%X(lp)
+                            LinePoint%Y = CurrLine%Y(lp)
+                            ParticPoint%X = CurrentPartic%Position%CoordX
+                            ParticPoint%Y = CurrentPartic%Position%CoordY
+                            
+                            if(IsPointInsideCircle(ParticPoint, LinePoint, &
+                                                   Me%Booms%Individual(nn)%BoomBufferDist))then 
+                                ParticleInsideBuffer = .true.
+                                exit dolp                                               
+                            else
+                                
+                                ParticPoint%X = NewPosition%CoordX
+                                ParticPoint%Y = NewPosition%CoordY
+                                
+                                if(IsPointInsideCircle(ParticPoint, LinePoint, &
+                                                       Me%Booms%Individual(nn)%BoomBufferDist))then
+                                    ParticleInsideBuffer = .true.
+                                    exit dolp                                                   
+                                endif                                                
+                            
+                            endif
+                            
+                        enddo dolp
+                                                             
+                        deallocate(ParticPoint)
+                        deallocate(LinePoint)
+                        nullify(CurrLine)
+                        
+                        if (ParticleInsideBuffer) then
+                        
+                            if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit) then
+                                MovePartic = .false.
+                                exit donn
+                            endif   
+                        endif
+                            
+                    else !intersect old and new particle position segment with boom segments                                               
+                        
+                        if (SegIntersectLine(                               &
+                            x1      = CurrentPartic%Position%CoordX,        &
+                            y1      = CurrentPartic%Position%CoordY,        &
+                            x2      = NewPosition%CoordX,                   &
+                            y2      = NewPosition%CoordY,                   &
+                            LineX   = Me%Booms%Individual(nn)%Lines,        &    
+                            LineAng = LineAngle)) then                                            
+                            
+                            AuxAngle = atan2(CurrentPartic%CurrentY,CurrentPartic%CurrentX) - (LineAngle+Pi/2.)
+                        
+                            IntersectVel = abs(cos(AuxAngle) * sqrt(CurrentPartic%CurrentX**2+ &
+                                                                    CurrentPartic%CurrentY**2))
+                        
+                            if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit .and. &
+                                IntersectVel             < Me%Booms%Individual(nn)%VelLimit) then
+                                MovePartic = .false.
+                                exit donn
+                            endif 
+                       endif
+                    endif ifbuf
+                enddo donn
+            endif
+            
+            if (MovePartic .and. Me%ThinWallsON) then
+    
+                if (SegIntersectPolygon(                                        &
+                    x1              = CurrentPartic%Position%CoordX,            &
+                    y1              = CurrentPartic%Position%CoordY,            &
+                    x2              = NewPosition%CoordX,                       &
+                    y2              = NewPosition%CoordY,                       &
+                    PolygonX        = Me%ThinWalls,                             &
+                    AreaOfInterest  = Me%GridsBounds)) then
+                    
+                    MovePartic  = .false.
+
+                    if(CurrentOrigin%Beaching .and. .not. CurrentOrigin%CoastlineBeaching)then
+
+                        call RANDOM_NUMBER(Rand1)
+                        
+                        it  = CurrentPartic%Position%i
+                        jt  = CurrentPartic%Position%j                        
+                        kt  = CurrentPartic%Position%k                        
+                        emt = CurrentPartic%Position%ModelID
+                        
+                        if ((Me%EulerModel(emt)%BeachingProbability(it,jt,kt) .GT. Rand1) .OR.   &
+                            (Me%EulerModel(emt)%BeachingProbability(it,jt,kt) .EQ. 1)) then  
+                            CurrentPartic%Beached = ON
+                        endif
+
+                    endif
+                    
+                    exitDoCycle = .true.
+                    
+                endif
+            endif
+
+        endif                                        
+
+    end subroutine CheckThinStructures
+
+    !----------------------------------------------------------------------
+    
     
     subroutine ParticSlipCondition(CurrentPartic, NewPosition)
 

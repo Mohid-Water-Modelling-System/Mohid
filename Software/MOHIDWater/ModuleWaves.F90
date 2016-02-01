@@ -48,11 +48,11 @@
 ! OUTPUT_FETCH_DEPTHS       : logical     .false.    !Output fetch depths in each direction (grid data) (read if WAVEGEN_TYPE : 1)
 
 ! Poligon block for DISTANCE_TO_LAND_METHOD : 1
-! <Begin_LandAreaFiles>
+! <BeginLandAreaFiles>
 !   Polygon1.xy
 !   Poligon2.xy
 !    ...
-! <End_LandAreaFiles>
+! <EndLandAreaFiles>
 
 !<begin_[property]>
 ! NAME                      : wave height/ wave period / ... 
@@ -1093,7 +1093,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%RadiationStressY%TimeSerieOn) then
                 nProperties = nProperties + 1
             endif
-
+            if (Me%ParametersON) then
+                !Ubw & Abw
+                nProperties = nProperties + 2
+            endif
+            
             !Allocates PropertyList
             allocate(PropertyList(nProperties), STAT = STATUS)
 
@@ -1125,6 +1129,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 PositionInList = PositionInList + 1
                 PropertyList (PositionInList) = 'RadiationStressY'
             endif
+            
+            if (Me%ParametersON) then
+                PositionInList = PositionInList + 1
+                PropertyList (PositionInList) = 'Ubw'
+            endif
+            
+            if (Me%ParametersON) then
+                PositionInList = PositionInList + 1
+                PropertyList (PositionInList) = 'Abw'
+            endif
+            
             
 
             call GetData(TimeSerieLocationFile,                                         &
@@ -2868,8 +2883,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
 
-cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.                   &
-                        Me%ExternalVar%WaterColumn(i,j) .lt. 0.1 .or.                   &
+cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.                  &
+                        Me%ExternalVar%WaterColumn(i,j) .lt. 0.1  .or.                  &
                         Me%WavePeriod%Field       (i,j) < 1e-3) then 
                         
                         Me%Ubw(i, j)              = 0.001
@@ -2978,7 +2993,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
         real                                    :: Wind, LeftDirection, RightDirection 
         real                                    :: COEF1, COEF2, U2, WindX, WindY 
         integer                                 :: i, j, ILB, IUB, JLB, JUB, WindDirection
-        real                                    :: WindAngle, AngleRange
+        real                                    :: WindAngle, AngleRange, WaterColumn
         
         !Begin-----------------------------------------------------------------
         
@@ -3060,10 +3075,12 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                     !old formulation uses local water column
                     !new fomulations use average depth in wind direction or a constant value
                     if (Me%DepthType.eq.DepthLocal) then
-                        COEF1 = 0.53 * (Gravity * Me%ExternalVar%WaterColumn(i, j) / U2) ** 0.75   
+                        WaterColumn = Me%ExternalVar%WaterColumn(i, j)
                     else
-                        COEF1 = 0.53 * (Gravity * Me%Depth(i,j, WindDirection) / U2) ** 0.75   
+                        WaterColumn = Me%Depth(i,j, WindDirection)
                     endif
+                    
+                    COEF1 = 0.53 * (Gravity * WaterColumn / U2) ** 0.75 
                     
                     COEF2 = 0.0125 * (Gravity * Me%Fetch(i,j, WindDirection) / U2)**0.42
 
@@ -3072,6 +3089,14 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                     Me%WaveHeight%Field(i, j) = Me%WaveHeightParameter * 0.283 * U2 /   &
                                                 Gravity *                               &
                                                 Tanh(COEF1) * Tanh(COEF2 / Tanh(COEF1))    
+                                                
+                    !Limiting wave amplitude fucntion of deth value                    
+                    if (WaterColumn >0.) then
+                        if (Me%WaveHeight%Field(i, j)/WaterColumn > 0.7) then
+                            Me%WaveHeight%Field(i, j) = 0.7*WaterColumn
+                        endif
+                    endif
+                                                                    
                 else
                     Me%WaveHeight%Field(i, j) = 0.0
                 endif
@@ -3923,7 +3948,23 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
                                 STAT    = STAT_CALL)                            
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'OutPut_TimeSeries - ModuleWaves - ERR40'                  
-        endif                                                                   
+        endif          
+        
+        if (Me%ParametersON) then                                                                 
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D  = Me%Ubw,                                       &
+                                STAT    = STAT_CALL)                            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'OutPut_TimeSeries - ModuleWaves - ERR50'                  
+        endif          
+
+        if (Me%ParametersON) then                                                                 
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D  = Me%Abw,                                       &
+                                STAT    = STAT_CALL)                            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'OutPut_TimeSeries - ModuleWaves - ERR60'                  
+        endif          
                                                                                 
                                                                                 
     end subroutine OutPut_TimeSeries                                            
