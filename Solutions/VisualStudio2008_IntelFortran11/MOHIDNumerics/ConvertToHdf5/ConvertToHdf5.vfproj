@@ -25,8 +25,8 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Win32\Release Double;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Win32\Release Double;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_USE_PROJ4" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8"/>
-				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_release_double.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Win32\Release Double;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Win32\Release Double;..\..\..\..\ExternalLibs\NetCDF\Lib;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib" IgnoreDefaultLibraryNames="libc" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib netcdfs.lib netcdf.lib netcdf90.lib  libfproj4.lib"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Win32\Release Double;..\MOHIDBase2\Win32\Release Double;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_USE_PROJ4" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_release_double.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Win32\Release Double;..\MOHIDBase2\Win32\Release Double;..\..\..\..\ExternalLibs\NetCDF\Lib;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib" IgnoreDefaultLibraryNames="libc" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib netcdfs.lib netcdf.lib netcdf90.lib  libfproj4.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -243,6 +243,26 @@
 				<Tool Name="VFPreLinkEventTool"/>
 				<Tool Name="VFPreBuildEventTool"/>
 				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release Double MPI|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Win32\Release Double;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Win32\Release Double;..\..\..\..\ExternalLibs\NetCDF\Include;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include" PreprocessorDefinitions="_USE_PROJ4" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_release_double.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Win32\Release Double;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\Win32\Release Double;..\..\..\..\ExternalLibs\NetCDF\Lib;..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib" IgnoreDefaultLibraryNames="libc" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib netcdfs.lib netcdf.lib netcdf90.lib  libfproj4.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release Double MPI|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\x64\Release Double;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\x64\Release Double;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\include\fortran" PreprocessorDefinitions="_USE_PROJ4; _NO_NETCDF" UnformattedFileConversion="fileConversionBigEndian" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\x64\Release Double;..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase2\x64\Release Double;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib" IgnoreDefaultLibraryNames="msvcrt.lib" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib libfproj4.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
 	<Files>
 		<Filter Name="Header Files" Filter="fi;fd"/>
@@ -265,76 +285,85 @@
 				<Tool Name="VFFortranCompilerTool" SourceFileFormat="fileFormatFree" UnformattedFileConversion="fileConversionNone"/></FileConfiguration></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleCFFormat.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleCFPolcomFormat.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleConvertModisL2.F90">
 			<FileConfiguration Name="Debug Developper Single|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMI|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug OpenMI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug OpenMI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMP|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double PhreeqC|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double CUDA|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double Openmp|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double CUDA|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double|Win32" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleConvertModisL3Mapped.F90">
 			<FileConfiguration Name="Debug Developper Single|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMI|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug OpenMI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug OpenMI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMP|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double PhreeqC|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double CUDA|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double Openmp|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double CUDA|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double|Win32" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleConvertOceanColorL2.F90">
 			<FileConfiguration Name="Debug Developper Single|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMI|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug OpenMI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug OpenMI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMP|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double PhreeqC|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double CUDA|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double Openmp|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double CUDA|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double|Win32" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleCOWAMAAsciiWind.F90">
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleERA40Format.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleEUCenterFormat.F90"/>
@@ -342,17 +371,17 @@
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleGlueHDF5Files.F90">
 			<FileConfiguration Name="Debug Developper Single|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
-			<FileConfiguration Name="Debug Double|x64">
+			<FileConfiguration Name="Debug OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug Double CUDA|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
-			<FileConfiguration Name="Debug OpenMI|x64">
+			<FileConfiguration Name="Debug Double|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
-			<FileConfiguration Name="Release Double|x64">
+			<FileConfiguration Name="Release Double|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug OpenMI|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
-			<FileConfiguration Name="Release Double|Win32">
+			<FileConfiguration Name="Release Double|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Release MPI|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
@@ -360,19 +389,21 @@
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug Double Openmp|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
+			<FileConfiguration Name="Release Double MPI|x64">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug OpenMP|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
-			<FileConfiguration Name="Debug OpenMP|x64">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Release MPI|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
+			<FileConfiguration Name="Debug OpenMP|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug Double PhreeqC|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug Double PhreeqC|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
-			<FileConfiguration Name="Release|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug Developper Single|x64">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
+			<FileConfiguration Name="Release|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug Double CUDA|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
@@ -380,16 +411,20 @@
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Release Double CUDA|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
+			<FileConfiguration Name="Release Double MPI|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration>
 			<FileConfiguration Name="Debug Double|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone"/></FileConfiguration></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHDF5ToASCIIandBIN.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHellermanRosensteinAscii.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleHYCOMFormat.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleIHRadarFormat.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="_USE_MODIS"/></FileConfiguration></File>
@@ -398,15 +433,18 @@
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleLevitusFormat.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleMERCATORFormat.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleMM5Format.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleMOG2DFormat.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleNetCDFCF_2_HDF5MOHID.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModulePatchHDF5Files.F90"/>
@@ -415,14 +453,17 @@
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleTecnoceanAscii.F90"/>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleWOAFormat.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ModuleWRFFormat.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\ConvertToHDF5\ncdflib.F90">
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File></Filter></Files>
 	<Globals/></VisualStudioProject>
