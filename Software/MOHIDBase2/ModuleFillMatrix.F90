@@ -1492,6 +1492,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR010'
 
+		!write(*,*) trim(adjustl(AuxString))
+
         select case (trim(adjustl(AuxString)))
             case ("None",       "NONE", "none")
                 Me%TimeEvolution    = None
@@ -1507,8 +1509,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*)'Invalid option for keyword FILE_IN_TIME'
                 stop 'ReadOptions - ModuleFillMatrix - ERR020'
         end select
+
+		!write (*,*) Me%TimeEvolution
         
         if (Me%ArgumentFileName) Me%TimeEvolution    = ReadHDF
+
+		!write (*,*) Me%TimeEvolution
 
 
         if(Me%TimeEvolution == None)then
@@ -1521,6 +1527,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR030'
 
+			!write(*,*) trim(adjustl(AuxString))
 
             select case (trim(adjustl(AuxString)))
                 case ("Constant",   "CONSTANT",   "constant")
@@ -4826,7 +4833,7 @@ i0:     if(Me%Dim == Dim2D)then
                 
                 !need to have defined file
                 if (.not. Me%VectorialProp) then                
-                    write(*,*)'HDF filename not given'
+                    write(*,*)'HDF filename not given for property '//trim(Me%PropertyID%Name)
                     stop 'ConstructHDFInput - ModuleFillMatrix - ERR01b'
                 
                 !If not one file, search foreach file for each component

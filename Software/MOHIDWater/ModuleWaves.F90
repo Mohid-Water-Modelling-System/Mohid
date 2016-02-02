@@ -580,8 +580,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveDirection%ON) then
 
-            Me%WaveDirection%ID%Name     = GetPropertyName(MeanWaveDirection_)
-            Me%WaveDirection%ID%IDNumber = MeanWaveDirection_            
+            call ConstructPropertyIDOnFly (Me%RadiationStress%ID,                       &
+                                           GetPropertyName(MeanWaveDirection_),         &
+                                           .false.,                                     &
+                                           .false.,                                     &
+                                           .true.,                                      &
+                                           .false.)
+
+            !Me%WaveDirection%ID%Name     = GetPropertyName(MeanWaveDirection_)
+            !Me%WaveDirection%ID%IDNumber = MeanWaveDirection_            
 
             call ReadWaveParameters(WaveProperty = Me%WaveDirection,                    &
                                     BeginBlock   = "<begin_wavedirection>",             &
@@ -3864,6 +3871,9 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
             endif
 
             if (Me%WaveDirection%OutputHDF) then
+                
+                !print *, 'WaveDirection'
+                !print *, Me%WaveDirection%FieldInputRef
                 
                 !Output is in input ref
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%WaveDirection%ID%Name),&
