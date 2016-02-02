@@ -4690,7 +4690,7 @@ do1 :           do k = kbottom, KUB
                         Coef = .15
                     else
                         Coef = 1.15 -0.77 * RelH
-                    endif                        
+                    endif        
                     
                     if (H >0) then
                         WLcritc = Coef*sqrt(Gravity*H)
