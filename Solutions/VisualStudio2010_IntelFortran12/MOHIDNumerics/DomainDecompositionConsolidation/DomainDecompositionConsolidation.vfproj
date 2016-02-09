@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioProject ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{C4312837-D792-4E19-96A3-12ECDCC70560}">
+	<Platforms>
+		<Platform Name="Win32"/>
+		<Platform Name="x64"/></Platforms>
+	<Configurations>
+		<Configuration Name="Debug Double|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\MPI;..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase2\x64\MPI;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\include\fortran" RuntimeLibrary="rtMultiThreadedDLL"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug Double|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" BufferedIO="true" HeapArrays="64" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\Debug Double;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\include\fortran" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebug"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\Debug Double;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib" IgnoreDefaultLibraryNames="msvcrt.lib, LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="99999999" LargeAddressAware="addrAwareNoLarge" AdditionalDependencies="MOHIDBase1.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\Release Double;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\include\fortran" RuntimeLibrary="rtMultiThreadedDLL"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\Release Double;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib" SubSystem="subSystemConsole" AdditionalDependencies="MOHIDBase1.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release Double|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\MPI;..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase2\x64\MPI;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\include\fortran" RuntimeLibrary="rtMultiThreadedDLL"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release Double|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" HeapArrays="64" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\Release Double;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\include\fortran" PreprocessorDefinitions="_STACK_LIMITS_" RealKIND="realKIND8"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\x64\Release Double;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib" IgnoreDefaultLibraryNames="msvcrt.lib" SubSystem="subSystemConsole" AdditionalDependencies="MOHIDBase1.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
+	<Files>
+		<Filter Name="Header Files" Filter="fi;fd;h;inc"/>
+		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
+		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<File RelativePath="..\..\..\..\Software\DomainDecompositionConsolidation\MainDDC.F90"/>
+		<File RelativePath="..\..\..\..\Software\DomainDecompositionConsolidation\ModuleDDC.F90"/>
+		<File RelativePath="..\..\..\..\Software\DomainDecompositionConsolidation\ModuleHashTable.f90"/></Filter></Files>
+	<Globals/></VisualStudioProject>
