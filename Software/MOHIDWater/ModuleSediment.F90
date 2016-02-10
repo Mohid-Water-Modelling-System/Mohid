@@ -36,7 +36,8 @@ Module ModuleSediment
     use ModuleTime              
     use ModuleDrawing 
     use ModuleHDF5,             only : ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,         &
-                                       HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
+                                       HDF5WriteData, HDF5FlushMemory, HDF5ReadData,            &
+                                       HDF5ReadWindow, KillHDF5
     use ModuleEnterData           
     use ModuleFillMatrix,       only : ConstructFillMatrix, GetDefaultValue, KillFillMatrix
     use ModuleGridData,         only : ConstructGridData, GetGridData, ModifyGridData,          &
@@ -53,7 +54,12 @@ Module ModuleSediment
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,                  &
                                        GetHorizontalGridSize, UnGetHorizontalGrid, GetXYCellZ,  &
                                        GetGridCellArea, GetDDecompMPI_ID, GetDDecompON,         &
-                                       GetGridOutBorderPolygon, RotateVectorGridToField
+                                       GetGridOutBorderPolygon, RotateVectorGridToField,         &
+                                       GetDDecompParameters, GetDDecompWorkSize2D
+#ifdef _USE_MPI                                                  
+    use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI
+#endif
+
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, BoxDif,         &
                                        UngetBoxDif, KillBoxDif
     use ModuleGeometry,         only:  GetGeometrySize, UnGetGeometry, GetGeometryWaterColumn,  &
@@ -1321,10 +1327,10 @@ i1:     if (Me%Boxes%Yes) then
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR90' 
 
 
-        call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints2D", "-",                 &
-                              Array2D = Me%ExternalVar%WaterPoints2D,                    &
-                              STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR100'
+        !call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints2D", "-",                 &
+        !                      Array2D = Me%ExternalVar%WaterPoints2D,                    &
+        !                      STAT    = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR100'
         
         !Write WaterPoints3D
         call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                  &
@@ -1373,10 +1379,10 @@ i1:     if (Me%Boxes%Yes) then
         Message   ='Instant fields of Sediment properties in HDF format.'
         Message   = trim(Message)
         
-        if (GetDDecompON    (Me%ObjHorizontalGrid)) then
-            write(*,*) 'Module Sediment not ready to run in domain decomposition mode'
-            stop 'Read_Sediment_Files_Name - ModuleSediment - ERR20' 
-        endif
+        !if (GetDDecompON    (Me%ObjHorizontalGrid)) then
+        !    write(*,*) 'Module Sediment not ready to run in domain decomposition mode'
+        !    stop 'Read_Sediment_Files_Name - ModuleSediment - ERR20' 
+        !endif
 
         call ReadFileName('SEDIMENT_HDF', Me%Files%OutPutFields,                             &
                            Message = Message, TIME_END = Me%EndTime,                     &
@@ -1408,8 +1414,8 @@ i1:     if (Me%Boxes%Yes) then
         call ReadFileName('SEDIMENT_INI', Me%Files%Initial,                              &
                            Message   = Message, TIME_END = Me%ExternalVar%Now,           &
                            Extension = 'sedi',                                          &
-                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
+                           !MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                           !DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                            STAT      = STAT_CALL)
 
 
@@ -2018,11 +2024,11 @@ cd2 :           if (BlockFound) then
                 if (Me%TotalPercentage (i, j, k)  > 1.001) then
                     write(*,*) 'The sum of the classes percentage is larger than 100%.'
                     write(*,*) i, j, k, Me%TotalPercentage (i, j, k)
-                    stop 'ConstructClasses - ModuleSediment - ERR11'
+                    stop 'CheckPercentageConsistence - ModuleSediment - ERR10'
                 elseif (Me%TotalPercentage (i, j, k)  < 0.999) then
                         write(*,*) 'The sum of the classes percentage is smaller than 100%.'
                         write(*,*) i, j, k, Me%TotalPercentage (i, j, k)
-                        stop 'ConstructClasses - ModuleSediment - ERR12'
+                        stop 'CheckPercentageConsistence - ModuleSediment - ERR20'
                 endif
             endif
         enddo
@@ -2417,6 +2423,7 @@ cd2 :           if (BlockFound) then
     subroutine Construct_Initial_Geometry 
         
         !Local----------------------------------------------------------------
+        logical                             :: MasterOrSlave    
         integer                             :: STAT_CALL
 
         !Begin----------------------------------------------------------------
@@ -2429,7 +2436,21 @@ cd2 :           if (BlockFound) then
 
         if(Me%Evolution%Old)then
             
-            call ReadGeometryHDF(Me%ObjSedimentGeometry, trim(Me%Files%Initial)//"5", STAT = STAT_CALL)
+            !call ReadGeometryHDF(Me%ObjSedimentGeometry, trim(Me%Files%Initial)//"5", STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR01'
+            
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
+                                  MasterOrSlave    = MasterOrSlave,                         &
+                                  STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Construct_Initial_Geometry; ModuleSediment - ERR20'
+            endif
+            
+            call ReadGeometryHDF(GeometryID     = Me%ObjSedimentGeometry,                   &
+                                 HDF5FileName   = trim(Me%Files%Initial)//"5",              &
+                                 MasterOrSlave  = MasterOrSlave,                            &
+                                 !AddFaces       = .true.,                                   &
+                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR01'
 
         end if
@@ -2482,21 +2503,24 @@ cd2 :           if (BlockFound) then
         real, dimension(:,:), pointer               :: Field2D
 
         !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer               :: Aux2D
         logical                                     :: EXIST
-        integer                                     :: WorkILB, WorkIUB
-        integer                                     :: WorkJLB, WorkJUB
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: ILW, IUW, JLW, JUW
         integer                                     :: STAT_CALL
         integer                                     :: ObjHDF5
         integer(4)                                  :: HDF5_READ
+        type (T_Size2D)                             :: WindowLimitsJI
+        logical                                     :: MasterOrSlave  
 
         !----------------------------------------------------------------------
 
 
-        WorkILB = Me%SedimentWorkSize3D%ILB 
-        WorkIUB = Me%SedimentWorkSize3D%IUB 
-        WorkJLB = Me%SedimentWorkSize3D%JLB 
-        WorkJUB = Me%SedimentWorkSize3D%JUB 
-
+        ILB = Me%SedimentWorkSize3D%ILB 
+        IUB = Me%SedimentWorkSize3D%IUB 
+        JLB = Me%SedimentWorkSize3D%JLB 
+        JUB = Me%SedimentWorkSize3D%JUB 
+        
         inquire (FILE=trim(Me%Files%Initial)//"5", EXIST = EXIST)
 
 cd0:    if (EXIST) then
@@ -2504,36 +2528,87 @@ cd0:    if (EXIST) then
             !Gets File Access Code
             call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
 
-
             ObjHDF5 = 0
 
             !Opens HDF5 File
             call ConstructHDF5 (ObjHDF5,                                                 &
                                 trim(Me%Files%Initial)//"5", HDF5_READ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField; ModuleSediment - ERR03.'
+                stop 'ReadInitialField; ModuleSediment - ERR10.'
 
             Field2D(:,:) = FillValueReal
+            
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                  MasterOrSlave    = MasterOrSlave,                 &
+                                  STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ReadInitialField; ModuleSediment - ERR20'
+            endif
+        
+ifMS:       if (MasterOrSlave) then
+                
+                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,      &
+                                            WorkSize         = WindowLimitsJI,            &
+                                            STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadInitialField; ModuleSediment - ERR30'
+                endif
+        
+                ILW = WindowLimitsJI%ILB
+                IUW = WindowLimitsJI%IUB
+
+                JLW = WindowLimitsJI%JLB
+                JUW = WindowLimitsJI%JUB
+                                                  
+            else ifMS
+
+                ILW = ILB 
+                IUW = IUB
+
+                JLW = JLB 
+                JUW = JUB 
+
+            endif ifMS 
+
 
             ! Reads from HDF file the Property concentration and open boundary values
-            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB,            &
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField; ModuleSediment - ERR03.'
+            !call HDF5SetLimits  (ObjHDF5, ILB, IUB, JLB, JUB,            &
+            !                     STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_)                                                   &
+            !    stop 'ReadInitialField; ModuleSediment - ERR03.'
+            
+            call HDF5SetLimits  (ObjHDF5, ILW, IUW, JLW, JUW, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ReadInitialField; ModuleSediment - ERR40'
+            endif
+            
+            allocate(Aux2D(ILW:IUW,JLW:JUW))
 
-            call HDF5ReadData   (ObjHDF5, "/Results",trim(FieldName),                    &
-                                 Array2D = Field2D,                                      &
-                                 STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField; ModuleSediment - ERR03.'
-                
+            !call HDF5ReadData   (ObjHDF5, "/Results",trim(FieldName),                    &
+            !                     Array2D = Field2D,                                      &
+            !                     STAT    = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_)                                                   &
+            !    stop 'ReadInitialField; ModuleSediment - ERR03.'
+            
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                             &
+                                GroupName      = "/Results",                           &
+                                Name           = trim(FieldName),                      &
+                                Array2D        = Aux2D,                                &
+                                STAT           = STAT_CALL)
+        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialField; ModuleSediment - ERR50'
+            
+            Field2D(ILB:IUB, JLB:JUB) = Aux2D(ILW:IUW, JLW:JUW)                               
+        
+            deallocate(Aux2D)                
+
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField; ModuleSediment - ERR06.'
+                stop 'ReadInitialField; ModuleSediment - ERR60.'
         
         else if(.not. EXIST) then cd0
 
-                stop 'ReadInitialField; ModuleSediment - ERR07.'
+                stop 'ReadInitialField; ModuleSediment - ERR70.'
 
         endif cd0
 
@@ -2552,22 +2627,23 @@ cd0:    if (EXIST) then
 
         !Local-----------------------------------------------------------------
         logical                                     :: EXIST
-        integer                                     :: WorkILB, WorkIUB
-        integer                                     :: WorkJLB, WorkJUB
-        integer                                     :: WorkKLB, WorkKUB
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: STAT_CALL
         integer                                     :: ObjHDF5
         integer(4)                                  :: HDF5_READ
-
+        type (T_Size2D)                             :: WindowLimitsJI
+        logical                                     :: MasterOrSlave
+        integer                                     :: ILW, IUW, JLW, JUW
+        real,    dimension(:,:,:), pointer          :: Aux3D
         !----------------------------------------------------------------------
 
 
-        WorkILB = Me%SedimentWorkSize3D%ILB 
-        WorkIUB = Me%SedimentWorkSize3D%IUB 
-        WorkJLB = Me%SedimentWorkSize3D%JLB 
-        WorkJUB = Me%SedimentWorkSize3D%JUB 
-        WorkKLB = Me%SedimentWorkSize3D%KLB 
-        WorkKUB = Me%SedimentWorkSize3D%KUB 
+        ILB = Me%SedimentWorkSize3D%ILB 
+        IUB = Me%SedimentWorkSize3D%IUB 
+        JLB = Me%SedimentWorkSize3D%JLB 
+        JUB = Me%SedimentWorkSize3D%JUB 
+        KLB = Me%SedimentWorkSize3D%KLB 
+        KUB = Me%SedimentWorkSize3D%KUB 
 
         inquire (FILE=trim(Me%Files%Initial)//"5", EXIST = EXIST)
 
@@ -2576,36 +2652,81 @@ cd0:    if (EXIST) then
             !Gets File Access Code
             call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
 
-
             ObjHDF5 = 0
 
             !Opens HDF5 File
             call ConstructHDF5 (ObjHDF5,                                                 &
                                 trim(Me%Files%Initial)//"5", HDF5_READ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField3D; ModuleSediment - ERR03.'
+                stop 'ReadInitialField3D; ModuleSediment - ERR10.'
+            
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                  MasterOrSlave    = MasterOrSlave,                 &
+                                  STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ReadInitialField; ModuleSediment - ERR20'
+            endif
+            
+ifMS:       if (MasterOrSlave) then
+                
+                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,      &
+                                            WorkSize         = WindowLimitsJI,            &
+                                            STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadInitialField; ModuleSediment - ERR30'
+                endif
+        
+                ILW = WindowLimitsJI%ILB
+                IUW = WindowLimitsJI%IUB
+
+                JLW = WindowLimitsJI%JLB
+                JUW = WindowLimitsJI%JUB
+                                                  
+            else ifMS
+
+                ILW = ILB 
+                IUW = IUB
+
+                JLW = JLB 
+                JUW = JUB 
+
+            endif ifMS 
 
             Field3D(:,:,:) = FillValueReal
 
             ! Reads from HDF file the Property concentration and open boundary values
-            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, WorkKLB, WorkKUB, &
+            call HDF5SetLimits  (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, &
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField3D; ModuleSediment - ERR03.'
+                stop 'ReadInitialField3D; ModuleSediment - ERR40.'
+            
+            allocate(Aux3D(ILW:IUW, JLW:JUW, KLB:KUB))
 
-            call HDF5ReadData   (ObjHDF5, "/Results3D", trim(FieldName),                 &
-                                    Array3D = Field3D,                                   &
-                                    STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField3D; ModuleSediment - ERR03.'
+            !call HDF5ReadData   (ObjHDF5, "/Results3D", trim(FieldName),                 &
+            !                        Array3D = Field3D,                                   &
+            !                        STAT    = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_)                                                   &
+            !    stop 'ReadInitialField3D; ModuleSediment - ERR03.'
+            
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
+                                GroupName     = "/Results3D",                           &
+                                Name          = trim(FieldName),                        &
+                                Array3D       = Aux3D,                                  &
+                                STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ReadOldConcBoundariesHDF - ModuleSediment - ERR50.'
+            
+            Field3D(ILB:IUB, JLB:JUB, KLB:KUB) = Aux3D(ILW:IUW, JLW:JUW, KLB:KUB)
+            
+            deallocate(Aux3D)
             
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'ReadInitialField3D; ModuleSediment - ERR06.'
+                stop 'ReadInitialField3D; ModuleSediment - ERR60.'
         
         else if(.not. EXIST) then cd0
 
-                stop 'ReadInitialField3D; ModuleSediment - ERR07.'
+                stop 'ReadInitialField3D; ModuleSediment - ERR70.'
 
         endif cd0
 
@@ -2652,8 +2773,8 @@ cd0:    if (EXIST) then
             
             allocate(AuxTime(6))
 
-            call HDF5ReadData  (ObjHDF5, "/Results",                           &
-                                 "Start Time",                                 &
+            call HDF5ReadData  (ObjHDF5, "/Time",                                       &
+                                 "Residual Start Time",                                 &
                                  Array1D = AuxTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSediment - ERR40'
             
@@ -4806,6 +4927,7 @@ do1:    do n=1,Me%NumberOfClasses
         integer                 :: i, j, n
         class(T_Sand), pointer :: SandClass      
         integer                 :: WILB, WIUB, WJLB, WJUB
+        integer                 :: STAT_CALL
         !----------------------------------------------------------------------
         
         WILB = Me%SedimentWorkSize3D%ILB
@@ -4891,6 +5013,16 @@ do1:    do n=1,Me%NumberOfClasses
                     endif
                 enddo
                 enddo
+                
+#if _USE_MPI                    
+                !MPI and Domain Decomposition is ON exchanges data along domain interfaces
+                call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
+                                                Property2D       = SandClass%DM,        &
+                                                STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ComputeEvolution - ModuleSediment - ERR10'
+                endif                        
+#endif _USE_MPI
             endif
            
             if (Me%TimeSerie)then
@@ -6690,8 +6822,8 @@ do1 :               do i=1, Me%NumberOfClasses
             call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSediment - ERR70'
 
-            call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
-                                 "Start Time", "YYYY/MM/DD HH:MM:SS",                   &
+            call HDF5WriteData  (Me%ObjHDF5, "/Time",                                    &
+                                 "Residual Start Time", "YYYY/MM/DD HH:MM:SS",           &
                                  Array1D = TimePtr, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSediment - ERR80'
                                  
