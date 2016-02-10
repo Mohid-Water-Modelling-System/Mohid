@@ -114,16 +114,20 @@ Module ModuleHydrodynamic
                                        GetByPassON, GetDischargesIDName,                 &
                                        CorrectsCellsDischarges, SetLocationCellsZ,       &
                                        GetDischargeSpatialEmission, SetLayer,            &
-                                       TryIgnoreDischarge,                               &
+                                       TryIgnoreDischarge, GetDischargeSpatialType,      &
                                        GetDischargeFlowDistribuiton, UnGetDischarges,    &
-                                       Kill_Discharges, CorrectsBypassCellsDischarges
+                                       SetDischargeInterceptionRatio,                    &
+                                       GetDischargeInterceptionRatio,                    &
+                                       Kill_Discharges, CorrectsBypassCellsDischarges,   &
+                                       SetDistributionCoefMass
     use ModuleTimeSerie,        only : StartTimeSerie, StartTimeSerieInput,              &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
                                        GetTimeSerieValue, WriteTimeSerie,                &
                                        GetTimeSerieName, WriteTimeSerieLine, KillTimeSerie         
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetBoundaries, GetBoundaryFaces,&
-                                       GetExteriorBoundaryFaces, UnGetHorizontalMap
+                                       GetExteriorBoundaryFaces, UnGetHorizontalMap,     &
+                                       GetLandPoints2D   
     use ModuleHorizontalGrid,   only : WriteHorizontalGrid, GetComputeZUV,               &
                                        GetCoriolisFrequency, GetHorizontalGrid,          &
                                        InterpolRegularGrid, UnGetHorizontalGrid,         &
@@ -132,6 +136,7 @@ Module ModuleHydrodynamic
                                        GetCheckDistortion, GetGridRotation, GetGridAngle,&
                                        RotateVectorFieldToGrid, GetXYCellZ,              &
                                        GetCellZInterceptByPolygon, GetCellZInterceptByLine,&
+                                       GetCellZInterceptByXYZPoints,                     &
                                        GetDDecompMPI_ID, GetDDecompON,                   &
                                        GetDDecompSlaves,                                 &
                                        GetDDecompSlavesSize,                             &
@@ -701,7 +706,10 @@ Module ModuleHydrodynamic
     
     !Methods to generate a water level perturbation due to a tsunami/fault
     integer, parameter     :: FaultOkada1985_ = 0, FaultFile_ = 1
-
+    
+    integer, parameter     :: Mass_               = 1
+    integer, parameter     :: MomentumHorizontal_ = 2
+    integer, parameter     :: MomentumVertical_   = 3
 
     !Types---------------------------------------------------------------------
 
@@ -1061,7 +1069,8 @@ Module ModuleHydrodynamic
                                               BoundaryFacesU  => null(), &
                                               BoundaryFacesV  => null(), & 
                                               BoundaryPoints  => null(), &
-                                              WaterPoints2D   => null()
+                                              WaterPoints2D   => null(), &
+                                              LandPoints2D
 
         !3D Mapping
 
@@ -1399,7 +1408,7 @@ Module ModuleHydrodynamic
                                            WaveStress           = .false., & !Generation of currents by the waves
                                            WaveShearStress      = .false., & !Enhancement of bed shear stress by the waves 
                                            Obstacle             = .false., & 
-                                           Scraper              = .false. 
+                                           Scraper              = .false.  
 
         type (T_Time)                   :: RAMP_BeginTime
 
@@ -1433,6 +1442,13 @@ Module ModuleHydrodynamic
             
         logical                         :: EmersionTime          = .false.  
     end type T_HydroOptions
+    
+    type T_LandAbsorption
+        logical                         :: ON               = .false.
+        type(T_PropertyID)              :: ID   
+        real,   dimension(:,:), pointer :: Coef             => null()
+        real                            :: WaterLevelRef    = null_real
+    end type T_LandAbsorption
 
     type       T_OutPut
          type (T_Time), dimension(:), pointer     :: OutTime, &
@@ -1583,11 +1599,11 @@ Module ModuleHydrodynamic
         ! (=LAMDA) SLIP ANGLE 
         real                        :: RD               = null_real
         ! EPICENTER (LATITUDE)
-        real                        :: Y0		        = null_real
+        real                        :: Y0               = null_real
         ! EPICENTER (LONGITUDE)	    
-        real                        :: X0		        = null_real
+        real                        :: X0               = null_real
         ! TIME WHEN THE RUTPURE STARTS
-        type (T_Time)	            :: T0					
+        type (T_Time)               :: T0
         ! By default is 1. Allow s the amplifcation of the initial condition. Relevante for sensitive analysis
         real                        :: Amplification    = null_real
     end type T_Fault
@@ -1751,6 +1767,7 @@ Module ModuleHydrodynamic
         type(T_Emersion      ) :: Emersion
         type(T_DDecomp       ) :: DDecomp
         type(T_Tsunami       ) :: Tsunami
+        type(T_LandAbsorption) :: LandAbsorption
                 
         logical                :: FirstIteration = .true.
 #ifdef _USE_SEQASSIMILATION
@@ -3138,6 +3155,91 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
     end subroutine ConstructScraper
 
     !-----------------------------------------------------------------------------------
+    
+    !-----------------------------------------------------------------------------------
+
+    subroutine ConstructLandAbsorptionCoef
+
+        !Local-----------------------------------------------------------------
+        character(len = StringLength)           :: BeginBlock, EndBlock
+        integer                                 :: STAT_CALL, ClientNumber, iflag
+        logical                                 :: BlockFound
+
+        !----------------------------------------------------------------------
+        !call GetData
+
+        call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR10'
+
+        BeginBlock = "<begin_land_absorption_coef>"
+        EndBlock   = "<end_land_absorption_coef>"
+        
+        !Searches for Land Absorption coefficients block
+        call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                     &
+                                     BeginBlock, EndBlock,                              &
+                                     BlockFound, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR20'
+
+        if (BlockFound) then
+        
+            call ConstructPropertyID  (Me%LandAbsorption%ID, Me%ObjEnterData, FromBlock)
+            
+            allocate(Me%LandAbsorption%Coef(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+
+            !Uncovered cells are set to zero
+            call ConstructFillMatrix  (PropertyID       = Me%LandAbsorption%ID,         &
+                                       EnterDataID      = Me%ObjEnterData,              &
+                                       TimeID           = Me%ObjTime,                   &
+                                       HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                       ExtractType      = FromBlock,                    &
+                                       PointsToFill2D   = Me%External_Var%WaterPoints2D,&
+                                       Matrix2D         = Me%LandAbsorption%Coef,       &
+                                       TypeZUV          = TypeZ_,                       &
+                                       STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR30'
+
+            if(.not. Me%LandAbsorption%ID%SolutionFromFile)then
+                call KillFillMatrix(Me%LandAbsorption%ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR40'
+            end if
+            
+            call GetData(Me%LandAbsorption%WaterLevelRef,                               & 
+                         Me%ObjEnterData, iflag,                                        & 
+                         Keyword    = 'LAND_ABSORPTION_WL_REF',                         &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleHydrodynamic',                            &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR50'
+            
+            if (iflag == 0) then
+                write(*,*) 'Need to define the keyword  LAND_ABSORPTION_WL_REF'
+                stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR60'
+            endif
+
+
+        else
+
+            write(*,*) 'Block not found'
+            write(*,*) 'Begin = ',trim(BeginBlock)
+            write(*,*) 'End   = ',trim(EndBlock)
+            stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR70'
+
+        endif
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR80'
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR90'
+
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR100'
+
+
+    end subroutine ConstructLandAbsorptionCoef
+
+    !-----------------------------------------------------------------------------------
+    
 
     subroutine ConstructThinWalls
 
@@ -7341,6 +7443,33 @@ cd21:   if (Baroclinic) then
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1180')
+            
+        !<BeginKeyword>
+            !Keyword          : WAVE_ABSORTION
+            !<BeginDescription>       
+               ! 
+               !Checks if the user want to simulate the effect of wave absortion 
+               !by maritime structures 
+               ! 
+            !<EndDescription>
+            !Type             : logical
+            !Default          : 0 (No wave absortion)
+            !File keyword     : IN_DAD3D 
+            !Multiple Options : 0 (No wave absortion, 1(with wave absortion)
+            !Search Type      : From File
+        !<EndKeyword>
+
+        call GetData(Me%LandAbsorption%ON,                                              &
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'LAND_ABSORPTION',                                    &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1190')
+            
 
     End Subroutine Construct_Numerical_Options
 
@@ -7671,14 +7800,15 @@ cd3:            if (Me%ComputeOptions%Continuous) then
 
        !Guillaume
        if ( Me%ComputeOptions%Evolution == Vertical1D_ ) then
-       if (    Me%ComputeOptions%Obstacle  .or. & 
-               Me%TidePotential%Compute    .or. &
-               Me%TidePotential%Compute    .or. &
-               Me%Relaxation%Force         .or. &
-               Me%ComputeOptions%HorizontalAdvection   .or. &
-               Me%ComputeOptions%HorizontalDiffusion   .or. &
-               Me%ComputeOptions%VolumeVariation       .or. &
-               Me%ComputeOptions%MomentumDischarge     ) then
+       if (    Me%ComputeOptions%Obstacle                          .or.                 & 
+               Me%TidePotential%Compute                            .or.                 &
+               Me%TidePotential%Compute                            .or.                 &
+               Me%Relaxation%Force                                 .or.                 &
+               Me%ComputeOptions%HorizontalAdvection               .or.                 &
+               Me%ComputeOptions%HorizontalDiffusion               .or.                 &
+               Me%ComputeOptions%VolumeVariation                   .or.                 &
+               Me%ComputeOptions%MomentumDischarge                 .or.                 &
+               Me%LandAbsorption%ON) then
                 
             call SetError(WARNING_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR13a.')
        endif
@@ -7954,10 +8084,22 @@ cd43:   if (.NOT. BlockFound) then
 
             i = int(AuxVector(1))
             j = int(AuxVector(2))
+            
+            if (Me%DDecomp%MasterOrSlave) then
+                
+                if (i < Me%DDecomp%Mapping%ILB .or. i > Me%DDecomp%Mapping%IUB .or.     &
+                    j < Me%DDecomp%Mapping%JLB .or. j > Me%DDecomp%Mapping%JUB) then
+                    cycle
+                else
+                    i = i - Me%DDecomp%Mapping%ILB + 1
+                    j = j - Me%DDecomp%Mapping%JLB + 1                    
+                endif                    
+                
+            else
 
-            if (i < ILBWork .or. i > IUBWork .or. j < JLBWork .or. j > JUBWork)          &          
-                call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR10") 
-
+                if (i < ILBWork .or. i > IUBWork .or. j < JLBWork .or. j > JUBWork)          &          
+                    call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR10") 
+            endif
 
             Me%ComputeOptions%Tlag(i, j) = AuxVector(3)
 
@@ -8366,7 +8508,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
             Me%Drag%Coef                      (:,:,:) = FillValueReal
   
         endif
-
+        
         if (Me%SubModel%ON) then
 
             nullify(Me%SubModel%Z)
@@ -8456,8 +8598,9 @@ ic1:    if (Me%CyclicBoundary%ON) then
         integer                         :: AssimilationID
     
         !Local-----------------------------------------------------------------
-        type (T_Lines),   pointer       :: LineX
-        type (T_Polygon), pointer       :: PolygonX
+        type (T_Lines),     pointer     :: LineX
+        type (T_Polygon),   pointer     :: PolygonX, ModelDomainLimit
+        type (T_XYZPoints), pointer     :: XYZPointsX
         character(len=StringLength)     :: DischargeName
         real                            :: CoordinateX, CoordinateY
         logical                         :: CoordinatesON, IgnoreOK
@@ -8467,6 +8610,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         integer                         :: Id, Jd, Kd, dn, DischargesNumber, nC
         integer                         :: SpatialEmission, nCells, DischVertical
         integer                         :: STAT_CALL
+        real                            :: InterceptionRatio
         
         !----------------------------------------------------------------------
 
@@ -8504,36 +8648,38 @@ d1:             do dn = 1, DischargesNumber
                     if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR40' 
                     
                     call GetDischargesIDName (Me%ObjDischarges, dn, DischargeName, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR45' 
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR50' 
 
                     if (CoordinatesON) then
                         call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, Id, Jd, STAT = STAT_CALL)
                         
                         if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
-                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR50'
+                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR60'
                         endif                            
 
                         if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
                 
                             call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR60'
+                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR70'
 
                             if (IgnoreOK) then
                                 write(*,*) 'Discharge outside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)
                                 cycle
                             else
-                                stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR70'
+                                stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR80'
                             endif
 
                         endif
 
                         call CorrectsCellsDischarges(Me%ObjDischarges, dn, Id, Jd, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR80'
+                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR90'
                     endif
 
                     call GetDischargeSpatialEmission(Me%ObjDischarges, dn, LineX, PolygonX, &
-                                                     SpatialEmission, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR90'
+                                                     SpatialEmission,                   &
+                                                     XYZPointsX = XYZPointsX,           &
+                                                     STAT       = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR100'
                     
 i3:                 if (SpatialEmission == DischPoint_) then
  
@@ -8543,11 +8689,11 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                                            JGrid         = Jd,              &
                                                            TimeX         = Me%CurrentTime,  &
                                                            STAT          = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR100'
+                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR110'
 
                         if (WaterPoints2D(Id,Jd) /= WaterPoint) then
                             call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR110'
+                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR120'
 
                             write(*,*) 'A discharge in an land cell I=',Id,' J=',Jd,'Model name=',trim(Me%ModelName)
 
@@ -8555,7 +8701,7 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                 write(*,*) 'Discharge in a land cell - ',trim(DischargeName),' - ',trim(Me%ModelName)
                                 cycle
                             else
-                                stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR120'
+                                stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR130'
                             endif
                         endif
 
@@ -8570,19 +8716,50 @@ i3:                 if (SpatialEmission == DischPoint_) then
                             call GetCellZInterceptByLine(Me%ObjHorizontalGrid, LineX,       &
                                                          WaterPoints2D, VectorI, VectorJ,   &
                                                          VectorK, nCells, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR130'
+                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR140'
 
                             if (nCells < 1) then
                             
                                 call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR135'
+                                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR150'
 
                                 if (IgnoreOK) then
                                     write(*,*) 'Discharge line intercept 0 cells'       
                                     cycle
                                 else
-                                    stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR140'
+                                    stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR160'
                                 endif
+                            else
+                            
+                                if (Me%DDecomp%MasterOrSlave) then
+                                    !Get model domain polygon
+                                    call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                                                 Polygon          = ModelDomainLimit,     &
+                                                                 STAT             = STAT_CALL)           
+                                    if (STAT_CALL /= SUCCESS_)  then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR170'
+                                    endif                                        
+
+                                    !Computes the % percentage of LineX intercepts model domain
+                                    InterceptionRatio = PercentageLineInsidePolygon(LineX, ModelDomainLimit) / 100. 
+                                    !Set in Modules Discharges InterceptionRatio
+                                    call SetDischargeInterceptionRatio(Me%ObjDischarges, dn, InterceptionRatio, &
+                                                                       STAT = STAT_CALL)                          
+                                    if (STAT_CALL /= SUCCESS_)  then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR180'
+                                    endif                                        
+                                    
+                                    write(*,*) 'InterceptionRatio =',Me%DDecomp%MPI_ID, InterceptionRatio
+                                    
+                                    call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                                             Polygon          = ModelDomainLimit,               &
+                                                             STAT             = STAT_CALL)                          
+                                    if (STAT_CALL /= SUCCESS_)  then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR190'
+                                    endif                                        
+                                    
+                                endif
+                                                            
                             endif
 
                         endif 
@@ -8592,24 +8769,110 @@ i3:                 if (SpatialEmission == DischPoint_) then
                             call GetCellZInterceptByPolygon(Me%ObjHorizontalGrid, PolygonX, &
                                                          WaterPoints2D, VectorI, VectorJ,   &
                                                          VectorK, nCells, STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR150'
+                            if (STAT_CALL /= SUCCESS_) then
+                                stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR200'
+                            endif                                
 
                             if (nCells < 1) then
 
                                 call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR155'
+                                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR210'
                             
                                 if (IgnoreOK) then
                                     write(*,*) 'Discharge contains 0 center cells'       
                                     write(*,*) 'Or the polygon is to small and is best to a discharge in a point or'
                                     write(*,*) 'the polygon not define properly'
                                 else                                    
-                                    stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR160'
-                                endif                                    
+                                    stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR220'
+                                endif       
+
+                            else
+                            
+                                if (Me%DDecomp%MasterOrSlave) then
+                                    !Get model domain polygon
+                                    call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                                                 Polygon          = ModelDomainLimit,     &
+                                                                 STAT             = STAT_CALL)           
+                                    if (STAT_CALL /= SUCCESS_)  then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR230'
+                                    endif                                        
+
+                                    !Computes the % percentage of LineX intercepts model domain
+                                    InterceptionRatio = PercentagePolygonInsidePolygon(PolygonX, ModelDomainLimit) / 100. 
+                                    !Set in Modules Discharges InterceptionRatio
+                                    call SetDischargeInterceptionRatio(Me%ObjDischarges, dn, InterceptionRatio, &
+                                                                       STAT = STAT_CALL)                          
+                                    if (STAT_CALL /= SUCCESS_)  then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR240'
+                                    endif                                        
+                                    
+                                    write(*,*) 'InterceptionRatio =',Me%DDecomp%MPI_ID, InterceptionRatio
+                                    
+                                    call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                                             Polygon          = ModelDomainLimit,               &
+                                                             STAT             = STAT_CALL)                          
+                                    if (STAT_CALL /= SUCCESS_)  then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR250'
+                                    endif                                        
+                                    
+                                endif
+                            
+                                                                                         
                             endif
 
                         endif
 
+                        if (SpatialEmission == DischXYZPoints_) then
+                            call GetCellZInterceptByXYZPoints(Me%ObjHorizontalGrid, XYZPointsX, &
+                                                              VectorI, VectorJ, VectorK, nCells, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR260'
+
+                            if (nCells < 1) then
+
+                                call TryIgnoreDischarge(Me%ObjDischarges, dn, IgnoreOK, STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR27'
+                            
+                                if (IgnoreOK) then
+                                    write(*,*) 'Discharge contains probably 0 center cells'       
+                                else                                    
+                                    stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR280'
+                                endif   
+                                
+                            else
+
+                                if (Me%DDecomp%MasterOrSlave) then
+                                    !Get model domain polygon
+                                    call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                                                 Polygon          = ModelDomainLimit,               &
+                                                                 STAT             = STAT_CALL)           
+                                    if (STAT_CALL /= SUCCESS_)  then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR290'
+                                    endif                                        
+
+                                    !Computes the % percentage of LineX intercepts model domain
+                                    InterceptionRatio = PercentageXYZPointsInsidePolygon(XYZPointsX, ModelDomainLimit) / 100. 
+                                    !Set in Modules Discharges InterceptionRatio
+                                    call SetDischargeInterceptionRatio(Me%ObjDischarges, dn, InterceptionRatio,     &
+                                                                       STAT = STAT_CALL)                          
+                                    if (STAT_CALL /= SUCCESS_)  then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR300'
+                                    endif                                        
+                                    
+                                    write(*,*) 'InterceptionRatio =',Me%DDecomp%MPI_ID, InterceptionRatio
+                                    
+                                    call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                                             Polygon          = ModelDomainLimit,               &
+                                                             STAT             = STAT_CALL)                          
+                                    if (STAT_CALL /= SUCCESS_)  then
+                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR310'
+                                    endif                                        
+                                    
+                                endif                            
+                            
+                                                                                             
+                            endif
+
+                        endif
 
                     endif i3
                         
@@ -8623,7 +8886,7 @@ c1:                 select case (DischVertical)
                 
                             write(*,*) "VERTICAL DISCHARGE option not active - Depth  =",DischDepth_
                             write(*,*) 'This option is not active'
-                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR170'
+                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR320'
 
                         case (DischBottom_)
 
@@ -8632,7 +8895,7 @@ c1:                 select case (DischVertical)
                                                    STAT = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR180.'
+                                stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR330.'
 
 n1:                         do nC =1, nCells
 
@@ -8645,7 +8908,7 @@ n1:                         do nC =1, nCells
                                                    STAT = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR190.'
+                                stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR340.'
 
 
                         case (DischSurf_)
@@ -8660,7 +8923,7 @@ n1:                         do nC =1, nCells
                             write(*,*) "The known options are : "," Bottom=",DischBottom_," Surface=",DischSurf_,&
                                                                   " Layer =",DischLayer_, " Depth  =",DischDepth_,&
                                                                   " Uniform=",DischUniform_
-                            stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR200'
+                            stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR350'
 
                     end select c1
 
@@ -8668,12 +8931,12 @@ i4:                 if (SpatialEmission /= DischPoint_) then
 
 
                         call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR210'
+                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR360'
 
                     else  i4
                         if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
                             call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR220' 
+                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR370' 
                         endif
                         deallocate(VectorI, VectorJ, VectorK)
                     endif i4
@@ -8681,7 +8944,7 @@ i4:                 if (SpatialEmission /= DischPoint_) then
                 enddo d1
 
                 call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR230' 
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR380' 
                 
             else  i2
                 Me%ObjDischarges = AssociateInstance (mDISCHARGES_, DischargesID)
@@ -8705,7 +8968,7 @@ i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimil
                                        Me%ObjGeometry,                                   &
                                        STAT = STAT_CALL)
 
-                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR240'  
+                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR390'  
                                 
                  AssimilationID = Me%ObjAssimilation
             else
@@ -8718,7 +8981,7 @@ i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimil
         call GetContinuousGOTM(Me%ObjTurbulence, ContinuousGOTM, ModelGOTM, STAT = STAT_CALL)            
 
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError(FATAL_, INTERNAL_, 'Construct_Sub_Modules - Hydrodynamic - ERR250.')
+            call SetError(FATAL_, INTERNAL_, 'Construct_Sub_Modules - Hydrodynamic - ERR400.')
 
 i5:     if (ModelGOTM) then
 i6:         if (Me%ComputeOptions%Continuous) then
@@ -8733,7 +8996,7 @@ i7:             if (.not. ContinuousGOTM)  then
 
             if (.not.Me%ComputeOptions%Continuous) then
                 if (ContinuousGOTM)                                                      &
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Sub_Modules - Hydrodynamic - ERR260.')
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Sub_Modules - Hydrodynamic - ERR410.')
             endif
         endif i5
 
@@ -9397,7 +9660,7 @@ do3:        do  k=KLB, KUB
 
 cd1:    if (Me%ComputeOptions%Continuous) then
 
-                call Read_Final_Hydrodynamic_File
+            call Read_Final_Hydrodynamic_File
             
         else cd1
 
@@ -9702,6 +9965,13 @@ cd10:   if (Evolution == Read_File_) then
             call ConstructScraper
             
         endif
+        
+        if (Me%LandAbsorption%ON) then        
+        
+            call ConstructLandAbsorptionCoef
+            
+        endif
+        
         !------------------------------------------------------------------------
 
     end subroutine ConstructHydrodynamicProperties
@@ -22669,11 +22939,16 @@ if1:    if (Me%DDecomp%MasterOrSlave) then
                                          di                  = Me%Direction%di,         & 
                                          dj                  = Me%Direction%dj,         &
                                          STAT                = STAT_CALL)                 
-            if (STAT_CALL /= SUCCESS_) then
-                stop 'THOMAS_2D_NonHydroCorrection - ModuleHydrodynamic - ERR10'                
-            endif                
+ 
+#else 
+
+            STAT_CALL = SUCCESS_                
 
 #endif _USE_MPI
+
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'THOMAS_2D_NonHydroCorrection - ModuleHydrodynamic - ERR10'                
+            endif            
 
         else if1
               
@@ -23397,7 +23672,9 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             call CyclicBoundVertical (VectorD = Me%WaterFluxes%Z)
 
         endif
-
+        
+        STAT_CALL = SUCCESS_        
+        
 #if _USE_MPI
         if (Me%WorkSize%KUB > 1) then
             !if domain decomposition is On exchanges vertical velocity along the domains boundaries
@@ -23407,11 +23684,17 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
                                            KLB              = Me%WorkSize%KLB,          &
                                            KUB              = Me%WorkSize%KUB,          &
                                            STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) then
-                stop 'New_VerticalHydrodynamic - ModuleHydrodynamic - ERR10'
-            endif   
         endif                    
+#else 
+
+        STAT_CALL = SUCCESS_
+
 #endif _USE_MPI     
+
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'New_VerticalHydrodynamic - ModuleHydrodynamic - ERR10'
+        endif   
+
         
     end subroutine New_VerticalHydrodynamic
     
@@ -24374,6 +24657,7 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
         if (Me%Relaxation%Velocity) call VelocityRelaxation 
 
         STAT_CALL = SUCCESS_
+        
 #if _USE_MPI
         !if domain decomposition is On exchanges velocities along the domains boundaries
         !call ReceiveSendVelocity3DMPI(Property3D = Velocity_UV_New, Vector = .true.)
@@ -24385,6 +24669,7 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
                                        dj               = Me%Direction%dj,          &
                                        STAT             = STAT_CALL)
 #endif _USE_MPI
+
         if (STAT_CALL /= SUCCESS_) stop 'Compute_Velocity - ModuleHydrodynamic - ERR10'        
 
         !Nullify auxiliar variables
@@ -24805,10 +25090,9 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         !            NUM_FLT,V_LIMIT,RAD_DEG,RAD_MIN
 
         !Begin--------------------------------------------------------------------------                    
-	  
+
 	    !AVOID SINGULARITY AT POLES
-	    POLE = PI/2.0 - AlmostZero	  
-	  
+        POLE = PI/2.0 - AlmostZero
         ! CONVERT DEGREE TO RADIAN
         LAT = LATIN*RAD_DEG
         LON = LONIN*RAD_DEG
@@ -24826,13 +25110,13 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
         ! PARAMETERS
         A  = 6378137.0000           ! ELLIPSOIDAL SEMI-MAJOR AXIS
-        B  = 6356752.3142			! ELLIPSOIDAL SEMI-MINOR AXIS
+        B  = 6356752.3142           ! ELLIPSOIDAL SEMI-MINOR AXIS
         !F  = 0.00335281067183       ! FLATTENING, F = (A-B)/A
-        E  = 0.08181919092891		! ECCENTRICITY, E = SQRT(2.0*F-F**2)
-        F2 = 0.00669438000426		! F2 = E**2
-        ES = 0.00673949675659		! 2ND ECCENTRICITY, ES = E**2/(1-E**2)
+        E  = 0.08181919092891       ! ECCENTRICITY, E = SQRT(2.0*F-F**2)
+        F2 = 0.00669438000426       ! F2 = E**2
+        ES = 0.00673949675659       ! 2ND ECCENTRICITY, ES = E**2/(1-E**2)
 
-        K0 = 0.9996				    ! SCALE FACTOR
+        K0 = 0.9996                 ! SCALE FACTOR
 
         TMP  = SQRT(1.0-F2*SN**2)
         TMP0 = SQRT(1.0-F2*SN0**2)
@@ -24891,7 +25175,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         
 	    !COMMON /CONS/ ELMAX,GRAV,PI,R_EARTH,GX,ONE,NUM_GRID,	&
 		!    			NUM_FLT,V_LIMIT,RAD_DEG,RAD_MIN
-		    			
+
         real        :: ANG_L, ANG_R, ANG_T, HALFL
         real        :: HH, DEL_X, DEL_Y, H1, H2
         real        :: DS, DD, SN, CS, X_SHIFT, Y_SHIFT
@@ -25966,7 +26250,9 @@ cd1:        if (WaterPoints3D(i, j, KUB) == OpenPoint) then
 
         endif                  
 
-        
+        if (Me%LandAbsorption%ON) then
+            call ComputeLandAbsorption
+        endif
         
         !Nullify auxiliar variables
         nullify (TiCoef_2D)
@@ -28398,6 +28684,180 @@ cd25:   if (Me%ComputeOptions%LocalSolution == AssimilationField_    .or.       
     End Subroutine WaterLevel_FlatherLocalSolution
 
     !--------------------------------------------------------------------------
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine compute marine structures absorption effect using                    ! 
+    ! the Sommerfeld radiation condition for the open boundary                             !
+    ! The absortion effect is simulated removing mass from the domain                      !
+    !                                                                                      !
+    ! Input :                                                                              !
+    ! OutPut: Water Level correction in cells adjacent to land                             !
+    ! Author: Paulo Chambel (16/1)                                                         !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    Subroutine ComputeLandAbsorption
+
+        !Arguments------------------------------------------------------------
+        
+
+        !Local---------------------------------------------------------------------
+        real(8), dimension(:,:,:), pointer :: WaterFlux_X, WaterFlux_Y
+
+        real,    dimension(:,:)  , pointer :: DUX, DVY, Bathymetry, TiCoef_2D,          &
+                                              WaterLevel_New, WaterColumnZ
+
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_U, ComputeFaces3D_V,        &
+                                              OpenPoints3D
+
+        integer, dimension(:,:  ), pointer :: LandPoints2D, KFloor_Z
+
+        real(8)                            :: FlowAux, FluxX, FluxY
+        real(8)                            :: DT_Elevation, WLAbsorption, Celerity
+        
+        integer                            :: AuxComputeX, AuxComputeY, AuxLand
+        integer                            :: i, j, k, IUB, ILB, JUB, JLB, KUB
+        integer                            :: STAT_CALL
+        !Begin----------------------------------------------------------------
+        
+        if (Me%LandAbsorption%ID%SolutionFromFile) then
+            call ModifyFillMatrix (FillMatrixID   = Me%LandAbsorption%ID%ObjFillMatrix, &
+                                   Matrix2D       = Me%LandAbsorption%Coef,             &
+                                   PointsToFill2D = Me%External_Var%WaterPoints2D,      &
+                                   STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  Stop 'ReadImposedSolution - ModuleHydrodynamic - ERR10'
+        endif
+        
+        
+        
+
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+
+        DT_Elevation      =  Me%WaterLevel%DT
+
+        TiCoef_2D         => Me%Coef%D2%Ti
+        
+        WaterLevel_New    => Me%WaterLevel%New
+
+        WaterFlux_X       => Me%WaterFluxes%X
+        WaterFlux_Y       => Me%WaterFluxes%Y 
+
+        WaterColumnZ      => Me%External_Var%WaterColumn
+        DUX               => Me%External_Var%DUX
+        DVY               => Me%External_Var%DVY       
+
+        OpenPoints3D      => Me%External_Var%OpenPoints3D        
+        ComputeFaces3D_U  => Me%External_Var%ComputeFaces3D_U
+        ComputeFaces3D_V  => Me%External_Var%ComputeFaces3D_V
+        KFloor_Z          => Me%External_Var%KFloor_Z
+        LandPoints2D      => Me%External_Var%LandPoints2D
+
+        !Gets a pointer to Bathymetry
+        call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR10'
+       
+        !End   - Shorten variables name
+
+
+dj:     do  j = JLB, JUB
+di:     do  i = ILB, IUB
+            
+            !if it is an open point        
+iOp:        if (OpenPoints3D(i, j, KUB) == OpenPoint) then
+            
+                AuxLand = LandPoints2D(i-1,j) + LandPoints2D(i+1,j) + LandPoints2D(i,j-1) + LandPoints2D(i,j+1) 
+            
+                !And has between 1 and 3 land cell boundaries
+iLa:            if (AuxLand > 0 .and. AuxLand < 4) then
+                
+                    !If the cell is assumed to have absorption 
+iCoef:              if (Me%LandAbsorption%Coef(i, j) > 0. ) then
+
+                        if (Me%LandAbsorption%Coef(i, j) > 1. ) then
+                            stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR20'
+                        endif
+                
+                        WLAbsorption = WaterLevel_New(i, j) - max(Me%LandAbsorption%WaterLevelRef, - Bathymetry(i, j))
+                
+                        !if the water level is above the reference above which is assumed that water leaves the domain
+iAbs:                   if (WLAbsorption > 0.) then
+                    
+                            !Compute incident wave direction
+                            
+                            !Celerity - rate per m that the water is able to leave the domain
+                            ! [m/s] = sqrt([m/s^2]*[m])
+                            Celerity = sqrt(Gravity*WaterColumnZ(i, j))
+                            
+                            ! [m^2] = [-] * [m/s] * [m] * [s]
+                            FlowAux  = Me%LandAbsorption%Coef(i, j) * Celerity * WLAbsorption * DT_Elevation
+                            
+                            !X flux
+                            AuxComputeX = ComputeFaces3D_U(i,j,KUB) + ComputeFaces3D_U(i,j+1,KUB)
+                            !Y flux
+                            AuxComputeY = ComputeFaces3D_V(i,j,KUB) + ComputeFaces3D_V(i+1,j,KUB)
+                            
+
+                            FluxX = 0.
+                            FluxY = 0.
+                            
+dk:                         do k= KFloor_Z(i, j), KUB
+                            
+                                if (AuxComputeX > 0) then
+                                    FluxX = FluxX + (WaterFlux_X(i, j,   k) * real(ComputeFaces3D_U(i, j, k)) + &
+                                                     WaterFlux_X(i, j+1, k) * real(ComputeFaces3D_U(i,j+1,k)))/real(AuxComputeX) 
+                                else
+                                    FluxX = 0.
+                                endif
+                            
+                                if (AuxComputeY > 0) then
+                                    FluxY = FluxY + (WaterFlux_Y(i,   j, k) * real(ComputeFaces3D_V(i,  j, k)) + &
+                                                     WaterFlux_Y(i+1, j, k) * real(ComputeFaces3D_V(i+1,j, k)))/real(AuxComputeY) 
+                                else
+                                    FluxY = 0.
+                                endif
+
+                            enddo dk
+                            
+                            FluxX = abs(FluxX)
+                            FluxY = abs(FluxY)
+                                                        
+                            !Computes X leaving component
+                            if (AuxComputeX == 1 .and. FluxX > 0.) then
+                                ![m] = [m] + [m^2]/[m]* [-]
+                                TiCoef_2D(i, j) = TiCoef_2D(i, j) + FlowAux / DUX(i, j) * (FluxX/(FluxX+FluxY))
+                            endif
+
+                            !Computes Y leaving component                                                    
+                            if (AuxComputeY == 1 .and. FluxY > 0.) then
+                                ![m] = [m] + [m^2]/[m]* [-]                                
+                                TiCoef_2D(i, j) = TiCoef_2D(i, j) + FlowAux / DVY(i, j) * (FluxY/(FluxX+FluxY))
+                            endif
+                            
+                        endif iAbs
+                    endif iCoef
+                endif iLa
+            endif iOp
+
+        enddo di
+        enddo dj           
+
+
+        call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR30'
+
+        !----------------------------------------------------------------------
+
+    End Subroutine ComputeLandAbsorption
+
+    !--------------------------------------------------------------------------
+
 
     !--------------------------------------------------------------------------
 
@@ -32918,7 +33378,7 @@ cd1:                if (ConservativeHorDif) then
                     Horizontal_Transport(i, j, k)            = Horizontal_Transport(i, j, k) &
                                                               - FaceFlux_WestSouth1  
 
-                    Me%Aux3DFlux        (iSouth, jWest, k)           =  FaceFlux_WestSouth2                   
+                    Me%Aux3DFlux        (iSouth, jWest, k)   =  FaceFlux_WestSouth2                   
 
                  enddo dok1
 
@@ -34211,18 +34671,18 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         real                               :: DischargeFlow, DischargeVelocity, AuxFlowK, AuxFlowIJ, SectionHeight
         real                               :: WaterLevelByPass !, Depth
         real                               :: CoordinateX, CoordinateY, XBypass, YBypass
-
         integer                            :: DirectionXY, DischargesNumber, DischargeID
         integer                            :: i, j, k, kd, kmin, kmax, di, dj, STAT_CALL, iNorth, jEast, KUB, n
         integer                            :: ib, jb !, kbottom, k1
-        integer                            :: n_i, n_j, n_iNorth, n_jEast 
 
-        integer                            :: FlowDistribution, nCells, nCellsAux
+        integer                            :: FlowDistribution, nCells, SpatialEmission
         integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
 
         logical                            :: ByPassON, IgnoreOK, CoordinatesON
 
         integer                            :: DischVertical
+        
+        real                               :: InterceptionRatio
         
         integer                            :: CHUNK
         
@@ -34352,35 +34812,39 @@ do1:    do DischargeID = 1, DischargesNumber
 
 i1:         if (nCells > 1) then
                 allocate(DistributionCoef(1:nCells))
+
 i2:             if      (FlowDistribution == DischByCell_       ) then
-                    
-                    nCellsAux = 0
-                    do n = 1, nCells
-                        n_i      = VectorI(n)
-                        n_j      = VectorJ(n)
-                        n_iNorth = n_i+di
-                        n_jEast  = n_j+dj
 
-                        if (ComputeFaces3D_UV(n_i,      n_j,     KUB) == Covered .or. &
-                            ComputeFaces3D_UV(n_iNorth, n_jEast, KUB) == Covered) then
-                            nCellsAux = nCellsAux + 1
-                        endif
-                    enddo
-                    
-                    if (nCellsAux > 0) then
-                        DistributionCoef(1:nCells) = 1./float(nCellsAux)
-                    else
-                        DistributionCoef(1:nCells) = FillValueReal
-                    endif
+                    call GetDischargeSpatialType (Me%ObjDischarges, DischargeID, SpatialEmission, STAT = STAT_CALL)
 
-                else i2
-                    
-                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR100'
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR100'
+                    endif 
 
-                endif i2
+                    call GetDischargeInterceptionRatio(Me%ObjDischarges, DischargeID, InterceptionRatio,  &
+                                                       STAT = STAT_CALL)                          
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR105'
+                    endif 
+
+
+                    call DischargeDistributionPerCell (VectorI          = VectorI,      &
+                                                       VectorJ          = VectorJ,      &
+                                                       nCells           = nCells,       &
+                                                       SpatialEmission  = SpatialEmission,&
+                                                       Mapping          = Me%External_Var%ComputeFaces3D_UV,& 
+                                                       Property         = MomentumHorizontal_, &
+                                                       InterceptionRatio= InterceptionRatio, &   
+                                                       DistributionCoef = DistributionCoef)
+                else  i2
+                
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR110'
+                
+                endif i2                    
+                
             endif i1
 
-            AuxFlowIJ = abs(DischargeFlow)
+            AuxFlowIJ = DischargeFlow
 
             CHUNK = CHUNK_K(kmin,kmax)
                 
@@ -34416,7 +34880,7 @@ dn:         do n=1, nCells
                                                STAT              = STAT_CALL)     
 
                     if (STAT_CALL/=SUCCESS_)                                            &
-                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR95'
+                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
 
                 endif
 
@@ -34467,7 +34931,7 @@ dk:             do k = kmin,kmax
                         if (DischVertical == DischUniform_) AuxFlowK = DUZ_VZ(i,j,k) / SectionHeight * AuxFlowIJ
 
                         ![m/s*m^3/s]                  = [m^3] * [m/s] / [s] 
-                        if (DischargeFlow >= 0.) then
+                        if (AuxFlowK >= 0.) then
 
                             MomentumDischarge  = AuxFlowK * DischargeVelocity
                             
@@ -34491,7 +34955,7 @@ dk:             do k = kmin,kmax
                                     AuxFlowK = DUZ_VZ(iNorth, jEast,k) / SectionHeight * AuxFlowIJ
 
                         ![m/s*m^3/s]                  = [m^3] * [m/s] / [s] 
-                        if (DischargeFlow >= 0.) then
+                        if (AuxFlowK >= 0.) then
 
                             MomentumDischarge  = AuxFlowK * DischargeVelocity 
                             
@@ -34558,15 +35022,15 @@ dk:             do k = kmin,kmax
 
             call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)             
             if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR110'
+                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR130'
 
             call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)             
             if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
+                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR140'
 
             call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)             
             if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR130'
+                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR150'
 
         enddo do1
 
@@ -34581,7 +35045,7 @@ dk:             do k = kmin,kmax
 
         !Disposes pointer to the Bathymetry
         call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR140'
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR160'
 
 
     End Subroutine ModifyMomentumDischarge
@@ -34589,8 +35053,7 @@ dk:             do k = kmin,kmax
     
     !End ----------------------------------------------------------------------
 
-
-Subroutine ModifyMomentumDischargeVert 
+    Subroutine ModifyMomentumDischargeVert 
       
 
         !Arguments------------------------------------------------------------
@@ -34610,12 +35073,13 @@ Subroutine ModifyMomentumDischargeVert
         integer                            :: DischargesNumber, DischargeID
         integer                            :: i, j, k, kd, kmin, kmax, STAT_CALL, KUB, n
         integer                            :: ib, jb !, kbottom, k1
-        integer                            :: n_i, n_j
 
-        integer                            :: FlowDistribution, nCells, nCellsAux
+        integer                            :: FlowDistribution, nCells, SpatialEmission
         integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
 
         logical                            :: ByPassON, IgnoreOK, CoordinatesON
+        
+        real                               :: InterceptionRatio
 
         integer                            :: DischVertical
         
@@ -34721,31 +35185,40 @@ do1:    do DischargeID = 1, DischargesNumber
 
 
             call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
-                                              VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)             
-
-            if (STAT_CALL/=SUCCESS_)                                                     &
-                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR90'
-
-
+                                              VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+                                              
+            if (STAT_CALL/=SUCCESS_) then
+                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR80'
+            endif                
+                
 i1:         if (nCells > 1) then
                 allocate(DistributionCoef(1:nCells))
-i2:             if      (FlowDistribution == DischByCell_       ) then
-                    
-                    nCellsAux = 0
-                    do n = 1, nCells
-                        n_i      = VectorI(n)
-                        n_j      = VectorJ(n)
 
-                        if (ComputeFaces3D_W(n_i,      n_j,     KUB) == Covered) then
-                            nCellsAux = nCellsAux + 1
-                        endif
-                    enddo
-                    
-                    if (nCellsAux > 0) then
-                        DistributionCoef(1:nCells) = 1./float(nCellsAux)
-                    else
-                        DistributionCoef(1:nCells) = FillValueReal
-                    endif
+                
+i2:             if      (FlowDistribution == DischByCell_       ) then
+
+                    call GetDischargeSpatialType (Me%ObjDischarges, DischargeID,    &
+                                                  SpatialEmission, STAT = STAT_CALL)
+
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR90'
+                    endif 
+
+                    call GetDischargeInterceptionRatio(Me%ObjDischarges, DischargeID, InterceptionRatio,     &
+                                                       STAT = STAT_CALL)                          
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR105'
+                    endif 
+
+
+                    call DischargeDistributionPerCell (VectorI          = VectorI,  &
+                                                       VectorJ          = VectorJ,  &
+                                                       nCells           = nCells,   &
+                                                       SpatialEmission  = SpatialEmission,&
+                                                       Mapping          = Me%External_Var%ComputeFaces3D_W,& 
+                                                       Property         = MomentumVertical_, &
+                                                       InterceptionRatio= InterceptionRatio, &
+                                                       DistributionCoef = DistributionCoef)
 
                 else i2
                     
@@ -34754,7 +35227,11 @@ i2:             if      (FlowDistribution == DischByCell_       ) then
                 endif i2
             endif i1
 
-            AuxFlowIJ = abs(DischargeFlow)
+            if (DischargeFlow > 0.) then
+                AuxFlowIJ = DischargeFlow
+            else
+                AuxFlowIJ = 0.
+            endif                
 
             if (Me%OutPut%TimeSerieDischON) then
                 Me%OutPut%TimeSerieDischProp(DischargeID,4) = 0.
@@ -34776,7 +35253,7 @@ dn:         do n=1, nCells
                                                STAT              = STAT_CALL)     
 
                     if (STAT_CALL/=SUCCESS_)                                            &
-                        stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR95'
+                        stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR110'
 
                 endif
 
@@ -34809,26 +35286,23 @@ dk:             do k = kmin,kmax
                         if (DischVertical == DischUniform_) AuxFlowK = DWZ(i,j,k) / SectionHeight * AuxFlowIJ
 
                         ![m/s*m^3/s]                  = [m^3] * [m/s] / [s] 
-                        ! if (DischargeFlow >= 0.) then
-
-                            MomentumDischarge  = AuxFlowK * DischargeVelocity
+                        MomentumDischarge  = AuxFlowK * DischargeVelocity
+                        
+                        !Me%WaterFluxes%DischargesVelUV(i, j, k) = DischargeVelocity
                             
-                            Me%WaterFluxes%DischargesVelUV(i, j, k) = DischargeVelocity
-                            
-                       ! else
-
-                         !   MomentumDischarge  = AuxFlowK * Velocity_W(i, j, k)
-                            
-                         !   Me%WaterFluxes%DischargesVelUV(i, j, k) = Velocity_W(i, j, k)
-            
-                        !endif 
-
                         Me%Coef%D3%Ti (i, j, k) = Me%Coef%D3%Ti (i, j, k) + MomentumDischarge                       
+                        
+                    else if (ComputeFaces3D_W(i, j, k+1) == Covered) then                        
 
+                        if (DischVertical == DischUniform_) AuxFlowK = DWZ(i,j,k) / SectionHeight * AuxFlowIJ
+
+                        ![m/s*m^3/s]                  = [m^3] * [m/s] / [s] 
+                        MomentumDischarge  = AuxFlowK * DischargeVelocity
+                        
+                        !Me%WaterFluxes%DischargesVelUV(i, j, k) = DischargeVelocity
                             
-                    else if (abs(MomentumDischarge) > AllmostZero) then
-                        write(*,*) 'WARNING_ - The Model is trying to discharge Momentum in a No Compute Face'
-                        write(*,*) 'WARNING_ - ModifyMomentumDischargeVert - ModuleHydrodynamic - WARN01'
+                        Me%Coef%D3%Ti (i, j, k+1) = Me%Coef%D3%Ti (i, j, k+1) + MomentumDischarge                       
+                            
                     endif 
                     
                     if (Me%OutPut%TimeSerieDischON) then
@@ -34855,15 +35329,15 @@ dk:             do k = kmin,kmax
 
             call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)             
             if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR110'
+                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR120'
 
             call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)             
             if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR120'
+                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR130'
 
             call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)             
             if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR130'
+                stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR140'
 
         enddo do1
         
@@ -34881,7 +35355,7 @@ dk:             do k = kmin,kmax
 
         !Disposes pointer to the Bathymetry
         call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR140'
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR150'
 
 
     End Subroutine ModifyMomentumDischargeVert
@@ -34889,6 +35363,168 @@ dk:             do k = kmin,kmax
     
     !End ----------------------------------------------------------------------
 
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    !  This subroutine distributes the flow along a set of cells link to:                  ! 
+    !           - cloud of points XYZ                                                      !
+    !           - lines                                                                    !
+    !           - polygons                                                                 !
+    !                                                                                      !
+    ! Input : VectorI, VectorJ, nCells                                                     !
+    ! OutPut: Flow distribution per cell                                                   !
+    ! Author: Paulo Chambel (2016/2)                                                       !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine DischargeDistributionPerCell (VectorI, VectorJ, nCells, SpatialEmission, &    
+                                             Mapping, Property, InterceptionRatio, DistributionCoef)
+      
+
+        !Arguments------------------------------------------------------------
+        integer, dimension(:    ), pointer :: VectorI, VectorJ
+        integer                            :: nCells, SpatialEmission
+        integer, dimension(:,:,:), pointer :: Mapping
+        integer                            :: Property
+        real                               :: InterceptionRatio
+        real,    dimension(:    ), pointer :: DistributionCoef        
+         
+        !Local---------------------------------------------------------------------
+        integer                            :: n_i, n_j, n_iNorth, n_jEast, KUB, n 
+        integer                            :: di, dj, STAT_CALL
+        real                               :: SumCell, Dxy
+        logical                            :: UnLockGrid
+        
+        !Begin----------------------------------------------------------------
+
+        KUB = Me%WorkSize%KUB 
+                    
+        SumCell    = 0.
+        
+
+        if (.not. associated(Me%External_Var%DUX)) then
+            call GetHorizontalGrid(Me%ObjHorizontalGrid,                                &
+                                   DUX  = Me%External_Var%DUX,                          &
+                                   DVY  = Me%External_Var%DVY,                          &
+                                   STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Subroutine DischargeDistributionPerCell - ModuleHydrodynamic. ERR10.'
+            
+            UnLockGrid = .true.                                   
+            
+        else
+            UnLockGrid = .false.
+        endif
+
+i1:     if      (Property == Mass_              ) then
+        
+            do n = 1, nCells
+            
+                n_i      = VectorI(n)
+                n_j      = VectorJ(n)
+            
+                if     (SpatialEmission == DischXYZPoints_) then                
+                    Dxy      = 1.
+                elseif (SpatialEmission == DischLine_     ) then
+                    Dxy      = sqrt(Me%External_Var%DUX(n_i, n_j)**2.+Me%External_Var%DVY(n_i, n_j)**2.)
+                elseif (SpatialEmission == DischPolygon_  ) then                    
+                    Dxy      = Me%External_Var%DUX(n_i, n_j) * Me%External_Var%DVY(n_i, n_j)
+                endif                    
+
+                SumCell             = SumCell + Dxy
+                DistributionCoef(n) = Dxy 
+
+            enddo
+
+        elseif  (Property == MomentumHorizontal_) then i1
+
+            di  = Me%Direction%di
+            dj  = Me%Direction%dj
+
+            do n = 1, nCells
+                n_i      = VectorI(n)
+                n_j      = VectorJ(n)
+                n_iNorth = n_i+di
+                n_jEast  = n_j+dj
+
+i2:             if (Mapping(n_i,n_j, KUB) == 1 .or. Mapping(n_iNorth, n_jEast, KUB) == 1) then
+                    if     (SpatialEmission == DischXYZPoints_) then                
+                        Dxy      = 1.
+                    elseif (SpatialEmission == DischLine_     ) then
+                        Dxy      = sqrt(Me%External_Var%DUX(n_i, n_j)**2. + Me%External_Var%DVY(n_i, n_j)**2.)
+                    elseif (SpatialEmission == DischPolygon_  ) then                    
+                        Dxy      = Me%External_Var%DUX(n_i, n_j) * Me%External_Var%DVY(n_i, n_j)
+                    endif  
+
+                    SumCell             = SumCell + Dxy
+                    DistributionCoef(n) = Dxy                
+                                                            
+                endif i2
+                
+            enddo
+    
+            
+        elseif  (Property == MomentumVertical_  ) then i1          
+        
+            do n = 1, nCells
+
+                n_i      = VectorI(n)
+                n_j      = VectorJ(n)
+
+i3:             if (Mapping(n_i,n_j, KUB) == 1) then
+                    if     (SpatialEmission == DischXYZPoints_) then                
+                        Dxy      = 1.
+                    elseif (SpatialEmission == DischLine_     ) then
+                        Dxy      = sqrt(Me%External_Var%DUX(n_i, n_j)**2.+Me%External_Var%DVY(n_i, n_j)**2.)
+                    elseif (SpatialEmission == DischPolygon_  ) then                    
+                        Dxy      = Me%External_Var%DUX(n_i, n_j) * Me%External_Var%DVY(n_i, n_j)
+                    endif  
+                    
+                    SumCell             = SumCell + Dxy
+                    DistributionCoef(n) = Dxy 
+                    
+                endif i3
+                
+            enddo            
+    
+        endif i1
+        
+                
+        if (SumCell > 0.) then
+            DistributionCoef(1:nCells) = DistributionCoef(1:nCells) / SumCell
+        else
+            DistributionCoef(1:nCells) = 0.                                     
+        endif  
+        
+        if (Me%DDecomp%MasterOrSlave) then
+            if (InterceptionRatio < 0. .or. InterceptionRatio > 1.) then
+                write(*,*) 'MPI_ID, InterceptionRatio=', Me%DDecomp%MPI_ID, InterceptionRatio
+                stop 'Subroutine DischargeDistributionPerCell - ModuleHydrodynamic. ERR20.'
+            endif
+            DistributionCoef(1:nCells) = InterceptionRatio * DistributionCoef(1:nCells)
+
+        endif            
+        
+        if (UnLockGrid) then
+
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                              &
+                                     Me%External_Var%DUX,                               &
+                                     STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Subroutine DischargeDistributionPerCell - ModuleHydrodynamic. ERR30.'
+
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid,                              &
+                                     Me%External_Var%DVY,                               &
+                                     STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Subroutine DischargeDistributionPerCell - ModuleHydrodynamic. ERR40.'
+
+        endif
+    
+    end subroutine DischargeDistributionPerCell 
+    
+    !-----------------------------------------------------------------------------------
 
     subroutine Modify_ScraperEffect
         
@@ -42732,7 +43368,8 @@ subroutine ModifyWaterDischarges
         real                               :: XBypass, YBypass
         logical                            :: CoordinatesON
         integer                            :: nCells, n
-        integer                            :: FlowDistribution 
+        integer                            :: FlowDistribution, SpatialEmission 
+        real                               :: InterceptionRatio
 
         integer                            :: CHUNK
  
@@ -42771,7 +43408,7 @@ cd1:    if (Me%ComputeOptions%WaterDischarges) then
 do1:        do DischargeID = 1, DischargesNumber
 
                 call GetDischargeON(Me%ObjDischarges,DischargeID, IgnoreOK, STAT = STAT_CALL)   
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR25'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR30'
 
                 if (IgnoreOK) cycle
 
@@ -42793,7 +43430,7 @@ do1:        do DischargeID = 1, DischargesNumber
                                                    XBypass       = XBypass,             &
                                                    YBypass       = YBypass,             &
                                                    STAT          = STAT_CALL)   
-                if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR30'
+                if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR40'
                 
 
                 !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
@@ -42802,18 +43439,18 @@ do1:        do DischargeID = 1, DischargesNumber
             
                 if (CoordinatesON) then
                     call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, I, J, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR40'
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR60'
 
                     call CorrectsCellsDischarges(Me%ObjDischarges, DischargeID, I, J, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR45'                
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR70'                
                     
                     if (ByPassON) then
 
                         call GetXYCellZ(Me%ObjHorizontalGrid, XBypass, YBypass, Ib, Jb, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR400'
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR80'
 
                         call CorrectsBypassCellsDischarges(Me%ObjDischarges, DischargeID, Ib, Jb, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR450'
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR90'
 
                     endif
                     
@@ -42833,25 +43470,46 @@ do1:        do DischargeID = 1, DischargesNumber
                                            SurfaceElevation2 = WaterLevelByPass,        &                                           
                                            STAT = STAT_CALL)             
 
-                if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR60'
+                if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR100'
 
 
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
                                                   VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)             
 
-                if (STAT_CALL/=SUCCESS_)                                                     &
-                    stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR70'
+                if (STAT_CALL/=SUCCESS_)                                                &
+                    stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR110'
 
 
 i1:             if (nCells > 1) then
                     allocate(DistributionCoef(1:nCells))
-i2:                 if      (FlowDistribution == DischByCell_ ) then
                     
-                        DistributionCoef(1:nCells) = 1./float(nCells)
+i2:                 if      (FlowDistribution == DischByCell_       ) then                    
 
+                        call GetDischargeSpatialType (Me%ObjDischarges, DischargeID,    &
+                                                      SpatialEmission, STAT = STAT_CALL)
+
+                        if (STAT_CALL/=SUCCESS_) then
+                            stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR120'
+                        endif 
+
+                        call GetDischargeInterceptionRatio(Me%ObjDischarges, DischargeID, InterceptionRatio,     &
+                                                           STAT = STAT_CALL)                          
+                        if (STAT_CALL/=SUCCESS_) then
+                            stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR130'
+                        endif 
+
+
+                        call DischargeDistributionPerCell (VectorI          = VectorI,  &
+                                                           VectorJ          = VectorJ,  &
+                                                           nCells           = nCells,   &
+                                                           SpatialEmission  = SpatialEmission,&
+                                                           Mapping          = Me%External_Var%WaterPoints3D,& 
+                                                           Property         = Mass_,    &
+                                                           InterceptionRatio=InterceptionRatio,&
+                                                           DistributionCoef = DistributionCoef)
                     else i2
                     
-                        stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR80'
+                        stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR150'
 
                     endif i2
                 endif i1
@@ -42878,7 +43536,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                                                    STAT              = STAT_CALL)                        
 
                         if (STAT_CALL/=SUCCESS_)                                        &
-                            stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR95'
+                            stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR160'
 
                     endif
 
@@ -42899,7 +43557,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
 dk:                 do k=kmin, kmax
 
-                        if (OpenPoints3D(i, j, k) /= OpenPoint .and. DischargeFlow < 0)  Cycle
+                        if (OpenPoints3D(i, j, k) /= OpenPoint .and. AuxFlowIJ < 0)  Cycle
 
                         if (DischVertical == DischUniform_) then
                         
@@ -42922,26 +43580,34 @@ dk:                 do k=kmin, kmax
 
                 enddo dn
 
-                if (nCells > 1) deallocate(DistributionCoef)
-
                 call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)             
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR90'
+                    stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR170'
 
                 call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)             
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR100'
+                    stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR180'
 
                 call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)             
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR110'
+                    stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR190'
+                    
 
 
+                if (nCells > 1) then
+                    !deallocate(DistributionCoef)
+                    call SetDistributionCoefMass(Me%ObjDischarges, DischargeID,     &
+                                                 DistributionCoef, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR140'
+                    endif                            
+                endif
+                
             enddo do1
 
             !Disposes pointer to the Bathymetry
             call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR200'
 
 
         endif cd1
@@ -45718,6 +46384,18 @@ cd3:            if (Me%OutPut%hdf5ON) then
 
 
                 endif
+                
+                if (Me%LandAbsorption%ON) then
+                    if (Me%LandAbsorption%ID%SolutionFromFile) then
+                        call KillFillMatrix (FillMatrixID   = Me%LandAbsorption%ID%ObjFillMatrix, &
+                                             STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)  Stop 'KillHydrodynamic - ModuleHydrodynamic - ERR30'
+                    endif                
+                    if (associated(Me%LandAbsorption%Coef))then
+                        deallocate(Me%LandAbsorption%Coef)
+                        nullify   (Me%LandAbsorption%Coef)
+                    endif
+                endif                    
 
 #ifdef _ENABLE_CUDA                
                 !Kills ModuleCuda
@@ -47011,9 +47689,10 @@ i1:     if (STAT_CALL /= SUCCESS_) then
         
         inquire (FILE=Me%Files%InitialHydrodynamic, EXIST=EXT) 
 
-        if (.not.EXT)                                                                    &
+        if (.not.EXT) then
+            write(*,*) 'Do not exist file =',trim(Me%Files%InitialHydrodynamic)
             call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR10.')
-            
+        endif   
 
         !Gets File Access Code
         call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
@@ -49727,14 +50406,15 @@ cd1:    if (HydrodynamicID > 0) then
        
         !Module - ModuleHorizontalGrid
         !Horizontal Grid properties
-         call GetHorizontalGrid(Me%ObjHorizontalGrid,                                   &
-                                DXX  = Me%External_Var%DXX,                             &
-                                DYY  = Me%External_Var%DYY,                             &
-                                DZX  = Me%External_Var%DZX,                             &
-                                DZY  = Me%External_Var%DZY,                             &
-                                DUX  = Me%External_Var%DUX,                             &
-                                DVY  = Me%External_Var%DVY,                             &
-                                STAT = STAT_CALL)
+                
+        call GetHorizontalGrid(Me%ObjHorizontalGrid,                                    &
+                               DXX  = Me%External_Var%DXX,                              &
+                               DYY  = Me%External_Var%DYY,                              &
+                               DZX  = Me%External_Var%DZX,                              &
+                               DZY  = Me%External_Var%DZY,                              &
+                               DUX  = Me%External_Var%DUX,                              &
+                               DVY  = Me%External_Var%DVY,                              &
+                               STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR01.'
@@ -49911,31 +50591,35 @@ cd1:    if (HydrodynamicID > 0) then
         !Local----------------------------------------------------------------------
         integer                          :: STAT_CALL 
 
-
-
         !Module - ModuleHorizontalMap
         !Horizontal Mapping Properties
-        call GetBoundaryFaces(Me%ObjHorizontalMap,                          &
-                              Me%External_Var%BoundaryFacesU,               &
-                              Me%External_Var%BoundaryFacesV,               &
+        call GetBoundaryFaces(Me%ObjHorizontalMap,                                      &
+                              Me%External_Var%BoundaryFacesU,                           &
+                              Me%External_Var%BoundaryFacesV,                           &
                               STAT = STAT_CALL)      
 
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR10.'
 
 
-        call GetBoundaries(Me%ObjHorizontalMap,                             &
-                           Me%External_Var%BoundaryPoints,                  &
+        call GetBoundaries(Me%ObjHorizontalMap,                                         &
+                           Me%External_Var%BoundaryPoints,                              &
                               STAT = STAT_CALL)      
 
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR20.'
 
         !Gets WaterPoints2D
         call GetWaterPoints2D(Me%ObjHorizontalMap, &
                               Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR30.'
+
+        !Gets LandPoints2D
+        call GetLandPoints2D(Me%ObjHorizontalMap, &
+                              Me%External_Var%LandPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR40.'
 
 
     End Subroutine ReadLock_ModuleHorizontalMap
@@ -49965,34 +50649,40 @@ cd1:    if (HydrodynamicID > 0) then
         !Horizontal Mapping Properties
 
         !Boundary faces along the X direction
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryFacesU,  &
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryFacesU,    &
                                 STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR10.'
 
 
         !Boundary faces along the Y direction
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryFacesV,  &
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryFacesV,    &
                                 STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR20.'
 
        !Boundary points
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints,  &
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints,    &
                                 STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR30.'
 
         !UnGets WaterPoints2D
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, &
+        call UnGetHorizontalMap(Me%ObjHorizontalMap,                                    &
                                 Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         
-        if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR**.'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR40.'
 
+        !UnGets LandPoints2D
+        call UnGetHorizontalMap(Me%ObjHorizontalMap,                                    &
+                                Me%External_Var%LandPoints2D, STAT = STAT_CALL)
+        
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR50.'
 
 
     End Subroutine ReadUnLock_ModuleHorizontalMap
