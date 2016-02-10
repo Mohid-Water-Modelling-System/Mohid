@@ -191,7 +191,7 @@ Module ModuleWaterProperties
                                           GetDischargeFlowDistribuiton, UnGetDischarges,        &
                                           GetDischargeON, GetByPassConcIncrease,                &
                                           GetDischargeFromIntakeON, GetIntakePosition,          &
-                                          Kill_Discharges
+                                          GetDistributionCoefMass, Kill_Discharges
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
                                           GetNumberOfTimeSeries, GetTimeSerieLocation,          &
                                           CorrectsCellsTimeSerie, TryIgnoreTimeSerie,           &
@@ -18857,7 +18857,7 @@ do3:            do k = kbottom, KUB
 dd:     do dis = 1, Me%Discharge%Number
 
             call GetDischargeON(Me%ObjDischarges,dis, IgnoreOK, STAT = STAT_CALL)   
-            if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR25'
+            if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR40'
 
             if (IgnoreOK) then
                 Me%Discharge%Ignore   (dis) = .true.
@@ -18878,16 +18878,16 @@ dd:     do dis = 1, Me%Discharge%Number
                                                OpenPoints3D  = Me%ExternalVar%OpenPoints3D,&
                                                STAT          = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR50'
             
             !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
             call GetByPassON(Me%ObjDischarges, dis, ByPassON, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR75'
+            if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR60'
             
             if (ByPassON) Me%Discharge%ByPass   (dis) = .true.
 
             call GetDischargeFromIntakeON(Me%ObjDischarges, dis, DischargeFromIntakeON, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR76'
+            if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR70'
 
             if (ByPassON) then
                 WaterLevelByPass = WaterLevel(ib, jb)
@@ -18913,18 +18913,24 @@ dd:     do dis = 1, Me%Discharge%Number
                                               VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)             
 
             if (STAT_CALL/=SUCCESS_)                                                     &
-                stop 'Sub. WaterPropDischarges - ModuleWaterProperties - ERR70'
+                stop 'Sub. WaterPropDischarges - ModuleWaterProperties - ERR90'
 
 
-i11:            if (nCells > 1) then
-                allocate(DistributionCoef(1:nCells))
+i11:        if (nCells > 1) then
+                !allocate(DistributionCoef(1:nCells))
 i22:                if      (FlowDistribution == DischByCell_       ) then
             
-                    DistributionCoef(1:nCells) = 1./float(nCells)
+                    !DistributionCoef(1:nCells) = 1./float(nCells)
+
+                    call GetDistributionCoefMass(Me%ObjDischarges, dis,                 &
+                                                 DistributionCoef, STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'Sub. WaterPropDischarges - ModuleWaterProperties - ERR100'
+                    endif                       
 
                 else i22
             
-                    stop 'Sub. WaterPropDischarges - ModuleWaterProperties - ERR80'
+                    stop 'Sub. WaterPropDischarges - ModuleWaterProperties - ERR110'
 
                 endif i22
             endif i11
@@ -18950,7 +18956,7 @@ dn:         do n=1, nCells
                                                STAT              = STAT_CALL)                        
 
                     if (STAT_CALL/=SUCCESS_)                                            &
-                        stop 'Sub. WaterPropDischarges - ModuleWaterProperties - ERR85'
+                        stop 'Sub. WaterPropDischarges - ModuleWaterProperties - ERR120'
                         
                     DischargeFlow = DischargeFlow + AuxFlowIJ
 
@@ -18993,7 +18999,7 @@ dn:         do n=1, nCells
                                                            PropertyX%ID%IDNumber,       &
                                                            ByPassConcIncrease,          &
                                                            STAT = STAT_CALL)
-                                if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR88'
+                                if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR130'
                                 
                                 PropertyX%DischConc(AuxCell) = PropertyX%Concentration(ib, jb, kb) + ByPassConcIncrease  
                                                      
@@ -19029,7 +19035,7 @@ dn:         do n=1, nCells
                                                      
                                         endif
                                     else
-                                        stop 'WaterPropDischarges - ModuleWaterProperties - ERR90'
+                                        stop 'WaterPropDischarges - ModuleWaterProperties - ERR140'
                                     endif
                                 endif
                                 
@@ -19038,7 +19044,7 @@ dn:         do n=1, nCells
                                     call GetIntakePosition (Me%ObjDischarges, dis,          &
                                                             IntakeI, IntakeJ, IntakeK,      &
                                                             STAT = STAT_CALL)
-                                    if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR91'
+                                    if (STAT_CALL/=SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR150'
                                     
                                     !DischargeConc here is the concentration increment
                                     PropertyX%DischConc(AuxCell) = PropertyX%Concentration(IntakeI, IntakeJ, IntakeK) + &
@@ -19083,27 +19089,33 @@ dn:         do n=1, nCells
 
             enddo dn
 
-            if (nCells > 1) deallocate(DistributionCoef)
+            if (nCells > 1) then
+                !deallocate(DistributionCoef)
+                call UnGetDischarges(Me%ObjDischarges, DistributionCoef, STAT = STAT_CALL)             
+                if (STAT_CALL/=SUCCESS_)                                                &
+                    stop 'WaterPropDischarges - ModuleWaterProperties - ERR160'
+                            
+            endif
 
 
             call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)             
             if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'WaterPropDischarges - ModuleWaterProperties - ERR100'
+                stop 'WaterPropDischarges - ModuleWaterProperties - ERR170'
 
             call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)             
             if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'WaterPropDischarges - ModuleWaterProperties - ERR110'
+                stop 'WaterPropDischarges - ModuleWaterProperties - ERR180'
 
             call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)             
             if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'WaterPropDischarges - ModuleWaterProperties - ERR120'
+                stop 'WaterPropDischarges - ModuleWaterProperties - ERR190'
 
 
             !Writes Discharges TimeSerie
             if (Me%Coupled%DischargesTracking%Yes) then
                 call WriteTimeSerieLine(DischargesTimeSerie%TimeSerie, DataBuffer, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    stop 'WaterPropDischarges - ModuleWaterProperties - ERR130'
+                    stop 'WaterPropDischarges - ModuleWaterProperties - ERR200'
                 DischargesTimeSerie => DischargesTimeSerie%Next
             endif
 
@@ -19113,15 +19125,15 @@ dn:         do n=1, nCells
         if (Me%Coupled%DischargesTracking%Yes) then
             deallocate(DataBuffer, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'WaterPropDischarges - ModuleWaterProperties - ERR140'
+                stop 'WaterPropDischarges - ModuleWaterProperties - ERR210'
         endif
 
         call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR150'
+        if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR220'
 
 
         call UnGetHydrodynamic(Me%ObjHydrodynamic, WaterLevel, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR160'
+        if (STAT_CALL /= SUCCESS_) stop 'WaterPropDischarges - ModuleWaterProperties - ERR230'
                                
         nullify(KFloor_Z)
 
