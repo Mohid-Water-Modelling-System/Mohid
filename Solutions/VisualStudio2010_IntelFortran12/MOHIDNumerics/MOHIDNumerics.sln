@@ -118,6 +118,11 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "ConvertHDF5ToGridData", "Co
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "TidePrev", "TidePrev\TidePrev.vfproj", "{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}"
 EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "DomainDecompositionConsolidation", "DomainDecompositionConsolidation\DomainDecompositionConsolidation.vfproj", "{C4312837-D792-4E19-96A3-12ECDCC70560}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug Developper Single|Win32 = Debug Developper Single|Win32
@@ -134,6 +139,8 @@ Global
 		Debug OpenMP|x64 = Debug OpenMP|x64
 		Debug|Win32 = Debug|Win32
 		Debug|x64 = Debug|x64
+		Release Double MPI|Win32 = Release Double MPI|Win32
+		Release Double MPI|x64 = Release Double MPI|x64
 		Release Double OpenMP PhreeqC|Win32 = Release Double OpenMP PhreeqC|Win32
 		Release Double OpenMP PhreeqC|x64 = Release Double OpenMP PhreeqC|x64
 		Release Double OpenMP|Win32 = Release Double OpenMP|Win32
@@ -174,6 +181,10 @@ Global
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug|Win32.Build.0 = Debug|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug|x64.ActiveCfg = Debug|x64
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Debug|x64.Build.0 = Debug|x64
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double MPI|Win32.Build.0 = MPI|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double MPI|x64.ActiveCfg = Release Double MPI|x64
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double MPI|x64.Build.0 = Release Double MPI|x64
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double OpenMP PhreeqC|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double OpenMP PhreeqC|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
@@ -222,6 +233,10 @@ Global
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug|Win32.Build.0 = Debug|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug|x64.ActiveCfg = Debug|x64
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Debug|x64.Build.0 = Debug|x64
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double MPI|Win32.Build.0 = MPI|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double MPI|x64.ActiveCfg = Release Double MPI|x64
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double MPI|x64.Build.0 = Release Double MPI|x64
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double OpenMP PhreeqC|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double OpenMP PhreeqC|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
@@ -267,6 +282,10 @@ Global
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug|Win32.Build.0 = Debug|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug|x64.ActiveCfg = Debug|x64
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Debug|x64.Build.0 = Debug|x64
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double MPI|Win32.Build.0 = MPI|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double MPI|x64.ActiveCfg = Release Double|x64
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double MPI|x64.Build.0 = Release Double|x64
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double OpenMP PhreeqC|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double OpenMP PhreeqC|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
@@ -315,6 +334,10 @@ Global
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug|Win32.Build.0 = Debug|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug|x64.ActiveCfg = Debug|x64
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Debug|x64.Build.0 = Debug|x64
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double MPI|Win32.Build.0 = MPI|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double MPI|x64.ActiveCfg = Release Double MPI|x64
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double MPI|x64.Build.0 = Release Double MPI|x64
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
@@ -354,6 +377,8 @@ Global
 		{7033A311-58C3-4992-B524-75396846B759}.Debug|Win32.ActiveCfg = Debug|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Debug|Win32.Build.0 = Debug|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Debug|x64.ActiveCfg = Debug|x64
+		{7033A311-58C3-4992-B524-75396846B759}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{7033A311-58C3-4992-B524-75396846B759}.Release Double MPI|x64.ActiveCfg = Release|x64
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
@@ -382,6 +407,8 @@ Global
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug|Win32.ActiveCfg = Debug|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug|Win32.Build.0 = Debug|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug|x64.ActiveCfg = Debug|x64
+		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double MPI|x64.ActiveCfg = Release|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
@@ -411,6 +438,8 @@ Global
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|Win32.ActiveCfg = Debug|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|Win32.Build.0 = Debug|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|x64.ActiveCfg = Debug|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double MPI|x64.ActiveCfg = Release Double|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP PhreeqC|x64.Build.0 = Release Double OpenMP PhreeqC|x64
@@ -442,6 +471,10 @@ Global
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug|Win32.ActiveCfg = Debug|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug|Win32.Build.0 = Debug|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug|x64.ActiveCfg = Debug|x64
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double MPI|Win32.Build.0 = MPI|Win32
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double MPI|x64.ActiveCfg = Release Double|x64
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double MPI|x64.Build.0 = Release Double|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double OpenMP|Win32.ActiveCfg = Release Double|x64
@@ -472,6 +505,8 @@ Global
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug|Win32.ActiveCfg = Debug|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug|Win32.Build.0 = Debug|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Debug|x64.ActiveCfg = Debug|x64
+		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double MPI|x64.ActiveCfg = Release|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
@@ -502,6 +537,8 @@ Global
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug|Win32.ActiveCfg = Debug|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug|Win32.Build.0 = Debug|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug|x64.ActiveCfg = Debug|x64
+		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double MPI|x64.ActiveCfg = Release Double|x64
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|x64
@@ -533,6 +570,8 @@ Global
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug|Win32.ActiveCfg = Debug|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug|Win32.Build.0 = Debug|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Debug|x64.ActiveCfg = Debug|x64
+		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double MPI|x64.ActiveCfg = Release|x64
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
@@ -563,6 +602,8 @@ Global
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug|Win32.ActiveCfg = Debug|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug|Win32.Build.0 = Debug|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug|x64.ActiveCfg = Debug|x64
+		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double MPI|x64.ActiveCfg = Release|x64
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
@@ -594,6 +635,8 @@ Global
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug OpenMP|x64.ActiveCfg = Debug OpenMI|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug|Win32.ActiveCfg = Debug Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug|x64.ActiveCfg = Debug Double Openmp|Win32
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double MPI|x64.ActiveCfg = Release Double|x64
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double OpenMP PhreeqC|x64
@@ -628,6 +671,8 @@ Global
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug|Win32.ActiveCfg = Debug|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug|Win32.Build.0 = Debug|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Debug|x64.ActiveCfg = Debug|x64
+		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double MPI|x64.ActiveCfg = Release Double|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|x64
@@ -663,6 +708,8 @@ Global
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug|Win32.ActiveCfg = Debug|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug|Win32.Build.0 = Debug|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Debug|x64.ActiveCfg = Debug|Win32
+		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double MPI|x64.ActiveCfg = Release|x64
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -698,6 +745,8 @@ Global
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug|Win32.ActiveCfg = Debug|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug|Win32.Build.0 = Debug|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Debug|x64.ActiveCfg = Debug|Win32
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double MPI|x64.ActiveCfg = Release|x64
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -732,6 +781,8 @@ Global
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug|Win32.ActiveCfg = Debug|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug|Win32.Build.0 = Debug|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Debug|x64.ActiveCfg = Debug|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double MPI|x64.ActiveCfg = Release|x64
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -766,6 +817,8 @@ Global
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug|Win32.ActiveCfg = Debug|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug|Win32.Build.0 = Debug|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug|x64.ActiveCfg = Debug|Win32
+		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double MPI|x64.ActiveCfg = Release|x64
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -800,6 +853,8 @@ Global
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug|Win32.ActiveCfg = Debug|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug|Win32.Build.0 = Debug|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug|x64.ActiveCfg = Debug|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double MPI|x64.ActiveCfg = Release|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -835,6 +890,8 @@ Global
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Debug|Win32.ActiveCfg = Debug|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Debug|Win32.Build.0 = Debug|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Debug|x64.ActiveCfg = Debug|Win32
+		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double MPI|x64.ActiveCfg = Release|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -870,6 +927,8 @@ Global
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug|Win32.ActiveCfg = Debug|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug|Win32.Build.0 = Debug|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Debug|x64.ActiveCfg = Debug|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double MPI|x64.ActiveCfg = Release Double|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release Double|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release Double|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release Double|Win32
@@ -905,6 +964,8 @@ Global
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Debug|Win32.ActiveCfg = Debug|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Debug|Win32.Build.0 = Debug|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Debug|x64.ActiveCfg = Debug|Win32
+		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double MPI|Win32.ActiveCfg = MPI|Win32
+		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double MPI|x64.ActiveCfg = Release|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
@@ -919,6 +980,46 @@ Global
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release|Win32.ActiveCfg = Release|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release|Win32.Build.0 = Release|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release|x64.ActiveCfg = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Developper Single|Win32.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Developper Single|x64.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Developper Single|x64.Build.0 = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Double Openmp|Win32.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Double Openmp|x64.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Double Openmp|x64.Build.0 = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Double PhreeqC|x64.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Double PhreeqC|x64.Build.0 = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Double|Win32.ActiveCfg = Debug Double|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Double|Win32.Build.0 = Debug Double|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug Double|x64.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug OpenMI|Win32.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug OpenMI|x64.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug OpenMI|x64.Build.0 = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug OpenMP|Win32.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug OpenMP|x64.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug OpenMP|x64.Build.0 = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug|Win32.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug|x64.ActiveCfg = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Debug|x64.Build.0 = Debug Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double MPI|Win32.ActiveCfg = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double MPI|Win32.Build.0 = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double MPI|x64.ActiveCfg = Release Double|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double OpenMP PhreeqC|Win32.ActiveCfg = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double OpenMP PhreeqC|Win32.Build.0 = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double OpenMP PhreeqC|x64.ActiveCfg = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double OpenMP|Win32.Build.0 = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double OpenMP|x64.ActiveCfg = Release|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double|Win32.ActiveCfg = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double|Win32.Build.0 = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release Double|x64.ActiveCfg = Release Double|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release OpenMP|Win32.ActiveCfg = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release OpenMP|Win32.Build.0 = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release OpenMP|x64.ActiveCfg = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release|Win32.ActiveCfg = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release|Win32.Build.0 = Release|Win32
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release|x64.ActiveCfg = Release|x64
+		{C4312837-D792-4E19-96A3-12ECDCC70560}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -946,5 +1047,6 @@ Global
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{7D60003A-7B07-4DAE-9046-FAB75E690696} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
+		{C4312837-D792-4E19-96A3-12ECDCC70560} = {0C2D3D02-FB0B-4A4D-8DA2-A01B104B528B}
 	EndGlobalSection
 EndGlobal
