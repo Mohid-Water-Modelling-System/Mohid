@@ -133,7 +133,10 @@ Module ModuleDrawing
     private :: CreateDomainPolygon
     private :: LocateCellPolygonsV2
     private :: PointInsideCell
-    
+
+    public  :: PercentageLineInsidePolygon
+    public  :: PercentagePolygonInsidePolygon
+    public  :: PercentageXYZPointsInsidePolygon    
     
     !Parameter-----------------------------------------------------------------
     integer(4), parameter  :: TypeX_Y_Z     =  1
@@ -3578,7 +3581,7 @@ i4:     if (c .gt. 0) then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !                                                                                       !
 ! Subroutine goal : computes the intersection between segment [x1x2]                    ! 
-!                   and line the line (y1y2)                                            !
+!                   and line (y1y2)                                            !
 !                                                                                       !
 ! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
 !                                                                                       !
@@ -3698,8 +3701,234 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
         crossProduct = v1(1)*v2(2) - v1(2)*v2(1)
         
   end function crossProduct
-  
 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes percentage of Line X is inside of polygon Y                !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+    real function PercentageLineInsidePolygon(LineX, PolygonY)
+        
+        !Arguments--------------------------------------------------
+        type (T_Lines),   pointer    :: LineX
+        type (T_Polygon), pointer    :: PolygonY                
+        !Local------------------------------------------------------
+        type (T_Polygon), pointer    :: AuxY
+        type (T_Lines), pointer      :: AuxLine
+        real(8)                      :: x1,y1,x2,y2
+        real(8)                      :: dxy, sumTotal, sumInside
+        integer                      :: n    
+        type (T_PointF), pointer     :: PointA, PointB
+        !Begin------------------------------------------------------
+
+        sumTotal   = 0.
+        sumInside  = 0.
+
+        AuxLine => LineX
+        AuxY    => PolygonY
+        
+        allocate(PointA, PointB)
+        
+        do while(associated(AuxY))         
+
+            do while (associated(AuxLine))
+            
+                do n=1, AuxLine%nNodes-1
+
+                    x1 = AuxLine%X(n)
+                    y1 = AuxLine%Y(n)
+                    x2 = AuxLine%X(n+1)
+                    y2 = AuxLine%Y(n+1)
+                    
+                    dxy = sqrt((y2-y1)**2.+(x2-x1)**2.)
+                    
+                    sumTotal = sumTotal + dxy
+                    
+                    PointA%X = x1
+                    PointA%Y = y1
+                   
+                    PointB%X = x2
+                    PointB%Y = y2
+
+                    if (IsPointInsidePolygon(PointA, AuxY) .or.                         &
+                        IsPointInsidePolygon(PointB, AuxY)) then
+                        sumInside = sumInside + dxy
+                    endif
+                    
+                enddo                
+                    
+                AuxLine => AuxLine%Next
+                
+            enddo
+            
+            AuxY => AuxY%Next
+        enddo
+        
+        
+        
+        if (SumTotal > 0) then
+            PercentageLineInsidePolygon = sumInside / sumTotal * 100.
+        else
+            PercentageLineInsidePolygon = 0.
+        endif            
+
+        deallocate(PointA, PointB)        
+
+        nullify(AuxLine)
+        nullify(AuxY   )
+
+    end function PercentageLineInsidePolygon
+    
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes percentage of XYZPoints X is inside of polygon Y           !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+    real function PercentageXYZPointsInsidePolygon(XYZPointsX, PolygonY)
+        
+        !Arguments--------------------------------------------------
+        type (T_XYZPoints), pointer  :: XYZPointsX
+        type (T_Polygon),   pointer  :: PolygonY                
+        !Local------------------------------------------------------
+        type (T_Polygon),   pointer  :: AuxY
+        integer                      :: n    
+        type (T_PointF), pointer     :: PointA
+        real                         :: sumTotal, sumInside
+        !Begin------------------------------------------------------
+
+        sumTotal   = 0.
+        sumInside  = 0.
+        
+        allocate(PointA)
+
+        AuxY    => PolygonY
+        
+        do while(associated(AuxY))         
+
+            
+            do n=1, XYZPointsX%count
+
+                PointA%X = XYZPointsX%X(n)
+                PointA%Y = XYZPointsX%Y(n)
+                
+                sumTotal = sumTotal + 1.
+
+                if (IsPointInsidePolygon(PointA, AuxY)) then
+                    sumInside = sumInside + 1.
+                endif
+                
+            enddo                
+            AuxY => AuxY%Next
+        enddo
+        
+        nullify(AuxY   )
+
+        deallocate(PointA)        
+        
+        if (SumTotal > 0) then
+            PercentageXYZPointsInsidePolygon = sumInside / sumTotal * 100.
+        else
+            PercentageXYZPointsInsidePolygon = 0.
+        endif            
+        
+    end function PercentageXYZPointsInsidePolygon
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes an area of polygon X using a                               !
+!                   Public-domain function by Darel Rex Finley, 2006.                   !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    real(8) function PolygonTypeArea(PolygonX)
+        
+        !Arguments--------------------------------------------------
+        type (T_Polygon), pointer           :: PolygonX
+        !Local------------------------------------------------------
+        real(8)                             :: sumTotal
+        type (T_Polygon), pointer           :: AuxX
+        real,       dimension(:), pointer   :: X, Y 
+        integer                             :: n       
+        !Begin------------------------------------------------------
+
+        AuxX => PolygonX 
+        
+        sumTotal    = 0.
+
+        do while(associated(AuxX)) 
+        
+            n = AuxX%Count
+            
+            allocate(X(1:n),Y(1:n))
+            
+            X(1:n) = AuxX%VerticesF(1:n)%X
+            Y(1:n) = AuxX%VerticesF(1:n)%Y            
+
+            sumTotal    = sumTotal  + PolygonArea(X, Y, n) 
+                
+            deallocate(X,Y)
+            
+            AuxX => AuxX%Next
+        enddo            
+                              
+        PolygonTypeArea = sumTotal
+        
+        nullify(AuxX)
+            
+
+    end function PolygonTypeArea  
+    
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes percentage of polygon X is inside of polygon Y             !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+    real function PercentagePolygonInsidePolygon(PolygonX, PolygonY)
+        
+        !Arguments--------------------------------------------------
+        type (T_Polygon), pointer    :: PolygonX, PolygonY
+        !Local------------------------------------------------------
+        real(8)                      :: sumTotal, sumInside
+        type (T_Polygon), pointer    :: AuxX, AuxY, outputPolygon        
+        !Begin------------------------------------------------------
+
+        AuxX => PolygonX 
+        AuxY => PolygonY        
+        
+        sumTotal    = 0.
+        sumInside   = 0.     
+
+        do while(associated(AuxY)) 
+            do while(associated(AuxX))
+            
+                call sutherlandHodgman(AuxY, AuxX, outputPolygon )     
+                 
+                sumTotal    = sumTotal  + PolygonTypeArea(AuxY)
+                sumInside   = sumInside + PolygonTypeArea(outputPolygon)
+                
+                AuxX => AuxX%Next
+            enddo
+            AuxY => AuxY%Next
+        enddo            
+                              
+        if (SumTotal > 0) then
+            PercentagePolygonInsidePolygon = sumInside / sumTotal * 100.
+        else
+            PercentagePolygonInsidePolygon = 0.
+        endif                  
+            
+
+    end function PercentagePolygonInsidePolygon  
+    
 end module ModuleDrawing
 
 !----------------------------------------------------------------------------------------------------------
