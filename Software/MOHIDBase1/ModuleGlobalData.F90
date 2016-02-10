@@ -211,6 +211,11 @@ Module ModuleGlobalData
     integer, parameter :: Cartesian_ = 2
     integer, parameter :: AlongGrid_ = 3
 
+    !Types of direction referential
+    integer, parameter :: NauticalWind_    = 1
+    integer, parameter :: NauticalCurrent_ = 2    
+    integer, parameter :: CartesianDir_    = 3
+
 
     !Types of grid borders 
     integer, parameter :: ComplexPolygon_  = 1
@@ -899,6 +904,7 @@ Module ModuleGlobalData
     integer, parameter :: DischPoint_                       = 1
     integer, parameter :: DischLine_                        = 2
     integer, parameter :: DischPolygon_                     = 3
+    integer, parameter :: DischXYZPoints_                   = 4
                                                             
     !Flow discharge horizontal distribution                 
     integer, parameter :: DischByCell_                      = 1

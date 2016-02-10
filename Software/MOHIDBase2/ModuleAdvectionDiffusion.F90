@@ -1585,9 +1585,12 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
                                              KUB              = KUB,                    &
                                              STAT             = STAT_CALL)
                                              
-                if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR10'
+#else                        
+                STAT_CALL = SUCCESS_                 
                                              
 #endif _USE_MPI
+
+                if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR10'
 
             else
                                                          
@@ -3323,9 +3326,11 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
                                                      KUB              = KUB,                    &
                                                      STAT             = STAT_CALL)
 
-                        if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR30'
-                                             
+#else                        
+                        STAT_CALL = SUCCESS_                                             
 #endif _USE_MPI
+
+                        if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR30'
 
                     else                    
 

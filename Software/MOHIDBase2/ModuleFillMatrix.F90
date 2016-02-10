@@ -41,7 +41,8 @@ Module ModuleFillMatrix
                                        SetMatrixValue, InterpolateMatrix2DInTime,       &
                                        InterpolateMatrix3DInTime,                       &
                                        InterpolateLinearyMatrix2D, InterpolateLinearyMatrix3D, &
-                                       AngleFromFieldToGrid
+                                       AngleFromFieldToGrid, WaveLengthHuntsApproximation
+    use ModuleDrawing
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes,         &
                                        UngetBoxDif, KillBoxDif
     use ModuleGridData,         only : ConstructGridData, GetGridData, UnGetGridData,   &
@@ -52,7 +53,10 @@ Module ModuleFillMatrix
                                        GetDDecompParameters,                            &
                                        GetDDecompWorkSize2D, GetZCoordinates,           &
                                        UnGetHorizontalGrid, RotateAngleFieldToGrid,     &
-                                       RotateVectorFieldToGrid, GetCheckDistortion
+                                       RotateVectorFieldToGrid, GetCheckDistortion,     &
+                                       GetGridOutBorderCartLimits,                      &
+                                       GetGridBorderCartPolygon,                        &
+                                       GetHorizontalGrid
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue,          &
                                        GetTimeSerieDTForNextEvent,                      &
                                        GetTimeSerieTimeOfNextDataset,                   & 
@@ -183,6 +187,7 @@ Module ModuleFillMatrix
     integer, parameter                              :: ProfileTimeSerie = 9
     integer, parameter                              :: Sponge           = 10
     integer, parameter                              :: MultiTimeserie   = 11
+    integer, parameter                              :: AnalyticWave     = 12
     
     !Data Processing Type (used with MultiTimeserie)    
     integer, parameter                              :: Interpolate      = 1 !Will interpolate the value between two times
@@ -202,8 +207,26 @@ Module ModuleFillMatrix
     integer, parameter                              :: OriginalValues     = 3
     
     !type of values 
-    integer, parameter                              :: sponge_exp_               = 1
-    integer, parameter                              :: sponge_linear_            = 2
+    integer, parameter                              :: sponge_exp_        = 1
+    integer, parameter                              :: sponge_linear_     = 2
+    
+    !wave types
+    integer, parameter                              :: SineWaveSeaLevel_          = 1
+    integer, parameter                              :: CnoidalWaveSeaLevel_       = 2
+    integer, parameter                              :: SolitartyWaveSeaLevel_     = 3
+    integer, parameter                              :: SineWaveVelX_              = 4
+    integer, parameter                              :: CnoidalWaveVelX_           = 5
+    integer, parameter                              :: SolitartyWaveVelX_         = 6
+    integer, parameter                              :: SineWaveVelY_              = 7
+    integer, parameter                              :: CnoidalWaveVelY_           = 8
+    integer, parameter                              :: SolitartyWaveVelY_         = 9
+
+    
+    !wave cell types
+    integer, parameter                              :: EnteringWaveCell_  = 1
+    integer, parameter                              :: LeavingWaveCell_   = 2
+    integer, parameter                              :: InteriorWaveCell_  = 3
+    
     
     !Parameter-----------------------------------------------------------------
     character(LEN = StringLength), parameter :: BeginProfile      = '<BeginProfile>'
@@ -227,31 +250,52 @@ Module ModuleFillMatrix
     end type T_Layers
 
     type T_Boxes
-        character(PathLength)                       :: FileName     = null_str !initialization: Jauch
-        integer                                     :: ObjBoxDif    = null_int !initialization: Jauch
+        character(PathLength)                       :: FileName     = null_str 
+        integer                                     :: ObjBoxDif    = null_int 
         real, dimension(:), pointer                 :: Values       => null()
     end type T_Boxes
 
     type T_ASCIIFile
-        character(PathLength)                       :: FileName     = null_str !initialization: Jauch
-        integer                                     :: GridDataID   = null_int !initialization: Jauch
+        character(PathLength)                       :: FileName     = null_str 
+        integer                                     :: GridDataID   = null_int 
         type (T_ASCIIFile), pointer                 :: Next             => null()
         type (T_ASCIIFile), pointer                 :: Prev             => null()         
     end type T_ASCIIFile
 
     type T_Sponge
-        real                                        :: OutValue     = null_real !initialization: Jauch
-        integer                                     :: Cells        = null_int  !initialization: Jauch
-        logical                                     :: Growing      = .false.   !initialization: Jauch
-        integer                                     :: Evolution    = null_int  !initialization: Jauch
+        real                                        :: OutValue     = null_real
+        integer                                     :: Cells        = null_int 
+        logical                                     :: Growing      = .false.  
+        integer                                     :: Evolution    = null_int 
         !1 - South; 2 - North; 3 - West; 4 - East        
         logical, dimension(1:4)                     :: OpenBordersON = .true.
     end type T_Sponge
 
+    type T_AnalyticWave
+        logical                                     :: ON            = .false. 
+        real                                        :: Amplitude     = null_real
+        real                                        :: AmpAux        = null_real        
+        real                                        :: Direction     = null_real
+        real                                        :: Period        = null_real
+        real                                        :: Depth         = null_real
+        real                                        :: WaterColumn   = null_real
+        real                                        :: Celerity      = null_real
+        real                                        :: Length        = null_real
+        real                                        :: AverageValue = null_real
+        ! WaveType = 1 (Sine), WaveType = 2 (Cnoidal), WaveType = 3 (solitary)
+        integer                                     :: WaveType      = null_int
+        real(8), dimension(:,:), pointer            :: X2D           => null()
+!        EnteringWaveCell_  = 1
+!        LeavingWaveCell_   = 2
+!        InteriorWaveCell_  = 3
+        integer, dimension(:,:), pointer            :: CellType     => null()
+    end type T_AnalyticWave
+
+
     type T_TimeSerie
-        character(PathLength)                       :: FileName     = null_str !initialization: Jauch
+        character(PathLength)                       :: FileName     = null_str 
         integer                                     :: ObjTimeSerie = 0
-        integer                                     :: Column       = null_int !initialization: Jauch
+        integer                                     :: Column       = null_int 
         type (T_Time)                               :: NextTime, &
                                                        PreviousTime
         integer                                     :: NextInstant      = 0,     &
@@ -278,28 +322,28 @@ Module ModuleFillMatrix
     end type T_TimeSerie
 
     type T_ProfileTimeSerie
-        character(PathLength)                       :: FileName = null_str !initialization: Jauch
+        character(PathLength)                       :: FileName = null_str 
         type (T_Time)                               :: NextTime, PreviousTime
-        integer                                     :: NextInstant      = null_int, & !initialization: Jauch
-                                                       PreviousInstant  = null_int    !initialization: Jauch
+        integer                                     :: NextInstant      = null_int, & 
+                                                       PreviousInstant  = null_int    
         real,           dimension(:,:,:), pointer   :: PreviousField3D  => null(), &
                                                        NextField3D      => null()
         real,           dimension(:,:  ), pointer   :: Values           => null(), &
                                                        Depths           => null()
         type(T_Time),   dimension(:    ), pointer   :: TimeInstants     => null()
-        integer                                     :: NumberOfInstants = null_int, & !initialization: Jauch
-                                                       nValues          = null_int, & !initialization: Jauch
-                                                       nDepths          = null_int, & !initialization: Jauch     
-                                                       FirstInstant     = null_int, & !initialization: Jauch
-                                                       LastInstant      = null_int    !initialization: Jauch
+        integer                                     :: NumberOfInstants = null_int, & 
+                                                       nValues          = null_int, & 
+                                                       nDepths          = null_int, &      
+                                                       FirstInstant     = null_int, & 
+                                                       LastInstant      = null_int    
         logical                                     :: CyclicTimeON     = .false.
     end type T_ProfileTimeSerie
 
     type T_Station   
-        character(PathLength)                       :: FileName         = null_str !initialization: Jauch
+        character(PathLength)                       :: FileName         = null_str 
         integer                                     :: ObjTimeSerie     = 0        
-        integer                                     :: Column           = null_int !initialization: Jauch
-        integer                                     :: FillID           = null_int !initialization: Jauch
+        integer                                     :: Column           = null_int 
+        integer                                     :: FillID           = null_int 
         logical                                     :: RemainConstant   = .false.        
         logical                                     :: ValueIsDefined   = .false.
         real                                        :: NewValue         = -null_real                      
@@ -321,18 +365,18 @@ Module ModuleFillMatrix
     type T_MultiTimeSerie
         integer, dimension(:,:), allocatable        :: FillGrid2D
         integer, dimension(:,:,:), allocatable      :: FillGrid3D
-        integer                                     :: DataProcessing   = null_int !initialization: Jauch
+        integer                                     :: DataProcessing   = null_int 
         type(T_Station), dimension(:), allocatable  :: StationsList
         integer                                     :: NumberOfSources  = 0
     end type T_MultiTimeserie
 
     !Generic 4D
     type T_Generic4D
-        logical                                     :: ON                   = .false.   !initialization: Jauch
-        logical                                     :: ReadFromTimeSerie    = .false.   !initialization: Jauch
-        integer                                     :: ObjTimeSerie         = null_int  !initialization: Jauch
-        integer                                     :: TimeSerieColumn      = null_int  !initialization: Jauch
-        real                                        :: CurrentValue         = null_real !initialization: Jauch
+        logical                                     :: ON                   = .false.   
+        logical                                     :: ReadFromTimeSerie    = .false.   
+        integer                                     :: ObjTimeSerie         = null_int  
+        integer                                     :: TimeSerieColumn      = null_int  
+        real                                        :: CurrentValue         = null_real 
 
     end type 
 
@@ -413,13 +457,13 @@ Module ModuleFillMatrix
 !        logical                                     :: NoInterpol           = .false.
                 
 !        integer                                     :: ValuesType           
-        logical                                     :: InterpolateValues        = .false. !initialization: Jauch
-        logical                                     :: AccumulateValues         = .false. !initialization: Jauch
-        logical                                     :: UseOriginalValues        = .false. !initialization: Jauch
-        logical                                     :: PreviousInstantValues    = .false. !initialization: Jauch
-        logical                                     :: IgnoreNoDataPoint        = .false. !initialization: Jauch
+        logical                                     :: InterpolateValues        = .false. 
+        logical                                     :: AccumulateValues         = .false. 
+        logical                                     :: UseOriginalValues        = .false. 
+        logical                                     :: PreviousInstantValues    = .false. 
+        logical                                     :: IgnoreNoDataPoint        = .false. 
         integer                                     :: PredictDTMethod !1 for old method, 2 for new method (for rain, mainly)
-        real                                        :: NoDataValue              = null_real !initialization: Jauch
+        real                                        :: NoDataValue              = null_real 
         
         logical                                     :: Backtracking             = .false.
         
@@ -427,8 +471,8 @@ Module ModuleFillMatrix
         logical                                     :: OverrideValueKeywordON   = .false.
          
         real                                        :: MinForDTDecrease         = AllmostZero
-        !real                                        :: DefaultValue             = null_real !initialization: Jauch
-        real, dimension(3)                          :: DefaultValue             = null_real !initialization: Jauch
+        !real                                        :: DefaultValue             = null_real 
+        real, dimension(3)                          :: DefaultValue             = null_real 
         real                                        :: PredictedDT              = -null_real
         real                                        :: DTForNextEvent           = -null_real
         real                                        :: DTForNextDataset     = -null_real
@@ -476,6 +520,7 @@ Module ModuleFillMatrix
         type (T_TimeSerie)                          :: TimeSerie
         type (T_ASCIIFile)                          :: ASCIIFile
         type (T_Sponge   )                          :: Sponge
+        type (T_AnalyticWave)                       :: AnalyticWave
         type (T_Field4D  )                          :: HDF
         type (T_ProfileTimeSerie)                   :: ProfileTimeSerie
         type (T_MultiTimeSerie)                     :: MultiTimeSerie
@@ -1505,6 +1550,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%TimeEvolution    = ProfileTimeSerie
             case ("Multitimeserie", "MULTITIMESERIE", "multitimeserie", "MultiTimeserie")
                 Me%TimeEvolution    = MultiTimeserie
+            case ("Analytic Wave",  "ANALYTIC WAVE",    "analytic wave")
+                Me%TimeEvolution    = AnalyticWave                     
             case default
                 write(*,*)'Invalid option for keyword FILE_IN_TIME'
                 stop 'ReadOptions - ModuleFillMatrix - ERR020'
@@ -2012,7 +2059,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 else
                     call ConstructMultiTimeSerie (ClientID, PointsToFill3D = PointsToFill3D)
                     call ModifyMultiTimeSerie    (PointsToFill3D = PointsToFill3D) 
-                endif                
+                endif     
+                
+            case(AnalyticWave)
+                call ConstructAnalyticWave (ExtractType)
+                if (Me%Dim == Dim2D) then
+                    call ModifyAnalyticWave    (PointsToFill2D = PointsToFill2D) 
+                else
+                    call ModifyAnalyticWave    (PointsToFill3D = PointsToFill3D) 
+                endif     
+                    
+                           
                 
         end select
 
@@ -4162,7 +4219,8 @@ di:                 do i = ILB, IUB
     end subroutine ConstructSponge
 
     !--------------------------------------------------------------------------
-    
+
+  
     subroutine FillSponge(PointsToFill2D, PointsToFill3D, Aux, i, j, k)
     
         !Arguments-------------------------------------------------------------
@@ -4213,6 +4271,324 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
     end subroutine FillSponge
 
     !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructAnalyticWave (ExtractType)
+
+        !Arguments-------------------------------------------------------------
+        integer                             :: ExtractType
+
+        !Local-----------------------------------------------------------------
+        integer,   dimension(:,:), pointer  :: Aux2D
+        real,      dimension(:,:), pointer  :: XX2D, YY2D
+        integer                             :: STAT_CALL
+        integer                             :: iflag, i, j
+        type (T_Polygon), pointer           :: InteriorCellsArea
+        type (T_PointF ), pointer           :: Point, Point0
+        type (T_Segment), pointer           :: Segment   
+        real(8)                             :: PointX, PointY         
+        real(8)                             :: DifX, DifY         
+        real(8)                             :: PointDirection, DifDirection    
+        real                                :: East, West, North, South
+        real(8)                             :: CircleCenterX, CircleCenterY, Radius
+        real(8)                             :: WaveDirection, Xorig, Yorig
+        real(8)                             :: RunPeriod
+        real(8)                             :: Omega, k, Aux, A, H
+        !Begin----------------------------------------------------------------
+
+        !Gets the wave amplitude (m)
+        call GetData(Me%AnalyticWave%Amplitude,                                         &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'WAVE_AMPLITUDE',                                   &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (iflag == 0           ) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR20'
+        
+
+        !Gets the wave direction (degrees in meteorological convention)
+        call GetData(Me%AnalyticWave%Direction,                                         &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'WAVE_DIRECTION',                                   &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (iflag == 0           ) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR40'
+        
+        !from nautical reference in degrees to cartesian in radians
+        Me%AnalyticWave%Direction = (270 - Me%AnalyticWave%Direction) * Pi/180.
+
+
+        !Gets the wave period (s)
+        call GetData(Me%AnalyticWave%Period,                                            &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'WAVE_PERIOD',                                      &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (iflag == 0           ) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR50'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR60'
+        
+        RunPeriod   = Me%EndTime - Me%BeginTime
+        
+        if(real(int(RunPeriod/Me%AnalyticWave%Period)) /= real(RunPeriod/Me%AnalyticWave%Period)) then
+            write(*,*) 'Wave Period needs to be a multiple of the run period'
+            stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR70'
+        endif
+        
+        if (.not. Me%AnalyticWave%Period > 0.) then
+            write(*,*) 'wave period needs to be positive'
+            stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR80'
+        endif
+        
+
+        !Gets the wave depth (m)
+        call GetData(Me%AnalyticWave%Depth,                                             &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'WAVE_DEPTH',                                       &
+                     default      = 0.,                                                 &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR130'
+        
+        if (.not. Me%AnalyticWave%Depth > 0.) then
+            write(*,*) 'wave depth needs to be positive'
+            stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR140'
+        endif        
+        
+
+        !Gets the wave type 
+        !wave types
+!            SineWaveSeaLevel_          = 1
+!            CnoidalWaveSeaLevel_       = 2
+!            SolitartyWaveSeaLevel_     = 3
+!            SineWaveVelX_              = 4
+!            CnoidalWaveVelX_           = 5
+!            SolitartyWaveVelX_         = 6
+!            SineWaveVelY_              = 7
+!            CnoidalWaveVelY_           = 8
+!            SolitartyWaveVelY_         = 9
+        call GetData(Me%AnalyticWave%WaveType,                                          &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'WAVE_TYPE',                                        &
+                     default      = SineWaveSeaLevel_,                                  &                   
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (iflag == 0           ) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR100'
+        
+        if (Me%AnalyticWave%WaveType < 0 .and. Me%AnalyticWave%WaveType > 9) then
+            write(*,*) 'Not valid WAVE_TYPE option =', Me%AnalyticWave%WaveType
+            stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR110'
+        endif
+        
+        !Gets the wave reference water level (m)
+        call GetData(Me%AnalyticWave%AverageValue,                                      &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'AVERAGE_VALUE',                                    &
+                     default      = 0.,                                                 &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR120'
+
+
+        Me%AnalyticWave%WaterColumn = Me%AnalyticWave%Depth + Me%AnalyticWave%AverageValue
+
+        Me%AnalyticWave%AmpAux    = Me%AnalyticWave%Amplitude        
+        
+        A = Me%AnalyticWave%Amplitude
+        H = Me%AnalyticWave%WaterColumn        
+        
+        if (Me%AnalyticWave%WaveType == SineWaveSeaLevel_  .or.                         &
+            Me%AnalyticWave%WaveType == SineWaveVelX_      .or.                         &
+            Me%AnalyticWave%WaveType == SineWaveVelY_) then
+            
+            Me%AnalyticWave%Length = WaveLengthHuntsApproximation(Me%AnalyticWave%Period, real(H))
+            
+            if (Me%AnalyticWave%Length <= 0) then
+                stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR220'
+            endif 
+            
+            Omega = 2. * Pi / Me%AnalyticWave%Period
+            k     = 2. * Pi / Me%AnalyticWave%Length
+            
+            Me%AnalyticWave%Celerity = Me%AnalyticWave%Length / Me%AnalyticWave%Period
+            
+            Me%AnalyticWave%Celerity = Me%AnalyticWave%Length / Me%AnalyticWave%Period
+            
+            Aux = Me%AnalyticWave%Length / Me%AnalyticWave%WaterColumn
+            
+            if (Me%AnalyticWave%WaveType == SineWaveVelX_      .or.                     &
+                Me%AnalyticWave%WaveType == SineWaveVelY_) then     
+                
+                if     ( Aux >  20.               ) then
+                    
+                    Me%AnalyticWave%AmpAux = Omega * A / k / H
+                    
+                elseif  (Aux >  2. .and. Aux <=20.) then 
+                
+                    Me%AnalyticWave%AmpAux = Omega * A / k / H      
+                
+                elseif  (Aux <= 2.                ) then
+                
+                    Me%AnalyticWave%AmpAux = Omega * A / k / H * (1. - exp(-k*H))                
+                
+                endif
+            endif            
+            
+        endif
+
+
+        call GetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,             & 
+                               XX2D_Z           = XX2D,                             &
+                               YY2D_Z           = YY2D,                             &
+                               STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR150'       
+        
+        call GetGridOutBorderCartLimits(HorizontalGridID  = Me%ObjHorizontalGrid,       & 
+                                        West              = West,                       &
+                                        East              = East,                       &
+                                        South             = South,                      &
+                                        North             = North,                      &
+                                        STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR180'
+        
+        call GetGridBorderCartPolygon  (HorizontalGridID  = Me%ObjHorizontalGrid,       & 
+                                        Polygon           = InteriorCellsArea,          &
+                                        STAT              = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR190'
+        
+        allocate(Me%AnalyticWave%X2D     (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+        allocate(Me%AnalyticWave%CellType(Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+        allocate(Aux2D                   (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))   
+
+        Me%AnalyticWave%X2D     (:,:) = null_real
+        Me%AnalyticWave%CellType(:,:) = null_int
+        Aux2D                   (:,:) = null_int 
+        
+        
+        CircleCenterX = (West  + East )/2.
+        CircleCenterY = (South + North)/2.        
+        
+        Radius = max((East-West)/2.,(North-South)/2.) 
+        
+        WaveDirection = Me%AnalyticWave%Direction       
+        
+        !point in the circle first reach by the incoming wave 
+        Xorig = CircleCenterX + Radius * cos(WaveDirection + Pi)
+        Yorig = CircleCenterY + Radius * sin(WaveDirection + Pi)
+        
+        allocate(Segment)
+        allocate(Point)
+        allocate(Point0)        
+        
+        Point0%X    = Xorig
+        Point0%Y    = Yorig
+        
+        Segment%StartAt     => Point0
+                
+        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+        do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+        
+            PointX                      = XX2D(i, j)                   
+            PointY                      = YY2D(i, j)   
+
+            DifX                        = PointX - Xorig
+            DifY                        = PointY - Yorig        
+
+            PointDirection              = atan2(DifY, DifX)
+            DifDirection                = PointDirection - WaveDirection
+
+            Me%AnalyticWave%X2D(i, j)   = sqrt(DifX**2.+DifY**2.)*cos(DifDirection)
+
+            Point%X                     = PointX
+            Point%Y                     = PointY
+            
+            Segment%EndAt               => Point
+            
+!            EnteringWaveCell_ 
+!            LeavingWaveCell_  
+!            InteriorWaveCell_ 
+
+            if (IsPointInsidePolygon(Point, InteriorCellsArea)) then
+                !interior cell
+                Aux2D(i, j) = InteriorWaveCell_
+            !boundary cell
+            else
+                if (Intersect2D_SegPoly(Segment= Segment, Polygon= InteriorCellsArea)) then
+                    !leaving wave cell
+                    Aux2D(i, j) = LeavingWaveCell_
+                else
+                    !entering wave cell
+                    Aux2D(i, j) = EnteringWaveCell_
+                endif
+            endif
+            
+        enddo
+        enddo
+        
+        Me%AnalyticWave%CellType(:,:) = Aux2D(:,:)
+        
+        !leaving wave adjacent cells
+        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+        do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+        
+                if (Aux2D(i-1,j  ) == LeavingWaveCell_ .or.                             &
+                    Aux2D(i+1,j  ) == LeavingWaveCell_ .or.                             &
+                    Aux2D(i  ,j-1) == LeavingWaveCell_ .or.                             &                    
+                    Aux2D(i  ,j+1) == LeavingWaveCell_ ) then
+                    Me%AnalyticWave%CellType(i, j) = LeavingWaveCell_
+                endif                    
+            
+        enddo
+        enddo        
+        
+        !entering wave adjacent cells - these cells have priority over Leaving cells
+        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+        do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+        
+                if (Aux2D(i-1,j  ) == EnteringWaveCell_ .or.                            &
+                    Aux2D(i+1,j  ) == EnteringWaveCell_ .or.                            &
+                    Aux2D(i  ,j-1) == EnteringWaveCell_ .or.                            &                    
+                    Aux2D(i  ,j+1) == EnteringWaveCell_ ) then
+                    Me%AnalyticWave%CellType(i, j) = EnteringWaveCell_
+                endif                    
+            
+        enddo
+        enddo                
+
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               &
+                                 Polygon          = InteriorCellsArea,                  &
+                                 STAT             = STAT_CALL)                          
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR200'
+
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               & 
+                                 Array            = XX2D,                               &
+                                 STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR210'
+
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               & 
+                                 Array            = YY2D,                               &
+                                 STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR220'
+
+        deallocate(Segment)
+        deallocate(Point)
+        deallocate(Point0)        
+        
+        deallocate(Aux2D)
+        
+        Me%AnalyticWave%ON = .true.
+
+    end subroutine ConstructAnalyticWave
+
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
     
@@ -7539,6 +7915,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                         else                            
                             call ModifyMultiTimeSerie (PointsToFill3D = PointsToFill3D) 
                         endif  
+                        
+                    case(AnalyticWave)
+
+                        if (Me%Dim == Dim2D) then
+                            call ModifyAnalyticWave    (PointsToFill2D = PointsToFill2D) 
+                        else
+                            call ModifyAnalyticWave    (PointsToFill3D = PointsToFill3D) 
+                        endif                             
 
                 end select                
                 
@@ -8520,6 +8904,136 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     end function TimeSerieValue
 
     !--------------------------------------------------------------------------
+    
+    subroutine ModifyAnalyticWave(PointsToFill2D, PointsToFill3D)
+    
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:, :), pointer, optional    :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, optional :: PointsToFill3D             
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: ilb, iub, jlb, jub, klb, kub
+        integer                                         :: i, j, k  
+        type (T_Time)                                   :: Now
+        real(8)                                         :: Amplitude, Period, X, AverageValue
+        real(8)                                         :: TimeSeconds, WaveCelerity, T, Dir
+        integer                                         :: WaveType     
+        
+        !----------------------------------------------------------------------
+        
+        !Gets Current Time
+        call GetComputeCurrentTime(Me%ObjTime, Now, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyAnalyticWave - ModuleFillMatrix - ERR010'
+        
+        Amplitude     = Me%AnalyticWave%AmpAux
+        WaveCelerity  = Me%AnalyticWave%Celerity
+        Period        = Me%AnalyticWave%Period
+        WaveType      = Me%AnalyticWave%WaveType
+        AverageValue  = Me%AnalyticWave%AverageValue
+        TimeSeconds   = Now - Me%BeginTime
+
+        if (Me%Dim == Dim2D) then
+            
+            ILB = Me%WorkSize2D%ILB
+            IUB = Me%WorkSize2D%IUB
+            JLB = Me%WorkSize2D%JLB
+            JUB = Me%WorkSize2D%JUB
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (PointsToFill2D(i,j) == WaterPoint) then
+                                                        
+                    X = Me%AnalyticWave%X2D(i, j)
+                    T = TimeSeconds
+                    
+                    T = T + X / WaveCelerity
+                    
+                    Dir = Me%AnalyticWave%Direction
+
+                    if (Me%AnalyticWave%CellType(i, j) == EnteringWaveCell_) then
+                        Me%Matrix2D(i,j) = AverageValue + ComputeWaveAnalytic1D (Amplitude, Period, T, WaveType, Dir)
+                    else
+                        Me%Matrix2D(i,j) = AverageValue
+                    endif                        
+                    
+                endif
+
+            enddo
+            enddo
+
+         else
+            
+            ILB = Me%WorkSize3D%ILB
+            IUB = Me%WorkSize3D%IUB
+            JLB = Me%WorkSize3D%JLB
+            JUB = Me%WorkSize3D%JUB
+            KLB = Me%WorkSize3D%KLB
+            KUB = Me%WorkSize3D%KUB        
+
+            do k = KLB, KUB
+            do j = JLB, JUB
+            do i = ILB, IUB
+            
+                if (PointsToFill3D(i,j,k) == WaterPoint) then
+!
+!                    X = Me%AnalyticWave%X2D(i, j)
+!
+!                    if (Me%AnalyticWave%CellType(i, j) == EnteringWaveCell_) then
+!                        Me%Matrix3D(i,j, k) = AverageValue + ComputeWaveAnalytic2D (X, Amplitude, Period, TimeSeconds, WaveType)
+!                    else
+!                        Me%Matrix3D(i,j, k) = AverageValue
+!                    endif 
+!
+                endif
+
+            enddo
+            enddo
+            enddo
+                
+        endif
+                
+    
+    end subroutine ModifyAnalyticWave    
+    
+    !--------------------------------------------------------------------------   
+    
+    real(8) function ComputeWaveAnalytic1D (Amplitude, Period, T, WaveType, Dir)     
+
+        !Arguments------------------------------------------------------------
+        real(8)            :: Amplitude, Period, T, Dir
+        integer            :: WaveType
+
+        !Local----------------------------------------------------------------
+
+        !Begin----------------------------------------------------------------
+        !wave types
+!            SineWaveSeaLevel_          = 1
+!            CnoidalWaveSeaLevel_       = 2
+!            SolitartyWaveSeaLevel_     = 3
+!            SineWaveVelX_              = 4
+!            CnoidalWaveVelX_           = 5
+!            SolitartyWaveVelX_         = 6
+!            SineWaveVelY_              = 7
+!            CnoidalWaveVelY_           = 8
+!            SolitartyWaveVelY_         = 9
+
+        if      (WaveType == SineWaveSeaLevel_) then
+            ComputeWaveAnalytic1D = Amplitude * sin(2.*Pi*T/Period)
+
+        else if (WaveType == SineWaveVelX_    ) then
+            ComputeWaveAnalytic1D = Amplitude * sin(2.*Pi*T/Period) * cos(Dir)
+
+        else if (WaveType == SineWaveVelY_    ) then
+            ComputeWaveAnalytic1D = Amplitude * sin(2.*Pi*T/Period) * sin(Dir)
+
+        endif
+
+    
+    end function ComputeWaveAnalytic1D
+    
+    !--------------------------------------------------------------------------       
 
     subroutine ModifyHDFInput3D(PointsToFill3D, CurrentHDF, Generic_4D_Value_)
         
@@ -10372,13 +10886,17 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         if (CurrentHDF%Generic4D%ReadFromTimeSerie) then
                             call KillTimeSerie(CurrentHDF%Generic4D%ObjTimeSerie, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR50'
-                        endif
-                        
-                        CurrentHDF => CurrentHDF%Next
+                        endif                        
                     
                     endif
   
+                    CurrentHDF => CurrentHDF%Next
+                    
                 enddo
+                
+                if (Me%AnalyticWave%ON) then
+                    call KillAnalyticWave
+                endif                    
 
                 if (Me%ObjGeometry /= 0) then
                     nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjGeometry)
@@ -10391,8 +10909,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid )
                 if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR80'
                 
-
-
                 !Deallocates Instance
                 call DeallocateInstance ()
 
@@ -10412,8 +10928,23 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     end subroutine KillFillMatrix
         
 
-    !------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------------
     
+    subroutine KillAnalyticWave
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+
+        !Begin-----------------------------------------------------------------
+        
+        deallocate(Me%AnalyticWave%X2D     )
+        deallocate(Me%AnalyticWave%CellType)
+    
+    
+    end subroutine KillAnalyticWave
+    
+    !-----------------------------------------------------------------------------------
     
     subroutine DeallocateInstance ()
 

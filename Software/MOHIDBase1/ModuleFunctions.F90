@@ -283,6 +283,9 @@ Module ModuleFunctions
     public :: AmpPhase_To_Complex
     public :: Complex_to_AmpPhase
     
+    !wind waves lnear theory
+    public :: WaveLengthHuntsApproximation
+    
     !types -------------------------------------------------------------------
 
     !griflet
@@ -11074,7 +11077,29 @@ D2:     do I=imax-1,2,-1
         endif
 
     end subroutine CheckAlternativeTidalCompNames
+    
+    !------------------------------------------------------------------------------
+    
+    ! Hunt's Method to calculate Wave Length (accuracy of 0.1%)
+    real function WaveLengthHuntsApproximation(WavePeriod, WaterDepth)
 
+        !Arguments-------------------------------------------------------------    
+        real , intent(IN)        :: WavePeriod, WaterDepth
+        !Local-----------------------------------------------------------------
+        real                     :: G_Aux, F_Aux
+        !Begin-----------------------------------------------------------------   
+        
+        G_Aux                       = ((2 * Pi / WavePeriod)**2) * WaterDepth / Gravity
+        F_Aux                       = G_Aux + (1 / (1. + 0.6522 * G_Aux + 0.4622 * (G_Aux**2) + &
+                                      0.0864 * (G_Aux**4) + 0.0675 * (G_Aux**5)))
+        if (F_Aux > 0. .and. WaterDepth > 0.) then
+            WaveLengthHuntsApproximation = WavePeriod * sqrt(gravity * WaterDepth / F_Aux)
+        else
+            WaveLengthHuntsApproximation = 0.                     
+        endif
+        
+
+    end function WaveLengthHuntsApproximation
 
     !------------------------------------------------------------------------------        
     

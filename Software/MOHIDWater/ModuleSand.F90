@@ -1269,7 +1269,12 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
             stop 'ConstructTimeSerie - ModuleSand - ERR20' 
-
+            
+        call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Polygon          = ModelDomainLimit,               &
+                                     STAT             = STAT_CALL)           
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructTimeSerie - ModuleSand - ERR30' 
 
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
@@ -1278,25 +1283,25 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                             WaterPoints2D = Me%ExternalVar%WaterPoints2D,               &
                             ModelDomain   = ModelDomainLimit,                           & 
                             STAT          = STAT_CALL)
-        if (STAT_CALL /= 0) stop 'ConstructTimeSerie - ModuleSand - ERR30'
+        if (STAT_CALL /= 0) stop 'ConstructTimeSerie - ModuleSand - ERR40'
         
         call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               &
                                  Polygon          = ModelDomainLimit,                   &
                                  STAT             = STAT_CALL)                          
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR35'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR50'
 
         !Deallocates PropertyList
         deallocate(PropertyList, STAT = STAT_CALL)
-        if (STAT_CALL /= 0) stop 'ConstructTimeSerie - ModuleSand - ERR40'
+        if (STAT_CALL /= 0) stop 'ConstructTimeSerie - ModuleSand - ERR60'
 
         !Corrects if necessary the cell of the time serie based in the time serie coordinates
         call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR50'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR70'
 
         do dn = 1, TimeSerieNumber
         
             call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR60'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR80'
             
             if (IgnoreOK) cycle        
 
@@ -1305,10 +1310,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                                       CoordY   = CoordY,                                & 
                                       CoordON  = CoordON,                               &
                                       STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR90'
             
             call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR80'  
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR100'  
                                   
             if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
@@ -1331,7 +1336,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                 !endif
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR100'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSerie - ModuleSand - ERR110'
             endif
             
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
