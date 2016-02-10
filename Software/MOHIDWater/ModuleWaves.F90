@@ -80,7 +80,7 @@
 Module ModuleWaves
 
     use ModuleGlobalData
-    use ModuleFunctions,        only : Secant, SetMatrixValue
+    use ModuleFunctions,        only : Secant, SetMatrixValue, WaveLengthHuntsApproximation
     use ModuleEnterData        
     use ModuleTime
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetOpenPoints2D, UnGetHorizontalMap
@@ -3310,7 +3310,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.          
 
         !Local-----------------------------------------------------------------
         integer                                 :: i, j, ILB, IUB, JLB, JUB, STAT_CALL
-        real                                    :: WavePeriod, WaterDepth, WaveAmplitude, G_Aux, F_Aux
+        real                                    :: WavePeriod, WaterDepth, WaveAmplitude
         !Begin-----------------------------------------------------------------
 
 
@@ -3339,17 +3339,9 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.          
                     Me%WaveLength%Field(i, j)       = 0.
 
                 else
-                
-                    ! Hunt's Method to calculate Wave Length (accuracy of 0.1%)
-                    G_Aux                       = ((2 * Pi / WavePeriod)**2) * WaterDepth / gravity
-                    F_Aux                       = G_Aux + (1 / (1. + 0.6522 * G_Aux + 0.4622 * (G_Aux**2) + &
-                                                  0.0864 * (G_Aux**4) + 0.0675 * (G_Aux**5)))
-                    if (F_Aux > 0. .and. WaterDepth > 0.) then
-                        Me%WaveLength%Field(i, j) = WavePeriod * sqrt(gravity * WaterDepth / F_Aux)
-                    else
-                        Me%WaveLength%Field(i, j) = 0.                     
-                    endif
 
+                    Me%WaveLength%Field(i, j) = WaveLengthHuntsApproximation(WavePeriod, WaterDepth)
+                    
                 end if
                 
             end if
