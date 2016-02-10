@@ -132,6 +132,8 @@ Global
 		Release Double OpenMP|x64 = Release Double OpenMP|x64
 		Release Double Parallel|Win32 = Release Double Parallel|Win32
 		Release Double Parallel|x64 = Release Double Parallel|x64
+		Release Double Phreeqc|Win32 = Release Double Phreeqc|Win32
+		Release Double Phreeqc|x64 = Release Double Phreeqc|x64
 		Release Double|Win32 = Release Double|Win32
 		Release Double|x64 = Release Double|x64
 	EndGlobalSection
@@ -156,6 +158,10 @@ Global
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double Parallel|Win32.Build.0 = Release Double Parallel|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double Parallel|x64.Build.0 = Release Double Parallel|x64
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double Phreeqc|Win32.Build.0 = Release Double Phreeqc|Win32
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
+		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double Phreeqc|x64.Build.0 = Release Double Phreeqc|x64
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double|Win32.Build.0 = Release Double|Win32
 		{0056F7D7-347A-40DE-98B8-843CF05B5488}.Release Double|x64.ActiveCfg = Release Double|x64
@@ -180,6 +186,10 @@ Global
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double Parallel|Win32.Build.0 = Release Double Parallel|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double Parallel|x64.Build.0 = Release Double Parallel|x64
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double Phreeqc|Win32.Build.0 = Release Double Phreeqc|Win32
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double Phreeqc|x64.Build.0 = Release Double Phreeqc|x64
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double|Win32.Build.0 = Release Double|Win32
 		{98ABA093-7927-4BCD-B011-BF409B5BBB78}.Release Double|x64.ActiveCfg = Release Double|x64
@@ -204,6 +214,10 @@ Global
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double Parallel|Win32.Build.0 = Release Double Parallel|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double Parallel|x64.Build.0 = Release Double Parallel|x64
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double Phreeqc|Win32.Build.0 = Release Double Phreeqc|Win32
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
+		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double Phreeqc|x64.Build.0 = Release Double Phreeqc|x64
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double|Win32.Build.0 = Release Double|Win32
 		{8FDBAD87-52D7-4B29-A346-CF6918785077}.Release Double|x64.ActiveCfg = Release Double|x64
@@ -228,6 +242,10 @@ Global
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double Parallel|Win32.Build.0 = Release Double Parallel|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double Parallel|x64.Build.0 = Release Double Parallel|x64
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double Phreeqc|Win32.Build.0 = Release Double Phreeqc|Win32
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
+		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double Phreeqc|x64.Build.0 = Release Double Phreeqc|x64
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double|Win32.Build.0 = Release Double|Win32
 		{141470D5-4F1E-4328-828C-8767F85E9629}.Release Double|x64.ActiveCfg = Release Double|x64
@@ -243,6 +261,8 @@ Global
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double OpenMP|x64.ActiveCfg = Release|x64
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{7033A311-58C3-4992-B524-75396846B759}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{7033A311-58C3-4992-B524-75396846B759}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double|Win32.ActiveCfg = Release|Win32
 		{7033A311-58C3-4992-B524-75396846B759}.Release Double|x64.ActiveCfg = Release|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double PhreeqC|Win32
@@ -255,6 +275,8 @@ Global
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double OpenMP|x64.ActiveCfg = Release|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double|Win32.ActiveCfg = Release|Win32
 		{3E94FB51-7A8D-41D7-B945-4435992AE154}.Release Double|x64.ActiveCfg = Release|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double PhreeqC|Win32
@@ -269,6 +291,8 @@ Global
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double OpenMP|x64.Build.0 = Release Double OpenMP|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Release Double|x64.ActiveCfg = Release Double|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double PhreeqC|Win32
@@ -283,6 +307,10 @@ Global
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double Parallel|Win32.Build.0 = Release Double Parallel|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double Parallel|x64.Build.0 = Release Double Parallel|x64
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double Phreeqc|Win32.Build.0 = Release Double Phreeqc|Win32
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double Phreeqc|x64.Build.0 = Release Double Phreeqc|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|Win32.Build.0 = Release Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Release Double|x64.ActiveCfg = Release Double|x64
@@ -297,6 +325,8 @@ Global
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP|x64.ActiveCfg = Release|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double|Win32.ActiveCfg = Release|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double|x64.ActiveCfg = Release|x64
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double PhreeqC|Win32
@@ -310,6 +340,8 @@ Global
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double OpenMP|x64.ActiveCfg = Release Double|x64
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double|Win32.Build.0 = Release Double|Win32
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Release Double|x64.ActiveCfg = Release Double|x64
@@ -323,6 +355,8 @@ Global
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double OpenMP|x64.ActiveCfg = Release|x64
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double|Win32.ActiveCfg = Release|Win32
 		{BCE54D78-EFF6-4492-86D3-E6EFB49E9083}.Release Double|x64.ActiveCfg = Release|x64
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double PhreeqC|Win32
@@ -335,6 +369,8 @@ Global
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double OpenMP|x64.ActiveCfg = Release|x64
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double|Win32.ActiveCfg = Release|Win32
 		{4831291D-0227-4FEB-9A09-0BD2A1E5B8EA}.Release Double|x64.ActiveCfg = Release|x64
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double PhreeqC|Win32
@@ -348,6 +384,8 @@ Global
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double OpenMP|x64.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double|Win32.Build.0 = Release Double|Win32
 		{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}.Release Double|x64.ActiveCfg = Release Double|Win32
@@ -362,6 +400,8 @@ Global
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double OpenMP|x64.ActiveCfg = Release|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double|Win32.Build.0 = Release Double|Win32
 		{DC8642E4-9D47-45E6-8617-BA40A15CF1EF}.Release Double|x64.ActiveCfg = Release|x64
@@ -376,6 +416,8 @@ Global
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double|Win32.ActiveCfg = Release|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double|Win32.Build.0 = Release|Win32
 		{9DC85AC0-1EAF-42B5-A6D0-28AC10A96D15}.Release Double|x64.ActiveCfg = Release|Win32
@@ -390,6 +432,8 @@ Global
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|Win32
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double|Win32.ActiveCfg = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double|Win32.Build.0 = Release|Win32
 		{C5CF769A-D6B5-4DC8-B39C-734B4D9D685C}.Release Double|x64.ActiveCfg = Release|Win32
@@ -404,6 +448,8 @@ Global
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{13636891-3890-4E73-894C-6315A1C71989}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double|Win32.ActiveCfg = Release|Win32
 		{13636891-3890-4E73-894C-6315A1C71989}.Release Double|x64.ActiveCfg = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double Phreeqc|Win32
@@ -417,6 +463,8 @@ Global
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|x64
+		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|x64
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double|Win32.ActiveCfg = Release|Win32
 		{C447F70C-970B-4274-A711-048C5D6F2C87}.Release Double|x64.ActiveCfg = Release|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Debug Double PhreeqC|Win32.ActiveCfg = Debug Double Phreeqc|Win32
@@ -430,6 +478,8 @@ Global
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double|Win32.ActiveCfg = Release|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double|Win32.Build.0 = Release|Win32
 		{8AAFBBAB-D61C-42EE-8346-67EDA6AAABFA}.Release Double|x64.ActiveCfg = Release|Win32
@@ -444,6 +494,8 @@ Global
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|Win32
+		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double|Win32.ActiveCfg = Release|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double|Win32.Build.0 = Release|Win32
 		{9C51FA22-902A-4B6B-B04F-E4A4EFD54F2E}.Release Double|x64.ActiveCfg = Release|Win32
@@ -458,6 +510,8 @@ Global
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double OpenMP|x64.ActiveCfg = Release Double|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double|Win32.Build.0 = Release Double|Win32
 		{7D60003A-7B07-4DAE-9046-FAB75E690696}.Release Double|x64.ActiveCfg = Release Double|Win32
@@ -472,6 +526,8 @@ Global
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double OpenMP|x64.ActiveCfg = Release|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double Parallel|Win32.ActiveCfg = Release Double Parallel|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double Parallel|x64.ActiveCfg = Release Double Parallel|Win32
+		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double Phreeqc|Win32.ActiveCfg = Release Double Phreeqc|Win32
+		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double Phreeqc|x64.ActiveCfg = Release Double Phreeqc|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double|Win32.ActiveCfg = Release|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double|Win32.Build.0 = Release|Win32
 		{E8536316-68D3-48E4-B46A-0ADEBE1F6D60}.Release Double|x64.ActiveCfg = Release|Win32
