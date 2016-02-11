@@ -489,7 +489,7 @@ Module ModuleInterfaceSedimentWater
 
     type       T_Property
          type(T_PropertyID)                         :: ID
-         logical                                    :: Particulate          = .false.
+!~          logical                                    :: Particulate          = .false.
          real, dimension(:,:), pointer              :: Mass_Available           => null()
          real, dimension(:,:), pointer              :: WaterConcentration       => null()
          real, dimension(:,:), pointer              :: MassInKg                 => null()
@@ -2129,7 +2129,7 @@ cd2 :           if (BlockFound) then
 
         end if
 
-        if((.not. NewProperty%Particulate) .or. NewProperty%Evolution%WaterFluxes)then
+        if((.not. NewProperty%ID%IsParticulate) .or. NewProperty%Evolution%WaterFluxes)then
 
             allocate(NewProperty%WaterConcentration(ILB:IUB, JLB:JUB), STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                        &
@@ -2221,25 +2221,26 @@ cd2 :           if (BlockFound) then
 
         !----------------------------------------------------------------------
 
-        !Checks if the user wants this property to be particulate.
-        !This property will be used to define particulated properties
-        call GetData(NewProperty%Particulate,                                            &
-                     Me%ObjEnterData,iflag,                                              &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'PARTICULATE',                                       &
-                     Default      = .false.,                                             &
-                     ClientModule = 'ModuleInterfaceSedimentWater',                      &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)&
-            stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR00' 
+!~         !Checks if the user wants this property to be particulate.
+!~         !This property will be used to define particulated properties
+!~         call GetData(NewProperty%Particulate,                                            &
+!~                      Me%ObjEnterData,iflag,                                              &
+!~                      SearchType   = FromBlock,                                           &
+!~                      keyword      = 'PARTICULATE',                                       &
+!~                      Default      = .false.,                                             &
+!~                      ClientModule = 'ModuleInterfaceSedimentWater',                      &
+!~                      STAT         = STAT_CALL)
+!~         if (STAT_CALL .NE. SUCCESS_)&
+!~             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR00' 
 
-        if (NewProperty%Particulate)then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-                write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
-                write(*,*) 'recognised as PARTICULATE'
-                stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR10'
-            end if
-        endif
+!~         if (NewProperty%Particulate)then
+!~             !if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~ 			if (.not. NewProperty%ID%IsParticulate) then
+!~                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
+!~                 write(*,*) 'recognised as PARTICULATE'
+!~                 stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR10'
+!~             end if
+!~         endif
 
         call GetData(NewProperty%Evolution%Benthos,                                     &
                      Me%ObjEnterData, iflag,                                            &
@@ -2319,7 +2320,7 @@ cd2 :           if (BlockFound) then
 
             NewProperty%Evolution%Variable = .true.
 
-            if(.not. NewProperty%Particulate)then
+            if(.not. NewProperty%ID%IsParticulate)then
 
                 call Read_Property_2D(NewProperty%MolecularDifCoef, FromBlockInBlock,          &
                                       diff_coef_begin, diff_coef_end, ClientNumber = ClientNumber)
@@ -2357,7 +2358,7 @@ cd2 :           if (BlockFound) then
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR90'
 
         if (NewProperty%Evolution%Erosion)then
-            if(.not. NewProperty%Particulate)then
+            if(.not. NewProperty%ID%IsParticulate)then
                 write(*,*)
                 write(*,*)'Cannot specify EROSION for a dissolved property.'
                 write(*,*)'Property: '//trim(NewProperty%ID%Name)
@@ -2389,7 +2390,7 @@ cd2 :           if (BlockFound) then
             stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR120'
 
         if (NewProperty%Evolution%Deposition)then
-            if(.not. NewProperty%Particulate)then
+            if(.not. NewProperty%ID%IsParticulate)then
                 write(*,*)'Cannot specify DEPOSITION for a dissolved property.'
                 write(*,*)'Property: '//trim(NewProperty%ID%Name)
                 stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR130'
@@ -5903,7 +5904,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     endif
                 endif
                 
-                if(PropertyX%Evolution%WaterFluxes .and. (.not. PropertyX%Particulate))then
+                if(PropertyX%Evolution%WaterFluxes .and. (.not. PropertyX%ID%IsParticulate))then
 
                     call ModifyDissolvedFluxes(PropertyX)
                 endif
@@ -5958,7 +5959,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 if(PropertyX%Evolution%SedimentWaterFluxes .and.    &
                     .not. PropertyX%Non_Cohesive) then
                     
-                    if(PropertyX%Particulate)then
+                    if(PropertyX%ID%IsParticulate)then
                         call ParticulateSedimentWaterFluxes(PropertyX)
                         
                     else
@@ -6018,7 +6019,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                     call StartWatch ("ModuleInterfaceSedimentWater", "InitializeFluxesToWaterColumn")
                 endif
 
-                if(.not. PropertyX%Particulate)then
+                if(.not. PropertyX%ID%IsParticulate)then
 
                     call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,            &
                                           ConcentrationX    = WaterPropertyConcentration,       &
@@ -7847,7 +7848,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
 
                 else
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
-                    if(PropertyX%Particulate)then
+                    if(PropertyX%ID%IsParticulate)then
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
@@ -7914,7 +7915,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                 if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
 
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
-                    if(PropertyX%Particulate)then
+                    if(PropertyX%ID%IsParticulate)then
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
@@ -7963,7 +7964,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         stop 'Benthos_Processes - ModuleInterfaceSedimentWater - ERR06'
 
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
-                    if(.not. PropertyX%Particulate)then
+                    if(.not. PropertyX%ID%IsParticulate)then
                         !$OMP MASTER
                         call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,    &
                                               ConcentrationX    = ConcentrationOld,         &
@@ -8356,7 +8357,7 @@ subroutine BenthicEcology_Processes
                     
                     
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
-                    if(PropertyX%Particulate)then
+                    if(PropertyX%ID%IsParticulate)then
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
@@ -8451,7 +8452,7 @@ subroutine BenthicEcology_Processes
         if02:   if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
 
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
-                   if1: if(PropertyX%Particulate)then
+                   if1: if(PropertyX%ID%IsParticulate)then
                         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
@@ -8524,7 +8525,7 @@ subroutine BenthicEcology_Processes
                      
                      !endif
                     !$OMP PARALLEL PRIVATE(i,j,kbottom)
-                if2: if(.not. PropertyX%Particulate)then
+                if2: if(.not. PropertyX%ID%IsParticulate)then
                         !$OMP MASTER
                         call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,    &
                                               ConcentrationX    = ConcentrationOld,         &
@@ -9038,7 +9039,7 @@ subroutine BenthicEcology_Processes
 
                 else
 
-                    if(PropertyX%Particulate)then
+                    if(PropertyX%ID%IsParticulate)then
                 
                         do i = WILB, WIUB
                         do j = WJLB, WJUB
@@ -9101,7 +9102,7 @@ subroutine BenthicEcology_Processes
 
                 if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
                     
-                    if(PropertyX%Particulate)then
+                    if(PropertyX%ID%IsParticulate)then
                         
                         do j = WJLB, WJUB
                         do i = WILB, WIUB
@@ -9147,7 +9148,7 @@ subroutine BenthicEcology_Processes
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'CEQUALW2_Processes - ModuleInterfaceSedimentWater - ERR02'
 
-                    if(.not. PropertyX%Particulate)then
+                    if(.not. PropertyX%ID%IsParticulate)then
                         
                         call GetConcentration(WaterPropertiesID = Me%ObjWaterProperties,    &
                                               ConcentrationX    = ConcentrationOld,         &
@@ -10080,7 +10081,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     end if
 
 
-                    if((.not. PropertyX%Particulate) .or. PropertyX%Evolution%WaterFluxes)then
+                    if((.not. PropertyX%ID%IsParticulate) .or. PropertyX%Evolution%WaterFluxes)then
 
                         deallocate(PropertyX%WaterConcentration,   STAT = STAT_CALL) 
                         if(STAT_CALL .ne. SUCCESS_)&

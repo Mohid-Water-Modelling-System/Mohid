@@ -1952,7 +1952,7 @@ cd12 :       if (BlockFound) then
             
 do1:    do while(associated(Property))
 
-            if (Property%Evolution%Partitioning .and. .not. Property%Particulate) then
+            if (Property%Evolution%Partitioning .and. .not. Property%ID%IsParticulate) then
 
                 DissolvedProperty => Property 
 
@@ -2421,7 +2421,7 @@ do1:    do while(associated(Property))
 
         if(NewProperty%Evolution%AdvectionDiffusion)NewProperty%Evolution%Variable = .true.
         
-        !if(NewProperty%Particulate .and. NewProperty%Evolution%AdvectionDiffusion)then
+        !if(NewProperty%ID%IsParticulate .and. NewProperty%Evolution%AdvectionDiffusion)then
         !    write(*,*)
         !    write(*,*)'Particulate properties cannot have option ADVECTION_DIFFUSION'
         !    write(*,*)'activated in SedimentProperties. Please review your options in'
@@ -2826,22 +2826,22 @@ do1:    do while(associated(Property))
 
         !----------------------------------------------------------------------
         
-        call GetData(NewProperty%Particulate,                                       &
-                     Me%ObjEnterData,  iflag,                                       &
-                     SearchType   = FromBlock,                                      &
-                     keyword      = 'PARTICULATE',                                  &
-                     ClientModule = 'ModuleSedimentProperties',                     &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModuleSedimentProperties - ERR01'
-        if(iflag == 0)              stop 'Construct_PropertyState - ModuleSedimentProperties - ERR02'
+!~         call GetData(NewProperty%ID%IsParticulate,                                  &
+!~                      Me%ObjEnterData,  iflag,                                       &
+!~                      SearchType   = FromBlock,                                      &
+!~                      keyword      = 'PARTICULATE',                                  &
+!~                      ClientModule = 'ModuleSedimentProperties',                     &
+!~                      STAT         = STAT_CALL)
+!~         if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModuleSedimentProperties - ERR01'
+!~         if(iflag == 0)              stop 'Construct_PropertyState - ModuleSedimentProperties - ERR02'
 
-        if (NewProperty%Particulate)then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-                write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
-                write(*,*) 'recognised as PARTICULATE'
-                stop 'Construct_PropertyState - ModuleSedimentProperties - ERR03'
-            end if
-        endif
+!~         if (NewProperty%ID%IsParticulate)then
+!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
+!~                 write(*,*) 'recognised as PARTICULATE'
+!~                 stop 'Construct_PropertyState - ModuleSedimentProperties - ERR03'
+!~             end if
+!~         endif
 
     end subroutine Construct_PropertyState
 
@@ -3307,7 +3307,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 stop 'SedimentQuality_Processes - ModuleSedimentProperties - ERR04'
 
-            if(PropertyX%Particulate)then
+            if(PropertyX%ID%IsParticulate)then
 
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -3730,7 +3730,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                             Me%E_Coef (WKLB) = 1.
                             Me%F_Coef (WKLB) = 0.
 
-                            if(Property%Particulate)then
+                            if(Property%ID%IsParticulate)then
 
                                 do k = WKLB+1, WKUB
 
@@ -3921,7 +3921,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             
             if(Property%Evolution%SurfaceFluxes)then
 
-                if(Property%Particulate)then
+                if(Property%ID%IsParticulate)then
                 
                     if (Me%ExternalVar%Now .ge. Me%NextCompute)then
                     
@@ -4112,7 +4112,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
         do while(associated(Property))
             
-            if(.not. Property%Particulate .and. Property%Evolution%Partitioning)then
+            if(.not. Property%ID%IsParticulate .and. Property%Evolution%Partitioning)then
                 
                 DissolvedProperty => Property
 
@@ -4448,7 +4448,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 endif
 
-                if(PropertyX%Particulate)then
+                if(PropertyX%ID%IsParticulate)then
 
                     PropertyX%HorizontalDiffusivity(i,j,k) = 0.
 
@@ -4773,7 +4773,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 Me%CellMass(:,:,:) = 0.
 
-                if(PropertyX%Particulate)then
+                if(PropertyX%ID%IsParticulate)then
 
                     do K = KLB, KUB
                     do J = JLB, JUB

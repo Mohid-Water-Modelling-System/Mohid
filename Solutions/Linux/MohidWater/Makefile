@@ -26,8 +26,19 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5MODINC) -I$(BASE1INC) -I$(BASE2INC)
-LIBS = $(BASELIBS) $(HDFLIBS)
+INCS = -I$(HDF5INC) -I$(BASE1INC) -I$(BASE2INC)
+
+ifeq ($(IS_MPI),true)
+    INCS := $(INCS) -I$(MPIINC)
+endif
+
+#CPPLIBS must be always the last one in the next line
+LIBS = $(BASELIBS) $(HDFLIBS) $(MPILIBS) $(PHREEQCRMLIBS)
+
+ifeq ($(IS_STDCPP),true)
+    export LIBS := $(CPPLIBS) $(LIBS)
+endif 
+
 SRCDIR = $(SRCREP)/MOHIDWater
 FILES = \
        ModuleAssimilation.$(S) \

@@ -168,7 +168,7 @@
 
     use ModuleGlobalData
     use ModuleEnterData
-    use ModuleFunctions, only: Chunk_I
+    use ModuleFunctions, only: Chunk_I, ConstructPropertyIDOnFly
     use ModuleTime
     !use ifport
 
@@ -4316,7 +4316,7 @@ do1:        do while (associated(ObjPredator%Next))
         !External-------------------------------------------------------------------
         
         !Begin----------------------------------------------------------------------
-
+       
         NewParticles%ID%IDNumber      = GetDynamicPropertyIDNumber(trim(adjustl(Cohort%ID%Name))//" number")
 
         NewParticles%ID%Name          = Cohort%ID%Name

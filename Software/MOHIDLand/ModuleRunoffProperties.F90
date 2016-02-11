@@ -429,7 +429,7 @@ Module ModuleRunoffProperties
         real,    pointer, dimension(:,:)        :: ViscosityV               => null()
         type (T_Property), pointer              :: Next                     => null()
         type (T_Property), pointer              :: Prev                     => null()
-        logical                                 :: Particulate              = .false.
+!~         logical                                 :: Particulate              = .false.
         logical                                 :: Pesticide                = .false.
         type (T_Evolution)                      :: Evolution
         type (T_MassBalance)                    :: MB
@@ -935,7 +935,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             write(*, *)"Property            : ", trim(CurrentProperty%ID%Name)
             write(*, *)"---Adv. Diff.       : ", CurrentProperty%Evolution%AdvectionDiffusion
-            write(*, *)"---Particulate      : ", CurrentProperty%Particulate
+            write(*, *)"---Particulate      : ", CurrentProperty%ID%IsParticulate
             write(*, *)"---Bottom Fluxes    : ", CurrentProperty%Evolution%BottomFluxes                 
             write(*, *)"---Hydro. Erosion   : ", CurrentProperty%Evolution%Erosion
             write(*, *)"---Splash Erosion   : ", CurrentProperty%Evolution%SplashErosion
@@ -1607,34 +1607,35 @@ cd2 :           if (BlockFound) then
         !----------------------------------------------------------------------
         
 
-        !<BeginKeyword>
-            !Keyword          : PARTICULATE
-            !<BeginDescription>
-            !<EndDescription>
-            !Type             : logical   
-            !Default          : Dissolved
-            !File keyword     : SEDPROP
-            !Multiple Options : 1 (.true.), 0 (.false.)
-            !Search Type      : From Block
-            !Begin Block      : <beginproperty>
-            !End Block        : <endproperty>
-        !<EndKeyword>
+!~         !<BeginKeyword>
+!~             !Keyword          : PARTICULATE
+!~             !<BeginDescription>
+!~             !<EndDescription>
+!~             !Type             : logical   
+!~             !Default          : Dissolved
+!~             !File keyword     : SEDPROP
+!~             !Multiple Options : 1 (.true.), 0 (.false.)
+!~             !Search Type      : From Block
+!~             !Begin Block      : <beginproperty>
+!~             !End Block        : <endproperty>
+!~         !<EndKeyword>
 
-        call GetData(NewProperty%Particulate,                                            &
-                     Me%ObjEnterData,  iflag,                                            &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'PARTICULATE',                                       &
-                     ClientModule = 'ModuleRunoffProperties',                       &
-                     STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModuleRunoffProperties - ERR01'
+!~         call GetData(NewProperty%Particulate,                                            &
+!~                      Me%ObjEnterData,  iflag,                                            &
+!~                      SearchType   = FromBlock,                                           &
+!~                      keyword      = 'PARTICULATE',                                       &
+!~                      ClientModule = 'ModuleRunoffProperties',                       &
+!~                      STAT         = STAT_CALL)
+!~         if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModuleRunoffProperties - ERR01'
         
-        if (NewProperty%Particulate)then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-                write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
-                write(*,*) 'recognised as PARTICULATE'
-                stop 'Construct_PropertyState - ModuleRunoffProperties - ERR03'
-            end if
-        endif
+!~         if (NewProperty%Particulate)then
+!~             !if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~ 			if (.not. NewProperty%ID%IsParticulate) then
+!~                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
+!~                 write(*,*) 'recognised as PARTICULATE'
+!~                 stop 'Construct_PropertyState - ModuleRunoffProperties - ERR03'
+!~             end if
+!~         endif
          
        
     end subroutine Construct_PropertyState
@@ -1725,7 +1726,8 @@ cd2 :           if (BlockFound) then
         
             Me%Coupled%BottomFluxes = .true.
             
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+			if (.not. NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
                 write(*,*) 'recognised as PARTICULATE'
                 stop 'ModuleRunoffProperties - Construct_PropertyEvolution - ERR40' 
@@ -1735,8 +1737,8 @@ cd2 :           if (BlockFound) then
        !in Runoff properties all properties recognized by the model as particulate need to
        !have BOTTOM FLUXES ON because if all water infiltrates the mass needs to go somewhere
        !and so needs the bottom concentration (process controlled in Basin)
-        if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
-           .not. NewProperty%Evolution%BottomFluxes) then 
+!~         if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
+		if (NewProperty%ID%IsParticulate .and. .not. NewProperty%Evolution%BottomFluxes) then
             write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not BOTTOM_FLUXES ON'
             write(*,*) 'but is recognised by the model as particulate.'
             write(*,*) 'Particulated recognized properties can accumulate in bottom and'
@@ -2238,7 +2240,7 @@ cd2 :           if (BlockFound) then
             !End Block        : <endproperty>
         !<EndKeyword>
         
-        if(NewProperty%Particulate)then
+        if(NewProperty%ID%IsParticulate)then
             DefaultFraction = 0.9
         else
             DefaultFraction = 0.1
@@ -2970,7 +2972,7 @@ cd2 :           if (BlockFound) then
             
 do1:    do while(associated(Property))
 
-            if (Property%Evolution%Partitioning .and. .not. Property%Particulate) then
+            if (Property%Evolution%Partitioning .and. .not. Property%ID%IsParticulate) then
 
                 DissolvedProperty => Property 
 
@@ -2994,7 +2996,8 @@ do1:    do while(associated(Property))
                     write(*,*) 'Particulate property was not found'
                     stop 'ConstructPartition - ModuleRunoffProperties - ERR10'
                 else
-                    if(.not. Check_Particulate_Property (Couple_ID)) then
+!~                     if(.not. Check_Particulate_Property (Couple_ID)) then
+					if (.not. ParticulateProperty%ID%IsParticulate) then
                         write(*,*)
                         write(*,*) 'Couple property', trim(GetPropertyName(Couple_ID))
                         write(*,*) 'is not recognized by the model as being particulate'
@@ -4714,7 +4717,7 @@ cd0:    if (Exist) then
     !---------------------------------------------------------------------------
     !---------------------------------------------------------------------------
 
-    subroutine GetRPPropertiesIDByIdx (RunoffPropertiesID, Idx, ID,PropAdvDiff, Particulate,Decay, STAT)
+    subroutine GetRPPropertiesIDByIdx (RunoffPropertiesID, Idx, ID,PropAdvDiff, Particulate, Decay, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                         :: RunoffPropertiesID
@@ -4744,7 +4747,8 @@ cd0:    if (Exist) then
 
             ID        = CurrProp%ID%IDNumber
             if (present(PropAdvDiff)) PropAdvDiff = CurrProp%Evolution%AdvectionDiffusion
-            if (present(Particulate)) Particulate = CurrProp%Particulate
+!~             if (present(Particulate)) Particulate = CurrProp%Particulate
+			if (present(Particulate)) Particulate = CurrProp%ID%IsParticulate
             if (present(Decay      )) Decay       = CurrProp%Evolution%Decay
 
             STAT_CALL = SUCCESS_
@@ -8662,7 +8666,7 @@ do1 :   do while (associated(Property))
         PropertyX => Me%FirstProperty
 
 do0:    do while(associated(PropertyX))
-cd0:        if(.not. PropertyX%Particulate .and. PropertyX%Evolution%Partitioning) then
+cd0:        if(.not. PropertyX%ID%IsParticulate .and. PropertyX%Evolution%Partitioning) then
 
                 !days
                 !if DTInterval, only update at given time

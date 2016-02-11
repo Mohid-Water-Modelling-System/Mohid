@@ -1236,7 +1236,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         
                         CurrNode => Me%Nodes(NodeID)
                         BottomMass = 0.0
-                        if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
+!~                         if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
+						if (Property%ID%IsParticulate .and. (Property%ComputeOptions%BottomFluxes)) then
                             ![kg] = [kg/m2] * [m2]
                             BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
                         else
@@ -4820,7 +4821,8 @@ if2:        if (NewProperty%Toxicity%Evolution == Saturation .OR.               
         if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR90' 
 
         if (NewProperty%ComputeOptions%BottomFluxes) then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+			if (.not. NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
                 write(*,*) 'recognised as PARTICULATE'
                 stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR100' 
@@ -4830,8 +4832,8 @@ if2:        if (NewProperty%Toxicity%Evolution == Saturation .OR.               
        !in Drainage Network all properties recognized by the model as particulate need to
        !have Bottom Fluxes because if all water exits node the mass needs to go somewhere
        !and so needs the bottom concentration 
-        if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
-           .not. NewProperty%ComputeOptions%BottomFluxes) then 
+!~         if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
+		if (NewProperty%ID%IsParticulate .and. .not. NewProperty%ComputeOptions%BottomFluxes) then
             write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not BOTTOM_FLUXES ON'
             write(*,*) 'but is recognised by the model as particulate.'
             write(*,*) 'Particulated recognized properties can accumulate in bottom and'
@@ -5085,7 +5087,8 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR300'
 
         if (NewProperty%ComputeOptions%SumTotalConc) then
-            if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+			if (.not. NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
                 write(*,*) 'recognised as PARTICULATE and does not have Bottom_ or total_Conc'
                 stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR16b' 
@@ -8337,7 +8340,8 @@ if0:    if (Me%HasProperties) then
             PropAdvDiff = CurrProp%ComputeOptions%AdvectionDiffusion
             
             if (present (Particulate)) then
-                Particulate = Check_Particulate_Property(CurrProp%ID%IDNumber)
+!~                 Particulate = Check_Particulate_Property(CurrProp%ID%IDNumber)
+				Particulate = CurrProp%ID%IsParticulate
             endif
             
             if (present (OutputName)) then
@@ -9696,7 +9700,8 @@ do2 :   do while (associated(PropertyX))
                         
                         CurrNode => Me%Nodes(NodeID)
                         BottomMass = 0.0
-                        if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
+!~                         if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
+						if (Property%ID%IsParticulate .and. Property%ComputeOptions%BottomFluxes) then
                             ![kg] = [kg/m2] * [m2]
                             BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
                         else
@@ -10760,16 +10765,18 @@ if2:        if (Volume > PoolVolume) then
                         call DischargeProperty (Me%GroundVector (NodeID), Property%GWaterConc(NodeID),  &
                                                 NodeID, CurrNode%VolumeNew,   Property,                 &
                                                 Property%IScoefficient, LocalDT,                        &
-                                                Check_Particulate_Property(Property%ID%IDNumber))
+                                                Property%ID%IsParticulate)
+!~                                                 Check_Particulate_Property(Property%ID%IDNumber))
                         
                     else
                         do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
                             
                             !if property particulate and flow going to river, conc matrix value should be zero 
                             !but this matrix is not allocated in DN because is 3D (only a pointer and exists for dissolved).
-                            if (Check_Particulate_Property(Property%ID%IDNumber)) then
+!~                             if (Check_Particulate_Property(Property%ID%IDNumber)) then
 !                            if ((Check_Particulate_Property(Property%ID%IDNumber)) .and.                         &
 !                                (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) .gt. 0.0)) then
+							if (Property%ID%IsParticulate) then
                                 GWConc = 0.0
                             else
                                 GWConc = Property%GWaterConcLayers(CurrNode%GridI, CurrNode%GridJ, k)
@@ -10779,7 +10786,8 @@ if2:        if (Volume > PoolVolume) then
                                                     GWConc,                                                       &
                                                     NodeID, CurrNode%VolumeNew,   Property,                       &
                                                     Property%IScoefficient, LocalDT,                              &
-                                                    Check_Particulate_Property(Property%ID%IDNumber)) 
+                                                    Property%ID%IsParticulate)
+!~                                                     Check_Particulate_Property(Property%ID%IDNumber)) 
                                                     
                         enddo
                     endif
@@ -10918,7 +10926,8 @@ if2:        if (Volume > PoolVolume) then
                     call DischargeProperty (Me%TransmissionFlow (NodeID), Property%Concentration(NodeID),   &
                                             NodeID, CurrNode%VolumeNew,   Property,                         &
                                             Property%IScoefficient, LocalDT,                                &  
-                                            Check_Particulate_Property(Property%ID%IDNumber))
+                                            Property%ID%IsParticulate)
+!~                                             Check_Particulate_Property(Property%ID%IDNumber))
                 endif
             enddo
             Property => Property%Next

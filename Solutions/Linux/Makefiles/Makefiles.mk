@@ -22,6 +22,7 @@ endif
 
 #Fortran compilation rule
 %.$(Obj) : $(SRCF)/%.$(F)
+	@echo $(CC) $(CCFLAGS) $(INCS) $<
 	@$(CC) $(CCFLAGS) $(INCS) $<
 	@echo $* .................. [OK]
 

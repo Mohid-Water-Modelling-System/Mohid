@@ -49,7 +49,8 @@ Module ModuleInterface
     use ModuleBivalve
 
 #ifdef _PHREEQC_ 
-    use ModulePhreeqC
+    !use ModulePhreeqC
+    use ModulePhreeqCRM
 #endif   
 
 #ifdef _BFM_    
@@ -197,9 +198,9 @@ Module ModuleInterface
 
     type      T_Interface
         private
-        integer                                 :: InstanceID           = null_int !initialization: Jauch
-        character(PathLength)                   :: FileName             = null_str !initialization: Jauch        
-        character(StringLength)                 :: SinksSourcesModel    = null_str !initialization: Jauch        
+        integer                                 :: InstanceID           = null_int 
+        character(PathLength)                   :: FileName             = null_str         
+        character(StringLength)                 :: SinksSourcesModel    = null_str         
         type(T_Size3D)                          :: Size3D
         type(T_Size2D)                          :: Size2D
         type(T_Size1D)                          :: Size1D
@@ -243,10 +244,11 @@ Module ModuleInterface
         
 
 #ifdef _PHREEQC_        
-        real,    pointer, dimension(:    )      :: pE                       => null()
-        real,    pointer, dimension(:    )      :: WaterMass                => null()
-        real,    pointer, dimension(:    )      :: SolidMass                => null()
-        integer, pointer, dimension(:    )      :: PhreeqCID                => null()
+        real,    pointer, dimension(:    )      :: WaterSaturation          => null()
+        real,    pointer, dimension(:    )      :: Porosity                 => null()
+        real,    pointer, dimension(:    )      :: Pressure                 => null()
+        real,    pointer, dimension(:    )      :: Density                  => null()
+        type(T_Point), dimension(:), pointer    :: Points                   => null()
 #endif        
         real,    pointer, dimension(:    )      :: IonicStrength            => null()
         real,    pointer, dimension(:    )      :: PhosphorusAdsortionIndex => null()
@@ -274,6 +276,16 @@ Module ModuleInterface
         real,    pointer, dimension(:    )      :: MacrOccupation           => null()
         
         real,    pointer, dimension(:    )      :: SettlementProbability
+        
+#ifdef _PHREEQC_
+        real, pointer                           :: SolutionMapping(:) => null()
+        real, pointer                           :: EquilibriumMapping(:) => null()
+        real, pointer                           :: ExchangeMapping(:) => null()
+        real, pointer                           :: SurfaceMapping(:) => null()
+        real, pointer                           :: GasPhaseMapping(:) => null()
+        real, pointer                           :: SolidSolutionMapping(:) => null()
+        real, pointer                           :: KineticsMapping(:) => null()
+#endif
       
         !Instance of ModuleTime
         integer                                 :: ObjTime              = 0
@@ -347,14 +359,18 @@ Module ModuleInterface
                                     SinksSourcesModel,                     &
                                     DT,PropertiesList,                     &
                                     WaterPoints3D,                         &
-#ifdef _PHREEQC_                                    
-                                    PhreeqCDatabase,                       &
-                                    PhreeqCDatabaseAux,                    &
-                                    PhreeqCModelID,                        &                                 
-#endif
                                     Size3D,                                &
                                     Vertical1D,                            &
                                     BivalveID,                             &
+#ifdef _PHREEQC_
+                                    SolutionMapping,                       &
+                                    EquilibriumMapping,                    &
+                                    ExchangeMapping,                       &
+                                    SurfaceMapping,                        &
+                                    GasPhaseMapping,                       &
+                                    SolidSolutionMapping,                  &
+                                    KineticsMapping,                       &
+#endif
                                     STAT)
 
         !Arguments-------------------------------------------------------------
@@ -364,16 +380,18 @@ Module ModuleInterface
         integer, dimension(:), pointer, optional                :: PropertiesList
         real, intent (OUT)                                      :: DT
         integer, dimension(:,:,:), pointer                      :: WaterPoints3D
-        
-#ifdef _PHREEQC_
-        character(LEN=*), optional                              :: PhreeqCDatabase
-        character(LEN=*), optional                              :: PhreeqCDatabaseAux
-        integer, intent(OUT), optional                          :: PhreeqCModelID
-#endif
-
         type(T_Size3D)                                          :: Size3D
         logical,intent (IN),  optional                          :: Vertical1D
         integer,intent (OUT), optional                          :: BivalveID
+#ifdef _PHREEQC_
+        real, pointer, optional                                 :: SolutionMapping(:,:,:)
+        real, pointer, optional                                 :: EquilibriumMapping(:,:,:)
+        real, pointer, optional                                 :: ExchangeMapping(:,:,:)
+        real, pointer, optional                                 :: SurfaceMapping(:,:,:)
+        real, pointer, optional                                 :: GasPhaseMapping(:,:,:)
+        real, pointer, optional                                 :: SolidSolutionMapping(:,:,:)
+        real, pointer, optional                                 :: KineticsMapping(:,:,:)
+#endif
         integer,intent (OUT), optional                          :: STAT     
 
         !External--------------------------------------------------------------
@@ -416,16 +434,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Path to data file
             call ReadInterfaceFilesName
-
             
-            call StartSinksSourcesModel(DT &
-#ifdef _PHREEQC_
-                , PhreeqCDatabase, PhreeqCDatabaseAux, PhreeqCModelID &
-#endif                
-            )
-
-!            !Start sinks and sources model
-!            call StartSinksSourcesModel(DT)
+            call StartSinksSourcesModel(DT)
 
             if (present(BivalveID)) then
                 BivalveID = Me%ObjBivalve
@@ -444,6 +454,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ConstructMapping(Me%Size3D)
 
+#ifdef _PHREEQC_
+            call InitializeSinksSourcesModel (SolutionMapping,        &
+                                              EquilibriumMapping,     &
+                                              ExchangeMapping,        &
+                                              SurfaceMapping,         &
+                                              GasPhaseMapping,        &
+                                              SolidSolutionMapping,   &
+                                              KineticsMapping)
+#endif
+            
             STAT_ = SUCCESS_
             
             !Returns ID
@@ -613,7 +633,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(BivalveID)) then
                 BivalveID = Me%ObjBivalve
             endif
-
 
             !Verify model DT's
             call CheckDT
@@ -1059,35 +1078,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 #ifdef _PHREEQC_
             case (PhreeqCModel)
-                                               
-                allocate (Me%WaterVolume1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                                    
+                allocate (Me%Points(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR130a'
+                
+                allocate (Me%Temperature(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR130'
                 
-                allocate (Me%WaterMass(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                allocate (Me%WaterSaturation(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR131'
-
-                allocate (Me%pH(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                
+                allocate (Me%Porosity(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR132'
-                
-                allocate (Me%pE(ArrayLB:ArrayUB), STAT = STAT_CALL)
+
+                allocate (Me%Pressure(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR133'
-
-                allocate (Me%Temperature(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                
+                allocate (Me%Density(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR134'
-                
-                allocate (Me%SolidMass(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR135'
-                
-                allocate (Me%PhreeqCID(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR136'
 
-                Me%WaterVolume1D = FillValueReal
-                Me%WaterMass     = FillValueReal
-                Me%pH            = FillValueReal
-                Me%pE            = FillValueReal
-                Me%Temperature   = FillValueReal
-                Me%SolidMass     = FillValueReal
-                Me%PhreeqCID     = 0
+                Me%Temperature      = FillValueReal
+                Me%WaterSaturation  = FillValueReal
+                Me%Porosity         = FillValueReal
+                Me%Pressure         = FillValueReal
+                Me%Density          = FillValueReal
 #endif
 
             case (WWTPQModel)
@@ -1243,8 +1257,8 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
             case (PhreeqCModel)
             
                 Message = trim('PhreeqC Data File')
-                call ReadFileName('PHREEQC_DATA', Me%FileName, Message = Message, STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'ReadInterfaceFilesName - ModuleInterface - ERR09' 
+                call ReadFileName('PHREEQC_DATA', Me%FileName, Message = Message, PRINT_MESSAGE = .true., STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadInterfaceFilesName - ModuleInterface - ERR09' 
             
 #endif
             case (WWTPQModel)
@@ -1287,20 +1301,11 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 
     !--------------------------------------------------------------------------
     
-    subroutine StartSinksSourcesModel (DT &
-#ifdef _PHREEQC_
-                    , PhreeqCDatabase, PhreeqCDatabaseAux, PhreeqCModelID &
-#endif                    
-                    )
-
+    subroutine StartSinksSourcesModel (DT)
+    
         !Arguments-------------------------------------------------------------
         real, intent(OUT)                       :: DT
-#ifdef _PHREEQC_
-        character(LEN=*), optional              :: PhreeqCDatabase
-        character(LEN=*), optional              :: PhreeqCDatabaseAux
-        integer, intent(INOUT), optional        :: PhreeqCModelID
-#endif
-        
+
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
         integer                                 :: PropLB, PropUB
@@ -1522,7 +1527,7 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR020'
                 
                 
-                 case(BenthicEcologyModel)
+            case(BenthicEcologyModel)
 
 
                 !Construct Benthos Model
@@ -1553,28 +1558,42 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
 #ifdef _PHREEQC_
 
             case (PhreeqCModel)
-            
+                            
+                call GetComputeTimeLimits (Me%ObjTime, EndTime = Me%ExternalVar%EndTime,     &      
+                                           BeginTime = Me%ExternalVar%BeginTime, &
+                                           STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR119'                     
+                   
                 !Construct PhreeqC Model
-                call StartPhreeqC (Me%ObjPhreeqC,                    &
-                                   FileName    = Me%FileName,        &
-                                   Database    = PhreeqCDatabase,    &
-                                   DatabaseAux = PhreeqCDatabaseAux, &
-                                   STAT = STAT_CALL)
+                call ConstructPhreeqCRM (Me%ObjPhreeqC,             &
+                                         Me%FileName,               &
+                                         Me%ExternalVar%BeginTime,  &
+                                         Me%ExternalVar%EndTime,    &
+                                         Me%Array%ILB,              &
+                                         Me%Array%IUB,              &
+                                         STAT_CALL)
                     
-                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR22'
-                 
-                if (present(PhreeqCModelID)) then
-                    PhreeqCModelID = Me%ObjPhreeqC
-                endif
+                call GetPhreeqCDT(Me%ObjPhreeqC, DT, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR120'
                                 
+                !Number of properties involved
+                call GetPhreeqCSize (Me%ObjPhreeqC,                         &
+                                     PropLB,                                &
+                                     PropUB,                                &                                     
+                                     STAT_CALL)                            
+                if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR024'
+
+                !Number of properties involved
+                Me%Prop%ILB = PropLB
+                Me%Prop%IUB = PropUB            
+
 #endif
             case (WWTPQModel)
 
                 !Construct WaterQuality Model
                 call StartWWTPQ(Me%ObjWWTPQ,                     &
-                                       Me%FileName,                            &
-                                       STAT = STAT_CALL) 
+                                Me%FileName,                     &
+                                STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'StartSinksSourcesModel - ModuleInterface - ERR23'
  
                 !Construct mass fluxes between properties
@@ -1702,6 +1721,127 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
     
     !--------------------------------------------------------------------------
 
+#ifdef _PHREEQC_
+    subroutine InitializeSinksSourcesModel (SolutionMapping,         &
+                                            EquilibriumMapping,      &
+                                            ExchangeMapping,         &
+                                            SurfaceMapping,          &
+                                            GasPhaseMapping,         &
+                                            SolidSolutionMapping,    &
+                                            KineticsMapping)    
+#else
+    subroutine InitializeSinksSourcesModel ()
+#endif
+    
+        !Arguments-------------------------------------------------------------
+#ifdef _PHREEQC_
+        real, pointer, optional                                 :: SolutionMapping(:,:,:)
+        real, pointer, optional                                 :: EquilibriumMapping(:,:,:)
+        real, pointer, optional                                 :: ExchangeMapping(:,:,:)
+        real, pointer, optional                                 :: SurfaceMapping(:,:,:)
+        real, pointer, optional                                 :: GasPhaseMapping(:,:,:)
+        real, pointer, optional                                 :: SolidSolutionMapping(:,:,:)
+        real, pointer, optional                                 :: KineticsMapping(:,:,:)
+#endif
+
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL
+        integer                                 :: PropLB, PropUB
+
+        !Begin-----------------------------------------------------------------
+
+        select case (Me%SinksSourcesModel)
+
+#ifdef _PHREEQC_
+
+            case (PhreeqCModel)
+            
+                if(present(SolutionMapping))then
+                if(associated(SolutionMapping))then
+                    if (.not. associated(Me%SolutionMapping)) then
+                        allocate (Me%SolutionMapping(Me%Array%ILB:Me%Array%IUB))
+                    endif
+                    call UnfoldMatrix(SolutionMapping, Me%SolutionMapping)
+                end if
+                endif
+                
+                if(present(EquilibriumMapping))then
+                if(associated(EquilibriumMapping))then
+                    if (.not. associated(Me%EquilibriumMapping)) then
+                        allocate (Me%EquilibriumMapping(Me%Array%ILB:Me%Array%IUB))
+                    endif
+                    call UnfoldMatrix(EquilibriumMapping, Me%EquilibriumMapping)
+                end if
+                endif
+                
+                if(present(ExchangeMapping))then
+                if(associated(ExchangeMapping))then
+                    if (.not. associated(Me%ExchangeMapping)) then
+                        allocate (Me%ExchangeMapping(Me%Array%ILB:Me%Array%IUB))
+                    endif
+                    call UnfoldMatrix(ExchangeMapping, Me%ExchangeMapping)
+                end if 
+                end if 
+                
+                if(present(SurfaceMapping))then
+                if(associated(SurfaceMapping))then
+                    if (.not. associated(Me%SurfaceMapping)) then
+                        allocate (Me%SurfaceMapping(Me%Array%ILB:Me%Array%IUB))
+                    endif
+                    call UnfoldMatrix(SurfaceMapping, Me%SurfaceMapping)
+                end if 
+                end if 
+                
+                if(present(GasPhaseMapping))then
+                if(associated(GasPhaseMapping))then
+                    if (.not. associated(Me%GasPhaseMapping)) then
+                        allocate (Me%GasPhaseMapping(Me%Array%ILB:Me%Array%IUB))
+                    endif
+                    call UnfoldMatrix(GasPhaseMapping, Me%GasPhaseMapping)
+                end if 
+                end if 
+                
+                if(present(SolidSolutionMapping))then
+                if(associated(SolidSolutionMapping))then
+                    if (.not. associated(Me%SolidSolutionMapping)) then
+                        allocate (Me%SolidSolutionMapping(Me%Array%ILB:Me%Array%IUB))
+                    endif
+                    call UnfoldMatrix(SolidSolutionMapping, Me%SolidSolutionMapping)
+                end if 
+                end if 
+                
+                if(present(KineticsMapping))then
+                if(associated(KineticsMapping))then
+                    if (.not. associated(Me%KineticsMapping)) then
+                        allocate (Me%KineticsMapping(Me%Array%ILB:Me%Array%IUB))
+                    endif
+                    call UnfoldMatrix(KineticsMapping, Me%KineticsMapping)
+                end if 
+                end if                    
+                   
+                !Construct PhreeqC Model
+                call InitializePhreeqCRM (Me%ObjPhreeqC,             &
+                                          Me%SolutionMapping,        &
+                                          Me%EquilibriumMapping,     &
+                                          Me%ExchangeMapping,        &
+                                          Me%SurfaceMapping,         &
+                                          Me%GasPhaseMapping,        &
+                                          Me%SolidSolutionMapping,   &
+                                          Me%KineticsMapping,        &
+                                          STAT_CALL)
+
+#endif
+
+            case default
+                !write(*,*) 
+                !write(*,*) 'Defined sinks and sources model was not recognised.'
+                !stop 'StartSinksSourcesModel - ModuleInterface - ERR00' 
+        end select
+
+    end subroutine InitializeSinksSourcesModel    
+    
+    !--------------------------------------------------------------------------    
+    
     subroutine CheckDT
     
         !Local-----------------------------------------------------------------
@@ -1782,6 +1922,9 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         integer, dimension(:), pointer                       :: BenthicEcologyList
         integer, dimension(:), pointer                       :: SeagrassSedimInteractionList
         integer, dimension(:), pointer                       :: SeagrassWaterInteractionList
+#ifdef _PHREEQC_
+        integer, dimension(:), pointer                       :: PhreeqCList
+#endif
 #ifdef _BFM_  
         integer, dimension(:), pointer                       :: BFMList
 #endif
@@ -2454,46 +2597,44 @@ cd14 :          if (Phosphorus) then
 #ifdef _PHREEQC_
 
             case (PhreeqCModel)
-
-!                !Get PhreeqC model time step
-!                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = DT, STAT = STAT_CALL)
-!                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR21' 
-!        
-!                !Run period in seconds
-!                RunPeriod = EndTime - Me%ExternalVar%Now
-!
-!                !The run period must be a multiple of the SedimentQuality DT
-!                auxFactor = RunPeriod / DT
-!
-!                ErrorAux  = auxFactor - int(auxFactor)
-!                
-!                if (ErrorAux /= 0) then
-!                    Dtlag = int(ErrorAux * DT)
-!                    write(*,*) 
-!                    write(*,*) 'DTSECONDS is not multiple of the run period.'
-!                    write(*,*) 'PhreeqC wont be computed in the last', Dtlag, ' seconds.'
-!                    write(*,*) 'Check_Options - ModuleInterface - WRN06.'
-!                endif
+                  
+                call GetPhreeqCPropertiesList (Me%ObjPhreeqC, PhreeqCList, stat_call)                
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR221'
                 
+                !Number of properties involved
+                PropLB = Me%Prop%ILB
+                PropUB = Me%Prop%IUB
+                
+                print *, "These are the properties available to PhreeqC:"
+                do i = lbound(PropertiesList, 1), ubound(PropertiesList, 1)
+                    print *,trim(GetPropertyName(PropertiesList(i)))
+                enddo
+                print *, "End of list"
+
+                do i = PropLB, PropUB
+                    if (.not.FindProperty(PropertiesList, PhreeqCList(i))) then
+                        write(*,*) 'Property ',trim(GetPropertyName(PhreeqCList(i))),' not found'
+                        stop 'Properties lists inconsistent  - Check_Options- ModuleInterface- ERR222'    
+                    end if
+                end do
+
+                call UngetPhreeqC (Me%ObjPhreeqC, PhreeqCList, STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Check_Options - ModuleInterface - ERR223'
+               
                 if (.NOT. FindProperty(PropertiesList, Temperature_)) &
                     stop 'PhreeqC needs property "temperature" - Check_Options'
 
-                if (.NOT. FindProperty(PropertiesList, pH_)) &
-                    stop 'PhreeqC needs property "ph" - Check_Options'
+                if (.NOT. FindProperty(PropertiesList, WaterSaturation_)) &
+                    stop 'PhreeqC needs property "water saturation" - Check_Options'
 
-                if (.NOT. FindProperty(PropertiesList, pE_)) &
-                    stop 'PhreeqC needs property "pe" - Check_Options'
+                if (.NOT. FindProperty(PropertiesList, CellPorosity_)) &
+                    stop 'PhreeqC needs property "porosity" - Check_Options'
                 
+                if (.NOT. FindProperty(PropertiesList, Pressure_)) &
+                    stop 'PhreeqC needs property "pressure" - Check_Options'
                 
-                !Store number of properties involved
-                Me%Prop%ILB = 1
-                
-                if (FindProperty(PropertiesList, SoilDryDensity_)) then               
-                    Me%Prop%IUB = SIZE(PropertiesList) - 4
-                else
-                    Me%Prop%IUB = SIZE(PropertiesList) - 3
-                endif
-                
+                if (.NOT. FindProperty(PropertiesList, Density_)) &
+                    stop 'PhreeqC needs property "density" - Check_Options'               
 #endif
 
              case (WWTPQModel)
@@ -3264,10 +3405,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                   RootsMort, PintFac3DR,                                &
                                   SedimCellVol3D,                                       &
                                   CellArea, WaterVolume,  VelocityModulus,              &
-                                  SeagOccupation,MacrOccupation,                                    &
+                                  SeagOccupation,MacrOccupation,                        &
 #ifdef _PHREEQC_
-                                  WaterMass, SolidMass, pE, Temperature,                & 
-                                  PhreeqCID,                                            &
+                                  WaterSaturation, Porosity, Pressure, Temperature,     & 
+                                  Density, IsPhreeqCStarting,                           &
 #endif
                                   WindVelocity,  Oxygen, DTProp,STAT)
                                  
@@ -3298,11 +3439,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,    optional, dimension(:,:,:), pointer    :: SeagOccupation
                
 #ifdef _PHREEQC_
-        real,    optional, dimension(:,:,:), pointer    :: WaterMass
-        real,    optional, dimension(:,:,:), pointer    :: SolidMass
-        real,    optional, dimension(:,:,:), pointer    :: pE
+        real,    optional, dimension(:,:,:), pointer    :: WaterSaturation
+        real,    optional, dimension(:,:,:), pointer    :: Porosity
+        real,    optional, dimension(:,:,:), pointer    :: Pressure
         real,    optional, dimension(:,:,:), pointer    :: Temperature
-        integer, optional, dimension(:,:,:), pointer    :: PhreeqCID
+        real,    optional, dimension(:,:,:), pointer    :: Density
+        logical, optional                               :: IsPhreeqCStarting
+        !logical, optional                               :: IsPhreeqCOutput
 #endif
         real,    optional, dimension(:,:,:), pointer    :: IonicStrength
         real,    optional, dimension(:,:,:), pointer    :: PhosphorusAdsortionIndex
@@ -3337,12 +3480,27 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,              dimension(:,:,:), pointer    :: LocalConcentration
         real,              dimension(:,:), pointer      :: LocalConcInc        
         real,              dimension(:,:), pointer      :: LocalMass
+        logical                                         :: is_starting
         
 !        !DEBUG purposes--------------------------------------------------------
 !        real :: old_value, new_value
         
         !----------------------------------------------------------------------
 
+#ifdef _PHREEQC_
+        if (present(IsPhreeqCStarting)) then
+            is_starting = IsPhreeqCStarting
+        else
+            is_starting = .false.
+        endif
+        
+        !if (present(IsPhreeqCOutput)) then
+        !    is_output = IsPhreeqCOutput
+        !else
+        !    is_output = .false.
+        !endif
+#endif
+        
         if (MonitorPerformance) call StartWatch ("ModuleInterface", "Modify_Interface3D")
 
         STAT_ = UNKNOWN_
@@ -3612,49 +3770,29 @@ cd4 :           if (ReadyToCompute) then
 #ifdef _PHREEQC_
                         case(PhreeqcModel)
                          
-                            call UnfoldMatrix(WaterVolume, Me%WaterVolume1D)
-                            call UnfoldMatrix(WaterMass, Me%WaterMass)
-                            call UnfoldMatrix(pH, Me%pH)
-                            call UnfoldMatrix(pE, Me%pE)
-                            call UnfoldMatrix(Temperature, Me%Temperature)
-                            call UnfoldMatrix(PhreeqCID, Me%PhreeqCID)
+                            call UnfoldMatrix (WaterSaturation, Me%WaterSaturation)
+                            call UnfoldMatrix (Density, Me%Density, factor = 0.001d0)
+                            call UnfoldMatrix (Porosity, Me%Porosity)
+                            call UnfoldMatrix (Pressure, Me%Pressure)
+                            call UnfoldMatrix (Temperature, Me%Temperature)
+                            call GetPointsForUnfoldMatrix3D (Me%Points)
                             
-                            if (present(SolidMass)) then
-                            
-                                call UnfoldMatrix(SolidMass, Me%SolidMass)
-                                
-                                call ModifyPhreeqC(PhreeqCID = Me%ObjPhreeqC,      &
-                                                   PropertiesValues = Me%Mass,     & 
-                                                   WaterVolume = Me%WaterVolume1D, &
-                                                   WaterMass = Me%WaterMass,       &  
-                                                   Temperature = Me%Temperature,   &
-                                                   pH = Me%pH,                     &
-                                                   pE = Me%pE,                     &
-                                                   SolidMass = Me%SolidMass,       &
-                                                   CellsArrayLB = Me%Array%ILB,    &
-                                                   CellsArrayUB = Me%Array%IUB,    &
-                                                   OpenPoints = Me%OpenPoints,     &
-                                                   ModelID = Me%PhreeqCID,         & 
-                                                   STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) &
-                                    stop 'Modify_Interface3D - ModuleInterface - ERR14'
-
-                            else
-
-                                call ModifyPhreeqC(PhreeqCID = Me%ObjPhreeqC,      &
-                                                   PropertiesValues = Me%Mass,     & 
-                                                   WaterVolume = Me%WaterVolume1D, &
-                                                   WaterMass = Me%WaterMass,       &  
-                                                   Temperature = Me%Temperature,   &
-                                                   pH = Me%pH,                     &
-                                                   pE = Me%pE,                     &
-                                                   CellsArrayLB = Me%Array%ILB,    &
-                                                   CellsArrayUB = Me%Array%IUB,    &
-                                                   OpenPoints = Me%OpenPoints,     & 
-                                                   ModelID = Me%PhreeqCID,         & 
-                                                   STAT = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) &
-                                    stop 'Modify_Interface3D - ModuleInterface - ERR14'
+                            call ModifyPhreeqCRM (Me%ObjPhreeqC,       &
+                                                  Me%Temperature,      &
+                                                  Me%Pressure,         &  
+                                                  Me%Porosity,         &
+                                                  Me%WaterSaturation,  &
+                                                  Me%Mass,             &
+                                                  !Me%OutputMass,       &
+                                                  Me%OpenPoints,       &  
+                                                  Me%Density,          &
+                                                  Me%Points,           &
+                                                  is_starting,         &
+                                                  STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) then
+                                if (present(STAT)) STAT = STAT_CALL
+                                return
+                                !stop 'Modify_Interface3D - ModuleInterface - ERR14'
                             endif
 #endif
                         case(WWTPQModel)
@@ -3740,6 +3878,70 @@ cd4 :           if (ReadyToCompute) then
                             
                     end select
 
+#ifdef _PHREEQC_
+
+                    if (is_starting) then
+
+                        !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
+                    
+                        !if (Me%PropOut%IUB > 0) then
+                        !    LocalMass => Me%OutputMass
+                        !    LocalConcInc => Me%OutputConcentrationIncrement
+                        !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        !    do prop  = Me%PropOut%ILB,  Me%PropOut%IUB
+                        !    do index = ArrayLB, ArrayUB
+                        !        LocalConcInc(prop, index) = LocalMass(prop, index)
+                        !    end do
+                        !    end do
+                        !    !$OMP END DO
+                        !endif
+                        
+                        LocalMass => Me%Mass
+                        LocalConcInc => Me%ConcentrationIncrement
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do prop  = PropLB,  PropUB
+                        do index = ArrayLB, ArrayUB
+                            LocalConcInc(prop, index) = LocalMass(prop, index)
+                        end do
+                        end do
+                        !$OMP END DO
+                                           
+                        !$OMP END PARALLEL
+                    else
+
+                        !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
+    
+                        !if (Me%PropOut%IUB > 0) then
+                        !    LocalMass => Me%OutputMass
+                        !    LocalConcInc => Me%OutputConcentrationIncrement
+                        !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        !    do prop  = Me%PropOut%ILB,  Me%PropOut%IUB
+                        !    do index = ArrayLB, ArrayUB
+                        !        !LocalConcInc(prop, index) = LocalMass(prop, index) - &
+                        !        !                            LocalConcInc(prop, index)
+                        !        LocalConcInc(prop, index) = LocalMass(prop, index)                              
+                        !    end do
+                        !    end do
+                        !    !$OMP END DO                                               
+                        !endif
+                        
+                        LocalMass => Me%Mass
+                        LocalConcInc => Me%ConcentrationIncrement                        
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do prop  = PropLB,  PropUB
+                        do index = ArrayLB, ArrayUB
+                            LocalConcInc(prop, index) = LocalMass(prop, index) - &
+                                                        LocalConcInc(prop, index)
+                        end do
+                        end do
+                        !$OMP END DO
+                        
+                        !$OMP END PARALLEL
+                        
+                    endif
+
+#else
+                        
                     !griflet
                     !$ CHUNK = CHUNK_I(PropLB, PropUB)
                     !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
@@ -3754,11 +3956,79 @@ do6 :               do index = ArrayLB, ArrayUB
                     end do do7
                     !$OMP END DO NOWAIT
                     !$OMP END PARALLEL
-
+#endif
                 end if cd4
 
-            elseif (Increment) then cd5
+#ifdef _PHREEQC_
 
+            elseif (Increment .and. is_starting) then cd5
+                
+                Index = 0
+
+                nProperty = PropertyIndexNumber(PropertyID)
+
+                if (nProperty < 0) &
+                    stop 'Modify_Interface3D - ModuleInterface - ERR80'
+                
+                NLB = Me%Array%ILB
+                NUB = Me%Array%IUB
+                
+                !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcInc,LocalConcentration)
+                
+                !if (is_output) then
+                !
+                !    LocalnProperty = nProperty
+                !    LocalConcInc => Me%OutputConcentrationIncrement
+                !    LocalConcentration => Concentration
+                !
+                !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                !    do Index = NLB, NUB
+                !    
+                !        i = Me%Index2I(Index)
+                !        j = Me%Index2J(Index)
+                !        k = Me%Index2K(Index)
+                !    
+                !        !if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
+                !    
+                !            LocalConcentration(i, j, k) = LocalConcInc(LocalnProperty, Index)
+                !                        
+                !            if(abs(LocalConcentration(i, j, k)) .le. AlmostZero)then
+                !                LocalConcentration(i,j,k) = 0.0
+                !            end if
+                !
+                !        !end if
+                !    
+                !    enddo
+                !    !$OMP END DO
+                !
+                !else
+                    
+                    LocalnProperty = nProperty
+                    LocalConcInc => Me%ConcentrationIncrement
+                    LocalConcentration => Concentration
+                
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    do Index = NLB, NUB
+                    
+                        i = Me%Index2I(Index)
+                        j = Me%Index2J(Index)
+                        k = Me%Index2K(Index)
+                    
+                        LocalConcentration(i, j, k) = LocalConcInc(LocalnProperty, Index)
+                                        
+                        if(abs(LocalConcentration(i, j, k)) .le. AlmostZero)then
+                            LocalConcentration(i,j,k) = 0.0
+                        end if
+                    
+                    enddo
+                    !$OMP END DO NOWAIT
+                    
+                !endif
+                !$OMP END PARALLEL   
+    
+#endif
+
+            elseif (Increment) then cd5
                 Index = 0
 
                 nProperty = PropertyIndexNumber(PropertyID)
@@ -3767,27 +4037,6 @@ do6 :               do index = ArrayLB, ArrayUB
                     stop 'Modify_Interface3D - ModuleInterface - ERR80'
 
                 DT = InterfaceDT()
-
-!               !griflet
-!               !$OMP PARALLEL PRIVATE(k,j,i,Index)
-!do1 :          do k = KLB, KUB
-!               !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-!do2 :          do j = JLB, JUB
-!do3 :          do i = ILB, IUB
-!cd2 :                       if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-!                                Index = Index + 1
-!                                !Concentrations are only actualized in OpenPoints because of instability
-!                                !in waterpoints that are not openpoints
-!                                if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-!                                    Concentration(i, j, k) = Concentration( i, j, k)      + &
-!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                                end if
-!                            end if cd2
-!               end do do3
-!               end do do2
-!               !$OMP END DO NOWAIT
-!               end do do1
-!               !$OMP END PARALLEL
 
                 select case (Me%SinksSourcesModel)
                 
@@ -5481,27 +5730,36 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                 end if
 
 #ifdef _PHREEQC_
-            !ToDo: Need changes
+
             case (PhreeqCModel)
 
-                call GetPhreeqCPropIndex(Me%ObjPhreeqC, PropertyID, IndexNumber, STAT=STAT_CALL)
-                if (STAT_CALL == SUCCESS_) then
+                call GetPhreeqCIndex(Me%ObjPhreeqC, PropertyID, IndexNumber, STAT_CALL)
+                if ((STAT_CALL .NE. SUCCESS_) .AND. (STAT_CALL .NE. NOT_FOUND_ERR_)) then
+                    stop 'FillMassTempSalinity3D - ModuleInterface - ERR07' 
+                else if (STAT_CALL == SUCCESS_) then
                 
                     call InputData(Concentration, IndexNumber)
                     Me%AddedProperties(IndexNumber) = .true.
-                    
-                else if ((STAT_CALL .NE. SUCCESS_) .AND. (STAT_CALL .NE. NOT_FOUND_ERR_)) then
-                    stop 'FillMassTempSalinity3D - ModuleInterface - ERR07' 
-                end if
+                        
+                    Ready = .true.
 
-                Ready = .true.
+                    do i = PropLB, PropUB                       
+                        if (.NOT. Me%AddedProperties(i)) then                        
+                            Ready = .false.
+                            exit                            
+                        end if                         
+                    end do 
 
-                do i = PropLB, PropUB                       
-                    if (.NOT. Me%AddedProperties(i)) then                        
-                        Ready = .false.
-                        exit                            
-                    end if                         
-                end do 
+                    !if (Me%PropOut%IUB > 0) then
+                    !do i = Me%PropOut%ILB, Me%PropOut%IUB
+                    !    if (.NOT. Me%AddedOutputs(i)) then                        
+                    !        Ready = .false.
+                    !        exit                            
+                    !    end if                         
+                    !end do 
+                    !endif
+
+                endif
             
                 if (Ready) Me%AddedProperties = .false.
 
@@ -6831,7 +7089,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         !griflet: optimize performance
         !griflet: start
         allocate(Me%IJ2Index(ILB:IUB,JLB:JUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructInterface3D - ModuleInterface - ERR01-B1'    
+        if (STAT_CALL .NE. SUCCESS_)stop 'ConstructMapping_2D - ModuleInterface - ERR01-B1'    
        !griflet: end
 
         !Number indexed to 3D cell in the vector
@@ -6848,7 +7106,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         enddo
         enddo
 
-        if ((Index) > Me%Array%IUB) stop 'ConstructMapping_3D - ModuleInterface - ERR01'
+        if ((Index) > Me%Array%IUB) stop 'ConstructMapping_2D - ModuleInterface - ERR01'
 
     end subroutine ConstructMapping_2D
 
@@ -6910,41 +7168,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         real, dimension(:,:,:), pointer         :: LocalConcentration
         integer                                 :: LocalnProperty 
         !$ integer                              :: CHUNK
-        !integer                                 :: ILB, IUB      
-        !integer                                 :: JLB, JUB     
-        !integer                                 :: KLB, KUB    
-        
         integer                                 :: NLB, NUB
 
         !----------------------------------------------------------------------
-
-!        ILB = Me%Size3D%ILB     
-!        IUB = Me%Size3D%IUB     
-!
-!        JLB = Me%Size3D%JLB    
-!        JUB = Me%Size3D%JUB    
-!
-!        KLB = Me%Size3D%KLB   
-!        KUB = Me%Size3D%KUB   
-!        
-!        !Number indexed to 3D cell in the vector 
-!        Index = 0
-!
-!        do k = KLB, KUB
-!        do j = JLB, JUB
-!        do i = ILB, IUB
-!            if (Me%ExternalVar%WaterPoints3D(i,j,k)==1) then
-!                Index = Index + 1
-!                Me%Mass(nProperty,Index) = Concentration(i,j,k)
-!            endif    
-!        enddo
-!        enddo
-!        enddo
-!
-!        if ((Index)> Me%Array%IUB) stop 'InputData3D - ModuleInterface - ERR01'
-
-        !griflet: new way
-        !griflet: start
+        !print *, ubound(Me%Mass, 1)
+        !print *, ubound(Me%Mass, 2)
+        !print *, nProperty
         NLB = Me%Array%ILB
         NUB = Me%Array%IUB
         !$ CHUNK = CHUNK_I(NLB, NUB)
@@ -6960,7 +7189,6 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        !griflet: stop
         
         !----------------------------------------------------------------------
 
@@ -7082,12 +7310,43 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     end subroutine InputData1D
 
     !--------------------------------------------------------------------------
+#ifdef _PHREEQC_    
+    subroutine GetPointsForUnfoldMatrix3D (Points)
 
-    subroutine UnfoldMatrix3D_R (Matrix3D, Vector)
+        !Arguments-------------------------------------------------------------
+        type(T_Point), dimension(:), pointer   :: Points
+
+        !Local-----------------------------------------------------------------
+        integer                             :: Index
+        integer                             :: NLB, NUB
+        !$ integer                          :: CHUNK
+        !----------------------------------------------------------------------
+
+        NLB = Me%Array%ILB
+        NUB = Me%Array%IUB
+        !$ CHUNK = CHUNK_I(NLB, NUB)
+        !$OMP PARALLEL PRIVATE(Index)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do Index = NLB, NUB
+            Points(Index)%I = Me%Index2I(Index)
+            Points(Index)%J = Me%Index2J(Index)
+            Points(Index)%K = Me%Index2K(Index)
+        enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        
+        !----------------------------------------------------------------------
+
+    end subroutine GetPointsForUnfoldMatrix3D    
+#endif    
+    !--------------------------------------------------------------------------
+
+    subroutine UnfoldMatrix3D_R (Matrix3D, Vector, factor)
 
         !Arguments-------------------------------------------------------------
         real(4), dimension(:,:,:), pointer     :: Matrix3D
         real(4), dimension(:    ), pointer     :: Vector
+        real(4), optional                      :: Factor
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
@@ -7095,6 +7354,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                             :: NLB, NUB
         !$ integer                          :: CHUNK
         real(4), dimension(:,:,:), pointer     :: LocalMatrix3D
+        real(4)                             :: factor_
 !        integer                             :: ILB, IUB      
 !        integer                             :: JLB, JUB     
 !        integer                             :: KLB, KUB    
@@ -7126,6 +7386,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 !
 !        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix3D_R - ModuleInterface - ERR01'
         
+        if (present(factor)) then
+            factor_ = factor
+        else
+            factor_ = 1.0
+        endif
+        
         !griflet: new way
         !griflet: start
         NLB = Me%Array%ILB
@@ -7138,7 +7404,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
             k = Me%Index2K(Index)
-            Vector(Index) = LocalMatrix3D(i,j,k)
+            Vector(Index) = LocalMatrix3D(i,j,k) * factor_
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -7152,11 +7418,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     
         !--------------------------------------------------------------------------
 
-    subroutine UnfoldMatrix3D_R8 (Matrix3D, Vector)
+    subroutine UnfoldMatrix3D_R8 (Matrix3D, Vector, factor)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:,:), pointer  :: Matrix3D
         real(8), dimension(:    ), pointer  :: Vector
+        real(8), optional                   :: Factor
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
@@ -7164,6 +7431,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                             :: NLB, NUB
         !$ integer                          :: CHUNK
         real(8), dimension(:,:,:), pointer  :: LocalMatrix3D
+        real(4)                             :: factor_
 !        integer                             :: ILB, IUB      
 !        integer                             :: JLB, JUB     
 !        integer                             :: KLB, KUB    
@@ -7195,6 +7463,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 !
 !        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix3D_R - ModuleInterface - ERR01'
         
+        if (present(factor)) then
+            factor_ = factor
+        else
+            factor_ = 1.0
+        endif
+        
         !griflet: new way
         !griflet: start
         NLB = Me%Array%ILB
@@ -7207,7 +7481,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
             k = Me%Index2K(Index)
-            Vector(Index) = LocalMatrix3D(i,j,k)
+            Vector(Index) = LocalMatrix3D(i,j,k) * factor_
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -7219,11 +7493,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
     !--------------------------------------------------------------------------
 
-    subroutine UnfoldMatrix3D_I (Matrix3D, Vector)
+    subroutine UnfoldMatrix3D_I (Matrix3D, Vector, factor)
 
         !Arguments-------------------------------------------------------------
         integer, dimension(:,:,:), pointer      :: Matrix3D
         integer, dimension(:    ), pointer      :: Vector
+        integer, optional                       :: factor
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
@@ -7231,6 +7506,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                                 :: NLB, NUB
         !$ integer                              :: CHUNK
         integer, dimension(:,:,:), pointer      :: LocalMatrix3D
+        integer                                 :: factor_
         
 !        integer                                 :: ILB, IUB      
 !        integer                                 :: JLB, JUB     
@@ -7271,6 +7547,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 !
 !        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix3D_I - ModuleInterface - ERR01'
             
+        if (present(factor)) then
+            factor_ = factor
+        else
+            factor_ = 1.0
+        endif
+
         !griflet: new way
         !griflet: start
         NLB = Me%Array%ILB
@@ -7283,7 +7565,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
             k = Me%Index2K(Index)
-            Vector(Index) = LocalMatrix3D(i,j,k)
+            Vector(Index) = LocalMatrix3D(i,j,k) * factor_
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -7293,11 +7575,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
    !----------------------------------------------------------------------
 
-    subroutine UnfoldMatrix2D_R (Matrix2D, Vector)
+    subroutine UnfoldMatrix2D_R (Matrix2D, Vector, factor)
 
         !Arguments-------------------------------------------------------------
         real(4), dimension(:,:), pointer       :: Matrix2D
         real(4), dimension(:  ), pointer       :: Vector
+        real(4), optional                       :: factor
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
@@ -7305,6 +7588,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                             :: NLB, NUB
         !$ integer                          :: CHUNK
         real(4), dimension(:,:), pointer       :: LocalMatrix2D
+        real(4)                             :: factor_
 !        integer                             :: ILB, IUB      
 !        integer                             :: JLB, JUB     
 !          
@@ -7341,6 +7625,11 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 !
 !        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix2D_R - ModuleInterface - ERR01'
             
+        if (present(factor)) then
+            factor_ = factor
+        else
+            factor_ = 1.0
+        endif
 
         !griflet: new way
         !griflet: start
@@ -7353,7 +7642,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         do Index = NLB, NUB
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
-            Vector(Index) = LocalMatrix2D(i,j)
+            Vector(Index) = LocalMatrix2D(i,j) * factor_
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -7363,11 +7652,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     end subroutine UnfoldMatrix2D_R
    !----------------------------------------------------------------------
 
-    subroutine UnfoldMatrix2D_R8 (Matrix2D, Vector)
+    subroutine UnfoldMatrix2D_R8 (Matrix2D, Vector, factor)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:), pointer    :: Matrix2D
         real(8), dimension(:  ), pointer    :: Vector
+        real(8), optional                   :: factor
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
@@ -7375,6 +7665,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         integer                             :: NLB, NUB
         !$ integer                          :: CHUNK
         real(8), dimension(:,:), pointer    :: LocalMatrix2D
+        real(8)                             :: factor_
 !        integer                             :: ILB, IUB      
 !        integer                             :: JLB, JUB     
 !          
@@ -7411,6 +7702,11 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 !
 !        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix2D_R - ModuleInterface - ERR01'
             
+        if (present(factor)) then
+            factor_ = factor
+        else
+            factor_ = 1.0
+        endif
 
         !griflet: new way
         !griflet: start
@@ -7423,7 +7719,7 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
         do Index = NLB, NUB
             i = Me%Index2I(Index)
             j = Me%Index2J(Index)
-            Vector(Index) = LocalMatrix2D(i,j)
+            Vector(Index) = LocalMatrix2D(i,j) * factor_
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -8146,19 +8442,25 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                 end if
                 
 #ifdef _PHREEQC_
-            !ToDo: Need to change
+
             case (PhreeqCModel)
                 
                 select case (PropertyID)
-                case (Temperature_, pH_, pE_, SoilDryDensity_)
-                    nProperty = 0
+                case (Temperature_, WaterSaturation_, Porosity_, Pressure_, Density_)
+                    
+                    print *, "Do NOT set PHREEQC : 1 for the following properties:"
+                    print *, "temperature, water saturation, porosity, pressure and density"
+                    print *, "These properties are automatically send to PhreeqC if it is enabled."
+                    stop "PropertyIndexNumber - ModuleInterface - ERR-024"
+                    
                 case default
-                    call GetPhreeqCPropIndex(Me%ObjPhreeqC, PropertyID, nProperty, STAT_CALL)
+                    call GetPhreeqCIndex(Me%ObjPhreeqC, PropertyID, nProperty, STAT_CALL)
                     
                     if (STAT_CALL .NE. SUCCESS_) then 
                         
                         write(*,*) 
                         write(*,*) 'Inconsistency between Interface and PhreeqC Model.'
+                        print *, "Property ", trim(GetPropertyName(PropertyID)), "' not found in module PhreeqC."
                         stop       'PropertyIndexNumber - ModuleInterface - ERR23'
 
                     end if            
@@ -8297,7 +8599,7 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                                   
 #ifdef _PHREEQC_
             case(PhreeqcModel)                         
-                call GetPhreeqCDT(Me%ObjPhreeqC, DTSecond = InterfaceDT, STAT = STAT_CALL)
+                call GetPhreeqCDT(Me%ObjPhreeqC, InterfaceDT, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'InterfaceDT - ModuleInterface - ERR16'                
 #endif                   
             case(WWTPQModel)                        
@@ -8509,7 +8811,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR80'
                         end if
                     
-                        call KillPhreeqC (Me%ObjPhreeqC, STAT = STAT_CALL)
+                        call KillPhreeqCRM (Me%ObjPhreeqC, STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR100'
 #endif
                     case(WWTPQModel)
@@ -8641,23 +8943,23 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 #ifdef _PHREEQC_
 
-                if(associated(Me%WaterMass))then
-                    deallocate(Me%WaterMass, STAT = STAT_CALL)
+                if(associated(Me%WaterSaturation))then
+                    deallocate(Me%WaterSaturation, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR16'
                 end if
 
-                if(associated(Me%pH))then
-                    deallocate(Me%pH, STAT = STAT_CALL)
+                if(associated(Me%Porosity))then
+                    deallocate(Me%Porosity, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR17'
                 end if
                 
-                if(associated(Me%pE))then
-                    deallocate(Me%pE, STAT = STAT_CALL)
+                if(associated(Me%Pressure))then
+                    deallocate(Me%Pressure, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR18'
                 end if
                 
-                if(associated(Me%SolidMass))then
-                    deallocate(Me%SolidMass, STAT = STAT_CALL)
+                if(associated(Me%Density))then
+                    deallocate(Me%Density, STAT = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'KillInterface - ModuleInterface - ERR18A'
                 end if                
                 

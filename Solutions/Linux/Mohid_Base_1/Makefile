@@ -26,12 +26,16 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5MODINC)
+INCS = -I$(HDF5INC)
 LIBS =
 
 ifeq ($(IS_PROJ4F),true)
     INCS := $(INCS) -I$(PROJ4FINC)
     LIBS := $(LIBS) $(PROJ4FLIBS)
+endif
+
+ifeq ($(IS_MPI),true)
+    INCS := $(INCS) -I$(MPIINC)
 endif
 
 SRCDIR = $(SRCREP)/MOHIDBase1
@@ -65,10 +69,20 @@ FILES = \
 	ModuleMPImanagement.$(S) \
         ModuleTask2000.F \
         ModuleWWTPQ.$(S)
-#	ModuleCuda.$(S) 
+
+ifeq ($(IS_CUDA),true)
+    FILES : = ModuleCuda.$(S) ${FILES}
+endif
 
 ifeq ($(IS_PROJ4F),true)
     FILES := proj4.${S} ${FILES} 
+endif
+
+ifeq ($(IS_PHREEQCRM),true)
+    FILES := RM_interface.$(S) \
+             IPhreeqc_interface.$(S) \
+             ModulePhreeqCRM.$(S) \
+             ${FILES}
 endif
 
 TARGET = $(BASE1)
@@ -126,9 +140,12 @@ ModuleDrainageNetwork.${Obj}	 	: ModuleDischarges.${Obj} \
                           		  ModuleLightExtinction.${Obj} \
                           		  ModuleStopWatch.${Obj} \
                           		  ModuleInterface.${Obj}
-#ModuleCuda.${Obj} 			: ModuleGlobalData.${Obj}
+ModuleCuda.${Obj} 			: ModuleGlobalData.${Obj}
 ModuleProfile.${Obj} 			: ModuleEnterData.${Obj} \
                   			  ModuleHDF5.${Obj}
+ModulePhreeqCRM.${Obj}			: ModuleFunctions.${Obj} \
+					  RM_interface.${Obj} \
+                                          IPhreeqc_interface.${Obj}
 
 ModuleTask2000.${Obj} :
 	@$(CC) $(CCFLAGS) $(INCS) $(SRCDIR)/ModuleTask2000.F

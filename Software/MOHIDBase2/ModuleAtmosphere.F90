@@ -37,7 +37,8 @@ Module ModuleAtmosphere
     use ModuleFunctions,      only : ConstructPropertyID, CHUNK_J
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix, KillFillMatrix,  &
                                      GetIfMatrixRemainsConstant, GetFillMatrixDTPrediction,  &
-                                     GetNextValueForDTPred, GetValuesProcessingOptions
+                                     GetNextValueForDTPred, GetValuesProcessingOptions,      &
+                                     UngetFillMatrix
     use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,     &
                                      GetTimeSerieLocation, CorrectsCellsTimeSerie,      &
                                      GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName
@@ -48,8 +49,9 @@ Module ModuleAtmosphere
     use ModuleHorizontalGrid, only : GetHorizontalGrid, GetHorizontalGridSize, GetGridAngle, &
                                      GetGridLatitudeLongitude, WriteHorizontalGrid,          &
                                      UnGetHorizontalGrid, RotateVectorFieldToGrid,           &
-                                     GetGridCellArea, GetXYCellZ, GetDDecompMPI_ID,&
-                                     GetDDecompON, GetGridOutBorderPolygon
+                                     GetGridCellArea, GetXYCellZ, GetDDecompMPI_ID,          &
+                                     GetDDecompON, GetGridOutBorderPolygon,                  &
+                                     ComputeAngleFromGridComponents, RotateVectorGridToField
     use ModuleStatistic,      only : ConstructStatistic, GetStatisticMethod,                 &
                                      GetStatisticParameters, ModifyStatistic, KillStatistic
     use ModuleStopWatch,      only : StartWatch, StopWatch
@@ -74,7 +76,7 @@ Module ModuleAtmosphere
 
     private ::      ConstructTimeSerie
 
-    private ::      RotateAtmosphereVectorFields
+    !private ::      RotateAtmosphereVectorFields
 
 
     !Selector
@@ -139,6 +141,13 @@ Module ModuleAtmosphere
         module procedure UngetAtmosphere1D
         module procedure UngetAtmosphere2D
     end interface UngetAtmosphere
+    
+    private :: GetAtmospherePropertyScalar
+    private :: GetAtmospherePropertyVectorial
+    interface  GetAtmosphereProperty
+        module procedure GetAtmospherePropertyScalar
+        module procedure GetAtmospherePropertyVectorial
+    end interface GetAtmosphereProperty    
 
     !Parameter-----------------------------------------------------------------
     
@@ -187,8 +196,13 @@ Module ModuleAtmosphere
 
     type       T_Property
         type (T_PropertyID)                         :: ID
-        real, dimension(:,:), pointer               :: Field                => null()
-        real, dimension(:,:), pointer               :: FieldGrid            => null()
+        real, dimension(:,:), pointer               :: Field            => null() !scalar field. (e.g. converted angle to cell ref)
+        real, dimension(:,:), pointer               :: FieldInputRef    => null() !original scalar field (orig angle in input ref)
+        real, dimension(:,:), pointer               :: FieldU           => null() !vectorial field rotated to grid cells - U comp.
+        real, dimension(:,:), pointer               :: FieldV           => null() !vectorial field rotated to grid cells - V comp.
+        real, dimension(:,:), pointer               :: FieldX           => null() !vectorial original field - X (zonal component)
+        real, dimension(:,:), pointer               :: FieldY           => null() !vectorial original field - Y (meridional comp.)
+        !real, dimension(:,:), pointer               :: FieldGrid            => null()
         real                                        :: RandomValue          = null_real !initialization: Jauch
         logical                                     :: HasRandomComponent   = .false.
         logical                                     :: PropAddedByIrri      = .false.
@@ -799,6 +813,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=StringLength)                         :: TimeSerieName
         character(len=StringLength), dimension(:), pointer  :: PropertyList
         type (T_Polygon), pointer                           :: ModelDomainLimit
+        character(len=StringLength)                         :: PropertyNameX, PropertyNameY
 
         !Begin-----------------------------------------------------------------
 
@@ -807,7 +822,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         PropertyX   => Me%FirstAtmosphereProp
         nProperties =  0
         do while (associated(PropertyX))
-            if (PropertyX%TimeSerie) nProperties = nProperties + 1
+            if (PropertyX%TimeSerie) then
+                !vectorial property - need to get data in user referential - X and Y
+!~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+				if (PropertyX%ID%IsVectorial) then
+                    nProperties = nProperties + 2
+                else
+                    nProperties = nProperties + 1
+                endif
+            endif
             PropertyX=>PropertyX%Next
         enddo
 
@@ -823,7 +846,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             do while (associated(PropertyX))
                 if (PropertyX%TimeSerie) then
                     nProperties = nProperties + 1
-                    PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name))
+                    
+                    !vectorial property - need to get data in user referential - X and Y
+!~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then                    
+                    if (PropertyX%ID%IsVectorial) then
+                        !get the correct names of the properties
+                        call Get_Vectorial_PropertyNames(PropertyX%ID%IDNumber, PropertyNameX, PropertyNameY)
+                        PropertyList(nProperties) = trim(adjustl(PropertyNameX))
+                        
+                        nProperties = nProperties + 1
+                        PropertyList(nProperties) = trim(adjustl(PropertyNameY))
+                    else                        
+                        PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name))
+                    endif
                 endif
                 PropertyX=>PropertyX%Next
             enddo
@@ -976,21 +1011,23 @@ cd2 :           if (BlockFound) then
         end do do1
 
 
-        !Verifies Wind consistence
+        !Verifies Wind consistence. Now is done by vectorial prop
         call SearchProperty(PropertyX, WindVelocityX_, .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
-            call SearchProperty(PropertyY, WindVelocityY_, .false., STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_) then 
-                if ((      PropertyX%ID%SolutionFromFile .and. .not. PropertyY%ID%SolutionFromFile) .or. &
-                    (.not. PropertyX%ID%SolutionFromFile .and.       PropertyY%ID%SolutionFromFile)) then
-                    write (*,*) 'wind velocity X must be given in the same way as wind velocity Y'
-                    stop 'ConstructPropertyList - ModuleAtmosphere - ERR90'
-                endif
-            endif
+            write(*,*) 'Vectorial Property wind velocity is now defined in one single block'
+            write(*,*) 'See Documentation on how to implement it'
+            stop 'ConstructPropertyList - ModuleAtmosphere . ERR03'                     
         endif
-
+        call SearchProperty(PropertyX, WindVelocityY_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            write(*,*) 'Vectorial Property wind velocity is now defined in one single block'
+            write(*,*) 'See Documentation on how to implement it'
+            stop 'ConstructPropertyList - ModuleAtmosphere . ERR03'                     
+        endif        
+        
+        
         !Rotates Vectores
-        call RotateAtmosphereVectorFields(Constructing = .true.)
+        !call RotateAtmosphereVectorFields(Constructing = .true.)
 
         !Checks if Relative Humidity is between 0 and 1
         call SearchProperty(PropertyX, RelativeHumidity_, .false., STAT = STAT_CALL)
@@ -1023,7 +1060,7 @@ cd2 :           if (BlockFound) then
 
             NewProperty%Field(:,:) = null_real
 
-            NewProperty%FieldGrid => NewProperty%Field
+            !NewProperty%FieldGrid => NewProperty%Field
 
             NewProperty%ID%IDnumber = AtmTransmitivity_
             NewProperty%ID%Name     = GetPropertyName (AtmTransmitivity_)
@@ -1184,52 +1221,52 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine RotateAtmosphereVectorFields(Constructing)
-        !Arguments-------------------------------------------------------------
-        logical                                     :: Constructing
-
-        !Local-----------------------------------------------------------------
-        type (T_Property), pointer                  :: PropertyX        => null()
-        type (T_Property), pointer                  :: PropertyY        => null()
-        integer                                     :: STAT_CALL
-
-
-        !----------------------------------------------------------------------
-
-
-        call SearchProperty(PropertyX, WindVelocityX_, .false., STAT = STAT_CALL)
-        if (STAT_CALL == SUCCESS_) then
-            call SearchProperty(PropertyY, WindVelocityY_, .false., STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_) then 
-
-                if (Constructing) then 
-                    nullify (PropertyX%FieldGrid) 
-                    allocate(PropertyX%FieldGrid(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-
-                    PropertyX%FieldGrid(:,:) = null_real
-
-                    nullify (PropertyY%FieldGrid) 
-                    allocate(PropertyY%FieldGrid(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-
-                    PropertyY%FieldGrid(:,:) = null_real
-
-                endif
-
-
-                call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid, &
-                                             VectorInX         = PropertyX%Field,                      &
-                                             VectorInY         = PropertyY%Field,                      &
-                                             VectorOutX        = PropertyX%FieldGrid,                  &
-                                             VectorOutY        = PropertyY%FieldGrid,                  &   
-                                             WaterPoints2D     = Me%ExternalVar%MappingPoints2D,       &
-                                             RotateX           = .true.,                               &
-                                             RotateY           = .true.,                               &
-                                             STAT              = STAT_CALL)
-            endif
-        endif
-
-
-    end subroutine RotateAtmosphereVectorFields
+    !subroutine RotateAtmosphereVectorFields(Constructing)
+    !    !Arguments-------------------------------------------------------------
+    !    logical                                     :: Constructing
+    !
+    !    !Local-----------------------------------------------------------------
+    !    type (T_Property), pointer                  :: PropertyX        => null()
+    !    type (T_Property), pointer                  :: PropertyY        => null()
+    !    integer                                     :: STAT_CALL
+    !
+    !
+    !    !----------------------------------------------------------------------
+    !
+    !
+    !    call SearchProperty(PropertyX, WindVelocityX_, .false., STAT = STAT_CALL)
+    !    if (STAT_CALL == SUCCESS_) then
+    !        call SearchProperty(PropertyY, WindVelocityY_, .false., STAT = STAT_CALL)
+    !        if (STAT_CALL == SUCCESS_) then 
+    !
+    !            if (Constructing) then 
+    !                nullify (PropertyX%FieldGrid) 
+    !                allocate(PropertyX%FieldGrid(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+    !
+    !                PropertyX%FieldGrid(:,:) = null_real
+    !
+    !                nullify (PropertyY%FieldGrid) 
+    !                allocate(PropertyY%FieldGrid(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+    !
+    !                PropertyY%FieldGrid(:,:) = null_real
+    !
+    !            endif
+    !
+    !
+    !            call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid, &
+    !                                         VectorInX         = PropertyX%Field,                      &
+    !                                         VectorInY         = PropertyY%Field,                      &
+    !                                         VectorOutX        = PropertyX%FieldGrid,                  &
+    !                                         VectorOutY        = PropertyY%FieldGrid,                  &   
+    !                                         WaterPoints2D     = Me%ExternalVar%MappingPoints2D,       &
+    !                                         RotateX           = .true.,                               &
+    !                                         RotateY           = .true.,                               &
+    !                                         STAT              = STAT_CALL)
+    !        endif
+    !    endif
+    !
+    !
+    !end subroutine RotateAtmosphereVectorFields
 
     
     !--------------------------------------------------------------------------
@@ -1251,7 +1288,7 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructProperty - ModuleAtmosphere - ERR01'
 
         nullify(NewProperty%Field    )
-        nullify(NewProperty%FieldGrid)
+        !nullify(NewProperty%FieldGrid)
         nullify(NewProperty%Next     )
         nullify(NewProperty%Prev     )
 
@@ -1288,7 +1325,6 @@ cd2 :           if (BlockFound) then
         integer                                     :: iflag
         integer                                     :: SizeILB, SizeIUB
         integer                                     :: SizeJLB, SizeJUB 
-        integer                                     :: i, j
         real                                        :: MinForDTDecrease
         logical                                     :: UseForDTPred
         
@@ -1300,12 +1336,46 @@ cd2 :           if (BlockFound) then
         SizeJUB = Me%Size%JUB
 
         !Fills Matrix
-        allocate (NewProperty%Field (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR010'
+        !Vectorial prop will have u and v fields (rotated to cell)
+!~         if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then    
+        if (NewProperty%ID%IsVectorial) then
+            !converted field to cell referential
+            allocate (NewProperty%FieldU (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR00'        
+            NewProperty%FieldU(:,:) = null_real
+            
+            !converted field to cell referential
+            allocate (NewProperty%FieldV (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR10'    
+            NewProperty%FieldV(:,:) = null_real
+            
+            !original field (only for output)
+            allocate (NewProperty%FieldX (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR15'        
+            NewProperty%FieldX(:,:) = null_real
+            
+            !original field (only for output)
+            allocate (NewProperty%FieldY (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR16'    
+            NewProperty%FieldY(:,:) = null_real            
+        else
+            allocate (NewProperty%Field (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR017'            
+            NewProperty%Field(:,:) = null_real
+            
+            !if angle needs also original field (for output)
+!~             if (Check_Angle_Property(NewProperty%ID%IDNumber)) then
+			if (NewProperty%ID%IsAngle) then
+                allocate (NewProperty%FieldInputRef (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR018'            
+                NewProperty%FieldInputRef(:,:) = null_real
+            endif
+            
+        endif
+        
+        
 
-        NewProperty%Field(:,:) = null_real
-
-        NewProperty%FieldGrid => NewProperty%Field
+        !NewProperty%FieldGrid => NewProperty%Field
 
         !Properties added in a specific time interval (normally a short interval)
         !This is usefull for near instantaneous events (ex.:high precipitation in
@@ -1361,28 +1431,75 @@ cd2 :           if (BlockFound) then
         else
             UseForDTPred = .false.
         endif        
-
-        call ConstructFillMatrix(PropertyID         = NewProperty%ID,                   &
-                                 EnterDataID        = Me%ObjEnterData,                  &
-                                 TimeID             = Me%ObjTime,                       &
-                                 HorizontalGridID   = Me%ObjHorizontalGrid,             &
-                                 ExtractType        = FromBlock,                        &
-                                 PointsToFill2D     = Me%ExternalVar%MappingPoints2D,   &
-                                 Matrix2D           = NewProperty%Field,                &
-                                 TypeZUV            = TypeZ_,                           &
-                                 ClientID           = ClientID,                         &
-                                 PredictDTMethod    = Me%PredictDTMethod,               &
-                                 MinForDTDecrease   = MinForDTDecrease,                 &
-                                 ValueIsUsedForDTPrediction = UseForDTPred,             &
-                                 STAT               = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR040'
-
+        
+        
+!~         if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then 
+		if (NewProperty%ID%IsVectorial) then
+            
+            call ConstructFillMatrix(PropertyID         = NewProperty%ID,                   &
+                                     EnterDataID        = Me%ObjEnterData,                  &
+                                     TimeID             = Me%ObjTime,                       &
+                                     HorizontalGridID   = Me%ObjHorizontalGrid,             &
+                                     ExtractType        = FromBlock,                        &
+                                     PointsToFill2D     = Me%ExternalVar%MappingPoints2D,   &
+                                     Matrix2DU          = NewProperty%FieldU,               &
+                                     Matrix2DV          = NewProperty%FieldV,               &
+                                     Matrix2DX          = NewProperty%FieldX,               &
+                                     Matrix2DY          = NewProperty%FieldY,               &            
+                                     TypeZUV            = TypeZ_,                           &
+                                     ClientID           = ClientID,                         &
+                                     PredictDTMethod    = Me%PredictDTMethod,               &
+                                     MinForDTDecrease   = MinForDTDecrease,                 &
+                                     ValueIsUsedForDTPrediction = UseForDTPred,             &
+                                     STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR035'                
+            
+        else
+            
+!~             if (Check_Angle_Property(NewProperty%ID%IDNumber)) then  
+			if (NewProperty%ID%IsAngle) then
+                
+                call ConstructFillMatrix(PropertyID         = NewProperty%ID,                   &
+                                         EnterDataID        = Me%ObjEnterData,                  &
+                                         TimeID             = Me%ObjTime,                       &
+                                         HorizontalGridID   = Me%ObjHorizontalGrid,             &
+                                         ExtractType        = FromBlock,                        &
+                                         PointsToFill2D     = Me%ExternalVar%MappingPoints2D,   &
+                                         Matrix2D           = NewProperty%Field,                &
+                                         Matrix2DInputRef   = NewProperty%FieldInputRef,        &
+                                         TypeZUV            = TypeZ_,                           &
+                                         ClientID           = ClientID,                         &
+                                         PredictDTMethod    = Me%PredictDTMethod,               &
+                                         MinForDTDecrease   = MinForDTDecrease,                 &
+                                         ValueIsUsedForDTPrediction = UseForDTPred,             &
+                                         STAT               = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR040'
+            else
+                
+                call ConstructFillMatrix(PropertyID         = NewProperty%ID,                   &
+                                         EnterDataID        = Me%ObjEnterData,                  &
+                                         TimeID             = Me%ObjTime,                       &
+                                         HorizontalGridID   = Me%ObjHorizontalGrid,             &
+                                         ExtractType        = FromBlock,                        &
+                                         PointsToFill2D     = Me%ExternalVar%MappingPoints2D,   &
+                                         Matrix2D           = NewProperty%Field,                &
+                                         TypeZUV            = TypeZ_,                           &
+                                         ClientID           = ClientID,                         &
+                                         PredictDTMethod    = Me%PredictDTMethod,               &
+                                         MinForDTDecrease   = MinForDTDecrease,                 &
+                                         ValueIsUsedForDTPrediction = UseForDTPred,             &
+                                         STAT               = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR041'
+                
+            endif
+        endif
+        
         call GetValuesProcessingOptions (NewProperty%ID%ObjFillMatrix,                  &
                                          Accumulate = NewProperty%AccumulateValueInTime,         &
                                          Interpolate = NewProperty%InterpolateValueInTime,       &
                                          UseOriginal = NewProperty%UseOriginalValue,             &
                                          STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR041' 
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleAtmosphere - ERR042' 
         
         !check if property accumulated is precipitation or irrigation
         if (NewProperty%AccumulateValueInTime) then
@@ -1391,7 +1508,7 @@ cd2 :           if (BlockFound) then
                 write(*,*) 'Found Property with ACCUMULATED_VALUES but is not'
                 write(*,*) 'precipitation or irrigation', trim(NewProperty%ID%Name)
                 write(*,*) 'Remove that keyword from the property block'
-                stop 'Construct_PropertyValues - ModuleAtmosphere - ERR041.5'
+                stop 'Construct_PropertyValues - ModuleAtmosphere - ERR043'
             endif
         endif
         
@@ -1399,7 +1516,7 @@ cd2 :           if (BlockFound) then
                                         RemainsConstant = NewProperty%Constant,             &
                                         STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                          &
-            stop 'Construct_PropertyValues - ModuleAtmosphere - ERR042'
+            stop 'Construct_PropertyValues - ModuleAtmosphere - ERR044'
 
         if (.not. NewProperty%ID%SolutionFromFile) then
             call KillFillMatrix (NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
@@ -1428,6 +1545,13 @@ cd2 :           if (BlockFound) then
             write(*,*)
         end if
 
+!~         if(NewProperty%HasRandomComponent .and. Check_Vectorial_Property(NewProperty%ID%IDNumber)) then
+		if (NewProperty%HasRandomComponent .and. NewProperty%ID%IsVectorial) then
+            write(*,*)
+            write(*,*)'ERROR - Atmosphere vectorial property cant have for now random component'
+            write(*,*)'Property name : ', trim(NewProperty%ID%Name)
+            stop 'Construct_PropertyValues - ModuleAtmosphere - ERR065'
+        end if        
 
         !By default property aren't added by irrigation
         call GetData(NewProperty%PropAddedByIrri,                               &
@@ -1472,24 +1596,24 @@ cd2 :           if (BlockFound) then
             endif        
         endif
 
-        if (NewProperty%ID%IDNumber == WindDirection_) then
-            !A rotation of the wind direction is done, so that
-            !  0 - Wind from the North
-            ! 90 - Wind from the West
-            !180 - Wind from the South
-            !270 - Wind from the East
-            do j = Me%Size%JLB, Me%Size%JUB 
-            do i = Me%Size%ILB, Me%Size%IUB 
-                if (Me%ExternalVar%MappingPoints2D(i, j) == WaterPoint) then
-                    NewProperty%Field(i, j) = 270. - NewProperty%Field(i, j)
-                else
-                    NewProperty%Field(i, j) = FillValueReal
-                endif
-            enddo
-            enddo
-
-
-        endif
+        !if (NewProperty%ID%IDNumber == WindDirection_) then
+        !    !A rotation of the wind direction is done, so that
+        !    !  0 - Wind from the North
+        !    ! 90 - Wind from the West
+        !    !180 - Wind from the South
+        !    !270 - Wind from the East
+        !    do j = Me%Size%JLB, Me%Size%JUB 
+        !    do i = Me%Size%ILB, Me%Size%IUB 
+        !        if (Me%ExternalVar%MappingPoints2D(i, j) == WaterPoint) then
+        !            NewProperty%Field(i, j) = 270. - NewProperty%Field(i, j)
+        !        else
+        !            NewProperty%Field(i, j) = FillValueReal
+        !        endif
+        !    enddo
+        !    enddo
+        !
+        !
+        !endif
         
         !----------------------------------------------------------------------
 
@@ -1616,6 +1740,14 @@ cd2 :           if (BlockFound) then
         
 cd2:    if (NewProperty%Statistics%ON) then
 
+!~             if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then
+			if (NewProperty%ID%IsVectorial) then
+                write(*,*)
+                write(*,*)'ERROR - Atmosphere vectorial property cant have for now statistics'
+                write(*,*)'Property name : ', trim(NewProperty%ID%Name)
+                stop 'ConstructSurfStatistics - ModuleAtmosphere - ERR01a'                
+            endif
+            
             !<BeginKeyword>
                 !Keyword          : STATISTICS_FILE
                 !<BeginDescription>       
@@ -1766,7 +1898,7 @@ cd2:    if (NewProperty%Statistics%ON) then
     end subroutine GetAirMeasurementHeight
  !COARE   
 
-    subroutine GetAtmosphereProperty(AtmosphereID, Scalar, ID, STAT, ShowWarning)
+    subroutine GetAtmospherePropertyScalar(AtmosphereID, Scalar, ID, STAT, ShowWarning)
                                   
         !Arguments--------------------------------------------------------------
         integer                                     :: AtmosphereID
@@ -1813,8 +1945,9 @@ cd2:    if (NewProperty%Statistics%ON) then
             endif
 
             call Read_Lock(mATMOSPHERE_, Me%InstanceID)
-
-            Scalar  => PropertyX%FieldGrid
+            
+            !Get the Field (in case of wind direction is in cell referential)
+            Scalar  => PropertyX%Field
 
           
             STAT_ = SUCCESS_
@@ -1826,10 +1959,77 @@ cd2:    if (NewProperty%Statistics%ON) then
 
         !----------------------------------------------------------------------
 
-    end subroutine GetAtmosphereProperty
+    end subroutine GetAtmospherePropertyScalar
 
     !--------------------------------------------------------------------------
 
+    subroutine GetAtmospherePropertyVectorial(AtmosphereID, ScalarU, ScalarV, ID, STAT, ShowWarning)
+                                  
+        !Arguments--------------------------------------------------------------
+        integer                                     :: AtmosphereID
+        real, dimension(:,:), pointer               :: ScalarU
+        real, dimension(:,:), pointer               :: ScalarV
+        integer                                     :: ID
+        integer, optional, intent(OUT)              :: STAT
+        logical, optional, intent(IN)               :: ShowWarning
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+        type (T_Property), pointer                  :: PropertyX    
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+        logical                                     :: warning
+        
+        !----------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(AtmosphereID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (present(ShowWarning)) then
+                warning = ShowWarning
+            else
+                warning = .true.
+            endif
+
+            nullify(PropertyX)
+            call SearchProperty(PropertyX, ID , warning, STAT = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) then
+                if (present(STAT)) then
+                    STAT = NOT_FOUND_ERR_
+                    return
+                else
+                    stop 'GetAtmosphereProperty - ModuleAtmosphere - ERR01'     
+                endif
+            endif
+
+            call Read_Lock(mATMOSPHERE_, Me%InstanceID) 
+            call Read_Lock(mATMOSPHERE_, Me%InstanceID)
+            
+           !Get the Field in cell referential 
+            ScalarU  => PropertyX%FieldU
+            ScalarV  => PropertyX%FieldV
+          
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetAtmospherePropertyVectorial
+
+    !--------------------------------------------------------------------------    
+    
     logical function AtmospherePropertyExists(AtmosphereID, PropertyNumber)
 
         !Arguments--------------------------------------------------------------
@@ -2273,7 +2473,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         !Local-----------------------------------------------------------------
         type(T_Property), pointer                   :: PropertyX    => null()
-        type(T_Property), pointer                   :: PropertyY    => null()
+        !type(T_Property), pointer                   :: PropertyY    => null()
         integer                                     :: STAT_, ready_
         character(len = StringLength)               :: WarningString
 
@@ -2301,11 +2501,14 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
             call SearchProperty(PropertyX, WindDirection_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_) call ModifyWindDirection (PropertyX)
 
-            call SearchProperty(PropertyX, WindVelocityX_, STAT = STAT_CALL) 
-            if (STAT_CALL == SUCCESS_)then
-                call SearchProperty(PropertyY, WindVelocityY_, STAT = STAT_CALL) 
-                if (STAT_CALL == SUCCESS_) call ModifyWindVelocity (PropertyX, PropertyY)
-            end if
+            !call SearchProperty(PropertyX, WindVelocityX_, STAT = STAT_CALL) 
+            !if (STAT_CALL == SUCCESS_)then                                
+                !call SearchProperty(PropertyY, WindVelocityY_, STAT = STAT_CALL) 
+                !if (STAT_CALL == SUCCESS_) call ModifyWindVelocity (PropertyX, PropertyY)
+            !endif
+            !Vectorial property
+            call SearchProperty(PropertyX, WindVelocity_, STAT = STAT_CALL) 
+            if (STAT_CALL == SUCCESS_) call ModifyWindVelocity (PropertyX)                           
             
             call SearchProperty(PropertyX, AirTemperature_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_) call ModifyAirTemperature (PropertyX)
@@ -2367,7 +2570,7 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
             WarningString = 'Modify'
             call ModifyOutPut (WarningString)
 
-            call RotateAtmosphereVectorFields(Constructing = .false.)
+            !call RotateAtmosphereVectorFields(Constructing = .false.)
 
             nullify (Me%ExternalVar%MappingPoints2D)
             call ReadUnlockExternalVar
@@ -2713,54 +2916,56 @@ do2 :   do while (associated(PropertyX))
     !--------------------------------------------------------------------------
 
     
-    subroutine ModifyWindVelocity(PropWindVelocityX, PropWindVelocityY)
+    subroutine ModifyWindVelocity(PropWindVelocity)
 
         !Arguments-------------------------------------------------------------
-        type(T_Property), pointer                   :: PropWindVelocityX, PropWindVelocityY
+        type(T_Property), pointer                   :: PropWindVelocity
 
         !Begin-----------------------------------------------------------------
         integer                                     :: STAT_CALL
+        
+        if (PropWindVelocity%ID%SolutionFromFile) then
 
-        if (PropWindVelocityX%ID%SolutionFromFile) then
-
-            call ModifyFillMatrix (FillMatrixID   = PropWindVelocityX%ID%ObjFillMatrix,  &
-                                   Matrix2D       = PropWindVelocityX%Field,             &
-                                   PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
+            call ModifyFillMatrix (FillMatrixID   = PropWindVelocity%ID%ObjFillMatrix,  &
+                                   Matrix2DU       = PropWindVelocity%FieldU,           &
+                                   Matrix2DV       = PropWindVelocity%FieldV,           &
+                                   Matrix2DX       = PropWindVelocity%FieldX,           &
+                                   Matrix2DY       = PropWindVelocity%FieldY,           &              
+                                   PointsToFill2D  = Me%ExternalVar%MappingPoints2D,    &
+                                   !VectorialDummy_ = .true.,                            &
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR01'
 
-            if (PropWindVelocityX%UseToPredictDT) then
-                call GetFillMatrixDTPrediction (PropWindVelocityX%ID%ObjFillMatrix, PropWindVelocityX%PredictedDT,    &
-                                                PropWindVelocityX%DTForNextEvent, STAT = STAT_CALL)
+            if (PropWindVelocity%UseToPredictDT) then
+                call GetFillMatrixDTPrediction (PropWindVelocity%ID%ObjFillMatrix, PropWindVelocity%PredictedDT,    &
+                                                PropWindVelocity%DTForNextEvent, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR02'
             endif
 
-        end if
+        !end if
 
-        if (PropWindVelocityY%ID%SolutionFromFile) then
-
-            call ModifyFillMatrix (FillMatrixID   = PropWindVelocityY%ID%ObjFillMatrix,  &
-                                   Matrix2D       = PropWindVelocityY%Field,             &
-                                   PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
-                                   STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR03'
-
-            if (PropWindVelocityY%UseToPredictDT) then
-                call GetFillMatrixDTPrediction (PropWindVelocityY%ID%ObjFillMatrix, PropWindVelocityY%PredictedDT,    &
-                                                PropWindVelocityY%DTForNextEvent, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR04'
-            endif
-
-        end if
+        !if (PropWindVelocityY%ID%SolutionFromFile) then
+        !
+        !    call ModifyFillMatrix (FillMatrixID   = PropWindVelocityY%ID%ObjFillMatrix,  &
+        !                           Matrix2D       = PropWindVelocityY%Field,             &
+        !                           PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
+        !                           STAT           = STAT_CALL)
+        !    if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR03'
+        !
+        !    if (PropWindVelocityY%UseToPredictDT) then
+        !        call GetFillMatrixDTPrediction (PropWindVelocityY%ID%ObjFillMatrix, PropWindVelocityY%PredictedDT,    &
+        !                                        PropWindVelocityY%DTForNextEvent, STAT = STAT_CALL)
+        !        if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR04'
+        !    endif
+        !
+        !end if
 
 
         !Computes Wind Velocity from Modulus and Direction
-        if (.not. PropWindVelocityX%Constant            .and. &
-            .not. PropWindVelocityY%Constant            .and. &
-            .not. PropWindVelocityX%ID%SolutionFromFile .and. &
-            .not. PropWindVelocityY%ID%SolutionFromFile ) then
+        elseif (.not. PropWindVelocity%Constant            .and. &
+            .not. PropWindVelocity%ID%SolutionFromFile) then
 
-            call ComputeWindVelocity (PropWindVelocityX, PropWindVelocityY)
+            call ComputeWindVelocity (PropWindVelocity)
 
         endif
 
@@ -2768,11 +2973,10 @@ do2 :   do while (associated(PropertyX))
 
     !--------------------------------------------------------------------------
 
-    subroutine ComputeWindVelocity (PropWindVelocityX, PropWindVelocityY)
+    subroutine ComputeWindVelocity (PropWindVelocity)
 
         !Arguments-------------------------------------------------------------
-        type(T_Property), pointer                   :: PropWindVelocityX
-        type(T_Property), pointer                   :: PropWindVelocityY
+        type(T_Property), pointer                   :: PropWindVelocity
 
         !Local-----------------------------------------------------------------
         type(T_Property), pointer                   :: PropWindModulus
@@ -2789,9 +2993,23 @@ do2 :   do while (associated(PropertyX))
         !Updates and gets pointer to PropWindModulus
         call SearchProperty(PropWindDirection, WindDirection_, .true., STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ComputeWindVelocity - ModuleAtmosphere - ERR02'
-
-        PropWindVelocityX%Field = PropWindModulus%Field * cos(PropWindDirection%Field * PI / 180.)
-        PropWindVelocityY%Field = PropWindModulus%Field * sin(PropWindDirection%Field * PI / 180.)
+        
+        !wind agnle was already rotated to cell
+        PropWindVelocity%FieldU = PropWindModulus%Field * cos(PropWindDirection%Field * PI / 180.)
+        PropWindVelocity%FieldV = PropWindModulus%Field * sin(PropWindDirection%Field * PI / 180.)
+        
+        !need to rotate field since we are outside FillMatrix
+        call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid, &
+                                        VectorInX         = PropWindVelocity%FieldU,              &
+                                        VectorInY         = PropWindVelocity%FieldV,              &
+                                        VectorOutX        = PropWindVelocity%FieldX,              &
+                                        VectorOutY        = PropWindVelocity%FieldY,              &   
+                                        WaterPoints2D     = Me%ExternalVar%MappingPoints2D,       &
+                                        RotateX           = .true.,                               &
+                                        RotateY           = .true.,                               &
+                                        STAT              = STAT_CALL)               
+        if (STAT_CALL /= SUCCESS_)stop 'ComputeWindVelocity - ModuleAtmosphere - ERR03'
+        
 
     end subroutine ComputeWindVelocity
 
@@ -3106,8 +3324,10 @@ do1 :   do while (associated(PropertyX))
 
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer                   :: PropWindModulus
-        type(T_Property), pointer                   :: PropWindVelX
-        type(T_Property), pointer                   :: PropWindVelY
+        
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer                   :: PropWindVel
+        !type(T_Property), pointer                   :: PropWindVelY
 
 
         !Begin-----------------------------------------------------------------
@@ -3129,17 +3349,12 @@ do1 :   do while (associated(PropertyX))
 
         elseif (.not. PropWindModulus%Constant) then
 
-            !Searches Wind X
-            call SearchProperty(PropWindVelX, WindVelocityX_, .false., STAT = STAT_CALL)
+            !Searches Wind
+            call SearchProperty(PropWindVel, WindVelocity_, .false., STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) then
-            
-                !Seaches Wind Y
-                call SearchProperty(PropWindVelY, WindVelocityY_, .false., STAT = STAT_CALL)
-                if (STAT_CALL == SUCCESS_) then
 
-                    PropWindModulus%Field = sqrt(PropWindVelX%Field ** 2.0 + PropWindVelY%Field ** 2.0)
-
-                endif
+                PropWindModulus%Field = sqrt(PropWindVel%FieldU ** 2.0 + PropWindVel%FieldV ** 2.0)
+                
             endif
 
         endif
@@ -3155,7 +3370,7 @@ do1 :   do while (associated(PropertyX))
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-
+        !type(T_Property), pointer                   :: PropWindVel
         !Begin-----------------------------------------------------------------
 
 
@@ -3163,6 +3378,7 @@ do1 :   do while (associated(PropertyX))
 
             call ModifyFillMatrix (FillMatrixID   = PropWindDirection%ID%ObjFillMatrix,     &
                                    Matrix2D       = PropWindDirection%Field,                &
+                                   Matrix2DInputRef  = PropWindDirection%FieldInputRef,     &
                                    PointsToFill2D = Me%ExternalVar%MappingPoints2D,         &
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWindDirection - ModuleAtmosphere - ERR01'
@@ -3172,6 +3388,29 @@ do1 :   do while (associated(PropertyX))
                                                 PropWindDirection%DTForNextEvent, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyWindDirection - ModuleAtmosphere - ERR02'
             endif
+        
+        !This can not be done since wind velocity is not yet known
+        !elseif (.not. PropWindDirection%Constant) then
+        !
+        !    !Searches Wind
+        !    call SearchProperty(PropWindVel, WindVelocity_, .false., STAT = STAT_CALL)
+        !    if (STAT_CALL == SUCCESS_) then
+        !        
+        !        !Field is for properties values in cell referential
+        !        !FieldInputRef is for properties values in input referential (in this case nautic)
+        !        call ComputeAngleFromGridComponents(HorizontalGridID = Me%ObjHorizontalGrid, &
+        !                                                 VectorU          = PropWindVel%FieldU,   &
+        !                                                 VectorV          = PropWindVel%FieldV,   &
+        !                                                 AngleOutField    = PropWindDirection%FieldInputRef, &
+        !                                                 AngleOutGrid     = PropWindDirection%Field,         &
+        !                                                 WaterPoints2D    = Me%ExternalVar%MappingPoints2D,  &
+        !                                                 OutReferential   = NauticalReferential_, &
+        !                                                 Rotate           = .true.,               &
+        !                                                 STAT             = STAT_CALL)
+        !        if (STAT_CALL /= SUCCESS_) stop 'ModifyWindDirection - ModuleAtmosphere - ERR03'                      
+        !        
+        !    endif  
+            
         endif
 
     end subroutine ModifyWindDirection
@@ -4135,7 +4374,7 @@ do2 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real, dimension(6), target                  :: AuxTime
         real, dimension(:), pointer                 :: TimePtr
         real(8)                                     :: AuxPeriod, TotalTime
-             
+        character(LEN = StringLength)               :: PropertyNameX, PropertyNameY
         !Begin----------------------------------------------------------------
 
         Actual   = Me%ActualTime
@@ -4194,16 +4433,85 @@ First:      if (LastTime.LT.Actual) then
             do while (associated(PropertyX))
 
                 if (PropertyX%OutputHDF) then
-
-                    call HDF5WriteData   (Me%ObjHDF5,                            &
-                                          "/Results/"//trim(PropertyX%ID%Name),          &
-                                          trim(PropertyX%ID%Name),                       &
-                                          trim(PropertyX%ID%Units),                      &
-                                          Array2D = PropertyX%Field,                     &
-                                          OutputNumber = OutPutNumber,                   &
-                                          STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR03'
-
+                    
+                    !vectorial property - need to get data in user referential - X and Y
+!~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+					if (PropertyX%ID%IsVectorial) then
+                        
+                        !get the correct names of the properties
+                        call Get_Vectorial_PropertyNames(PropertyX%ID%IDNumber, PropertyNameX, PropertyNameY)
+                        
+                        call HDF5WriteData   (Me%ObjHDF5,                                    &
+                                              "/Results/"//trim(PropertyNameX),              &
+                                              trim(PropertyNameX),                           &
+                                              trim(PropertyX%ID%Units),                      &
+                                              Array2D = PropertyX%FieldX,                    &
+                                              OutputNumber = OutPutNumber,                   &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR03'                        
+                        
+                        call HDF5WriteData   (Me%ObjHDF5,                                    &
+                                              "/Results/"//trim(PropertyNameY),              &
+                                              trim(PropertyNameY),                           &
+                                              trim(PropertyX%ID%Units),                      &
+                                              Array2D = PropertyX%FieldY,                    &
+                                              OutputNumber = OutPutNumber,                   &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR04'       
+                       
+                        !just for debbuging
+                        call HDF5WriteData   (Me%ObjHDF5,                                    &
+                                              "/Results/"//trim(PropertyNameX)//"_Grid",              &
+                                              trim(PropertyNameX)//"_Grid",                           &
+                                              trim(PropertyX%ID%Units),                      &
+                                              Array2D = PropertyX%FieldU,                    &
+                                              OutputNumber = OutPutNumber,                   &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR03'                        
+                        
+                        call HDF5WriteData   (Me%ObjHDF5,                                    &
+                                              "/Results/"//trim(PropertyNameY)//"_Grid",              &
+                                              trim(PropertyNameY)//"_Grid",                           &
+                                              trim(PropertyX%ID%Units),                      &
+                                              Array2D = PropertyX%FieldV,                    &
+                                              OutputNumber = OutPutNumber,                   &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR04'       
+                        
+                        
+                    !Angle property - need to get data in user referential
+!~                     else if (Check_Angle_Property(PropertyX%ID%IDNumber)) then                        
+                    elseif (PropertyX%ID%IsAngle) then
+                        
+                        call HDF5WriteData   (Me%ObjHDF5,                                    &
+                                              "/Results/"//trim(PropertyX%ID%Name),          &
+                                              trim(PropertyX%ID%Name),                       &
+                                              trim(PropertyX%ID%Units),                      &
+                                              Array2D = PropertyX%FieldInputRef,             &
+                                              OutputNumber = OutPutNumber,                   &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR06'                           
+                        
+                        !just for debugging
+                        call HDF5WriteData   (Me%ObjHDF5,                                    &
+                                              "/Results/"//trim(PropertyX%ID%Name)//"_Grid",          &
+                                              trim(PropertyX%ID%Name)//"_Grid",                       &
+                                              trim(PropertyX%ID%Units),                      &
+                                              Array2D = PropertyX%Field,                     &
+                                              OutputNumber = OutPutNumber,                   &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR06'                         
+                        
+                    else
+                        call HDF5WriteData   (Me%ObjHDF5,                            &
+                                              "/Results/"//trim(PropertyX%ID%Name),          &
+                                              trim(PropertyX%ID%Name),                       &
+                                              trim(PropertyX%ID%Units),                      &
+                                              Array2D = PropertyX%Field,                     &
+                                              OutputNumber = OutPutNumber,                   &
+                                              STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR07'
+                    endif
                 endif
 
                 PropertyX => PropertyX%Next
@@ -4214,7 +4522,7 @@ First:      if (LastTime.LT.Actual) then
 
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'OutPutResultsHDF5 - ModuleAtmosphere - ERR08'
             
         endif  TOut
         endif  TNum
@@ -4273,9 +4581,30 @@ First:      if (LastTime.LT.Actual) then
 
         if (PropertyX%TimeSerie) then
 
-            call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%Field, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR01'
+            !vectorial property - need to get data in user referential - X and Y
+!~             if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+			if (PropertyX%ID%IsVectorial) then
+
+                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldX, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR010'
+            
+                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldY, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR020'      
+                                 
                 
+            !Angle property - need to get data in user referential
+!~             else if (Check_Angle_Property(PropertyX%ID%IDNumber)) then
+			elseif (PropertyX%ID%IsAngle) then
+                    
+                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldInputRef, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR040'                                    
+                
+            else
+                
+                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%Field, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR050'
+            
+            endif
         endif
 
     end subroutine OutPut_TimeSeries
@@ -4410,17 +4739,9 @@ cd2 :       if (nUsers == 0) then
 
 do1 :   do while(associated(PropertyX))  
 
-            if (associated(PropertyX%Field, PropertyX%FieldGrid)) then
-
+            if (associated(PropertyX%Field)) then
                 deallocate(PropertyX%Field    )
-
-                nullify   (PropertyX%Field    )
-                nullify   (PropertyX%FieldGrid)           
-            else
-                deallocate(PropertyX%Field    )
-                deallocate(PropertyX%FieldGrid)
-                nullify   (PropertyX%Field    )
-                nullify   (PropertyX%FieldGrid)
+                nullify   (PropertyX%Field    )          
             endif
 
             !Kill Statistics
