@@ -5208,7 +5208,7 @@ i0:     if(Me%Dim == Dim2D)then
             if (iflag==0)then
                 
                 !need to have defined file
-                if (.not. Me%VectorialProp) then                
+                if (.not. Me%VectorialProp) then                                
                     write(*,*)'HDF filename not given for property '//trim(Me%PropertyID%Name)
                     stop 'ConstructHDFInput - ModuleFillMatrix - ERR01b'
                 

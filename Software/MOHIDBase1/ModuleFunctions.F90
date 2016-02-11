@@ -5389,6 +5389,7 @@ d5:     do k = klast + 1,KUB
     subroutine ConstructPropertyIDOnFly (PropertyID, 	&
 									     Name,			&
 									     IsDynamic,		&
+									     IDNumber,		&
 									     IsParticulate,	&
 									     IsAngle, 		&
 									     IsVectorial,	&
@@ -5399,9 +5400,10 @@ d5:     do k = klast + 1,KUB
         type (T_PropertyID)                         :: PropertyID
         character(len=*)							:: Name
         logical										:: IsDynamic
-        logical										:: IsParticulate
-        logical										:: IsAngle
-        logical										:: IsVectorial
+        integer, optional							:: IDNumber
+        logical, optional							:: IsParticulate
+        logical, optional							:: IsAngle
+        logical, optional							:: IsVectorial
         character(len=*), optional, intent(IN)		:: Units
         character(len=*), optional, intent(IN)		:: Description
         logical, optional, intent(IN)               :: CheckProperty
@@ -5415,11 +5417,31 @@ d5:     do k = klast + 1,KUB
 		PropertyID%IsDynamic = IsDynamic
 		if (IsDynamic) then
 			PropertyID%IDnumber = RegisterDynamicProperty(PropertyID%Name)
-		endif
+			if (present(IsParticulate)) then
+				PropertyID%IsParticulate = IsParticulate
+			else
+				PropertyID%IsParticulate = .false.
+			endif
+			if (present(IsAngle)) then
+				PropertyID%IsAngle = IsAngle
+			else
+				PropertyID%IsAngle = .false.
+			endif
+			if (present(IsVectorial)) then
+				PropertyID%IsVectorial = IsVectorial
+			else
+				PropertyID%IsVectorial = .false.
+			endif
+		else
+			if (.not. present(IDNumber)) &
+				stop 'ConstructPropertyID - ModuleFunctions - ERR010'  
+			
+			PropertyID%IDNumber = IDNumber
 		
-		PropertyID%IsParticulate = IsParticulate
-		PropertyID%IsAngle = IsAngle
-		PropertyID%IsVectorial = IsVectorial
+			PropertyID%IsAngle = Check_Angle_Property(PropertyID%IDNumber)
+			PropertyID%IsParticulate = Check_Particulate_Property(PropertyID%IDNumber)
+			PropertyID%IsVectorial = Check_Vectorial_Property(PropertyID%IDNumber)
+		endif
 		
 		if (present(Units)) then
 			PropertyID%Units = Units
@@ -5438,7 +5460,7 @@ d5:     do k = klast + 1,KUB
         if (check) then
         if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
             write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
-            stop 'ConstructPropertyID - ModuleFunctions - ERR03'            
+            stop 'ConstructPropertyID - ModuleFunctions - ERR20'            
         endif
         endif
  
@@ -5479,6 +5501,7 @@ d5:     do k = klast + 1,KUB
                      keyword      = 'DYNAMIC',                                           &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyID - ModuleFunctions - ERR03.1'
+        
         if (dynamic_property) then
             PropertyID%IDnumber = RegisterDynamicProperty(PropertyID%Name)
             PropertyID%IsDynamic = ON
@@ -5503,6 +5526,11 @@ d5:     do k = klast + 1,KUB
 						 keyword      = 'IS_VECTOR',                                         &
 						 STAT         = STAT_CALL)
 			if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyID - ModuleFunctions - ERR03.1.3'
+		else
+		    PropertyID%IDNumber = GetPropertyIDNumber (PropertyID%Name)
+			PropertyID%IsAngle = Check_Angle_Property(PropertyID%IDNumber)
+			PropertyID%IsParticulate = Check_Particulate_Property(PropertyID%IDNumber)
+			PropertyID%IsVectorial = Check_Vectorial_Property(PropertyID%IDNumber)
         endif
         
         if (present(CheckProperty)) then
@@ -5516,11 +5544,8 @@ d5:     do k = klast + 1,KUB
 				write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
 				stop 'ConstructPropertyID - ModuleFunctions - ERR03'            
 			endif
-			PropertyID%IsAngle = Check_Angle_Property(PropertyID%IDNumber)
-			PropertyID%IsParticulate = Check_Particulate_Property(PropertyID%IDNumber)
-			PropertyID%IsVectorial = Check_Vectorial_Property(PropertyID%IDNumber)
         endif
- 
+		
         !Units
         call GetData(PropertyID%Units, ObjEnterData, flag,                               &
                      SearchType   = ExtractType,                                         &
