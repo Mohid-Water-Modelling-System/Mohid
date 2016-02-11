@@ -80,7 +80,8 @@
 Module ModuleWaves
 
     use ModuleGlobalData
-    use ModuleFunctions,        only : Secant, SetMatrixValue
+    use ModuleFunctions,        only : Secant, SetMatrixValue, WaveLengthHuntsApproximation,    &
+                                       ConstructPropertyIDOnFly
     use ModuleEnterData        
     use ModuleTime
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetOpenPoints2D, UnGetHorizontalMap
@@ -537,9 +538,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             stop 'ConstructWaveParameters - ModuleWaves - ERR20'
 
         if (Me%WavePeriod%ON) then
+        
+            call ConstructPropertyIDOnFly (Me%WavePeriod%ID,                            &
+                                           GetPropertyName(MeanWavePeriod_),            &
+                                           .false.,										&
+                                           MeanWavePeriod_)
 
-            Me%WavePeriod%ID%Name     = GetPropertyName(MeanWavePeriod_)
-            Me%WavePeriod%ID%IDNumber = MeanWavePeriod_                                                            
+            !Me%WavePeriod%ID%Name     = GetPropertyName(MeanWavePeriod_)
+            !Me%WavePeriod%ID%IDNumber = MeanWavePeriod_                                                            
                      
             call ReadWaveParameters(WaveProperty = Me%WavePeriod,                       &
                                     BeginBlock   = "<begin_waveperiod>",                &
@@ -559,8 +565,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveHeight%ON) then
 
-            Me%WaveHeight%ID%Name     = GetPropertyName(SignificantWaveHeight_)
-            Me%WaveHeight%ID%IDNumber = SignificantWaveHeight_
+            call ConstructPropertyIDOnFly (Me%WaveHeight%ID,                            &
+                                           GetPropertyName(SignificantWaveHeight_),     &
+                                           .false.,										&
+                                           SignificantWaveHeight_)
+                                           
+            !Me%WaveHeight%ID%Name     = GetPropertyName(SignificantWaveHeight_)
+            !Me%WaveHeight%ID%IDNumber = SignificantWaveHeight_
 
             call ReadWaveParameters(WaveProperty = Me%WaveHeight,                       &
                                     BeginBlock   = "<begin_waveheight>",                &
@@ -580,8 +591,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveDirection%ON) then
 
-            Me%WaveDirection%ID%Name     = GetPropertyName(MeanWaveDirection_)
-            Me%WaveDirection%ID%IDNumber = MeanWaveDirection_            
+            call ConstructPropertyIDOnFly (Me%WaveDirection%ID,                         &
+                                           GetPropertyName(MeanWaveDirection_),         &
+                                           .false.,										&
+                                           MeanWaveDirection_)
+
+            !Me%WaveDirection%ID%Name     = GetPropertyName(MeanWaveDirection_)
+            !Me%WaveDirection%ID%IDNumber = MeanWaveDirection_            
 
             call ReadWaveParameters(WaveProperty = Me%WaveDirection,                    &
                                     BeginBlock   = "<begin_wavedirection>",             &
@@ -601,8 +617,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveLength%ON) then
 
-            Me%WaveLength%ID%Name     = GetPropertyName(MeanWaveLength_)
-            Me%WaveLength%ID%IDNumber = MeanWaveLength_                        
+            call ConstructPropertyIDOnFly (Me%WaveLength%ID,                            &
+                                           GetPropertyName(MeanWaveLength_),            &
+                                           .false.,										&
+                                           MeanWaveLength_)
+                                           
+            !Me%WaveLength%ID%Name     = GetPropertyName(MeanWaveLength_)
+            !Me%WaveLength%ID%IDNumber = MeanWaveLength_                        
 
             call ReadWaveParameters(WaveProperty = Me%WaveLength,                       &
                                     BeginBlock   = "<begin_wavelength>",                &
@@ -646,8 +667,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%RadiationStress%ON) then
 
-            Me%RadiationStress%ID%Name     = GetPropertyName(WaveStress_)
-            Me%RadiationStress%ID%IDNumber = WaveStress_                                    
+            call ConstructPropertyIDOnFly (Me%RadiationStress%ID,                       &
+                                           GetPropertyName(WaveStress_),                &
+                                           .false.,										&
+                                           WaveStress_)
+            
+            !Me%RadiationStress%ID%Name     = GetPropertyName(WaveStress_)
+            !Me%RadiationStress%ID%IDNumber = WaveStress_
 
             call ReadWaveParameters(WaveProperty = Me%RadiationStress,                 &
                                     BeginBlock   = "<begin_radiationstress>",         &
@@ -853,7 +879,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
 !~             if (Check_Vectorial_Property(WaveProperty%ID%IDNumber)) then
 			if (WaveProperty%ID%IsVectorial) then
-            
                 !converted field to cell referential
                 allocate (WaveProperty%FieldU (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR00'        
@@ -881,14 +906,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 !if angle needs also original field (for output)
 !~                 if (Check_Angle_Property(WaveProperty%ID%IDNumber)) then
-				if (WaveProperty%ID%IsAngle) then
+				if (WaveProperty%ID%IsAngle) then				    
                     allocate (WaveProperty%FieldInputRef (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR05'            
                     WaveProperty%FieldInputRef(:,:) = null_real
                 endif
             
             endif            
-            
             
 !~             if (Check_Vectorial_Property(WaveProperty%ID%IDNumber)) then              
 			if (WaveProperty%ID%IsVectorial) then
@@ -3377,7 +3401,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.          
 
         !Local-----------------------------------------------------------------
         integer                                 :: i, j, ILB, IUB, JLB, JUB, STAT_CALL
-        real                                    :: WavePeriod, WaterDepth, WaveAmplitude, G_Aux, F_Aux
+        real                                    :: WavePeriod, WaterDepth, WaveAmplitude
         !Begin-----------------------------------------------------------------
 
 
@@ -3406,17 +3430,9 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.          
                     Me%WaveLength%Field(i, j)       = 0.
 
                 else
-                
-                    ! Hunt's Method to calculate Wave Length (accuracy of 0.1%)
-                    G_Aux                       = ((2 * Pi / WavePeriod)**2) * WaterDepth / gravity
-                    F_Aux                       = G_Aux + (1 / (1. + 0.6522 * G_Aux + 0.4622 * (G_Aux**2) + &
-                                                  0.0864 * (G_Aux**4) + 0.0675 * (G_Aux**5)))
-                    if (F_Aux > 0. .and. WaterDepth > 0.) then
-                        Me%WaveLength%Field(i, j) = WavePeriod * sqrt(gravity * WaterDepth / F_Aux)
-                    else
-                        Me%WaveLength%Field(i, j) = 0.                     
-                    endif
 
+                    Me%WaveLength%Field(i, j) = WaveLengthHuntsApproximation(WavePeriod, WaterDepth)
+                    
                 end if
                 
             end if

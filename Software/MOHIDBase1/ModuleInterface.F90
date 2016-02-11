@@ -3789,8 +3789,11 @@ cd4 :           if (ReadyToCompute) then
                                                   Me%Points,           &
                                                   is_starting,         &
                                                   STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) &
-                                stop 'Modify_Interface3D - ModuleInterface - ERR14'
+                            if (STAT_CALL /= SUCCESS_) then
+                                if (present(STAT)) STAT = STAT_CALL
+                                return
+                                !stop 'Modify_Interface3D - ModuleInterface - ERR14'
+                            endif
 #endif
                         case(WWTPQModel)
 

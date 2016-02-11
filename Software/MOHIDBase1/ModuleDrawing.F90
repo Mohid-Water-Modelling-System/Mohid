@@ -58,6 +58,8 @@ Module ModuleDrawing
 
     public  ::    VertPolygonInsidePolygon
     
+    private ::    PolyLimits_Intersect_PolyLimits
+    
     public  ::    SliceCellIn4
     
     public  ::    ArrayPolygonWindow
@@ -131,7 +133,10 @@ Module ModuleDrawing
     private :: CreateDomainPolygon
     private :: LocateCellPolygonsV2
     private :: PointInsideCell
-   
+
+    public  :: PercentageLineInsidePolygon
+    public  :: PercentagePolygonInsidePolygon
+    public  :: PercentageXYZPointsInsidePolygon    
     
     !Parameter-----------------------------------------------------------------
     integer(4), parameter  :: TypeX_Y_Z     =  1
@@ -192,6 +197,7 @@ Module ModuleDrawing
         integer                                 :: Count
         type(T_Polygon),              pointer   :: Next 
     end type T_Polygon
+    
 
 
     public   T_Lines
@@ -208,11 +214,12 @@ Module ModuleDrawing
     
     !--------------------------------------------------------------------------
     
-    subroutine NewPolygon(Polygons, PolygonsFileName)
+    subroutine NewPolygon(Polygons, PolygonsFileName, PolygonsRef)
         
         !Arguments-------------------------------------------------------------
         type(T_Polygon),                 pointer    :: Polygons
         character(len=*),  intent(IN)               :: PolygonsFileName
+        type(T_Polygon),   optional,     pointer    :: PolygonsRef
 
         !Local-----------------------------------------------------------------
         type(T_Polygon),                 pointer    :: Polygon
@@ -230,18 +237,20 @@ Module ModuleDrawing
         if(STAT_CALL .ne. SUCCESS_)stop 'NewPolygon - ModuleDrawing - ERR01'
     
 do1 :       do
-                call ExtractBlockFromBuffer(PolygonsFile,                                &
-                                            ClientNumber,                                &
+                call ExtractBlockFromBuffer(PolygonsFile,                               &
+                                            ClientNumber,                               &
                                             '<beginpolygon>',                           &
                                             '<endpolygon>',                             &
-                                            BlockFound,                                  &
+                                            BlockFound,                                 &
                                             STAT = STAT_CALL)
 
 if1 :           if      (STAT_CALL .EQ. SUCCESS_ ) then    
 
 if2 :               if (BlockFound) then
 
-                        call Add(Polygons, Polygon)
+                        !Allocates new instance
+                        allocate (Polygon)
+                        nullify  (Polygon%Next)                        
 
                         call GetExtractType(FromBlock = FromBlock)
 
@@ -295,7 +304,19 @@ if2 :               if (BlockFound) then
                         Polygon%VerticesF(CurrentVertix)%Y  = Polygon%VerticesF(1)%Y
 
                         call SetLimits(Polygon)
-
+                        
+                        if (present(PolygonsRef)) then
+                            if(PolyLimits_Intersect_PolyLimits(PolygonsRef, Polygon))then
+                                if (PolyA_Limits_Inside_PolyB_Limits(Polygon, PolygonsRef)) then
+                                    call Add(Polygons, Polygon)
+                                else
+                                    call AddClipPolygon(Polygons, Polygon, PolygonsRef)
+                                endif                                                                        
+                            endif
+                        else 
+                            call Add(Polygons, Polygon)
+                        endif
+                        
                         deallocate(PointCoordinates)
                         nullify   (Polygon)
                     else
@@ -333,11 +354,16 @@ if2 :               if (BlockFound) then
         type (T_Polygon), pointer                   :: NewPolygon
         type (T_Polygon), pointer                   :: PreviousPolygon
         integer, save                               :: NextID = 1
+        !Begin-----------------------------------------------------------------        
         
-        !Allocates new instance
-        allocate (NewPolygon)
-        nullify  (NewPolygon%Next)
-
+        if (.not.associated(ObjPolygon)) then
+            !Allocates new instance
+            allocate (NewPolygon)
+            nullify  (NewPolygon%Next)
+        else
+            NewPolygon => ObjPolygon            
+        endif
+        
         !Insert New Instance into list and makes Current point to it
         if (.not. associated(Polygons)) then
             Polygons             => NewPolygon
@@ -898,6 +924,210 @@ d1:     do i=1, Polygon%Count
     
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+    
+    logical function PolyLimits_Intersect_PolyLimits(PolyA, PolyB)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Polygon), pointer                   :: PolyA, PolyB
+        
+        !local-----------------------------------------------------------------
+        type (T_Polygon), pointer                   :: auxPolyA, auxPolyB        
+        real                                        :: XminA, XmaxA, YminA, YmaxA
+        real                                        :: XminB, XmaxB, YminB, YmaxB   
+        logical                                     :: AuxLogic     
+        
+        !Begin-----------------------------------------------------------------
+        
+        AuxLogic = .false. 
+        
+        auxPolyA => PolyA
+        
+da:     do while (associated(auxPolyA))
+            
+            XminA = auxPolyA%Limits%Left  
+            XmaxA = auxPolyA%Limits%Right 
+            YminA = auxPolyA%Limits%Bottom
+            YmaxA = auxPolyA%Limits%Top   
+            
+            auxPolyB => PolyB                
+db:         do while (associated(auxPolyB))
+            
+                XminB = auxPolyB%Limits%Left  
+                XmaxB = auxPolyB%Limits%Right 
+                YminB = auxPolyB%Limits%Bottom
+                YmaxB = auxPolyB%Limits%Top        
+                
+                if (.not. XminB > XmaxA .and. .not. XmaxB < XminA .and. &
+                    .not. YminB > YmaxA .and. .not. YmaxB < YminA) then
+                    AuxLogic = .true.
+                    exit
+                endif    
+                                    
+                auxPolyB => auxPolyB%Next
+            enddo db
+            
+            if (AuxLogic) exit
+            
+            auxPolyA => auxPolyA%Next
+        enddo da
+        
+        PolyLimits_Intersect_PolyLimits = AuxLogic
+                
+    end function PolyLimits_Intersect_PolyLimits
+    
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    
+    logical function PolyA_Limits_Inside_PolyB_Limits(PolyA, PolyB)
+
+        !Arguments-------------------------------------------------------------
+        type (T_Polygon), pointer                   :: PolyA, PolyB
+        
+        !local-----------------------------------------------------------------
+        type (T_Polygon), pointer                   :: auxPolyA, auxPolyB        
+        real                                        :: XminA, XmaxA, YminA, YmaxA
+        real                                        :: XminB, XmaxB, YminB, YmaxB   
+        logical                                     :: AuxLogic     
+        
+        !Begin-----------------------------------------------------------------
+        
+        AuxLogic = .false. 
+        
+        auxPolyA => PolyA
+        
+da:     do while (associated(auxPolyA))
+            
+            XminA = auxPolyA%Limits%Left  
+            XmaxA = auxPolyA%Limits%Right 
+            YminA = auxPolyA%Limits%Bottom
+            YmaxA = auxPolyA%Limits%Top   
+            
+            auxPolyB => PolyB                
+db:         do while (associated(auxPolyB))
+            
+                XminB = auxPolyB%Limits%Left  
+                XmaxB = auxPolyB%Limits%Right 
+                YminB = auxPolyB%Limits%Bottom
+                YmaxB = auxPolyB%Limits%Top        
+                
+                if (XminA >  XminB .and. XmaxA <  XmaxB .and.                           &
+                    YminA >  YminB .and. YmaxA <  YmaxB) then
+                    AuxLogic = .true.
+                    exit
+                endif    
+                                    
+                auxPolyB => auxPolyB%Next
+            enddo db
+            
+            if (AuxLogic) exit
+            
+            auxPolyA => auxPolyA%Next
+        enddo da
+        
+        PolyA_Limits_Inside_PolyB_Limits = AuxLogic
+                
+    end function PolyA_Limits_Inside_PolyB_Limits
+    
+    !--------------------------------------------------------------------------
+
+    subroutine AddClipPolygon(Polygons, Polygon, PolygonsRef)
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Polygon), pointer                   :: Polygons, Polygon, PolygonsRef
+        
+        !local-----------------------------------------------------------------
+        type (T_Polygon), pointer                   :: auxRefA, NewPolygon, NewRef
+        
+        !Begin-----------------------------------------------------------------
+        
+        !Reduce PolygonsRef
+        call RemovePolygonsInsidePolygons(InPolygons = PolygonsRef, OutPolygons = NewRef)
+        
+        auxRefA => NewRef
+        
+        allocate(NewPolygon)
+        allocate(NewPolygon%VerticesF(1:Polygon%Count))        
+
+        !Reduce PolygonsRef
+da:     do while (associated(auxRefA))
+
+            call sutherlandHodgman(ref = auxRefA, clip = Polygon, outputPolygon = NewPolygon)
+            
+            call SetLimits(NewPolygon)
+            
+            call Add(Polygons, NewPolygon)
+                        
+            auxRefA => auxRefA%Next
+            
+        enddo da    
+        
+        deallocate(Polygon%VerticesF)
+        deallocate(Polygon)
+    
+    end subroutine AddClipPolygon
+    
+    !--------------------------------------------------------------------------    
+    
+   !--------------------------------------------------------------------------
+
+    subroutine RemovePolygonsInsidePolygons(InPolygons, OutPolygons)
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Polygon), pointer                   :: InPolygons, OutPolygons
+        
+        !local-----------------------------------------------------------------
+        type (T_Polygon), pointer                   :: auxA, auxB, auxC
+        logical                                     :: NotPolyInside     
+        integer                                     :: Count
+        
+        !Begin-----------------------------------------------------------------
+        
+        
+        auxA => InPolygons
+        
+        nullify(OutPolygons)
+
+        !Reduce PolygonsRef
+da:     do while (associated(auxA))
+
+            NotPolyInside = .true. 
+
+            auxB => InPolygons        
+            
+db:         do while (associated(auxB))
+            
+                if (PolyA_Limits_Inside_PolyB_Limits(auxA, auxB)) then
+                    NotPolyInside = .false.
+                    exit
+                endif
+                            
+                auxB => auxB%Next
+            enddo db               
+            
+            if (NotPolyInside) then
+                
+                count = auxA%Count
+                allocate(AuxC)
+                allocate(AuxC%VerticesF(1:Count))
+                
+                AuxC%VerticesF(:) = AuxA%VerticesF(:)
+                AuxC%Count        = count
+                
+                call SetLimits(AuxC)
+                
+                call Add(OutPolygons, AuxC)
+                
+            endif
+            
+            auxA => auxA%Next
+        enddo da    
+        
+    
+    end subroutine RemovePolygonsInsidePolygons
+    
+    !--------------------------------------------------------------------------        
     
     subroutine SetLimitsLine(Line)
 
@@ -1684,7 +1914,8 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
         character(len=*), intent(IN)        :: FilePath
         
         !Local-----------------------------------------------------------------
-        integer                             :: UnitID, STAT_CALL, CurrentVertix
+        type (T_Polygon), pointer           :: AuxPolygon
+        integer                             :: UnitID, STAT_CALL, CurrentVertix, ID
 
         !Begin-----------------------------------------------------------------
         
@@ -1694,17 +1925,31 @@ logical function VertPolygonInsidePolygon(PolygonA, PolygonB)
     
 
         open(unit=UnitID, status = "unknown", file = FilePath)
+
         rewind(UnitID)
+        
+        AuxPolygon => Polygon
+        
+        ID = 0
+        
+        do while (associated(AuxPolygon))
 
+            write(UnitID, *)"<beginpolygon>"
 
-        write(UnitID, *)"<begin_polygon>"
+            do CurrentVertix = 1, AuxPolygon%Count
+                write(UnitID, *)  AuxPolygon%VerticesF(CurrentVertix)%X, AuxPolygon%VerticesF(CurrentVertix)%Y, ID
+            enddo
 
-        do CurrentVertix = 1, Polygon%Count
-            write(UnitID, *)Polygon%VerticesF(CurrentVertix)%X, Polygon%VerticesF(CurrentVertix)%Y
-        enddo
-        write(UnitID, *)"<end_polygon>"
-
-
+            write(UnitID, *)"<endpolygon>"
+            
+            ID = ID + 1
+            
+            AuxPolygon => AuxPolygon%Next
+    
+        enddo 
+        
+        nullify(AuxPolygon)
+            
         call UnitsManager(UnitID, CLOSE_FILE, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)stop 'WriteItemPolygon - ModuleDrawing - ERR02'
 
@@ -3032,17 +3277,18 @@ i6:                         if (DirectionX.ne.0.) then
     end function SegIntersectLine
 
  !Checks if a segment (x1,y1,x2,y2) intersect a Polygon 
-    logical function SegIntersectPolygon(x1,y1,x2,y2, PolygonX, LineAng)
+    logical function SegIntersectPolygon(x1,y1,x2,y2, PolygonX, LineAng, AreaOfInterest)
         !Arguments--------------------------------------------------
-        real                         :: x1,y1,x2,y2
-        type (T_polygon), pointer    :: PolygonX
-        real, optional               :: LineAng
+        real                                 :: x1,y1,x2,y2
+        type (T_polygon), pointer            :: PolygonX
+        real, optional                       :: LineAng
+        type (T_polygon), pointer, optional  :: AreaOfInterest
         !Local------------------------------------------------------
-        type (T_polygon), pointer    :: AuxPolygon
-        real(8)                      :: x1_r8,y1_r8,x2_r8,y2_r8,x3,y3,x4,y4
-        real                         :: dx, dy    
-        integer                      :: n    
-        logical                      :: SearchSeg
+        type (T_polygon), pointer            :: AuxPolygon
+        real(8)                              :: x1_r8,y1_r8,x2_r8,y2_r8,x3,y3,x4,y4
+        real                                 :: dx, dy    
+        integer                              :: n    
+        logical                              :: SearchSeg
         !Begin------------------------------------------------------
 
         SegIntersectPolygon = .false.
@@ -3070,11 +3316,21 @@ i6:                         if (DirectionX.ne.0.) then
             if (SearchSeg) then
             
                 do n=1, AuxPolygon%Count - 1
-
+                
                     x3 = AuxPolygon%VerticesF(n)%X
                     y3 = AuxPolygon%VerticesF(n)%Y
                     x4 = AuxPolygon%VerticesF(n+1)%X
                     y4 = AuxPolygon%VerticesF(n+1)%Y
+                    
+                    if (present(AreaOfInterest)) then
+                    
+                        if (y3 > AreaOfInterest%Limits%Top    .and. y4 > AreaOfInterest%Limits%Top   ) cycle
+                        if (y3 < AreaOfInterest%Limits%Bottom .and. y4 < AreaOfInterest%Limits%Bottom) cycle
+
+                        if (x3 > AreaOfInterest%Limits%Right  .and. x4 > AreaOfInterest%Limits%right ) cycle
+                        if (x3 < AreaOfInterest%Limits%Left   .and. x4 < AreaOfInterest%Limits%left  ) cycle
+                        
+                    endif                    
                     
                     if (SegIntersectSeg(x1_r8,y1_r8,x2_r8,y2_r8, x3, y3, x4, y4)) then
                         SegIntersectPolygon = .true. 
@@ -3146,7 +3402,7 @@ i6:                         if (DirectionX.ne.0.) then
     
     end function SegIntersectSegR4    
 
- !Checks if a segment (x1,y1,x2,y2) intersect another segment (x3, y3, x4, y4)
+    !Checks if a segment (x1,y1,x2,y2) intersect another segment (x3, y3, x4, y4)
     logical function SegIntersectSegR8(x1,y1,x2,y2, x3, y3, x4, y4)
         !Arguments--------------------------------------------------
         real(8)                      :: x1,y1,x2,y2, x3, y3, x4, y4
@@ -3189,7 +3445,490 @@ i6:                         if (DirectionX.ne.0.) then
     
     end function SegIntersectSegR8    
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : Compute a polygon A (outputPolygon) resulting from                  !
+!                   the intersection of a polygon B (ref) and a                         !
+!                   polygon C (clip)using the Sutherl and Hodgman algorithm             !
+!                                                                                       !
+! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    ! -----------------------------------------------------------------------------------
+    subroutine sutherlandHodgman( ref, clip, outputPolygon )
+ 
+        !Arguments-----------------------------------------------------------------------
+        type(T_Polygon)                 :: ref, clip, outputPolygon
+ 
+        !Local---------------------------------------------------------------------------
+        ! polygon clipped step by step 
+        type(T_Polygon)                 :: workPolygon 
+        ! vertices of edge to clip workPolygon        
+        double precision, dimension(2)  :: y1,y2    
+        integer                         :: i  
+        
+        !Begin---------------------------------------------------------------------------        
+     
+        ! allocate workPolygon with the maximal possible size
+        !   the sum of the size of polygon ref and clip
+        allocate(workPolygon%VerticesF( ref%count+clip%count))
+        
+     
+        !  initialise the work polygon with clip
+        workPolygon%count = clip%count
+        workPolygon%VerticesF(1:workPolygon%count)%X = clip%VerticesF(1:workPolygon%count)%X
+        workPolygon%VerticesF(1:workPolygon%count)%Y = clip%VerticesF(1:workPolygon%count)%Y    
+     
+d1:     do i=1,ref%count-1 ! for each edge i of the polygon ref
+
+            y1(1) = ref%VerticesF(i)%X   !  vertex 1 of edge i
+            y1(2) = ref%VerticesF(i)%Y   !  vertex 1 of edge i      
+            y2(1) = ref%VerticesF(i+1)%X !  vertex 2 of edge i
+            y2(2) = ref%VerticesF(i+1)%Y !  vertex 2 of edge i      
+     
+            ! clip the work polygon by edge i
+            call edgeClipping( workPolygon, y1, y2, outputPolygon)
+            ! workPolygon <= outputPolygon
+            workPolygon%count = outputPolygon%count
+            workPolygon%VerticesF(1:workPolygon%count)%X = outputPolygon%VerticesF(1:workPolygon%count)%X
+            workPolygon%VerticesF(1:workPolygon%count)%Y = outputPolygon%VerticesF(1:workPolygon%count)%Y      
+     
+        enddo d1
+        
+        deallocate(workPolygon%VerticesF)
+        
+    end subroutine sutherlandHodgman
+                             
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : make the clipping  of the polygon by the line (x1x2)                !
+!                                                                                       !
+! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine edgeClipping( poly, y1, y2, outputPoly )
+        ! 
+     
+        !Arguments-----------------------------------------------------------------------     
+        type(T_Polygon) :: poly, outputPoly
+        double precision, dimension(2)  :: y1, y2
+        
+        !Local---------------------------------------------------------------------------
+        double precision, dimension(2)  :: x1, x2, intersecPoint
+        integer                         ::  i, c
+        
+        !Begin---------------------------------------------------------------------------             
+
+        ! counter for the output polygon     
+        c = 0 
+
+        ! for each edge i of poly             
+d1:     do i=1,poly%count-1 
+        
+            ! vertex 1 of edge i        
+            x1(1) = poly%VerticesF(i  )%X   
+            x1(2) = poly%VerticesF(i  )%Y   
+            ! vertex 2 of edge i                  
+            x2(1) = poly%VerticesF(i+1)%X   
+            x2(2) = poly%VerticesF(i+1)%Y   
+             
+            ! if vertex 1 in inside clipping region             
+i1:         if ( inside(x1, y1, y2) ) then 
+                ! if vertex 2 in inside clipping region
+i2:             if ( inside(x2, y1, y2) ) then 
+                    ! add the vertex 2 to the output polygon
+                    c = c+1
+                    outputPoly%VerticesF(c)%X = x2(1)
+                    outputPoly%VerticesF(c)%Y = x2(2)
+                else i2
+                    ! vertex i+1 is outside                
+                    intersecPoint = intersection(x1, x2, y1,y2)
+                    c = c+1
+                    outputPoly%VerticesF(c)%X = intersecPoint(1)
+                    outputPoly%VerticesF(c)%Y = intersecPoint(2)          
+                end if i2
+            ! vertex i is outside                 
+            else i1
+i3:             if ( inside(x2, y1, y2) ) then
+                    intersecPoint = intersection(x1, x2, y1,y2)
+                    c = c+1
+                    outputPoly%VerticesF(c)%X = intersecPoint(1)
+                    outputPoly%VerticesF(c)%Y = intersecPoint(2)
+
+                    c = c+1
+                    outputPoly%VerticesF(c)%X = x2(1)
+                    outputPoly%VerticesF(c)%Y = x2(2)
+                end if i3
+            end if i1
+        end do d1
+     
+i4:     if (c .gt. 0) then
+            ! if the last vertice is not equal to the first one
+            if ((outputPoly%VerticesF(1)%X .ne. outputPoly%VerticesF(c)%X) .or. & 
+            (outputPoly%VerticesF(1)%Y .ne. outputPoly%VerticesF(c)%Y))  then
+                c=c+1
+                outputPoly%VerticesF(c) = outputPoly%VerticesF(1)
+            end if
+        end if i4
+        ! set the size of the outputPolygon
+        outputPoly%count = c
+        
+    end subroutine edgeClipping
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes the intersection between segment [x1x2]                    ! 
+!                   and line (y1y2)                                            !
+!                                                                                       !
+! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    function intersection( x1, x2, y1, y2)
+
+        !Arguments-----------------------------------------------------------------------     
+        ! points of the segment        
+        double precision, dimension(2)  :: x1, x2
+        ! points of the line        
+        double precision, dimension(2)  :: y1, y2
+
+        !Local---------------------------------------------------------------------------     
+        double precision, dimension(2)  :: intersection, vx, vy, x1y1 
+        double precision                :: a
+        
+        !Begin---------------------------------------------------------------------------             
+
+        vx(:) = x2(:) - x1(:) 
+        vy(:) = y2(:) - y1(:)
+        
+        ! if the vectors are colinear
+i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
+            x1y1(:) = y1(:) - x1(:)
+            ! if the the segment [x1x2] is included in the line (y1y2)
+            if ( crossProduct(x1y1,vx) .eq. 0.d0) then
+                ! the intersection is the last point of the segment
+                intersection(:) = x2(:)
+            end if
+        ! the vectors are not colinear            
+        else i1
+            ! we want to find the inersection between [x1x2]
+            ! and (y1,y2).
+            ! mathematically, we want to find a in [0;1] such
+            ! that :
+            !     x1 + a vx = y1 + b vy        
+            ! <=> a vx = x1y1 + b vy
+            ! <=> a vx^vy = x1y1^vy      , ^ is cross product
+            ! <=> a = x1y1^vy / vx^vy
+
+            x1y1(:) = y1(:) - x1(:) 
+            ! we compute a
+            a = crossProduct(x1y1,vy)/crossProduct(vx,vy)
+            ! if a is not in [0;1]
+            if ( (a .gt. 1.d0) .or. (a .lt. 0)) then
+                ! no intersection
+            else
+                intersection(:) = x1(:) + a*vx(:)
+            end if
+        end if i1
+        
+    end function intersection
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal :  function that tells is the point p is at left of the line (y1y2)   !
+!                                                                                       !
+! Author : Paulo Leitão adapted from http://rosettacode.org/ in Jan. 2016               !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    function inside( p, y1, y2)
+
+        !Arguments-----------------------------------------------------------------------
+        double precision, dimension(2)  :: p, y1, y2
+        !Local---------------------------------------------------------------------------
+        double precision, dimension(2)  :: v1, v2
+        logical                         :: inside
+        
+        !Begin---------------------------------------------------------------------------        
+        
+        v1(:) = y2(:) -  y1(:)
+        v2(:) = p(:)  -  y1(:)  
+        if ( crossProduct(v1,v2) .ge. 0.d0) then
+            inside = .true.
+        else 
+            inside = .false.
+        end if
+
+  end function inside
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : compute the dot product of vectors v1 and v2                        !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
+    function dotProduct( v1, v2)
+
+        !Arguments-----------------------------------------------------------------------    
+        double precision, dimension(2) :: v1
+        double precision, dimension(2) :: v2
+        double precision               :: dotProduct
+        
+        !Begin---------------------------------------------------------------------------            
+        
+        dotProduct = v1(1)*v2(1) + v1(2)*v2(2)
+
+    end function dotProduct
+ 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : compute the crossproduct of vectors v1 and v2                       !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function crossProduct( v1, v2)
+        
+        !Arguments-----------------------------------------------------------------------    
+        double precision, dimension(2)  :: v1
+        double precision, dimension(2)  :: v2
+        double precision                :: crossProduct
+
+        !Begin---------------------------------------------------------------------------
+        
+        crossProduct = v1(1)*v2(2) - v1(2)*v2(1)
+        
+  end function crossProduct
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes percentage of Line X is inside of polygon Y                !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+    real function PercentageLineInsidePolygon(LineX, PolygonY)
+        
+        !Arguments--------------------------------------------------
+        type (T_Lines),   pointer    :: LineX
+        type (T_Polygon), pointer    :: PolygonY                
+        !Local------------------------------------------------------
+        type (T_Polygon), pointer    :: AuxY
+        type (T_Lines), pointer      :: AuxLine
+        real(8)                      :: x1,y1,x2,y2
+        real(8)                      :: dxy, sumTotal, sumInside
+        integer                      :: n    
+        type (T_PointF), pointer     :: PointA, PointB
+        !Begin------------------------------------------------------
+
+        sumTotal   = 0.
+        sumInside  = 0.
+
+        AuxLine => LineX
+        AuxY    => PolygonY
+        
+        allocate(PointA, PointB)
+        
+        do while(associated(AuxY))         
+
+            do while (associated(AuxLine))
+            
+                do n=1, AuxLine%nNodes-1
+
+                    x1 = AuxLine%X(n)
+                    y1 = AuxLine%Y(n)
+                    x2 = AuxLine%X(n+1)
+                    y2 = AuxLine%Y(n+1)
+                    
+                    dxy = sqrt((y2-y1)**2.+(x2-x1)**2.)
+                    
+                    sumTotal = sumTotal + dxy
+                    
+                    PointA%X = x1
+                    PointA%Y = y1
+                   
+                    PointB%X = x2
+                    PointB%Y = y2
+
+                    if (IsPointInsidePolygon(PointA, AuxY) .or.                         &
+                        IsPointInsidePolygon(PointB, AuxY)) then
+                        sumInside = sumInside + dxy
+                    endif
+                    
+                enddo                
+                    
+                AuxLine => AuxLine%Next
+                
+            enddo
+            
+            AuxY => AuxY%Next
+        enddo
+        
+        
+        
+        if (SumTotal > 0) then
+            PercentageLineInsidePolygon = sumInside / sumTotal * 100.
+        else
+            PercentageLineInsidePolygon = 0.
+        endif            
+
+        deallocate(PointA, PointB)        
+
+        nullify(AuxLine)
+        nullify(AuxY   )
+
+    end function PercentageLineInsidePolygon
+    
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes percentage of XYZPoints X is inside of polygon Y           !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+    real function PercentageXYZPointsInsidePolygon(XYZPointsX, PolygonY)
+        
+        !Arguments--------------------------------------------------
+        type (T_XYZPoints), pointer  :: XYZPointsX
+        type (T_Polygon),   pointer  :: PolygonY                
+        !Local------------------------------------------------------
+        type (T_Polygon),   pointer  :: AuxY
+        integer                      :: n    
+        type (T_PointF), pointer     :: PointA
+        real                         :: sumTotal, sumInside
+        !Begin------------------------------------------------------
+
+        sumTotal   = 0.
+        sumInside  = 0.
+        
+        allocate(PointA)
+
+        AuxY    => PolygonY
+        
+        do while(associated(AuxY))         
+
+            
+            do n=1, XYZPointsX%count
+
+                PointA%X = XYZPointsX%X(n)
+                PointA%Y = XYZPointsX%Y(n)
+                
+                sumTotal = sumTotal + 1.
+
+                if (IsPointInsidePolygon(PointA, AuxY)) then
+                    sumInside = sumInside + 1.
+                endif
+                
+            enddo                
+            AuxY => AuxY%Next
+        enddo
+        
+        nullify(AuxY   )
+
+        deallocate(PointA)        
+        
+        if (SumTotal > 0) then
+            PercentageXYZPointsInsidePolygon = sumInside / sumTotal * 100.
+        else
+            PercentageXYZPointsInsidePolygon = 0.
+        endif            
+        
+    end function PercentageXYZPointsInsidePolygon
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes an area of polygon X using a                               !
+!                   Public-domain function by Darel Rex Finley, 2006.                   !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    real(8) function PolygonTypeArea(PolygonX)
+        
+        !Arguments--------------------------------------------------
+        type (T_Polygon), pointer           :: PolygonX
+        !Local------------------------------------------------------
+        real(8)                             :: sumTotal
+        type (T_Polygon), pointer           :: AuxX
+        real,       dimension(:), pointer   :: X, Y 
+        integer                             :: n       
+        !Begin------------------------------------------------------
+
+        AuxX => PolygonX 
+        
+        sumTotal    = 0.
+
+        do while(associated(AuxX)) 
+        
+            n = AuxX%Count
+            
+            allocate(X(1:n),Y(1:n))
+            
+            X(1:n) = AuxX%VerticesF(1:n)%X
+            Y(1:n) = AuxX%VerticesF(1:n)%Y            
+
+            sumTotal    = sumTotal  + PolygonArea(X, Y, n) 
+                
+            deallocate(X,Y)
+            
+            AuxX => AuxX%Next
+        enddo            
+                              
+        PolygonTypeArea = sumTotal
+        
+        nullify(AuxX)
+            
+
+    end function PolygonTypeArea  
+    
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes percentage of polygon X is inside of polygon Y             !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+    real function PercentagePolygonInsidePolygon(PolygonX, PolygonY)
+        
+        !Arguments--------------------------------------------------
+        type (T_Polygon), pointer    :: PolygonX, PolygonY
+        !Local------------------------------------------------------
+        real(8)                      :: sumTotal, sumInside
+        type (T_Polygon), pointer    :: AuxX, AuxY, outputPolygon        
+        !Begin------------------------------------------------------
+
+        AuxX => PolygonX 
+        AuxY => PolygonY        
+        
+        sumTotal    = 0.
+        sumInside   = 0.     
+
+        do while(associated(AuxY)) 
+            do while(associated(AuxX))
+            
+                call sutherlandHodgman(AuxY, AuxX, outputPolygon )     
+                 
+                sumTotal    = sumTotal  + PolygonTypeArea(AuxY)
+                sumInside   = sumInside + PolygonTypeArea(outputPolygon)
+                
+                AuxX => AuxX%Next
+            enddo
+            AuxY => AuxY%Next
+        enddo            
+                              
+        if (SumTotal > 0) then
+            PercentagePolygonInsidePolygon = sumInside / sumTotal * 100.
+        else
+            PercentagePolygonInsidePolygon = 0.
+        endif                  
+            
+
+    end function PercentagePolygonInsidePolygon  
+    
 end module ModuleDrawing
 
 !----------------------------------------------------------------------------------------------------------

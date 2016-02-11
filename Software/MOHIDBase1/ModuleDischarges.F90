@@ -72,6 +72,8 @@ Module ModuleDischarges
     public  :: GetDischargesIDName
     public  :: GetDischargeWaterFlow
     public  :: SetDischargeWaterFlow
+    public  :: SetDischargeInterceptionRatio
+    public  :: GetDischargeInterceptionRatio    
     public  :: GetDischargeFlowVelocity
     public  :: GetDischargeParameters
     public  :: GetDischargeConcentration
@@ -83,10 +85,13 @@ Module ModuleDischarges
     private ::    Search_Discharge_ByName
     private ::    Search_Property
     public  :: GetDischargeSpatialEmission
+    public  :: GetDischargeSpatialType
     public  :: GetDischargeFlowDistribuiton
     public  :: GetDischargeON
+    public  :: GetDistributionCoefMass    
     public  :: SetLocationCellsZ
     public  :: SetLayer
+    public  :: SetDistributionCoefMass
     public  :: UngetDischarges
     !Modifier
     public  :: CorrectsCellsDischarges
@@ -101,10 +106,11 @@ Module ModuleDischarges
     !Management
     private ::      Ready
 
-
+    private :: UngetDischarges1Dreal
     private :: UngetDischarges1Dinteger
     interface  UngetDischarges
         module procedure UngetDischarges1Dinteger
+        module procedure UngetDischarges1Dreal
     end interface UngetDischarges
 
 
@@ -234,6 +240,7 @@ Module ModuleDischarges
          character(len=StringLength)            :: SpatialFile                      = null_str 
          type (T_Polygon), pointer              :: Polygon                          => null()
          type (T_Lines),   pointer              :: Line                             => null()
+         type (T_XYZPoints), pointer            :: XYZPoints                        => null()         
          integer                                :: nCells                           = 1
          integer, dimension(:), pointer         :: VectorI                          => null(), &
                                                    VectorJ                          => null(), &
@@ -242,6 +249,11 @@ Module ModuleDischarges
          integer                                :: kmin                             = FillValueInt
          integer                                :: kmax                             = FillValueInt
 
+         !Important for the domain decomposition approach
+         !is the ratio of the XYZPoints or Line or Polygon that intercepts the model domain
+         real                                   :: InterceptionRatio               = FillValueReal
+         
+         real,    dimension(:    ), pointer     :: DistributionCoefMass             => null()
     end  type T_Localization
 
     type      T_FromIntake
@@ -967,6 +979,8 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                     NewDischarge%Localization%SpatialEmission = DischLine_
                 case ("Polygon")
                     NewDischarge%Localization%SpatialEmission = DischPolygon_
+                case ("XYZPoints")
+                    NewDischarge%Localization%SpatialEmission = DischXYZPoints_                    
                 case default
                     write(*,*) "SPATIAL EMISSION option not known ",trim(AuxName)," ????"
                     write(*,*) "The known options are : ","Point ", "Line ", "Polygon"
@@ -975,7 +989,8 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
             end select
 
             if (NewDischarge%Localization%SpatialEmission == DischLine_ .or.            &
-                NewDischarge%Localization%SpatialEmission == DischPolygon_) then
+                NewDischarge%Localization%SpatialEmission == DischPolygon_ .or.         &
+                NewDischarge%Localization%SpatialEmission == DischXYZPoints_) then
                 call GetData(NewDischarge%Localization%SpatialFile,                     &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
@@ -995,6 +1010,9 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
                 if (NewDischarge%Localization%SpatialEmission == DischPolygon_)         &
                     call New(NewDischarge%Localization%Polygon, NewDischarge%Localization%SpatialFile)
+
+                if (NewDischarge%Localization%SpatialEmission == DischXYZPoints_)         &
+                    call New(NewDischarge%Localization%XYZPoints, NewDischarge%Localization%SpatialFile)
 
                 call GetData(AuxName,                                                   &
                          Me%ObjEnterData,                                               &
@@ -2848,13 +2866,70 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
     !--------------------------------------------------------------------------
 
     Subroutine GetDischargeSpatialEmission(DischargesID, DischargeIDNumber, LineX, PolygonX, &
-                                           SpatialEmission, STAT)
+                                           SpatialEmission, XYZPointsX, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
         integer,                        intent(IN ) :: DischargeIDNumber
         type (T_Lines),  pointer                    :: LineX
         type (T_Polygon), pointer                   :: PolygonX
+        integer,                        intent(OUT) :: SpatialEmission
+        type (T_XYZPoints), pointer, optional       :: XYZPointsX        
+        integer, optional,              intent(OUT) :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+
+cd3 :       if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                stop       'Subroutine GetDischargeSpatialEmission - ModuleDischarges. ERR01.'
+            end if cd3
+
+            SpatialEmission = DischargeX%Localization%SpatialEmission
+
+            PolygonX   => DischargeX%Localization%Polygon
+            LineX      => DischargeX%Localization%Line
+            XYZPointsX => DischargeX%Localization%XYZPoints
+
+            nullify(DischargeX)
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                              &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end Subroutine GetDischargeSpatialEmission
+
+    !--------------------------------------------------------------------------
+
+    Subroutine GetDischargeSpatialType(DischargesID, DischargeIDNumber, SpatialEmission, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,                        intent(IN ) :: DischargeIDNumber
         integer,                        intent(OUT) :: SpatialEmission
         integer, optional,              intent(OUT) :: STAT
 
@@ -2884,9 +2959,6 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
             SpatialEmission = DischargeX%Localization%SpatialEmission
 
-            PolygonX => DischargeX%Localization%Polygon
-            LineX    => DischargeX%Localization%Line
-
             nullify(DischargeX)
 
 
@@ -2901,10 +2973,9 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
         !----------------------------------------------------------------------
 
-    end Subroutine GetDischargeSpatialEmission
+    end Subroutine GetDischargeSpatialType
 
     !--------------------------------------------------------------------------
-
 
     !--------------------------------------------------------------------------
 
@@ -3002,6 +3073,66 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         !----------------------------------------------------------------------
 
     end Subroutine GetDischargeFlowDistribuiton
+    
+    
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    Subroutine GetDistributionCoefMass(DischargesID, DischargeIDNumber,                 &
+                                       DistributionCoefMass, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,                        intent(IN ) :: DischargeIDNumber
+        real,    dimension(:), pointer              :: DistributionCoefMass
+        integer, optional,              intent(OUT) :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+
+cd3 :       if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                    stop       'Subroutine GetDistributionCoefMass - ModuleDischarges. ERR01.'
+            end if cd3
+
+
+            call Read_Lock(mDischarges_, Me%InstanceID)
+            DistributionCoefMass => DischargeX%Localization%DistributionCoefMass
+
+            nullify(DischargeX)
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end Subroutine GetDistributionCoefMass
+
+    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
     
@@ -3306,6 +3437,112 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
     end subroutine SetDischargeWaterFlow
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine SetDischargeInterceptionRatio(DischargesID, DischargeIDNumber,           &
+                                             InterceptionRatio, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,                        intent(IN ) :: DischargeIDNumber
+        real   ,                        intent(IN)  :: InterceptionRatio
+        integer, optional,              intent(OUT) :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+cd3 :       if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ',DischargeIDNumber
+                stop       'SetDischargeInterceptionRatio - ModuleDischarges - ERR01'
+            end if cd3
+
+            DischargeX%Localization%InterceptionRatio = InterceptionRatio
+
+            nullify(DischargeX)
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine SetDischargeInterceptionRatio
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetDischargeInterceptionRatio(DischargesID, DischargeIDNumber,           &
+                                             InterceptionRatio, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DischargesID
+        integer,                        intent(IN ) :: DischargeIDNumber
+        real   ,                        intent(OUT) :: InterceptionRatio
+        integer, optional,              intent(OUT) :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        type(T_IndividualDischarge), pointer        :: DischargeX
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+cd3 :       if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) 'Can not find discharge number ',DischargeIDNumber
+                stop       'GetDischargeInterceptionRatio - ModuleDischarges - ERR01'
+            end if cd3
+
+            InterceptionRatio = DischargeX%Localization%InterceptionRatio
+
+            nullify(DischargeX)
+
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetDischargeInterceptionRatio
+
+    !--------------------------------------------------------------------------
+        
+    
 
     subroutine GetDischargeFlowVelocity(DischargesID, TimeX, DischargeIDNumber,          &
                                         VelocityU, VelocityV, VelocityW, STAT)
@@ -3975,6 +4212,53 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
     !--------------------------------------------------------------------------
 
+    subroutine SetDistributionCoefMass (DischargeID, DischargeIDNumber, DistributionCoefMass, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer,                      intent (IN)     :: DischargeID, DischargeIDNumber                       
+        real,    dimension(:),        pointer         :: DistributionCoefMass
+        integer, optional,            intent (OUT)    :: STAT
+
+        !Local-----------------------------------------------------------------
+        type(T_IndividualDischarge),pointer           :: DischargeX
+        integer                                       :: ready_              
+        integer                                       :: STAT_, STAT_CALL           
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargeID, ready_)  
+        
+cd1 :   if (ready_ == IDLE_ERR_)then
+
+            call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
+
+            if (STAT_CALL/=SUCCESS_) then 
+                write(*,*) ' can not find discharge number ',DischargeIDNumber
+                stop  'Sub. SetDistributionCoefMass - ModuleDischarges - ERR01'
+            endif
+
+            DischargeX%Localization%DistributionCoefMass => DistributionCoefMass
+ 
+            nullify(DischargeX)
+   
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine SetDistributionCoefMass
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------    
+
     subroutine UngetDischarges1Dinteger(DischargesID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -4014,6 +4298,51 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine UngetDischarges1Dinteger
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    
+    
+    subroutine UngetDischarges1Dreal(DischargesID, Array, STAT)
+
+        !Arguments-------------------------------------------------------------
+
+        integer,               intent(IN ) :: DischargesID
+        real,    pointer,   dimension(:  ) :: Array
+        integer, optional,     intent(OUT) :: STAT
+   
+        
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_   
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DischargesID, ready_) 
+
+cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+            nullify(Array)
+
+            call Read_UnLock(mDischarges_, Me%InstanceID, "UngetDischarges1Dreal")
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine UngetDischarges1Dreal
 
     !--------------------------------------------------------------------------
 
@@ -4335,6 +4664,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     nullify   (DischargeToDelete%Localization%VectorK)
 
                 endif
+                
+
+                if (associated(DischargeToDelete%Localization%DistributionCoefMass)) then
+
+                    deallocate(DischargeToDelete%Localization%DistributionCoefMass)
+                    nullify   (DischargeToDelete%Localization%DistributionCoefMass)
+
+                endif                
 
                 nullify(DischargeToDelete%FirstProperty, DischargeToDelete%LastProperty)
 

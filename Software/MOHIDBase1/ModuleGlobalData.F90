@@ -211,6 +211,11 @@ Module ModuleGlobalData
     integer, parameter :: Cartesian_ = 2
     integer, parameter :: AlongGrid_ = 3
 
+    !Types of direction referential
+    integer, parameter :: NauticalWind_    = 1
+    integer, parameter :: NauticalCurrent_ = 2    
+    integer, parameter :: CartesianDir_    = 3
+
 
     !Types of grid borders 
     integer, parameter :: ComplexPolygon_  = 1
@@ -899,6 +904,7 @@ Module ModuleGlobalData
     integer, parameter :: DischPoint_                       = 1
     integer, parameter :: DischLine_                        = 2
     integer, parameter :: DischPolygon_                     = 3
+    integer, parameter :: DischXYZPoints_                   = 4
                                                             
     !Flow discharge horizontal distribution                 
     integer, parameter :: DischByCell_                      = 1
@@ -1231,6 +1237,7 @@ Module ModuleGlobalData
 
     character(StringLength), private, parameter :: Char_WaterFluxX_          = 'water flux X'
     character(StringLength), private, parameter :: Char_WaterFluxY_          = 'water flux Y'
+    character(StringLength), private, parameter :: Char_WaterDepth_          = 'water depth'
     character(StringLength), private, parameter :: Char_CoriolisX_           = 'coriolis X'
     character(StringLength), private, parameter :: Char_BaroclinicForceX_    = 'baroclinic force X'
     character(StringLength), private, parameter :: Char_HorizontalTransportX_= 'horizontal transport X'
@@ -2712,6 +2719,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (VelocityW_,               Char_VelocityW_,                ListNumber)
             call AddPropList (WaterFluxX_,              Char_WaterFluxX_,               ListNumber)
             call AddPropList (WaterFluxY_,              Char_WaterFluxY_,               ListNumber)
+            call AddPropList (WaterDepth_,              Char_WaterDepth_,               ListNumber)
             call AddPropList (CoriolisX_,               Char_CoriolisX_,                ListNumber)
             call AddPropList (BaroclinicForceX_,        Char_BaroclinicForceX_,         ListNumber)
             call AddPropList (HorizontalTransportX_,    Char_HorizontalTransportX_,     ListNumber)

@@ -2272,8 +2272,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                     endif
                     endif
                     
-                    print *, "An error happened when trying to run PhreeqC."                    
-                    stop "ModifyPhreeqCRM - ModulePhreeqCRM - ERR-100"
+                    print *, "An error happened when trying to run PhreeqC."  
+                    if (present(stat)) stat = stat_
+                    return
+                    !stop "ModifyPhreeqCRM - ModulePhreeqCRM - ERR-100"
                 endif                
                 
                 stat_ = RM_GetConcentrations(phreeqc%ObjPhreeqC, phreeqc%Concentrations)

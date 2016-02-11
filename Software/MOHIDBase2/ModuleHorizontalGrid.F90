@@ -116,10 +116,14 @@ Module ModuleHorizontalGrid
     public  :: GetCellZ_XY
     public  :: GetCellZInterceptByLine
     public  :: GetCellZInterceptByPolygon
+    public  :: GetCellZInterceptByXYZPoints
 
     public  :: GetGridBorderPolygon
     public  :: GetGridOutBorderPolygon
+    public  :: GetGridBorderCartPolygon    
+    public  :: GetGridOutBorderCartPolygon    
     public  :: GetGridBorderLimits
+    public  :: GetGridOutBorderCartLimits    
     
     public  :: GetXYInsideDomain
     private ::      InsideDomainPolygon
@@ -509,6 +513,7 @@ Module ModuleHorizontalGrid
         type(T_Border),          pointer        :: GridBorderCoord     => null()
         type(T_Border),          pointer        :: GridOutBorderCoord  => null()
         type(T_Border),          pointer        :: GridBorderAlongGrid => null()
+        type(T_Border),          pointer        :: GridOutBorderCart   => null()        
 
 
         !Distances (DXX... DVY)
@@ -572,6 +577,8 @@ Module ModuleHorizontalGrid
         integer                                 :: ObjEnterData2 = 0
         
         type(T_Polygon),          pointer       :: AuxPolygon
+        
+        type (T_HorizontalGrid), pointer        :: GlobalGrid
 
         type (T_HorizontalGrid), pointer        :: Next => null()
 
@@ -4333,29 +4340,33 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
         !Begin-----------------------------------------------------------------
 
-        nullify (Me%GridBorderCart )
-        nullify (Me%GridBorderCoord)
-        nullify (Me%GridOutBorderCoord)        
+        nullify (Me%GridBorderCart     )
+        nullify (Me%GridBorderCoord    )
+        nullify (Me%GridOutBorderCoord )        
         nullify (Me%GridBorderAlongGrid)
+        nullify (Me%GridOutBorderCart  )
 
 
-        allocate(Me%GridBorderCart )
-        allocate(Me%GridBorderCoord)
-        allocate(Me%GridOutBorderCoord)
+        allocate(Me%GridBorderCart     )
+        allocate(Me%GridBorderCoord    )
+        allocate(Me%GridOutBorderCoord )
         allocate(Me%GridBorderAlongGrid)
+        allocate(Me%GridOutBorderCart  )
 
 
         Me%GridBorderCart%Type_         = Rectang_
         Me%GridBorderCoord%Type_        = Rectang_
-        Me%GridoUTBorderCoord%Type_     = Rectang_
+        Me%GridOutBorderCoord%Type_     = Rectang_
         Me%GridBorderAlongGrid%Type_    = Rectang_
+        Me%GridOutBorderCart%Type_      = Rectang_        
 
 Inp:    if (Me%CornersXYInput) then
 
             Me%GridBorderCart%Type_      = ComplexPolygon_
             Me%GridBorderCoord%Type_     = ComplexPolygon_
-            Me%GridoUTBorderCoord%Type_  = ComplexPolygon_
+            Me%GridOutBorderCoord%Type_  = ComplexPolygon_
             Me%GridBorderAlongGrid%Type_ = ComplexPolygon_
+            Me%GridOutBorderCart%Type_   = ComplexPolygon_                    
 
         else  Inp
 
@@ -4365,6 +4376,7 @@ Inp:    if (Me%CornersXYInput) then
                 Me%GridBorderCoord%Type_     = RotatedRectang_
                 Me%GridOutBorderCoord%Type_  = RotatedRectang_
                 Me%GridBorderAlongGrid%Type_ = RotatedRectang_
+                Me%GridOutBorderCart%Type_   = RotatedRectang_                
             endif
 
 
@@ -4374,6 +4386,7 @@ Inp:    if (Me%CornersXYInput) then
 
             Me%GridBorderCart%Type_      = ComplexPolygon_
             Me%GridBorderAlongGrid%Type_ = ComplexPolygon_
+            Me%GridOutBorderCart%Type_   = ComplexPolygon_                            
         endif
 
 
@@ -4411,14 +4424,11 @@ Inp:    if (Me%CornersXYInput) then
                                                                              
         nullify(XX2D, YY2D)
 
-        if (Me%GridBorderCart%Type_      /= Rectang_) call DefinesBorderPoly(Me%XX_IE,          &
-                                                                             Me%YY_IE,          &
-                                                                             Me%GridBorderCart)
+        call DefinesBorderPoly(Me%XX_IE, Me%YY_IE, Me%GridBorderCart)
+                               
+        call DefinesBorderPoly(Me%XX_IE, Me%YY_IE, Me%GridOutBorderCart, Outer = .true.)
 
-
-        if (Me%GridBorderAlongGrid%Type_ /= Rectang_) call DefinesBorderPoly(Me%XX_AlongGrid,   &
-                                                                             Me%YY_AlongGrid,   &
-                                                                             Me%GridBorderAlongGrid)
+        call DefinesBorderPoly(Me%XX_AlongGrid, Me%YY_AlongGrid, Me%GridBorderAlongGrid)
 
     end subroutine DefineBorderPolygons
     !--------------------------------------------------------------------------
@@ -4484,10 +4494,6 @@ Inp:    if (Me%CornersXYInput) then
 
             endif
             
-            !The last vertix equal to the first 
-            
-            Nvert = Nvert + 1
-                
 
 !        else if (GridBorder%Type_ == RotatedRectang_) then 
         else
@@ -4496,21 +4502,24 @@ Inp:    if (Me%CornersXYInput) then
 
         endif
         
+        !The last vertix equal to the first 
+        Nvert = Nvert + 1
+        
+        
 
         allocate(GridBorder%Polygon_)
         allocate(GridBorder%Polygon_%VerticesF(1:Nvert))
 
+        if (Outer_) then
+            di = 0
+        else
+            di = 1                
+        endif
+        
         if      (GridBorder%Type_ == ComplexPolygon_) then 
 
             GridBorder%Polygon_%Count = 0
             
-            if (Outer_) then
-                di = 0
-            else
-                di = 1                
-            endif
-
-        
             !West boundary
             do i = ILB + di, IUB-di
                 GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
@@ -4544,20 +4553,23 @@ Inp:    if (Me%CornersXYInput) then
             
         else    
 
-            GridBorder%Polygon_%Count = 4
+            GridBorder%Polygon_%Count = Nvert
 
-            GridBorder%Polygon_%VerticesF(1)%X = XX2D(ILB+1, JLB+1)
-            GridBorder%Polygon_%VerticesF(1)%Y = YY2D(ILB+1, JLB+1)
+            GridBorder%Polygon_%VerticesF(1)%X = XX2D(ILB+di,     JLB+di)
+            GridBorder%Polygon_%VerticesF(1)%Y = YY2D(ILB+di,     JLB+di)
 
 
-            GridBorder%Polygon_%VerticesF(2)%X = XX2D(ILB+1, JUB)
-            GridBorder%Polygon_%VerticesF(2)%Y = YY2D(ILB+1, JUB)
+            GridBorder%Polygon_%VerticesF(2)%X = XX2D(ILB+di,     JUB+1-di)
+            GridBorder%Polygon_%VerticesF(2)%Y = YY2D(ILB+di,     JUB+1-di)
 
-            GridBorder%Polygon_%VerticesF(3)%X = XX2D(IUB,   JUB)
-            GridBorder%Polygon_%VerticesF(3)%Y = YY2D(IUB,   JUB)
+            GridBorder%Polygon_%VerticesF(3)%X = XX2D(IUB+1-di,   JUB+1-di)
+            GridBorder%Polygon_%VerticesF(3)%Y = YY2D(IUB+1-di,   JUB+1-di)
 
-            GridBorder%Polygon_%VerticesF(4)%X = XX2D(IUB,   JLB+1)
-            GridBorder%Polygon_%VerticesF(4)%Y = YY2D(IUB,   JLB+1)
+            GridBorder%Polygon_%VerticesF(4)%X = XX2D(IUB+1-di,   JLB+di)
+            GridBorder%Polygon_%VerticesF(4)%Y = YY2D(IUB+1-di,   JLB+di)
+            
+            !Last vertex equal to first 
+            GridBorder%Polygon_%VerticesF(5)   = GridBorder%Polygon_%VerticesF(1)
             
         endif
 
@@ -7720,11 +7732,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     subroutine GetHorizontalGrid(HorizontalGridID, XX_IE, YY_IE, XX_Z, YY_Z,            &
                                  XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross,            &
                                  DXX, DYY, DZX, DZY, DUX, DUY, DVX, DVY, XX, YY,        & 
-                                 XX2D_Z, YY2D_Z, STAT)
+                                 XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         real, dimension(:, :), pointer, optional    :: XX_IE, YY_IE, XX2D_Z, YY2D_Z
+        real, dimension(:, :), pointer, optional    :: XX2D_U, YY2D_U, XX2D_V, YY2D_V
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
@@ -7862,6 +7875,28 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             if (present(YY)) then
                 YY => Me%YY
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+
+            !XX2D_U, YY2D_U
+            if (present(XX2D_U)) then
+                XX2D_U => Me%Compute%XX2D_U
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+
+            if (present(YY2D_U)) then
+                YY2D_U => Me%Compute%YY2D_U
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+
+            !XX2D_V, YY2D_V
+            if (present(XX2D_V)) then
+                XX2D_V => Me%Compute%XX2D_V
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+
+            if (present(YY2D_V)) then
+                YY2D_V => Me%Compute%YY2D_V
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
 
@@ -9317,6 +9352,77 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
     end subroutine GetGridOutBorderPolygon
 
     !-------------------------------------------------------------------------
+
+    subroutine GetGridBorderCartPolygon(HorizontalGridID, Polygon, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,                  intent(IN)        :: HorizontalGridID
+        type(T_Polygon),  pointer                   :: Polygon
+        integer, optional,        intent(OUT)       :: STAT    
+ 
+        !Local-------------------------------------------------------------------
+        integer                                     :: STAT_             
+        integer                                     :: ready_              
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+            (ready_ == READ_LOCK_ERR_)) then
+
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            Polygon => Me%GridBorderCart%Polygon_
+
+            STAT_ = SUCCESS_
+        else    i1
+            STAT_ = ready_
+        end if  i1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGridBorderCartPolygon
+
+    !-------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
+
+    subroutine GetGridOutBorderCartPolygon(HorizontalGridID, Polygon, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,                  intent(IN)        :: HorizontalGridID
+        type(T_Polygon),  pointer                   :: Polygon
+        integer, optional,        intent(OUT)       :: STAT    
+ 
+        !Local-------------------------------------------------------------------
+        integer                                     :: STAT_             
+        integer                                     :: ready_              
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+            (ready_ == READ_LOCK_ERR_)) then
+
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            Polygon => Me%GridOutBorderCart%Polygon_
+
+            STAT_ = SUCCESS_
+        else    i1
+            STAT_ = ready_
+        end if  i1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGridOutBorderCartPolygon
+
+    !-------------------------------------------------------------------------
+
+
     !--------------------------------------------------------------------------
 
     subroutine GetGridBorderLimits(HorizontalGridID, West, East, South, North, STAT)
@@ -9353,6 +9459,125 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
     end subroutine GetGridBorderLimits
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine GetGridOutBorderCartLimits(HorizontalGridID, West, East, South, North, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,                  intent(IN)        :: HorizontalGridID
+        real,    optional,        intent(OUT)       :: West, East, South, North
+        integer, optional,        intent(OUT)       :: STAT    
+ 
+        !Local-------------------------------------------------------------------
+        integer                                     :: STAT_             
+        integer                                     :: ready_              
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+            (ready_ == READ_LOCK_ERR_)) then
+
+            West    = Me%GridOutBorderCart%Polygon_%Limits%Left
+            East    = Me%GridOutBorderCart%Polygon_%Limits%Right            
+            South   = Me%GridOutBorderCart%Polygon_%Limits%Bottom
+            North   = Me%GridOutBorderCart%Polygon_%Limits%Top            
+
+            STAT_ = SUCCESS_
+        else    i1
+            STAT_ = ready_
+        end if  i1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetGridOutBorderCartLimits
+
+    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
+
+    subroutine GetCellZInterceptByXYZPoints(HorizontalGridID, XYZPoints,                &
+                                            VectorI, VectorJ, VectorK, nCell, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        type (T_XYZPoints),      pointer            :: XYZPoints
+        integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
+        integer                                     :: nCell
+        integer, optional,  intent(OUT)             :: STAT    
+ 
+        !Local-------------------------------------------------------------------
+        type (T_XYZPoints), pointer                 :: CurrentXYZPoints
+        integer, dimension(:), pointer              :: AuxI, AuxJ
+        integer                                     :: nCell_, l
+        integer                                     :: STAT_, STAT_CALL             
+        integer                                     :: ready_              
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+        
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+            (ready_ == READ_LOCK_ERR_)) then
+
+            nCell_ = (Me%WorkSize%JUB-Me%WorkSize%JLB) * (Me%WorkSize%IUB-Me%WorkSize%ILB)
+
+            allocate(AuxI(nCell_)); allocate(AuxJ(nCell_));
+
+            nCell_ = 1
+
+            CurrentXYZPoints => XYZPoints
+
+dw:         do while (associated(CurrentXYZPoints)) 
+
+                do l = 1, CurrentXYZPoints%Count
+                
+                    call GetXYCellZ(Me%InstanceID, CurrentXYZPoints%X(l),               &
+                                    CurrentXYZPoints%Y(l), AuxI(nCell_), AuxJ(nCell_),  &
+                                    STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                        stop 'GetCellZInterceptByXYZPoints - ModuleHorizontalGrid - ERR10'
+                    endif
+                    
+                    if (STAT_CALL == OUT_OF_BOUNDS_ERR_) then
+                        cycle
+                    else
+                        nCell_ = nCell_ + 1
+                    endif                    
+                    
+                enddo
+                
+                CurrentXYZPoints => CurrentXYZPoints%Next
+            
+            enddo dw
+
+            nullify   (CurrentXYZPoints)
+
+            nCell = nCell_ - 1
+
+            allocate(VectorI(nCell), VectorJ(nCell), VectorK(nCell))
+
+            VectorI(:) = AuxI(1:nCell)
+            VectorJ(:) = AuxJ(1:nCell)
+            VectorK(:) = FillValueInt
+
+            deallocate(AuxI); deallocate(AuxJ);
+
+            STAT_ = SUCCESS_
+        else    i1
+            STAT_ = ready_
+        end if  i1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetCellZInterceptByXYZPoints
+
+    !--------------------------------------------------------------------------
+
     !--------------------------------------------------------------------------
 
     subroutine GetCellZInterceptByLine(HorizontalGridID, Line, WaterPoints2D, VectorI, VectorJ, VectorK, nCell, STAT)
@@ -9409,6 +9634,9 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
             nCell_ = (Me%WorkSize%JUB-Me%WorkSize%JLB) * (Me%WorkSize%IUB-Me%WorkSize%ILB)
 
             allocate(AuxI(nCell_)); allocate(AuxJ(nCell_));
+            
+            AuxI(:) = FillValueInt
+            AuxJ(:) = FillValueInt            
 
             nCell_ = 0
 
@@ -13579,32 +13807,34 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%GridOutBorderCoord%Polygon_)
                 nullify   (Me%GridOutBorderCoord%Polygon_)
 
-                if (Me%GridBorderCart%Type_  /= Rectang_) then
-                    deallocate(Me%GridBorderCart%Polygon_%VerticesF)
-                    nullify   (Me%GridBorderCart%Polygon_%VerticesF)
+                deallocate(Me%GridBorderCart%Polygon_%VerticesF)
+                nullify   (Me%GridBorderCart%Polygon_%VerticesF)
 
-                    deallocate(Me%GridBorderCart%Polygon_)
-                    nullify   (Me%GridBorderCart%Polygon_)
+                deallocate(Me%GridBorderCart%Polygon_)
+                nullify   (Me%GridBorderCart%Polygon_)
+                
+                deallocate(Me%GridOutBorderCart%Polygon_%VerticesF)
+                nullify   (Me%GridOutBorderCart%Polygon_%VerticesF)
 
-                endif
+                deallocate(Me%GridOutBorderCart%Polygon_)
+                nullify   (Me%GridOutBorderCart%Polygon_)
  
-                 if (Me%GridBorderAlongGrid%Type_  /= Rectang_) then
-                    deallocate(Me%GridBorderAlongGrid%Polygon_%VerticesF)
-                    nullify   (Me%GridBorderAlongGrid%Polygon_%VerticesF)
+                deallocate(Me%GridBorderAlongGrid%Polygon_%VerticesF)
+                nullify   (Me%GridBorderAlongGrid%Polygon_%VerticesF)
 
-                    deallocate(Me%GridBorderAlongGrid%Polygon_)
-                    nullify   (Me%GridBorderAlongGrid%Polygon_)
-
-                endif
+                deallocate(Me%GridBorderAlongGrid%Polygon_)
+                nullify   (Me%GridBorderAlongGrid%Polygon_)
 
                 
                 deallocate(Me%GridBorderCart     )
+                deallocate(Me%GridOutBorderCart  )                
                 deallocate(Me%GridBorderCoord    )
                 deallocate(Me%GridOutBorderCoord )
                 deallocate(Me%GridBorderAlongGrid)
 
  
                 nullify   (Me%GridBorderCart     )
+                nullify   (Me%GridOutBorderCart  )
                 nullify   (Me%GridBorderCoord    )
                 nullify   (Me%GridOutBorderCoord )
                 nullify   (Me%GridBorderAlongGrid)
