@@ -5386,8 +5386,8 @@ d5:     do k = klast + 1,KUB
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructPropertyIDOnFly (PropertyID, 	&
-									     Name,			&
+    subroutine ConstructPropertyIDOnFly (PropertyID,    &
+                                         Name,          &
 									     IsDynamic,		&
 									     IDNumber,		&
 									     IsParticulate,	&

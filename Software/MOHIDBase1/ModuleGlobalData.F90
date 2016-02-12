@@ -1888,7 +1888,7 @@ Module ModuleGlobalData
         integer                 :: ObjFillMatrix     = 0
         logical                 :: SolutionFromFile  = OFF
         logical                 :: IsAngle           = OFF
-        logical	                :: IsParticulate     = OFF
+        logical                 :: IsParticulate     = OFF
         logical                 :: IsVectorial       = OFF
         logical                 :: IsDynamic         = OFF
     end type T_PropertyID
@@ -3302,8 +3302,8 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
     logical function Check_Angle_Property(Property)
 
         !Arguments-------------------------------------------------------------
-		integer, intent (IN) :: Property
-		
+         integer, intent (IN) :: Property
+
         !----------------------------------------------------------------------
 
 cd1 :   if ((Property == WindDirection_) .OR. (Property == MeanWaveDirection_)) then

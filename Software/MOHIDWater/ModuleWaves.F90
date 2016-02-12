@@ -88,8 +88,8 @@ Module ModuleWaves
     use ModuleHorizontalGrid,   only : LocateCell, GetHorizontalGridSize, GetHorizontalGrid,    &
                                        GetGridAngle, GetCheckDistortion, GetCoordTypeList,      &
                                        GetGridCoordType,  GetLatitudeLongitude,                 &
-                                       UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID, 		&
-                                       GetDDecompON, WriteHorizontalGrid,               		&
+                                       UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID,       &
+                                       GetDDecompON, WriteHorizontalGrid,                       &
                                        GetGridOutBorderPolygon
     use ModuleFillMatrix!,       only : ConstructFillMatrix, ModifyFillMatrix,           		&
                         !               GetIfMatrixRemainsConstant, KillFillMatrix 
@@ -222,12 +222,18 @@ Module ModuleWaves
         logical                                             :: ON                   = .false.
         logical                                             :: Constant             = .false.
         integer                                             :: Source               = null_int
-        real, dimension(:,:),  pointer                      :: Field                => null() !scalar field. (e.g. converted angle to cell ref)
-        real, dimension(:,:),  pointer                      :: FieldInputRef        => null() !original scalar field (orig angle in input ref)         
-        real, dimension(:,:),  pointer                      :: FieldU               => null() !vectorial field rotated to grid cells - U comp.
-        real, dimension(:,:),  pointer                      :: FieldV               => null() !vectorial field rotated to grid cells - V comp.
-        real, dimension(:,:),  pointer                      :: FieldX               => null() !vectorial original field - X (zonal component)
-        real, dimension(:,:),  pointer                      :: FieldY               => null() !vectorial original field - Y (meridional comp.)      
+        !scalar field. (e.g. converted angle to cell ref)        
+        real, dimension(:,:),  pointer                      :: Field                => null() 
+        !original scalar field (orig angle in input ref)                 
+        real, dimension(:,:),  pointer                      :: FieldInputRef        => null() 
+        !vectorial field rotated to grid cells - U comp.        
+        real, dimension(:,:),  pointer                      :: FieldU               => null() 
+        !vectorial field rotated to grid cells - V comp.        
+        real, dimension(:,:),  pointer                      :: FieldV               => null()
+        !vectorial original field - X (zonal component)         
+        real, dimension(:,:),  pointer                      :: FieldX               => null()
+        !vectorial original field - Y (meridional comp.)              
+        real, dimension(:,:),  pointer                      :: FieldY               => null() 
         logical                                             :: OutputHDF            = .false.
         logical                                             :: TimeSerieOn          = .false.
     end type T_WaveProperty
