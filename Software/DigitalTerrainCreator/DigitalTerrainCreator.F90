@@ -1513,19 +1513,19 @@ ift:            if (Me%Overlapping%DataInfo(AuxLevel)%InfoType == GridDataType) 
         endif
 
         if (Me%PointsForInterpolation /= OnlyXYZPoints) then
-        if (.not.Me%BatimInOn .or. (Me%BatimInOn .and. .not. Me%BatimInMatch)) then
+!            if (.not.Me%BatimInOn .or. (Me%BatimInOn .and. .not. Me%BatimInMatch)) then
 
-            if (Me%ExtVar%GridDistortion) then
-                call FillingCells
-            else
-                call FillingRegularGrid
-            endif
+                if (Me%ExtVar%GridDistortion) then
+                    call FillingCells
+                else
+                    call FillingRegularGrid
+                endif
 
-            if(Me%UseSmooth)then
-                call SmoothGridData
-            end if
+                if(Me%UseSmooth)then
+                    call SmoothGridData
+                end if
 
-        endif
+!            endif
         endif
 
         if(Me%Overlapping%ON)then

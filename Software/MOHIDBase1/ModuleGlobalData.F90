@@ -42,7 +42,7 @@ Module ModuleGlobalData
     public  ::  GetPropertyIDNumber
     private ::      ConstructPropList
     private ::          AddPropList
-    public  ::  CheckDynamicPropertyName
+!~     public  ::  CheckDynamicPropertyName
     public  ::  RegisterDynamicProperty
     public  ::  GetDynamicPropertyIDNumber
 
@@ -210,6 +210,11 @@ Module ModuleGlobalData
     integer, parameter :: GridCoord_ = 1
     integer, parameter :: Cartesian_ = 2
     integer, parameter :: AlongGrid_ = 3
+
+    !Types of direction referential
+    integer, parameter :: NauticalWind_    = 1
+    integer, parameter :: NauticalCurrent_ = 2    
+    integer, parameter :: CartesianDir_    = 3
 
 
     !Types of grid borders 
@@ -769,6 +774,16 @@ Module ModuleGlobalData
     integer, parameter ::  VSS_                             = 9111
     
     !PhreeqC properties ------------------------------------------
+    integer, parameter ::  WaterSaturation_                 = 10000
+    integer, parameter ::  CellPorosity_                    = 10001
+    integer, parameter ::  Pressure_                        = 10002
+    integer, parameter ::  SolutionMapping_                 = 10003
+    integer, parameter ::  EquilibriumMapping_              = 10004
+    integer, parameter ::  ExchangeMapping_                 = 10005
+    integer, parameter ::  SurfaceMapping_                  = 10006
+    integer, parameter ::  GasPhaseMapping_                 = 10007
+    integer, parameter ::  SolidSolutionMapping_            = 10008
+    integer, parameter ::  KineticsMapping_                 = 10009
     
     !Solution properties
     integer, parameter :: SolutionMagnesium_               = 10000
@@ -889,6 +904,7 @@ Module ModuleGlobalData
     integer, parameter :: DischPoint_                       = 1
     integer, parameter :: DischLine_                        = 2
     integer, parameter :: DischPolygon_                     = 3
+    integer, parameter :: DischXYZPoints_                   = 4
                                                             
     !Flow discharge horizontal distribution                 
     integer, parameter :: DischByCell_                      = 1
@@ -909,54 +925,64 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SolEC                = 'solution electrical conductivity'
       
     !Name of PhreeqC properties
-    character(StringLength), private, parameter :: Char_SolutionMagnesium    = 'solution magnesium'
-    character(StringLength), private, parameter :: Char_SolutionCalcium      = 'solution calcium'
-    character(StringLength), private, parameter :: Char_SolutionSodium       = 'solution sodium'
-    character(StringLength), private, parameter :: Char_SolutionNitrogenGas  = 'solution nitrogen gas'
-    character(StringLength), private, parameter :: Char_SolutionOxygenGas    = 'solution oxygen gas'
-    character(StringLength), private, parameter :: Char_SolutionAmmonia      = 'solution ammonia'
-    character(StringLength), private, parameter :: Char_SolutionNitrate      = 'solution nitrate'
-    character(StringLength), private, parameter :: Char_SolutionNitrite      = 'solution nitrite'
-    character(StringLength), private, parameter :: Char_SolutionChlorine     = 'solution chlorine'
-    character(StringLength), private, parameter :: Char_GasN2                = 'gas n2'
-    character(StringLength), private, parameter :: Char_GasCO2               = 'gas co2'
-    character(StringLength), private, parameter :: Char_pE                   = 'pE'
-    character(StringLength), private, parameter :: Char_eCaX2                = 'CaX2'
-    character(StringLength), private, parameter :: Char_eMgX2                = 'MgX2'
-    character(StringLength), private, parameter :: Char_eNaX                 = 'NaX'
-    character(StringLength), private, parameter :: Char_eKX                  = 'KX'
-    character(StringLength), private, parameter :: Char_eNH4X                = 'AmmoniaX' !'NH4X'
-    character(StringLength), private, parameter :: Char_sCa2                 = 'Ca+2'
-    character(StringLength), private, parameter :: Char_sCaOH                = 'CaOH+'
-    character(StringLength), private, parameter :: Char_sH2                  = 'H2'
-    character(StringLength), private, parameter :: Char_sMg2                 = 'Mg+2'
-    character(StringLength), private, parameter :: Char_sMgOH                = 'MgOH+'
-    character(StringLength), private, parameter :: Char_sNH4                 = 'Ammonia+' !'NH4+'
-    character(StringLength), private, parameter :: Char_sNH3                 = 'NH3'
-    character(StringLength), private, parameter :: Char_sN2                  = 'N2'
-    character(StringLength), private, parameter :: Char_sNO2                 = 'NO2-'
-    character(StringLength), private, parameter :: Char_sNO3                 = 'NO3-'
-    character(StringLength), private, parameter :: Char_sNa                  = 'Na+'
-    character(StringLength), private, parameter :: Char_sNaOH                = 'NaOH+'
-    character(StringLength), private, parameter :: Char_sO2                  = 'O2'
-    character(StringLength), private, parameter :: Char_msmSolutionCalcium   = 'solution calcium mass'
-    character(StringLength), private, parameter :: Char_msmSolutionMagnesium = 'solution magnesium mass'
-    character(StringLength), private, parameter :: Char_msmSolutionSodium    = 'solution sodium mass'
-    character(StringLength), private, parameter :: Char_msmSolutionAmmonia   = 'solution ammonia mass'
-    character(StringLength), private, parameter :: Char_Calcite              = 'calcite'
-    character(StringLength), private, parameter :: Char_Dolomite             = 'dolomite'
-    character(StringLength), private, parameter :: Char_Aragonite            = 'aragonite'
-    character(StringLength), private, parameter :: Char_Halite               = 'halite' 
-    character(StringLength), private, parameter :: Char_KFeldspar            = 'k-feldspar'
-    character(StringLength), private, parameter :: Char_SolutionCarbon       = 'solution carbon' 
-    character(StringLength), private, parameter :: Char_SolutionPotassium    = 'solution potassium'     
-    character(StringLength), private, parameter :: Char_SolutionAluminium    = 'solution aluminium' 
-    character(StringLength), private, parameter :: Char_SolutionSilicium     = 'solution silicium' 
-    character(StringLength), private, parameter :: Char_RainMagnesium        = 'rain magnesium' 
-    character(StringLength), private, parameter :: Char_RainCalcium          = 'rain calcium' 
-    character(StringLength), private, parameter :: Char_RainSodium           = 'rain sodium' 
-    character(StringLength), private, parameter :: Char_RainChlorine         = 'rain chlorine'
-    character(StringLength), private, parameter :: Char_RainAmmonia          = 'rain ammonia'
+    character(StringLength), private, parameter :: Char_WaterSaturation      = 'water saturation'
+    character(StringLength), private, parameter :: Char_CellPorosity         = 'cell porosity'
+    character(StringLength), private, parameter :: Char_Pressure             = 'pressure'
+    character(StringLength), private, parameter :: Char_SolutionMapping      = 'solution mapping'
+    character(StringLength), private, parameter :: Char_EquilibriumMapping   = 'equilibrium mapping'
+    character(StringLength), private, parameter :: Char_ExchangeMapping      = 'exchange mapping'
+    character(StringLength), private, parameter :: Char_SurfaceMapping       = 'surface mapping'
+    character(StringLength), private, parameter :: Char_GasPhaseMapping      = 'gas phase mapping'
+    character(StringLength), private, parameter :: Char_SolidSolutionMapping = 'solid solution mapping'
+    character(StringLength), private, parameter :: Char_KineticsMapping      = 'kinetics mapping'
+    !character(StringLength), private, parameter :: Char_SolutionMagnesium    = 'solution magnesium'
+    !character(StringLength), private, parameter :: Char_SolutionCalcium      = 'solution calcium'
+    !character(StringLength), private, parameter :: Char_SolutionSodium       = 'solution sodium'
+    !character(StringLength), private, parameter :: Char_SolutionNitrogenGas  = 'solution nitrogen gas'
+    !character(StringLength), private, parameter :: Char_SolutionOxygenGas    = 'solution oxygen gas'
+    !character(StringLength), private, parameter :: Char_SolutionAmmonia      = 'solution ammonia'
+    !character(StringLength), private, parameter :: Char_SolutionNitrate      = 'solution nitrate'
+    !character(StringLength), private, parameter :: Char_SolutionNitrite      = 'solution nitrite'
+    !character(StringLength), private, parameter :: Char_SolutionChlorine     = 'solution chlorine'
+    !character(StringLength), private, parameter :: Char_GasN2                = 'gas n2'
+    !character(StringLength), private, parameter :: Char_GasCO2               = 'gas co2'
+    !character(StringLength), private, parameter :: Char_pE                   = 'pE'
+    !character(StringLength), private, parameter :: Char_eCaX2                = 'CaX2'
+    !character(StringLength), private, parameter :: Char_eMgX2                = 'MgX2'
+    !character(StringLength), private, parameter :: Char_eNaX                 = 'NaX'
+    !character(StringLength), private, parameter :: Char_eKX                  = 'KX'
+    !character(StringLength), private, parameter :: Char_eNH4X                = 'AmmoniaX' !'NH4X'
+    !character(StringLength), private, parameter :: Char_sCa2                 = 'Ca+2'
+    !character(StringLength), private, parameter :: Char_sCaOH                = 'CaOH+'
+    !character(StringLength), private, parameter :: Char_sH2                  = 'H2'
+    !character(StringLength), private, parameter :: Char_sMg2                 = 'Mg+2'
+    !character(StringLength), private, parameter :: Char_sMgOH                = 'MgOH+'
+    !character(StringLength), private, parameter :: Char_sNH4                 = 'Ammonia+' !'NH4+'
+    !character(StringLength), private, parameter :: Char_sNH3                 = 'NH3'
+    !character(StringLength), private, parameter :: Char_sN2                  = 'N2'
+    !character(StringLength), private, parameter :: Char_sNO2                 = 'NO2-'
+    !character(StringLength), private, parameter :: Char_sNO3                 = 'NO3-'
+    !character(StringLength), private, parameter :: Char_sNa                  = 'Na+'
+    !character(StringLength), private, parameter :: Char_sNaOH                = 'NaOH+'
+    !character(StringLength), private, parameter :: Char_sO2                  = 'O2'
+    !character(StringLength), private, parameter :: Char_msmSolutionCalcium   = 'solution calcium mass'
+    !character(StringLength), private, parameter :: Char_msmSolutionMagnesium = 'solution magnesium mass'
+    !character(StringLength), private, parameter :: Char_msmSolutionSodium    = 'solution sodium mass'
+    !character(StringLength), private, parameter :: Char_msmSolutionAmmonia   = 'solution ammonia mass'
+    !character(StringLength), private, parameter :: Char_Calcite              = 'calcite'
+    !character(StringLength), private, parameter :: Char_Dolomite             = 'dolomite'
+    !character(StringLength), private, parameter :: Char_Aragonite            = 'aragonite'
+    !character(StringLength), private, parameter :: Char_Halite               = 'halite' 
+    !character(StringLength), private, parameter :: Char_KFeldspar            = 'k-feldspar'
+    !character(StringLength), private, parameter :: Char_SolutionCarbon       = 'solution carbon' 
+    !character(StringLength), private, parameter :: Char_SolutionPotassium    = 'solution potassium'     
+    !character(StringLength), private, parameter :: Char_SolutionAluminium    = 'solution aluminium' 
+    !character(StringLength), private, parameter :: Char_SolutionSilicium     = 'solution silicium' 
+    !character(StringLength), private, parameter :: Char_RainMagnesium        = 'rain magnesium' 
+    !character(StringLength), private, parameter :: Char_RainCalcium          = 'rain calcium' 
+    !character(StringLength), private, parameter :: Char_RainSodium           = 'rain sodium' 
+    !character(StringLength), private, parameter :: Char_RainChlorine         = 'rain chlorine'
+    !character(StringLength), private, parameter :: Char_RainAmmonia          = 'rain ammonia'
 
 
 !_______________________________________________________________________________________________
@@ -1211,6 +1237,7 @@ Module ModuleGlobalData
 
     character(StringLength), private, parameter :: Char_WaterFluxX_          = 'water flux X'
     character(StringLength), private, parameter :: Char_WaterFluxY_          = 'water flux Y'
+    character(StringLength), private, parameter :: Char_WaterDepth_          = 'water depth'
     character(StringLength), private, parameter :: Char_CoriolisX_           = 'coriolis X'
     character(StringLength), private, parameter :: Char_BaroclinicForceX_    = 'baroclinic force X'
     character(StringLength), private, parameter :: Char_HorizontalTransportX_= 'horizontal transport X'
@@ -1860,6 +1887,10 @@ Module ModuleGlobalData
         integer                 :: IDNumber          = null_int    
         integer                 :: ObjFillMatrix     = 0
         logical                 :: SolutionFromFile  = OFF
+        logical                 :: IsAngle           = OFF
+        logical                 :: IsParticulate     = OFF
+        logical                 :: IsVectorial       = OFF
+        logical                 :: IsDynamic         = OFF
     end type T_PropertyID
 
     type T_Instance
@@ -2230,39 +2261,39 @@ Module ModuleGlobalData
 
     end function  CheckPropertyName
 
-    !--------------------------------------------------------------------------
+!~     !--------------------------------------------------------------------------
      
-    logical function CheckDynamicPropertyName (PropertyName, Number)
+!~     logical function CheckDynamicPropertyName (PropertyName, Number)
 
-        !Arguments-------------------------------------------------------------
-        character(len=*), intent (IN)               :: PropertyName
-        integer,          intent (OUT), optional    :: Number
+!~         !Arguments-------------------------------------------------------------
+!~         character(len=*), intent (IN)               :: PropertyName
+!~         integer,          intent (OUT), optional    :: Number
 
-        !Local-----------------------------------------------------------------
-        integer :: i
+!~         !Local-----------------------------------------------------------------
+!~         integer :: i
 
-        !----------------------------------------------------------------------
+!~         !----------------------------------------------------------------------
 
-        CheckDynamicPropertyName = .false.
+!~         CheckDynamicPropertyName = .false.
 
-        if(associated(DynamicPropNameList)) then            
+!~         if(associated(DynamicPropNameList)) then            
 
-            do i=1, DynamicPropertiesNumber
+!~             do i=1, DynamicPropertiesNumber
 
-                if (PropertyName == DynamicPropNameList(i)) then
+!~                 if (PropertyName == DynamicPropNameList(i)) then
 
-                    if (present(Number)) Number = DynamicPropNumberList(i)
-                    CheckDynamicPropertyName = .TRUE.
+!~                     if (present(Number)) Number = DynamicPropNumberList(i)
+!~                     CheckDynamicPropertyName = .TRUE.
 
-                endif
+!~                 endif
 
-            enddo
+!~             enddo
         
-        endif
+!~         endif
 
-        !----------------------------------------------------------------------
+!~         !----------------------------------------------------------------------
 
-    end function  CheckDynamicPropertyName
+!~     end function  CheckDynamicPropertyName
 
     !--------------------------------------------------------------------------
     
@@ -2687,6 +2718,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (VelocityW_,               Char_VelocityW_,                ListNumber)
             call AddPropList (WaterFluxX_,              Char_WaterFluxX_,               ListNumber)
             call AddPropList (WaterFluxY_,              Char_WaterFluxY_,               ListNumber)
+            call AddPropList (WaterDepth_,              Char_WaterDepth_,               ListNumber)
             call AddPropList (CoriolisX_,               Char_CoriolisX_,                ListNumber)
             call AddPropList (BaroclinicForceX_,        Char_BaroclinicForceX_,         ListNumber)
             call AddPropList (HorizontalTransportX_,    Char_HorizontalTransportX_,     ListNumber)
@@ -2972,55 +3004,59 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (COHSED_COARSE_,           Char_Cohsed_coarse,              ListNumber)
             call AddPropList (VSS_,                     Char_VSS,                        ListNumber)
 
+            !PhreeqCRM
+            call AddPropList (WaterSaturation_,         Char_WaterSaturation,            ListNumber)
+            call AddPropList (Pressure_,                Char_Pressure,                   ListNumber)
+            call AddPropList (CellPorosity_,            Char_CellPorosity,               ListNumber)
             !PhreeqC temporary code for tests
-            call AddPropList (SolutionMagnesium_,       Char_SolutionMagnesium,          ListNumber)
-            call AddPropList (SolutionCalcium_,         Char_SolutionCalcium,            ListNumber)
-            call AddPropList (SolutionSodium_,          Char_SolutionSodium,             ListNumber)
-            call AddPropList (SolutionNitrogenGas_,     Char_SolutionNitrogenGas,        ListNumber)
-            call AddPropList (SolutionOxygenGas_,       Char_SolutionOxygenGas,          ListNumber)
-            call AddPropList (SolutionAmmonia_,         Char_SolutionAmmonia,            ListNumber)
-            call AddPropList (SolutionNitrate_,         Char_SolutionNitrate,            ListNumber)
-            call AddPropList (SolutionNitrite_,         Char_SolutionNitrite,            ListNumber)
-            call AddPropList (SolutionChlorine_,        Char_SolutionChlorine,           ListNumber)
-            call AddPropList (GasN2_,                   Char_GasN2,                      ListNumber)
-            call AddPropList (GasCO2_,                  Char_GasCO2,                     ListNumber)
-            call AddPropList (pE_,                      Char_pE,                         ListNumber)
-            call AddPropList (eCaX2_,                   Char_eCaX2,                      ListNumber)
-            call AddPropList (eMgX2_,                   Char_eMgX2,                      ListNumber)
-            call AddPropList (eNaX_,                    Char_eNaX,                       ListNumber)
-            call AddPropList (eNH4X_,                   Char_eNH4X,                      ListNumber)
-            call AddPropList (eKX_,                     Char_eKX,                        ListNumber)
-            call AddPropList (sCa2_,                    Char_sCa2,                       ListNumber)
-            call AddPropList (sCaOH_,                   Char_sCaOH,                      ListNumber)
-            call AddPropList (sH2_,                     Char_sH2,                        ListNumber)
-            call AddPropList (sMg2_,                    Char_sMg2,                       ListNumber)
-            call AddPropList (sMgOH_,                   Char_sMgOH,                      ListNumber)
-            call AddPropList (sNH4_,                    Char_sNH4,                       ListNumber)
-            call AddPropList (sNH3_,                    Char_sNH3,                       ListNumber)
-            call AddPropList (sN2_,                     Char_sN2,                        ListNumber)
-            call AddPropList (sNO2_,                    Char_sNO2,                       ListNumber)
-            call AddPropList (sNO3_,                    Char_sNO3,                       ListNumber)
-            call AddPropList (sNa_,                     Char_sNa,                        ListNumber)
-            call AddPropList (sNaOH_,                   Char_sNaOH,                      ListNumber)
-            call AddPropList (sO2_,                     Char_sO2,                        ListNumber)
-            call AddPropList (msmSolutionCalcium_,      Char_msmSolutionCalcium,         ListNumber)
-            call AddPropList (msmSolutionMagnesium_,    Char_msmSolutionMagnesium,       ListNumber)
-            call AddPropList (msmSolutionSodium_,       Char_msmSolutionSodium,          ListNumber)
-            call AddPropList (msmSolutionAmmonia_,      Char_msmSolutionAmmonia,         ListNumber)
-            call AddPropList (Calcite_,                 Char_Calcite,                    ListNumber)
-            call AddPropList (Dolomite_,                Char_Dolomite,                   ListNumber)
-            call AddPropList (Aragonite_,               Char_Aragonite,                  ListNumber)
-            call AddPropList (Halite_,                  Char_Halite,                     ListNumber)
-            call AddPropList (KFeldspar_,               Char_KFeldspar,                  ListNumber)
-            call AddPropList (SolutionCarbon_,          Char_SolutionCarbon,             ListNumber) 
-            call AddPropList (SolutionPotassium_,       Char_SolutionPotassium,          ListNumber) 
-            call AddPropList (SolutionAluminium_,       Char_SolutionAluminium,          ListNumber) 
-            call AddPropList (SolutionSilicium_,        Char_SolutionSilicium,           ListNumber) 
-            call AddPropList (RainMagnesium_,           Char_RainMagnesium,              ListNumber) 
-            call AddPropList (RainCalcium_,             Char_RainCalcium,                ListNumber) 
-            call AddPropList (RainSodium_,              Char_RainSodium,                 ListNumber)
-            call AddPropList (RainChlorine_,            Char_RainChlorine,               ListNumber)  
-            call AddPropList (RainAmmonia_,             Char_RainAmmonia,                ListNumber)  
+            !call AddPropList (SolutionMagnesium_,       Char_SolutionMagnesium,          ListNumber)
+            !call AddPropList (SolutionCalcium_,         Char_SolutionCalcium,            ListNumber)
+            !call AddPropList (SolutionSodium_,          Char_SolutionSodium,             ListNumber)
+            !call AddPropList (SolutionNitrogenGas_,     Char_SolutionNitrogenGas,        ListNumber)
+            !call AddPropList (SolutionOxygenGas_,       Char_SolutionOxygenGas,          ListNumber)
+            !call AddPropList (SolutionAmmonia_,         Char_SolutionAmmonia,            ListNumber)
+            !call AddPropList (SolutionNitrate_,         Char_SolutionNitrate,            ListNumber)
+            !call AddPropList (SolutionNitrite_,         Char_SolutionNitrite,            ListNumber)
+            !call AddPropList (SolutionChlorine_,        Char_SolutionChlorine,           ListNumber)
+            !call AddPropList (GasN2_,                   Char_GasN2,                      ListNumber)
+            !call AddPropList (GasCO2_,                  Char_GasCO2,                     ListNumber)
+            !call AddPropList (pE_,                      Char_pE,                         ListNumber)
+            !call AddPropList (eCaX2_,                   Char_eCaX2,                      ListNumber)
+            !call AddPropList (eMgX2_,                   Char_eMgX2,                      ListNumber)
+            !call AddPropList (eNaX_,                    Char_eNaX,                       ListNumber)
+            !call AddPropList (eNH4X_,                   Char_eNH4X,                      ListNumber)
+            !call AddPropList (eKX_,                     Char_eKX,                        ListNumber)
+            !call AddPropList (sCa2_,                    Char_sCa2,                       ListNumber)
+            !call AddPropList (sCaOH_,                   Char_sCaOH,                      ListNumber)
+            !call AddPropList (sH2_,                     Char_sH2,                        ListNumber)
+            !call AddPropList (sMg2_,                    Char_sMg2,                       ListNumber)
+            !call AddPropList (sMgOH_,                   Char_sMgOH,                      ListNumber)
+            !call AddPropList (sNH4_,                    Char_sNH4,                       ListNumber)
+            !call AddPropList (sNH3_,                    Char_sNH3,                       ListNumber)
+            !call AddPropList (sN2_,                     Char_sN2,                        ListNumber)
+            !call AddPropList (sNO2_,                    Char_sNO2,                       ListNumber)
+            !call AddPropList (sNO3_,                    Char_sNO3,                       ListNumber)
+            !call AddPropList (sNa_,                     Char_sNa,                        ListNumber)
+            !call AddPropList (sNaOH_,                   Char_sNaOH,                      ListNumber)
+            !call AddPropList (sO2_,                     Char_sO2,                        ListNumber)
+            !call AddPropList (msmSolutionCalcium_,      Char_msmSolutionCalcium,         ListNumber)
+            !call AddPropList (msmSolutionMagnesium_,    Char_msmSolutionMagnesium,       ListNumber)
+            !call AddPropList (msmSolutionSodium_,       Char_msmSolutionSodium,          ListNumber)
+            !call AddPropList (msmSolutionAmmonia_,      Char_msmSolutionAmmonia,         ListNumber)
+            !call AddPropList (Calcite_,                 Char_Calcite,                    ListNumber)
+            !call AddPropList (Dolomite_,                Char_Dolomite,                   ListNumber)
+            !call AddPropList (Aragonite_,               Char_Aragonite,                  ListNumber)
+            !call AddPropList (Halite_,                  Char_Halite,                     ListNumber)
+            !call AddPropList (KFeldspar_,               Char_KFeldspar,                  ListNumber)
+            !call AddPropList (SolutionCarbon_,          Char_SolutionCarbon,             ListNumber) 
+            !call AddPropList (SolutionPotassium_,       Char_SolutionPotassium,          ListNumber) 
+            !call AddPropList (SolutionAluminium_,       Char_SolutionAluminium,          ListNumber) 
+            !call AddPropList (SolutionSilicium_,        Char_SolutionSilicium,           ListNumber) 
+            !call AddPropList (RainMagnesium_,           Char_RainMagnesium,              ListNumber) 
+            !call AddPropList (RainCalcium_,             Char_RainCalcium,                ListNumber) 
+            !call AddPropList (RainSodium_,              Char_RainSodium,                 ListNumber)
+            !call AddPropList (RainChlorine_,            Char_RainChlorine,               ListNumber)  
+            !call AddPropList (RainAmmonia_,             Char_RainAmmonia,                ListNumber)  
             !END of PhreeqC temporary code for tests
             call AddPropList (SoilVolumetricDensity_,   Char_SoilVolumetricDensity,      ListNumber)  
             call AddPropList (SolEC_,                   Char_SolEC,                      ListNumber)
@@ -3052,6 +3088,13 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (SurfaceDownLatentHeat_,   Char_SurfaceDownLatentHeat,      ListNumber)
             call AddPropList (SurfaceDownSensibleHeat_, Char_SurfaceDownSensibleHeat,    ListNumber)     
             call AddPropList (CellPercentContamin_,     Char_CellPercentContamin,        ListNumber)                  
+            call AddPropList (SolutionMapping_,         Char_SolutionMapping,            ListNumber)                  
+            call AddPropList (EquilibriumMapping_,      Char_EquilibriumMapping,         ListNumber)                  
+            call AddPropList (ExchangeMapping_,         Char_ExchangeMapping,            ListNumber)                  
+            call AddPropList (SurfaceMapping_,          Char_SurfaceMapping,             ListNumber)                  
+            call AddPropList (GasPhaseMapping_,         Char_GasPhaseMapping,            ListNumber)                  
+            call AddPropList (SolidSolutionMapping_,    Char_SolidSolutionMapping,       ListNumber)                  
+            call AddPropList (KineticsMapping_,         Char_KineticsMapping,            ListNumber)                  
             !Place to add new properties to the names list
         
             !Ends building the property name list
@@ -3184,7 +3227,6 @@ cd1 :   if ((Property == Phytoplankton_         ) .OR.  (Property == Diatoms_   
 
         !Arguments-------------------------------------------------------------
         integer, intent (IN) :: Property
-        integer              :: i
 
         !----------------------------------------------------------------------
 
@@ -3245,20 +3287,9 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
             (Property == CellPercentContamin_   )) then
 
             Check_Particulate_Property = .TRUE. 
-            
-        elseif(associated(DynamicPropNameList)) then            
-
-                do i=1, DynamicPropertiesNumber
-
-                    if (Property == DynamicPropNumberList(i)) then
-                        
-                        Check_Particulate_Property = .TRUE. 
-
-                    endif
-
-                enddo
-                
+        
         else
+        
             Check_Particulate_Property = .FALSE.
 
         end if cd1
@@ -3271,32 +3302,16 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
     logical function Check_Angle_Property(Property)
 
         !Arguments-------------------------------------------------------------
-        integer, intent (IN) :: Property
-        integer              :: i
+         integer, intent (IN) :: Property
 
         !----------------------------------------------------------------------
 
-cd1 :   if ((Property == WindDirection_          )  .OR. (Property == MeanWaveDirection_     ) & !.OR.
-            !(Property == WindAngle_             ) .OR.  (Property == VelocityDirection_     ) .OR.          &
-            !(Property == WaveDirection_         ) .OR.  (Property == PeakDiretion_          ) .OR.          &
-            !(Property == WindSeaPeakDirection_  ) 
-            ) then
+cd1 :   if ((Property == WindDirection_) .OR. (Property == MeanWaveDirection_)) then
 
             Check_Angle_Property = .TRUE. 
-            
-        elseif(associated(DynamicPropNameList)) then            
-
-                do i=1, DynamicPropertiesNumber
-
-                    if (Property == DynamicPropNumberList(i)) then
-                        
-                        Check_Angle_Property = .TRUE. 
-
-                    endif
-
-                enddo
                 
         else
+
             Check_Angle_Property = .FALSE.
 
         end if cd1
@@ -3308,33 +3323,29 @@ cd1 :   if ((Property == WindDirection_          )  .OR. (Property == MeanWaveDi
 
     !--------------------------------------------------------------------------
             
-    integer function Get_Angle_Referential(Property)
+    integer function Get_Angle_Referential(PropertyID)
 
         !Arguments-------------------------------------------------------------
-        integer, intent (IN) :: Property
-        !integer              :: i
+        type(T_PropertyID), pointer :: PropertyID
 
         !----------------------------------------------------------------------
-        if (Check_Angle_Property(Property)) then
+        if (PropertyID%IsAngle) then
             
-cd1 :       if ((Property == WindDirection_          )  .OR. (Property == MeanWaveDirection_     ) & !.OR.
-                !(Property == WindAngle_             ) .OR.  (Property == VelocityDirection_     ) .OR.          &
-                !(Property == WaveDirection_         ) .OR.  (Property == PeakDiretion_          ) .OR.          &
-                !(Property == WindSeaPeakDirection_  ) 
-                ) then
+cd1 :       if ((PropertyID%IDNumber == WindDirection_) .OR. (PropertyID%IDNumber == MeanWaveDirection_)) then
 
-                Get_Angle_Referential = NauticalReferential_ 
-        
-            !else if(Property == VelocityDirection_     ) then
+                Get_Angle_Referential = NauticalReferential_          
 
-            !    Get_Angle_Referential = CurrentsReferential_            
+			else
+			
+				stop  'Get_Angle_Referential - ModuleGlobalData - ERR010'
 
             end if cd1
         else
-            stop  'Get_Angle_Referential - ModuleGlobalData - ERR01'
+        
+            stop  'Get_Angle_Referential - ModuleGlobalData - ERR020'
+        
         endif
-                    
-
+    
     end function Get_Angle_Referential
 
         
@@ -3346,29 +3357,16 @@ cd1 :       if ((Property == WindDirection_          )  .OR. (Property == MeanWa
 
         !Arguments-------------------------------------------------------------
         integer, intent (IN) :: Property
-        integer              :: i
 
         !----------------------------------------------------------------------
 
-cd1 :   if ((Property == WindVelocity_          ) .OR. (Property == WaveStress_            )  .OR.          &
-            (Property == WindStress_            ) &  ! .OR. (Property == Velocity_              ).OR.          &
-            ) then
+cd1 :   if ((Property == WindVelocity_) .OR. (Property == WaveStress_) .OR. &
+            (Property == WindStress_)) then
 
             Check_Vectorial_Property = .TRUE. 
-            
-        elseif(associated(DynamicPropNameList)) then            
-
-                do i=1, DynamicPropertiesNumber
-
-                    if (Property == DynamicPropNumberList(i)) then
-                        
-                        Check_Vectorial_Property = .TRUE. 
-
-                    endif
-
-                enddo
-                
+         
         else
+
             Check_Vectorial_Property = .FALSE.
 
         end if cd1

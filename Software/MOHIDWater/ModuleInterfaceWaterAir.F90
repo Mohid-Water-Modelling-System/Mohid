@@ -302,8 +302,8 @@ Module ModuleInterfaceWaterAir
         type(T_ExtField)                            :: RelativeHumidity     
         type(T_ExtField)                            :: AirTemperature
         type(T_ExtField)                            :: CloudCover
-        type(T_ExtField)                            :: WindVelocityX
-        type(T_ExtField)                            :: WindVelocityY
+        type(T_ExtField)                            :: WindVelocityU
+        type(T_ExtField)                            :: WindVelocityV
         type(T_ExtField)                            :: WindDirection
         type(T_ExtField)                            :: AtmospDeposOxidNO3
         type(T_ExtField)                            :: AtmospDeposReduNH4
@@ -313,8 +313,8 @@ Module ModuleInterfaceWaterAir
     type       T_Local_Atm
         type(T_ExtField)                            :: AtmosphericPressure
         type(T_ExtField)                            :: Mslp     !Mean Sea Level Pressure
-        type(T_ExtField)                            :: WindVelocityX
-        type(T_ExtField)                            :: WindVelocityY
+        type(T_ExtField)                            :: WindVelocityU
+        type(T_ExtField)                            :: WindVelocityV
         type(T_ExtField)                            :: WindDirection
     end type   T_Local_Atm
 
@@ -330,7 +330,11 @@ Module ModuleInterfaceWaterAir
     private :: T_Property
     type       T_Property
          type(T_PropertyID)                         :: ID
-         real, dimension(:,:), pointer              :: Field, FieldGrid     => null()
+         real, dimension(:,:), pointer              :: Field                => null()        
+        real, dimension(:,:),  pointer              :: FieldU               => null() !vectorial field rotated to grid cells - U comp.
+        real, dimension(:,:),  pointer              :: FieldV               => null() !vectorial field rotated to grid cells - V comp.
+        real, dimension(:,:),  pointer              :: FieldX               => null() !vectorial original field - X (zonal component)
+        real, dimension(:,:),  pointer              :: FieldY               => null() !vectorial original field - Y (meridional comp.)          
          type(T_Evolution)                          :: Evolution
          integer                                    :: SVPMethod            = 1
          integer                                    :: C1                   = 1
@@ -556,8 +560,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             nullify (Me%FirstProperty)
             nullify (Me%LastProperty )
 
-            nullify (Me%LocalAtm%WindVelocityX%Field)
-            nullify (Me%LocalAtm%WindVelocityY%Field)
+            nullify (Me%LocalAtm%WindVelocityU%Field)
+            nullify (Me%LocalAtm%WindVelocityV%Field)
             nullify (Me%LocalAtm%WindDirection%Field)
             nullify (Me%LocalAtm%AtmosphericPressure%Field)
             nullify (Me%LocalAtm%Mslp%Field)    !Mean Sea Level Pressure
@@ -1048,7 +1052,7 @@ i1:         if(BlockFound)then
         integer                                 :: ClientNumber
         integer                                 :: STAT_CALL
         logical                                 :: BlockFound
-
+        type (T_Property), pointer              :: PropertyX        => null()
         !Local-------------------------------------------------------------------
         type (T_Property), pointer              :: NewProperty
 
@@ -1090,12 +1094,74 @@ cd2 :           if (BlockFound) then
             endif cd1
         end do do1
 
+
+        !Verifies Wind consistence. Now is done by vectorial prop
+        call SearchProperty(PropertyX, WindStressX_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            write(*,*) 'Vectorial Property wind stress is now defined in one single block'
+            write(*,*) 'See Documentation on how to implement it'
+            stop 'Construct_PropertyList - ModuleInterfaceWaterAir . ERR04'                     
+        endif
+        call SearchProperty(PropertyX, WindStressY_, .false., STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            write(*,*) 'Vectorial Property wind stress is now defined in one single block'
+            write(*,*) 'See Documentation on how to implement it'
+            stop 'Construct_PropertyList - ModuleInterfaceWaterAir . ERR05'                     
+        endif        
+
         !------------------------------------------------------------------------
 
     end subroutine Construct_PropertyList
 
     !----------------------------------------------------------------------------
 
+   subroutine SearchProperty(PropertyX, PropertyXIDNumber, PrintWarning, STAT)
+
+
+        !Arguments-------------------------------------------------------------
+        type(T_Property), optional, pointer         :: PropertyX
+        integer         , optional, intent (IN)     :: PropertyXIDNumber
+        logical,          optional, intent (IN)     :: PrintWarning
+        integer         , optional, intent (OUT)    :: STAT
+
+        !Local-----------------------------------------------------------------
+
+        integer                                     :: STAT_ 
+        
+        !----------------------------------------------------------------------
+
+        STAT_  = UNKNOWN_
+
+        PropertyX => Me%FirstProperty
+
+do2 :   do while (associated(PropertyX)) 
+if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
+                exit do2 
+            else
+                PropertyX => PropertyX%Next                 
+            end if if5
+        end do do2
+
+       !A PropertyX was found
+       if (associated(PropertyX)) then
+            STAT_ = SUCCESS_  
+        else
+            if (present(PrintWarning)) then
+                if (PrintWarning) write (*,*)'Property Not Found in Module InterfaceWaterAir ', &
+                                              trim(GetPropertyName(PropertyXIDNumber))
+            endif
+            STAT_  = NOT_FOUND_ERR_  
+        end if
+
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine SearchProperty
+
+    
+    !----------------------------------------------------------------------    
 
     subroutine Construct_Property(NewProperty)
 
@@ -1153,22 +1219,57 @@ cd2 :           if (BlockFound) then
         SizeJLB = Me%Size2D%JLB
         SizeJUB = Me%Size2D%JUB
 
-        allocate (NewProperty%Field (SizeILB:SizeIUB, SizeJLB:SizeJUB))
+        
+!~         if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then 
+		if (NewProperty%ID%IsVectorial) then
+                        
+            allocate(NewProperty%FieldU(SizeILB:SizeIUB, SizeJLB:SizeJUB))
+            NewProperty%FieldU(:,:) = FillValueReal
+            
+            allocate(NewProperty%FieldV(SizeILB:SizeIUB, SizeJLB:SizeJUB))
+            NewProperty%FieldV(:,:) = FillValueReal
+            
+            allocate(NewProperty%FieldX(SizeILB:SizeIUB, SizeJLB:SizeJUB))
+            NewProperty%FieldX(:,:) = FillValueReal
+            
+            allocate(NewProperty%FieldY(SizeILB:SizeIUB, SizeJLB:SizeJUB))
+            NewProperty%FieldY(:,:) = FillValueReal                    
+            
+            call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
+                                       EnterDataID          = Me%ObjEnterData,          &
+                                       TimeID               = Me%ObjTime,               &
+                                       HorizontalGridID     = Me%ObjHorizontalGrid,     &
+                                       ExtractType          = FromBlock,                &
+                                       PointsToFill2D       = Me%ExtWater%WaterPoints2D,&
+                                       Matrix2DU            = NewProperty%FieldU,       &
+                                       Matrix2DV            = NewProperty%FieldV,       &
+                                       Matrix2DX            = NewProperty%FieldX,       &
+                                       Matrix2DY            = NewProperty%FieldY,       &  
+                                       TypeZUV              = TypeZ_,                   &
+                                       STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR00'
+        
+        else
+        
+            allocate (NewProperty%Field (SizeILB:SizeIUB, SizeJLB:SizeJUB))
 
-        NewProperty%Field(:,:) = FillValueReal
+            NewProperty%Field(:,:) = FillValueReal
+                
+            call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
+                                       EnterDataID          = Me%ObjEnterData,          &
+                                       TimeID               = Me%ObjTime,               &
+                                       HorizontalGridID     = Me%ObjHorizontalGrid,     &
+                                       ExtractType          = FromBlock,                &
+                                       PointsToFill2D       = Me%ExtWater%WaterPoints2D,&
+                                       Matrix2D             = NewProperty%Field,        &
+                                       TypeZUV              = TypeZ_,                   &
+                                       STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR10'
 
-        call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
-                                   EnterDataID          = Me%ObjEnterData,          &
-                                   TimeID               = Me%ObjTime,               &
-                                   HorizontalGridID     = Me%ObjHorizontalGrid,     &
-                                   ExtractType          = FromBlock,                &
-                                   PointsToFill2D       = Me%ExtWater%WaterPoints2D,&
-                                   Matrix2D             = NewProperty%Field,        &
-                                   TypeZUV              = TypeZ_,                   &
-                                   STAT                 = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                  &
-            stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR10'
-
+        endif        
+        
         call GetIfMatrixRemainsConstant(FillMatrixID    = NewProperty%ID%ObjFillMatrix,&
                                         RemainsConstant = NewProperty%Constant,        &
                                         STAT            = STAT_CALL)
@@ -1182,7 +1283,7 @@ cd2 :           if (BlockFound) then
                 stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR30'
         endif
 
-        if (NewProperty%ID%IDNumber == WindStressX_) then
+        if (NewProperty%ID%IDNumber == WindStress_) then
 
             !Shear Coefficient at the Atmosphere
             call GetData(Me%DefineCDWIND,                                               &
@@ -1234,17 +1335,7 @@ cd2 :           if (BlockFound) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR06'
-
-            allocate(NewProperty%FieldGrid(SizeILB:SizeIUB, SizeJLB:SizeJUB))
-
-            NewProperty%FieldGrid(:,:) = FillValueReal
-
-        elseif(NewProperty%ID%IDNumber == WindStressY_) then
-                        
-            allocate(NewProperty%FieldGrid(SizeILB:SizeIUB, SizeJLB:SizeJUB))
-
-            NewProperty%FieldGrid(:,:) = FillValueReal
-
+        
         endif
         
         if (NewProperty%ID%IDNumber == LatentHeat_) then
@@ -1674,6 +1765,14 @@ do1 :   do while (associated(PropertyX))
             endif
 
             if (PropertyX%BoxTimeSerie) then
+                
+!~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+				if (PropertyX%ID%IsVectorial) then
+                    write(*,*) 'No box time serie available yet to vectorial properties'
+                    write(*,*) 'Property : ', trim(PropertyX%ID%Name)
+                    stop 'Construct_Sub_Modules - ModuleInterfaceWaterAir - ERR01'
+                endif
+                
                 Me%Coupled%BoxTimeSerie%NumberOfProperties          = &
                 Me%Coupled%BoxTimeSerie%NumberOfProperties          + 1
                 Me%Coupled%BoxTimeSerie%Yes                         = ON
@@ -1723,7 +1822,13 @@ do1 :   do while (associated(PropertyX))
         PropertyX   => Me%FirstProperty
         nProperties =  0
         do while (associated(PropertyX))
-            if (PropertyX%TimeSerie) nProperties = nProperties + 1
+            if (PropertyX%TimeSerie) then
+                nProperties = nProperties + 1
+!~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+				if (PropertyX%ID%IsVectorial) then
+                    nProperties = nProperties + 1  !x and y comp
+                endif
+            endif
             PropertyX=>PropertyX%Next
         enddo
 
@@ -1738,8 +1843,18 @@ do1 :   do while (associated(PropertyX))
             nProperties =  0
             do while (associated(PropertyX))
                 if (PropertyX%TimeSerie) then
-                    nProperties = nProperties + 1
-                    PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name))
+                    
+!~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+					if (PropertyX%ID%IsVectorial) then
+                        nProperties = nProperties + 1
+                        PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name)//" X")
+                        nProperties = nProperties + 1
+                        PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name)//" Y")     
+                    else
+                        nProperties = nProperties + 1
+                        PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name))
+                    endif
+                    
                 endif
                 PropertyX=>PropertyX%Next
             enddo
@@ -2013,11 +2128,8 @@ do1 :   do while (associated(PropertyX))
         call Search_Property(PropertyX, SurfaceWaterFlux_,       STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) Me%IntOptions%SurfaceWaterFlux       = ON
         
-        call Search_Property(PropertyX, WindStressX_,            STAT = STAT_CALL)
-        if (STAT_CALL == SUCCESS_) then
-            call Search_Property(PropertyY, WindStressY_,        STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_)  Me%IntOptions%WindStress        = ON
-        endif
+        call Search_Property(PropertyX, WindStress_,            STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) Me%IntOptions%WindStress        = ON
 
 
     end subroutine CheckInternalOptions
@@ -2035,7 +2147,6 @@ do1 :   do while (associated(PropertyX))
         
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                          :: PropertyX
-        type (T_Property), pointer                          :: PropertyY
 
         !----------------------------------------------------------------------
         
@@ -2184,24 +2295,24 @@ do1 :   do while (associated(PropertyX))
 
 
 
-        if (Me%ExtOptions%HydrodynamicWindYes) then
-
-            call Search_Property(PropertyX, WindStressX_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR170'
-
-
-            call Search_Property(PropertyY, WindStressY_, .true., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR180'
-
-            if ((      PropertyX%ID%SolutionFromFile .and. .not. PropertyY%ID%SolutionFromFile) .or. &
-                (.not. PropertyX%ID%SolutionFromFile .and.       PropertyY%ID%SolutionFromFile)) then
-                
-                write (*,*) 'wind stress X must be given in the same way as wind stress Y'
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR0190'
-
-            endif
-
-        endif
+        !if (Me%ExtOptions%HydrodynamicWindYes) then
+        !
+        !    call Search_Property(PropertyX, WindStressX_, .true., STAT = STAT_CALL)
+        !    if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR170'
+        !
+        !
+        !    call Search_Property(PropertyY, WindStressY_, .true., STAT = STAT_CALL)
+        !    if (STAT_CALL /= SUCCESS_) stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR180'
+        !
+        !    if ((      PropertyX%ID%SolutionFromFile .and. .not. PropertyY%ID%SolutionFromFile) .or. &
+        !        (.not. PropertyX%ID%SolutionFromFile .and.       PropertyY%ID%SolutionFromFile)) then
+        !        
+        !        write (*,*) 'wind stress X must be given in the same way as wind stress Y'
+        !        stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR0190'
+        !
+        !    endif
+        !
+        !endif
 
         !Check if the Atmospheric Pressure property in the Atmosphere module exists
         if (Me%ExtOptions%HydrodynamicAtmPressureYes) then
@@ -2240,15 +2351,15 @@ do1 :   do while (associated(PropertyX))
 
         if (Me%ExtOptions%LagrangianWindYes) then
 
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_))then
                 write(*,*) 'Missing WindVelocity in Module Atmosphere '
                 stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR230'
             endif
 
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
-                write(*,*) 'Missing WindVelocity in Module Atmosphere '
-                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR240'
-            endif
+            !if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityV_))then
+            !    write(*,*) 'Missing WindVelocity in Module Atmosphere '
+            !    stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR240'
+            !endif
 
         endif
 
@@ -2306,7 +2417,7 @@ do1 :   do while (associated(PropertyX))
         integer                                             :: STAT_CALL
         
         !Local-----------------------------------------------------------------
-        type (T_Property), pointer                          :: PropertyX, PropertyY
+        type (T_Property), pointer                          :: PropertyX
         integer                                             :: ILB, IUB, JLB, JUB
 
         !----------------------------------------------------------------------
@@ -2316,22 +2427,28 @@ do1 :   do while (associated(PropertyX))
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
         
-        if (AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
+        !if (AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityU_))then
+        if (AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_))then
             
-            Me%LocalAtm%WindVelocityX%Yes = ON
-            nullify (Me%LocalAtm%WindVelocityX%Field)
-            allocate(Me%LocalAtm%WindVelocityX%Field(ILB:IUB, JLB:JUB))
-            Me%LocalAtm%WindVelocityX%Field(:,:) = FillValueReal
+            Me%LocalAtm%WindVelocityU%Yes = ON
+            nullify (Me%LocalAtm%WindVelocityU%Field)
+            allocate(Me%LocalAtm%WindVelocityU%Field(ILB:IUB, JLB:JUB))
+            Me%LocalAtm%WindVelocityU%Field(:,:) = FillValueReal
+            
+            Me%LocalAtm%WindVelocityV%Yes = ON
+            nullify (Me%LocalAtm%WindVelocityV%Field)
+            allocate(Me%LocalAtm%WindVelocityV%Field(ILB:IUB, JLB:JUB))
+            Me%LocalAtm%WindVelocityV%Field(:,:) = FillValueReal            
 
         endif
 
-        if (AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
-            
-            Me%LocalAtm%WindVelocityY%Yes = ON
-            nullify (Me%LocalAtm%WindVelocityY%Field)
-            allocate(Me%LocalAtm%WindVelocityY%Field(ILB:IUB, JLB:JUB))
-            Me%LocalAtm%WindVelocityY%Field(:,:) = FillValueReal
-        endif
+        !if (AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityV_))then
+        !    
+        !    Me%LocalAtm%WindVelocityV%Yes = ON
+        !    nullify (Me%LocalAtm%WindVelocityV%Field)
+        !    allocate(Me%LocalAtm%WindVelocityV%Field(ILB:IUB, JLB:JUB))
+        !    Me%LocalAtm%WindVelocityV%Field(:,:) = FillValueReal
+        !endif
 
         if (AtmospherePropertyExists(Me%ObjAtmosphere, WindDirection_))then
             
@@ -2364,15 +2481,15 @@ do1 :   do while (associated(PropertyX))
             if((.not. PropertyX%ID%SolutionFromFile) &
                 .and. (.not. PropertyX%Constant)) then
 
-                if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
+                if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_))then
                     write(*,*) 'Missing WindVelocity in Module Atmosphere '
                     stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR10'
                 endif
 
-                if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
-                    write(*,*) 'Missing WindVelocity in Module Atmosphere '
-                    stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR20'
-                endif
+                !if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityV_))then
+                !    write(*,*) 'Missing WindVelocity in Module Atmosphere '
+                !    stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR20'
+                !endif
 
                 if (.not.AtmospherePropertyExists(Me%ObjAtmosphere, AirTemperature_)) then
                     write(*,*) 'Specify Atmosphere AirTemperature to calculate Interface'
@@ -2394,15 +2511,15 @@ do1 :   do while (associated(PropertyX))
             if ((.not. PropertyX%ID%SolutionFromFile) &
                  .and. (.not. PropertyX%Constant)) then
 
-                if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
+                if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_))then
                     write(*,*) 'Missing WindVelocity X in Module Atmosphere '
                     stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR50'
                 endif
 
-                if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
-                    write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
-                    stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR60'
-                endif
+                !if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityV_))then
+                !    write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
+                !    stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR60'
+                !endif
 
                 if (.not.AtmospherePropertyExists(Me%ObjAtmosphere, AirTemperature_)) then
                     write(*,*) 'Specify Atmosphere AirTemperature to calculate Interface'
@@ -2442,15 +2559,15 @@ do1 :   do while (associated(PropertyX))
         call Search_Property(PropertyX, OxygenFlux_, .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
             
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
-                write(*,*) 'Missing WindVelocity X in Module Atmosphere '
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_))then
+                write(*,*) 'Missing WindVelocity in Module Atmosphere '
                 stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR110'
             endif
-
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
-                write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
-                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR120'
-            endif
+            !
+            !if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityV_))then
+            !    write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
+            !    stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR120'
+            !endif
 
         endif
         
@@ -2458,15 +2575,15 @@ do1 :   do while (associated(PropertyX))
         call Search_Property(PropertyX, CarbonDioxideFlux_, .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
             
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
-                write(*,*) 'Missing WindVelocity X in Module Atmosphere '
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_))then
+                write(*,*) 'Missing WindVelocity in Module Atmosphere '
                 stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR121'
             endif
 
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
-                write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
-                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR122'
-            endif
+            !if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityV_))then
+            !    write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
+            !    stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR122'
+            !endif
 
         endif
 
@@ -2474,15 +2591,15 @@ do1 :   do while (associated(PropertyX))
         call Search_Property(PropertyX, SpecificOxygenFlux_, .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
             
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
-                write(*,*) 'Missing WindVelocity X in Module Atmosphere '
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_))then
+                write(*,*) 'Missing WindVelocity in Module Atmosphere '
                 stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR123'
             endif
 
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
-                write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
-                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR124'
-            endif
+            !if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityV_))then
+            !    write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
+            !    stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR124'
+            !endif
 
         endif
         
@@ -2490,15 +2607,15 @@ do1 :   do while (associated(PropertyX))
         call Search_Property(PropertyX, SpecificCarbonDioxideFlux_, .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
             
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
-                write(*,*) 'Missing WindVelocity X in Module Atmosphere '
+            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_))then
+                write(*,*) 'Missing WindVelocity in Module Atmosphere '
                 stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR125'
             endif
 
-            if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
-                write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
-                stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR126'
-            endif
+            !if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityV_))then
+            !    write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
+            !    stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR126'
+            !endif
 
         endif
 
@@ -2539,25 +2656,16 @@ do1 :   do while (associated(PropertyX))
             endif
         endif
         
-        !If computing wind stress it is needed wind velocity X and wind velocity Y in atmosphere
-        call Search_Property(PropertyX, WindStressX_, .false., STAT = STAT_CALL)
+        !If computing wind stress it is needed wind velocity in atmosphere
+        call Search_Property(PropertyX, WindStress_, .false., STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
-            call Search_Property(PropertyY, WindStressY_,        STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_) then
-                if (.not. PropertyX%Constant            .and. &
-                    .not. PropertyY%Constant            .and. &
-                    .not. PropertyX%ID%SolutionFromFile .and. &
-                    .not. PropertyY%ID%SolutionFromFile ) then                
-                    if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityX_))then
-                        write(*,*) 'Missing WindVelocity X in Module Atmosphere '
-                        stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR170'
-                    endif
-
-                    if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocityY_))then
-                        write(*,*) 'Missing WindVelocity Y in Module Atmosphere '
-                        stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR180'
-                    endif
+            if (.not. PropertyX%Constant            .and. &
+                .not. PropertyX%ID%SolutionFromFile ) then               
+                if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, WindVelocity_))then
+                    write(*,*) 'Missing WindVelocity in Module Atmosphere '
+                    stop 'CheckOptionsAir - ModuleInterfaceWaterAir - ERR170'
                 endif
+
             endif
         endif        
         
@@ -2819,44 +2927,71 @@ do1 :   do while (associated(PropertyX))
 
         !Begin-------------------------------------------------------------
         
-        if(Me%LocalAtm%WindVelocityX%Yes)then
-
-            call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,             &
-                                       Scalar       = Me%ExtAtm%WindVelocityX%Field,&
-                                       ID           = WindVelocityX_,               &
+        if(Me%LocalAtm%WindVelocityU%Yes .and. Me%LocalAtm%WindVelocityV%Yes)then
+            call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,              &
+                                       ScalarU      = Me%ExtAtm%WindVelocityU%Field, &
+                                       ScalarV      = Me%ExtAtm%WindVelocityV%Field, &
+                                       ID           = WindVelocity_,                 &
                                        STAT         = STAT_CALL)
             if (STAT_CALL .ne. SUCCESS_)                                            &
-                stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR01'
+                stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR01'   
             
             !Memory duplication
-            call SetMatrixValue(Me%LocalAtm%WindVelocityX%Field, Me%Size2D,         &
-                                Me%ExtAtm%WindVelocityX%Field)
+            call SetMatrixValue(Me%LocalAtm%WindVelocityU%Field, Me%Size2D,         &
+                                Me%ExtAtm%WindVelocityU%Field)
 
-            call UngetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%WindVelocityX%Field, STAT = STAT_CALL)
+            call UngetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%WindVelocityU%Field, STAT = STAT_CALL)
             if (STAT_CALL .ne. SUCCESS_)                                            &
-                stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR02'
-
-
-        endif
-
-
-        if(Me%LocalAtm%WindVelocityY%Yes)then
-            call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,             &
-                                       Scalar       = Me%ExtAtm%WindVelocityY%Field,&
-                                       ID           = WindVelocityY_,               &
-                                       STAT         = STAT_CALL)
-            if (STAT_CALL .ne. SUCCESS_)                                            &
-                stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR03'
-
+                stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR02'       
+            
             !Memory duplication
-            call SetMatrixValue(Me%LocalAtm%WindVelocityY%Field, Me%Size2D,         &
-                                Me%ExtAtm%WindVelocityY%Field)
+            call SetMatrixValue(Me%LocalAtm%WindVelocityV%Field, Me%Size2D,         &
+                                Me%ExtAtm%WindVelocityV%Field)
 
-            call UngetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%WindVelocityY%Field, STAT = STAT_CALL)
+            call UngetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%WindVelocityV%Field, STAT = STAT_CALL)
             if (STAT_CALL .ne. SUCCESS_)                                            &
-                stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR04'
-
+                stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR04'            
+            
         endif
+        
+        !if(Me%LocalAtm%WindVelocityU%Yes)then
+        !
+        !    call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,             &
+        !                               Scalar       = Me%ExtAtm%WindVelocityU%Field,&
+        !                               ID           = WindVelocityU_,               &
+        !                               STAT         = STAT_CALL)
+        !    if (STAT_CALL .ne. SUCCESS_)                                            &
+        !        stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR01'
+        !    
+        !    !Memory duplication
+        !    call SetMatrixValue(Me%LocalAtm%WindVelocityU%Field, Me%Size2D,         &
+        !                        Me%ExtAtm%WindVelocityU%Field)
+        !
+        !    call UngetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%WindVelocityU%Field, STAT = STAT_CALL)
+        !    if (STAT_CALL .ne. SUCCESS_)                                            &
+        !        stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR02'
+        !
+        !
+        !endif
+        !
+        !
+        !if(Me%LocalAtm%WindVelocityV%Yes)then
+        !    call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,             &
+        !                               Scalar       = Me%ExtAtm%WindVelocityV%Field,&
+        !                               ID           = WindVelocityV_,               &
+        !                               STAT         = STAT_CALL)
+        !    if (STAT_CALL .ne. SUCCESS_)                                            &
+        !        stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR03'
+        !
+        !    !Memory duplication
+        !    call SetMatrixValue(Me%LocalAtm%WindVelocityV%Field, Me%Size2D,         &
+        !                        Me%ExtAtm%WindVelocityV%Field)
+        !
+        !    call UngetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%WindVelocityV%Field, STAT = STAT_CALL)
+        !    if (STAT_CALL .ne. SUCCESS_)                                            &
+        !        stop 'ModifyLocalAtmVariables - ModuleInterfaceWaterAir - ERR04'
+        !
+        !endif
 
 
         if(Me%LocalAtm%WindDirection%Yes)then
@@ -3002,11 +3137,14 @@ do1 :   do while (associated(PropertyX))
         endif
         
         if(Me%IntOptions%WindStress)then
-            call Search_Property(PropertyX, WindStressX_,            STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_) then
-                call Search_Property(PropertyY, WindStressY_,        STAT = STAT_CALL)
-                if (STAT_CALL == SUCCESS_)  call ModifyWindStress    (PropertyX, PropertyY)
-            endif
+            !call Search_Property(PropertyX, WindStressX_,            STAT = STAT_CALL)
+            !if (STAT_CALL == SUCCESS_) then
+            !    call Search_Property(PropertyY, WindStressY_,        STAT = STAT_CALL)
+            !    if (STAT_CALL == SUCCESS_)  call ModifyWindStress    (PropertyX, PropertyY)
+            !endif
+            
+            call Search_Property(PropertyX, WindStress_,        STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_)  call ModifyWindStress    (PropertyX)            
         endif
 
         if (Me%COARE)then
@@ -3102,8 +3240,8 @@ do1 :   do while (associated(PropertyX))
 
             
         !Shorten Variables
-        UWIND            => Me%LocalAtm%WindVelocityX%Field
-        VWIND            => Me%LocalAtm%WindVelocityY%Field
+        UWIND            => Me%LocalAtm%WindVelocityU%Field
+        VWIND            => Me%LocalAtm%WindVelocityV%Field
         AirTemperature   => Me%ExtAtm%AirTemperature%Field
         WaterTemperature => Me%ExtWater%WaterTemperature
         RelativeHumidity => Me%ExtAtm%RelativeHumidity%Field
@@ -3417,8 +3555,8 @@ do1 :   do while (associated(PropertyX))
         if (STAT_CALL /= SUCCESS_)stop 'ComputeSensibleHeat - ModuleInterfaceWaterAir - ERR02'
 
 
-        UWIND            => Me%LocalAtm%WindVelocityX%Field
-        VWIND            => Me%LocalAtm%WindVelocityY%Field
+        UWIND            => Me%LocalAtm%WindVelocityU%Field
+        VWIND            => Me%LocalAtm%WindVelocityV%Field
         AirTemp          => Me%ExtAtm%AirTemperature%Field
         WaterTemp        => Me%ExtWater%WaterTemperature
 
@@ -4195,8 +4333,8 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
 
         AirTemperature   => Me%ExtAtm%AirTemperature%Field
         RelativeHumidity => Me%ExtAtm%RelativeHumidity%Field
-        UWIND            => Me%LocalAtm%WindVelocityX%Field
-        VWIND            => Me%LocalAtm%WindVelocityY%Field
+        UWIND            => Me%LocalAtm%WindVelocityU%Field
+        VWIND            => Me%LocalAtm%WindVelocityV%Field
         
 do1: do j = JLB, JUB
 do2: do i = ILB, IUB
@@ -4684,10 +4822,12 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
     
     end function HeatDiffusivity
        
-    subroutine ModifyWindStress(PropWindStressX, PropWindStressY)
+    !--------------------------------------------------------------------------
+    
+    subroutine ModifyWindStress(PropWindStress)
 
         !Arguments-------------------------------------------------------------
-        type(T_Property), pointer                   :: PropWindStressX, PropWindStressY
+        type(T_Property), pointer                   :: PropWindStress
 
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
@@ -4696,52 +4836,46 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceWaterAir", "ModifyWindStress")
 
-        if (PropWindStressX%ID%SolutionFromFile) then
+        if (PropWindStress%ID%SolutionFromFile) then
 
-            call ModifyFillMatrix(FillMatrixID      = PropWindStressX%ID%ObjFillMatrix,     &
-                                  Matrix2D          = PropWindStressX%Field,                &
-                                  PointsToFill2D    = Me%ExtWater%WaterPoints2D,            &
+            call ModifyFillMatrix(FillMatrixID      = PropWindStress%ID%ObjFillMatrix,     &
+                                  Matrix2DU         = PropWindStress%FieldU,               &
+                                  Matrix2DV         = PropWindStress%FieldV,               &
+                                  Matrix2DX         = PropWindStress%FieldX,               &
+                                  Matrix2DY         = PropWindStress%FieldY,               & 
+                                  PointsToFill2D    = Me%ExtWater%WaterPoints2D,           &
+                                  !VectorialDummy_ = .true.,                                &
                                   STAT              = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_) stop 'ModifyWindStress - ModuleInterfaceWaterAir - ERR01'
 
         endif
 
-        if (PropWindStressY%ID%SolutionFromFile) then
-
-            call ModifyFillMatrix(FillMatrixID      = PropWindStressY%ID%ObjFillMatrix,     &
-                                  Matrix2D          = PropWindStressY%Field,                &
-                                  PointsToFill2D    = Me%ExtWater%WaterPoints2D,            &
-                                  STAT              = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_) stop 'ModifyWindStress - ModuleInterfaceWaterAir - ERR20'
-
-        endif
-
-
-        call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid,      &
-                                     VectorInX         = PropWindStressX%Field,     &
-                                     VectorInY         = PropWindStressY%Field,     &
-                                     VectorOutX        = PropWindStressX%FieldGrid, &
-                                     VectorOutY        = PropWindStressY%FieldGrid, &   
-                                     WaterPoints2D     = Me%ExtWater%WaterPoints2D, &
-                                     RotateX           = .true.,                    &
-                                     RotateY           = .true.,                    &
-                                     STAT              = STAT_CALL)
-
-        if(STAT_CALL .ne. SUCCESS_) stop 'ModifyWindStress - ModuleInterfaceWaterAir - ERR30'
+        !call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid,      &
+        !                             VectorInX         = PropWindStressX%Field,     &
+        !                             VectorInY         = PropWindStressY%Field,     &
+        !                             VectorOutX        = PropWindStressX%FieldGrid, &
+        !                             VectorOutY        = PropWindStressY%FieldGrid, &   
+        !                             WaterPoints2D     = Me%ExtWater%WaterPoints2D, &
+        !                             RotateX           = .true.,                    &
+        !                             RotateY           = .true.,                    &
+        !                             STAT              = STAT_CALL)
+        !
+        !if(STAT_CALL .ne. SUCCESS_) stop 'ModifyWindStress - ModuleInterfaceWaterAir - ERR30'
 
 
-        if (.not. PropWindStressX%Constant            .and. &
-            .not. PropWindStressY%Constant            .and. &
-            .not. PropWindStressX%ID%SolutionFromFile .and. &
-            .not. PropWindStressY%ID%SolutionFromFile ) then
+        if (.not. PropWindStress%Constant            .and. &
+            .not. PropWindStress%Constant            .and. &
+            .not. PropWindStress%ID%SolutionFromFile .and. &
+            .not. PropWindStress%ID%SolutionFromFile ) then
 
-            call ComputeTauWind (PropWindStressX, PropWindStressY)
+            call ComputeTauWind (PropWindStress)
 
+            !need to rotate field computed in ComputeTauWind since we are outside FillMatrix
             call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid,      &
-                                         VectorInX         = PropWindStressX%FieldGrid, &
-                                         VectorInY         = PropWindStressY%FieldGrid, &
-                                         VectorOutX        = PropWindStressX%Field    , &
-                                         VectorOutY        = PropWindStressY%Field    , &   
+                                         VectorInX         = PropWindStress%FieldU,     &
+                                         VectorInY         = PropWindStress%FieldV,     &
+                                         VectorOutX        = PropWindStress%FieldX,     &
+                                         VectorOutY        = PropWindStress%FieldY,     &   
                                          WaterPoints2D     = Me%ExtWater%WaterPoints2D, &
                                          RotateX           = .true.,                    &
                                          RotateY           = .true.,                    &
@@ -4755,11 +4889,10 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
     !--------------------------------------------------------------------------
     
-    subroutine ComputeTauWind (PropWindStressX, PropWindStressY)
+    subroutine ComputeTauWind (PropWindStress)
 
         !Arguments------------------------------------------------------------
-        type(T_Property), pointer                   :: PropWindStressX
-        type(T_Property), pointer                   :: PropWindStressY
+        type(T_Property), pointer                   :: PropWindStress
 
         !Local----------------------------------------------------------------
         real,    dimension(:,:), pointer            :: UWIND, VWIND
@@ -4776,8 +4909,8 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
         JUB = Me%WorkSize2D%JUB
         JLB = Me%WorkSize2D%JLB
 
-        UWIND   => Me%LocalAtm%WindVelocityX%Field
-        VWIND   => Me%LocalAtm%WindVelocityY%Field
+        UWIND   => Me%LocalAtm%WindVelocityU%Field
+        VWIND   => Me%LocalAtm%WindVelocityV%Field
 
         if (MonitorPerformance) then
             call StartWatch ("ModuleInterfaceWaterAir", "ComputeTauWind")
@@ -4803,10 +4936,10 @@ cd1:    if(Me%CDWINDmethod == Constant)then
                     Coef = CDWIND * VM * Air_Density
                     
                     !Mellor, Introduction to Physical Oceanography, p52 (1996)---------
-                    PropWindStressX%FieldGrid(I,J) = Coef * UWIND(I,J)
+                    PropWindStress%FieldU(I,J) = Coef * UWIND(I,J)
                     
                     !Mellor, Introduction to Physical Oceanography, p52 (1996)---------
-                    PropWindStressY%FieldGrid(I,J) = Coef * VWIND(I,J)
+                    PropWindStress%FieldV(I,J) = Coef * VWIND(I,J)
 
                 endif
                 
@@ -4851,10 +4984,10 @@ cd1:    if(Me%CDWINDmethod == Constant)then
                     Coef = CDWIND * VM * Air_Density
 
                     !Mellor, Introduction to Physical Oceanography, p52 (1996)---------
-                    PropWindStressX%FieldGrid(I,J) = Coef * UWIND(I,J)
+                    PropWindStress%FieldU(I,J) = Coef * UWIND(I,J)
 
                     !Mellor, Introduction to Physical Oceanography, p52 (1996)---------
-                    PropWindStressY%FieldGrid(I,J) = Coef * VWIND(I,J)
+                    PropWindStress%FieldU(I,J) = Coef * VWIND(I,J)
 
                 endif
 
@@ -4880,8 +5013,8 @@ cd1:    if(Me%CDWINDmethod == Constant)then
                     Coef = WindShearVelocity%Field(i,j)**2 / VM * Air_Density
                     
                     ![M*L/T^2/L^2] = [M/L^2/T]*[L/T]
-                    PropWindStressX%FieldGrid(I,J) = Coef * UWIND(I,J)
-                    PropWindStressY%FieldGrid(I,J) = Coef * VWIND(I,J)
+                    PropWindStress%FieldU(I,J) = Coef * UWIND(I,J)
+                    PropWindStress%FieldV(I,J) = Coef * VWIND(I,J)
 
                 endif
 
@@ -4949,8 +5082,8 @@ cd1:    if(Me%CDWINDmethod == Constant)then
         JUB = Me%WorkSize2D%JUB
         JLB = Me%WorkSize2D%JLB
 
-        UWIND   => Me%LocalAtm%WindVelocityX%Field
-        VWIND   => Me%LocalAtm%WindVelocityY%Field
+        UWIND   => Me%LocalAtm%WindVelocityU%Field
+        VWIND   => Me%LocalAtm%WindVelocityV%Field
 
         if (MonitorPerformance) then
             call StartWatch ("ModuleInterfaceWaterAir", "ComputeTKEWind")
@@ -5034,8 +5167,8 @@ do4:    do i=ILB, IUB
 
         !Surface temperature of the waterbody
         WaterTemperature => Me%ExtWater%WaterTemperature
-        UWIND            => Me%LocalAtm%WindVelocityX%Field
-        VWIND            => Me%LocalAtm%WindVelocityY%Field
+        UWIND            => Me%LocalAtm%WindVelocityU%Field
+        VWIND            => Me%LocalAtm%WindVelocityV%Field
 
         !The formulation is taken from CE-QUAL-W2 v3.1
         do j = JLB, JUB
@@ -5175,8 +5308,8 @@ do4:    do i=ILB, IUB
 
         !Surface temperature of the waterbody
         WaterTemperature => Me%ExtWater%WaterTemperature
-        UWIND            => Me%LocalAtm%WindVelocityX%Field
-        VWIND            => Me%LocalAtm%WindVelocityY%Field
+        UWIND            => Me%LocalAtm%WindVelocityU%Field
+        VWIND            => Me%LocalAtm%WindVelocityV%Field
         
         
         call GetHorizontalVelocity(HydrodynamicID      = Me%ObjHydrodynamic,        &
@@ -5346,7 +5479,7 @@ do4:    do i=ILB, IUB
         !External--------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB, i, j
         real                                :: WindStressModule
-        type(T_Property), pointer           :: WindShearVelocity, WindStressX, WindStressY
+        type(T_Property), pointer           :: WindShearVelocity, WindStress
         integer                             :: STAT_CALL
         integer                             :: CHUNK
         logical                             :: FromFile
@@ -5379,11 +5512,11 @@ do4:    do i=ILB, IUB
                 
         else 
 
-            call Search_Property(WindStressX, WindStressX_, .true., STAT = STAT_CALL) 
+            call Search_Property(WindStress, WindStress_, .true., STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWindShearVelocity - ModuleInterfaceWaterAir - ERR30'
 
-            call Search_Property(WindStressY, WindStressY_, .true., STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyWindShearVelocity - ModuleInterfaceWaterAir - ERR40'
+            !call Search_Property(WindStressY, WindStressY_, .true., STAT = STAT_CALL) 
+            !if (STAT_CALL /= SUCCESS_) stop 'ModifyWindShearVelocity - ModuleInterfaceWaterAir - ERR40'
 
             IUB = Me%WorkSize2D%IUB
             ILB = Me%WorkSize2D%ILB
@@ -5398,8 +5531,8 @@ do4:    do i=ILB, IUB
                 
                 if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
-                    WindStressModule                  = sqrt(WindStressX%Field(i, j)**2. + &
-                                                             WindStressY%Field(i, j)**2.)
+                    WindStressModule                  = sqrt(WindStress%FieldU(i, j)**2. + &
+                                                             WindStress%FieldV(i, j)**2.)
 
                    Me%WindShearVelocity(i, j) = sqrt(WindStressModule / SigmaDensityReference)
                                                                     
@@ -5518,11 +5651,26 @@ do4:    do i=ILB, IUB
         PropertyX   => Me%FirstProperty
         do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
-                call WriteTimeSerie(Me%ObjTimeSerie,                            &
-                                    Data2D  = PropertyX%Field,                  &
-                                    STAT    = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                      &
-                    stop 'OutPut_TimeSeries - ModuleInterfaceWaterAir - ERR01'
+                
+                !vectorial property - need to get data in user referential - X and Y
+!~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then 
+				if (PropertyX%ID%IsVectorial) then
+
+                    call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldX, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleInterfaceWaterAir - ERR010'
+            
+                    call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldY, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleInterfaceWaterAir - ERR020'                      
+                
+                else
+                    
+                    call WriteTimeSerie(Me%ObjTimeSerie,                            &
+                                        Data2D  = PropertyX%Field,                  &
+                                        STAT    = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                      &
+                        stop 'OutPut_TimeSeries - ModuleInterfaceWaterAir - ERR01'
+                    
+                endif
             endif
             PropertyX=>PropertyX%Next
         enddo
@@ -5618,7 +5766,7 @@ do4:    do i=ILB, IUB
         integer                            :: WorkKLB, WorkKUB
         real(8)                            :: TotalTime, AuxPeriod
         type (T_Time)                      :: Aux
-
+        character(LEN = StringLength)      :: PropertyNameX, PropertyNameY
         !----------------------------------------------------------------------
 
         WorkILB = Me%WorkSize3D%ILB 
@@ -5695,13 +5843,58 @@ PropX:          do while (associated(PropertyX))
 
                         if (PropertyX%ID%IDNumber /= SpecificOxygenFlux_ ) then
                             
-                            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name, &
-                                                 PropertyX%ID%Name, PropertyX%ID%Units,      &
-                                                 Array2D      = PropertyX%Field,             &
-                                                 OutputNumber = OutPutNumber,                &
-                                                 STAT         = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_)                                       &
-                                stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR06a'
+                            !vectorial property - need to get data in user referential - X and Y
+!~                             if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+							if (PropertyX%ID%IsVectorial) then
+                                
+                                !get the correct names of the properties
+                                call Get_Vectorial_PropertyNames(PropertyX%ID%IDNumber, PropertyNameX, PropertyNameY)    
+                                
+                                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyNameX,     &
+                                                     PropertyNameX, PropertyX%ID%Units,          &
+                                                     Array2D      = PropertyX%FieldX,            &
+                                                     OutputNumber = OutPutNumber,                &
+                                                     STAT         = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)                                       &
+                                    stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR06a'     
+                                
+                                !just for debbuging
+                                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(PropertyNameX)//"_Grid",     &
+                                                     trim(PropertyNameX)//"_Grid", PropertyX%ID%Units,          &
+                                                     Array2D      = PropertyX%FieldU,            &
+                                                     OutputNumber = OutPutNumber,                &
+                                                     STAT         = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)                                       &
+                                    stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR06b'    
+                                
+                                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyNameY,     &
+                                                     PropertyNameY, PropertyX%ID%Units,          &
+                                                     Array2D      = PropertyX%FieldY,            &
+                                                     OutputNumber = OutPutNumber,                &
+                                                     STAT         = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)                                       &
+                                    stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR07a'     
+                                
+                                !just for debbuging
+                                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(PropertyNameY)//"_Grid",     &
+                                                     trim(PropertyNameY)//"_Grid", PropertyX%ID%Units,          &
+                                                     Array2D      = PropertyX%FieldV,            &
+                                                     OutputNumber = OutPutNumber,                &
+                                                     STAT         = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)                                       &
+                                    stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR07b'                                 
+                                
+                            else
+                            
+                                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name, &
+                                                     PropertyX%ID%Name, PropertyX%ID%Units,      &
+                                                     Array2D      = PropertyX%Field,             &
+                                                     OutputNumber = OutPutNumber,                &
+                                                     STAT         = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_)                                       &
+                                    stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR08a'
+                                
+                            endif
                            
                          endif
                            
@@ -5709,7 +5902,7 @@ PropX:          do while (associated(PropertyX))
                         !Writes everything to disk
                         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) &
-                            stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR07'
+                            stop 'OutPut_Results_HDF - ModuleInterfaceWaterAir - ERR09'
 
                     endif
 
@@ -5737,7 +5930,7 @@ PropX:          do while (associated(PropertyX))
         integer                                 :: STAT_CALL
 
         !Local-----------------------------------------------------------------
-        type(T_Property), pointer               :: PropertyX, PropertyY
+        type(T_Property), pointer               :: PropertyX
         real, pointer, dimension(:,:)           :: AtmPressure, Precipitation
 
         !Begin-----------------------------------------------------------------
@@ -5912,15 +6105,15 @@ PropX:          do while (associated(PropertyX))
 
         if(Me%ExtOptions%HydrodynamicWindYes)then
 
-            call Search_Property(PropertyX, WindStressX_, STAT = STAT_CALL) 
+            call Search_Property(PropertyX, WindStress_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_)then
 
-                call Search_Property(PropertyY, WindStressY_, STAT = STAT_CALL) 
+                !call Search_Property(PropertyY, WindStressY_, STAT = STAT_CALL) 
 
                 if (STAT_CALL == SUCCESS_)then
 
-                    call SetWindStress (Me%ObjHydrodynamic, PropertyX%FieldGrid, &
-                                        PropertyY%FieldGrid, STAT = STAT_CALL) 
+                    call SetWindStress (Me%ObjHydrodynamic, PropertyX%FieldU, &
+                                        PropertyX%FieldV, STAT = STAT_CALL) 
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR80'
 
@@ -5965,8 +6158,8 @@ PropX:          do while (associated(PropertyX))
         if(Me%ExtOptions%WavesWindYes)then
 
             call SetWavesWind(WavesID       = Me%ObjWaves,                                      &
-                              WindX         = Me%LocalAtm%WindVelocityX%Field,                  &
-                              WindY         = Me%LocalAtm%WindVelocityY%Field,                  &
+                              WindU         = Me%LocalAtm%WindVelocityU%Field,                  &
+                              WindV         = Me%LocalAtm%WindVelocityV%Field,                  &
                               STAT          = STAT_CALL)                                    
             if (STAT_CALL /= SUCCESS_)                                                          &
                 stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR110'
@@ -6015,15 +6208,15 @@ i22:    if (Me%ObjLagrangian /= 0) then
             
             call SetLagrangianWindGlobal(LagrangianID = Me%ObjLagrangian,                       &
                                    ModelName    = Me%ModelName,                                 &
-                                   WindX        = Me%LocalAtm%WindVelocityX%Field,              &
-                                   WindY        = Me%LocalAtm%WindVelocityY%Field,              &
+                                   WindX        = Me%LocalAtm%WindVelocityU%Field,              &
+                                   WindY        = Me%LocalAtm%WindVelocityV%Field,              &
                                    STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                          &
                 stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR130'
 #else
             call SetLagrangianWind(LagrangianID = Me%ObjLagrangian,                       &
-                                   WindX        = Me%LocalAtm%WindVelocityX%Field,              &
-                                   WindY        = Me%LocalAtm%WindVelocityY%Field,              &
+                                   WindX        = Me%LocalAtm%WindVelocityU%Field,              &
+                                   WindY        = Me%LocalAtm%WindVelocityV%Field,              &
                                    STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                          &
                 stop 'SetSubModulesModifier - ModuleInterfaceWaterAir - ERR140'
@@ -6194,10 +6387,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 endif
 
 
-                if(associated(Me%LocalAtm%WindVelocityX%Field      )) &
-                   deallocate(Me%LocalAtm%WindVelocityX%Field      )
-                if(associated(Me%LocalAtm%WindVelocityY%Field      )) &
-                   deallocate(Me%LocalAtm%WindVelocityY%Field      )
+                if(associated(Me%LocalAtm%WindVelocityU%Field      )) &
+                   deallocate(Me%LocalAtm%WindVelocityU%Field      )
+                if(associated(Me%LocalAtm%WindVelocityV%Field      )) &
+                   deallocate(Me%LocalAtm%WindVelocityV%Field      )
                 if(associated(Me%LocalAtm%WindDirection%Field      )) &
                    deallocate(Me%LocalAtm%WindDirection%Field      )
                 if(associated(Me%LocalAtm%AtmosphericPressure%Field)) &
@@ -6217,15 +6410,30 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 do while(associated(PropertyX))
                     
-                    deallocate(PropertyX%Field,   STAT = STAT_CALL) 
-                    if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR150'
-                    nullify(PropertyX%Field)
-
-                    if (associated(PropertyX%FieldGrid)) then
-                        deallocate(PropertyX%FieldGrid)
-                        nullify   (PropertyX%FieldGrid)
+                    
+!~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+					if (PropertyX%ID%IsVectorial) then
+                        
+                        deallocate(PropertyX%FieldU,   STAT = STAT_CALL) 
+                        if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR146'    
+                        
+                        deallocate(PropertyX%FieldV,   STAT = STAT_CALL) 
+                        if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR147'    
+                        
+                        deallocate(PropertyX%FieldX,   STAT = STAT_CALL) 
+                        if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR148'    
+                        
+                        deallocate(PropertyX%FieldY,   STAT = STAT_CALL) 
+                        if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR149'
+                        
+                    else
+                        
+                        deallocate(PropertyX%Field,   STAT = STAT_CALL) 
+                        if(STAT_CALL .ne. SUCCESS_)&
+                            stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR150'
+                        nullify(PropertyX%Field)                        
                     endif
+
 
                     if(PropertyX%ID%SolutionFromFile)then
 

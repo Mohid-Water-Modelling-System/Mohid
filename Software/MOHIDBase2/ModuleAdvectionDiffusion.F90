@@ -580,9 +580,11 @@ cd0 :   if (ready_ == OFF_ERR_) then
 
         !griflet: BEGIN this is the alternate version that allows parallel openmp
 
-        Me%MaxThreads = 1
-        !$ Me%MaxThreads = omp_get_max_threads()
+        !Me%MaxThreads = 1
+        !!$ Me%MaxThreads = omp_get_max_threads()
 
+        Me%MaxThreads = openmp_num_threads
+        
         allocate(Me%THOMAS)
         allocate(Me%THOMAS%COEF3)
         allocate(Me%THOMAS%VEC(1:Me%MaxThreads))
@@ -1583,9 +1585,12 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
                                              KUB              = KUB,                    &
                                              STAT             = STAT_CALL)
                                              
-                if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR10'
+#else                        
+                STAT_CALL = SUCCESS_                 
                                              
 #endif _USE_MPI
+
+                if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR10'
 
             else
                                                          
@@ -3321,9 +3326,11 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
                                                      KUB              = KUB,                    &
                                                      STAT             = STAT_CALL)
 
-                        if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR30'
-                                             
+#else                        
+                        STAT_CALL = SUCCESS_                                             
 #endif _USE_MPI
+
+                        if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusionIteration - ModuleAdvectionDiffusion - ERR30'
 
                     else                    
 

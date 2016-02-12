@@ -3832,6 +3832,10 @@ d2:     do em =1, Me%EulerModelNumber
         
         call Add(Me%GridsBounds, GridBound)
         
+        call UngetHorizontalGrid(HorizontalGridID = EulerModel%ObjHorizontalGrid,       &
+                                 Polygon          = GridBound,                          &
+                                 STAT             = STAT_CALL)                          
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructParticleGrid - ModuleLagrangianGlobal - ERR100'
 
 
     end subroutine ConstructParticleGrid    
@@ -10667,8 +10671,9 @@ em1:    do em =1, Me%EulerModelNumber
         !Local-----------------------------------------------------------------
         type (T_Polygon), pointer                   :: AuxPolygon
         integer                                     :: count, i, STAT_CALL
-        character(len = StringLength)               :: AuxFieldName
-        real(8), dimension(:), pointer              :: Array1D
+        character(len = StringLength)               :: AuxFieldName, PolygonName, GroupName
+        character(len=6)                            :: NumberName        
+        real(8), dimension(:), pointer              :: Matrix1DX, Matrix1DY, Aux1DX, Aux1DY
  
         !Begin-----------------------------------------------------------------
 
@@ -10679,41 +10684,84 @@ em1:    do em =1, Me%EulerModelNumber
 
             Count = AuxPolygon%Count
             
+            NumberName = "      "
+            
+            write(NumberName,'(I6)') i
+            PolygonName = 'Polygon'//trim(adjustl(NumberName))
+            
             !Sets limits for next write operations
             call HDF5SetLimits   (ObjHDF5, 1, count, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR10'
 
-            allocate(Array1D(1:Count))
+            allocate(Matrix1DX(1:Count))
+            allocate(Matrix1DY(1:Count))            
             
-            Array1D(1:Count) = AuxPolygon%VerticesF(1:Count)%X
-        
-            AuxFieldName = trim(DataFieldName)//'_X'
+            Matrix1DX(1:Count) = AuxPolygon%VerticesF(1:Count)%X
+            
+            GroupName = "/Grid/Polygons/"//trim(DataFieldName)//'/'//trim(PolygonName)
+
+            AuxFieldName = 'Longitude'
 
             !Writes the Grid
             call HDF5WriteData   (HDF5ID        = ObjHDF5,                              &
-                                  GroupName     = "/Grid/Polygons/"//trim(AuxFieldName),&
+                                  GroupName     = trim(GroupName),                      &
                                   Name          = trim(AuxFieldName),                   &
                                   Units         = "-",                                  &
-                                  Array1D       = Array1D,                              &
-                                  OutputNumber  = i,                                    &                                    
+                                  Array1D       = Matrix1DX,                            &
                                   STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR20'
 
-            Array1D(1:Count) = AuxPolygon%VerticesF(1:Count)%Y
+            Matrix1DY(1:Count) = AuxPolygon%VerticesF(1:Count)%Y
         
-            AuxFieldName = trim(DataFieldName)//'_Y'
+            AuxFieldName = 'Latitude'
 
             !Writes the Grid
             call HDF5WriteData   (HDF5ID        = ObjHDF5,                              &
-                                  GroupName     = "/Grid/Polygons/"//trim(AuxFieldName),&
+                                  GroupName     = trim(GroupName),                      &
                                   Name          = trim(AuxFieldName),                   &
                                   Units         = "-",                                  &
-                                  Array1D       = Array1D,                              &
-                                  OutputNumber  = i,                                    &                                    
+                                  Array1D       = Matrix1DY,                            &
                                   STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR30'
             
-            deallocate(Array1D)
+            
+#ifdef _GOOGLEMAPS  
+
+            allocate(Aux1DX(1:Count))
+            allocate(Aux1DY(1:Count))            
+    
+            call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, Count, Aux1DX, Aux1DY)
+            
+            AuxFieldName = 'googlemaps_x'
+
+            !Writes the Grid
+            call HDF5WriteData   (HDF5ID        = ObjHDF5,                              &
+                                  GroupName     = trim(GroupName),                      &
+                                  Name          = trim(AuxFieldName),                   &
+                                  Units         = "-",                                  &
+                                  Array1D       = Aux1DX,                               &
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR40'
+
+            AuxFieldName = 'googlemaps_y'
+
+            !Writes the Grid
+            call HDF5WriteData   (HDF5ID        = ObjHDF5,                              &
+                                  GroupName     = trim(GroupName),                      &
+                                  Name          = trim(AuxFieldName),                   &
+                                  Units         = "-",                                  &
+                                  Array1D       = Aux1DY,                               &
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5Polygons - ModuleLagrangianGlobal - ERR50'
+                            
+
+            deallocate(Aux1DX)
+            deallocate(Aux1DY)                            
+
+#endif             
+
+            deallocate(Matrix1DX)
+            deallocate(Matrix1DY)               
         
             i = i + 1
             
@@ -15226,7 +15274,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: AngFrequency, WaveNumber, VelStokesDrift, Depth
         real                                        :: WaterDensity, UDrift = 0., VDrift = 0.
         logical                                     :: InterpolVel3D
-        integer                                     :: nn, Npi, Npj, ts, lp
+        integer                                     :: Npi, Npj, ts
         real                                        :: DXn, DYn
         !new method for stokes drift
         real                                        :: WaveLength

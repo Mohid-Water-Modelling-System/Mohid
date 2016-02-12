@@ -551,9 +551,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !griflet: BEGIN this is the alternate version that allows parallel openmp
 
-        Me%MaxThreads = 1
-        !$ Me%MaxThreads = omp_get_max_threads()
+        !Me%MaxThreads = 1
+        !!$ Me%MaxThreads = omp_get_max_threads()
 
+        Me%MaxThreads = openmp_num_threads
+        
         allocate(Me%THOMAS)
         allocate(Me%THOMAS%COEF3)
         allocate(Me%THOMAS%VEC(1:Me%MaxThreads))

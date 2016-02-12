@@ -190,7 +190,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         character(len=StringLength)             :: DirX
         character(len=StringLength)             :: DirY
         logical                                 :: ComputeIntensity, Rotation, Beaufort, WaveBeaufort
-        logical                                 :: ComputeWindDirection  
+        logical                                 :: ComputeDirection  
         integer                                 :: VectorComponent
         character(len=StringLength)             :: VectorX
         character(len=StringLength)             :: VectorY        
@@ -202,6 +202,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         character(len=StringLength)             :: AverageInDepthName
         logical                                 :: Reflectivity2Precipitation
         character(len=StringLength)             :: ReflectivityName
+        integer                                 :: DirectionReferential
     end type  T_Field
 
     type T_NetCDF_Out                                         
@@ -316,7 +317,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
           
         call WriteRotation
 
-        call WriteComputeWindDirection
+        call WriteComputeDirection
 
         call WriteComputeIntensity
         
@@ -447,7 +448,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     
     !------------------------------------------------------------------------    
 
-    subroutine WriteComputeWindDirection
+    subroutine WriteComputeDirection
     
         !Local-----------------------------------------------------------------
         integer                                     :: i, iP, iPx, iPy
@@ -456,7 +457,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         
         do iP = 1, Me%PropNumber
         
-            if (Me%Field(iP)%ComputeWindDirection) then
+            if (Me%Field(iP)%ComputeDirection) then
         
                 !Found component X
                 Found = .false.
@@ -466,7 +467,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         exit
                     endif
                 enddo
-                if (.not. Found) stop 'WriteComputeWindDirection - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+                if (.not. Found) stop 'WriteComputeDirection - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
                 !Found component Y
                 Found = .false.
@@ -476,7 +477,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         exit
                     endif
                 enddo
-                if (.not. Found) stop 'WriteComputeWindDirection - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                if (.not. Found) stop 'WriteComputeDirection - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
 
                 do i=1, Me%Date%TotalInst
@@ -501,7 +502,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                     call ReadFieldHDF5(iPx, i)
 
                     !Compute vector direction
-                    call ComputeVectorWindDirection(iPx=iPx, Step=1, iP=iP)   
+                    call ComputeVectorDirection(iPx=iPx, Step=1, iP=iP)   
                     
                     if      (Me%Field(iPx)%Dim==2) then
                         deallocate(Me%Field(iPx)%Value2DOut)
@@ -522,7 +523,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                     call ReadFieldHDF5(iPy, i)
 
                     !Compute vector direction
-                    call ComputeVectorWindDirection(iPx=iPy, Step=2, iP=iP)              
+                    call ComputeVectorDirection(iPx=iPy, Step=2, iP=iP)              
 
                     if      (Me%Field(iPy)%Dim==2) then
                         deallocate(Me%Field(iPy)%Value2DOut)
@@ -550,7 +551,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
             endif                
         enddo    
         
-    end subroutine WriteComputeWindDirection
+    end subroutine WriteComputeDirection
     
     !------------------------------------------------------------------------
 
@@ -1201,7 +1202,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     !------------------------------------------------------------------------    
 
 
-    subroutine ComputeVectorWindDirection(iPx, step, iP)
+    subroutine ComputeVectorDirection(iPx, step, iP)
     
         !Arguments-------------------------------------------------------------
         integer                                     :: iPx, step, iP
@@ -1235,12 +1236,21 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                     
                         DperR=180/pi
                         
-                        Me%Field(iP)%Value3DOut(i,j,k) =270-atan2(Field_UV%Value3DOut(i,j,k),Me%Field(iP)%Value3DOut(i,j,k))*DperR
+                        !CartesianDir_
+                        !Dir = atan2(y,x)*DperR
+                        Me%Field(iP)%Value3DOut(i,j,k) = atan2(Field_UV%Value3DOut(i,j,k), Me%Field(iP)%Value3DOut(i,j,k))*DperR
+                        
+                        if          (Me%Field(iP)%DirectionReferential == NauticalWind_   ) then
+                            Me%Field(iP)%Value3DOut(i,j,k) = 270. - Me%Field(iP)%Value3DOut(i,j,k)
+                        else if     (Me%Field(iP)%DirectionReferential == NauticalCurrent_) then
+                            Me%Field(iP)%Value3DOut(i,j,k) = 90. -  Me%Field(iP)%Value3DOut(i,j,k)
+                        endif
+                                                    
         
-                        if (Me%Field(iP)%Value3DOut(i,j,k) >360)then
-                             Me%Field(iP)%Value3DOut(i,j,k)=Me%Field(iP)%Value3DOut(i,j,k) -360
-                        else if (Me%Field(iP)%Value2DOut(i,j)<0) then
-                             Me%Field(iP)%Value3DOut(i,j,k) =Me%Field(iP)%Value3DOut(i,j,k) +360
+                        if      (Me%Field(iP)%Value3DOut(i,j,k)>360.)then
+                             Me%Field(iP)%Value3DOut(i,j,k) = Me%Field(iP)%Value3DOut(i,j,k) - 360.
+                        else if (Me%Field(iP)%Value3DOut(i,j,k)<0.  )then
+                             Me%Field(iP)%Value3DOut(i,j,k) = Me%Field(iP)%Value3DOut(i,j,k) + 360.
                         end if
                         
                     endif
@@ -1265,13 +1275,21 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                     else if (Step ==2) then
                     
                         DperR=180/pi
+                        !CartesianDir_
+                        !Dir = atan2(y,x)*DperR                        
+                        Me%Field(iP)%Value2DOut(i,j) = atan2(Me%Field(iP)%Value2DOut(i,j),Field_UV%Value2DOut(i,j))*DperR                        
                         
-                        Me%Field(iP)%Value2DOut(i,j) =270-atan2(Field_UV%Value2DOut(i,j),Me%Field(iP)%Value2DOut(i,j))*DperR
+                        if          (Me%Field(iP)%DirectionReferential == NauticalWind_   ) then
+                            Me%Field(iP)%Value2DOut(i,j) = 270. - Me%Field(iP)%Value2DOut(i,j)
+                        else if     (Me%Field(iP)%DirectionReferential == NauticalCurrent_) then
+                            Me%Field(iP)%Value2DOut(i,j) = 90.  - Me%Field(iP)%Value2DOut(i,j)
+                        endif
                         
-                        if (Me%Field(iP)%Value2DOut(i,j)>360)then
-                             Me%Field(iP)%Value2DOut(i,j)=Me%Field(iP)%Value2DOut(i,j)-360
-                        else if (Me%Field(iP)%Value2DOut(i,j)<0) then
-                             Me%Field(iP)%Value2DOut(i,j)=Me%Field(iP)%Value2DOut(i,j)+360
+                        
+                        if      (Me%Field(iP)%Value2DOut(i,j)>360.) then
+                             Me%Field(iP)%Value2DOut(i,j)=Me%Field(iP)%Value2DOut(i,j) - 360.
+                        else if (Me%Field(iP)%Value2DOut(i,j)<0.  ) then
+                             Me%Field(iP)%Value2DOut(i,j)=Me%Field(iP)%Value2DOut(i,j) + 360.
                         end if
 
                     endif
@@ -1286,7 +1304,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
 
         
 
-    end subroutine ComputeVectorWindDirection
+    end subroutine ComputeVectorDirection
     !------------------------------------------------------------------------
 
     subroutine ComputeBeaufort(iPx, iP)
@@ -2303,7 +2321,7 @@ BF:         if (BlockFound) then
                                  default      = FillValueReal,                          &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
 
                     call GetData(Me%Field(ip)%Dim,                                      &
@@ -2313,10 +2331,10 @@ BF:         if (BlockFound) then
                                  default      = 2,                                      &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'    
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR60'    
                     
                     if (Me%Field(ip)%Dim /= 2 .and. Me%Field(ip)%Dim /= 3)              &
-                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR60'    
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR70'    
 
                     if (Me%Field(ip)%Dim == 2) then
                         call GetData(Me%Field(ip)%ExtractFromLayer,                         &
@@ -2326,7 +2344,7 @@ BF:         if (BlockFound) then
                                      default      = 1,                                      &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                      STAT         = STAT_CALL)        
-                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR55'
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
                         
                         call GetData(Me%Field(ip)%NumberOfLayers,                           &
                                      Me%ObjEnterData, iflag,                                &
@@ -2335,7 +2353,7 @@ BF:         if (BlockFound) then
                                      default      = 1,                                      &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                      STAT         = STAT_CALL)        
-                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR57'
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
                         
                     endif                        
                         
@@ -2346,7 +2364,7 @@ BF:         if (BlockFound) then
                                  default      = .true.,                                 &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR58'                                        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'                                        
                     
                     call ConstructPropertyID (Me%Field(ip)%ID,  Me%ObjEnterData, FromBlockInBlock, check)
                     
@@ -2366,7 +2384,7 @@ BF:         if (BlockFound) then
                                  default      = .false.,                                &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
                     
                     if (Me%Field(ip)%FromDir2Vector) then
 
@@ -2376,7 +2394,7 @@ BF:         if (BlockFound) then
                                      keyword      = 'DIR_X',                            &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)       
-                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
 
                         call GetData(Me%Field(ip)%DirY,                                 &
                                      Me%ObjEnterData, iflag,                            &
@@ -2384,7 +2402,7 @@ BF:         if (BlockFound) then
                                      keyword      = 'DIR_Y',                            &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)       
-                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
                                         
                                         
                     endif
@@ -2397,26 +2415,57 @@ BF:         if (BlockFound) then
                                  default      = .false.,                                &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR140'
                     
                     if (Me%Field(ip)%ComputeIntensity .and. .not. Me%OutHDF5) then
                         write(*,*) 'To compute vector intensity need to write hdf5 output file'
-                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR150'
                     endif
                     
-                    call GetData(Me%Field(ip)%ComputeWindDirection,                         &
+                    call GetData(Me%Field(ip)%ComputeDirection,                         &
                                  Me%ObjEnterData, iflag,                                &
                                  SearchType   = FromBlockInBlock,                       &
-                                 keyword      = 'WIND_DIRECTION',                     &
+                                 keyword      = 'WIND_DIRECTION',                       &
                                  default      = .false.,                                &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
-                    
-                    if (Me%Field(ip)%ComputeWindDirection .and. .not. Me%OutHDF5) then
-                        write(*,*) 'To compute wind direction need to write hdf5 output file'
-                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR110'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR160'
+
+                    if (iflag == 0) then
+                        call GetData(Me%Field(ip)%ComputeDirection,                     &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'VECTOR_DIRECTION',                 &
+                                     default      = .false.,                            &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR170'
                     endif
+                    
+                    if (Me%Field(ip)%ComputeDirection .and. .not. Me%OutHDF5) then
+                        write(*,*) 'To compute wind direction need to write hdf5 output file'
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR180'
+                    endif
+
+                    !Possible options:
+                    !    NauticalWind_    = 1
+                    !    NauticalCurrent_ = 2 
+                    !    CartesianDir_    = 3
+                    call GetData(Me%Field(ip)%DirectionReferential,                     &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'DIRECTION_REFERENTIAL',                &
+                                 default      = NauticalWind_,                          &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR185'
+                    
+                    if (Me%Field(ip)%DirectionReferential /= NauticalWind_    .and.     &
+                        Me%Field(ip)%DirectionReferential /= NauticalCurrent_ .and.     &
+                        Me%Field(ip)%DirectionReferential /= CartesianDir_) then
+                        write(*,*) 'Not valid Direction Referential option'
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR187'
+                    endif                        
 
                     call GetData(Me%Field(ip)%Rotation,                                 &
                                  Me%ObjEnterData, iflag,                                &
@@ -2425,11 +2474,11 @@ BF:         if (BlockFound) then
                                  default      = .false.,                                &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR120'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR190'
                     
                     if (Me%Field(ip)%Rotation .and. .not. Me%OutHDF5) then
                         write(*,*) 'To compute vector rotation need to write hdf5 output file'
-                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR200'
                     endif
 
                     
@@ -2440,11 +2489,11 @@ BF:         if (BlockFound) then
                                  default      = .false.,                                &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR140'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR210'
                     
                     if (Me%Field(ip)%Beaufort .and. .not. Me%OutHDF5) then
                         write(*,*) 'To compute Beaufort scale need to write hdf5 output file'
-                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR150'
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR220'
                     endif
 
 
@@ -2455,15 +2504,15 @@ BF:         if (BlockFound) then
                                  default      = .false.,                                &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR160'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR230'
                     
                     if (Me%Field(ip)%WaveBeaufort .and. .not. Me%OutHDF5) then
                         write(*,*) 'To compute wave Beaufort scale need to write hdf5 output file'
-                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR170'
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR240'
                     endif
                     
                     if (Me%Field(ip)%ComputeIntensity .or. Me%Field(ip)%Rotation .or.   &
-                    Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeWindDirection) then
+                    Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeDirection) then
 
                         call GetData(Me%Field(ip)%VectorX,                              &
                                      Me%ObjEnterData, iflag,                            &
@@ -2471,12 +2520,14 @@ BF:         if (BlockFound) then
                                      keyword      = 'VECTOR_X',                         &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)       
-                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR180'
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR250'
+                        endif                            
 
                     endif                        
                     
                     if (Me%Field(ip)%ComputeIntensity .or. Me%Field(ip)%Rotation .or.   &
-                    Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeWindDirection) then                    
+                    Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeDirection) then                    
 
                         call GetData(Me%Field(ip)%VectorY,                              &
                                      Me%ObjEnterData, iflag,                            &
@@ -2484,7 +2535,9 @@ BF:         if (BlockFound) then
                                      keyword      = 'VECTOR_Y',                         &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)       
-                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR190'
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR260'
+                        endif                            
                                         
                                         
                     endif                  
@@ -2497,7 +2550,9 @@ BF:         if (BlockFound) then
                                      keyword      = 'COMPONENT',                        &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)       
-                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR200'
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR270'
+                        endif                            
                     
                     endif                      
 
@@ -2508,7 +2563,7 @@ BF:         if (BlockFound) then
                                  default      = .false.,                            &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                  STAT         = STAT_CALL)       
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR210'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR280'
 
                     call GetData(Me%Field(ip)%CenterY,                              &
                                  Me%ObjEnterData, iflag,                            &
@@ -2517,7 +2572,7 @@ BF:         if (BlockFound) then
                                  default      = .false.,                            &                                 
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                  STAT         = STAT_CALL)       
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR220'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR290'
                                         
 
 
@@ -2527,7 +2582,7 @@ BF:         if (BlockFound) then
                                  keyword      = 'RELATIVE_HUMIDITY',                &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                  STAT         = STAT_CALL)       
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR230'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR300'
 
                     if (Me%Field(ip)%ComputeRH) then
 
@@ -2537,7 +2592,7 @@ BF:         if (BlockFound) then
                                      keyword      = 'TEMPERATURE_RH',                   &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)       
-                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR240'
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR310'
 
                         call GetData(Me%Field(ip)%PressureRH,                           &
                                      Me%ObjEnterData, iflag,                            &
@@ -2545,7 +2600,7 @@ BF:         if (BlockFound) then
                                      keyword      = 'PRESSURE_RH',                      &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)       
-                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR250'
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR320'
                         
 
                         call GetData(Me%Field(ip)%SpecificHumidityRH,                   &
@@ -2732,7 +2787,7 @@ BF:         if (BlockFound) then
         
             if (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation             .or. &
                 Me%Field(iP)%Beaufort         .or. Me%Field(iP)%ComputeRH            .or. &
-                Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeWindDirection .or. &
+                Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeDirection     .or. &
                 Me%Field(iP)%AverageInDepth   .or. Me%Field(iP)%Reflectivity2Precipitation) then
             
                 Me%ReadPropNumber = Me%ReadPropNumber - 1
@@ -3388,7 +3443,7 @@ BF:         if (BlockFound) then
         
                 if (Me%Field(iP)%ComputeIntensity     .or. Me%Field(iP)%Rotation       .or.  &
                     Me%Field(iP)%Beaufort             .or. Me%Field(iP)%WaveBeaufort   .or.  &
-                    Me%Field(iP)%ComputeWindDirection .or. Me%Field(iP)%AverageInDepth .or.  &
+                    Me%Field(iP)%ComputeDirection     .or. Me%Field(iP)%AverageInDepth .or.  &
                     Me%Field(iP)%Reflectivity2Precipitation) then
                 
                     WriteProp       = .false.
@@ -3412,7 +3467,7 @@ BF:         if (BlockFound) then
 
                 if (.not. (Me%Field(iP)%ComputeIntensity      .or. Me%Field(iP)%Rotation .or.     &
                            Me%Field(iP)%Beaufort              .or. Me%Field(iP)%WaveBeaufort .or. &
-                           Me%Field(iP)%ComputeWindDirection  .or. Me%Field(iP)%AverageInDepth.or.&
+                           Me%Field(iP)%ComputeDirection      .or. Me%Field(iP)%AverageInDepth.or.&
                            Me%Field(iP)%Reflectivity2Precipitation))  &
                     call DeAllocateValueIn(Me%Field(iP)%ValueIn)
             enddo
