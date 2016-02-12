@@ -1198,7 +1198,7 @@ Module ModuleWaterProperties
         type(T_Discharge)                       :: Discharge
         type(T_HybridWeights)                   :: HybridWeights
         type(T_NoFlux       )                   :: NoFlux
-	type(T_ChemLinks)                       :: ChemLinks
+        type(T_ChemLinks    )                   :: ChemLinks
         type(T_DDecomp      )                   :: DDecomp
         integer                                 :: PropertiesNumber         = 0
         integer                                 :: WQratesNumber            = 0
@@ -2517,7 +2517,8 @@ cd2 :           if (BlockFound) then
             do while(iProp < nProperties)
             
                 call GetHDF5GroupID(ObjHDF5, "/Concentration", iProp, PropertyName, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR10')
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR10')
                 
                 PropertyNameLength = len_trim(PropertyName)
                 
@@ -2564,7 +2565,8 @@ cd2 :           if (BlockFound) then
             enddo
             
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR100')
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR100')
 
         elseif(.not. EXIST)then
             
@@ -2706,13 +2708,13 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property length
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,								&
-                                       trim(adjustl(NewCohort%ID%Name))//" length",	&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" length",	&
+                                       IsDynamic        = .false.,										&
+                                       IsParticulate    = .false.,										&
+                                       IsAngle          = .false.,										&
+                                       IsVectorial      = .false.,										&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'LENGTH')
                                        
@@ -2725,13 +2727,13 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property structure
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,									&
-                                       trim(adjustl(NewCohort%ID%Name))//" structure",	&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" structure",	&
+                                       IsDynamic        = .false.,											&
+                                       IsParticulate    = .false.,											&
+                                       IsAngle          = .false.,											&
+                                       IsVectorial      = .false.,											&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'STRUCTURE')
         
@@ -2744,13 +2746,13 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property reserves
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,									&
-                                       trim(adjustl(NewCohort%ID%Name))//" reserves",	&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reserves",	&
+                                       IsDynamic        = .false.,											&
+                                       IsParticulate    = .false.,											&
+                                       IsAngle          = .false.,											&
+                                       IsVectorial      = .false.,											&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'RESERVES')        
 
@@ -2763,13 +2765,13 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property maturity
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,									&
-                                       trim(adjustl(NewCohort%ID%Name))//" maturity",	&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" maturity",	&
+                                       IsDynamic        = .false.,											&
+                                       IsParticulate    = .false.,											&
+                                       IsAngle          = .false.,											&
+                                       IsVectorial      = .false.,											&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'MATURITY')
         
@@ -2782,13 +2784,13 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property reproduction
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,										&
-                                       trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
-                                       .false.,												&
-                                       .false.,												&
-                                       .false.,												&
-                                       .false.,												&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,										&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
+                                       IsDynamic        = .false.,												&
+                                       IsParticulate    = .false.,												&
+                                       IsAngle          = .false.,												&
+                                       IsVectorial      = .false.,												&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'REPRODUCTION')
         
@@ -2801,13 +2803,13 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property age
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,								&
-                                       trim(adjustl(NewCohort%ID%Name))//" AGE",	&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" AGE",	&
+                                       IsDynamic        = .false.,										&
+                                       IsParticulate    = .false.,										&
+                                       IsAngle          = .false.,										&
+                                       IsVectorial      = .false.,										&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'AGE')
         
@@ -2821,13 +2823,13 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property number
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,								&
-                                       trim(adjustl(NewCohort%ID%Name))//" number",	&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" number",	&
+                                       IsDynamic        = .false.,										&
+                                       IsParticulate    = .false.,										&
+                                       IsAngle          = .false.,										&
+                                       IsVectorial      = .false.,										&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'NUMBER')        
         
@@ -2868,25 +2870,32 @@ do1:        do while (associated(ObjCohort%Next))
         NewCohort%AtLeastOneLarvae = .true.
     
         allocate(NewCohort%Larvae(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
         
         allocate(NewCohort%AuxLarvaeL(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
 
         allocate(NewCohort%AuxLarvaeME(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
 
         allocate(NewCohort%AuxLarvaeMV(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
 
         allocate(NewCohort%AuxLarvaeMH(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
 
         allocate(NewCohort%AuxLarvaeMR(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
         
         allocate(NewCohort%AuxLarvaeN(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('AllocateAuxLarvae - ModuleWaterProperties - ERR10')
     
     end subroutine AllocateAuxLarvae
 
@@ -2990,7 +2999,8 @@ do1:        do while (associated(ObjCohort%Next))
         NewProperty%MaxValue                           = - FillValueReal
         
         allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR10')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR10')
         
         NewProperty%Mass_Created(:,:,:) = 0.  
 
@@ -3227,7 +3237,8 @@ do6 :                       do K = WKLB, WKUB
                                           M_H0            = Species%M_H0,           &
                                           L_0             = Species%L_0,            &
                                           STAT            = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) call CloseAllAndStop ('ConstructNewBornCohort - ModuleWaterProperties - ERR01')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('ConstructNewBornCohort - ModuleWaterProperties - ERR01')
         
         Species%M_R0 = 0.0
         Species%A_0  = 0.0
@@ -3235,13 +3246,13 @@ do6 :                       do K = WKLB, WKUB
         !generate property length
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,								&
-                                       trim(adjustl(NewCohort%ID%Name))//" length",	&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" length",	&
+                                       IsDynamic        = .false.,										&
+                                       IsParticulate    = .false.,										&
+                                       IsAngle          = .false.,										&
+                                       IsVectorial      = .false.,										&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'LENGTH')
         
@@ -3256,13 +3267,13 @@ do6 :                       do K = WKLB, WKUB
         !generate property structure
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,									&
-                                       trim(adjustl(NewCohort%ID%Name))//" structure",	&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" structure",	&
+                                       IsDynamic        = .false.,											&
+                                       IsParticulate    = .false.,											&
+                                       IsAngle          = .false.,											&
+                                       IsVectorial      = .false.,											&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'STRUCTURE')
         
@@ -3276,13 +3287,13 @@ do6 :                       do K = WKLB, WKUB
         !generate property reserves
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,									&
-                                       trim(adjustl(NewCohort%ID%Name))//" reserves",	&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reserves",	&
+                                       IsDynamic        = .false.,											&
+                                       IsParticulate    = .false.,											&
+                                       IsAngle          = .false.,											&
+                                       IsVectorial      = .false.,											&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'RESERVES')
         
@@ -3296,13 +3307,13 @@ do6 :                       do K = WKLB, WKUB
         !generate property maturity
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,									&
-                                       trim(adjustl(NewCohort%ID%Name))//" maturity",	&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       .false.,											&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" maturity",	&
+                                       IsDynamic        = .false.,											&
+                                       IsParticulate    = .false.,											&
+                                       IsAngle          = .false.,											&
+                                       IsVectorial      = .false.,											&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'MATURITY')
         
@@ -3316,13 +3327,13 @@ do6 :                       do K = WKLB, WKUB
         !generate property reproduction
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,										&
-                                       trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
-                                       .false.,												&
-                                       .false.,												&
-                                       .false.,												&
-                                       .false.,												&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,										&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
+                                       IsDynamic        = .false.,												&
+                                       IsParticulate    = .false.,												&
+                                       IsAngle          = .false.,												&
+                                       IsVectorial      = .false.,												&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'REPRODUCTION')
         
@@ -3337,13 +3348,13 @@ do6 :                       do K = WKLB, WKUB
         !generate property age
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,								&
-                                       trim(adjustl(NewCohort%ID%Name))//" age",	&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" age",	&
+                                       IsDynamic        = .false.,										&
+                                       IsParticulate    = .false.,										&
+                                       IsAngle          = .false.,										&
+                                       IsVectorial      = .false.,										&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'AGE')
         
@@ -3357,13 +3368,13 @@ do6 :                       do K = WKLB, WKUB
         !generate property number
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (NewProperty%ID,								&
-                                       trim(adjustl(NewCohort%ID%Name))//" number",	&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       .false.,										&
-                                       Units = trim(Species%ID%Units))
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" number",	&
+                                       IsDynamic        = .false.,										&
+                                       IsParticulate    = .false.,										&
+                                       IsAngle          = .false.,										&
+                                       IsVectorial      = .false.,										&
+                                       Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'NUMBER')
         
@@ -3497,7 +3508,8 @@ do6 :                       do K = WKLB, WKUB
         NewProperty%MaxValue                                             = - FillValueReal
         
         allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR10')
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+            call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR10')
         
         NewProperty%Mass_Created(:,:,:) = 0.  
   
@@ -12415,7 +12427,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !FatherZCellCenter
             call GetGeometryDistances(Me%ObjGeometry, ZCellCenter   = FatherZCellCenter,     &
                                       STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('SendWaterPropertiesMPI - ModuleWaterProperties - ERR02b'
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                call CloseAllAndStop ('SendWaterPropertiesMPI - ModuleWaterProperties - ERR02b')
 
             if (InitialField) then
             
@@ -12471,7 +12484,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             iSize = (IUB-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
             call MPI_Send (FatherZCellCenter(ILB:IUB, JLB:JUB, KLB:KUB),                 &
                            iSize, Precision, Destination, 961, MPI_COMM_WORLD, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('SendWaterPropertiesMPI - ModuleWaterProperties - ERR9b'
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                call CloseAllAndStop ('SendWaterPropertiesMPI - ModuleWaterProperties - ERR9b')
             
             !Property Father Concentration
             iSize = (IUB-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
@@ -12629,7 +12643,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             iSize = (IUB-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
             call MPI_Recv (FatherZCellCenter(ILB:IUB, JLB:JUB, KLB:KUB), iSize,         &
                            Precision, Source, 961, MPI_COMM_WORLD, status, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('RecvWaterPropertiesMPI - ModuleWaterProperties - ERR11b'
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call CloseAllAndStop ('RecvWaterPropertiesMPI - ModuleWaterProperties - ERR11b')
 
             !PropFatherConcentration
             iSize = (IUB-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
@@ -14337,7 +14352,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_N                                                    , &
                                              PropertyXID = GetDynamicPropertyIDNumber(trim(PropertyName_N)), &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR10') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR10') 
 
                         !length
                         PropertyName_L = trim(adjustl(Cohort%ID%Name))//" length"
@@ -14345,7 +14361,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_L                                                    , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_L)      , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR20') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR20') 
 
                         !reserves
                         PropertyName_ME = trim(adjustl(Cohort%ID%Name))//" reserves"
@@ -14353,7 +14370,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_ME                                                   , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_ME)     , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR30') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR30') 
 
                         !structure
                         PropertyName_MV = trim(adjustl(Cohort%ID%Name))//" structure"
@@ -14361,7 +14379,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_MV                                                   , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MV)     , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR40') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR40') 
 
                         !maturity
                         PropertyName_MH = trim(adjustl(Cohort%ID%Name))//" maturity"
@@ -14369,7 +14388,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_MH                                                   , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MH)     , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR50') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR50') 
 
                         !reproduction
                         PropertyName_MR = trim(adjustl(Cohort%ID%Name))//" reproduction"
@@ -14377,7 +14397,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_MR                                                   , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MR)     , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR60') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('PrepareLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR60') 
 
                         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -14494,7 +14515,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_N                                                    , &
                                              PropertyXID = GetDynamicPropertyIDNumber(trim(PropertyName_N)), &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR10') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR10') 
 
                         !length
                         PropertyName_L = trim(adjustl(Cohort%ID%Name))//" length"
@@ -14502,7 +14524,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_L                                                    , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_L)      , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR20') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR20') 
 
                         !reserves
                         PropertyName_ME = trim(adjustl(Cohort%ID%Name))//" reserves"
@@ -14510,7 +14533,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_ME                                                   , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_ME)     , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR30') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR30') 
 
                         !structure
                         PropertyName_MV = trim(adjustl(Cohort%ID%Name))//" structure"
@@ -14518,7 +14542,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_MV                                                   , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MV)     , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR10') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR10') 
 
                         !maturity
                         PropertyName_MH = trim(adjustl(Cohort%ID%Name))//" maturity"
@@ -14526,7 +14551,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_MH                                                   , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MH)     , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR40') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR40') 
 
                         !reproduction
                         PropertyName_MR = trim(adjustl(Cohort%ID%Name))//" reproduction"
@@ -14534,7 +14560,8 @@ do7 :                           do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         call Search_Property(Property_MR                                                   , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MR)     , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR50') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('RestoreLarvaeAdvectionDiffusion - ModuleWaterProperties - ERR50') 
 
                         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -15924,7 +15951,8 @@ cd5:                if (TotalVolume > 0.) then
                                 call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL)
                      
                      
-                             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('SeagrassesLeaves_Processes - ModuleWaterProperties - ERR20')   
+                             if (STAT_CALL /= SUCCESS_)                                 &
+                                call CloseAllAndStop ('SeagrassesLeaves_Processes - ModuleWaterProperties - ERR20')   
                     
                      where (Me%ExternalVar%WaterPoints3D == WaterPoint) &
                                   WqRateX%Field2=  WqRateX%Field2 * Me%ExternalVar%VolumeZ 
@@ -16714,7 +16742,8 @@ cd5:                if (TotalVolume > 0.) then
                                                 SpeciesIDNumber = Species%ID%IDNumber  , &
                                                 LarvaeMaxSize   = Species%LarvaeMaxSize, &
                                                 STAT            = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR01')
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR01')
 
                 Cohort  => Species%FirstCohort
                 do while (associated(Cohort))
@@ -16727,7 +16756,8 @@ cd5:                if (TotalVolume > 0.) then
                         call Search_Property(Property_L                                                , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_L)  , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
 
                         !number
                         PropertyName_N = trim(adjustl(Cohort%ID%Name))//" number"
@@ -16735,7 +16765,8 @@ cd5:                if (TotalVolume > 0.) then
                         call Search_Property(Property_N                                                , &
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_N)  , &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
 
                         !maturity
                         PropertyName_MH = trim(adjustl(Cohort%ID%Name))//" maturity"
@@ -16743,7 +16774,8 @@ cd5:                if (TotalVolume > 0.) then
                         call Search_Property(Property_MH                                              , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MH), &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
 
                         !structure
                         PropertyName_MV = trim(adjustl(Cohort%ID%Name))//" structure"
@@ -16751,7 +16783,8 @@ cd5:                if (TotalVolume > 0.) then
                         call Search_Property(Property_MV                                              , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MV), &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
 
                         !reserves
                         PropertyName_ME = trim(adjustl(Cohort%ID%Name))//" reserves"
@@ -16759,7 +16792,8 @@ cd5:                if (TotalVolume > 0.) then
                         call Search_Property(Property_ME                                              , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_ME), &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
 
                         !reproduction
                         PropertyName_MR = trim(adjustl(Cohort%ID%Name))//" reproduction"
@@ -16767,7 +16801,8 @@ cd5:                if (TotalVolume > 0.) then
                         call Search_Property(Property_MR                                              , & 
                                              PropertyXID = GetDynamicPropertyIDNumber(PropertyName_MR), &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('UpdateLarvaeDistribution - ModuleWaterProperties - ERR10') 
                         
 
                         Property_L%Evolution%AdvectionDiffusion  = .true.
@@ -19766,7 +19801,8 @@ dn:         do n=1, nCells
                                                            PropertyX%ID%IDNumber,       &
                                                            ByPassConcIncrease,          &
                                                            STAT = STAT_CALL)
-                                if (STAT_CALL/=SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR130')
+                                if (STAT_CALL/=SUCCESS_)                                &
+                                    call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR130')
                                 
                                 PropertyX%DischConc(AuxCell) = PropertyX%Concentration(ib, jb, kb) + ByPassConcIncrease  
                                                      
@@ -19811,7 +19847,8 @@ dn:         do n=1, nCells
                                     call GetIntakePosition (Me%ObjDischarges, dis,          &
                                                             IntakeI, IntakeJ, IntakeK,      &
                                                             STAT = STAT_CALL)
-                                    if (STAT_CALL/=SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR150')
+                                    if (STAT_CALL/=SUCCESS_)                            &
+                                        call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR150')
                                     
                                     !DischargeConc here is the concentration increment
                                     PropertyX%DischConc(AuxCell) = PropertyX%Concentration(IntakeI, IntakeJ, IntakeK) + &
@@ -21441,21 +21478,23 @@ do9:                do k=kbottom, KUB
                                                             ExtinctionParameter = ExtinctionParameter,            &
                                                             ProducerOccupation  = Me%MacroAlgae%Occupation,       &
                                                             STAT                = STAT_CALL)
-                            if (STAT_CALL/= SUCCESS_) call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR02')
+                            if (STAT_CALL/= SUCCESS_)                                   &
+                                call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR02')
                         
                         elseif(PropertyX%ID%IDNumber == SeagrassesLeaves_)then     
                         
                         
                             call ModifyLightExtinctionField(LightExtinctionID        = Me%ObjLightExtinction,          &
-                                                                WaterPoints3D            = Me%ExternalVar%WaterPoints3D,   &
-                                                                CurrentTime              = Me%ExternalVar%Now,             &
-                                                                PropertyID               = PropertyX%ID%IDNumber,          &
-                                                                Concentration            = PropertyX%Concentration,        &
-                                                                UnitsCoef                = PropertyX%IScoefficient,        &
-                                                                ExtinctionParameter      = ExtinctionParameter,            &
-                                                                ProducerOccupation = Me%SeagrassesLeaves%Occupation, & 
-                                                                STAT                      = STAT_CALL)
-                                if (STAT_CALL/= SUCCESS_) call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR02.1')
+                                                                WaterPoints3D        = Me%ExternalVar%WaterPoints3D,   &
+                                                                CurrentTime          = Me%ExternalVar%Now,             &
+                                                                PropertyID           = PropertyX%ID%IDNumber,          &
+                                                                Concentration        = PropertyX%Concentration,        &
+                                                                UnitsCoef            = PropertyX%IScoefficient,        &
+                                                                ExtinctionParameter  = ExtinctionParameter,            &
+                                                                ProducerOccupation   = Me%SeagrassesLeaves%Occupation, & 
+                                                                STAT                 = STAT_CALL)
+                                if (STAT_CALL/= SUCCESS_)                               &
+                                    call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR02.1')
                          
                          
                          else
@@ -21468,7 +21507,8 @@ do9:                do k=kbottom, KUB
                                                                 ExtinctionParameter = ExtinctionParameter,            &
                                                                 UnitsCoef           = PropertyX%IScoefficient,        &
                                                                 STAT                = STAT_CALL)
-                                if (STAT_CALL/= SUCCESS_) call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR02.2')
+                                if (STAT_CALL/= SUCCESS_)                               &
+                                    call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR02.2')
                          
                          endif
 
@@ -21481,7 +21521,8 @@ do9:                do k=kbottom, KUB
                                                         Concentration       = PropertyX%Concentration,        &
                                                         UnitsCoef           = PropertyX%IScoefficient,        &
                                                         STAT                = STAT_CALL)
-                        if (STAT_CALL/= SUCCESS_) call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR03')
+                        if (STAT_CALL/= SUCCESS_)                                       &
+                            call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR03')
 
                     end if
                 
@@ -21501,7 +21542,8 @@ do9:                do k=kbottom, KUB
                                             WaterPoints3D       = Me%ExternalVar%WaterPoints3D,   &
                                             CurrentTime         = Me%ExternalVar%Now,             &
                                             STAT                = STAT_CALL)
-            if (STAT_CALL/= SUCCESS_) call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR04')
+            if (STAT_CALL/= SUCCESS_)                                                   &
+                call CloseAllAndStop ('Compute_SWExtCoefField - ModuleWaterProperties - ERR04')
 
         end if
 
@@ -21758,7 +21800,8 @@ sp:                     if (.not. SimpleOutPut) then
                     call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                     &
                                          WorkJLB, WorkJUB, WorkKLB, WorkKUB,            &
                                          STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR80')                    
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR80')                    
 
                     call HDF5WriteData(ObjHDF5,                                         &
                                        trim(AuxGroup)//PropertyX%ID%Name,               &
@@ -21766,7 +21809,8 @@ sp:                     if (.not. SimpleOutPut) then
                                        PropertyX%ID%Units,                              &
                                        Array3D      = PropertyX%Concentration,          &
                                        OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR100')
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR100')
 
 
                     if (PropertyX%Evolution%Filtration%On .and. .not. SimpleOutPut) then
@@ -21777,7 +21821,8 @@ sp:                     if (.not. SimpleOutPut) then
                                            PropertyX%ID%Units,                          &
                                            Array3D      = PropertyX%Filtration,         &
                                            OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR120')
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR120')
                     
                     endif
 
@@ -21788,7 +21833,8 @@ sp:                     if (.not. SimpleOutPut) then
                                               PropertyID             = PropertyX%ID%IDNumber,     &
                                               Free_Velocity          = SettlingVelocity,          &
                                               STAT                   = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR130')
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR130')
 
                         call HDF5WriteData(ObjHDF5,                                     &
                                            "/Results/SettlingVelocity/"//PropertyX%ID%Name,   &
@@ -21796,13 +21842,15 @@ sp:                     if (.not. SimpleOutPut) then
                                            "m/s",                                       &
                                            Array3D      = SettlingVelocity,             &
                                            OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR140')
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR140')
                     
                     
                         call UngetFreeVerticalMovement(FreeVerticalMovementID = Me%ObjFreeVerticalMovement,&
                                                        Array                  = SettlingVelocity,          &
                                                        STAT                   = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR150')
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR150')
                     endif
                     
                                         
@@ -21830,29 +21878,33 @@ sp3:                if (.not. SimpleOutPut) then
                 call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                         &
                                      WorkJLB, WorkJUB, WorkKLB, WorkKUB,                &
                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR160')
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR160')
 
                 call HDF5WriteData  (ObjHDF5, "/Results/"//"macroalgae distribution",   &
                                      "macroalgae distribution", "gC/m2",                &
                                      Array2D = Me%MacroAlgae%Distribution,              &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR170')
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR170')
                 
             end if
             
             
              if (Me%Coupled%SeagrassesLeaves%Yes .and. .not. SimpleOutPut)then
                                
-                       call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                         &
-                                             WorkJLB, WorkJUB, WorkKLB, WorkKUB,                &
+                       call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                  &
+                                             WorkJLB, WorkJUB, WorkKLB, WorkKUB,        &
                                              STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR142')
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR142')
 
                         call HDF5WriteData  (ObjHDF5, "/Results/"//"seagrasses leaves biomass",   &
                                              "seagrasses leaves biomass", "gdw/m2",                &
                                              Array2D = Me%SeagrassesLeaves%Biomass,              &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR144')
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR144')
                         
 
            endif
@@ -21867,7 +21919,8 @@ sp3:                if (.not. SimpleOutPut) then
             
             !Writes everything to disk
             call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR180')            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR180')            
 
         endif  TOut    
 
