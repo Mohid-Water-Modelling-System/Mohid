@@ -5519,7 +5519,7 @@ d5:     do k = klast + 1,KUB
 						 keyword      = 'PARTICULATE',                                       &
 						 STAT         = STAT_CALL)
 			if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyID - ModuleFunctions - ERR03.1.2'
-            if (iflag /= 0) then
+            if (flag /= 0) then
                 write (*,*) "ATTENTION"
                 write (*,*) "The Keyword PARTICULATE is deprecated.Use IS_PARTICULATE instead"
                 stop 'ConstructPropertyID - ModuleFunctions - ERR03.1.2.1'
