@@ -2710,7 +2710,7 @@ do1:        do while (associated(ObjCohort%Next))
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" length",	&
-                                       IsDynamic        = .false.,										&
+                                       IsDynamic        = .true.,										&
                                        IsParticulate    = .false.,										&
                                        IsAngle          = .false.,										&
                                        IsVectorial      = .false.,										&
@@ -2729,7 +2729,7 @@ do1:        do while (associated(ObjCohort%Next))
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" structure",	&
-                                       IsDynamic        = .false.,											&
+                                       IsDynamic        = .true.,											&
                                        IsParticulate    = .false.,											&
                                        IsAngle          = .false.,											&
                                        IsVectorial      = .false.,											&
@@ -2748,7 +2748,7 @@ do1:        do while (associated(ObjCohort%Next))
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" reserves",	&
-                                       IsDynamic        = .false.,											&
+                                       IsDynamic        = .true.,											&
                                        IsParticulate    = .false.,											&
                                        IsAngle          = .false.,											&
                                        IsVectorial      = .false.,											&
@@ -2767,7 +2767,7 @@ do1:        do while (associated(ObjCohort%Next))
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" maturity",	&
-                                       IsDynamic        = .false.,											&
+                                       IsDynamic        = .true.,											&
                                        IsParticulate    = .false.,											&
                                        IsAngle          = .false.,											&
                                        IsVectorial      = .false.,											&
@@ -2786,7 +2786,7 @@ do1:        do while (associated(ObjCohort%Next))
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,										&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
-                                       IsDynamic        = .false.,												&
+                                       IsDynamic        = .true.,												&
                                        IsParticulate    = .false.,												&
                                        IsAngle          = .false.,												&
                                        IsVectorial      = .false.,												&
@@ -2804,8 +2804,8 @@ do1:        do while (associated(ObjCohort%Next))
         allocate (NewProperty)
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" AGE",	&
-                                       IsDynamic        = .false.,										&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" age",	    &
+                                       IsDynamic        = .true.,										&
                                        IsParticulate    = .false.,										&
                                        IsAngle          = .false.,										&
                                        IsVectorial      = .false.,										&
@@ -2825,7 +2825,7 @@ do1:        do while (associated(ObjCohort%Next))
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" number",	&
-                                       IsDynamic        = .false.,										&
+                                       IsDynamic        = .true.,										&
                                        IsParticulate    = .false.,										&
                                        IsAngle          = .false.,										&
                                        IsVectorial      = .false.,										&
@@ -3248,7 +3248,7 @@ do6 :                       do K = WKLB, WKUB
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" length",	&
-                                       IsDynamic        = .false.,										&
+                                       IsDynamic        = .true.,										&
                                        IsParticulate    = .false.,										&
                                        IsAngle          = .false.,										&
                                        IsVectorial      = .false.,										&
@@ -3269,7 +3269,7 @@ do6 :                       do K = WKLB, WKUB
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" structure",	&
-                                       IsDynamic        = .false.,											&
+                                       IsDynamic        = .true.,											&
                                        IsParticulate    = .false.,											&
                                        IsAngle          = .false.,											&
                                        IsVectorial      = .false.,											&
@@ -3289,7 +3289,7 @@ do6 :                       do K = WKLB, WKUB
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" reserves",	&
-                                       IsDynamic        = .false.,											&
+                                       IsDynamic        = .true.,											&
                                        IsParticulate    = .false.,											&
                                        IsAngle          = .false.,											&
                                        IsVectorial      = .false.,											&
@@ -3309,7 +3309,7 @@ do6 :                       do K = WKLB, WKUB
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" maturity",	&
-                                       IsDynamic        = .false.,											&
+                                       IsDynamic        = .true.,											&
                                        IsParticulate    = .false.,											&
                                        IsAngle          = .false.,											&
                                        IsVectorial      = .false.,											&
@@ -3329,7 +3329,7 @@ do6 :                       do K = WKLB, WKUB
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,										&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
-                                       IsDynamic        = .false.,												&
+                                       IsDynamic        = .true.,												&
                                        IsParticulate    = .false.,												&
                                        IsAngle          = .false.,												&
                                        IsVectorial      = .false.,												&
@@ -3349,8 +3349,8 @@ do6 :                       do K = WKLB, WKUB
         allocate (NewProperty)
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" age",	&
-                                       IsDynamic        = .false.,										&
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" age",	    &
+                                       IsDynamic        = .true.,										&
                                        IsParticulate    = .false.,										&
                                        IsAngle          = .false.,										&
                                        IsVectorial      = .false.,										&
@@ -3370,7 +3370,7 @@ do6 :                       do K = WKLB, WKUB
         
         call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
                                        Name             = trim(adjustl(NewCohort%ID%Name))//" number",	&
-                                       IsDynamic        = .false.,										&
+                                       IsDynamic        = .true.,										&
                                        IsParticulate    = .false.,										&
                                        IsAngle          = .false.,										&
                                        IsVectorial      = .false.,										&
