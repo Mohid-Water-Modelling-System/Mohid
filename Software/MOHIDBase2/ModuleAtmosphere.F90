@@ -825,7 +825,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (PropertyX%TimeSerie) then
                 !vectorial property - need to get data in user referential - X and Y
 !~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
-				if (PropertyX%ID%IsVectorial) then
+                if (PropertyX%ID%IsVectorial) then
                     nProperties = nProperties + 2
                 else
                     nProperties = nProperties + 1
@@ -1365,7 +1365,7 @@ cd2 :           if (BlockFound) then
             
             !if angle needs also original field (for output)
 !~             if (Check_Angle_Property(NewProperty%ID%IDNumber)) then
-			if (NewProperty%ID%IsAngle) then
+            if (NewProperty%ID%IsAngle) then
                 allocate (NewProperty%FieldInputRef (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModuleAtmosphere - Construct_PropertyValues - ERR018'            
                 NewProperty%FieldInputRef(:,:) = null_real
@@ -3464,39 +3464,19 @@ do1 :   do while (associated(PropertyX))
         endif
 
         !Update Transmitivity
-        select case (Me%CloudCoverMethod)
-
-            case (CloudFromRadiation)
-
-                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-                !$OMP PARALLEL PRIVATE(i,j)
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
-                        PropTransmitivity%Field(i, j) = PropCloudCover%Field (i, j )
-                    endif
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-                    
-            case default
-               
-                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-                !$OMP PARALLEL PRIVATE (i,j)
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
-                        PropTransmitivity%Field(i, j) = 1.0 - 0.65 * PropCloudCover%Field (i, j ) ** 2.
-                    endif
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-                
-        end select        
+        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        !$OMP PARALLEL PRIVATE (i,j)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
+                PropTransmitivity%Field(i, j) = 1.0 - 0.65 * PropCloudCover%Field (i, j ) ** 2.
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+        
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleAtmosphere", "ModifyCloudCover")
@@ -3631,7 +3611,7 @@ do1 :   do while (associated(PropertyX))
 !                                          
 !                    else
 !                                                                                             
-!                        !Clar day radiation
+!                        !Clear day radiation
 !                        QSO = TOARadiation (LatitudePI, Declination, HourAngle, Julday)
 !                       
 !                        if (QSO==0.0) then
@@ -3671,11 +3651,11 @@ do1 :   do while (associated(PropertyX))
                                                      Declination = Declination,    &
                                                      Julday      = Julday )     
                                                                    
-                            PropCloudCover%Field (i,j) = Me%LastRadiation(i,j) / QSO10 
+                            PropCloudCover%Field (i,j) = 1. - Me%LastRadiation(i,j) / QSO10 
                             
                         !normal day - use observed radiation and TOA radiation
                         else
-                            PropCloudCover%Field (i,j) = PropSolarRadiation%Field (i,j) / QSO
+                            PropCloudCover%Field (i,j) = 1. - PropSolarRadiation%Field (i,j) / QSO
                         endif
 
                         !Correct day values only
