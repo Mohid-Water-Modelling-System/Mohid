@@ -5516,6 +5516,17 @@ d5:     do k = klast + 1,KUB
 			call GetData(PropertyID%IsParticulate, ObjEnterData, flag,                       &
 						 SearchType   = ExtractType,                                         &
 						 default      = .false.,                                             &
+						 keyword      = 'PARTICULATE',                                       &
+						 STAT         = STAT_CALL)
+			if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyID - ModuleFunctions - ERR03.1.2'
+            if (iflag /= 0) then
+                write (*,*) "ATTENTION"
+                write (*,*) "The Keyword PARTICULATE is deprecated.Use IS_PARTICULATE instead"
+                stop 'ConstructPropertyID - ModuleFunctions - ERR03.1.2.1'
+            endif
+			call GetData(PropertyID%IsParticulate, ObjEnterData, flag,                       &
+						 SearchType   = ExtractType,                                         &
+						 default      = .false.,                                             &
 						 keyword      = 'IS_PARTICULATE',                                    &
 						 STAT         = STAT_CALL)
 			if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyID - ModuleFunctions - ERR03.1.2'
