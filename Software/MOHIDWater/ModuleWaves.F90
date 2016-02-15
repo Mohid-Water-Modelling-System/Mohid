@@ -88,8 +88,8 @@ Module ModuleWaves
     use ModuleHorizontalGrid,   only : LocateCell, GetHorizontalGridSize, GetHorizontalGrid,    &
                                        GetGridAngle, GetCheckDistortion, GetCoordTypeList,      &
                                        GetGridCoordType,  GetLatitudeLongitude,                 &
-                                       UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID, 		&
-                                       GetDDecompON, WriteHorizontalGrid,               		&
+                                       UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID,       &
+                                       GetDDecompON, WriteHorizontalGrid,                       &
                                        GetGridOutBorderPolygon
     use ModuleFillMatrix!,       only : ConstructFillMatrix, ModifyFillMatrix,           		&
                         !               GetIfMatrixRemainsConstant, KillFillMatrix 
@@ -222,12 +222,18 @@ Module ModuleWaves
         logical                                             :: ON                   = .false.
         logical                                             :: Constant             = .false.
         integer                                             :: Source               = null_int
-        real, dimension(:,:),  pointer                      :: Field                => null() !scalar field. (e.g. converted angle to cell ref)
-        real, dimension(:,:),  pointer                      :: FieldInputRef        => null() !original scalar field (orig angle in input ref)         
-        real, dimension(:,:),  pointer                      :: FieldU               => null() !vectorial field rotated to grid cells - U comp.
-        real, dimension(:,:),  pointer                      :: FieldV               => null() !vectorial field rotated to grid cells - V comp.
-        real, dimension(:,:),  pointer                      :: FieldX               => null() !vectorial original field - X (zonal component)
-        real, dimension(:,:),  pointer                      :: FieldY               => null() !vectorial original field - Y (meridional comp.)      
+        !scalar field. (e.g. converted angle to cell ref)        
+        real, dimension(:,:),  pointer                      :: Field                => null() 
+        !original scalar field (orig angle in input ref)                 
+        real, dimension(:,:),  pointer                      :: FieldInputRef        => null() 
+        !vectorial field rotated to grid cells - U comp.        
+        real, dimension(:,:),  pointer                      :: FieldU               => null() 
+        !vectorial field rotated to grid cells - V comp.        
+        real, dimension(:,:),  pointer                      :: FieldV               => null()
+        !vectorial original field - X (zonal component)         
+        real, dimension(:,:),  pointer                      :: FieldX               => null()
+        !vectorial original field - Y (meridional comp.)              
+        real, dimension(:,:),  pointer                      :: FieldY               => null() 
         logical                                             :: OutputHDF            = .false.
         logical                                             :: TimeSerieOn          = .false.
     end type T_WaveProperty
@@ -539,10 +545,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WavePeriod%ON) then
         
-            call ConstructPropertyIDOnFly (Me%WavePeriod%ID,                            &
-                                           GetPropertyName(MeanWavePeriod_),            &
-                                           .false.,										&
-                                           MeanWavePeriod_)
+            call ConstructPropertyIDOnFly (PropertyID = Me%WavePeriod%ID,               &
+                                           name = GetPropertyName(MeanWavePeriod_),     &
+                                           IsDynamic = .false.,							&
+                                           IDNumber = MeanWavePeriod_)
 
             !Me%WavePeriod%ID%Name     = GetPropertyName(MeanWavePeriod_)
             !Me%WavePeriod%ID%IDNumber = MeanWavePeriod_                                                            
@@ -565,10 +571,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveHeight%ON) then
 
-            call ConstructPropertyIDOnFly (Me%WaveHeight%ID,                            &
-                                           GetPropertyName(SignificantWaveHeight_),     &
-                                           .false.,										&
-                                           SignificantWaveHeight_)
+            call ConstructPropertyIDOnFly (PropertyID = Me%WaveHeight%ID,                   &
+                                           Name = GetPropertyName(SignificantWaveHeight_),  &
+                                           IsDynamic = .false.,                             &
+                                           IDNumber = SignificantWaveHeight_)
                                            
             !Me%WaveHeight%ID%Name     = GetPropertyName(SignificantWaveHeight_)
             !Me%WaveHeight%ID%IDNumber = SignificantWaveHeight_
@@ -591,10 +597,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveDirection%ON) then
 
-            call ConstructPropertyIDOnFly (Me%WaveDirection%ID,                         &
-                                           GetPropertyName(MeanWaveDirection_),         &
-                                           .false.,										&
-                                           MeanWaveDirection_)
+            call ConstructPropertyIDOnFly (PropertyID = Me%WaveDirection%ID,            &
+                                           Name = GetPropertyName(MeanWaveDirection_),  &
+                                           IsDynamic = .false.,							&
+                                           IDNumber = MeanWaveDirection_)
 
             !Me%WaveDirection%ID%Name     = GetPropertyName(MeanWaveDirection_)
             !Me%WaveDirection%ID%IDNumber = MeanWaveDirection_            
@@ -617,10 +623,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (Me%WaveLength%ON) then
 
-            call ConstructPropertyIDOnFly (Me%WaveLength%ID,                            &
-                                           GetPropertyName(MeanWaveLength_),            &
-                                           .false.,										&
-                                           MeanWaveLength_)
+            call ConstructPropertyIDOnFly (PropertyID = Me%WaveLength%ID,               &
+                                           Name = GetPropertyName(MeanWaveLength_),     &
+                                           IsDynamic = .false.,							&
+                                           IDNumber = MeanWaveLength_)
                                            
             !Me%WaveLength%ID%Name     = GetPropertyName(MeanWaveLength_)
             !Me%WaveLength%ID%IDNumber = MeanWaveLength_                        
@@ -667,16 +673,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%RadiationStress%ON) then
 
-            call ConstructPropertyIDOnFly (Me%RadiationStress%ID,                       &
-                                           GetPropertyName(WaveStress_),                &
-                                           .false.,										&
-                                           WaveStress_)
+            call ConstructPropertyIDOnFly (PropertyID = Me%RadiationStress%ID,          &
+                                           Name = GetPropertyName(WaveStress_),         &
+                                           IsDynamic = .false.,							&
+                                           IDNumber = WaveStress_)
             
             !Me%RadiationStress%ID%Name     = GetPropertyName(WaveStress_)
             !Me%RadiationStress%ID%IDNumber = WaveStress_
 
-            call ReadWaveParameters(WaveProperty = Me%RadiationStress,                 &
-                                    BeginBlock   = "<begin_radiationstress>",         &
+            call ReadWaveParameters(WaveProperty = Me%RadiationStress,              &
+                                    BeginBlock   = "<begin_radiationstress>",       &
                                     EndBlock     = "<end_radiationstress>")    
 
         endif
