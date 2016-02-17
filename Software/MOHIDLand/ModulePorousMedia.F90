@@ -9525,7 +9525,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 ChannelColumn = ChannelsWaterLevel(i,j) - ChannelsBottomLevel(i, j)
                 
                 !Flux only occurs if there is gradient or water                
-                if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
+                if (((dH > 0.0) .and. ((Me%UGWaterLevel2D(i, j)-Me%ExtVar%BottomTopoG(i, j))>0.0)) .or. (dH < 0 .and. ChannelColumn > 0.)) then
                 
                     !Maximum between the aquifer and river, limited by soil top
                     Toplevel    = min(max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)), Me%ExtVar%Topography(i, j))
@@ -9608,6 +9608,16 @@ do3:                do K = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsT
                         
                         !flux in layer is total flux * fraction LayerArea/TotalArea
                         !m3/s = - * m2total * m2layer/m2total * m/s * -
+                        !print *, ""
+                        !print *, i, j, k
+                        !print *, dH
+                        !print *, dX
+                        !print *, TotalArea
+                        !print *, LayerArea
+                        !print *, Me%SatK(i, j, k)
+                        !print *, Me%SoilOpt%FCHCondFactor
+                        !print *, '========'
+                        
                         Me%lFlowToChannelsLayer(i, j, k)  = (dH / dX ) * TotalArea * (LayerArea/TotalArea) *     &
                                                              Me%SatK(i, j, k) * Me%SoilOpt%FCHCondFactor 
                                                              
