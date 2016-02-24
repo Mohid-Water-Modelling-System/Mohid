@@ -4645,7 +4645,8 @@ i2:     if (Me%Dim == Dim2D) then
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL, i
         integer                                         :: iflag, file, column
-        character(len = StringLength), dimension(3)     :: Filename, DataColumn = null_str
+        character(len = StringLength), dimension(3)     :: Filename   = null_str
+        character(len = StringLength), dimension(3)     :: DataColumn = null_str
         type(T_TimeSerie), pointer                      :: CurrentTimeSerie, NewTimeSerie
         integer                                         :: nTimeSeries   = 1
         logical                                         :: exist
