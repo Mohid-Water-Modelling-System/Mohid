@@ -1042,7 +1042,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         
         !Local-----------------------------------------------------------------
         type(T_Field), pointer                      :: Field_UV        
-        integer                                     :: i, j, k
+        integer                                     :: i, j, k, mask
         !Begin-----------------------------------------------------------------
 
         allocate(Field_UV)
@@ -1081,8 +1081,14 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                 if (Step ==1) then
                     Me%Field(iP)%Value2DOut(i,j) = 0.0
                 endif
+                
+                if (Me%Depth%Dim3D) then
+                    mask = Me%Mapping%Value3DOut(i,j,Me%WorkSize%KUB)
+                else
+                    mask = Me%Mapping%Value2DOut(i,j)
+                endif                
                                 
-                if(Me%Mapping%Value2DOut(i,j) == 1)then
+                if (mask == 1)then
                     if (Step ==1) then
                         Me%Field(iP)%Value2DOut(i,j) = Field_UV%Value2DOut(i,j)**2
                     else if (Step ==2) then

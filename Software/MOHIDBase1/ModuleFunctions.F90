@@ -6400,7 +6400,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         !Begin--------------------------------------------------------------------------
     
         radians      = Pi / 180.0
-        EarthRadius  = 6378000.
+        EarthRadius  = 6371008.8
         Rad_Lat      = Lat * radians 
         CosenLat     = cos(Rad_Lat)
         X            = CosenLat * EarthRadius * (Long - LongRef) * radians
@@ -10456,7 +10456,7 @@ D2:     do I=imax-1,2,-1
                       - sin(Rlat1)*cos(Rlat2)*cos(Dlong))**2.)
         Dsigma  = atan2(AuxRoot, (sin(Rlat1)*sin(Rlat2)+cos(Rlat1)*cos(Rlat2)*cos(Dlong))) 
 
-        GreatCircleDistance = EqRadius_ * Dsigma
+        GreatCircleDistance = MeanRadius_ * Dsigma
     
     end  function GreatCircleDistance
 
