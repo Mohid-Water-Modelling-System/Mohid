@@ -12892,7 +12892,7 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) / 180. * Pi
 
-                        else if (Me%RegularRotation) then
+                        else !if (Me%RegularRotation) then
 
                             GridAngle = Me%Grid_Angle 
 
@@ -12991,7 +12991,7 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) / 180. * Pi
 
-                        else if (Me%RegularRotation) then
+                        else !if (Me%RegularRotation) then
 
                             GridAngle = Me%Grid_Angle 
 
@@ -13319,7 +13319,7 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) * 180. / Pi
 
-                        else if (Me%RegularRotation) then
+                        else !if (Me%RegularRotation) then
 
                             GridAngle = Me%Grid_Angle 
 
@@ -13418,7 +13418,7 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) * 180. / Pi
 
-                        else if (Me%RegularRotation) then
+                        else !if (Me%RegularRotation) then
 
                             GridAngle = Me%Grid_Angle 
 
