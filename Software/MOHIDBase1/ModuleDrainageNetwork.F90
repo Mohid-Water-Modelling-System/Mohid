@@ -510,7 +510,10 @@ Module ModuleDrainageNetwork
                                                        MinDepth = 0.0,              &
                                                        AccWeightedLevel = 0.0,      &
                                                        MaxLevel = 0.0,              &
-                                                       MinLevel = 0.0
+                                                       MinLevel = 0.0,              &
+                                                       OverlandFlowVolume = 0.0,    &
+                                                       GWFlowVolume = 0.0
+                                                       
     end type T_NodeIntegration
     
     !IN PROGRESS
@@ -653,7 +656,8 @@ Module ModuleDrainageNetwork
     type T_TimeSerie
         integer                                                 :: ObjEnterData = 0
         logical                                                 :: ByNodes      = .false.
-        character(PathLength)                                   :: Location     = null_str   
+        character(PathLength)                                   :: Location     = null_str 
+        character(PathLength)                                   :: LocationInt  = null_str
         integer                                                 :: nNodes       = 0
         integer                                                 :: nProp        = 0
         integer                 , dimension (:), pointer        :: ObjTimeSerie => null()
@@ -854,6 +858,7 @@ Module ModuleDrainageNetwork
     type T_Converge
         integer                                     :: MinIterations                = 1               
         integer                                     :: MaxIterations                = 1024
+        logical                                     :: IgnoreMaxIterations          = .false.
         logical                                     :: Stabilize                    = .false.
         real                                        :: StabilizeFactor              = 0.01        
         real                                        :: DTFactorUp                   = 1.25
@@ -1051,6 +1056,7 @@ Module ModuleDrainageNetwork
         !Evapotranspirate in reach pools
         real                                        :: EVTPMaximumDepth             = null_real
         real                                        :: EVTPCropCoefficient          = null_real
+        logical                                     :: DecreaseDT = .false.
 
         type (T_DrainageNetwork), pointer           :: Next                         => null()
     end type  T_DrainageNetwork
@@ -2096,7 +2102,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR95b'
             
             !first output date is current (beggining)
-            Me%Output%IntFlow%IntFlowNextOutput = Me%CurrentTime
+            Me%Output%IntFlow%IntFlowNextOutput = Me%BeginTime + Me%Output%IntFlow%IntFlowDTOutput
             
         endif
 
@@ -2264,6 +2270,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR101")              
         endif
                             
+        call GetData(Me%CV%IgnoreMaxIterations,                                 &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='IGNORE_MAX_ITERATIONS',                   &
+                     Default        = .false.,                                  &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR102")        
+        
         !% of the maximun iterations that causes the DT to be cut to the value of one internal time step
         call GetData(dummy_real,                                        &
                      Me%ObjEnterData, iflag,                            &
@@ -2588,8 +2604,7 @@ if2:              if (BlockFound) then
 
             end if if1
 
-        end do do1        
-
+        end do do1
 
         if (Me%CheckNodes) call CheckNodesConsistency
 
@@ -6790,6 +6805,17 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
             
 if1:    if (flag==1) then   
      
+            call GetData(Me%TimeSerie%LocationInt,                              &
+                         Me%ObjEnterData, flag,                                 &
+                         SearchType   = FromFile,                               &
+                         keyword      = 'TIME_SERIE_LOCATION_INT',              &
+                         default      = Me%TimeSerie%Location,                  &
+                         ClientModule = 'ModuleDrainageNetwork',                &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                        &
+                stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR02.1'
+    
+    
             Me%TimeSerie%nNodes =  0
 
             call ConstructEnterData (Me%TimeSerie%ObjEnterData,             &
@@ -7162,7 +7188,7 @@ if2:        if (Me%TimeSerie%ByNodes) then
                 enddo
             
                 call StartTimeSerie(Me%TimeSerie%ObjTimeSerieIntFlow, Me%ObjTime,       &
-                                    TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
+                                    TimeSerieDataFile = trim(Me%TimeSerie%LocationInt), &
                                     PropertyList      = ReachHeaderList,                &
                                     Extension         = "srn",                          &
                                     ResultFileName    = 'Integrated_Flow',              &
@@ -9274,8 +9300,8 @@ do1:        do while (associated (PropertyX))
 
     end subroutine SetGWFlowLayersToDN
 
-    !---------------------------------------------------------------------------                                          
-                                      
+    !---------------------------------------------------------------------------    
+
     subroutine SearchProperty(PropertyX, PropertyXIDNumber, PrintWarning, STAT)
 
         !Arguments--------------------------------------------------------------
@@ -9538,14 +9564,24 @@ do2 :   do while (associated(PropertyX))
         
         Me%OutletFlowVolume = 0.0
         
-        do while (iter <= Niter)
+        !Water From OverLandFlow / GW Exchange
+        !Warning ModifyWaterExchange has to be the first exchange in order to use ConcOld
+        !(the same conc that RP and PMP used to compute the mass flux between runoff and river)
+        if (Me%HasGrid) then
+            call ModifyWaterExchange    (Me%ExtVar%DT)
+        endif
 
-            !Water From OverLandFlow / GW Exchange
-            !Warning ModifyWaterExchange has to be the first exchange in order to use ConcOld
-            !(the same conc that RP and PMP used to compute the mass flux between runoff and river)
-            if (Me%HasGrid) then
-                call ModifyWaterExchange    (Me%CV%CurrentDT)
-            endif
+        call UpdateAreasAndMappings
+        call StoreInitialValues
+
+        do while (iter <= Niter)
+            
+            !!Water From OverLandFlow / GW Exchange
+            !!Warning ModifyWaterExchange has to be the first exchange in order to use ConcOld
+            !!(the same conc that RP and PMP used to compute the mass flux between runoff and river)
+            !if (Me%HasGrid) then
+            !    call ModifyWaterExchange    (Me%CV%CurrentDT)
+            !endif
 
             !Transmission Losses - Should be used when running MOHID River Network only
             if (.not. Me%HasGrid .and. Me%ComputeOptions%TransmissionLosses) then
@@ -9582,14 +9618,10 @@ do2 :   do while (associated(PropertyX))
                 
                 call WriteDTLog_ML ('ModuleDrainageNetwork', Niter, Me%CV%CurrentDT)
                 
-!                if (Niter > Me%MaxIterations) then
-!                    write(*,*)'Number of iterations above maximum: ', Niter
-!                    write(*,*)'Check DT configurations'
-!                    stop 'ModifyDrainageNetLocal - ModuleDrainageNetwork - ERR03'
-!                endif
-
                 call ResetToInitialValues ()
-                call UpdateCrossSections  
+                !call UpdateCrossSections                  
+                call UpdateAreasAndMappings
+                
                 SumDT   = 0.0
                 Restart = .false.
                 iter    = 1
@@ -9630,8 +9662,9 @@ do2 :   do while (associated(PropertyX))
         enddo
         
         !needs update after all computation (so that modules get the last level)
-        call UpdateCrossSections                   
-
+        !call UpdateCrossSections                   
+        call UpdateAreasAndMappings
+        
         !So far, total removed volume is the flow volume
         Me%TotalOutputVolume = Me%TotalFlowVolume
 
@@ -10450,6 +10483,7 @@ if2:        if (Volume > PoolVolume) then
         logical                                     :: VariableDT
         real                                        :: nextDTCourant, aux
         real                                        :: nextDTVariation, MaxDT, CurrentDT
+        logical                                     :: DTHasDecreased
 
         !-----------------------------------------------------------------------
         
@@ -10461,6 +10495,8 @@ if2:        if (Volume > PoolVolume) then
         
         nextDTCourant   = -null_real
         nextDTVariation = -null_real        
+        
+        DTHasDecreased = .false.
         
         if (VariableDT) then
            
@@ -10503,31 +10539,47 @@ if2:        if (Volume > PoolVolume) then
                 
             else
             
+                DTHasDecreased = .true.
+                
                 if (Niter >= Me%CV%StabilizeHardCutLimit) then
                 
-                    nextDTVariation = (Me%ExtVar%DT / Niter) * Me%CV%MinIterations
-                    Me%CV%NextNiteration = Me%CV%MinIterations
-                    
-                elseif (Niter > Me%CV%LastGoodNiteration) then
-                
-                    nextDTVariation = Me%ExtVar%DT / Me%CV%DTFactorDown
-                    Me%CV%NextNiteration = max(int(nextDTVariation / Me%CV%CurrentDT), 1)
+                    nextDTVariation      = (Me%ExtVar%DT / Niter) !* Me%CV%MinIterations
+                    Me%CV%NextNiteration = 1 !Me%CV%MinIterations
                     
                 else
                 
-                    nextDTVariation = Me%ExtVar%DT
-                    Me%CV%NextNiteration = max(min(int(Niter / Me%CV%DTSplitFactor), Niter - 1), 1)
+                    nextDTVariation = Me%ExtVar%DT / Me%CV%DTFactorDown
+                    
+                    if (Niter > Me%CV%LastGoodNiteration) then
+                
+                        Me%CV%NextNiteration = NIter
+                    
+                else
+                
+                        Me%CV%NextNIteration = max(int(nextDTVariation / Me%CV%CurrentDT), 1)                        
+                    
+                    endif
                     
                 endif 
                                
             endif
             
-            CurrentDT = nextDTVariation / Me%CV%NextNiteration                                     
-                      
-            Me%CV%NextDT = min(min(nextDTVariation, nextDTCourant), MaxDT)
-            
+            Me%CV%NextDT = min(nextDTVariation, nextDTCourant)
+
             if (Me%CV%NextDT < nextDTVariation) then                
-                Me%CV%NextNiteration = max(int(Me%CV%NextDT/CurrentDT), 1)
+                Me%CV%CurrentDT = nextDTVariation / Me%CV%NextNiteration                                     
+                Me%CV%NextNiteration = max(int(Me%CV%NextDT/Me%CV%CurrentDT), 1)
+            endif            
+                      
+            if (Me%DecreaseDT .and. (.not. DTHasDecreased)) then
+                Me%CV%NextDT = Me%CV%NextDT * 0.7
+                Me%CV%NextNIteration = max(int(Me%CV%NextNIteration * 0.7), 1)
+                Me%CV%CurrentDT = Me%CV%NextDT / Me%CV%NextNiteration 
+            endif
+            
+            if (MaxDT < Me%CV%NextDT) then 
+                Me%CV%NextDT         = MaxDT
+                Me%CV%NextNiteration = max(int(Me%CV%NextDT/Me%CV%CurrentDT), 1)
             endif
                        
         else
@@ -10704,6 +10756,7 @@ if2:        if (Volume > PoolVolume) then
         type (T_Node), pointer                      :: CurrNode
         type (T_Property), pointer                  :: Property
         real                                        :: GWConc
+        type (T_NodeIntegration), pointer           :: NodeInt
 
         !-----------------------------------------------------------------------
 
@@ -10749,6 +10802,17 @@ if2:        if (Volume > PoolVolume) then
             CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%RunOffVector (NodeID) * LocalDT)
         enddo        
 
+        !DEBUG Jauch
+        !if (CurrNode%VolumeNew < 0.0) then
+        !    write (*,*) "===================================="
+        !    write (*,*) "Negative volume after exchange with runoff"
+        !    write (*,*) "Node ID: ", NodeID
+        !    write (*,*) "CurrNode%InitialVolumeOld : ", CurrNode%InitialVolumeOld
+        !    write (*,*) "CurrNode%VolumeOld : ", CurrNode%VolumeOld
+        !    write (*,*) "CurrNode%VolumeNew : ", CurrNode%VolumeNew
+        !    write (*,*) "===================================="
+        !endif
+        
         !Discharges GroundWaterFlow - Particulate property will not exit
         nullify (Property)
         Property => Me%FirstProperty
@@ -10776,7 +10840,7 @@ if2:        if (Volume > PoolVolume) then
 !~                             if (Check_Particulate_Property(Property%ID%IDNumber)) then
 !                            if ((Check_Particulate_Property(Property%ID%IDNumber)) .and.                         &
 !                                (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) .gt. 0.0)) then
-							if (Property%ID%IsParticulate) then
+                            if (Property%ID%IsParticulate) then
                                 GWConc = 0.0
                             else
                                 GWConc = Property%GWaterConcLayers(CurrNode%GridI, CurrNode%GridJ, k)
@@ -10809,6 +10873,18 @@ if2:        if (Volume > PoolVolume) then
                                          * LocalDT)             
                 enddo
             endif
+            
+            !DEBUG Jauch
+            !if (CurrNode%VolumeNew < 0.0) then
+            !    write (*,*) "===================================="
+            !    write (*,*) "Negative volume after exchange with Soil"
+            !    write (*,*) "Node ID: ", NodeID
+            !    write (*,*) "CurrNode%InitialVolumeOld : ", CurrNode%InitialVolumeOld
+            !    write (*,*) "CurrNode%VolumeOld : ", CurrNode%VolumeOld
+            !    write (*,*) "CurrNode%VolumeNew : ", CurrNode%VolumeNew
+            !    write (*,*) "===================================="
+            !endif
+            
         enddo        
     
         !Discharges DiffuseFlow
@@ -10830,6 +10906,28 @@ if2:        if (Volume > PoolVolume) then
             CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%DiffuseVector (NodeID) * LocalDT)
         enddo
         
+        if (Me%IntegratedOutput%Yes) then
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches /= 0) then
+                    NodeInt => Me%IntegratedOutput%NodeStatus(NodeID)
+                
+                    NodeInt%OverlandFlowVolume = NodeInt%OverlandFlowVolume + Me%RunOffVector (NodeID) * LocalDT
+                
+                    if (.not. Me%GWFlowByLayers) then
+                        NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + Me%GroundVector (NodeID) * LocalDT
+                    else
+                        NodeInt%GWFlowVolume = 0.0
+	                    do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+	
+		                    NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + &
+                                                   (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) * &
+							                        LocalDT)             
+	                    enddo
+                    endif
+                endif
+            enddo            
+        endif
                
     end subroutine ModifyWaterExchange 
 
@@ -12095,28 +12193,35 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
         !Local------------------------------------------------------------------
         type (T_Node), pointer                      :: CurrNode
-        real                                        :: variation
+        real                                        :: variation, thresholdToDecreaseDT
         integer                                     :: n_restart, NodeID
+        logical                                     :: negativeVolume
 
         !-----------------------------------------------------------------------
 
         n_restart = 0
         Restart   = .false.     
+        negativeVolume = .false.
        
-        do NodeID = 1, Me%TotalNodes
+do1:     do NodeID = 1, Me%TotalNodes
             CurrNode => Me%Nodes (NodeID)
             
             if (CurrNode%nDownstreamReaches /= 0) then
                 if (CurrNode%VolumeNew < -1.0 * AllmostZero) then
-                    Restart = .true.
+                    !print *, NodeID, CurrNode%VolumeNew
+                    negativeVolume = .true.
+                    exit do1
                 elseif (CurrNode%VolumeNew < 0.0) then
                     CurrNode%VolumeNew = 0.0                
                 endif
             endif
-        enddo
+        enddo do1
        
         if ((.not. Restart) .and. Me%CV%Stabilize) then
-            do NodeID = 1, Me%TotalNodes
+            Me%DecreaseDT = .false.
+            thresholdToDecreaseDT = Me%CV%StabilizeFactor * 0.7
+            
+do2:        do NodeID = 1, Me%TotalNodes
                 CurrNode => Me%Nodes (NodeID)
 
                 if (CurrNode%nDownstreamReaches /= 0) then
@@ -12132,15 +12237,26 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                                 !call DebugStability(CurrNode, Niter)
                                 
                                 n_restart = n_restart + 1
+                                !print *, NodeID, CurrNode%VolumeNew, CurrNode%VolumeOld, variation
+                             
+                                !print *, "Restart at ", NodeID, " with variation = ", variation
+                                !print *, "Old volume: ", CurrNode%VolumeOld, " New volume: ", CurrNode%VolumeNew
+                            endif
+                            
+                            if (variation > thresholdToDecreaseDT) then
+                                
+                                Me%DecreaseDT = .true.
+                                
+                            endif
+                            
+                            if (n_restart > Me%CV%MinToRestart) then
+                                Restart = .true.
+                                exit do2
                             endif
                         endif
                     endif
                 endif
-            enddo
-
-            if (n_restart > Me%CV%MinToRestart) then
-                Restart = .true.
-            endif   
+            enddo do2
 
         end if
 
@@ -12148,9 +12264,14 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             Me%CV%NextNiteration = max(int(Me%CV%NextNiteration * Me%CV%DTSplitFactor), Me%CV%NextNiteration + 1)
                  
             if (Me%CV%NextNiteration >= Me%CV%MaxIterations) then
-                 write(*,*)'Number of iterations above maximum: ', Me%CV%NextNiteration
+                if ((.not. negativeVolume) .and. Me%CV%IgnoreMaxIterations) then
+                    write(*,*)'[DN] Ignoring number of iterations above maximum: ', Me%CV%NextNiteration
+                    Restart = .false.
+                else
+                    write(*,*)'[DN] Number of iterations above maximum: ', Me%CV%NextNiteration                     
                  stop 'CheckStability - ModuleDrainageNetwork - ERR010'
             endif                          
+        endif   
         endif   
 
         !-----------------------------------------------------------------------
@@ -12172,7 +12293,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         character (len = StringLength)              :: StrWarning
 
         write(char_i, '(i6)') CurrNode%ID
-        write(char_1, '(ES10.3)') Niter
+        write(char_1, '(i10)') Niter
         write(char_2, '(ES10.3)') CurrNode%VolumeNew
         write(char_3, '(ES10.3)') CurrNode%VolumeOld
         write(char_4, '(ES10.3)') CurrNode%WaterLevel
