@@ -599,14 +599,14 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 #endif OVERLAP
 
             !griflet: Adding a new keyword in model.dat to define the number of threads to use.
-            !Reads OPENMP_NUM_THREADS (number of threads to use with openmp)
+            !Reads OPENMP_NUM_THREADS (number of threads to use with openmp)          
+            !$ if ( .not. FirstModel%FatherModelFlag ) then
             !$ call GetData(openmp_num_threads, ObjEnterData, flag, keyword = 'OPENMP_NUM_THREADS',  &
             !$         SearchType   = FromFile,                                                      &
             !$         ClientModule = 'ModuleModel',                                                 &
             !$         default      = 0,                                                             &
             !$         STAT         = STAT_CALL)
-            !$ if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR94'            
-            !$ if ( .not. FirstModel%FatherModelFlag ) then
+            !$ if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR94' 
             !$    FirstModel%FatherModelFlag = .true.
             !$    write(*,*)
             !$    write(*,*)"OPENMP: Max number of threads available is ", omp_get_max_threads()

@@ -20564,73 +20564,77 @@ i2 :            if (Actual.GE.Property%Evolution%NextCompute) then
         call Search_Property(PropertyAge, PropertyXID = Age_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CalculateAge - ModuleWaterProerties - ERR01')
 
-        !Increase water age
-        if (Me%ExternalVar%Now .GE. PropertyAge%Evolution%NextCompute) then
+        !computes water age only if the property age solution is not read from file
+        if (.not.PropertyAge%ID%SolutionFromFile) then
+            !Increase water age
+            if (Me%ExternalVar%Now .GE. PropertyAge%Evolution%NextCompute) then
 
-            select case (trim(adjustl(PropertyAge%ID%Units)))
-            case ('seconds', 'Seconds', 'SECONDS')
-                Coef = 1.0
-            case ('hours', 'Hours', 'HOURS')
-                Coef = 3600.
-            case ('days', 'Days', 'DAYS')
-                Coef = 86400.0
-            case default
-                write(*,*)'Invalid units of property age'
-                write(*,*)'Use SECONDS, HOURS or DAYS'
-                call CloseAllAndStop ('CalculateAge - ModuleWaterproperties - ERR01')
-            end select
+                select case (trim(adjustl(PropertyAge%ID%Units)))
+                case ('seconds', 'Seconds', 'SECONDS')
+                    Coef = 1.0
+                case ('hours', 'Hours', 'HOURS')
+                    Coef = 3600.
+                case ('days', 'Days', 'DAYS')
+                    Coef = 86400.0
+                case default
+                    write(*,*)'Invalid units of property age'
+                    write(*,*)'Use SECONDS, HOURS or DAYS'
+                    call CloseAllAndStop ('CalculateAge - ModuleWaterproperties - ERR01')
+                end select
 
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleWaterProperties", "CalculateAge")
+                endif
+                
+                !$OMP PARALLEL PRIVATE(i,j,k)
+                if(Me%Age%UseWaterPoints)then
+
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
-            if (MonitorPerformance) then
-                call StartWatch ("ModuleWaterProperties", "CalculateAge")
+                        if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) then
+
+                            PropertyAge%Concentration(i, j, k) = PropertyAge%Concentration(i, j, k) +   &
+                                                                 PropertyAge%Evolution%DTInterval / Coef
+                        endif
+
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    enddo
+                
+                else
+                
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                        if (Me%ExternalVar%WaterPoints3D(i, j, k) == OpenPoint) then
+
+                            PropertyAge%Concentration(i, j, k) = PropertyAge%Concentration(i, j, k) +   &
+                                                                 PropertyAge%Evolution%DTInterval / Coef
+                        endif
+
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    enddo
+
+                end if
+                !$OMP END PARALLEL 
+
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleWaterProperties", "CalculateAge")
+                endif
+
             endif
             
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            if(Me%Age%UseWaterPoints)then
-
-                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-        
-                    if (Me%ExternalVar%OpenPoints3D(i, j, k) == OpenPoint) then
-
-                        PropertyAge%Concentration(i, j, k) = PropertyAge%Concentration(i, j, k) +   &
-                                                             PropertyAge%Evolution%DTInterval / Coef
-                    endif
-
-                enddo
-                enddo
-                !$OMP END DO
-                enddo
-            
-            else
-            
-                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-        
-                    if (Me%ExternalVar%WaterPoints3D(i, j, k) == OpenPoint) then
-
-                        PropertyAge%Concentration(i, j, k) = PropertyAge%Concentration(i, j, k) +   &
-                                                             PropertyAge%Evolution%DTInterval / Coef
-                    endif
-
-                enddo
-                enddo
-                !$OMP END DO
-                enddo
-
-            end if
-            !$OMP END PARALLEL 
-
-            if (MonitorPerformance) then
-                call StopWatch ("ModuleWaterProperties", "CalculateAge")
-            endif
-
-        endif
+        endif            
        
         nullify (PropertyAge)
 

@@ -386,6 +386,7 @@
 			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="MPI|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStatistic.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

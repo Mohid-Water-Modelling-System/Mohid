@@ -3336,7 +3336,7 @@ cd1 :       if ((PropertyID%IDNumber == WindDirection_) .OR. (PropertyID%IDNumbe
 
                 Get_Angle_Referential = NauticalReferential_          
 
-			else
+            else
 			
 				stop  'Get_Angle_Referential - ModuleGlobalData - ERR010'
 
