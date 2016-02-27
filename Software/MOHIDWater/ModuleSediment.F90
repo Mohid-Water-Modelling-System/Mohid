@@ -4647,13 +4647,13 @@ do1:    do n=1,Me%NumberOfClasses
         
                 LW = Me%ExternalVar%WaveLength(i,j)
                 
-                if(HW > 0. .and. LW > 0.) then 
+                if(HW > 0. .and. LW > 1.) then 
         
                     KW = 2*pi/LW
         
                     h = Me%ExternalVar%WaterColumn(i,j)
         
-                    Me%AsymmetryFactor(i,j) = (3/4*pi*HW/(LW*(sinh(KW*h))**3))**2
+                    Me%AsymmetryFactor(i,j) = (3./4*pi*HW/(LW*(sinh(KW*h))**3))**2
         
                     Me%AsymmetryFactor(i,j) = min(Me%AsymmetryFactor(i,j), 0.2)
                 else

@@ -4645,13 +4645,13 @@ i2:     if (Me%Dim == Dim2D) then
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL, i
         integer                                         :: iflag, file, column
-        character(len = StringLength), dimension(3)     :: Filename   = null_str
-        character(len = StringLength), dimension(3)     :: DataColumn = null_str
+        character(len = StringLength), dimension(3)     :: Filename, DataColumn = " "
         type(T_TimeSerie), pointer                      :: CurrentTimeSerie, NewTimeSerie
         integer                                         :: nTimeSeries   = 1
         logical                                         :: exist
         !Begin----------------------------------------------------------------
         
+        FileName(:) = " "
         Me%nTimeSeries = 0
         nTimeSeries   = 1
         !Gets the name of the data file
@@ -4794,11 +4794,11 @@ i2:     if (Me%Dim == Dim2D) then
             !Default
             nTimeSeries = 2            
             !if second filename not defined, is the same as previous
-            if (FileName(2) == null_str) FileName(2) = FileName(1)            
+            if (FileName(2) == " ") FileName(2) = FileName(1)            
            
             if (Me%Dim == Dim3D .and. Me%UseZ) then
                 nTimeSeries = 3
-                if (FileName(3) == null_str) FileName(3) = FileName(1)
+                if (FileName(3) == " ") FileName(3) = FileName(1)
             endif            
             
             
@@ -5164,12 +5164,12 @@ i0:     if(Me%Dim == Dim2D)then
         integer                                         :: STAT_CALL, iflag, i
         integer                                         :: ILB, IUB, JLB, JUB
         logical                                         :: MasterOrSlave, LastGroupEqualField
-        character(len = StringLength), dimension(3)     :: Filename, FieldName = null_str
+        character(len = StringLength), dimension(3)     :: Filename, FieldName = " "
         type(T_Field4D), pointer                        :: NewHDF, CurrentHDF
         integer                                         :: nHDFs           = 1
         logical                                         :: exist
         !Begin-----------------------------------------------------------------           
-        
+        FileName(:) = " "
         Me%nHDFs = 0
         nHDFs           = 1
         
@@ -5343,11 +5343,11 @@ i0:     if(Me%Dim == Dim2D)then
             !Default
             nHDFs = 2            
             !if second filename not defined, is the same as previous
-            if (FileName(2) == null_str) FileName(2) = FileName(1)
+            if (FileName(2) == " ") FileName(2) = FileName(1)
             
             if (Me%Dim == Dim3D .and. Me%UseZ) then
                 nHDFs = 3
-                if (FileName(3) == null_str) FileName(3) = FileName(1)
+                if (FileName(3) == " ") FileName(3) = FileName(1)
             endif            
             
             
