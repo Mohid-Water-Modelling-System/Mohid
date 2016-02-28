@@ -1590,17 +1590,17 @@ Module ModuleHydrodynamic
         real                        :: L                = null_real
         ! WIDTH OF THE FAULT PLANE
         real                        :: W                = null_real
-        ! DISLOCATION        			
+        ! DISLOCATION                    
         real                        :: D                = null_real
         ! (=THETA) STRIKE DIRECTION        
         real                        :: TH               = null_real
-        ! (=DELTA) DIP ANGLE				
+        ! (=DELTA) DIP ANGLE                
         real                        :: DL               = null_real
         ! (=LAMDA) SLIP ANGLE 
         real                        :: RD               = null_real
         ! EPICENTER (LATITUDE)
         real                        :: Y0               = null_real
-        ! EPICENTER (LONGITUDE)	    
+        ! EPICENTER (LONGITUDE)        
         real                        :: X0               = null_real
         ! TIME WHEN THE RUTPURE STARTS
         type (T_Time)               :: T0
@@ -3652,7 +3652,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR130'
                 endif
             
-                ! DISLOCATION [m]       			
+                ! DISLOCATION [m]                   
                 call GetData(Me%Tsunami%Fault%D,                                        & 
                              Me%ObjEnterData, iflag,                                    & 
                              Keyword        = 'FAULT_DISLOCATION',                      &
@@ -3665,7 +3665,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR140'
                 endif
 
-                ! (=THETA) STRIKE DIRECTION [º]       			
+                ! (=THETA) STRIKE DIRECTION [º]                   
                 call GetData(Me%Tsunami%Fault%TH,                                       & 
                              Me%ObjEnterData, iflag,                                    & 
                              Keyword        = 'FAULT_STRIKE_DIRECTION',                 &
@@ -3678,7 +3678,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR160'
                 endif
 
-                ! (=DELTA) DIP ANGLE [º]       			
+                ! (=DELTA) DIP ANGLE [º]                   
                 call GetData(Me%Tsunami%Fault%DL,                                       & 
                              Me%ObjEnterData, iflag,                                    & 
                              Keyword        = 'FAULT_DIP_ANGLE',                        &
@@ -3691,7 +3691,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR180'
                 endif
 
-                !  (=LAMDA) SLIP ANGLE [º]       			
+                !  (=LAMDA) SLIP ANGLE [º]                   
                 call GetData(Me%Tsunami%Fault%RD,                                       & 
                              Me%ObjEnterData, iflag,                                    & 
                              Keyword        = 'FAULT_SLIP_ANGLE',                       &
@@ -3704,7 +3704,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR200'
                 endif
 
-                !  EPICENTER (LATITUDE)[º]       			
+                !  EPICENTER (LATITUDE)[º]                   
                 call GetData(Me%Tsunami%Fault%Y0,                                       & 
                              Me%ObjEnterData, iflag,                                    & 
                              Keyword        = 'FAULT_EPICENTER_Y',                      &
@@ -3717,7 +3717,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR220'
                 endif
 
-                !  EPICENTER (LONGITUDE)[º]       			
+                !  EPICENTER (LONGITUDE)[º]                   
                 call GetData(Me%Tsunami%Fault%X0,                                       & 
                              Me%ObjEnterData, iflag,                                    & 
                              Keyword        = 'FAULT_EPICENTER_X',                      &
@@ -25025,7 +25025,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
 !.....USED FOR OKADA'S MODEL (CREATED BY XIAOMING WANG IN JUN 2003)
 !NOTE:
-!	 #. UPDATED ON FEB04 2009 (XIAOMING WANG, GNS)      
+!     #. UPDATED ON FEB04 2009 (XIAOMING WANG, GNS)      
     
     subroutine Strike_Slip (X2,Y1,Y2,DP,DD,F) 
     
@@ -25068,7 +25068,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 !     X: X COORDINATE/EASTING IN METERS RELATIVE TO ORIGIN (I.E., LON0)
 !     Y: Y COORDINATE/NORTHING IN METERS RELATIVE TO ORIGIN (I.E., LAT0)
 !REFERENCES:
-!	  #. SNYDER, J.P. (1987). MAP PROJECTIONS - A WORKING MANUAL.
+!      #. SNYDER, J.P. (1987). MAP PROJECTIONS - A WORKING MANUAL.
 !                          USGS PROFESSIONAL PAPER 1395
 !     #. ELLIPSOIDAL DATUM: WGS84
 !WORKING NOTES:
@@ -25088,12 +25088,12 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         real                :: LAT,LON,LT0,LN0,CS,SN,CS0,SN0,TMP,TMP0
         real                :: A,B,K0,E,ES,N,C,R,S1,S2,W1,W2,SA,SB,BETA,XI,LM,XI0,LM0,F2
         real                :: RHO0, NU0, SN_XI0, W
-        !COMMON /CONS/ ELMAX,GRAV,PI,R_EARTH,GX,EPS,ZERO,ONE,NUM_GRID,	&
+        !COMMON /CONS/ ELMAX,GRAV,PI,R_EARTH,GX,EPS,ZERO,ONE,NUM_GRID,    &
         !            NUM_FLT,V_LIMIT,RAD_DEG,RAD_MIN
 
         !Begin--------------------------------------------------------------------------                    
 
-	    !AVOID SINGULARITY AT POLES
+        !AVOID SINGULARITY AT POLES
         POLE = PI/2.0 - AlmostZero
         ! CONVERT DEGREE TO RADIAN
         LAT = LATIN*RAD_DEG
@@ -25155,19 +25155,19 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 !DESCRIPTION:
 !     #. CALCULATE SEAFLOOR DEFORMATION VIA OKADA'S MODEL (1985);
 !     #. STEREOGRAPHIC PROJECTION IS IMPLEMENTED TO CREATE MORE 
-!		 ACCURATE MAPPING BETWEEN THE EARTH SURFACE AND THE PLANE USED 
-!		 IN OKADA (1985)
+!         ACCURATE MAPPING BETWEEN THE EARTH SURFACE AND THE PLANE USED 
+!         IN OKADA (1985)
 !INPUT:
-!	  #. FAULT PARAMETERS;
+!      #. FAULT PARAMETERS;
 !OUTPUT:
-!	  #. SEAFLOOR DEFORMATION;
+!      #. SEAFLOOR DEFORMATION;
 !NOTES:
 !     #. CREATED ON JUN ?? 2003 (XIAOMING WANG, CORNELL UNIVERSITY) 
 !     #. UPDATED ON DEC 18, 2008 (XIAOMING WANG, GNS) 
-!	  #. UPDATED ON FEB 03 2009 (XIAOMING WANG, GNS)
-!		 1. ADD DETECTION ON NAN/INF
-!	  #. UPDATED ON FEB 16 2009 (XIAOMING WANG, GNS)
-!		 1. ADD AN OPTION TO SELECT THE FOCUS LOCATION
+!      #. UPDATED ON FEB 03 2009 (XIAOMING WANG, GNS)
+!         1. ADD DETECTION ON NAN/INF
+!      #. UPDATED ON FEB 16 2009 (XIAOMING WANG, GNS)
+!         1. ADD AN OPTION TO SELECT THE FOCUS LOCATION
 !----------------------------------------------------------------------
     subroutine FaultOkada1985 
                    
@@ -25175,8 +25175,8 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
       
         integer     :: ILB, IUB, JLB, JUB, KUB, i, j
         
-	    !COMMON /CONS/ ELMAX,GRAV,PI,R_EARTH,GX,ONE,NUM_GRID,	&
-		!    			NUM_FLT,V_LIMIT,RAD_DEG,RAD_MIN
+        !COMMON /CONS/ ELMAX,GRAV,PI,R_EARTH,GX,ONE,NUM_GRID,    &
+        !                NUM_FLT,V_LIMIT,RAD_DEG,RAD_MIN
 
         real        :: ANG_L, ANG_R, ANG_T, HALFL
         real        :: HH, DEL_X, DEL_Y, H1, H2
@@ -25202,7 +25202,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         !.....CALCULATE FOCAL DEPTH USED FOR OKADA'S MODEL
         HH = Me%Tsunami%Fault%HH+0.5*Me%Tsunami%Fault%W*SIN(ANG_L)
         !.....DISPLACEMENT DUE TO DIFFERENT EPICENTER DEFINITION
-        !	  EPICENTER IS DEFINED AT THE CENTER OF FAULT PLANE
+        !      EPICENTER IS DEFINED AT THE CENTER OF FAULT PLANE
         DEL_X = 0.5*Me%Tsunami%Fault%W*COS(ANG_L)*COS(ANG_T)
         DEL_Y = 0.5*Me%Tsunami%Fault%W*COS(ANG_L)*SIN(ANG_T)
 
@@ -25273,7 +25273,7 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         enddo
         enddo
 
-        !	  WRITE (*,*) 'SUBROUTINE OKADA HAS BEEN CALLED'
+        !      WRITE (*,*) 'SUBROUTINE OKADA HAS BEEN CALLED'
 
     end subroutine FaultOkada1985
     

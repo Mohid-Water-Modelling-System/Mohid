@@ -2708,12 +2708,12 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property length
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" length",	&
-                                       IsDynamic        = .true.,										&
-                                       IsParticulate    = .false.,										&
-                                       IsAngle          = .false.,										&
-                                       IsVectorial      = .false.,										&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" length",    &
+                                       IsDynamic        = .true.,                                        &
+                                       IsParticulate    = .false.,                                        &
+                                       IsAngle          = .false.,                                        &
+                                       IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'LENGTH')
@@ -2727,12 +2727,12 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property structure
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" structure",	&
-                                       IsDynamic        = .true.,											&
-                                       IsParticulate    = .false.,											&
-                                       IsAngle          = .false.,											&
-                                       IsVectorial      = .false.,											&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                    &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" structure",    &
+                                       IsDynamic        = .true.,                                            &
+                                       IsParticulate    = .false.,                                            &
+                                       IsAngle          = .false.,                                            &
+                                       IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'STRUCTURE')
@@ -2746,12 +2746,12 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property reserves
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reserves",	&
-                                       IsDynamic        = .true.,											&
-                                       IsParticulate    = .false.,											&
-                                       IsAngle          = .false.,											&
-                                       IsVectorial      = .false.,											&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                    &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reserves",    &
+                                       IsDynamic        = .true.,                                            &
+                                       IsParticulate    = .false.,                                            &
+                                       IsAngle          = .false.,                                            &
+                                       IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'RESERVES')        
@@ -2765,12 +2765,12 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property maturity
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" maturity",	&
-                                       IsDynamic        = .true.,											&
-                                       IsParticulate    = .false.,											&
-                                       IsAngle          = .false.,											&
-                                       IsVectorial      = .false.,											&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                    &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" maturity",    &
+                                       IsDynamic        = .true.,                                            &
+                                       IsParticulate    = .false.,                                            &
+                                       IsAngle          = .false.,                                            &
+                                       IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'MATURITY')
@@ -2784,12 +2784,12 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property reproduction
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,										&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
-                                       IsDynamic        = .true.,												&
-                                       IsParticulate    = .false.,												&
-                                       IsAngle          = .false.,												&
-                                       IsVectorial      = .false.,												&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                        &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reproduction",    &
+                                       IsDynamic        = .true.,                                                &
+                                       IsParticulate    = .false.,                                                &
+                                       IsAngle          = .false.,                                                &
+                                       IsVectorial      = .false.,                                                &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'REPRODUCTION')
@@ -2803,12 +2803,12 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property age
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" age",	    &
-                                       IsDynamic        = .true.,										&
-                                       IsParticulate    = .false.,										&
-                                       IsAngle          = .false.,										&
-                                       IsVectorial      = .false.,										&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" age",        &
+                                       IsDynamic        = .true.,                                        &
+                                       IsParticulate    = .false.,                                        &
+                                       IsAngle          = .false.,                                        &
+                                       IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'AGE')
@@ -2823,12 +2823,12 @@ do1:        do while (associated(ObjCohort%Next))
         !generate property number
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" number",	&
-                                       IsDynamic        = .true.,										&
-                                       IsParticulate    = .false.,										&
-                                       IsAngle          = .false.,										&
-                                       IsVectorial      = .false.,										&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" number",    &
+                                       IsDynamic        = .true.,                                        &
+                                       IsParticulate    = .false.,                                        &
+                                       IsAngle          = .false.,                                        &
+                                       IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromFile (NewProperty, Species, 'NUMBER')        
@@ -3246,12 +3246,12 @@ do6 :                       do K = WKLB, WKUB
         !generate property length
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" length",	&
-                                       IsDynamic        = .true.,										&
-                                       IsParticulate    = .false.,										&
-                                       IsAngle          = .false.,										&
-                                       IsVectorial      = .false.,										&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" length",    &
+                                       IsDynamic        = .true.,                                        &
+                                       IsParticulate    = .false.,                                        &
+                                       IsAngle          = .false.,                                        &
+                                       IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'LENGTH')
@@ -3267,12 +3267,12 @@ do6 :                       do K = WKLB, WKUB
         !generate property structure
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" structure",	&
-                                       IsDynamic        = .true.,											&
-                                       IsParticulate    = .false.,											&
-                                       IsAngle          = .false.,											&
-                                       IsVectorial      = .false.,											&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                    &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" structure",    &
+                                       IsDynamic        = .true.,                                            &
+                                       IsParticulate    = .false.,                                            &
+                                       IsAngle          = .false.,                                            &
+                                       IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'STRUCTURE')
@@ -3287,12 +3287,12 @@ do6 :                       do K = WKLB, WKUB
         !generate property reserves
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reserves",	&
-                                       IsDynamic        = .true.,											&
-                                       IsParticulate    = .false.,											&
-                                       IsAngle          = .false.,											&
-                                       IsVectorial      = .false.,											&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                    &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reserves",    &
+                                       IsDynamic        = .true.,                                            &
+                                       IsParticulate    = .false.,                                            &
+                                       IsAngle          = .false.,                                            &
+                                       IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'RESERVES')
@@ -3307,12 +3307,12 @@ do6 :                       do K = WKLB, WKUB
         !generate property maturity
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,									&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" maturity",	&
-                                       IsDynamic        = .true.,											&
-                                       IsParticulate    = .false.,											&
-                                       IsAngle          = .false.,											&
-                                       IsVectorial      = .false.,											&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                    &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" maturity",    &
+                                       IsDynamic        = .true.,                                            &
+                                       IsParticulate    = .false.,                                            &
+                                       IsAngle          = .false.,                                            &
+                                       IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'MATURITY')
@@ -3327,12 +3327,12 @@ do6 :                       do K = WKLB, WKUB
         !generate property reproduction
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,										&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reproduction",	&
-                                       IsDynamic        = .true.,												&
-                                       IsParticulate    = .false.,												&
-                                       IsAngle          = .false.,												&
-                                       IsVectorial      = .false.,												&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                        &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" reproduction",    &
+                                       IsDynamic        = .true.,                                                &
+                                       IsParticulate    = .false.,                                                &
+                                       IsAngle          = .false.,                                                &
+                                       IsVectorial      = .false.,                                                &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'REPRODUCTION')
@@ -3348,12 +3348,12 @@ do6 :                       do K = WKLB, WKUB
         !generate property age
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" age",	    &
-                                       IsDynamic        = .true.,										&
-                                       IsParticulate    = .false.,										&
-                                       IsAngle          = .false.,										&
-                                       IsVectorial      = .false.,										&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" age",        &
+                                       IsDynamic        = .true.,                                        &
+                                       IsParticulate    = .false.,                                        &
+                                       IsAngle          = .false.,                                        &
+                                       IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'AGE')
@@ -3368,12 +3368,12 @@ do6 :                       do K = WKLB, WKUB
         !generate property number
         allocate (NewProperty)
         
-        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,								&
-                                       Name             = trim(adjustl(NewCohort%ID%Name))//" number",	&
-                                       IsDynamic        = .true.,										&
-                                       IsParticulate    = .false.,										&
-                                       IsAngle          = .false.,										&
-                                       IsVectorial      = .false.,										&
+        call ConstructPropertyIDOnFly (PropertyID       = NewProperty%ID,                                &
+                                       Name             = trim(adjustl(NewCohort%ID%Name))//" number",    &
+                                       IsDynamic        = .true.,                                        &
+                                       IsParticulate    = .false.,                                        &
+                                       IsAngle          = .false.,                                        &
+                                       IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
         call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'NUMBER')

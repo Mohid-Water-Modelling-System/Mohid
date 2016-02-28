@@ -1247,7 +1247,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR190'
 
         !IN PROGRESS
-		!Sets Integrated Output Time 
+        !Sets Integrated Output Time 
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime = Me%ExtVar%Now,                                 &
                            EndTime     = Me%EndTime,                                    &

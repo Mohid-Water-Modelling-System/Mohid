@@ -2235,7 +2235,7 @@ cd2 :           if (BlockFound) then
 
 !~         if (NewProperty%Particulate)then
 !~             !if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-!~ 			if (.not. NewProperty%ID%IsParticulate) then
+!~             if (.not. NewProperty%ID%IsParticulate) then
 !~                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
 !~                 write(*,*) 'recognised as PARTICULATE'
 !~                 stop 'Construct_PropertyEvolution - ModuleInterfaceSedimentWater - ERR10'
@@ -5351,7 +5351,7 @@ do2:            do i = ILB, IUB
                     T3=(CDR**2+(FWR/2)**2*(Ubw/UVC)**4)**(1./4)
                     A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                     A2=0.40*T3/LOG(T1)
-					if (A1<0) A1 = 0
+                    if (A1<0) A1 = 0
                     if (A2<0) A2 = 0
                     CDMR=((A1**2+A2)**0.5-A1)**2
                     CDMAXR=((CDMR+T3*Ubw/UVC*(FWR/2)**0.5*abs(COS(CWphi*pi/180.)))**2+        &
@@ -5364,7 +5364,7 @@ do2:            do i = ILB, IUB
                     T3=(CDS**2+(FWS/2)**2*(Ubw/UVC)**4)**(1./4)
                     A1=T3*(LOG(T2)-1)/(2*LOG(T1))
                     A2=0.40*T3/LOG(T1)
-					if (A1<0) A1 = 0
+                    if (A1<0) A1 = 0
                     if (A2<0) A2 = 0
                     CDMS=((A1**2+A2)**0.5-A1)**2
                     CDMAXS=((CDMS+T3*Ubw/UVC*(FWS/2)**0.5*abs(COS(CWphi*pi/180.)))**2+         &

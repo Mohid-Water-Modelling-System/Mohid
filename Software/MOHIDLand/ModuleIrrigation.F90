@@ -247,10 +247,12 @@ module ModuleIrrigation
         type(T_DailySchedule), pointer              :: LastDailySchedule => null()
         integer                                     :: DailySchedulesNumber = 0
         
-        
-        logical                                     :: SingleSystem = .false. !If set to .true. will integrate the area and give a single value
-                                                                              !For detailed simulations where the system area is larger than the 
-                                                                              !cell area
+        !If set to .true. will integrate the area and give a single value
+        !For detailed simulations where the system area is larger than the 
+        !cell area
+        logical                                     :: SingleSystem = .false. 
+                                                                              
+                                                                              
         
         integer, pointer, dimension(:,:)            :: RootsKLB
         
@@ -300,8 +302,10 @@ module ModuleIrrigation
         !type(T_IrriProperty), pointer               :: AccIrrigation => null() !in 'mm'
         !type(T_IrriProperty), pointer               :: ToIrrigate => null() !In 'mm'
         
-        type(T_IrriProperty), pointer               :: WaterContentTarget => null() !In Theta % (0 - 100). Must be higher than the Theta Residual and lower than the Theta Saturation
-        type(T_IrriProperty), pointer               :: WaterContentThreshold => null() !In Theta % (0 - 100). Must be higher than the Theta Residual and lower than the Theta Saturation
+        !In Theta % (0 - 100). Must be higher than the Theta Residual and lower than the Theta Saturation
+        type(T_IrriProperty), pointer               :: WaterContentTarget => null()
+        !In Theta % (0 - 100). Must be higher than the Theta Residual and lower than the Theta Saturation
+        type(T_IrriProperty), pointer               :: WaterContentThreshold => null() 
         
         integer                                     :: PropertiesNumber = 0
         type(T_IrriProperty), pointer               :: FirstProperty => null()
@@ -622,7 +626,7 @@ cd0:    if (ready_ == OFF_ERR_) then
         Me%AccIrrigation = 0.0
         
         allocate (Me%ComputePoints (Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
-        Me%ComputePoints = 0
+        Me%ComputePoints = .false.
                   
     end subroutine AllocateVariables
        
@@ -768,7 +772,7 @@ cd0:    if (ready_ == OFF_ERR_) then
         if (stat_call /= SUCCESS_) &
             stop 'ConstructSchedule - ModuleIrrigation - ERR030'
         
-        call GetData (new_schedule%HeadThreshold,        	&
+        call GetData (new_schedule%HeadThreshold,            &
                       Me%ObjEnterData, iflag,               &
                       Keyword      = 'HEAD_THRESHOLD',      &
                       ClientModule = 'ModuleIrrigation',    &
@@ -1216,11 +1220,11 @@ cd1 :       if (block_found) then
                 if (basin_points(i,j)==1) then
 
                     if (new_property%Field(i,j) > 0.5) then
-                    	new_schedule%ApplicationAreaMap%LogicalField(i,j) = .true.
+                        new_schedule%ApplicationAreaMap%LogicalField(i,j) = .true.
                         new_property%LogicalField(i,j) = .true.
                     else
                         new_schedule%ApplicationAreaMap%LogicalField(i,j) = .false.
-			new_property%LogicalField(i,j) = .false.
+            new_property%LogicalField(i,j) = .false.
                     endif
                 else
                     new_schedule%ApplicationAreaMap%LogicalField(i,j) = .false.
@@ -1354,13 +1358,13 @@ cd1 :       if (block_found) then
         
         schedule%TimeSinceLastEvent = aux(3)
         
-        if (aux(2) > 0) then
+        if (int(aux(2)) > 0) then
             
             call HDF5SetLimits (obj_hdf, 1, 15, STAT = stat_call)
             if (stat_call /= SUCCESS_) &
                 stop 'ConstructDailySchedules - ModuleIrrigation - ERR030'
             
-            do index = 1, aux(2)                            
+            do index = 1, int(aux(2))
                 
                 call HDF5ReadData (obj_hdf, "/Schedules/"//trim(adjustl(schedule%ID%Name))//"/daily schedules", &
                                    "daily schedule",                                                            &
@@ -2606,13 +2610,15 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
                             
                         else
                                                         
-                            call SetDate(start_instant, sstart_instant%Year, sstart_instant%Month, sstart_instant%Day, schedule%StartInstantThreshold, 0.0, 0.0)
+                            call SetDate (start_instant, sstart_instant%Year, sstart_instant%Month, sstart_instant%Day, &
+                                          schedule%StartInstantThreshold, 0.0, 0.0)
                             new_day%StartInstant = start_instant + 86400.0
                             
                         endif
                     else
                                                 
-                        call SetDate(start_instant, Me%SNow%Year, Me%SNow%Month, Me%SNow%Day, schedule%StartInstantThreshold, 0.0, 0.0)
+                        call SetDate (start_instant, Me%SNow%Year, Me%SNow%Month, Me%SNow%Day, &
+                                      schedule%StartInstantThreshold, 0.0, 0.0)
                         new_day%StartInstant = start_instant
                         
                     endif

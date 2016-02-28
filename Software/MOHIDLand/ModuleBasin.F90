@@ -1761,7 +1761,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     !Check in PMP if the same dissolved properties also have advection diffusion connected
                     !Only dissolved properties can communicate with PMP
 !~                     if (PropAdvDiff .and. (.not. Check_Particulate_Property(PropID))) then
-					if (PropAdvDiff .and. (.not. PropParticulate)) then
+                    if (PropAdvDiff .and. (.not. PropParticulate)) then
                         if (Me%Coupled%PorousMediaProperties) then
                             call CheckPMPProperty (Me%ObjPorousMediaProperties, PropID, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'VerifyOptions - ModuleBasin - ERR30' 
@@ -3370,7 +3370,7 @@ cd2 :           if (BlockFound) then
                         NewProperty%ID%IDNumber        = PropID
                         NewProperty%ID%Name            = trim(GetPropertyName(NewProperty%ID%IDNumber))                       
 !~                      NewProperty%Particulate        = Check_Particulate_Property(NewProperty%ID%IDNumber)
-!~ 						NewProperty%Particulate        = NewProperty%ID%IsParticulate
+!~                         NewProperty%Particulate        = NewProperty%ID%IsParticulate
                         NewProperty%AdvectionDiffusion = PropAdvDiff
                         NewProperty%Decay              = Decay
                         if (Me%Coupled%Vegetation) then
@@ -3961,7 +3961,8 @@ cd2 :           if (BlockFound) then
             IrrigationExists = .true.
         else
             !Gets Irrigation [m3/s]
-            call GetAtmosphereProperty  (Me%ObjAtmosphere, IrrigationFlux, ID = Irrigation_, STAT = STAT_CALL, ShowWarning = .false.)
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, IrrigationFlux, ID = Irrigation_, STAT = STAT_CALL, &
+                                         ShowWarning = .false.)
             if (STAT_CALL == SUCCESS_) then
                 IrrigationExists = .true.
             elseif (STAT_CALL == NOT_FOUND_ERR_) then
@@ -6254,7 +6255,6 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j
         integer                                     :: stat_call
         type(T_IrrigationData), target              :: data
         type(T_IrrigationData), pointer             :: p_data
@@ -6824,13 +6824,13 @@ cd2 :           if (BlockFound) then
                                             Idx               = iProp,                                 &
                                             ID                = PropID,                                &
                                             PropAdvDiff       = PropAdvDiff,                           &
-                                            Particulate		  = PropParticulate,					   &
+                                            Particulate          = PropParticulate,                       &
                                             STAT              = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaPropertiesProcesses - ModuleBasin - ERR106' 
                 
                 !Only advection diffusion properties and not particulate may interact with soil
 !~                 if (PropAdvDiff .and. (.not. Check_Particulate_Property(PropID))) then
-				if (PropAdvDiff .and. (.not. PropParticulate)) then
+                if (PropAdvDiff .and. (.not. PropParticulate)) then
                     
                     !Get the property conc from Drainage Network
                     !The DN new concentration is computed at the end of timestep. So the conc used
@@ -7358,83 +7358,83 @@ cd2 :           if (BlockFound) then
                                          STAT                    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR10' 
             
-			allocate(MassInFlow(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
-			MassInFlow = 0.0
-			allocate(MassToBottom(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
-			MassToBottom = 0.0
+            allocate(MassInFlow(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
+            MassInFlow = 0.0
+            allocate(MassToBottom(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
+            MassToBottom = 0.0
 
-			!Get the most recent conc. from RP (e.g. is the same used in PMP)
-			call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
-									 ConcentrationX          = RPConcentration,              &
-									 PropertyXIDNumber       = PropID,                       &
-									 STAT                    = STAT_CALL)        
-			if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR20'
-			
-			allocate(NewRPConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
-			call SetMatrixValue (NewRPConcentration, Me%WorkSize, RPConcentration)
-			
-			!the particulate properties cant enter in soil
-!~ 			PropParticulate = Check_Particulate_Property(PropID)
-			
-			!Compute mass flow matrix to update concentrations
-			call ComputeMassInFlow (WarningString, RPConcentration, PropID, PropParticulate, MassInFlow)
+            !Get the most recent conc. from RP (e.g. is the same used in PMP)
+            call GetRPConcentration(RunoffPropertiesID       = Me%ObjRunoffProperties,       &
+                                     ConcentrationX          = RPConcentration,              &
+                                     PropertyXIDNumber       = PropID,                       &
+                                     STAT                    = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR20'
+            
+            allocate(NewRPConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
+            call SetMatrixValue (NewRPConcentration, Me%WorkSize, RPConcentration)
+            
+            !the particulate properties cant enter in soil
+!~             PropParticulate = Check_Particulate_Property(PropID)
+            
+            !Compute mass flow matrix to update concentrations
+            call ComputeMassInFlow (WarningString, RPConcentration, PropID, PropParticulate, MassInFlow)
 
-			!Compute the new RP conc based on the new fluxes
-			do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-			do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            !Compute the new RP conc based on the new fluxes
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-				if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
-					!g = g/m3 * (m * m2)
-					PropertyMassOld = RPConcentration(i,j) * (Me%ExtUpdate%WatercolumnOld(i,j) * Me%ExtVar%GridCellArea(i,j))
-					
-					PropertyMassNew = PropertyMassOld + MassInFlow(i,j)
-					
-					DebugMass = MassInFlow(i,j)
-					
-					if (Me%ExtUpdate%Watercolumn(i,j) .gt. AlmostZero) then
-						!g/m3 = g / (m * m2)
-						NewRPConcentration(i,j) = PropertyMassNew / (Me%ExtUpdate%Watercolumn(i,j)        &
-																	 * Me%ExtVar%GridCellArea(i,j))
-					else
-						!Do not zero, leave unchanged (RP Conc) because this will be the concentration used to infiltrate
-						!NewRPConcentration(i,j) = 0.0
-						
-						!deposition driven by complete infiltration of water column (WC totally infiltrated in time step) 
-						!if ((PropParticulate) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
-						!Now all recognized properties have bottom mass available
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    !g = g/m3 * (m * m2)
+                    PropertyMassOld = RPConcentration(i,j) * (Me%ExtUpdate%WatercolumnOld(i,j) * Me%ExtVar%GridCellArea(i,j))
+                    
+                    PropertyMassNew = PropertyMassOld + MassInFlow(i,j)
+                    
+                    DebugMass = MassInFlow(i,j)
+                    
+                    if (Me%ExtUpdate%Watercolumn(i,j) .gt. AlmostZero) then
+                        !g/m3 = g / (m * m2)
+                        NewRPConcentration(i,j) = PropertyMassNew / (Me%ExtUpdate%Watercolumn(i,j)        &
+                                                                     * Me%ExtVar%GridCellArea(i,j))
+                    else
+                        !Do not zero, leave unchanged (RP Conc) because this will be the concentration used to infiltrate
+                        !NewRPConcentration(i,j) = 0.0
+                        
+                        !deposition driven by complete infiltration of water column (WC totally infiltrated in time step) 
+                        !if ((PropParticulate) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
+                        !Now all recognized properties have bottom mass available
 !~                             if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
-!~ 						if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
-						if (PropParticulate .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
-							MassToBottom(i,j) = PropertyMassOld
-						endif  
-						
-						!IT IS NEEDED A FORMULATION SIMILAR FOR DISSOLVED PROPERTIES IF EVAPORATION REMOVES ALL WATER
-						!COLUMN IN ONE TIME STEP. THIS MAY BE DONE WITH MASS MATRIX HERE AND IN RUNOFFPROPERTIES
-						!The problem is that RunoffProperties has to update mass even if cell returned no water because
-						!the water may have been removed by infiltration.
-												  
-					endif                
-					
-				  
-				endif
+!~                         if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
+                        if (PropParticulate .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
+                            MassToBottom(i,j) = PropertyMassOld
+                        endif  
+                        
+                        !IT IS NEEDED A FORMULATION SIMILAR FOR DISSOLVED PROPERTIES IF EVAPORATION REMOVES ALL WATER
+                        !COLUMN IN ONE TIME STEP. THIS MAY BE DONE WITH MASS MATRIX HERE AND IN RUNOFFPROPERTIES
+                        !The problem is that RunoffProperties has to update mass even if cell returned no water because
+                        !the water may have been removed by infiltration.
+                                                  
+                    endif                
+                    
+                  
+                endif
 
-			enddo
-			enddo
+            enddo
+            enddo
 
-			call UngetRunoffProperties(Me%ObjRunoffProperties, RPConcentration, STAT_Call)
-			if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR40'
+            call UngetRunoffProperties(Me%ObjRunoffProperties, RPConcentration, STAT_Call)
+            if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR40'
 
-			!Send new conc to RP module - the beholder of the concentrations
-			call SetBasinConcRP (RunoffPropertiesID        = Me%ObjRunoffProperties,       &
-								   BasinConcentration      = NewRPConcentration,           &
-								   PropertyXIDNumber       = PropID,                       &
-								   MassToBottom            = MassToBottom,                 &
-								   STAT                    = STAT_CALL)        
-			if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR70'
-			
-			deallocate(MassInFlow)
-			deallocate(NewRPConcentration)
-			deallocate(MassToBottom)
+            !Send new conc to RP module - the beholder of the concentrations
+            call SetBasinConcRP (RunoffPropertiesID        = Me%ObjRunoffProperties,       &
+                                   BasinConcentration      = NewRPConcentration,           &
+                                   PropertyXIDNumber       = PropID,                       &
+                                   MassToBottom            = MassToBottom,                 &
+                                   STAT                    = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR70'
+            
+            deallocate(MassInFlow)
+            deallocate(NewRPConcentration)
+            deallocate(MassToBottom)
             
         enddo
 

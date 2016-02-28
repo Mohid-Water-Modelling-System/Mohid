@@ -1243,7 +1243,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         CurrNode => Me%Nodes(NodeID)
                         BottomMass = 0.0
 !~                         if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
-						if (Property%ID%IsParticulate .and. (Property%ComputeOptions%BottomFluxes)) then
+                        if (Property%ID%IsParticulate .and. (Property%ComputeOptions%BottomFluxes)) then
                             ![kg] = [kg/m2] * [m2]
                             BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
                         else
@@ -4837,7 +4837,7 @@ if2:        if (NewProperty%Toxicity%Evolution == Saturation .OR.               
 
         if (NewProperty%ComputeOptions%BottomFluxes) then
 !~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-			if (.not. NewProperty%ID%IsParticulate) then
+            if (.not. NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
                 write(*,*) 'recognised as PARTICULATE'
                 stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR100' 
@@ -4848,7 +4848,7 @@ if2:        if (NewProperty%Toxicity%Evolution == Saturation .OR.               
        !have Bottom Fluxes because if all water exits node the mass needs to go somewhere
        !and so needs the bottom concentration 
 !~         if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
-		if (NewProperty%ID%IsParticulate .and. .not. NewProperty%ComputeOptions%BottomFluxes) then
+        if (NewProperty%ID%IsParticulate .and. .not. NewProperty%ComputeOptions%BottomFluxes) then
             write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not BOTTOM_FLUXES ON'
             write(*,*) 'but is recognised by the model as particulate.'
             write(*,*) 'Particulated recognized properties can accumulate in bottom and'
@@ -5103,7 +5103,7 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
 
         if (NewProperty%ComputeOptions%SumTotalConc) then
 !~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-			if (.not. NewProperty%ID%IsParticulate) then
+            if (.not. NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
                 write(*,*) 'recognised as PARTICULATE and does not have Bottom_ or total_Conc'
                 stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR16b' 
@@ -8367,7 +8367,7 @@ if0:    if (Me%HasProperties) then
             
             if (present (Particulate)) then
 !~                 Particulate = Check_Particulate_Property(CurrProp%ID%IDNumber)
-				Particulate = CurrProp%ID%IsParticulate
+                Particulate = CurrProp%ID%IsParticulate
             endif
             
             if (present (OutputName)) then
@@ -9736,7 +9736,7 @@ do2 :   do while (associated(PropertyX))
                         CurrNode => Me%Nodes(NodeID)
                         BottomMass = 0.0
 !~                         if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
-						if (Property%ID%IsParticulate .and. Property%ComputeOptions%BottomFluxes) then
+                        if (Property%ID%IsParticulate .and. Property%ComputeOptions%BottomFluxes) then
                             ![kg] = [kg/m2] * [m2]
                             BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
                         else
@@ -10484,7 +10484,7 @@ if2:        if (Volume > PoolVolume) then
         integer                                     :: STAT_CALL
         logical                                     :: VariableDT
         real                                        :: nextDTCourant, aux
-        real                                        :: nextDTVariation, MaxDT, CurrentDT
+        real                                        :: nextDTVariation, MaxDT
         logical                                     :: DTHasDecreased
 
         !-----------------------------------------------------------------------
@@ -10920,12 +10920,12 @@ if2:        if (Volume > PoolVolume) then
                         NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + Me%GroundVector (NodeID) * LocalDT
                     else
                         NodeInt%GWFlowVolume = 0.0
-	                    do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
-	
-		                    NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + &
+                        do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+    
+                            NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + &
                                                    (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) * &
-							                        LocalDT)             
-	                    enddo
+                                                    LocalDT)             
+                        enddo
                     endif
                 endif
             enddo            

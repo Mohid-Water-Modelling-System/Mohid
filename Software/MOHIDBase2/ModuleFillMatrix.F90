@@ -576,8 +576,8 @@ Module ModuleFillMatrix
         !Local-------------------------------------------------------------------
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
         integer                                         :: PredictDTMethod_, Referential
-		type (T_PropertyID), pointer                    :: Prop
-		
+        type (T_PropertyID), pointer                    :: Prop
+
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -601,7 +601,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateInstance
             
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
-			if (PropertyID%IsVectorial) then
+            if (PropertyID%IsVectorial) then
                 write(*,*) 'Constructing vectorial property but expected scalar'
                 stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR00'
             endif
@@ -651,7 +651,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !!get the orginal field. will be given to user to output
 !~             if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
-			if (Me%PropertyID%IsAngle) then
+            if (Me%PropertyID%IsAngle) then
                 Me%AngleProp = .true.
                 if (.not. present(Matrix2DInputRef)) then
                     write(*,*) 'Constructing angle property but not given original field'
@@ -824,7 +824,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%VectorialProp = .true.
             
 !~             if (.not. Check_Vectorial_Property(PropertyID%IDNumber)) then
-			if (.not. PropertyID%IsVectorial) then
+            if (.not. PropertyID%IsVectorial) then
                 write(*,*) 'Constructing scalar property but expected vectorial'
                 stop 'ConstructFillMatrix2DVectorial - ModuleFillMatrix - ERR00'
             endif            
@@ -1041,7 +1041,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateInstance
 
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
-			if (PropertyID%IsVectorial) then
+            if (PropertyID%IsVectorial) then
                 write(*,*) 'Constructing vectorial property but expected scalar'
                 stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR00'
             endif               
@@ -1096,7 +1096,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !!get the orginal field. will be given to user to output
 !~             if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
-			if (Me%PropertyID%IsAngle) then
+            if (Me%PropertyID%IsAngle) then
                 Me%AngleProp = .true.
                 if (.not. present(Matrix3DInputRef)) then
                     write(*,*) 'Constructing angle property but not given original field'
@@ -1287,7 +1287,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%VectorialProp = .true.
 
 !~             if (.not. Check_Vectorial_Property(PropertyID%IDNumber)) then
-			if (.not. PropertyID%IsVectorial) then
+            if (.not. PropertyID%IsVectorial) then
                 write(*,*) 'Constructing scalar property but expected vectorial'
                 stop 'ConstructFillMatrix3DVectorial - ModuleFillMatrix - ERR00'
             endif                                     
@@ -1537,7 +1537,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR010'
 
-		!write(*,*) trim(adjustl(AuxString))
+        !write(*,*) trim(adjustl(AuxString))
 
         select case (trim(adjustl(AuxString)))
             case ("None",       "NONE", "none")
@@ -1557,11 +1557,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 stop 'ReadOptions - ModuleFillMatrix - ERR020'
         end select
 
-		!write (*,*) Me%TimeEvolution
+        !write (*,*) Me%TimeEvolution
         
         if (Me%ArgumentFileName) Me%TimeEvolution    = ReadHDF
 
-		!write (*,*) Me%TimeEvolution
+        !write (*,*) Me%TimeEvolution
 
 
         if(Me%TimeEvolution == None)then
@@ -1574,7 +1574,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR030'
 
-			!write(*,*) trim(adjustl(AuxString))
+            !write(*,*) trim(adjustl(AuxString))
 
             select case (trim(adjustl(AuxString)))
                 case ("Constant",   "CONSTANT",   "constant")
@@ -7180,7 +7180,7 @@ if2D:   if (Me%Dim == Dim2D) then
             call Read_Lock(mFILLMATRIX_, Me%InstanceID)
             
 !~             if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
-			if (Me%PropertyID%IsAngle) then
+            if (Me%PropertyID%IsAngle) then
                 Field = Me%Matrix2DFieldAngle
             else
                 Field => null()          
@@ -7221,7 +7221,7 @@ if2D:   if (Me%Dim == Dim2D) then
             call Read_Lock(mFILLMATRIX_, Me%InstanceID)
             
 !~             if (Check_Angle_Property(Me%PropertyID%IDNumber)) then
-			if (Me%PropertyID%IsAngle) then
+            if (Me%PropertyID%IsAngle) then
                 Field = Me%Matrix3DFieldAngle
             else
                 Field => null()          

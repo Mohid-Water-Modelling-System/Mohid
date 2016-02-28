@@ -91,17 +91,17 @@ Module ModuleWaves
                                        UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID,       &
                                        GetDDecompON, WriteHorizontalGrid,                       &
                                        GetGridOutBorderPolygon
-    use ModuleFillMatrix!,       only : ConstructFillMatrix, ModifyFillMatrix,           		&
+    use ModuleFillMatrix!,       only : ConstructFillMatrix, ModifyFillMatrix,                   &
                         !               GetIfMatrixRemainsConstant, KillFillMatrix 
-    use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry, 					&
-	                                   GetGeometryDistances, GetGeometrySize
-    use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData,     		&
+    use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry,                     &
+                                       GetGeometryDistances, GetGeometrySize
+    use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData,             &
                                        HDF5FlushMemory, GetHDF5FileAccess, KillHDF5
     use ModuleGridData,         only : GetGridData, UngetGridData, WriteGridData   
-    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,   		&
-                                       GetTimeSerieLocation, CorrectsCellsTimeSerie,    		&
-                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie, 				&
-									   GetTimeSerieName
+    use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,           &
+                                       GetTimeSerieLocation, CorrectsCellsTimeSerie,            &
+                                       GetNumberOfTimeSeries, TryIgnoreTimeSerie,                 &
+                                       GetTimeSerieName
     use ModuleDrawing         
 
     implicit none
@@ -547,7 +547,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             call ConstructPropertyIDOnFly (PropertyID = Me%WavePeriod%ID,               &
                                            name = GetPropertyName(MeanWavePeriod_),     &
-                                           IsDynamic = .false.,							&
+                                           IsDynamic = .false.,                            &
                                            IDNumber = MeanWavePeriod_)
 
             !Me%WavePeriod%ID%Name     = GetPropertyName(MeanWavePeriod_)
@@ -599,7 +599,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ConstructPropertyIDOnFly (PropertyID = Me%WaveDirection%ID,            &
                                            Name = GetPropertyName(MeanWaveDirection_),  &
-                                           IsDynamic = .false.,							&
+                                           IsDynamic = .false.,                            &
                                            IDNumber = MeanWaveDirection_)
 
             !Me%WaveDirection%ID%Name     = GetPropertyName(MeanWaveDirection_)
@@ -625,7 +625,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ConstructPropertyIDOnFly (PropertyID = Me%WaveLength%ID,               &
                                            Name = GetPropertyName(MeanWaveLength_),     &
-                                           IsDynamic = .false.,							&
+                                           IsDynamic = .false.,                            &
                                            IDNumber = MeanWaveLength_)
                                            
             !Me%WaveLength%ID%Name     = GetPropertyName(MeanWaveLength_)
@@ -675,7 +675,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ConstructPropertyIDOnFly (PropertyID = Me%RadiationStress%ID,          &
                                            Name = GetPropertyName(WaveStress_),         &
-                                           IsDynamic = .false.,							&
+                                           IsDynamic = .false.,                            &
                                            IDNumber = WaveStress_)
             
             !Me%RadiationStress%ID%Name     = GetPropertyName(WaveStress_)
@@ -884,7 +884,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             
 !~             if (Check_Vectorial_Property(WaveProperty%ID%IDNumber)) then
-			if (WaveProperty%ID%IsVectorial) then
+            if (WaveProperty%ID%IsVectorial) then
                 !converted field to cell referential
                 allocate (WaveProperty%FieldU (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR00'        
@@ -912,7 +912,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 !if angle needs also original field (for output)
 !~                 if (Check_Angle_Property(WaveProperty%ID%IDNumber)) then
-				if (WaveProperty%ID%IsAngle) then				    
+                if (WaveProperty%ID%IsAngle) then                    
                     allocate (WaveProperty%FieldInputRef (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB), STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR05'            
                     WaveProperty%FieldInputRef(:,:) = null_real
@@ -921,7 +921,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif            
             
 !~             if (Check_Vectorial_Property(WaveProperty%ID%IDNumber)) then              
-			if (WaveProperty%ID%IsVectorial) then
+            if (WaveProperty%ID%IsVectorial) then
 
                 call ConstructFillMatrix  (PropertyID           = WaveProperty%ID,                  &
                                            EnterDataID          = Me%ObjEnterData,                  &
@@ -940,7 +940,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 
 !~                 if (Check_Angle_Property(WaveProperty%ID%IDNumber)) then 
-				if (WaveProperty%ID%IsAngle) then
+                if (WaveProperty%ID%IsAngle) then
                     
                     call ConstructFillMatrix  (PropertyID           = WaveProperty%ID,                  &
                                                EnterDataID          = Me%ObjEnterData,                  &
