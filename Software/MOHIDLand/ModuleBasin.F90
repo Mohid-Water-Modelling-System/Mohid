@@ -7797,7 +7797,11 @@ cd2 :           if (BlockFound) then
                                             PropertyID              = PropertyX%ID%IDNumber,        &
                                             TotalStoredMass         = PMPTotalStoredMass,           &
                                             STAT                    = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'CalculateMass - ModuleBasin - ERR03'
+                    if (STAT_CALL /= SUCCESS_) then
+                        print *, "Property '", trim(PropertyX%ID%Name), "' is set in RunOffProperties with"
+                        print *, "Advection/Diffusion ON, but it was not found in PorousMediaProperties"
+                        stop 'CalculateMass - ModuleBasin - ERR03'
+                    endif
                     
                     if (Time == "Initial") then
                         PropertyX%MB%InitialPMPStoredMass = PMPTotalStoredMass
@@ -7825,7 +7829,11 @@ cd2 :           if (BlockFound) then
                                            PropertyID        = PropertyX%ID%IDNumber,                &
                                            TotalStoredMass   = DNTotalStoredMass,                    &
                                            STAT              = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'CalculateMass - ModuleBasin - ERR05'
+                    if (STAT_CALL /= SUCCESS_) then
+                        print *, "Property '", trim(PropertyX%ID%Name), "' is set in RunOffProperties with"
+                        print *, "Advection/Diffusion ON, but it was not found in DrainageNetwork"
+                        stop 'CalculateMass - ModuleBasin - ERR05'
+                    endif
                     
                     if (Time == "Initial") then
                         PropertyX%MB%InitialDNStoredMass = DNTotalStoredMass

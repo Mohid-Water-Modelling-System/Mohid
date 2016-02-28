@@ -2024,7 +2024,7 @@ cd2 :           if (BlockFound) then
                 write(*,*) 'and can not have ADVECTION_DIFFUSION ON in Porus Media Properties'
                 stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR030'      
 !~             elseif (Check_Particulate_Property(NewProperty%ID%IDNumber)) then
-			elseif (NewProperty%ID%IsParticulate) then
+            elseif (NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not PARTICULATE option ON'
                 write(*,*) 'but is recognized by the model as being particulate tupe'
                 write(*,*) 'and can not have ADVECTION_DIFFUSION ON in Porus Media Properties'
@@ -5300,7 +5300,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 
                 STAT_CALL = SUCCESS_
             else
-                stop 'GetPMPMassBalance - ModulePorousMediaProperties - ERR01'
+                print *, "The property with id '", PropertyID, "' was not found" 
+                print *, "GetPMPMassBalance - ModulePorousMediaProperties - WRN 010"
+                STAT_CALL = STAT_
             endif
         else 
             STAT_CALL = ready_

@@ -8723,7 +8723,9 @@ if0:    if (Me%HasProperties) then
 !                if (present (TotalOverTopMass     )) TotalOverTopMass     = Property%MB%TotalOverTopMass
                 STAT_CALL = SUCCESS_
             else
-                stop 'GetDNMassBalance - ModuleDrainageNetworkProperties - ERR01'            
+                print *, "The property with id '", PropertyID, "' was not found" 
+                print *, 'GetDNMassBalance - ModuleDrainageNetworkProperties - WRN 010'  
+                STAT_CALL = STAT_
             endif
         else 
             STAT_CALL = ready_
