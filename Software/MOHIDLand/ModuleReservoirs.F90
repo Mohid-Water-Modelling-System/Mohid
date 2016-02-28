@@ -1607,7 +1607,7 @@ cd2 :           if (BlockFound) then
         
         if (NewProperty%ComputeOptions%BottomFluxes) then
 !~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-			if(.not. NewProperty%ID%IsParticulate) then
+            if(.not. NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
                 write(*,*) 'recognised as PARTICULATE'
                 stop 'ModuleReservoirs - ConstructPropertyValues - ERR100' 
@@ -1618,7 +1618,7 @@ cd2 :           if (BlockFound) then
        !have Bottom Fluxes because if all water exits reservoir the mass needs to go somewhere
        !and so needs the bottom concentration 
 !~         if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
-		if (.not. NewProperty%ID%IsParticulate .and. (.not. NewProperty%ComputeOptions%BottomFluxes)) then 
+       if (.not. NewProperty%ID%IsParticulate .and. (.not. NewProperty%ComputeOptions%BottomFluxes)) then 
             write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not BOTTOM_FLUXES ON'
             write(*,*) 'but is recognised by the model as particulate.'
             write(*,*) 'Particulated recognized properties can accumulate in bottom and'
@@ -1873,7 +1873,7 @@ ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
 
         if (NewProperty%ComputeOptions%SumTotalConc) then
 !~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-			if (.not. NewProperty%ID%IsParticulate) then
+            if (.not. NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
                 write(*,*) 'recognised as PARTICULATE and does not have Bottom_ or total_Conc'
                 stop 'ModuleReservoirs - ConstructPropertyValues - ERR16b' 
@@ -2379,7 +2379,7 @@ cd0:    if (Exist) then
                         endif
                     
                         call KillTimeSerie (ObjTimeSerie, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR30'                        
+                        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR30'
                         
                     endif
                     
@@ -3475,7 +3475,7 @@ if0:    if (Me%HasProperties) then
             
             if (present (Particulate)) then
 !~                 Particulate = Check_Particulate_Property(CurrProp%ID%IDNumber)
-				Particulate = CurrProp%ID%IsParticulate
+                Particulate = CurrProp%ID%IsParticulate
             endif
             
             if (present (OutputName)) then
@@ -3924,8 +3924,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                     
                             iProp = iProp + 1
                     
-                            Concentration = DischargeProperty (Me%ReservoirDischargeFlow(iDis), Me%ReservoirDischargeConc(iDis, iProp), &
-                                                                            CurrReservoir,  Property, Property%IScoefficient, .false.) 
+                            Concentration = DischargeProperty (Me%ReservoirDischargeFlow(iDis), & 
+                                                               Me%ReservoirDischargeConc(iDis, iProp), &
+                                                               CurrReservoir,  Property, Property%IScoefficient, .false.) 
                     
                             !instant mixing in case of positive discharge, if neative it does not matter
                             if (Me%ReservoirDischargeFlow(iDis) .le. 0.0     &
@@ -3946,8 +3947,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                     Property%Concentration(CurrReservoir%Position) = Concentration
                             
                                 else                            
-                                    Property%Concentration(CurrReservoir%Position) = Property%Concentration(CurrReservoir%Position) &
-                                                                                      + (ConcDif * Me%ExtVar%DT / RetentionTime)
+                                    Property%Concentration(CurrReservoir%Position) = &
+                                        Property%Concentration(CurrReservoir%Position) &
+                                        + (ConcDif * Me%ExtVar%DT / RetentionTime)
                                 endif                                                           
                         
                             endif
@@ -4690,11 +4692,13 @@ if2:            if (Me%HasProperties) then
                     CurrReservoir => Me%FirstReservoir
                     do while (associated(CurrReservoir))
                 
-                        ReservoirConc(CurrReservoir%GridI, CurrReservoir%GridJ) = CurrProperty%Concentration(CurrReservoir%Position) 
+                        ReservoirConc(CurrReservoir%GridI, CurrReservoir%GridJ) = &
+                            CurrProperty%Concentration(CurrReservoir%Position) 
                                         
                         if(CurrProperty%ComputeOptions%BottomFluxes) then 
                         
-                            ReservoirBottomConc(CurrReservoir%GridI,CurrReservoir%GridJ)= CurrProperty%BottomConc(CurrReservoir%Position)
+                            ReservoirBottomConc(CurrReservoir%GridI,CurrReservoir%GridJ) = &
+                                CurrProperty%BottomConc(CurrReservoir%Position)
                         
                         endif
                         CurrReservoir => CurrReservoir%Next

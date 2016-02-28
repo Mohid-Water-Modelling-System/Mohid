@@ -1945,7 +1945,7 @@ cd2 :           if (BlockFound) then
 
 !~         if (NewProperty%Particulate)then
 !~             !if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-!~ 			if(.not. NewProperty%ID%IsParticulate) then
+!~             if(.not. NewProperty%ID%IsParticulate) then
 !~                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
 !~                 write(*,*) 'recognised as PARTICULATE'
 !~                 stop 'Construct_PropertyState - ModulePorousMediaProeprties - ERR020'
@@ -2024,7 +2024,7 @@ cd2 :           if (BlockFound) then
                 write(*,*) 'and can not have ADVECTION_DIFFUSION ON in Porus Media Properties'
                 stop 'Construct_PropertyEvolution - ModulePorousMediaProeprties - ERR030'      
 !~             elseif (Check_Particulate_Property(NewProperty%ID%IDNumber)) then
-			elseif (NewProperty%ID%IsParticulate) then
+            elseif (NewProperty%ID%IsParticulate) then
                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not PARTICULATE option ON'
                 write(*,*) 'but is recognized by the model as being particulate tupe'
                 write(*,*) 'and can not have ADVECTION_DIFFUSION ON in Porus Media Properties'
@@ -3334,7 +3334,7 @@ do1:    do while(associated(Property))
                     stop 'ConstructPartition - ModulePorousMediaProperties - ERR10'
                 else
 !~                     if(.not. Check_Particulate_Property (Couple_ID)) then
-					if (.not. ParticulateProperty%ID%IsParticulate) then
+                    if (.not. ParticulateProperty%ID%IsParticulate) then
                         write(*,*)
                         write(*,*) 'Couple property', trim(GetPropertyName(Couple_ID))
                         write(*,*) 'is not recognized by the model as being particulate'
@@ -5300,7 +5300,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 
                 STAT_CALL = SUCCESS_
             else
-                stop 'GetPMPMassBalance - ModulePorousMediaProperties - ERR01'
+                print *, "The property with id '", PropertyID, "' was not found" 
+                print *, "GetPMPMassBalance - ModulePorousMediaProperties - WRN 010"
+                STAT_CALL = STAT_
             endif
         else 
             STAT_CALL = ready_
@@ -11248,7 +11250,7 @@ do1 :   do while (associated(Property))
         if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then            
     
 !~             if (Check_Particulate_Property(Property%ID%IDNumber)) then
-			if (Property%ID%IsParticulate) then
+            if (Property%ID%IsParticulate) then
 
                 call SearchProperty(SoilDryDensity, SoilDryDensity_, .false., STAT = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'DecayFirstOrder - ModulePorousMediaProperties - ERR01'
@@ -11963,7 +11965,7 @@ First:          if (LastTime.LT.Actual) then
         PropertyX%AverageVadozeConc  = null_real
         
 !~         if (Check_Particulate_Property(PropertyX%ID%IDNumber)) then
-		if (PropertyX%ID%IsParticulate) then
+        if (PropertyX%ID%IsParticulate) then
 
             call SearchProperty(SoilDryDensity, SoilDryDensity_        , .false., STAT = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ComputeAverageConc - ModulePorousMediaProperties - ERR003'
@@ -12194,7 +12196,7 @@ First:          if (LastTime.LT.Actual) then
         DT = Me%ExtVar%DT/86400.
 
 !~         if (Check_Particulate_Property(PropertyX%ID%IDNumber)) then
-		if (PropertyX%ID%IsParticulate) then
+        if (PropertyX%ID%IsParticulate) then
 
             call SearchProperty(SoilDryDensity, SoilDryDensity_        , .false., STAT = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ComputeIntegratedDecay - ModulePorousMediaProperties - ERR003'
@@ -12311,7 +12313,7 @@ First:          if (LastTime.LT.Actual) then
                 Me%CellMass(:,:,:) = 0.
                 
 !~                 if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
-				if (CurrProperty%ID%IsParticulate) then
+                if (CurrProperty%ID%IsParticulate) then
 
                     CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                     !$OMP PARALLEL PRIVATE(I,J,K, ConversionFactor)
@@ -12725,7 +12727,7 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         do while (associated(CurrProperty)) 
             
 !~             if (Check_Particulate_Property(CurrProperty%ID%IDNumber)) then
-			if (CurrProperty%ID%IsParticulate) then
+            if (CurrProperty%ID%IsParticulate) then
                
                 do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
