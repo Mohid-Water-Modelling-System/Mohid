@@ -4987,7 +4987,7 @@ cd1:    if(Me%CDWINDmethod == Constant)then
                     PropWindStress%FieldU(I,J) = Coef * UWIND(I,J)
 
                     !Mellor, Introduction to Physical Oceanography, p52 (1996)---------
-                    PropWindStress%FieldU(I,J) = Coef * VWIND(I,J)
+                    PropWindStress%FieldV(I,J) = Coef * VWIND(I,J)
 
                 endif
 
