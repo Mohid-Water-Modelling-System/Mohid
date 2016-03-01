@@ -4646,13 +4646,13 @@ i2:     if (Me%Dim == Dim2D) then
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL, i
         integer                                         :: iflag, file, column
-        character(len = StringLength), dimension(3)     :: Filename, DataColumn = " "
+        character(len = StringLength), dimension(3)     :: Filename   = " "
+        character(len = StringLength), dimension(3)     :: DataColumn = " "
         type(T_TimeSerie), pointer                      :: CurrentTimeSerie, NewTimeSerie
         integer                                         :: nTimeSeries   = 1
         logical                                         :: exist
         !Begin----------------------------------------------------------------
         
-        FileName(:) = " "
         Me%nTimeSeries = 0
         nTimeSeries   = 1
         !Gets the name of the data file
@@ -5165,12 +5165,13 @@ i0:     if(Me%Dim == Dim2D)then
         integer                                         :: STAT_CALL, iflag, i
         integer                                         :: ILB, IUB, JLB, JUB
         logical                                         :: MasterOrSlave, LastGroupEqualField
-        character(len = StringLength), dimension(3)     :: Filename, FieldName = " "
+        character(len = StringLength), dimension(3)     :: Filename   = " "        
+        character(len = StringLength), dimension(3)     :: FieldName = " "
         type(T_Field4D), pointer                        :: NewHDF, CurrentHDF
         integer                                         :: nHDFs           = 1
         logical                                         :: exist
         !Begin-----------------------------------------------------------------           
-        FileName(:) = " "
+
         Me%nHDFs = 0
         nHDFs           = 1
         
