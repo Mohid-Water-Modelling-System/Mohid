@@ -622,10 +622,10 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !$       openmp_num_threads = omp_get_max_threads()
             !$       write(*,*)"OPENMP: Using the max number of threads available"
             !$    endif
-            !$ else
-            !$    if ( openmp_num_threads .gt. 0 ) then
-            !$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
-            !$    endif
+            !!$ else
+            !!$    if ( openmp_num_threads .gt. 0 ) then
+            !!$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
+            !!$    endif
             !$ endif
 
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)
