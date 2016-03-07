@@ -16219,7 +16219,8 @@ iMP:                if (MovePartic) then
         
         !Local--------------------------------------------------------------------------
         integer                                     :: nn, lp
-        real                                        :: LineAngle, AuxAngle, IntersectVel        
+        real                                        :: LineAngle, AuxAngle, IntersectVel
+        real                                        :: CurrentIntensity
         type (T_PointF),   pointer                  :: ParticPoint, LinePoint
         type (T_Lines),    pointer                  :: CurrLine
         logical                                     :: ParticleInsideBuffer
@@ -16296,10 +16297,15 @@ dolp:                   do lp = 1, CurrLine%nNodes
                             LineX   = Me%Booms%Individual(nn)%Lines,        &    
                             LineAng = LineAngle)) then                                            
                             
-                            AuxAngle = atan2(CurrentPartic%CurrentY,CurrentPartic%CurrentX) - (LineAngle+Pi/2.)
-                        
-                            IntersectVel = abs(cos(AuxAngle) * sqrt(CurrentPartic%CurrentX**2+ &
-                                                                    CurrentPartic%CurrentY**2))
+                            CurrentIntensity = sqrt(CurrentPartic%CurrentX**2 + CurrentPartic%CurrentY**2)
+                            
+                            if (CurrentIntensity > 0.) then
+                                AuxAngle         = atan2(CurrentPartic%CurrentY,CurrentPartic%CurrentX) - (LineAngle+Pi/2.)
+                            else
+                                AuxAngle         = 0.
+                            endif                   
+                                         
+                            IntersectVel     = abs(cos(AuxAngle) * CurrentIntensity)
                         
                             if (CurrentPartic%WaveHeight < Me%Booms%Individual(nn)%WaveLimit .and. &
                                 IntersectVel             < Me%Booms%Individual(nn)%VelLimit) then
@@ -26990,10 +26996,19 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                         end if
                     endif
                     
-                    WindIntensityInKnots    = sqrt((WindX)**2. + (WindY)**2.) * 19.4384449411995
-                    CurrentsIntensityInKnots= sqrt((U)**2. + (V)**2.) * 19.4384449411995
-                    CurrentsDirection       = atan2(u,v) * 180. / Pi + 180
-                    WindDirection           = atan2(WindX,WindY) * 180. / Pi + 180
+                    WindIntensityInKnots     = sqrt((WindX)**2. + (WindY)**2.) * 19.4384449411995
+                    CurrentsIntensityInKnots = sqrt((U)**2. + (V)**2.) * 19.4384449411995
+                    if (CurrentsIntensityInKnots > 0.) then
+                        CurrentsDirection    = atan2(u,v) * 180. / Pi + 180
+                    else
+                        CurrentsDirection    = 0.
+                    endif    
+                    
+                    if (WindIntensityInKnots > 0.) then
+                        WindDirection        = atan2(WindX,WindY) * 180. / Pi + 180
+                    else
+                        WindDirection        = 0.
+                    endif                        
                     
                     WaterTemperature        = Temperature3D             (i, j, k)
 
