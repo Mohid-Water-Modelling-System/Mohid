@@ -12659,6 +12659,9 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+                        
+                        AngleX = 0. 
+                        AngleY = Pi / 2.
 
                         if      (Me%Distortion) then 
                 
@@ -12773,6 +12776,9 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+                        
+                        AngleX = 0. 
+                        AngleY = Pi / 2.                        
 
                         if      (Me%Distortion) then 
                 
@@ -12885,6 +12891,8 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+                        
+                        GridAngle = 0.
 
                         if      (Me%Distortion) then 
                             
@@ -12892,7 +12900,7 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) / 180. * Pi
 
-                        else !if (Me%RegularRotation) then
+                        else if (Me%RegularRotation) then
 
                             GridAngle = Me%Grid_Angle 
 
@@ -12984,6 +12992,8 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+                        
+                        GridAngle = 0.                        
 
                         if      (Me%Distortion) then 
                             
@@ -12991,7 +13001,7 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) / 180. * Pi
 
-                        else !if (Me%RegularRotation) then
+                        else if (Me%RegularRotation) then
 
                             GridAngle = Me%Grid_Angle 
 
@@ -13085,6 +13095,9 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+                        
+                        AngleX = 0. 
+                        AngleY = Pi / 2.
 
                         if      (Me%Distortion) then 
                 
@@ -13201,7 +13214,10 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-
+                        
+                        AngleX = 0. 
+                        AngleY = Pi / 2.
+                        
                         if      (Me%Distortion) then 
                 
                             AngleX = Me%RotationX(i, j)
@@ -13312,6 +13328,8 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+                        
+                        GridAngle = 0.
 
                         if      (Me%Distortion) then 
                             
@@ -13319,7 +13337,7 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) * 180. / Pi
 
-                        else !if (Me%RegularRotation) then
+                        else if (Me%RegularRotation) then
 
                             GridAngle = Me%Grid_Angle 
 
@@ -13411,6 +13429,8 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+                        
+                        GridAngle = 0.
 
                         if      (Me%Distortion) then 
                             
@@ -13418,7 +13438,7 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) * 180. / Pi
 
-                        else !if (Me%RegularRotation) then
+                        else if (Me%RegularRotation) then
 
                             GridAngle = Me%Grid_Angle 
 

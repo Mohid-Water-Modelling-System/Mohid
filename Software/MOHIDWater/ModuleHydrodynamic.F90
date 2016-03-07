@@ -45508,7 +45508,12 @@ cd3:        if (Me%ComputeOptions%Residual) then
             if (Me%External_Var%WaterPoints3D (i,j ,k) == WaterPoint) then
 
                 Me%OutPut%ModulusH  (i, j, k) = abs(cmplx(Me%OutPut%CenterU(i, j, k), Me%OutPut%CenterV(i, j, k)))
-                Me%OutPut%DirectionH(i, j, k) = atan2(Me%OutPut%CenterV(i, j, k), Me%OutPut%CenterU(i, j, k))
+                if (Me%OutPut%ModulusH  (i, j, k) > 0.) then
+                    Me%OutPut%DirectionH(i, j, k) = atan2(Me%OutPut%CenterV(i, j, k), Me%OutPut%CenterU(i, j, k))
+                else
+                    Me%OutPut%DirectionH(i, j, k) = 0.
+                endif              
+                      
                 Me%OutPut%DirectionH(i, j, k) = Me%OutPut%DirectionH(i, j, k) * 180. / Pi
                 !Instituto Hidrografico convention
                 Me%OutPut%DirectionH(i, j, k) = - Me%OutPut%DirectionH(i, j, k) + 90.
@@ -47684,6 +47689,7 @@ i1:     if (STAT_CALL /= SUCCESS_) then
         real,    dimension(:,:),   pointer :: Aux2DReal
         real,    dimension(:,:,:), pointer :: Aux3DReal
         real(8), dimension(:,:,:), pointer :: Aux3DR8
+        logical                            :: Exist
 
         !----------------------------------------------------------------------
         
@@ -48275,15 +48281,26 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
             !if (STAT_CALL /= SUCCESS_) then
             !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR80.')
             !endif
-
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Velocity Vertical Cartesian Old",    &
-                                 Array3D        = Aux3DReal,                            &
-                                 STAT           = STAT_CALL)
+            
+            call GetHDF5DataSetExist (HDF5ID        = ObjHDF5,                          &
+                                      DataSetName   = "/Results/Velocity Vertical Cartesian Old",&
+                                      Exist         = Exist,                            & 
+                                      STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR480'
             
-            Me%Velocity%Vertical%CartesianOld(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            if (Exist) then
+
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Velocity Vertical Cartesian Old",    &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR490'
+                
+                Me%Velocity%Vertical%CartesianOld(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            else
+                Me%Velocity%Vertical%CartesianOld(ILB:IUB,JLB:JUB,KLB:KUB) = 0.
+            endif                
 
         endif
         
@@ -48305,7 +48322,7 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
                                  Name           = "Submodel qX",                        &
                                  Array3D        = Aux3DR8,                              &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR490'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR500'
             
             Me%SubModel%qX(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
             
@@ -48322,7 +48339,7 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
                                  Name           = "Submodel qY",                        &
                                  Array3D        = Aux3DR8,                              &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR500'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR510'
             
             Me%SubModel%qY(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)            
             
@@ -48341,7 +48358,7 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
 
         call KillHDF5(ObjHDF5, STAT = STAT_CALL) 
         
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR510'
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR520'
 
         deallocate(AuxInt, AuxReal)
         deallocate(Aux2DReal)
