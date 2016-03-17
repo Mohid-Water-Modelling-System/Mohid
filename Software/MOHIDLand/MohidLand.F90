@@ -73,7 +73,9 @@ program MohidLand
     
     !Other Stuff
     type (T_Time)                       :: InitialSystemTime, FinalSystemTime
+    type (T_Time)                       :: InitialModelTime
     integer, dimension(8)               :: F95Time              = null_int
+    real                                :: LastCPUTime = 0.
     
     !OpenMI flag
     logical                             :: ModelConstructed     = .false.
@@ -346,7 +348,7 @@ program MohidLand
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        !integer                                     :: STAT_CALL
+        integer                                     :: stat_
         !real                                        :: CPUTime, LastCPUTime = 0.
         logical                                      :: one_more = .true.
 
@@ -357,6 +359,15 @@ program MohidLand
         write(*, *)                    
 #endif
 
+        call date_and_time(Values = F95Time)
+        call SetDate      (InitialModelTime, float(F95Time(1)), float(F95Time(2)),      &
+                                              float(F95Time(3)), float(F95Time(5)),      &
+                                              float(F95Time(6)), float(F95Time(7))+      &
+                                              float(F95Time(8))/1000.)
+
+        call SetInitialModelTime (ObjComputeTime, InitialModelTime, stat_)
+        call CPU_TIME(LastCPUTime)
+        
         do while (one_more)
 
             one_more = DoOneTimeStep()
@@ -374,7 +385,7 @@ program MohidLand
         !Local-----------------------------------------------------------------
         real                                        :: NewDT
         integer                                     :: STAT_CALL
-        real                                        :: CPUTime, LastCPUTime = 0.
+        real                                        :: CPUTime
 
         !Actualize the CurrentTime with Model time interval DT
         call ActualizeCurrentTime (TimeID    = ObjComputeTime,      &

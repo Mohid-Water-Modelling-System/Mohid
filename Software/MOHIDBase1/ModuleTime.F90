@@ -39,6 +39,7 @@ Module ModuleTime
 
 
     !Selector
+    public  :: SetInitialModelTime
     public  :: GetComputeTimeStep
     public  :: GetMaxComputeTimeStep
     public  :: GetComputeCurrentTime
@@ -137,6 +138,7 @@ Module ModuleTime
     type      T_ComputeTime
         integer                         :: InstanceID
         type(T_Time   )                 :: InitialSystemTime
+        type(T_Time   )                 :: InitialModelTime
         type(T_Time   )                 :: Begin
         type(T_Time   )                 :: Finish
         type(T_Time   )                 :: Current
@@ -376,6 +378,43 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+    !--------------------------------------------------------------------------
+    
+    subroutine SetInitialModelTime (TimeID, Time, STAT)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TimeID
+        type(T_Time), intent(IN)                    :: Time
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TimeID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Me%InitialModelTime = Time
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+        
+    end subroutine SetInitialModelTime 
+    
     !--------------------------------------------------------------------------
 
     subroutine GetComputeTimeStep(TimeID, DT, STAT)
@@ -2101,13 +2140,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             
             !Gets the current system time
             call DATE_AND_TIME(Values = F95Time)
-            call SetDate(CurrentSystemTime, F95Time(1), F95Time(2), F95Time(3), F95Time(5), F95Time(6), F95Time(7))
+            call SetDate(CurrentSystemTime, float(F95Time(1)), float(F95Time(2)), float(F95Time(3)), &
+                                            float(F95Time(5)), float(F95Time(6)), float(F95Time(7))+ &
+                                            float(F95Time(8))/1000.)
 
+            
+            
             !!Gets the CPU time used until now
             !call CPU_Time(ExecutionTime)
             !CPU execution time gets biased when multi-threading.
             !It's safer to estimate based on the initialSystemTime
-            ExecutionTime = CurrentSystemTime - Me%InitialSystemTime
+            ExecutionTime = CurrentSystemTime - Me%InitialModelTime
 
             if (TimeSimulated > 0.) then
 

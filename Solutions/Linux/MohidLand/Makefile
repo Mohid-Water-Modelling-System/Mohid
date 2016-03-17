@@ -26,7 +26,7 @@
 #
 #------------------------------------------------------------------------------
 
-INCS = -I$(HDF5MODINC) -I$(BASE1INC) -I$(BASE2INC)
+INCS = -I$(HDF5INC) -I$(BASE1INC) -I$(BASE2INC)
 LIBS = $(BASELIBS) $(HDFLIBS)
 SRCDIR = $(SRCREP)/MOHIDLand
 FILES = \
@@ -38,6 +38,9 @@ FILES = \
     ModuleReservoirs.$(S) \
     ModuleSnow.$(S) \
     ModuleVegetation.$(S) \
+    ModuleIrrigation.$(S) \
+    ModuleReservoirs.$(S) \
+    ModuleSnow.$(S) \
     MohidLand.$(S)
 TARGET = MohidLand$(SUFFPROG)
 
@@ -54,6 +57,7 @@ ModuleRunoffProperties.${Obj} 		: ModuleRunOff.${Obj}
 ModuleBasin.${Obj} 			: ModuleRunoffProperties.${Obj} \
                     			  ModulePorousMediaProperties.${Obj} \
                     			  ModuleVegetation.${Obj} \
+                                          ModuleIrrigation.${Obj} \
                                           ModuleReservoirs.${Obj} \
                                           ModuleSnow.${Obj}
 

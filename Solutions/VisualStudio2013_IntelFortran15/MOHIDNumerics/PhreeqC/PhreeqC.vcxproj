@@ -97,6 +97,14 @@
       <Configuration>Release MPI</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release Single|Win32">
+      <Configuration>Release Single</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release Single|x64">
+      <Configuration>Release Single</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{5AEB2DAA-81F0-439A-8EE0-2148D7045B96}</ProjectGuid>

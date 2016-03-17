@@ -323,9 +323,11 @@ Module ModuleVegetation
 
     !Selector
     public  :: GetLeafAreaIndex
+    public  :: GetVegetationAccHU
     public  :: GetPotLeafAreaIndex
     public  :: GetSpecificLeafStorage
     public  :: GetEVTPCropCoefficient
+    public  :: GetLAISenescence
     public  :: GetVegetationDT
     public  :: GetRootDepth
     public  :: GetRootDepthOld
@@ -7621,6 +7623,43 @@ cd0:    if (Exist) then
     
     !--------------------------------------------------------------------------
 
+    subroutine GetVegetationAccHU(VegetationID, Scalar, STAT)
+    
+        !Arguments--------------------------------------------------------------
+        integer                                     :: VegetationID
+        real, dimension(:,:), pointer, optional     :: Scalar
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mVEGETATION_, Me%InstanceID)
+
+            Scalar  => Me%HeatUnits%PlantHUAccumulated
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine GetVegetationAccHU
+    
+    !--------------------------------------------------------------------------
+    
+    
     subroutine GetPotLeafAreaIndex(VegetationID, Scalar, STAT)
                                   
         !Arguments--------------------------------------------------------------
@@ -7729,6 +7768,42 @@ cd0:    if (Exist) then
            
     !--------------------------------------------------------------------------
 
+    subroutine GetLAISenescence(VegetationID, Scalar, STAT)
+                                  
+        !Arguments--------------------------------------------------------------
+        integer                                     :: VegetationID
+        real, dimension(:,:), pointer, optional     :: Scalar
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(VegetationID, ready_) 
+
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mVEGETATION_, Me%InstanceID)
+
+            Scalar  => Me%HeatUnits%PlantHUAccumulated
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetLAISenescence
+    
+    !--------------------------------------------------------------------------
+    
     subroutine GetRootDepth(VegetationID, Scalar, STAT)
                                   
         !Arguments--------------------------------------------------------------

@@ -1221,7 +1221,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         
 !~         if (Check_Vectorial_Property(NewProperty%ID%IDNumber)) then 
-		if (NewProperty%ID%IsVectorial) then
+        if (NewProperty%ID%IsVectorial) then
                         
             allocate(NewProperty%FieldU(SizeILB:SizeIUB, SizeJLB:SizeJUB))
             NewProperty%FieldU(:,:) = FillValueReal
@@ -1339,8 +1339,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         endif
         
         if (NewProperty%ID%IDNumber == LatentHeat_) then
-			!1 - Uses AirTemperature. 2. Calculates SurfaceAirTemperature based on airtemperature and wind velocity
-			!Method 2 created to correct high latent heat losses when WaterTemperature >> AirTemperature
+            !1 - Uses AirTemperature. 2. Calculates SurfaceAirTemperature based on airtemperature and wind velocity
+            !Method 2 created to correct high latent heat losses when WaterTemperature >> AirTemperature
             call GetData (NewProperty%SVPMethod,                                             &
                 Me%ObjEnterData, iflag,                                            &
                 Keyword        = 'SVP_METHOD',                                     &
@@ -1767,7 +1767,7 @@ do1 :   do while (associated(PropertyX))
             if (PropertyX%BoxTimeSerie) then
                 
 !~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
-				if (PropertyX%ID%IsVectorial) then
+                if (PropertyX%ID%IsVectorial) then
                     write(*,*) 'No box time serie available yet to vectorial properties'
                     write(*,*) 'Property : ', trim(PropertyX%ID%Name)
                     stop 'Construct_Sub_Modules - ModuleInterfaceWaterAir - ERR01'
@@ -1825,7 +1825,7 @@ do1 :   do while (associated(PropertyX))
             if (PropertyX%TimeSerie) then
                 nProperties = nProperties + 1
 !~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
-				if (PropertyX%ID%IsVectorial) then
+                if (PropertyX%ID%IsVectorial) then
                     nProperties = nProperties + 1  !x and y comp
                 endif
             endif
@@ -1845,7 +1845,7 @@ do1 :   do while (associated(PropertyX))
                 if (PropertyX%TimeSerie) then
                     
 !~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
-					if (PropertyX%ID%IsVectorial) then
+                    if (PropertyX%ID%IsVectorial) then
                         nProperties = nProperties + 1
                         PropertyList(nProperties) = trim(adjustl(PropertyX%ID%name)//" X")
                         nProperties = nProperties + 1
@@ -4987,7 +4987,7 @@ cd1:    if(Me%CDWINDmethod == Constant)then
                     PropWindStress%FieldU(I,J) = Coef * UWIND(I,J)
 
                     !Mellor, Introduction to Physical Oceanography, p52 (1996)---------
-                    PropWindStress%FieldU(I,J) = Coef * VWIND(I,J)
+                    PropWindStress%FieldV(I,J) = Coef * VWIND(I,J)
 
                 endif
 
@@ -5654,7 +5654,7 @@ do4:    do i=ILB, IUB
                 
                 !vectorial property - need to get data in user referential - X and Y
 !~                 if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then 
-				if (PropertyX%ID%IsVectorial) then
+                if (PropertyX%ID%IsVectorial) then
 
                     call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldX, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleInterfaceWaterAir - ERR010'
@@ -5845,7 +5845,7 @@ PropX:          do while (associated(PropertyX))
                             
                             !vectorial property - need to get data in user referential - X and Y
 !~                             if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
-							if (PropertyX%ID%IsVectorial) then
+                            if (PropertyX%ID%IsVectorial) then
                                 
                                 !get the correct names of the properties
                                 call Get_Vectorial_PropertyNames(PropertyX%ID%IDNumber, PropertyNameX, PropertyNameY)    
@@ -6412,7 +6412,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     
                     
 !~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
-					if (PropertyX%ID%IsVectorial) then
+                    if (PropertyX%ID%IsVectorial) then
                         
                         deallocate(PropertyX%FieldU,   STAT = STAT_CALL) 
                         if(STAT_CALL .ne. SUCCESS_) stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR146'    

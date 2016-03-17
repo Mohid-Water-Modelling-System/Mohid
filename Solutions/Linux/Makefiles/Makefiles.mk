@@ -11,7 +11,7 @@ $(TARGET) : $(OBJS) $(LIBS)
 	@echo  
 	@echo Build with compilation flags $(CCFLAGS) $(INCS)
 	@echo 
-ifeq ($(SUFF),$(SUFFLIB))
+ifeq ($(SUFF),$(SUFFLIB))	
 	$(AR) $@ $^
 else
 	$(CC) $(LFLAGS) -o $@ $^ $(LLFLAGS)

@@ -157,6 +157,7 @@ Module ModulePorousMedia
     public  ::  GetUnsatWFinal
 !    public  ::  GetWaterColumn
     public  ::  GetWaterContent
+    public  ::  GetRelativeWaterContent
     public  ::  GetHead
     public  ::  GetThetaR
     public  ::  GetThetaS
@@ -176,6 +177,8 @@ Module ModulePorousMedia
     public  ::  GetBoundaryFluxWalls
     public  ::  GetBoundaryFluxBottom
     public  ::  GetBoundaryCells
+    public  ::  GetWaterContentForHead
+    public  ::  GetPMObjMap
     public  ::  UnGetPorousMedia
     
     !Modifier
@@ -1244,7 +1247,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR190'
 
         !IN PROGRESS
-		!Sets Integrated Output Time 
+        !Sets Integrated Output Time 
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime = Me%ExtVar%Now,                                 &
                            EndTime     = Me%EndTime,                                    &
@@ -5184,7 +5187,37 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     end subroutine GetWaterContent
 
     !--------------------------------------------------------------------------
+    
+    subroutine GetRelativeWaterContent (ObjPorousMediaID, RWC, STAT)
 
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ObjPorousMediaID
+        real,    pointer, dimension(:,:,:)              :: RWC
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        
+        call Ready(ObjPorousMediaID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mPorousMedia_, Me%InstanceID)
+            
+            RWC => Me%RC%ThetaF
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetRelativeWaterContent
+    
+    !--------------------------------------------------------------------------
+    
     subroutine GetOldWaterContent (ObjPorousMediaID, WCold, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -5705,7 +5738,72 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
     
+    subroutine GetWaterContentForHead (id, head, array, mask, stat)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                         :: id
+        real                                            :: head
+        real, pointer, dimension(:,:,:)                 :: array
+        logical, pointer, dimension(:,:), optional      :: mask
+        integer, intent(OUT), optional                  :: stat
 
+        !Local-----------------------------------------------------------------
+        integer                                         :: stat_, ready_
+        
+        !----------------------------------------------------------------------
+        call Ready(id, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call ComputeThetaForHead (head, array, mask)                        
+
+            stat_ = SUCCESS_
+            
+        else
+                
+            stat_ = ready_
+            
+        end if
+
+        if (present(stat)) stat = stat_
+        
+    end subroutine GetWaterContentForHead
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetPMObjMap (id, obj, stat)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                         :: id
+        integer                                         :: obj
+        integer, intent(OUT), optional                  :: stat
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: stat_, ready_
+        
+        !----------------------------------------------------------------------
+        call Ready(id, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            obj = Me%ObjMap
+
+            stat_ = SUCCESS_
+            
+        else
+                
+            stat_ = ready_
+            
+        end if
+
+        if (present(stat)) stat = stat_
+        
+    end subroutine GetPMObjMap
+
+    !--------------------------------------------------------------------------
+    
     subroutine GetThetaField (ObjPorousMediaID, ThetaField, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -8706,6 +8804,79 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
 
     !----------------------------------------------------------------------------
     
+    subroutine ComputeThetaForHead (head, array, mask)
+    
+        !Arguments---------------------------------------------------------------
+        real                                            :: head
+        real, pointer, dimension(:,:,:)                 :: array
+        logical, pointer, dimension(:,:), optional      :: mask
+        
+        !Local-------------------------------------------------------------------
+        integer                                         :: i,j,k
+        integer                                         :: stat_call
+        
+        !------------------------------------------------------------------------
+
+        call GetGeometryKFloor(Me%ObjGeometry,                                          &
+                               Z    = Me%ExtVar%KFloor,                                 &
+                               STAT = stat_call)
+        if (stat_call /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR010") 
+        
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (stat_call /= SUCCESS_) &
+            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR020") 
+        
+        if (present(mask) .and. associated(mask)) then
+            
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                if ((mask(i,j).eqv..true.) .and. (Me%ExtVar%BasinPoints(i,j)==1)) then
+                
+                    do k = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
+
+                        array(i,j,k) = Theta_(head, Me%SoilID(i,j,k))
+                        
+                    enddo
+                    
+                endif
+                
+            enddo
+            enddo
+            
+        else
+            
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                if (Me%ExtVar%BasinPoints(i,j)==1) then
+                
+                    do k = Me%ExtVar%KFloor(i,j), Me%WorkSize%KUB
+                        
+                        array(i,j,k) = Theta_(head, Me%SoilID(i,j,k))
+                        
+                    enddo
+                    
+                endif
+                
+            enddo
+            enddo
+            
+        endif
+        
+        call UnGetGeometry(Me%ObjGeometry, Me%ExtVar%KFloor, STAT = stat_call)
+        if (stat_call /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR030")  
+        
+        call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, INTERNAL_, "ComputeThetaForHead - ModulePorousMedia - ERR040") 
+        
+    end subroutine ComputeThetaForHead
+    
+    !----------------------------------------------------------------------------
+    
     real function ThetaF_ (th, SoilID)
 
         !Arguments-------------------------------------------------------------
@@ -9354,7 +9525,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 ChannelColumn = ChannelsWaterLevel(i,j) - ChannelsBottomLevel(i, j)
                 
                 !Flux only occurs if there is gradient or water                
-                if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
+                if (((dH > 0.0) .and. ((Me%UGWaterLevel2D(i, j)-Me%ExtVar%BottomTopoG(i, j))>0.0)) .or. (dH < 0 .and. ChannelColumn > 0.)) then
                 
                     !Maximum between the aquifer and river, limited by soil top
                     Toplevel    = min(max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)), Me%ExtVar%Topography(i, j))
@@ -9437,6 +9608,16 @@ do3:                do K = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsT
                         
                         !flux in layer is total flux * fraction LayerArea/TotalArea
                         !m3/s = - * m2total * m2layer/m2total * m/s * -
+                        !print *, ""
+                        !print *, i, j, k
+                        !print *, dH
+                        !print *, dX
+                        !print *, TotalArea
+                        !print *, LayerArea
+                        !print *, Me%SatK(i, j, k)
+                        !print *, Me%SoilOpt%FCHCondFactor
+                        !print *, '========'
+                        
                         Me%lFlowToChannelsLayer(i, j, k)  = (dH / dX ) * TotalArea * (LayerArea/TotalArea) *     &
                                                              Me%SatK(i, j, k) * Me%SoilOpt%FCHCondFactor 
                                                              

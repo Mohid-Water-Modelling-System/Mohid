@@ -944,7 +944,9 @@ cd2 :           if (.not. BlockFound) then
 
         if (n <= Me%Output%Number) then
 
-    dw1:    do while (NextTime >= Me%Output%OutTime(n) .and. PrevTime <= Me%Output%OutTime(n)) 
+    !dw1:    do while (NextTime >= Me%Output%OutTime(n) .and. PrevTime <= Me%Output%OutTime(n))
+            
+    dw1:    do while (NextTime >= Me%Output%OutTime(n))
 
                 call ExtractDate(Me%Output%OutTime(n), AuxTime(1), AuxTime(2), AuxTime(3), AuxTime(4), AuxTime(5), AuxTime(6)) 
 

@@ -270,7 +270,7 @@ Module ModuleSequentialAssimilation
         !logical                                     :: CyclicBoundary       = .false.
 
         type (T_Property), pointer                  :: Next           => null()
-		type (T_Property), pointer                  :: Prev           => null()
+        type (T_Property), pointer                  :: Prev           => null()
     end type T_Property
 
     private :: T_Measure
@@ -291,7 +291,7 @@ Module ModuleSequentialAssimilation
         real                                        :: Tolerance           = null_real !initialization: Carina
 
         type (T_Measure), pointer                   :: Next           => null()
-		type (T_Measure), pointer                   :: Prev           => null()
+        type (T_Measure), pointer                   :: Prev           => null()
     end type T_Measure
 
     private :: T_StateProp
@@ -328,19 +328,19 @@ Module ModuleSequentialAssimilation
         !ModuleGeometry properties
         real,    dimension(:, :, :), pointer        :: SZZ                => null()  !initialization: Carina
         real,    dimension(:, :, :), pointer        :: DWZ                => null()  !initialization: Carina
-		real,    dimension(:, :, :), pointer        :: DUZ                => null()  !initialization: Carina
-		real,    dimension(:, :, :), pointer        :: DVZ                => null()  !initialization: Carina
+        real,    dimension(:, :, :), pointer        :: DUZ                => null()  !initialization: Carina
+        real,    dimension(:, :, :), pointer        :: DVZ                => null()  !initialization: Carina
         real,    dimension(:, :, :), pointer        :: DZZ                => null()  !initialization: Carina
         real,    dimension(:, :, :), pointer        :: AreaU              => null()  !initialization: Carina
-		real,    dimension(:, :, :), pointer        :: AreaV              => null()  !initialization: Carina
+        real,    dimension(:, :, :), pointer        :: AreaV              => null()  !initialization: Carina
         real,    dimension(:, :, :), pointer        :: ZCellCenter        => null()  !initialization: Carina
         real,    dimension(:, :), pointer           :: WaterColumnU      => null()  !initialization: Carina
-		real,    dimension(:, :), pointer           :: WaterColumnV       => null()  !initialization: Carina
+        real,    dimension(:, :), pointer           :: WaterColumnV       => null()  !initialization: Carina
         real,    dimension(:, :), pointer           :: WaterColumnZ       => null()  !initialization: Carina
         real(8), dimension(:, :, :), pointer        :: VolumeZ           => null()  !initialization: Carina
-		real(8), dimension(:, :, :), pointer        :: VolumeU           => null()  !initialization: Carina
+        real(8), dimension(:, :, :), pointer        :: VolumeU           => null()  !initialization: Carina
         real(8), dimension(:, :, :), pointer        :: VolumeV           => null()  !initialization: Carina
-		real(8), dimension(:, :, :), pointer        :: VolumeV           => null()  !initialization: Carina
+        real(8), dimension(:, :, :), pointer        :: VolumeV           => null()  !initialization: Carina
     end type T_FullState
 
     private :: T_Files
@@ -353,7 +353,7 @@ Module ModuleSequentialAssimilation
     type       T_OutPut
          type (T_Time), pointer, dimension(:)       :: OutTime => null()  !initialization: Carina
          integer                                    :: NextOutPut = null_int  !initialization: Carina
-		 integer                                    :: Number = null_int  !initialization: Carina
+         integer                                    :: Number = null_int  !initialization: Carina
          logical                                    :: HDF5ON = .false.
          logical                                    :: TimeSerieON = .false.
          logical                                    :: ErrorTimeSerieON = .false.

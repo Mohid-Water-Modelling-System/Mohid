@@ -300,6 +300,8 @@ Module ModuleModel
         !Linked list of Instances
         type(T_Model), pointer                  :: Next => null()
 
+        real                                    :: LastCPUTime = 0.
+        
     End Type T_Model
 
     !Global Module Variables
@@ -620,10 +622,10 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !$       openmp_num_threads = omp_get_max_threads()
             !$       write(*,*)"OPENMP: Using the max number of threads available"
             !$    endif
-            !$ else
-            !$    if ( openmp_num_threads .gt. 0 ) then
-            !$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
-            !$    endif
+            !!$ else
+            !!$    if ( openmp_num_threads .gt. 0 ) then
+            !!$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
+            !!$    endif
             !$ endif
 
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)
@@ -1713,11 +1715,13 @@ if2:            if (Global_CurrentTime .GE. Me%CurrentTime) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        real                                        :: CPUTime, LastCPUTime = 0.
+        real                                        :: CPUTime
         real                                        :: NewDT
         type(T_NewDT)                               :: PredictedDT
         integer                                     :: STAT_, ready_
         integer                                     :: STAT_CALL
+        integer, dimension(8)                       :: F95Time
+        type (T_Time)                               :: InitialModelTime
 #ifdef _USE_SEQASSIMILATION
         integer                                     :: Cyclenumber
         logical                                     :: VirtualRun = .false.
@@ -1733,7 +1737,18 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleModel", "RunModel")
         endif
+        
+        if (Me%LastCPUTime == 0.)  then
+            call date_and_time(Values = F95Time)
+            call SetDate      (InitialModelTime, float(F95Time(1)), float(F95Time(2)),      &
+                                                 float(F95Time(3)), float(F95Time(5)),      &
+                                                 float(F95Time(6)), float(F95Time(7))+      &
+                                                 float(F95Time(8))/1000.)
 
+            call SetInitialModelTime (Me%ObjTime, InitialModelTime, STAT_)            
+            call CPU_TIME(Me%LastCPUTime)
+        endif
+        
 #ifdef _USE_SEQASSIMILATION
            if (Me%RunSeqAssimilation) then
 
@@ -1838,8 +1853,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
             call CPU_TIME(CPUTime)
-            if (CPUTime - LastCPUTime > Me%DTPredictionInterval) then
-                LastCPUTime = CPUTime
+            if (CPUTime - Me%LastCPUTime > Me%DTPredictionInterval) then
+                Me%LastCPUTime = CPUTime
                 call PrintProgress(Me%ObjTime, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunModel - ModuleModel - ERR27'
             endif

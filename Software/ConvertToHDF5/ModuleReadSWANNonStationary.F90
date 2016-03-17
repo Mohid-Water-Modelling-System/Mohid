@@ -7,8 +7,8 @@
 ! MODULE        : SWAN
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group & MeteoGalicia
-! DATE          : September 2003
-! REVISION      : Joao Ribeiro - v1.0
+! DATE          : January 2016
+! REVISION      : Joao Ribeiro - v2.0
 ! DESCRIPTION   : Module to convert SWAN NonStationary run table format
 !                 files into HDF5 format. For reading into Mohid module
 !                  HydrodynamicFile
@@ -51,9 +51,6 @@ Module ModuleReadSWANNonStationary
     character(LEN = StringLength), parameter    :: units_block_begin  = '<<beginunits>>'
     character(LEN = StringLength), parameter    :: units_block_end    = '<<endunits>>'
 
-    character(LEN = StringLength), parameter    :: convert_block_begin= '<<beginconvert>>'
-    character(LEN = StringLength), parameter    :: convert_block_end  = '<<endconvert>>'
-
     integer,                       parameter    :: NoConversion_          = 0
     
     !Types---------------------------------------------------------------------
@@ -77,7 +74,9 @@ Module ModuleReadSWANNonStationary
         integer                                 :: ObjHorizontalMap     = 0
         integer                                 :: ObjTime              = 0
         integer                                 :: Unit
-        integer                                 :: NauticalToCartesianDegrees
+        integer                                 :: Nautical
+        integer                                 :: WavePower
+        integer                                 :: ScaleToHS
         character(len=PathLength)               :: FileName
         character(len=PathLength)               :: GridFileName
         character(len=PathLength)               :: SwanFileName
@@ -95,7 +94,7 @@ Module ModuleReadSWANNonStationary
         
         character(len=StringLength), dimension(:), pointer :: PropsName
         character(len=StringLength), dimension(:), pointer :: PropsUnits
-        integer,                     dimension(:), pointer :: ConvertProp
+!        integer,                     dimension(:), pointer :: ConvertProp
 
         type(T_Time)                            :: BeginTime, EndTime
         real,   dimension(:,:,:,:),     pointer :: Fields 
@@ -136,7 +135,7 @@ Module ModuleReadSWANNonStationary
 
         !Local-------------------------------------------------------------------
 !        integer                                         :: l
-        integer                                         :: p
+        integer                                         :: p, WD, HS,TEX, TEY
         !------------------------------------------------------------------------
 
         STAT = UNKNOWN_
@@ -154,8 +153,6 @@ Module ModuleReadSWANNonStationary
 
         call ReadProperties
 
-        call ReadConversion
-
         call Open_HDF5_OutPut_File
 
         call ReadFieldFromFile
@@ -165,17 +162,33 @@ Module ModuleReadSWANNonStationary
 d1:     do p=1, Me%NumberProps
 
            call OutputFields (p)
-
-                !if (Me%WriteVelModulus) then
-                    !call WriteVelocityModulus(VelocityU_, VelocityV_, VelocityModulus_)
-                !endif
-
-                !if (Me%WriteWindModulus) then
-                    !call WriteVelocityModulus(WindVelocityX_, WindVelocityY_, WindModulos_)
-                !endif
+           
+i1:        if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_)) then
+                WD = P
+           endif i1
+i2:        if (trim(Me%PropsName(p)) == GetPropertyName(SignificantWaveHeight_) .and. Me%ScaleToHS) then
+                HS = P
+           else
+                HS = 0. 
+           endif i2
+           
+i3:        if (Me%WavePower) then
+i4:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyX_)) then
+                     TEX = P
+                endif i4
+i5:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_)) then
+                     TEY = P
+                endif i5
+           endif i3
 
         enddo d1
-
+        
+        call OutputWaveVector (WD, HS)
+        
+        if (Me%WavePower) then
+            call CalculateWavePower (TEX, TEY)
+        endif
+        
         call KillSWAN
 
         STAT = SUCCESS_
@@ -205,26 +218,26 @@ d1:     do p=1, Me%NumberProps
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'OUTPUTFILENAME',                                   &
-                     ClientModule = 'SWAN',                                   &
+                     ClientModule = 'SWAN',                                             &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR30'
         if (iflag     == 0)        stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR40'
 
-        call GetData(Me%SwanFileName,                                                 &
+        call GetData(Me%SwanFileName,                                                   &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
-                     keyword      = 'INPUT_SWAN_FILENAME',                                   &
-                     ClientModule = 'SWAN',                                   &
+                     keyword      = 'INPUT_SWAN_FILENAME',                              &
+                     ClientModule = 'SWAN',                                             &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR50'
         if (iflag     == 0)        stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR60'
        
-        call GetData(Me%FillValue,                                                       &
+        call GetData(Me%FillValue,                                                      &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'FILL_VALUE',                                       &
-                     default      = -99.999900,                                         &
-                     ClientModule = 'SWAN',                                   &
+                     default      = FillValueReal,                                      &
+                     ClientModule = 'SWAN',                                             &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR70'
         
@@ -278,15 +291,35 @@ d1:     do p=1, Me%NumberProps
         if (STAT_CALL /= SUCCESS_)                                            &
                 stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR140' 
 
-        call GetData(Me%NauticalToCartesianDegrees,                           &
+        call GetData(Me%Nautical,                                             &
                      Me%ObjEnterData, iflag,                                  &
                      SearchType   = FromBlock,                                &
-                     keyword      = 'NAUTICAL_TO_CARTESIAN',                  &
+                     keyword      = 'NAUTICAL',                               &
                      default      = 0,                                        &
                      ClientModule = 'SWAN',                                   &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_)                                            &
-         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR150'
+         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR150' 
+
+        call GetData(Me%WavePower,                                            &
+                     Me%ObjEnterData, iflag,                                  &
+                     SearchType   = FromBlock,                                &
+                     keyword      = 'WAVEPOWER',                              &
+                     default      = 0,                                        &
+                     ClientModule = 'SWAN',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_)                                            &
+         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR160' 
+
+        call GetData(Me%ScaleToHS,                                            &
+                     Me%ObjEnterData, iflag,                                  &
+                     SearchType   = FromBlock,                                &
+                     keyword      = 'SACLE_TO_HS',                            &
+                     default      = 0,                                        &
+                     ClientModule = 'SWAN',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_)                                            &
+         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR170' 
         
     end subroutine ReadGlobalOptions
 
@@ -393,133 +426,70 @@ d2:     do l= 1, Me%NumberUnits
 
     !--------------------------------------------------------------------------
 
-    subroutine ReadConversion
-
-        !Arguments-------------------------------------------------------------
-
-        !Local-----------------------------------------------------------------
-        integer                                     :: l, iflag, STAT_CALL
-        integer                                     :: ConversionType, j
-        character(len=StringLength)                 :: PropName, AuxChar
-        logical                                     :: BlockFound
-        integer                                     :: Line, FirstLine, LastLine
-        !Begin-----------------------------------------------------------------
-
-        if (Me%NauticalToCartesianDegrees) then
-
-             allocate(Me%ConvertProp(Me%NumberProps))  
-  
-             Me%ConvertProp(:) = NoConversion_
-        
-             call ExtractBlockFromBlock (Me%ObjEnterData,                                    &
-                                    ClientNumber      = Me%ClientNumber,                &
-                                    block_begin       = convert_block_begin,            &
-                                    block_end         = convert_block_end,              &
-                                    BlockInBlockFound = BlockFound,                     &
-                                    FirstLine         = FirstLine,                      &
-                                    LastLine          = LastLine,                       &
-                                    STAT              = STAT_CALL)
-
-cd1 :        if      (STAT_CALL .EQ. SUCCESS_     ) then    
-cd2 :            if (.not. BlockFound) then                                                  
-                     stop 'ReadConversion - ModuleReadSWANNonStationary - ERR10'
-                 end if cd2
-             else cd1
-                 stop 'ReadConversion - ModuleReadSWANNonStationary - ERR20'
-             end if cd1
-
-             Me%NumberCovertions = LastLine - FirstLine - 1
-
-d1:          do l= 1, Me%NumberCovertions
-
-                 line = FirstLine + l
-
-                 call GetData(AuxChar, EnterDataID = Me%ObjEnterData, flag = iflag,          &
-                         SearchType = FromBlock, Buffer_Line = line, STAT = STAT_CALL)
-
-                 if (STAT_CALL /= SUCCESS_) stop 'ReadConversion - ModuleReadSWANNonStationary - ERR30'
-
-                 do j = 1, Me%NumberProps
-                     if (trim(Me%PropsName(j))==trim(AuxChar)) then
-                         Me%ConvertProp(j) = 1
-!                         write(*,*)  trim(AuxChar)
-                         exit
-                     endif
-                 enddo
-
-             enddo d1
-
-        call RewindBlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL)
-        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadConversion - ModuleReadSWANNonStationary - ERR40'
-        endif
-        
-    end subroutine ReadConversion 
-
-    !--------------------------------------------------------------------------
-
-    !--------------------------------------------------------------------------
-
     subroutine ReadFieldFromFile 
 
-        !Arguments-------------------------------------------------------------
+    !Arguments-------------------------------------------------------------
 
-        !Local----------------------------------------------------------------
-        integer                                     :: i, j, p, STAT_CALL,k
-        !Begin-----------------------------------------------------------------
-        
-        allocate(Me%Fields(Me%OutPut%TotalOutputs,Me%NumberProps,                      &
-        Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+    !Local----------------------------------------------------------------
+    integer                                     :: i, j, p, STAT_CALL,k
+    !Begin-----------------------------------------------------------------
+    
+    allocate(Me%Fields(Me%OutPut%TotalOutputs,Me%NumberProps,                      &
+    Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
-        call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR10'
+    call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
+    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR10'
 
-        open(Unit   = Me%Unit,                                                          &
-             File   = trim(Me%SwanFileName),                                                  &
-             Form   = 'FORMATTED',                                                      &
-             STATUS = 'OLD',                                                            &
-             Action = 'READ',                                                           &
-             IOSTAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR20'
-        
-        do k=1,Me%OutPut%TotalOutputs
-        
-             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+    open(Unit   = Me%Unit,                                                          &
+         File   = trim(Me%SwanFileName),                                                  &
+         Form   = 'FORMATTED',                                                      &
+         STATUS = 'OLD',                                                            &
+         Action = 'READ',                                                           &
+         IOSTAT = STAT_CALL) 
+    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR20'
+    
+    do k=1,Me%OutPut%TotalOutputs
+    
+         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
 
-                 read(Me%Unit,*) Me%PropVector
+             read(Me%Unit,*) Me%PropVector
 
-                 do p = 1, Me%NumberProps
- 
-                      if(trim(Me%Generic4DProperty) == trim(Me%PropsName(p))) Then 
-                
-                           Me%Generic4DPropertyIndeX=p
-                
-                      end if
-                      
-                      Me%Fields(k, p, i, j) = Me%PropVector(p)
-                
-                      if (Me%Fields(k, p, i, j).eq.-9.0 .OR. Me%Fields(k, p, i, j).eq.-99.0 &
-                          .OR. Me%Fields(k, p, i, j).eq.-999.0) Then
-                       
-                           Me%Fields(k, p, i, j) = FillValueInt
-                       
-                      end if
-                
-                      if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
-                      Me%Generic4DValue=Me%PropVector(p)
-                      Me%Generic4DUnits=trim(Me%PropsUnits(p))
-                      end if
+             do p = 1, Me%NumberProps
 
-                 enddo
+                  if(trim(Me%Generic4DProperty) == trim(Me%PropsName(p))) Then 
+            
+                       Me%Generic4DPropertyIndeX=p
+            
+                  end if
+                  
+                  Me%Fields(k, p, i, j) = Me%PropVector(p)
+            
+                  if (Me%Fields(k, p, i, j).eq.-9.0 .OR. Me%Fields(k, p, i, j).eq.-99.0 &
+                      .OR. Me%Fields(k, p, i, j).eq.-999.0) Then
+                        
+                    if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_)) then
+                        Me%Fields(k, p, i, j) = FillValueReal
+                    else
+                        Me%Fields(k, p, i, j) = 0
+                    endif
+                   
+                  end if
+            
+                  if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
+                       Me%Generic4DValue=Me%PropVector(p)
+                       Me%Generic4DUnits=trim(Me%PropsUnits(p))
+                  end if
 
              enddo
-             enddo
-             
-        enddo
 
-        call UnitsManager(Me%Unit, CLOSE_FILE, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR30'
+         enddo
+         enddo
+         
+    enddo
+
+    call UnitsManager(Me%Unit, CLOSE_FILE, STAT = STAT_CALL) 
+    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR30'
 
     end subroutine ReadFieldFromFile
     
@@ -568,19 +538,22 @@ d1:          do l= 1, Me%NumberCovertions
         real, dimension(:,:), pointer                   :: Aux2DXY
         real,    dimension(:), pointer                  :: RealArray1D
         REAL, PARAMETER                                 :: RADE= 180./pi
-        real                                            :: Angle
-        integer                                         :: STAT_CALL, i, ii, jj
+        integer                                         :: STAT_CALL, i
         integer                                         :: kk, k
-        character(len=StringLength)                     :: FieldName
         !Begin-----------------------------------------------------------------
 
-        if (p==1) i = Me%OutPut%NextOutPut
 
-        if (i==1 .and. p==1) then
-            allocate(Aux2D (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Aux2DX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Aux2DY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(RealArray1D(1:1))
+        allocate(Aux2D (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Aux2DX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Aux2DY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(RealArray1D(1:1))
+        
+        if (Me%Nautical .and. p == 1) then
+            write(*,*)'Swan in Nautical Convention...'
+            write(*,*)            
+        elseif (p == 1  )then
+            write(*,*)'Swan in Cartesian Convention...'
+            write(*,*)
         endif
             
 i2:     if (p==1 .AND. Me%Generic4D==1) then
@@ -605,23 +578,10 @@ i2:     if (p==1 .AND. Me%Generic4D==1) then
             
 d1:      do kk=1,Me%OutPut%TotalOutputs
 
-             Aux2D(:,:) = Me%Fields(kk, p,:,:)
+             Aux2D(:,:) = Me%Fields(kk, p,:,:)             
              
-             if (Me%ConvertProp(p) == Me%NauticalToCartesianDegrees) then
-             
-!                  write(*,*)  trim(Me%PropsName(p))
-                  
-                  do jj = Me%WorkSize%JLB, Me%WorkSize%JUB
-                  do ii = Me%WorkSize%ILB, Me%WorkSize%IUB
-                 
-                     if (Aux2D(ii,jj) /= FillValueInt)  then
-                          Aux2D(ii,jj) = MOD(630.-(Aux2D(ii,jj)*(pi/180))*RADE,360.)
-                     endif
-                
-                  enddo
-                  enddo
-                  
-             endif
+             write(*,*)"Converting: "//trim(Me%PropsName(p)), kk
+             write(*,*)
              
              call HDF5WriteData(Me%ObjHDF5,                                         &
                            "/Results/"//trim(Me%PropsName(p)),                      &
@@ -631,54 +591,6 @@ d1:      do kk=1,Me%OutPut%TotalOutputs
                            OutputNumber = kk,                                       &
                            STAT         = STAT_CALL)
              if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR70'
-            
-       
-            
-ip:     if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_)) then
-
-            Aux2DX(:,:) = 0.
-            Aux2DY(:,:) = 0.
-
-d2:         do k=1,2
-
-                do jj= Me%WorkSize%JLB,Me%WorkSize%JUB  
-                do ii= Me%WorkSize%ILB,Me%WorkSize%IUB  
-
-                    if (Me%WaterPoints2D(ii,jj) == WaterPoint) then
-
-                        Angle = Aux2D(ii,jj)
-
-                        if (k==1) then
-                            Aux2DX(ii,jj) = cos(Angle * Pi / 180.) 
-                        else
-                            Aux2DY(ii,jj) = sin(Angle * Pi / 180.) 
-                        endif
-
-                    endif
-
-                enddo
-                enddo
-           
-                if (k==1) then
-                    FieldName = trim(Me%PropsName(p))//'_x'
-                    Aux2DXY => Aux2DX
-                else
-                    FieldName = trim(Me%PropsName(p))//'_y'
-                    Aux2DXY => Aux2DY
-                endif
-
-                call HDF5WriteData(Me%ObjHDF5,                                      &
-                                   "/Results/"//FieldName,                          &
-                                   FieldName,                                       &
-                                   '-',                                             &
-                                   Array2D      = Aux2DXY,                          &
-                                   OutputNumber = kk,                               &
-                                   STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR80'
-
-            enddo d2
-
-        endif ip
         
         enddo d1
 
@@ -686,21 +598,179 @@ d2:         do k=1,2
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR90'
 
-        if (p == Me%NumberProps) then
-
-            Me%OutPut%NextOutPut = i + 1
-
-        endif
-
-        if (i==Me%NumberDates .and. p==Me%NumberProps) then
-            deallocate(Aux2D)
-            deallocate(Aux2DX)
-            deallocate(Aux2DY)
-            deallocate(RealArray1D)
-            nullify(Aux2D, Aux2DX, Aux2DY, Aux2DXY)
-        endif
+        deallocate(Aux2D)
+        deallocate(Aux2DX)
+        deallocate(Aux2DY)
+        deallocate(RealArray1D)
+        nullify(Aux2D, Aux2DX, Aux2DY, Aux2DXY,RealArray1D)
 
     end subroutine OutputFields
+    
+    !------------------------------------------------------------------------
+    
+    !------------------------------------------------------------------------
+    
+    subroutine OutputWaveVector(WD,HS)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: WD, HS
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer                   :: Aux2DWD, Aux2DHS
+        real, dimension(:,:), pointer                   :: Aux2DX, Aux2DY
+        REAL, PARAMETER                                 :: RADE= 180./pi
+        real                                            :: Angle,Hsig
+        integer                                         :: STAT_CALL, ii, jj
+        integer                                         :: kk
+        character(len=StringLength)                     :: FieldNameX, FieldNameY
+        !Begin-----------------------------------------------------------------
+        
+        allocate(Aux2DWD(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Aux2DHS(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Aux2DX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Aux2DY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            
+d1:     do kk=1,Me%OutPut%TotalOutputs
+
+             Aux2DWD(:,:) = Me%Fields(kk,WD,:,:)
+             if(Me%ScaleToHS)then
+                Aux2DHS(:,:) = Me%Fields(kk,HS,:,:)
+             endif             
+
+             Aux2DX(:,:) = 0.
+             Aux2DY(:,:) = 0.
+
+d2:         do jj= Me%WorkSize%JLB,Me%WorkSize%JUB  
+d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB  
+
+                    if (Me%WaterPoints2D(ii,jj) == WaterPoint) then
+
+                        Angle = Aux2DWD(ii,jj)
+                        if(Me%ScaleToHS)then
+                            Hsig = Aux2DHS(ii,jj)
+                        else
+                            Hsig = 1.
+                        endif
+!                        Angle = MOD(630.-(Aux2D(ii,jj)*(pi/180))*RADE,360.)
+                        if (Me%Nautical) then
+                            Aux2DX(ii,jj) = Hsig*cos((270-Angle) * Pi / 180.)
+                            Aux2DY(ii,jj) = Hsig*sin((270-Angle) * Pi / 180.)
+                        else
+                            Aux2DX(ii,jj) = Hsig*cos(Angle * Pi / 180.) 
+                            Aux2DY(ii,jj) = Hsig*sin(Angle * Pi / 180.) 
+                        endif
+
+                    endif
+
+                enddo d3
+            enddo d2
+            
+            FieldNameX = GetPropertyName(WaveX_)
+            FieldNameY = GetPropertyName(WaveY_)
+        
+            call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
+                               Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
+                               STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR10'
+
+            call HDF5WriteData(Me%ObjHDF5,                                      &
+                               "/Results/"//FieldNameX,                         &
+                               FieldNameX,                                       &
+                               '-',                                             &
+                               Array2D      = Aux2DX,                           &
+                               OutputNumber = kk,                               &
+                               STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR20'
+
+            call HDF5WriteData(Me%ObjHDF5,                                      &
+                               "/Results/"//FieldNameY,                         &
+                               FieldNameY,                                       &
+                               '-',                                             &
+                               Array2D      = Aux2DY,                           &
+                               OutputNumber = kk,                               &
+                               STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR30'
+
+        enddo d1
+
+        !Writes everything to disk
+        call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR40'
+
+        deallocate(Aux2DWD)
+        deallocate(Aux2DHS)
+        deallocate(Aux2DX)
+        deallocate(Aux2DY)
+        nullify(Aux2DWD, Aux2DHS, Aux2DX, Aux2DY)
+
+    end subroutine OutputWaveVector
+    
+    !------------------------------------------------------------------------
+    
+    !------------------------------------------------------------------------
+    
+    subroutine CalculateWavePower(TEX,TEY)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: TEX, TEY
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer                   :: Aux2D
+        real, dimension(:,:), pointer                   :: Aux2DX, Aux2DY
+        REAL, PARAMETER                                 :: RADE= 180./pi
+        integer                                         :: STAT_CALL, ii, jj
+        integer                                         :: kk
+        character(len=StringLength)                     :: FieldName
+        !Begin-----------------------------------------------------------------
+        
+        allocate(Aux2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Aux2DX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Aux2DY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            
+d1:     do kk=1,Me%OutPut%TotalOutputs
+
+             Aux2DX(:,:) = 0.
+             Aux2DY(:,:) = 0.
+
+             Aux2DX(:,:) = Me%Fields(kk,TEX,:,:)
+             Aux2DY(:,:) = Me%Fields(kk,TEY,:,:)
+
+d2:         do jj= Me%WorkSize%JLB,Me%WorkSize%JUB  
+d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB  
+
+                    if (Me%WaterPoints2D(ii,jj) == WaterPoint) then
+                        Aux2D(ii,jj) = SQRT((Aux2DX(ii,jj)*Aux2DX(ii,jj)+Aux2DY(ii,jj)*Aux2DY(ii,jj)))
+                    endif
+
+                enddo d3
+            enddo d2
+            
+            FieldName = GetPropertyName(WavePower_)
+            
+            call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
+                               Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
+                               STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR10'
+
+            call HDF5WriteData(Me%ObjHDF5,                                      &
+                               "/Results/"//FieldName,                          &
+                               FieldName,                                       &
+                               '-',                                             &
+                               Array2D      = Aux2D,                            &
+                               OutputNumber = kk,                               &
+                               STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'CalculateWavePower - ModuleReadSWANNonStationary - ERR20'
+
+        enddo d1
+
+        !Writes everything to disk
+        call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'CalculateWavePower - ModuleReadSWANNonStationary - ERR30'
+
+        deallocate(Aux2D)
+        deallocate(Aux2DX)
+        deallocate(Aux2DY)
+        nullify(Aux2D, Aux2DX, Aux2DY)
+
+    end subroutine CalculateWavePower
 
    !----------------------------------------------------------------------
 
@@ -818,8 +888,8 @@ d2:         do k=1,2
         deallocate(Me%PropsUnits)
         nullify   (Me%PropsUnits)
 
-        deallocate(Me%ConvertProp)
-        nullify   (Me%ConvertProp)
+!        deallocate(Me%ConvertProp)
+!        nullify   (Me%ConvertProp)
 
         deallocate(Me%Fields    )
         nullify   (Me%Fields    )
