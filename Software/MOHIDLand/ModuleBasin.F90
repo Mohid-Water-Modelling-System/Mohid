@@ -45,7 +45,7 @@ Module ModuleBasin
     use ModuleHDF5
     use ModuleFunctions,      only : ReadTimeKeyWords, LatentHeat, ConstructPropertyID,  &
                                      TimeToString, ChangeSuffix, CHUNK_J, SetMatrixValue,&
-                                     GetPointer, LinearInterpolation
+                                     GetPointer, LinearInterpolation, ConstructPropertyIDOnFly
                                      
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix,              &
                                      KillFillMatrix,GetIfMatrixRemainsConstant,          &
@@ -3366,13 +3366,20 @@ cd2 :           if (BlockFound) then
                         allocate (NewProperty, STAT = STAT_CALL)            
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleBasin - ERR030'                    
                         
-                        NewProperty%Inherited          = .true.
-                        NewProperty%ID%IDNumber        = PropID
-                        NewProperty%ID%Name            = trim(GetPropertyName(NewProperty%ID%IDNumber))                       
+!~                        NewProperty%ID%IDNumber        = PropID
+!~                        NewProperty%ID%Name            = trim(GetPropertyName(NewProperty%ID%IDNumber))                       
 !~                      NewProperty%Particulate        = Check_Particulate_Property(NewProperty%ID%IDNumber)
 !~                         NewProperty%Particulate        = NewProperty%ID%IsParticulate
+
+                        call ConstructPropertyIDOnFly(PropertyID     = NewProperty%ID,                                      &
+                                                      Name           = trim(GetPropertyName(PropID)),                       &
+                                                      IsDynamic      = .false.,                                             &
+                                                      IDNumber       = PropID)
+                        
+                        NewProperty%Inherited          = .true.
                         NewProperty%AdvectionDiffusion = PropAdvDiff
                         NewProperty%Decay              = Decay
+                        
                         if (Me%Coupled%Vegetation) then
                             allocate (NewProperty%VegetationConc(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%JUB))
                             NewProperty%VegetationConc = 0.0
