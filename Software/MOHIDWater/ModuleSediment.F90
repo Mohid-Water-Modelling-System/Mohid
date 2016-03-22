@@ -48,9 +48,10 @@ Module ModuleSediment
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,            &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName       
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetBoundaries, GetOpenPoints2D,        &
-                                       GetComputeFaces2D, UnGetHorizontalMap
+                                       GetComputeFaces2D, UnGetHorizontalMap, ConstructHorizontalMap
     use ModuleMap,              only:  GetWaterPoints3D, GetOpenPoints3D,                       &
-                                       GetLandPoints3D, UngetMap, UpdateComputeFaces3D
+                                       GetLandPoints3D, UngetMap, UpdateComputeFaces3D,         &
+                                       ConstructMap
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,                  &
                                        GetHorizontalGridSize, UnGetHorizontalGrid, GetXYCellZ,  &
                                        GetGridCellArea, GetDDecompMPI_ID, GetDDecompON,         &
@@ -65,7 +66,8 @@ Module ModuleSediment
     use ModuleGeometry,         only:  GetGeometrySize, UnGetGeometry, GetGeometryWaterColumn,  &
                                        GetGeometryDistances, GetGeometryKtop,                   &
                                        ComputeInitialGeometry, ComputeVerticalGeometry,         &
-                                       GetGeometryVolumes, ReadGeometryHDF, WriteGeometryHDF
+                                       GetGeometryVolumes, ReadGeometryHDF, WriteGeometryHDF,   &
+                                       ConstructGeometry
     use ModuleFreeVerticalMovement,  only: SetSandParameters, GetDepositionIntertidalZones
     
 #ifndef _WAVES_
@@ -373,6 +375,7 @@ Module ModuleSediment
 
     private :: T_Sediment
     type       T_Sediment
+        character(PathLength)                      ::  SedGeometryFile     = null_str
         integer                                    :: InstanceID            = FillValueInt
         type (T_Size2D)                            :: Size, WorkSize
         type (T_Time)                              :: BeginTime, EndTime
@@ -507,6 +510,7 @@ Module ModuleSediment
                          SedimentGridDataID,                    &
                          SedimentHorizontalMapID,               &
                          SedimentMapID,                         &
+                         SedGeometryFile,                       &
                          SedimentGeometryID,                    &
                          FreeVerticalMovementID,                &
                          STAT)
@@ -520,11 +524,12 @@ Module ModuleSediment
         integer                                         :: ObjTimeID
         integer                                         :: ObjWavesID
         integer                                         :: ObjDischargesID
-        integer                                         :: SedimentGridDataID
-        integer                                         :: SedimentHorizontalMapID
-        integer                                         :: SedimentMapID
-        integer                                         :: SedimentGeometryID
-        integer                                         :: FreeVerticalMovementID
+        character(PathLength)                           :: SedGeometryFile
+        integer                                         :: FreeVerticalMovementID        
+        integer, optional, intent(OUT)                  :: SedimentGridDataID
+        integer, optional, intent(OUT)                  :: SedimentHorizontalMapID
+        integer, optional, intent(OUT)                  :: SedimentMapID
+        integer, optional, intent(OUT)                  :: SedimentGeometryID
         integer, optional, intent(OUT)                  :: STAT
            
         !External----------------------------------------------------------------
@@ -556,32 +561,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, ObjHorizontalGridID)
             
             !Sediment Column
-            Me%ObjSedimentGridData     = AssociateInstance(mGRIDDATA_,          SedimentGridDataID      )
-            Me%ObjSedimentHorizontalMap= AssociateInstance(mHORIZONTALMAP_,     SedimentHorizontalMapID )    
-            Me%ObjSedimentGeometry     = AssociateInstance(mGEOMETRY_,          SedimentGeometryID      )
-            Me%ObjSedimentMap          = AssociateInstance(mMAP_,               SedimentMapID           )
+            !Me%ObjSedimentGridData     = AssociateInstance(mGRIDDATA_,          SedimentGridDataID      )
+            !Me%ObjSedimentHorizontalMap= AssociateInstance(mHORIZONTALMAP_,     SedimentHorizontalMapID )    
+            !Me%ObjSedimentGeometry     = AssociateInstance(mGEOMETRY_,          SedimentGeometryID      )
+            !Me%ObjSedimentMap          = AssociateInstance(mMAP_,               SedimentMapID           )
 
             if(ObjWavesID /= 0)then
                 Me%ObjWaves      = AssociateInstance (mWAVES_,          ObjWavesID         )
             end if
 
             Me%ExternalVar%WaterDensity  = SigmaDensityReference
+            Me%SedGeometryFile = SedGeometryFile
 
-            call GetHorizontalGridSize(Me%ObjHorizontalGrid,                             &
-                                       Size        = Me%Size,                            &
-                                       WorkSize    = Me%WorkSize,                        &
-                                       STAT        = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR10'
-            
-            
-            call GetGeometrySize(Me%ObjSedimentGeometry,                        &
-                                 Size       = Me%SedimentSize3D,                &
-                                 WorkSize   = Me%SedimentWorkSize3D,            &
-                                 STAT       = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_)&
-                stop 'ConstructSediment - ModuleSediment - ERR20'
-
-            call ReadLockExternalVar
+            !call ReadLockExternalVar
 
             call Read_Sediment_Files_Name
 
@@ -590,13 +582,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR30'
             
             call ConstructGlobalParameters
-            
-            call AllocateVariables
-            
+                       
             call ConstructEvolution
             
-            call Construct_Initial_Geometry
+            call ConstructSedimentGridAndGeometry
             
+            call AllocateVariables      
+            
+            call Construct_Initial_Geometry
+                        
             call ConstructClasses
 
             call ConstructOutputTime
@@ -646,6 +640,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             ObjSedimentID          = Me%InstanceID
 
             STAT_ = SUCCESS_
+            SedimentGridDataID = Me%ObjSedimentGridData
+            SedimentHorizontalMapID = Me%ObjSedimentHorizontalMap
+            SedimentGeometryID = Me%ObjSedimentGeometry
+            SedimentMapID = Me%ObjSedimentMap
 
         else cd0
             
@@ -661,6 +659,86 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ConstructSediment
  
     !--------------------------------------------------------------------------
+    
+
+                         
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructSedimentGridAndGeometry()
+        !Local-----------------------------------------------------------------
+        integer                          :: STAT_CALL, iflag
+        character(PathLength)            :: SedimentFile
+        !Begin-----------------------------------------------------------------
+    
+    
+        !Gets the file name of the Bathymetry
+        call GetData(SedimentFile,                                                       &
+                     Me%ObjEnterData, iflag,                                             & 
+                     SearchType   = FromFile,                                            &
+                     keyword      ='IN_SEDIMENT',                                        &
+                     ClientModule ='ModuleSediment',                                     &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructSedimentGridAndGeometry - ModuleSediment - ERR01'
+        if (iflag == 0) then
+            write(*,*) 
+            write(*,*) 'Need to define IN_SEDIMENT in Sediment_X.dat'
+            write(*,*) 'ConstructSedimentGridAndGeometry - ModuleSediment - ERR01a'
+        endif
+        
+        !Horizontal Grid Data - Sediment Column (Bathymetry)
+        call ConstructGridData      (GridDataID          = Me%ObjSedimentGridData,      &
+                                        HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                        FileName         = SedimentFile,                &
+                                        STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSedimentGridAndGeometry - ModuleSediment - ERR10'
+
+        !Horizontal Map
+        call ConstructHorizontalMap (HorizontalMapID  = Me%ObjSedimentHorizontalMap,    &
+                                        GridDataID       = Me%ObjSedimentGridData,      &
+                                        HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                        ActualTime       = Me%ExternalVar%Now,          &
+                                        STAT             = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSedimentGridAndGeometry - ModuleSediment - ERR100'        
+        
+        
+        call GetHorizontalGridSize(Me%ObjHorizontalGrid,                              &
+                                    Size        = Me%Size,                            &
+                                    WorkSize    = Me%WorkSize,                        &
+                                    STAT        = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop 'ConstructSedimentGridAndGeometry - ModuleSediment - ERR110'
+        
+        
+        
+        
+        !Geometry - Sediment Column
+        call ConstructGeometry      (GeometryID          = Me%ObjSedimentGeometry,      &
+                                        GridDataID       = Me%ObjSedimentGridData,      &
+                                        HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                        HorizontalMapID  = Me%ObjSedimentHorizontalMap, &
+                                        ActualTime       = Me%ExternalVar%Now,          &
+                                        NewDomain        = Me%SedGeometryFile,          &
+                                        STAT             = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSedimentGrid - ModuleSediment - ERR120'
+
+        call GetGeometrySize(Me%ObjSedimentGeometry,                           &
+                                Size       = Me%SedimentSize3D,                &
+                                WorkSize   = Me%SedimentWorkSize3D,            &
+                                STAT       = STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_)&
+            stop 'ConstructSedimentGrid - ModuleSediment - ERR20'        
+        
+        !Map - Sediment Column            
+        call ConstructMap           (Map_ID           = Me%ObjSedimentMap,              &
+                                        GeometryID       = Me%ObjSedimentGeometry,      &
+                                        HorizontalMapID  = Me%ObjSedimentHorizontalMap, &
+                                        TimeID           = Me%ObjTime,                  &
+                                        STAT             = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSedimentGrid - ModuleSediment - ERR130'         
+        
+    end subroutine ConstructSedimentGridAndGeometry
+    
+    !--------------------------------------------------------------------------
+    
     
     subroutine AllocateInstance
 
@@ -808,9 +886,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%Evolution%OLD,                                                   &
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
-                     keyword      = 'OLD',                                               &
+                     keyword      = 'CONTINUOUS',                                        &
                      default      = .false.,                                             &
-                     ClientModule = 'ModuleSediment',                                        &
+                     ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR130' 
 
@@ -2427,8 +2505,9 @@ cd2 :           if (BlockFound) then
 
         !Begin----------------------------------------------------------------
         
-        call ReadUnLockExternalVar
+        !call ReadUnLockExternalVar
         
+       
         !Initial sediment thickness equals the one specified in bathymetry 
         !so elevation equals zero
         Me%Elevation(:,:) = 0.
@@ -2442,7 +2521,7 @@ cd2 :           if (BlockFound) then
                                   MasterOrSlave    = MasterOrSlave,                         &
                                   STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
-                stop 'Construct_Initial_Geometry; ModuleSediment - ERR20'
+                stop 'Construct_Initial_Geometry; ModuleSediment - ERR40'
             endif
             
             call ReadGeometryHDF(GeometryID     = Me%ObjSedimentGeometry,                   &
@@ -2450,14 +2529,14 @@ cd2 :           if (BlockFound) then
                                  MasterOrSlave  = MasterOrSlave,                            &
                                  !AddFaces       = .true.,                                   &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR50'
 
         end if
 
         !Get WaterPoints3D
         call GetWaterPoints3D(Me%ObjSedimentMap, Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                             &
-            call SetError (FATAL_, INTERNAL_, "Construct_Initial_Geometry - ModuleSediment - ERR02")
+            call SetError (FATAL_, INTERNAL_, "Construct_Initial_Geometry - ModuleSediment - ERR60")
 
         
         !Computes sediment initial geometry
@@ -2467,23 +2546,23 @@ cd2 :           if (BlockFound) then
                                     ContinuesCompute = Me%Evolution%Old,                 &
                                     ActualTime       = Me%ExternalVar%Now,               &
                                     STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR70'
         
         !Unget WaterPoints3D
         call UnGetMap(Me%ObjSedimentMap,Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR80'
 
 
         !!Computes OpenPoints3D
         call UpdateComputeFaces3D(Me%ObjSedimentMap, STAT = STAT_CALL)      
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR05'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleSediment - ERR90'
         
         call ReadLockExternalVar
 
         Me%VerticalCoordinate(:,:,:) = Me%ExternalVar%SZZ(:,:,:)
         Me%KTop(:,:)                 = Me%ExternalVar%KTop(:,:)
 
-            
+        
     end subroutine Construct_Initial_Geometry
     
     
@@ -6699,17 +6778,17 @@ do1 :               do i=1, Me%NumberOfClasses
                 nUsers = DeassociateInstance(mHORIZONTALGRID_,  Me%ObjHorizontalGrid)
                 if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR70'
 
-                nUsers = DeassociateInstance(mGRIDDATA_,        Me%ObjSedimentGridData)
-                if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR17'
-
-                nUsers = DeassociateInstance(mHORIZONTALMAP_,   Me%ObjSedimentHorizontalMap)
-                if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR18'
-
-                nUsers = DeassociateInstance(mGEOMETRY_,        Me%ObjSedimentGeometry)
-                if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR19'
-
-                nUsers = DeassociateInstance(mMAP_,             Me%ObjSedimentMap)
-                if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR20'
+                !nUsers = DeassociateInstance(mGRIDDATA_,        Me%ObjSedimentGridData)
+                !if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR17'
+                !
+                !nUsers = DeassociateInstance(mHORIZONTALMAP_,   Me%ObjSedimentHorizontalMap)
+                !if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR18'
+                !
+                !nUsers = DeassociateInstance(mGEOMETRY_,        Me%ObjSedimentGeometry)
+                !if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR19'
+                !
+                !nUsers = DeassociateInstance(mMAP_,             Me%ObjSedimentMap)
+                !if (nUsers == 0) stop 'KillSediment - ModuleSediment - ERR20'
                 
 #ifndef _WAVES_
                 if(Me%ObjWaves /= 0)then
