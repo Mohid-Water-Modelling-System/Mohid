@@ -40,7 +40,7 @@ program MohidLand
     use ModuleFunctions,      only : ReadTimeKeyWords
     use ModuleBasin
     use ModuleStopWatch,      only : CreateWatchGroup, KillWatchGroup
-
+    !$ use omp_lib
 
     implicit none
 
@@ -57,6 +57,8 @@ program MohidLand
     logical                             :: VariableDT           = .false.
     real                                :: GmtReference         = null_real
     real                                :: DTPredictionInterval = null_real
+    
+    !integer                             :: openmp_num_threads       = 1
 
     !Model Name
     character(len=StringLength)         :: ModelName            = null_str
@@ -112,7 +114,7 @@ program MohidLand
             call get_command_argument(i, arg)
 
             select case (arg)
-            
+                
             case ('-v', '--version')
             
                 call print_version()
@@ -251,6 +253,8 @@ program MohidLand
         integer                                     :: iflag
         character(PathLength)                       :: WatchFile, DTLogFile
 
+        !$ openmp_num_threads = omp_get_max_threads()
+        
         !Monitor Performance of the model execution?
         call ReadFileName('OUTWATCH', WatchFile, Message = 'Start Watch File', STAT = STAT_CALL)
         if (STAT_CALL == SUCCESS_) then
@@ -278,22 +282,21 @@ program MohidLand
         if (MonitorDT) then
             call UnitsManager (UnitDT, OPEN_FILE)      
             open(UNIT   = UnitDT, FILE   = DTLogFile, STATUS  = "UNKNOWN", IOSTAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR010'
             write (UnitDT, '(A25, A10,A12,A12,A13,A13,A13,A13,A26)') &
                 "ModuleName", "iter", "DT", "DNet", "RunOff", "PorousMedia", "Atmosphere", "DTNextEv", "NextTime"
         end if
 
         call ReadFileName('IN_MODEL', DataFile, "Mohid Land Data File", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR020'
 
         call ConstructEnterData (ObjEnterData, DataFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR030'
 
         call ReadTimeKeyWords   (ObjEnterData, FromFile, BeginTime, EndTime, DT,         &
                                  VariableDT, "Mohid Land", MaxDT, GmtReference,          &
                                  DTPredictionInterval)
-                                 
-        !Model Name
+                     
         call GetData(ModelName,                                                          &
                      ObjEnterData, iflag,                                                &
                      SearchType   = FromFile,                                            &
@@ -301,7 +304,18 @@ program MohidLand
                      default      = 'MOHID Land Model',                                  & 
                      ClientModule = 'MOHIDLand',                                         &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR040'        
+        
+        !Model Name
+        call GetData(openmp_num_threads,                                                &
+                     ObjEnterData, iflag,                                               &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OMP_NUM_THREADS',                                  &
+                     default      = openmp_num_threads,                                     & 
+                     ClientModule = 'MOHIDLand',                                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050'
+        !$  call omp_set_num_threads(openmp_num_threads)
 
         !add the option to continue model in case of bathymetry verifications  
         !(geometry check and isolated cells check)
@@ -311,14 +325,14 @@ program MohidLand
                                         ClientModule = 'MOHIDLand',                 &
                                         default      =  .true.,                     &
                                         STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR05'         
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR060'         
 
         call GetData                (SyncDT, ObjEnterData, iflag,             &
                                         keyword      = 'SYNC_DT',             &
                                         ClientModule = 'MOHIDLand',           &
                                         default      =  .false.,              &
                                         STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR06'         
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR070'         
         
         if(SyncDT) then            
             call GetData                (SyncDTInterval, ObjEnterData, iflag,     &
@@ -327,11 +341,11 @@ program MohidLand
                                             default      =  MaxDT,                &
                                             STAT         = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR06'            
+            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR080'            
          endif
     
         call KillEnterData (ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR07'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR090'
 
     end subroutine ReadKeywords
 

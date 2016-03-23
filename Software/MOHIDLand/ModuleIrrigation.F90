@@ -102,18 +102,15 @@ module ModuleIrrigation
     end interface  UnGetIrrigation
    
     !Parameters------------------------------------------------------------------
-    integer, parameter                              :: ApplicationArea_                 = 1
     integer, parameter                              :: StartHeadThreshold_              = 2
     integer, parameter                              :: StartHeadLimitThreshold_         = 3
     integer, parameter                              :: EndHeadThreshold_                = 4
-    integer, parameter                              :: IrrigationProperty_              = 5
     integer, parameter                              :: MinimumIntervalBetweenEvents_    = 6
     integer, parameter                              :: StartInstantThreshold_           = 7
     integer, parameter                              :: GearType_                        = 8
     integer, parameter                              :: GearEfficiency_                  = 9
     integer, parameter                              :: Debit_                           = 10
     integer, parameter                              :: Position_                        = 11
-    integer, parameter                              :: AccIrrigation_                   = 12
     integer, parameter                              :: SecondsToEventEnd_               = 13
     
     character(20), parameter                        :: BeginSchedule    = "<BeginSchedule>"
@@ -1087,18 +1084,18 @@ cd1 :       if (block_found) then
 
         !------------------------------------------------------------------------
         if ((new_property%ID%Name) == "application area") then
-            new_property%ID%IDNumber = ApplicationArea_
+            !new_property%ID%IDNumber = ApplicationArea_
             !new_schedule%ApplicationAreaMap => new_property
             allocate (new_schedule%ApplicationAreaMap%LogicalField(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))            
             new_property%IsLogical = .true.
               
         elseif (trim(new_property%ID%Name) == "fixed irrigation") then
             
-            new_property%ID%IDNumber = IrrigationProperty_
+            !new_property%ID%IDNumber = IrrigationProperty_
             new_schedule%Irrigation => new_property
             
         elseif (trim(new_property%ID%Name) == "acc. irrigation") then
-            new_property%ID%IDNumber = AccIrrigation_
+            !new_property%ID%IDNumber = AccIrrigation_
             
         else
             

@@ -371,7 +371,8 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\IPhreeqc_interface.F90">
 			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleBenthicEcology.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleBenthos.F90">
 			<FileConfiguration Name="Debug OpenMI|x64">
@@ -464,7 +465,8 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModulePhreeqCRM.F90">
 			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleProfile.F90">
 			<FileConfiguration Name="Debug OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
@@ -588,5 +590,6 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\RM_interface.F90">
 			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/></File></Filter></Files>
+			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/></File></Filter></Files>
 	<Globals/></VisualStudioProject>
