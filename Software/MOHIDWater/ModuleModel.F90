@@ -636,6 +636,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          HorizontalGridID = Me%ObjHorizontalGrid,        &
                                          TimeID           = Me%ObjTime,                  &
                                          FileName         = BathymetryFile,              &
+                                         SedimentModule   = Me%SedimentModule,           &
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR160'
 
