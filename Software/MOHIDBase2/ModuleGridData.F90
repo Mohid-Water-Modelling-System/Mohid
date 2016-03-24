@@ -199,6 +199,8 @@ Module ModuleGridData
         real                            :: MinimumValue        = null_real
         logical                         :: Is3D                = .false.
         logical                         :: ReadFile            = .false.
+        logical                         :: SedimentModule      = .false.
+        character(LEN = PathLength)     :: SedimentModuleFile  = null_str
         type (T_Size2D)                 :: WorkSize, Size
         type (T_Size2D)                 :: GlobalWorkSize
         integer                         :: KLB                 = null_int
@@ -229,7 +231,7 @@ Module ModuleGridData
 
     subroutine ConstructGridData(GridDataID, HorizontalGridID, TimeID, FileName,        &
                                  KLB, KUB, DefaultValue, InMatrix3D, InMatrix2D,        &
-                                 STAT)
+                                 SedimentModule, STAT)
                       
         !Arguments-------------------------------------------------------------
         integer                     , intent(INOUT) :: GridDataID
@@ -240,6 +242,7 @@ Module ModuleGridData
         real,               optional, intent(IN )   :: DefaultValue
         real, dimension(:,:),   pointer, optional   :: InMatrix2D
         real, dimension(:,:,:), pointer, optional   :: InMatrix3D
+        logical,            optional                :: SedimentModule
         integer,            optional, intent(OUT)   :: STAT    
 
         !Local-----------------------------------------------------------------
@@ -307,6 +310,19 @@ Module ModuleGridData
                 end if
 
             endif
+            
+            !Gets SedimentModule initial file name
+            if (present(SedimentModule)) then
+                Me%SedimentModule = SedimentModule
+                
+                if (Me%SedimentModule) then
+                    call ReadFileName('SEDIMENT_INI', Me%SedimentModuleFile,        &
+                                       Message   =  'Sediment module initial values in HDF format.',&
+                                       STAT      = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleGridData - ERR25'
+                endif
+            endif
+
 
             !Associates Horizontal Grid
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
@@ -385,9 +401,12 @@ Module ModuleGridData
                 if (Me%Evolution%Yes) then
 
                     Me%GridData2Dreference(:,:) = Me%GridData2D(:,:)
-
-                    call ReadFileEvolution
-
+                    
+                    if (Me%SedimentModule) then 
+                        call ReadFileEvolutionSediment
+                    else
+                        call ReadFileEvolution
+                    endif
                 endif
 
 
@@ -514,40 +533,44 @@ Module ModuleGridData
 
 
         if (Me%Evolution%Yes) then
-
-            !Gets if the bathymetry can change in time
-            call GetData            (Me%Evolution%File, ObjEnterData, flag,             &
-                                     keyword      = 'EVOLUTION_FILE',                   &
-                                     ClientModule = 'ModuleGridData',                   &
-                                     default      ='******.***',                        &
-                                     STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR70'
-
-            if (flag == 0)  then
             
-                call ReadFileName('EVOLUTION_FILE', Me%Evolution%File,                  &
-                                   Message = Message, STAT = STAT_CALL)
+            if (Me%SedimentModule) then
+                
+                Me%Evolution%File = Me%SedimentModuleFile
+                Me%Evolution%PropName = 'Bathymetry'
+            else
+                !Gets if the bathymetry can change in time
+                call GetData            (Me%Evolution%File, ObjEnterData, flag,             &
+                                         keyword      = 'EVOLUTION_FILE',                   &
+                                         ClientModule = 'ModuleGridData',                   &
+                                         default      ='******.***',                        &
+                                         STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR70'
 
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'ReadGridDataFile - ModuleGridData - ERR80'
+                if (flag == 0)  then
+            
+                    call ReadFileName('EVOLUTION_FILE', Me%Evolution%File,                  &
+                                       Message = Message, STAT = STAT_CALL)
+
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'ReadGridDataFile - ModuleGridData - ERR80'
                     
+                endif
+            
+                call Add_MPI_ID_2_Filename(Me%ObjHorizontalGrid,                            &
+                                           Filename    = Me%Evolution%File,                 &
+                                           STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR85'
+            
+                call GetData            (Me%Evolution%PropName, ObjEnterData, flag,         &
+                                         keyword      = 'PROPERTY_NAME',                    &
+                                         ClientModule = 'ModuleGridData',                   &
+                                         default      = trim(Char_Bathymetry),              &
+                                         STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR90'
+
             endif
-            
-            call Add_MPI_ID_2_Filename(Me%ObjHorizontalGrid,                            &
-                                       Filename    = Me%Evolution%File,                 &
-                                       STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR85'
-            
-            call GetData            (Me%Evolution%PropName, ObjEnterData, flag,         &
-                                     keyword      = 'PROPERTY_NAME',                    &
-                                     ClientModule = 'ModuleGridData',                   &
-                                     default      = trim(Char_Bathymetry),              &
-                                     STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR90'
-
-
         endif
-
 
         call GetData                (Me%ConstantInSpace, ObjEnterData, flag,            &
                                      keyword      = 'CONSTANT_IN_SPACE',                &
@@ -1107,6 +1130,100 @@ old:        if (Me%Evolution%OldInstants > 0) then
 #endif
         !----------------------------------------------------------------------
 
+#ifndef _NO_HDF5    
+    subroutine ReadFileEvolutionSediment
+
+        !Arguments-------------------------------------------------------------                                                    
+                                                                                                     
+        !External--------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real, dimension(:,:), pointer           :: Aux2D
+        logical                                 :: MasterOrSlave
+        type (T_Size2D)                         :: WindowLimitsJI          
+        integer                                 :: IUB, JUB, ILB, JLB
+        integer                                 :: IUW, JUW, ILW, JLW
+        integer                                 :: STAT_CALL
+        integer                                 :: HDF5_READ
+        logical                                 :: exist
+
+        !Begin----------------------------------------------------------------- 
+        
+        ILB = Me%WorkSize%ILB 
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB 
+        JUB = Me%WorkSize%JUB 
+        
+        inquire (file=trim(Me%Evolution%File)//"5", exist = exist)
+
+ex:     if (exist) then
+      
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+        
+            call ConstructHDF5 (Me%Evolution%ObjHDF5, trim(Me%Evolution%File)//"5", HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFileEvolutionSediment - ModuleGridData - ERR10'
+
+            Me%GridData2D(:,:) = FillValueReal
+            
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,      &
+                                  MasterOrSlave    = MasterOrSlave,                 &
+                                  STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadFileEvolutionSediment - ModuleGridData - ERR20'
+
+ifMS:       if (MasterOrSlave) then    
+
+                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,      &
+                                          WorkSize         = WindowLimitsJI,            &
+                                          STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadFileEvolutionSediment - ModuleGridData - ERR30'
+                endif
+
+                ILW = WindowLimitsJI%ILB
+                IUW = WindowLimitsJI%IUB
+
+                JLW = WindowLimitsJI%JLB
+                JUW = WindowLimitsJI%JUB
+            
+            else ifMS
+
+                ILW = ILB 
+                IUW = IUB
+
+                JLW = JLB 
+                JUW = JUB 
+
+            endif ifMS                
+        
+            call HDF5SetLimits  (Me%Evolution%ObjHDF5, ILW, IUW, JLW, JUW, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadFileEvolutionSediment - ModuleGridData - ERR40'
+            
+            allocate(Aux2D(ILW:IUW,JLW:JUW))
+            
+            call HDF5ReadWindow (HDF5ID         = Me%Evolution%ObjHDF5,                 &    
+                             GroupName      = "/Results/",                              &
+                             Name           = trim(Me%Evolution%PropName),              &
+                             Array2D        = Aux2D,                                    &
+                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadFileEvolutionSediment - ModuleGridData- ERR50'
+            
+            Me%GridData2D(ILB:IUB, JLB:JUB) = Aux2D(ILW:IUW, JLW:JUW)
+
+            deallocate (Aux2D) 
+
+            nullify(Aux2D)
+
+            call KillHDF5(Me%Evolution%ObjHDF5, STAT = STAT_CALL)
+        
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadFileEvolutionSediment - ModuleGridData - ERR60'
+
+        endif ex
+
+    end subroutine ReadFileEvolutionSediment
+#endif
+        !----------------------------------------------------------------------
+
+
 
 
     !--------------------------------------------------------------------------
@@ -1203,15 +1320,14 @@ ifMS:   if (MasterOrSlave) then
         
         call HDF5SetLimits  (Me%Evolution%ObjHDF5, ILW, IUW, JLW, JUW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleGridData - ERR01'
-        
+                   
         call HDF5ReadWindow (HDF5ID         = Me%Evolution%ObjHDF5,                     &    
-                             GroupName      = "/Results/"//trim(Me%Evolution%PropName), &
-                             Name           = trim(Me%Evolution%PropName),              &
-                             Array2D        = Field,                                    &
-                             OutputNumber   = Instant,                                  &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleGridData - ERR02'
-
+                                GroupName      = "/Results/"//trim(Me%Evolution%PropName), &
+                                Name           = trim(Me%Evolution%PropName),              &
+                                Array2D        = Field,                                    &
+                                OutputNumber   = Instant,                                  &
+                                STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleGridData - ERR03'
 
     end subroutine ReadHDF5Values2D
 #endif
@@ -2731,7 +2847,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             if (nUsers == 0) then
 
-                if (Me%Evolution%Yes) then
+                if (Me%Evolution%Yes .and. Me%SedimentModule == .false. ) then
                     call WriteFileEvolution
                 endif
 
