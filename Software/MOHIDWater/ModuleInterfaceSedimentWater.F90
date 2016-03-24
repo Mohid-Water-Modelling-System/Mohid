@@ -5506,7 +5506,7 @@ do4:        do i = ILB, IUB
         !Local-----------------------------------------------------------------
         real,    pointer, dimension(:, :   )    :: Depth
         real(8), dimension(:,:),  pointer       :: GrainRoughness, D50
-        real                                    :: Psi, WaterDensity, U
+        real                                    :: Psi, WaterDensity, U, Uwc2, Ubw
         real                                    :: sedimentdensity, relativedensity
         real(8)                                 :: dsilt, dsand, dgravel
         real                                    :: Kscr, Kscmr, Kscd, Ksc, Ks, ffs, fcs 
@@ -5554,10 +5554,17 @@ do2:    do i = ILB, IUB
                     
                     !Average velocity
                     U = Me%Shear_Stress%Velocity(i,j)/0.4* &
-                        (log(Depth(i,j)/Me%Rugosity%Field(i,j)) - 1 + Me%Rugosity%Field(i,j)/Depth(i,j))                
-                
-                    !Current mobility parameter
-                    Psi = U/((relativedensity-1)*gravity*d50(i,j))
+                        (log(Depth(i,j)/Me%Rugosity%Field(i,j)) - 1 + Me%Rugosity%Field(i,j)/Depth(i,j))
+                    
+                    if (Me%WaveShear_Stress%Yes) then
+                        Ubw = Me%ExtWater%Ubw(i,j)
+                        Uwc2 = U**2 + Ubw**2
+                    else
+                        Uwc2 = U**2 
+                    endif
+                    
+                    !Mobility parameter
+                    Psi = Uwc2/((relativedensity-1)*gravity*d50(i,j))
                 
                     if(d50(i,j) < dsilt) then
                         Kscr = 20 * dsilt
