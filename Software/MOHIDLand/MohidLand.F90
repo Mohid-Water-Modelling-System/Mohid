@@ -413,7 +413,7 @@ program MohidLand
         
         if (VariableDT) then
                             
-            NewDT = min(DT * 1.50, MaxDT)
+            NewDT = DT !min(DT * 1.50, MaxDT)
         
         else
             
