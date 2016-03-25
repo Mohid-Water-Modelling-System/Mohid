@@ -1829,7 +1829,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         endif
 
-        if(Me%WaveShear_Stress%Yes)then
+        if (Me%WaveShear_Stress%Yes .and. Me%Shear_Stress%Method==1) then
 
             call Read_Property_2D(Me%WaveShear_Stress%Rugosity, FromBlock, &
                                   waverugosity_begin, waverugosity_end)
@@ -5227,7 +5227,7 @@ do2:            do i = ILB, IUB
                             Ubw = Me%ExtWater%Ubw(i,j)
                             Abw = Me%ExtWater%Abw(i,j)
                             
-                            if (Ubw.gt.0) then
+                            if (Ubw.gt.1e-3) then
                             
                                 !Current angle in cartesian convention (angle between the vector and positive x-axis)
                                 Cphi = atan2(VC, UC) * 180./pi
@@ -5241,13 +5241,13 @@ do2:            do i = ILB, IUB
                                 !Compute drag coefficient
                                 call Compute_DragCoef(DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw)        
                         
-                                if(UVC < 1e-6)then !wave-only flow                                    
+                                if(UVC < 1e-3)then !wave-only flow                                    
                                     TAUM=0.
                                     TAUMAX=0.5*WaterDensity*FW*Ubw**2
                                         
                                     Me%WaveShear_Stress%Tension(i,j) = TAUMAX
                         
-                                else if(UVC.gt.1e-6)then !combined wave and current flow                                    
+                                else if(UVC.gt.1e-3)then !combined wave and current flow                                    
                                     TAUM=WaterDensity*CDM*UVC**2
                                     TAUMAX=WaterDensity*CDMAX*UVC**2    
 
@@ -5320,7 +5320,7 @@ do2:            do i = ILB, IUB
                         
         REC=UVC*DWZ/WaterCinematicVisc
         CDS = 0.
-        if(UVC > 1e-6) CDS=0.0001615*EXP(6.*REC**(-0.08))
+        if(UVC > 1e-3) CDS=0.0001615*EXP(6.*REC**(-0.08))
                         
         CDMAX = MAX(CDR,CDS)
         CDM = CDMAX
@@ -5328,7 +5328,7 @@ do2:            do i = ILB, IUB
 
         if (present(Ubw)) then
                             
-            if (Ubw.gt.0)then 
+            if (Ubw.gt.1e-3)then 
                         
                     REW=Ubw*Abw/WaterCinematicVisc     
                     FWS=0.0521*REW**(-0.187)
@@ -5336,12 +5336,12 @@ do2:            do i = ILB, IUB
                     
                     FW=MAX(FWS,FWR)
                         
-                if(UVC < 1e-6)then !wave-only flow
+                if(UVC < 1e-3)then !wave-only flow
                     
                     CDMAX=FW
                     CDM=0.
                         
-                else if(UVC.gt.1e-6)then !combined wave and current flow
+                else if(UVC.gt.1e-3)then !combined wave and current flow
                                     
                     !turbulent flow
                     !Rough-turbulent wave-plus-current shear-stress
@@ -5506,7 +5506,7 @@ do4:        do i = ILB, IUB
         !Local-----------------------------------------------------------------
         real,    pointer, dimension(:, :   )    :: Depth
         real(8), dimension(:,:),  pointer       :: GrainRoughness, D50
-        real                                    :: Psi, WaterDensity, U
+        real                                    :: Psi, WaterDensity, U, Uwc2, Ubw
         real                                    :: sedimentdensity, relativedensity
         real(8)                                 :: dsilt, dsand, dgravel
         real                                    :: Kscr, Kscmr, Kscd, Ksc, Ks, ffs, fcs 
@@ -5554,10 +5554,17 @@ do2:    do i = ILB, IUB
                     
                     !Average velocity
                     U = Me%Shear_Stress%Velocity(i,j)/0.4* &
-                        (log(Depth(i,j)/Me%Rugosity%Field(i,j)) - 1 + Me%Rugosity%Field(i,j)/Depth(i,j))                
-                
-                    !Current mobility parameter
-                    Psi = U/((relativedensity-1)*gravity*d50(i,j))
+                        (log(Depth(i,j)/Me%Rugosity%Field(i,j)) - 1 + Me%Rugosity%Field(i,j)/Depth(i,j))
+                    
+                    if (Me%WaveShear_Stress%Yes) then
+                        Ubw = Me%ExtWater%Ubw(i,j)
+                        Uwc2 = U**2 + Ubw**2
+                    else
+                        Uwc2 = U**2 
+                    endif
+                    
+                    !Mobility parameter
+                    Psi = Uwc2/((relativedensity-1)*gravity*d50(i,j))
                 
                     if(d50(i,j) < dsilt) then
                         Kscr = 20 * dsilt
@@ -9894,8 +9901,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     deallocate(Me%WaveShear_Stress%Tension        ) 
 
                     deallocate(Me%WaveShear_Stress%ChezyVel       ) 
-
-                    deallocate(Me%WaveShear_Stress%Rugosity%Field ) 
+                    
+                    if (Me%Shear_Stress%Method==1) then
+                        deallocate(Me%WaveShear_Stress%Rugosity%Field ) 
+                    endif
 
                     if (Me%RunsSandTransport) then
 

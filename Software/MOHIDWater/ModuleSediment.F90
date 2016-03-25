@@ -3488,13 +3488,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 write(*,*) 'Define WAVETENSION: 1 in module InterfaceSedimentWater'
                 stop 'SetWaveTensionON - ModuleSediment - ERR10'
             endif
-        else           
-            if (Me%ExternalVar%WaveTensionON == .true.) then  
-                write(*,*)
-                write(*,*) 'WAVETENSION: 1 is defined in ModuleInterfaceSedimentWater'
-                write(*,*) 'Change BEDLOAD_METHOD to 2 or 3'
-                stop 'SetWaveTensionON - ModuleSediment - ERR20'
-            endif
+        !else           
+            !if (Me%ExternalVar%WaveTensionON == .true.) then  
+                !write(*,*)
+                !write(*,*) 'WAVETENSION: 1 is defined in ModuleInterfaceSedimentWater'
+                !write(*,*) 'Change BEDLOAD_METHOD to 2 or 3'
+                !stop 'SetWaveTensionON - ModuleSediment - ERR20'
+            !endif
         endif
         
     end subroutine SetWaveTensionON
@@ -4653,7 +4653,7 @@ do1:    do n=1,Me%NumberOfClasses
         
                     h = Me%ExternalVar%WaterColumn(i,j)
                     
-                    if(KW*h < 0.1) then
+                    if(KW*h < 10.0) then
         
                         Me%AsymmetryFactor(i,j) = (3./4*pi*HW/(LW*(sinh(KW*h))**3))**2
         
