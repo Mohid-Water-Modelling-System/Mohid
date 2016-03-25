@@ -9924,7 +9924,7 @@ doj:    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
         endif
         
         !Compare to global value to update
-        if (Me%VectorialProp) then
+        if (.not. Me%VectorialProp) then
             if (Me%DTForNextEvent > CurrentHDF%DTForNextEvent) &
                 Me%DTForNextEvent = CurrentHDF%DTForNextEvent
                     
@@ -9969,7 +9969,7 @@ doj:    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
         endif
         
         !Compare to global value to update
-        if (Me%VectorialProp) then
+        if (.not. Me%VectorialProp) then
             if (Me%DTForNextEvent > CurrentHDF%DTForNextEvent) &
                 Me%DTForNextEvent = CurrentHDF%DTForNextEvent
                     
@@ -10332,7 +10332,7 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             endif
             
             !Compare to global value to update
-            if (Me%VectorialProp) then
+            if (.not. Me%VectorialProp) then
                 if (Me%DTForNextEvent > CurrentTimeSerie%DTForNextEvent) &
                     Me%DTForNextEvent = CurrentTimeSerie%DTForNextEvent
                     
@@ -10598,6 +10598,8 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                                     
             endif 
             
+            CurrentTimeSerie%NextValueForDTPred = instant_value
+            
         else
         
             CurrentTimeSerie%NextEventStart = CurrentTimeSerie%NextTime
@@ -10605,7 +10607,7 @@ doM:        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
 
         endif
         
-        CurrentTimeSerie%NextValueForDTPred = instant_value
+        
         !write (*,*) 'instant_value = ', instant_value
      
         
