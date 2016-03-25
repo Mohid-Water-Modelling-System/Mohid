@@ -4653,7 +4653,7 @@ do1:    do n=1,Me%NumberOfClasses
         
                     h = Me%ExternalVar%WaterColumn(i,j)
                     
-                    if(KW*h < 0.1) then
+                    if(KW*h < 10.0) then
         
                         Me%AsymmetryFactor(i,j) = (3./4*pi*HW/(LW*(sinh(KW*h))**3))**2
         
