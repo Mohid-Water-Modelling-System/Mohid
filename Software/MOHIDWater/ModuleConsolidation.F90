@@ -507,7 +507,7 @@ Module ModuleConsolidation
                                         STAT             = STAT_CALL)  
         if (STAT_CALL /= SUCCESS_) stop 'ConstructSedimentGridAndGeometry - ModuleConsolidation - ERR120'           
         
-    end subroutine ConstructSedimentGrid
+    end subroutine ConstructSedimentGridAndGeometry
     
     !--------------------------------------------------------------------------
 
