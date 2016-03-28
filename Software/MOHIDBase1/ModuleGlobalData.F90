@@ -705,7 +705,8 @@ Module ModuleGlobalData
     integer, parameter ::  PeakDirection_                  = 3510
     integer, parameter ::  WindSeaPeakFrequency_           = 3511
     integer, parameter ::  WindSeaPeakDirection_           = 3512
-    integer, parameter ::  WaveSwellHeight_                = 3513 
+    integer, parameter ::  WaveSwellHeight_                = 3513
+    integer, parameter ::  Ubw_                            = 3514
     integer, parameter ::  PeakPeriod_                     = 3520
     integer, parameter ::  PeakDirectionX_                 = 3530    
     integer, parameter ::  PeakDirectionY_                 = 3531        
@@ -1510,6 +1511,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SignificantWaveHeight    = 'significant wave height'
     character(StringLength), private, parameter :: Char_SignificantWaveHeightBeaufort    = 'significant wave height beaufort'
     character(StringLength), private, parameter :: Char_MeanWaveLength           = 'mean wave length'
+    character(StringLength), private, parameter :: Char_Ubw                      = 'Ubw'
     character(StringLength), private, parameter :: Char_MeanWavePeriod           = 'mean wave period'
     character(StringLength), private, parameter :: Char_MeanWaveDirection        = 'mean wave direction'
     character(StringLength), private, parameter :: Char_MeanDirectionalSpread    = 'mean directional spread'
@@ -2989,6 +2991,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (WavePower_,               Char_WavePower,                  ListNumber)
             call AddPropList (TransportEnergyX_,        Char_TransportEnergyX,           ListNumber)
             call AddPropList (TransportEnergyY_,        Char_TransportEnergyY,           ListNumber)
+            call AddPropList (Ubw_,                     Char_Ubw,                        ListNumber)
             
             call AddPropList (ConsolidationFlux_,       Char_ConsolidationFlux,          ListNumber)
             call AddPropList (Porosity_,                Char_Porosity,                   ListNumber)

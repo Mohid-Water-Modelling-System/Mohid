@@ -254,10 +254,11 @@ Module ModuleWaves
         type (T_WaveProperty)                               :: WaveHeight
         type (T_WaveProperty)                               :: WaveDirection
         type (T_WaveProperty)                               :: WaveLength
+        type (T_WaveProperty)                               :: Ubw
         type (T_WaveProperty)                               :: StokeDriftVelX
         type (T_WaveProperty)                               :: StokeDriftVelY        
         real, dimension(:,:  ), pointer                     :: Abw                     => null()
-        real, dimension(:,:  ), pointer                     :: Ubw                     => null()
+        real, dimension(:,:  ), pointer                     :: Ubw_                    => null()
         real, dimension(:,:  ), pointer                     :: WaveLength_             => null()
         real, dimension(:,:  ), pointer                     :: En                      => null()
         real, dimension(:,:  ), pointer                     :: k                       => null()
@@ -636,6 +637,29 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                     EndBlock     = "<end_wavelength>")    
         endif
 
+        call GetData(Me%Ubw%ON,                                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'WAVE_UBW',                                           &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR46'
+
+        if (Me%Ubw%ON) then
+
+            call ConstructPropertyIDOnFly (PropertyID = Me%Ubw%ID,                      &
+                                           Name = GetPropertyName(Ubw_),                &
+                                           IsDynamic = .false.,                         &
+                                           IDNumber = Ubw_)                   
+
+            call ReadWaveParameters(WaveProperty = Me%Ubw,                              &
+                                    BeginBlock   = "<begin_ubw>",                       &
+                                    EndBlock     = "<end_ubw>")    
+        endif
+        
         call GetData(AuxX,                                                              &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword    = 'RADIATION_TENSION_X',                                &
@@ -829,15 +853,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
         endif
         
-        if (Me%WaveHeight%ON .and. Me%WavePeriod%ON) then
+        if (Me%Ubw%ON) then
+            
+            allocate(Me%Abw(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            Me%Abw(:,:)        =  FillValueReal
+            
+            call ComputeAbw
+            
+        elseif (Me%WaveHeight%ON .and. Me%WavePeriod%ON) then
 
             Me%ParametersON = .true.
 
             allocate(Me%Abw(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             Me%Abw(:,:)        =  FillValueReal
 
-            allocate(Me%Ubw(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-            Me%Ubw(:,:)        =  FillValueReal
+            allocate(Me%Ubw_(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            Me%Ubw_(:,:)        =  FillValueReal
 
             allocate(Me%WaveLength_(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             Me%WaveLength_(:,:) =  FillValueReal
@@ -1118,7 +1149,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if ((Me%WavePeriod%OutputHDF).or.(Me%WaveHeight%OutputHDF).or.                  &
             (Me%WaveDirection%OutputHDF).or.(Me%WaveLength%OutputHDF) .or.              & 
-            (Me%RadiationStress%OutputHDF)) then
+            (Me%RadiationStress%OutputHDF .or. Me%Ubw%OutputHDF)) then
     
             OutputON = ON
             Me%Output%HDF = .true.
@@ -1180,7 +1211,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if ((Me%WaveHeight%TimeSerieOn).or.(Me%WavePeriod%TimeSerieOn).or.              &
             (Me%WaveDirection%TimeSerieOn).or.(Me%WaveLength%TimeSerieOn).or.           &
-            (Me%RadiationStress%TimeSerieOn)) then
+            (Me%RadiationStress%TimeSerieOn .or. Me%Ubw%TimeSerieOn )) then
 
             Me%OutPut%TimeSerie = .true.
 
@@ -1204,7 +1235,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 nProperties = nProperties + 2
             endif
 
-            if (Me%ParametersON) then
+            if (Me%Ubw%On .or. Me%ParametersON) then
                 !Ubw & Abw
                 nProperties = nProperties + 2
             endif
@@ -1239,12 +1270,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 PropertyList (PositionInList) = 'RadiationStressY'
             endif
             
-            if (Me%ParametersON) then
+            if (Me%Ubw%On .or. Me%ParametersON) then
                 PositionInList = PositionInList + 1
                 PropertyList (PositionInList) = 'Ubw'
             endif
             
-            if (Me%ParametersON) then
+            if (Me%Ubw%On .or. Me%ParametersON) then
                 PositionInList = PositionInList + 1
                 PropertyList (PositionInList) = 'Abw'
             endif
@@ -2509,8 +2540,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif
 
                 if (present(Ubw)) then
-                    call Read_Lock(mWaves_, Me%InstanceID)
-                    Ubw => Me%Ubw
+                    call Read_Lock(mWaves_, Me%InstanceID)                    
+                    if (Me%Ubw%ON) then
+                        Ubw => Me%Ubw%Field
+                    else
+                        Ubw => Me%Ubw_
+                    endif
                 endif
 
                 if (present(WaveLength)) then
@@ -2870,12 +2905,32 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     endif
                 endif
             endif
-
-            if (Me%ParametersON .and. (.not. Me%WaveHeight%Constant .or. .not. Me%WavePeriod%Constant)) then
-
-                call ComputeWaveParameters
-
+            
+            !Modifies Wave Orbital Velocity (Ubw)
+            if (Me%Ubw%ON) then
+                if (.not. Me%Ubw%Constant) then  
+                    if (Me%Ubw%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%Ubw%ID%ObjFillMatrix,          &
+                                               Matrix2D         = Me%Ubw%Field,                     &
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,     &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,    &
+                                               STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR66'
+                        
+                        call ComputeAbw
+                    else
+                         if (Me%ParametersON .and. (.not. Me%WaveHeight%Constant .or. .not. Me%WavePeriod%Constant)) then
+                            call ComputeWaveParameters
+                        endif
+                    endif
+                endif
             endif
+
+            !if (Me%ParametersON .and. (.not. Me%WaveHeight%Constant .or. .not. Me%WavePeriod%Constant)) then
+
+                !call ComputeWaveParameters
+
+            !endif
 
 
             !Modifies Radiation Tension (get matrixes in cell referential (u,v) and in input ref (x,y)
@@ -2982,7 +3037,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.          
                         Me%ExternalVar%WaterColumn(i,j) .lt. 0.1  .or.                  &
                         Me%WavePeriod%Field       (i,j) < 1e-3) then 
                         
-                        Me%Ubw(i, j)              = 0.001
+                        Me%Ubw_(i, j)              = 0.001
                         Me%Abw(i, j)              = 0.001
                         Me%WaveLength_(i, j)       = 0.
 
@@ -3004,16 +3059,16 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.          
                         !if (WAVN * Me%ExternalVar%WaterColumn(i,j) .gt. 230) then
                         !To avoid sinh results larger then 1e10
                         if (WAVN * Me%ExternalVar%WaterColumn(i,j) .gt. 23.7) then
-                            Me%Ubw(i, j)             = 0
+                            Me%Ubw_(i, j)             = 0
                         else
-                            Me%Ubw(i, j)             = 0.5 * OMEG * Me%WaveHeight%Field(i,j) / &
+                            Me%Ubw_(i, j)             = 0.5 * OMEG * Me%WaveHeight%Field(i,j) / &
                                                   sinh(WAVN * Me%ExternalVar%WaterColumn(i,j))
                         endif
 
                         !To avoid overflow errors
-                        if (Me%Ubw(i, j) < 1e-6)  Me%Ubw(i, j) = 0.
+                        if (Me%Ubw_(i, j) < 1e-6)  Me%Ubw_(i, j) = 0.
                         
-                        Me%Abw(i, j) = Me%Ubw(i, j) / OMEG
+                        Me%Abw(i, j) = Me%Ubw_(i, j) / OMEG
 
                     endif cd2
 
@@ -3042,6 +3097,44 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.          
 
 
     end subroutine ComputeWaveParameters
+    
+       !--------------------------------------------------------------------------
+  
+    subroutine ComputeAbw
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real                                        :: OMEG
+        integer                                     :: STAT_, ready_
+        integer                                     :: i, j, ILB, IUB, JLB, JUB, STAT_CALL
+        logical                                     :: PrivateSub
+
+        !Begin-----------------------------------------------------------------
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+
+        do j=JLB, JUB
+        do i=ILB, IUB
+            
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+
+cd2:            if (Me%WavePeriod%Field(i,j) > 1e-3) then                        
+                    OMEG = 2.  * PI   / Me%WavePeriod%Field(i,j)
+                        
+                    Me%Abw(i, j) = Me%Ubw%Field(i, j) / OMEG
+                else
+                    Me%Abw(i, j) = 0.
+                endif cd2
+            endif
+
+        enddo
+        enddo
+
+    end subroutine ComputeAbw
 
     !--------------------------------------------------------------------------
     
@@ -3910,7 +4003,27 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
                 if (STAT_CALL /= SUCCESS_)                                                &
                     stop 'OutPut_Results_HDF - ModuleWaves - ERR75'                 
                                                                                     
-            endif                                                                   
+            endif
+            
+            if (Me%Ubw%OutputHDF) then
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//"Abw",                    &
+                                     "Abw", "m",                                        &
+                                     Array2D      = Me%Abw,                             &
+                                     OutputNumber = OutPutNumber,                       &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR76'                 
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%Ubw%ID%Name),     &
+                                      trim(Me%Ubw%ID%Name), "m/s",                      &
+                                     Array2D      = Me%Ubw%Field,                       &
+                                     OutputNumber = OutPutNumber,                       &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR77'             
+                
+            endif
 
             if (Me%RadiationStress%OutputHDF) then                                 
                              
@@ -3965,7 +4078,7 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/"//"Ubw",                    &
                                      "Ubw", "m/s",                                      &
-                                     Array2D      = Me%Ubw,                             &
+                                     Array2D      = Me%Ubw_,                            &
                                      OutputNumber = OutPutNumber,                       &
                                      STAT         = STAT_CALL)                      
                 if (STAT_CALL /= SUCCESS_)                                              &
@@ -4045,8 +4158,22 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
                                 Data2D  = Me%WaveLength%Field,                          &
                                 STAT    = STAT_CALL)                              
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'OutPut_TimeSeries - ModuleWaves - ERR20'                    
-        endif                                                                   
+                stop 'OutPut_TimeSeries - ModuleWaves - ERR25'                    
+        endif 
+        
+        if (Me%Ubw%TimeSerieOn) then                                                                 
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D  = Me%Ubw%Field,                                 &
+                                STAT    = STAT_CALL)                            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'OutPut_TimeSeries - ModuleWaves - ERR26'                           
+                                                               
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D  = Me%Abw,                                       &
+                                STAT    = STAT_CALL)                            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'OutPut_TimeSeries - ModuleWaves - ERR27'                  
+        endif          
 
         !Output is in input ref
         if (Me%RadiationStress%TimeSerieOn) then                               
@@ -4065,7 +4192,7 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
         
         if (Me%ParametersON) then                                                                 
             call WriteTimeSerie(Me%ObjTimeSerie,                                        &
-                                Data2D  = Me%Ubw,                                       &
+                                Data2D  = Me%Ubw_,                                      &
                                 STAT    = STAT_CALL)                            
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'OutPut_TimeSeries - ModuleWaves - ERR50'                  
@@ -4179,6 +4306,18 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     deallocate(Me%WaveLength%Field) 
 
                 endif
+                
+                if (Me%Ubw%ON) then
+                
+                    if (Me%Ubw%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%Ubw%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR86'
+                    endif
+
+                    deallocate(Me%Ubw%Field)
+                    deallocate(Me%Abw)
+
+                endif
 
 
                 if (Me%RadiationStress%ON) then
@@ -4198,7 +4337,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%ParametersON) then
 
                     deallocate(Me%Abw)
-                    deallocate(Me%Ubw)
+                    deallocate(Me%Ubw_)
                     deallocate(Me%WaveLength_)
 
                 endif
