@@ -874,53 +874,18 @@ il:         if (Me%RunLagrangian) then
 
             if (Me%RunSediments) then
 
-                !Gets the file name of the Bathymetry
-                call ReadFileName('IN_SEDIMENT', SedimentFile, "Sediment File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR340'
 
                 !Gets the file name of the Bathymetry
                 call ReadFileName('SED_GEOM', SedGeometryFile, "Sediment Geometry File", STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR350'
 
-                !Horizontal Grid Data - Sediment Column (Bathymetry)
-                call ConstructGridData      (GridDataID       = Me%Sediment%ObjBathymetry,   &
-                                             HorizontalGridID = Me%ObjHorizontalGrid,        &
-                                             FileName         = SedimentFile,                &
-                                             STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR360'
-
-                !Horizontal Map
-                call ConstructHorizontalMap (HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
-                                             GridDataID       = Me%Sediment%ObjBathymetry,   &
-                                             HorizontalGridID = Me%ObjHorizontalGrid,        &
-                                             ActualTime       = Me%CurrentTime,              &
-                                             STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR370'
-
-                !Geometry - Sediment Column
-                call ConstructGeometry      (GeometryID       = Me%Sediment%ObjGeometry,     &
-                                             GridDataID       = Me%Sediment%ObjBathymetry,   &
-                                             HorizontalGridID = Me%ObjHorizontalGrid,        &
-                                             HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
-                                             ActualTime       = Me%CurrentTime,              &
-                                             NewDomain        = SedGeometryFile,             &
-                                             STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR380'
-
-                !Map - Sediment Column            
-                call ConstructMap           (Map_ID           = Me%Sediment%ObjMap,          &
-                                             GeometryID       = Me%Sediment%ObjGeometry,     &
-                                             HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
-                                             TimeID           = Me%ObjTime,                  &
-                                             STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR390'
-
-
+  
                 call ConstructConsolidation(ConsolidationID     = Me%ObjConsolidation,          &
                                             TimeID              = Me%ObjTime,                   &
                                             GridDataID          = Me%Sediment%ObjBathymetry,    &
                                             HorizontalMapID     = Me%Sediment%ObjHorizontalMap, &
                                             HorizontalGridID    = Me%ObjHorizontalGrid,         &
+                                            SedGeometryFile     = SedGeometryFile,              &
                                             GeometryID          = Me%Sediment%ObjGeometry,      &
                                             MapID               = Me%Sediment%ObjMap,           &
                                             STAT                = STAT_CALL)
@@ -944,45 +909,8 @@ il:         if (Me%RunLagrangian) then
             if (Me%SedimentModule) then
 
                 !Gets the file name of the Bathymetry
-                call ReadFileName('IN_SEDIMENT', SedimentFile, "Sediment File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR341'
-
-                !Gets the file name of the Bathymetry
                 call ReadFileName('SED_GEOM', SedGeometryFile, "Sediment Geometry File", STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR351'
-
-                !Horizontal Grid Data - Sediment Column (Bathymetry)
-                call ConstructGridData      (GridDataID       = Me%Sediment%ObjBathymetry,   &
-                                             HorizontalGridID = Me%ObjHorizontalGrid,        &
-                                             FileName         = SedimentFile,                &
-                                             STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR361'
-
-                !Horizontal Map
-                call ConstructHorizontalMap (HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
-                                             GridDataID       = Me%Sediment%ObjBathymetry,   &
-                                             HorizontalGridID = Me%ObjHorizontalGrid,        &
-                                             ActualTime       = Me%CurrentTime,              &
-                                             STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR371'
-
-                !Geometry - Sediment Column
-                call ConstructGeometry      (GeometryID       = Me%Sediment%ObjGeometry,     &
-                                             GridDataID       = Me%Sediment%ObjBathymetry,   &
-                                             HorizontalGridID = Me%ObjHorizontalGrid,        &
-                                             HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
-                                             ActualTime       = Me%CurrentTime,              &
-                                             NewDomain        = SedGeometryFile,             &
-                                             STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR381'
-
-                !Map - Sediment Column            
-                call ConstructMap           (Map_ID           = Me%Sediment%ObjMap,          &
-                                             GeometryID       = Me%Sediment%ObjGeometry,     &
-                                             HorizontalMapID  = Me%Sediment%ObjHorizontalMap,&
-                                             TimeID           = Me%ObjTime,                  &
-                                             STAT             = STAT_CALL)  
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR391'
 
                 
                 call ConstructSediment(ObjSedimentID    = Me%ObjSediment,                        &
@@ -996,6 +924,7 @@ il:         if (Me%RunLagrangian) then
                                    SedimentGridDataID          = Me%Sediment%ObjBathymetry,      &
                                    SedimentHorizontalMapID     = Me%Sediment%ObjHorizontalMap,   &
                                    SedimentMapID               = Me%Sediment%ObjMap,             &
+                                   SedGeometryFile             = SedGeometryFile,                &
                                    SedimentGeometryID          = Me%Sediment%ObjGeometry,        &
                                    FreeVerticalMovementID      = Me%ObjFreeVerticalMovement,     &
                                    STAT                 = STAT_CALL)
