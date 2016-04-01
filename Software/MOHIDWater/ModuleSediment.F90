@@ -41,7 +41,8 @@ Module ModuleSediment
     use ModuleEnterData           
     use ModuleFillMatrix,       only : ConstructFillMatrix, GetDefaultValue, KillFillMatrix
     use ModuleGridData,         only : ConstructGridData, GetGridData, ModifyGridData,          &
-                                       GetGridData2DReference, UngetGridData, KillGridData          
+                                       GetGridData2DReference, UngetGridData, KillGridData,     &
+                                       SetGridDataEvolution
     use ModuleDischarges,       only : GetDischargesNumber, GetDischargesGridLocalization,      &
                                        GetDischargeWaterFlow, GetDischargeConcentration
     use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,           &
@@ -585,7 +586,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                        
             call ConstructEvolution
             
+            !Sediment grid data and sediment geometry are all constructed here and not in ModuleModel
+            !since this is the Module that handles them
             call ConstructSedimentGridAndGeometry
+            
+            !Set options to grid data so that sediment parameters were all constructed here and not in bathymetry creation
+            call SetGridDataEvolution(GridDataID          = Me%ObjBathym,              &
+                                      Evolution           = Me%Evolution%Bathym,       &
+                                      SedimentInitialFile = Me%Files%Initial, STAT = STAT_CALL) 
             
             call AllocateVariables      
             
@@ -635,6 +643,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
             call ReadUnLockExternalVar
+                        
 
             !Returns ID
             ObjSedimentID          = Me%InstanceID
@@ -3565,7 +3574,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         if (present(STAT)) STAT = STAT_
     
         if(Me%WavesOn) then
-            if (Me%ExternalVar%WaveTensionON == .false.) then                
+            if (.not. Me%ExternalVar%WaveTensionON) then                
                 write(*,*)
                 write(*,*) 'Define WAVETENSION: 1 in module InterfaceSedimentWater'
                 stop 'SetWaveTensionON - ModuleSediment - ERR10'
