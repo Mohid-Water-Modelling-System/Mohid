@@ -513,6 +513,8 @@ Module ModuleFillMatrix
         integer                                     :: nASCIIFiles      = null_int
         integer                                     :: nTimeSeries      = null_int
         integer                                     :: nHDFs            = null_int
+        
+        logical                                     :: CheckDates = .true.
 
         !Initialization Methods
         type (T_Layers   )                          :: Layers
@@ -553,7 +555,7 @@ Module ModuleFillMatrix
                                      HorizontalGridID, ExtractType, PointsToFill2D,     &
                                      Matrix2D, TypeZUV, Matrix2DInputRef, FileNameHDF, ObjFillMatrix,     &
                                      OverrideValueKeyword, ClientID, PredictDTMethod,   &
-                                     MinForDTDecrease, ValueIsUsedForDTPrediction, STAT)
+                                     MinForDTDecrease, ValueIsUsedForDTPrediction, CheckDates, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -568,6 +570,7 @@ Module ModuleFillMatrix
         integer, optional, intent(IN)                   :: ClientID
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
+        logical,      optional, intent(IN)              :: CheckDates
         integer,      optional, intent(OUT)             :: STAT     
         integer,      optional, intent(IN )             :: PredictDTMethod 
         real,         optional, intent(IN )             :: MinForDTDecrease  
@@ -599,6 +602,10 @@ Module ModuleFillMatrix
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
+            
+            if (present(CheckDates)) then
+                Me%CheckDates = CheckDates
+            endif
             
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
             if (PropertyID%IsVectorial) then
@@ -772,7 +779,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      Matrix2DU, Matrix2DV, Matrix2DX, Matrix2DY,        &
                                      TypeZUV, FileNameHDF, ObjFillMatrix,     &
                                      OverrideValueKeyword, ClientID, PredictDTMethod,   &
-                                     MinForDTDecrease, ValueIsUsedForDTPrediction, STAT)
+                                     MinForDTDecrease, ValueIsUsedForDTPrediction, CHeckDates, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -790,6 +797,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(*), dimension(2), optional, intent(IN ) :: FileNameHDF
         character(*), optional, intent(IN )             :: OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
+        logical,      optional, intent(IN)              :: CheckDates
         integer,      optional, intent(OUT)             :: STAT     
         integer,      optional, intent(IN )             :: PredictDTMethod 
         real,         optional, intent(IN )             :: MinForDTDecrease  
@@ -820,6 +828,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
+            
+            if (present(CheckDates)) then
+                Me%CheckDates = CheckDates
+            endif
             
             Me%VectorialProp = .true.
             
@@ -990,7 +1002,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      PointsToFill3D, Matrix3D, TypeZUV, Matrix3DInputRef, FillMatrix,     &
                                      FileNameHDF, ObjFillMatrix,                        &
                                      OverrideValueKeyword, ClientID, predictDTMethod,   &
-                                     MinForDTDecrease, ValueIsUsedForDTPrediction, STAT)
+                                     MinForDTDecrease, ValueIsUsedForDTPrediction, CheckDates, STAT)
 
         !Arguments---------------------------------------------------------------
         type (T_PropertyID)                             :: PropertyID
@@ -1007,6 +1019,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real        , optional, intent(IN )             :: FillMatrix
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
+        logical,      optional, intent(IN)              :: CheckDates
         integer,      optional, intent(OUT)             :: STAT     
         integer,      optional, intent(IN )             :: PredictDTMethod  
         real,         optional, intent(IN )             :: MinForDTDecrease 
@@ -1039,6 +1052,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
+            
+            if (present(CheckDates)) then
+                Me%CheckDates = CheckDates
+            endif
 
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
             if (PropertyID%IsVectorial) then
@@ -1231,7 +1248,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      Matrix3DU, Matrix3DV, Matrix3DW, Matrix3DX, Matrix3DY,        &
                                      TypeZUV, FillMatrix, FileNameHDF, ObjFillMatrix,     &
                                      OverrideValueKeyword, ClientID, PredictDTMethod,   &
-                                     MinForDTDecrease, ValueIsUsedForDTPrediction, STAT)
+                                     MinForDTDecrease, ValueIsUsedForDTPrediction, CheckDates, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -1252,6 +1269,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(*), dimension(2), optional, intent(IN ) :: FileNameHDF
         character(*), optional, intent(IN )             :: OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
+        logical,      optional, intent(IN)              :: CheckDates
         integer,      optional, intent(OUT)             :: STAT     
         integer,      optional, intent(IN )             :: PredictDTMethod 
         real,         optional, intent(IN )             :: MinForDTDecrease  
@@ -1283,6 +1301,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
+            
+            if (present(CheckDates)) then
+                Me%CheckDates = CheckDates
+            endif
             
             Me%VectorialProp = .true.
 
@@ -2276,6 +2298,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     call StartTimeSerieInput(sl(index)%ObjTimeSerie,            &
                                              sl(index)%FileName,                &
                                              Me%ObjTime,                        &
+                                             CheckDates = Me%CheckDates,        &
                                              STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'ConstructMultiTimeSerie - ModuleFillMatrix - ERR028'
@@ -4674,7 +4697,7 @@ i2:     if (Me%Dim == Dim2D) then
             
             !if scalar needs to have it defined
             if (.not. Me%VectorialProp) then
-                write(*,*) 'TIMESERIE File Name not given not given for property '//trim(Me%PropertyID%Name)           
+                write(*,*) 'TIMESERIE File Name not given for property '//trim(Me%PropertyID%Name)           
                 stop       'ConstructSpaceTimeSerie - ModuleFillMatrix - ERR01b'     
                 
             !if vectorial, and not one file defined, search for two files for each component
@@ -4860,6 +4883,7 @@ i2:     if (Me%Dim == Dim2D) then
             call StartTimeSerieInput(CurrentTimeSerie%ObjTimeSerie, &
                                      CurrentTimeSerie%FileName,     &
                                      Me%ObjTime,                    &
+                                     CheckDates = Me%CheckDates,    &
                                      STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSpaceTimeSerie - ModuleFillMatrix - ERR050'
         
@@ -6247,7 +6271,7 @@ d2:      do while(.not. FoundSecondInstant)
             if (STAT_CALL /= SUCCESS_) stop 'Generic4thDimension  - ModuleFillMatrix - ERR20'
             if (iflag == 0) stop 'Generic4thDimension  - ModuleFillMatrix - ERR30'
 
-            call GetData(CurrentHDF%Generic4D%TimeSerieColumn, Me%ObjEnterData, iflag,      &
+            call GetData(CurrentHDF%Generic4D%TimeSerieColumn, Me%ObjEnterData, iflag,  &
                          keyword        = 'TIME_SERIE_COLUMN',                          &  
                          SearchType     = ExtractType,                                  &
                          ClientModule   = 'ModuleFillMatrix',                           &
@@ -6256,9 +6280,9 @@ d2:      do while(.not. FoundSecondInstant)
             if (STAT_CALL /= SUCCESS_) stop 'Generic4thDimension  - ModuleFillMatrix - ERR40'
 
             !Starts Time Serie
-            call StartTimeSerieInput(CurrentHDF%Generic4D%ObjTimeSerie,                     &
-                                     FileName,                                          &
-                                     CheckDates =.false.,                               &
+            call StartTimeSerieInput(CurrentHDF%Generic4D%ObjTimeSerie,     &
+                                     FileName,                              &
+                                     CheckDates =.false.,                   &
                                      STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'Generic4thDimension - ModuleFillMatrix - ERR50'
 
