@@ -86,6 +86,7 @@ Module ModuleGridData
     public  :: GetGridDataType
     public  :: GetIsGridData3D
     public  :: GetGridDataEvolution
+    public  :: SetGridDataEvolution
     public  :: UngetGridData
 
     !Modifier
@@ -313,14 +314,7 @@ Module ModuleGridData
             
             !Gets SedimentModule initial file name
             if (present(SedimentModule)) then
-                Me%SedimentModule = SedimentModule
-                
-                if (Me%SedimentModule) then
-                    call ReadFileName('SEDIMENT_INI', Me%SedimentModuleFile,        &
-                                       Message   =  'Sediment module initial values in HDF format.',&
-                                       STAT      = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructGridData - ModuleGridData - ERR25'
-                endif
+                Me%SedimentModule = SedimentModule                
             endif
 
 
@@ -402,11 +396,11 @@ Module ModuleGridData
 
                     Me%GridData2Dreference(:,:) = Me%GridData2D(:,:)
                     
-                    if (Me%SedimentModule) then 
-                        call ReadFileEvolutionSediment
-                    else
+                    !if (Me%SedimentModule) then 
+                    !    call ReadFileEvolutionSediment
+                    !else
                         call ReadFileEvolution
-                    endif
+                    !endif
                 endif
 
 
@@ -534,11 +528,9 @@ Module ModuleGridData
 
         if (Me%Evolution%Yes) then
             
-            if (Me%SedimentModule) then
-                
-                Me%Evolution%File = Me%SedimentModuleFile
-                Me%Evolution%PropName = 'Bathymetry'
-            else
+            !sediment module will set values through SetGridDataEvolution
+            if (.not. Me%SedimentModule) then
+
                 !Gets if the bathymetry can change in time
                 call GetData            (Me%Evolution%File, ObjEnterData, flag,             &
                                          keyword      = 'EVOLUTION_FILE',                   &
@@ -1760,7 +1752,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
-    
     subroutine GetGridDataEvolution(GridDataID, Evolution, STAT)     
 
         !Arguments-------------------------------------------------------------
@@ -1796,8 +1787,59 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     end subroutine GetGridDataEvolution
 
-    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------    
+    subroutine SetGridDataEvolution(GridDataID, Evolution, SedimentInitialFile, STAT)     
 
+        !Arguments-------------------------------------------------------------
+        integer                                     :: GridDataID
+        logical                                     :: Evolution
+        character(LEN = PathLength)                 :: SedimentInitialFile
+        integer, optional                           :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_        
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(GridDataID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Me%Evolution%Yes = Evolution
+            
+            if (Me%Evolution%Yes) then
+                Me%Evolution%File = SedimentInitialFile
+                Me%Evolution%PropName = 'Bathymetry'
+            
+                !get the reference
+                allocate(Me%GridData2Dreference(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                Me%GridData2Dreference(:,:) = Me%DefaultValue      
+            
+                if (Me%SedimentModule) then 
+                    call ReadFileEvolutionSediment 
+                else
+                    call ReadFileEvolution
+                endif
+            endif
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine SetGridDataEvolution    
+    
+    !----------------------------------------------------------------------
 
     subroutine UngetGridData2D(GridDataID, Array, STAT)
 
@@ -2847,7 +2889,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             if (nUsers == 0) then
 
-                if (Me%Evolution%Yes .and. Me%SedimentModule == .false. ) then
+                if (Me%Evolution%Yes .and. .not. Me%SedimentModule ) then
                     call WriteFileEvolution
                 endif
 

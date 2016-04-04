@@ -41,7 +41,8 @@ Module ModuleSediment
     use ModuleEnterData           
     use ModuleFillMatrix,       only : ConstructFillMatrix, GetDefaultValue, KillFillMatrix
     use ModuleGridData,         only : ConstructGridData, GetGridData, ModifyGridData,          &
-                                       GetGridData2DReference, UngetGridData, KillGridData          
+                                       GetGridData2DReference, UngetGridData, KillGridData,     &
+                                       SetGridDataEvolution
     use ModuleDischarges,       only : GetDischargesNumber, GetDischargesGridLocalization,      &
                                        GetDischargeWaterFlow, GetDischargeConcentration
     use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,           &
@@ -585,7 +586,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                        
             call ConstructEvolution
             
+            !Sediment grid data and sediment geometry are all constructed here and not in ModuleModel
+            !since this is the Module that handles them
             call ConstructSedimentGridAndGeometry
+            
+            !Set options to grid data so that sediment parameters were all constructed here and not in bathymetry creation
+            call SetGridDataEvolution(GridDataID          = Me%ObjBathym,              &
+                                      Evolution           = Me%Evolution%Bathym,       &
+                                      SedimentInitialFile = Me%Files%Initial, STAT = STAT_CALL) 
             
             call AllocateVariables      
             
@@ -635,6 +643,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
             call ReadUnLockExternalVar
+                        
 
             !Returns ID
             ObjSedimentID          = Me%InstanceID
@@ -783,6 +792,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Local-------------------------------------------------------------------
         integer                             :: iflag        
+        character(len = StringLength) :: Message
         !----------------------------------------------------------------------
 
         call GetData(Me%MinLayerThickness,                                               &
@@ -891,7 +901,39 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR130' 
+        if (Me%Evolution%OLD) then
+            ! ---> Sediment properties initial values in HDF format
+            Message   ='Sediment properties initial values in HDF format.'
+            Message   = trim(Message)
 
+            call ReadFileName('SEDIMENT_INI', Me%Files%Initial,                              &
+                               Message   = Message, TIME_END = Me%ExternalVar%Now,           &
+                               Extension = 'sedi',                                          &
+                               !MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
+                               !DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
+                               STAT      = STAT_CALL)
+
+
+    cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
+                write(*,*)  
+                write(*,*) 'Inicial file not found.'
+                stop 'Read_Sediment_Files_Name - ModuleSediment - ERR04' 
+
+            else if (STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
+                write(*,*)  
+                write(*,*) 'Keyword for the inicial file not found in nomfich.dat.'
+                write(*,*) 'Read_Sediment_Files_Name - ModuleSediment - WRN01'
+                write(*,*)  
+
+            else if (STAT_CALL .EQ. SUCCESS_              ) then
+                continue
+            else
+                write(*,*) 
+                write(*,*) 'Error calling ReadFileName.'
+                stop 'Read_Sediment_Files_Name - ModuleSediment - ERR05' 
+            end if cd1    
+        endif
+        
         call GetData(Me%MorphologicalFactor,                                             &
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
@@ -1484,38 +1526,8 @@ i1:     if (Me%Boxes%Yes) then
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Read_Sediment_Files_Name - ModuleSediment - ERR03' 
 
-
-        ! ---> Sediment properties initial values in HDF format
-        Message   ='Sediment properties initial values in HDF format.'
-        Message   = trim(Message)
-
-        call ReadFileName('SEDIMENT_INI', Me%Files%Initial,                              &
-                           Message   = Message, TIME_END = Me%ExternalVar%Now,           &
-                           Extension = 'sedi',                                          &
-                           !MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
-                           !DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
-                           STAT      = STAT_CALL)
-
-
-cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
-            write(*,*)  
-            write(*,*) 'Inicial file not found.'
-            stop 'Read_Sediment_Files_Name - ModuleSediment - ERR04' 
-
-        else if (STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
-            write(*,*)  
-            write(*,*) 'Keyword for the inicial file not found in nomfich.dat.'
-            write(*,*) 'Read_Sediment_Files_Name - ModuleSediment - WRN01'
-            write(*,*)  
-
-        else if (STAT_CALL .EQ. SUCCESS_              ) then
-            continue
-        else
-            write(*,*) 
-            write(*,*) 'Error calling ReadFileName.'
-            stop 'Read_Sediment_Files_Name - ModuleSediment - ERR05' 
-        end if cd1  
-
+ 
+            
         !----------------------------------------------------------------------
 
     end subroutine Read_Sediment_Files_Name
@@ -3562,7 +3574,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         if (present(STAT)) STAT = STAT_
     
         if(Me%WavesOn) then
-            if (Me%ExternalVar%WaveTensionON == .false.) then                
+            if (.not. Me%ExternalVar%WaveTensionON) then                
                 write(*,*)
                 write(*,*) 'Define WAVETENSION: 1 in module InterfaceSedimentWater'
                 stop 'SetWaveTensionON - ModuleSediment - ERR10'
