@@ -149,6 +149,8 @@ Module ModuleBasin
                                      
     use ModuleStopWatch,      only : StartWatch, StopWatch
     
+    use ModuleBoxDif,         only : StartBoxDif, BoxDif, KillBoxDif        
+    
     use ModuleGeometry,       only : GetGeometrySize, GetGeometryDistances, UnGetGeometry
     
     use ModuleSnow
@@ -299,6 +301,7 @@ Module ModuleBasin
         character(len=PathLength)                   :: FinalFile              = null_str
         character(len=PathLength)                   :: TimeSerieLocation      = null_str
         character(len=PathLength)                   :: BWBTimeSeriesLocation  = null_str
+        character(len=PathLength)                   :: IntegrationTimeSeriesLocation  = null_str
     end type T_Files
 
     type T_IntegratedFlow
@@ -469,6 +472,33 @@ Module ModuleBasin
         integer  :: NumberOfCells           = 0
     end type T_BasinWaterBalance
 
+    type T_Integration
+        logical                                     :: Integrate = .false.
+        real                                        :: Interval = 86400.0
+        logical                                     :: IntegrateTemperature = .true.
+        logical                                     :: IntegratePrecipitation = .true.
+        logical                                     :: IntegrateEVTP = .true.
+        logical                                     :: IntegrateIrrigation = .true.
+        
+        integer                                     :: ObjTimeSeries = 0
+        
+        type(T_Time)                                :: NextOutputTime
+        
+        real, pointer                               :: Temperature(:,:) => null()
+        real, pointer                               :: Precipitation(:,:) => null()
+        real, pointer                               :: EVTPRef(:,:) => null()
+        real, pointer                               :: EVTPCrop(:,:) => null()
+        real, pointer                               :: EVTPActual(:,:) => null()
+        real, pointer                               :: Irrigation(:,:) => null()   
+        
+        real, pointer                               :: Buffer(:) => null()
+    end type T_Integration
+    
+    type T_BasinDT
+        real                                        :: SyncDT = 86400.
+        real                                        :: NextDT = 86400.
+    end type T_BasinDT
+    
     type T_Basin
         integer                                     :: InstanceID           = 0
         character(len=StringLength)                 :: ModelName            = null_str
@@ -580,6 +610,8 @@ Module ModuleBasin
         type (T_OutPut)                             :: EVTPInstOutPut
         !type (T_OutPut)                             :: EVTPRefOutPut
         
+        type (T_Integration)                        :: Integration
+        
         real                                        :: DefaultKcWhenLAI0        = 0.3
         logical                                     :: UseDefaultKcWhenLAI0     = .false.
         logical                                     :: UsePotLAI                = .false.
@@ -628,6 +660,8 @@ Module ModuleBasin
         real, dimension(6)                          :: KcThresholds
         logical                                     :: UseKCThresholds = .false.
         
+        type(T_BasinDT)                             :: InternalDT
+               
     end type  T_Basin
 
     !Global Module Variables
@@ -1044,7 +1078,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR063'        
         
         endif
-
+        
         !Calibrating 1D column?
         call GetData(Me%Calibrating1D,                                                   &
                      Me%ObjEnterData, iflag,                                             &
@@ -1623,6 +1657,85 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         else
             Me%UseKcThresholds = .false.
         endif
+        
+        call GetData(Me%Integration%Integrate,                                              &
+                     Me%ObjEnterData, iflag,                                                &
+                     SearchType   = FromFile,                                               &
+                     keyword      = 'INTEGRATION',                                          &
+                     Default      = .false.,                                                &
+                     ClientModule = 'ModuleBasin',                                          &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR480'
+        
+        if (Me%Integration%Integrate) then            
+            
+            call GetData(Me%Integration%Interval,                                           &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'INTEGRATION_INTERVAL',                             &
+                         Default      = 86400.0,                                            &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR490'
+            
+            Me%Integration%NextOutputTime = Me%BeginTime + Me%Integration%Interval
+
+            call GetData(Me%Integration%IntegrateTemperature,                               &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'INTEGRATE_TEMPERATURE',                            &
+                         Default      = .true.,                                             &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR500'
+            
+            call GetData(Me%Integration%IntegratePrecipitation,                             &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'INTEGRATE_PRECIPITATION',                          &
+                         Default      = .true.,                                             &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR500'
+            
+            call GetData(Me%Integration%IntegrateEVTP,                                      &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'INTEGRATE_EVTP',                                   &
+                         Default      = .true.,                                             &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR500'
+
+            call GetData(Me%Integration%IntegrateIrrigation,                                &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'INTEGRATE_IRRIGATION',                             &
+                         Default      = .true.,                                             &
+                         ClientModule = 'ModuleBasin',                                      &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR500'
+
+            call GetData(Me%Files%IntegrationTimeSeriesLocation,                         &
+                         Me%ObjEnterData, iflag,                                         &
+                         SearchType   = FromFile,                                        &
+                         keyword      = 'TIME_SERIE_LOCATION_INT',                       &
+                         ClientModule = 'ModuleBasin',                                   &
+                         Default      = Me%Files%ConstructData,                          &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR063'          
+        endif
+        
+        call GetData(Me%InternalDT%SyncDT,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SYNC_DT',                                          &
+                     ClientModule = 'ModuleBasin',                                      &
+                     Default      = 86400.,                                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR700'
+        
+        Me%InternalDT%NextDT = Me%InternalDT%SyncDT
         
     end subroutine ReadDataFile
     
@@ -2220,6 +2333,53 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
         !End of Basin Water Balance==============================================
         
+        !Basin Integration=======================================================
+        if (Me%Integration%Integrate) then
+                    
+            i = 0
+            if (Me%Integration%IntegratePrecipitation) i = i + 1
+            if (Me%Integration%IntegrateTemperature) i = i + 1
+            if (Me%Integration%IntegrateEVTP) i = i + 3
+            if (Me%Integration%IntegrateIrrigation) i = i + 1
+            
+            allocate(PropertyList(i))
+            allocate(Me%Integration%Buffer(i))
+            Me%Integration%Buffer = 0.0
+			
+            i = 0
+            if (Me%Integration%IntegratePrecipitation) then
+                i = i + 1
+                PropertyList(i) = "Precipitation_mm"
+            endif
+            if (Me%Integration%IntegrateTemperature) then
+                i = i + 1
+                PropertyList(i) = "AvgTemperature_C"
+            endif
+            if (Me%Integration%IntegrateEVTP) then
+                i = i + 1
+                PropertyList(i) = "ReferenceEVTP_mm"
+                i = i + 1
+                PropertyList(i) = "CropEVTP_mm"
+                i = i + 1
+                PropertyList(i) = "ActualEVTP_mm"
+            endif
+            if (Me%Integration%IntegrateIrrigation) then
+                i = i + 1
+                PropertyList(i) = "Irrigation_mm"
+            endif
+
+            call StartTimeSerie(Me%Integration%ObjTimeSeries, Me%ObjTime,   &
+                                Me%Files%IntegrationTimeSeriesLocation,     &
+                                PropertyList, "srbx",                       &
+                                ResultFileName = 'Integration',             &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR02'
+
+            deallocate(PropertyList)
+        endif
+        !End of Basin Water Balance==============================================
+        
+        
         !Time Serie of properties variable in the Basin 
         i = 7
         if (Me%Coupled%SCSCNRunoffModel) then
@@ -2316,7 +2476,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                             WaterPoints2D = Me%ExtVar%BasinPoints,                      &
                             ModelName = Me%ModelName,                                   &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR03'
 
         deallocate(PropertyList)
 
@@ -2356,7 +2516,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                 PropertyList, "srb",                                        &
                                 ResultFileName = 'Basin Water Error',                       &
                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleBasin - ERR010'
 
             deallocate(PropertyList)
 
@@ -2879,7 +3039,42 @@ i1:         if (CoordON) then
         if (Me%DiffuseWaterSource) then
             allocate(Me%DiffuseFlow         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             Me%DiffuseFlow            = null_real
-        endif         
+        endif    
+        
+        if (Me%Integration%Integrate) then
+            !EVTP
+            if (Me%Coupled%Evapotranspiration) then
+                allocate(Me%Integration%EVTPRef (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                allocate(Me%Integration%EVTPCrop (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                allocate(Me%Integration%EVTPActual (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                
+                Me%Integration%EVTPRef = 0.0
+                Me%Integration%EVTPCrop = 0.0
+                Me%Integration%EVTPActual = 0.0
+            else
+                Me%Integration%IntegrateEVTP = .false.
+            endif
+            
+            !Precipitation/Temperature
+            if (Me%Coupled%Atmosphere) then
+                allocate(Me%Integration%Precipitation (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                Me%Integration%Precipitation = 0.0
+                allocate(Me%Integration%Temperature (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                Me%Integration%Temperature = 0.0
+            else
+                Me%Integration%IntegratePrecipitation = .false.
+                Me%Integration%IntegrateTemperature = .false.
+            endif
+
+            !Irrigation
+            if (Me%Coupled%Irrigation) then
+                allocate(Me%Integration%Irrigation (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                Me%Integration%Irrigation = 0.0
+            else
+                Me%Integration%IntegrateIrrigation = .false.
+            endif
+        endif
+        
     end subroutine AllocateVariables
 
     !--------------------------------------------------------------------------
@@ -3217,8 +3412,8 @@ i1:         if (CoordON) then
                                             STAT = STAT_CALL)                        
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructCoupledModules - ModuleBasin - ERR092a'                
                         
-                    allocate (start_wc (WorkSize3D%ILB:WorkSize3D%IUB,WorkSize3D%JLB:WorkSize3D%JUB, WorkSize3D%KLB:WorkSize3D%KUB))
-                    allocate (target_wc (WorkSize3D%ILB:WorkSize3D%IUB,WorkSize3D%JLB:WorkSize3D%JUB, WorkSize3D%KLB:WorkSize3D%KUB))
+                    allocate(start_wc(WorkSize3D%ILB:WorkSize3D%IUB,WorkSize3D%JLB:WorkSize3D%JUB, WorkSize3D%KLB:WorkSize3D%KUB))
+                    allocate(target_wc(WorkSize3D%ILB:WorkSize3D%IUB,WorkSize3D%JLB:WorkSize3D%JUB, WorkSize3D%KLB:WorkSize3D%KUB))
                     
 do1:                do
                               
@@ -3895,6 +4090,10 @@ cd2 :           if (BlockFound) then
                 call GetStoredVolumes (FinalInstant)
                 call ComputeBasinWaterBalance
             endif
+            
+            if (Me%Integration%Integrate) then
+                call ComputeIntegration
+            endif
 
             call TimeSerieOutput
 
@@ -3949,6 +4148,8 @@ cd2 :           if (BlockFound) then
         character (Len = StringLength)              :: UnLockToWhichModules
         character (Len = StringLength)              :: WarningString
         logical                                     :: IrrigationExists = .false.
+        real, pointer                               :: AirTemperature(:,:)
+        integer                                     :: i, j
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "AtmosphereProcesses")
@@ -3957,6 +4158,21 @@ cd2 :           if (BlockFound) then
         call ModifyAtmosphere       (Me%ObjAtmosphere, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR010'
 
+        if (Me%Integration%Integrate .and. Me%Integration%IntegrateTemperature) then
+            !Gets Air Temperature [ºC]
+            call GetAtmosphereProperty  (Me%ObjAtmosphere, AirTemperature, ID = AirTemperature_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR011'
+        
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                Me%Integration%Temperature (i,j) = Me%Integration%Temperature (i,j) + AirTemperature (i,j) * Me%CurrentDT
+            enddo
+            enddo
+            
+            call UnGetAtmosphere (Me%ObjAtmosphere, AirTemperature, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR012'
+        endif
+        
         !Gets Rainfall [m3/s]
         call GetAtmosphereProperty  (Me%ObjAtmosphere, PrecipitationFlux, ID = Precipitation_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR020'
@@ -4185,10 +4401,23 @@ cd2 :           if (BlockFound) then
                 
                 endif                
                 
+                if (Me%Integration%Integrate .and. Me%Integration%IntegratePrecipitation) then
+                    !mm                                = mm                                 + (m3/s * s / m2 * mm/m  )
+                    Me%Integration%Precipitation (i,j) = Me%Integration%Precipitation (i,j) + &
+                                                         (PrecipitationFlux(i,j) * Me%CurrentDT / Me%ExtVar%GridCellArea(i, j) * &
+                                                         1000.0) 
+                endif
+                
                 if (IsPresent) then
+                    if (Me%Integration%Integrate .and. Me%Integration%IntegrateIrrigation) then
+                        !mm                             = mm                              + (m3/s * s / m3 * mm/m  )
+                        Me%Integration%Irrigation (i,j) = Me%Integration%Irrigation (i,j) + &
+                                                          (Irri(i, j) * Me%CurrentDT / Me%ExtVar%GridCellArea(i, j) * 1000.0) 
+                    endif
+                    
                     CurrentFlux = CurrentFlux + Irri(i, j)
                 endif                        
-                                
+                
                 !Gross Rain 
                 !m                 = m3/s                    * s            /  m2
                 GrossPrecipitation = CurrentFlux * Me%CurrentDT / Me%ExtVar%GridCellArea(i, j)
@@ -4503,6 +4732,11 @@ cd2 :           if (BlockFound) then
                     RefEvapotrans%Field(i, j)  = max(RefEvapotrans%Field(i, j) * Me%ETConversionFactor, 0.0)                    
                 
                 endif        
+                
+                if (Me%Integration%Integrate .and. Me%Integration%IntegrateEVTP) then
+                    !mm                         = mm                            +  m/s                      * mm/m * s
+                    Me%Integration%EVTPRef (i,j) = Me%Integration%EVTPRef (i,j) + RefEvapotrans%Field(i, j) * DTFactor
+                endif
                     
                 if (Me%EVTPOutput%yes) then
                     !mm                           = mm                         +  m/s                       * mm/m * s
@@ -4558,6 +4792,12 @@ cd2 :           if (BlockFound) then
                     
                     !m/s
                     Me%CropEvapotrans(i, j) = RefEvapotrans%Field(i, j) * Kc
+                    
+                    if (Me%Integration%Integrate .and. Me%Integration%IntegrateEVTP) then
+                        !mm                           = mm                            +  m/s                    * mm/m * s
+                        Me%Integration%EVTPCrop (i,j) = Me%Integration%EVTPCrop (i,j) + Me%CropEvapotrans (i,j) * DTFactor
+                    endif
+                    
 !                    if (Me%CropEvapotrans(i, j) < 0.0) then
 !                        write (*,*) 'I/J: ', i, '/', j, 'CropEvapotrans NEGATIVO em ',Year, Month, Day, hour, minute, second
 !                        stop
@@ -6441,7 +6681,12 @@ cd2 :           if (BlockFound) then
                 if (Me%EVTPOutput2%Yes) then
                     !mm         
                     Me%PartialAccEVTP2   (i, j) = Me%PartialAccEVTP2 (i,j) + (EfectiveEVTP (i,j) * 1000) 
-                endif                 
+                endif      
+                
+                if (Me%Integration%Integrate .and. Me%Integration%IntegrateEVTP) then
+                    !mm
+                    Me%Integration%EVTPActual (i, j) = Me%Integration%EVTPActual (i,j) + (EfectiveEVTP (i,j) * 1000) 
+                endif
                   
                 !m
                 Me%AccFlowProduction(i, j) = Me%AccFlowProduction(i, j) + Me%FlowProduction (i, j)
@@ -9004,6 +9249,133 @@ cd2 :           if (BlockFound) then
     end subroutine GlobalMassError
 
     !--------------------------------------------------------------------------
+    
+    subroutine ComputeIntegration
+    
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        integer :: i, j, index
+        logical :: LineStored 
+        integer :: cells
+        integer :: stat
+        
+        !Begin-----------------------------------------------------------------
+
+        index = 1
+        cells = 0
+        Me%Integration%Buffer = 0.0
+        
+		if (Me%Integration%IntegratePrecipitation) then
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    Me%Integration%Buffer (index) = Me%Integration%Buffer (index) + Me%Integration%Precipitation (i,j) 
+                    cells = cells + 1
+                endif
+            enddo
+            enddo
+            
+            Me%Integration%Buffer (index) = Me%Integration%Buffer (index) / cells
+            index = index + 1
+        endif
+        
+        if (Me%Integration%IntegrateTemperature) then
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    Me%Integration%Buffer (index) = Me%Integration%Buffer (index) + &
+                                                    (Me%Integration%Temperature (i,j) / Me%Integration%Interval)
+                endif
+            enddo
+            enddo
+            
+            Me%Integration%Buffer (index) = Me%Integration%Buffer (index) / cells
+            index = index + 1
+        endif
+               
+        if (Me%Integration%IntegrateEVTP) then
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    Me%Integration%Buffer (index) = Me%Integration%Buffer (index) + Me%Integration%EVTPREf (i,j) 
+                endif
+            enddo
+            enddo
+            
+            Me%Integration%Buffer (index) = Me%Integration%Buffer (index) / cells
+            index = index + 1
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    Me%Integration%Buffer (index) = Me%Integration%Buffer (index) + Me%Integration%EVTPCrop (i,j) 
+                endif
+            enddo
+            enddo
+            
+            Me%Integration%Buffer (index) = Me%Integration%Buffer (index) / cells
+            index = index + 1
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    Me%Integration%Buffer (index) = Me%Integration%Buffer (index) + Me%Integration%EVTPActual (i,j) 
+                endif
+            enddo
+            enddo
+            
+            Me%Integration%Buffer (index) = Me%Integration%Buffer (index) / cells
+            index = index + 1
+        endif
+        
+        if (Me%Integration%IntegrateIrrigation) then
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    Me%Integration%Buffer (index) = Me%Integration%Buffer (index) + Me%Integration%Irrigation (i,j) 
+                endif
+            enddo
+            enddo
+            
+            Me%Integration%Buffer (index) = Me%Integration%Buffer (index) / cells
+            index = index + 1
+        endif
+        
+        if (Me%CurrentTime >= Me%Integration%NextOutputTime .or. Me%CurrentTime >= Me%EndTime) then
+            
+            call WriteTimeSerieLineNow (Me%Integration%ObjTimeSeries, Me%Integration%Buffer, STAT = stat)
+            if (stat /= SUCCESS_) stop 'GlobalMassBalance - ModuleBasin - ERR40'         
+        
+            Me%Integration%Buffer = 0.0
+        
+            index = 1
+            if (Me%Integration%IntegratePrecipitation) then                
+                Me%Integration%Precipitation = 0.0
+                index = index + 1
+            endif
+            if (Me%Integration%IntegrateTemperature) then
+                Me%Integration%Temperature = 0.0
+                index = index + 1
+            endif
+            if (Me%Integration%IntegrateEVTP) then
+                Me%Integration%EVTPRef = 0.0
+                Me%Integration%EVTPCrop = 0.0
+                Me%INtegration%EVTPActual = 0.0
+                index = index + 1
+            endif
+            if (Me%Integration%IntegrateIrrigation) then
+                Me%Integration%Irrigation = 0.0
+                index = index + 1
+            endif
+        
+            Me%Integration%NextOutputTime = Me%CurrentTime + Me%Integration%Interval
+        
+        endif
+        
+    end subroutine ComputeIntegration
+    
+    !--------------------------------------------------------------------------
 
     subroutine ComputeBasinWaterBalance
 
@@ -9262,6 +9634,14 @@ cd2 :           if (BlockFound) then
         logical                                     :: round_dt
         !------------------------------------------------------------------------
         
+        call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
+        NewDT = MaxDT
+        
+        Me%InternalDT%NextDT = Me%InternalDT%NextDT - Me%CurrentDT
+        if (Me%InternalDT%NextDT <= 0) then
+            Me%InternalDT%NextDT = Me%InternalDT%SyncDT
+        endif
+        
         if (Me%Coupled%Atmosphere) then
             call GetNextAtmosphereDTPrediction (Me%ObjAtmosphere, AtmosphereDT, DTForNextEvent, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleBasin - ERR010'
@@ -9321,6 +9701,11 @@ cd2 :           if (BlockFound) then
             NewDT = PorousMediaDT 
             ID_DT = 3
             
+        endif
+        
+        if (Me%InternalDT%NextDT < NewDT) then
+            NewDT = Me%InternalDT%NextDT
+            ID_DT = 9
         endif
             
         !If the next event is happening...     
@@ -9408,13 +9793,12 @@ cd2 :           if (BlockFound) then
             NewDT = NewDT / 1000.0                    
         
         endif
-
-        !synchronize so that output can occur at multiples of MaxDT and not some minutes, seconds or milisseconds after
         
+        !synchronize so that output can occur at multiples of MaxDT and not some minutes, seconds or milisseconds after        
         NextTime = Me%CurrentTime + NewDT
         time_string = ConvertTimeToString (NextTime)
 
-        call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
+        
         write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), &
                                 min(AtmosphereDT, MaxDT), DTForNextEvent, time_string                                
         
@@ -9618,6 +10002,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     endif
                     deallocate(Me%BWBBuffer)
                 endif
+				
+				if (Me%Integration%Integrate) then
+					if (Me%Integration%ObjTimeSeries > 0) then
+						call KillTimeSerie(Me%Integration%ObjTimeSeries, STAT = STAT_CALL)
+						if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR200b'
+					endif
+				endif
                 
 #ifdef _ENABLE_CUDA                
                 !Kills ModuleCuda

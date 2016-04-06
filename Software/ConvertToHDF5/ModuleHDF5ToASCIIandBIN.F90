@@ -68,7 +68,7 @@ Module ModuleHDF5ToASCIIandBIN
     
     type       T_OutPut                                 
          type (T_Time), pointer, dimension(:)               :: OutTime
-         integer                                            :: Number, Next
+         integer                                            :: Number, Next, LastFirst
          logical                                            :: ON
     end type T_OutPut                                   
 
@@ -84,6 +84,7 @@ Module ModuleHDF5ToASCIIandBIN
         integer                                 :: ObjHorizontalMap     = 0
         integer                                 :: ObjTime              = 0
         integer                                 :: Unit
+        integer, pointer, dimension(:)          :: UnitProps            => null()
         character(len=PathLength)               :: FileName
         character(len=PathLength)               :: GridFileName
         character(len=PathLength)               :: InPutFileName
@@ -92,6 +93,7 @@ Module ModuleHDF5ToASCIIandBIN
         integer                                 :: TotalDates           = FillValueInt
         integer                                 :: NumberFields         = FillValueInt
         integer                                 :: NumberProps          = FillValueInt
+        integer                                 :: NumberNonVectProps   = FillValueInt
         integer                                 :: NumberUnits          = FillValueInt
 
         integer                                 :: DirectionReferential = FillValueInt
@@ -105,6 +107,7 @@ Module ModuleHDF5ToASCIIandBIN
 
         real,     dimension(:),         pointer :: PropVector
         real,     dimension(:,:),       pointer :: X2D, Y2D
+        real,     dimension(:,:),       pointer :: VectorialU, VectorialV
 
         integer                                 :: OutPutOption
 
@@ -116,7 +119,17 @@ Module ModuleHDF5ToASCIIandBIN
         integer, dimension(:,:  ),  pointer     :: WaterPoints2D
 
         integer                                 :: OutputXY = FillValueInt
-
+        
+        logical                                 :: ShortenFilename = .false.
+        
+        logical                                 :: OutputList           = .false.
+        character(len=StringLength)             :: OutputListFolderName = null_str
+        
+        logical                                 :: JoinVectorialProp      = .false.
+        character(len=StringLength)             :: JoinVectorialPropName  = null_str
+        character(len=StringLength)             :: JoinVectorialPropUName = null_str
+        character(len=StringLength)             :: JoinVectorialPropVName = null_str
+        
         type(T_Size2D)                          :: WorkSize, Size
     end type  T_HDF5ToASCIIandBIN
 
@@ -180,8 +193,16 @@ Module ModuleHDF5ToASCIIandBIN
         allocate(Aux2DPrev (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
         allocate(AuxTime(1:6))
-
-
+        
+        allocate(Me%UnitProps(1:Me%NumberProps))
+        Me%UnitProps(:) = -99;
+        
+        !If mixing u and v components need to save them in the module
+        if (Me%JoinVectorialProp) then
+            allocate(Me%VectorialU     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%VectorialV     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB)) 
+        endif
+        
         if (Me%OutPutOption == WW3_) then
             call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR10'
@@ -249,8 +270,8 @@ d11:        do l = 1, Me%TotalDates
             enddo d11
 
         else 
-
-
+                    
+            
     d1:     do l = 1, Me%TotalDates - 1
 
                 call HDF5SetLimits(Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
@@ -290,8 +311,17 @@ d11:        do l = 1, Me%TotalDates
 
 
     d2:         do p=1, Me%NumberProps
-
-                        call OutputFields     (Aux2D, Aux2DNext, Aux2DPrev, NextTime, PrevTime, l, p)
+        
+                        !In case of joining vectorial prop
+                        !Last prop (added in code) does not process HDF just takes scalar components and mixes them in file
+                        !shortcut to process files
+                        if (Me%JoinVectorialProp .and. p == Me%NumberProps) then
+                            if (Me%OutPutOption < Mohid_) then
+                                call OutputSwanASCIIVectorial (trim(Me%PropsName(p)), NextTime, l, p) 
+                            endif
+                        else
+                            call OutputFields     (Aux2D, Aux2DNext, Aux2DPrev, NextTime, PrevTime, l, p)
+                        endif
                 
 
                 enddo d2
@@ -302,6 +332,8 @@ d11:        do l = 1, Me%TotalDates
 
             enddo d1
 
+
+           
         endif i11
  
         deallocate(Aux2D)
@@ -316,6 +348,11 @@ d11:        do l = 1, Me%TotalDates
         deallocate(AuxTime)
         nullify(AuxTime)
 
+        if (Me%JoinVectorialProp) then
+            deallocate(Me%VectorialU) 
+            deallocate(Me%VectorialV) 
+        endif
+        
         call KillHDF5ToASCIIandBIN
 
 
@@ -370,6 +407,7 @@ d11:        do l = 1, Me%TotalDates
             stop 'ConstructGlobalOutput - ModuleCowamaAsciiWind - ERR30'              
 
         Me%OutPut%Next = 1
+        Me%OutPut%LastFirst = 1
 
     end subroutine ConstructGlobalOutput
 
@@ -452,7 +490,90 @@ d11:        do l = 1, Me%TotalDates
             endif
 
         endif
- 
+        
+        !shorten file names (SWAN has a limited file name lenght)
+        !use only property initials
+        call GetData(Me%ShortenFilename,                                                &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'SHORTEN_FILENAME',                                 &
+                     default      = .false.,                                            &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR80'          
+        
+        !Get different tables in one list file .ini (e.g. SWAN input)
+        call GetData(Me%OutputList,                                                     &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'OUTPUT_LIST',                                      &
+                     default      = .false.,                                            &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR90'        
+        if (Me%OutputList) then
+            call GetData(Me%OutputListFolderName,                                           &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromBlock,                                          &
+                         keyword      = 'OUTPUT_LIST_FOLDERNAME',                           &
+                         default      = '',                                                 &
+                         ClientModule = 'HDF5ToASCIIandBIN',                                &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR100'   
+        endif
+        
+        !join velocity components in same file (SWAN use of vector components)
+        !a new property will be added to the list at the end
+        call GetData(Me%JoinVectorialProp,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'JOIN_VECTORIAL_PROP',                              &
+                     default      = .false.,                                            &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR110'        
+        if (Me%JoinVectorialProp) then
+            
+            !only SWAN stuff
+            if (Me%OutPutOption >= Mohid_) then            
+                stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR111' 
+            endif              
+            
+            !do not process SWAN table type
+            if (Me%OutPutOption == SwanTable_) then
+                stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR112' 
+            endif
+                   
+            
+            call GetData(Me%JoinVectorialPropName,                                          &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromBlock,                                          &
+                         keyword      = 'VECTORIAL_PROP_NAME',                              &
+                         default      = '',                                                 &
+                         ClientModule = 'HDF5ToASCIIandBIN',                                &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR115'               
+            
+            call GetData(Me%JoinVectorialPropUName,                                         &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromBlock,                                          &
+                         keyword      = 'VECTORIAL_PROP_U_NAME',                            &
+                         default      = '',                                                 &
+                         ClientModule = 'HDF5ToASCIIandBIN',                                &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR120'   
+            
+            call GetData(Me%JoinVectorialPropVName,                                         &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromBlock,                                          &
+                         keyword      = 'VECTORIAL_PROP_V_NAME',                            &
+                         default      = '',                                                 &
+                         ClientModule = 'HDF5ToASCIIandBIN',                                &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR130'            
+                      
+        endif        
+        
     end subroutine ReadGlobalOptions
 
     !--------------------------------------------------------------------------
@@ -465,9 +586,9 @@ d11:        do l = 1, Me%TotalDates
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: l, iflag, STAT_CALL, Line, FirstLine, LastLine
+        integer                                     :: l, iflag, STAT_CALL, Line, FirstLine, LastLine, j
         character(len=StringLength)                 :: AuxChar
-        logical                                     :: BlockFound
+        logical                                     :: BlockFound, PropNameUWrong, PropNameVWrong
         !Begin-----------------------------------------------------------------
 
 
@@ -490,13 +611,15 @@ cd2 :       if (.not. BlockFound) then
 
 
         Me%NumberProps = LastLine - FirstLine - 1
+        Me%NumberNonVectProps = Me%NumberProps
+        if (Me%JoinVectorialProp) Me%NumberProps = Me%NumberProps + 1
 
         allocate(Me%PropsName (Me%NumberProps))  
   
         allocate(Me%PropVector(Me%NumberProps))  
 
 
-d1:     do l= 1, Me%NumberProps
+d1:     do l= 1, Me%NumberNonVectProps
 
             line = FirstLine + l
 
@@ -513,7 +636,33 @@ d1:     do l= 1, Me%NumberProps
             endif
 
         enddo d1
-
+        
+        !Verify options
+        if (Me%JoinVectorialProp) then
+            
+            !verify if user names of properties components u and v for vectorial prop, exist in prop list
+            PropNameUWrong = .true.
+            do j = 1, Me%NumberProps
+                if (trim(Me%PropsName(j))==trim(Me%JoinVectorialPropUName)) then
+                    PropNameUWrong = .false. 
+                    exit
+                endif
+            enddo            
+            
+            PropNameVWrong = .true.
+            do j = 1, Me%NumberProps
+                if (trim(Me%PropsName(j))==trim(Me%JoinVectorialPropVName)) then
+                    PropNameVWrong = .false. 
+                    exit
+                endif
+            enddo                
+            
+            if (PropNameUWrong .or. PropNameVWrong) stop 'ReadProperties - ModuleHDF5ToASCIIandBIN - ERR30'
+            
+            !set user name of vectorial prop
+            Me%PropsName(Me%NumberProps) = trim(Me%JoinVectorialPropName)
+        endif
+        
         call RewindBlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadProperties - ModuleHDF5ToASCIIandBIN - ERR40'
 
@@ -660,28 +809,60 @@ cd2 :           if (.not. BlockFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine OutputSwanASCII(PropName, TimeName, Aux2D) 
+    subroutine OutputSwanASCII(PropName, TimeName, Aux2D, l, p) 
 
         !Arguments-------------------------------------------------------------
         character(len = *)                          :: PropName, TimeName
         real,   dimension(:,:), pointer             :: Aux2D
+        integer                                     :: l, p
         !Local----------------------------------------------------------------
-        character(len = PathLength)                 :: FileName
+        character(len = PathLength)                 :: FileName, FileNameList, aux
         integer                                     :: i, j, STAT_CALL
+        integer                                     :: length                                               
+        character (len=line_length)                 :: aux_str = ""    
         !Begin-----------------------------------------------------------------
         
 
         call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCII - ModuleHDF5ToASCIIandBIN - ERR10'
 
-      
+        !shorten filenames since SWAN has a limited number of charaters
+        !use only property initials
+        if (Me%ShortenFilename) then            
+            
+            aux_str = trim (PropName)
+            length  = len_trim(PropName)
+    
+            !first word letter
+            FileName = aux_str(1:1)
+                
+            !for other words 1st letter go through string and get first letter after space
+            do i = 2, length
+                if((aux_str (i-1:i-1) == " ") .AND.                   &
+                    (aux_str (i:i) /= " "))                    &
+                    FileName = trim(Filename) // aux_str (i:i)
+            end do
 
-        FileName = trim(PropName)//'_'//trim(TimeName)//'.txt'
 
-        if (trim(Me%OutPutPath) /= '*') then
-            FileName = trim(Me%OutPutPath)//'/'//trim(FileName)
+            !go to upper case
+            do i = 1, len(FileName)
+                j = iachar(FileName(i:i))
+                if (j>= iachar("a") .and. j<=iachar("z") ) then
+                    FileName(i:i) = achar(iachar(FileName(i:i))-32)
+                endif
+            end do 
+
+            !Finally add time
+            FileName = trim(FileName)//'_'//trim(TimeName)//'.txt'
+
+        else            
+            FileName = trim(PropName)//'_'//trim(TimeName)//'.txt'
+
+            if (trim(Me%OutPutPath) /= '*') then
+                FileName = trim(Me%OutPutPath)//'/'//trim(FileName)
+            endif
         endif
-
+        
         open(Unit   = Me%Unit,                                                          &
              File   = FileName,                                                         &
              Form   = 'FORMATTED',                                                      &
@@ -762,6 +943,41 @@ cd2 :           if (.not. BlockFound) then
         call UnitsManager(Me%Unit, CLOSE_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCII - ModuleHDF5ToASCIIandBIN - ERR40'
 
+        
+        !get the file name into a list (e.g. for SWAN forcing variable in time)
+        if (Me%OutputList) then
+            
+            !If file not open
+            if (Me%UnitProps(p) < 0) then
+                call UnitsManager(Me%UnitProps(p), OPEN_FILE, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCII - ModuleHDF5ToASCIIandBIN - ERR50'            
+            
+                !Filename is the property name plus .ini
+                FileNameList = trim(FileName(1:len_trim(FileName)-19)) // ".ini"
+            
+                open(Unit   = Me%UnitProps(p),                                                     &
+                        File   = FileNameList,                                                     &
+                        Form   = 'FORMATTED',                                                      &
+                        STATUS = 'UNKNOWN',                                                        &
+                        Action = 'WRITE',                                                          &
+                        IOSTAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCII - ModuleHDF5ToASCIIandBIN - ERR60'                
+            endif
+            
+            if (len_trim(Me%OutputListFolderName) == 0) then
+                write(Me%UnitProps(p),'(A30)') Filename
+            else
+                aux = trim(Me%OutputListFolderName) // "\" // trim(Filename)
+                write(Me%UnitProps(p),'(A100)') aux
+            endif
+            
+            !If last element close file
+            if (l == Me%TotalDates -1) then
+                call UnitsManager(Me%UnitProps(p), CLOSE_FILE, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCII - ModuleHDF5ToASCIIandBIN - ERR120'            
+            endif
+        endif
+        
 
 10  format (F12.6)
 30  format (3F12.6)
@@ -772,7 +988,239 @@ cd2 :           if (.not. BlockFound) then
 
     !----------------------------------------------------------------------------
 
+    subroutine OutputSwanASCIIVectorial(PropName, NextTime, l, p) 
 
+        !Arguments-------------------------------------------------------------
+        character(len = *)                          :: PropName
+        integer                                     :: l, p
+        type (T_Time)                               :: NextTime
+        !Local----------------------------------------------------------------
+        character(len = 14)                         :: TimeName
+        character(len = PathLength)                 :: FileName, FileNameList, aux
+        integer                                     :: i, j, STAT_CALL, n
+        integer                                     :: length                                               
+        character (len=line_length)                 :: aux_str = ""   
+        real,   dimension(:)  , pointer             :: AuxTime
+        !Begin-----------------------------------------------------------------
+        
+        allocate(AuxTime(1:6))
+
+        !Process the submultiples of HDF timestep if any just like other props
+        n = Me%OutPut%LastFirst
+        
+dw1:    do while (NextTime >= Me%Output%OutTime(n))
+
+                call ExtractDate(Me%Output%OutTime(n), AuxTime(1), AuxTime(2), AuxTime(3), AuxTime(4), AuxTime(5), AuxTime(6)) 
+
+                write(TimeName(1:14),"(I4,5I2)") int(AuxTime(1)), int(AuxTime(2)), int(AuxTime(3)), &
+                                                 int(AuxTime(4)), int(AuxTime(5)), int(AuxTime(6))
+                do j = 1, 14
+                    if (TimeName(j:j) ==' ') TimeName(j:j) = "0"
+                enddo                
+                
+                
+                
+                
+                
+                call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCIIVectorial - ModuleHDF5ToASCIIandBIN - ERR10'
+
+                !shorten filenames since SWAN has a limited number of charaters
+                !use only property initials
+                if (Me%ShortenFilename) then            
+            
+                    aux_str = trim (PropName)
+                    length  = len_trim(PropName)
+    
+                    !first word letter
+                    FileName = aux_str(1:1)
+                
+                    !for other words 1st letter go through string and get first letter after space
+                    do i = 2, length
+                        if((aux_str (i-1:i-1) == " ") .AND.                   &
+                            (aux_str (i:i) /= " "))                    &
+                            FileName = trim(Filename) // aux_str (i:i)
+                    end do
+
+
+                    !go to upper case
+                    do i = 1, len(FileName)
+                        j = iachar(FileName(i:i))
+                        if (j>= iachar("a") .and. j<=iachar("z") ) then
+                            FileName(i:i) = achar(iachar(FileName(i:i))-32)
+                        endif
+                    end do 
+
+                    !Finally add time
+                    FileName = trim(FileName)//'_'//trim(TimeName)//'.txt'
+
+                else            
+                    FileName = trim(PropName)//'_'//trim(TimeName)//'.txt'
+
+                    if (trim(Me%OutPutPath) /= '*') then
+                        FileName = trim(Me%OutPutPath)//'/'//trim(FileName)
+                    endif
+                endif
+        
+                open(Unit   = Me%Unit,                                                          &
+                     File   = FileName,                                                         &
+                     Form   = 'FORMATTED',                                                      &
+                     STATUS = 'UNKNOWN',                                                        &
+                     Action = 'WRITE',                                                          &
+                     IOSTAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCIIVectorial - ModuleHDF5ToASCIIandBIN - ERR20'
+
+                !Process to components that were saved previously since this is the last property (added in code)
+                if      (Me%OutPutOption == Swan1_) then
+
+                    do i=Me%WorkSize%IUB, Me%WorkSize%ILB,-1
+                        write(Me%Unit,100) (Me%VectorialU(i, j),j=Me%WorkSize%JLB, Me%WorkSize%JUB)
+                    enddo
+                    do i=Me%WorkSize%IUB, Me%WorkSize%ILB,-1
+                        write(Me%Unit,100) (Me%VectorialV(i, j),j=Me%WorkSize%JLB, Me%WorkSize%JUB)
+                    enddo            
+
+                else if (Me%OutPutOption == Swan2_) then
+
+                    do i=Me%WorkSize%IUB, Me%WorkSize%ILB,-1
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+
+                        write(Me%Unit,10) Me%VectorialU(i, j)
+
+                    enddo
+                    enddo
+                    do i=Me%WorkSize%IUB, Me%WorkSize%ILB,-1
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+
+                        write(Me%Unit,10) Me%VectorialV(i, j)
+
+                    enddo
+                    enddo            
+
+                else if (Me%OutPutOption == Swan3_) then
+
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                        write(Me%Unit,100) (Me%VectorialU(i, j),j=Me%WorkSize%JLB, Me%WorkSize%JUB)
+                    enddo
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                        write(Me%Unit,100) (Me%VectorialV(i, j),j=Me%WorkSize%JLB, Me%WorkSize%JUB)
+                    enddo            
+
+                else if (Me%OutPutOption == Swan4_) then
+
+
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+
+                        write(Me%Unit,10) Me%VectorialU(i, j)
+
+                    enddo
+                    enddo
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+
+                        write(Me%Unit,10) Me%VectorialV(i, j)
+
+                    enddo
+                    enddo            
+
+
+                else if (Me%OutPutOption == Swan5_) then
+
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                        write(Me%Unit,100) (Me%VectorialU(i, j),i=Me%WorkSize%ILB, Me%WorkSize%IUB)
+                    enddo
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                        write(Me%Unit,100) (Me%VectorialV(i, j),i=Me%WorkSize%ILB, Me%WorkSize%IUB)
+                    enddo            
+
+                else if (Me%OutPutOption == Swan6_) then
+
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                        write(Me%Unit,10) Me%VectorialU(i, j)
+
+                    enddo
+                    enddo
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                        write(Me%Unit,10) Me%VectorialV(i, j)
+
+                    enddo
+                    enddo            
+
+
+                else
+
+                    stop 'OutputSwanASCII - ModuleHDF5ToASCIIandBIN - ERR30'
+
+                endif
+
+                call UnitsManager(Me%Unit, CLOSE_FILE, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCIIVectorial - ModuleHDF5ToASCIIandBIN - ERR40'
+
+        
+                !get the file name into a list (e.g. for SWAN forcing variable in time)
+                if (Me%OutputList) then
+            
+                    !If file not open
+                    if (Me%UnitProps(p) < 0) then
+                        call UnitsManager(Me%UnitProps(p), OPEN_FILE, STAT = STAT_CALL) 
+                        if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCIIVectorial - ModuleHDF5ToASCIIandBIN - ERR50'            
+            
+                        !Filename is the property name plus .ini
+                        FileNameList = trim(FileName(1:len_trim(FileName)-19)) // ".ini"
+            
+                        open(Unit   = Me%UnitProps(p),                                                     &
+                                File   = FileNameList,                                                     &
+                                Form   = 'FORMATTED',                                                      &
+                                STATUS = 'UNKNOWN',                                                        &
+                                Action = 'WRITE',                                                          &
+                                IOSTAT = STAT_CALL) 
+                        if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCIIVectorial - ModuleHDF5ToASCIIandBIN - ERR60'                
+                    endif
+            
+                    if (len_trim(Me%OutputListFolderName) == 0) then
+                        write(Me%UnitProps(p),'(A30)') Filename
+                    else
+                        aux = trim(Me%OutputListFolderName) // "\" // trim(Filename)
+                        write(Me%UnitProps(p),'(A100)') aux
+                    endif
+            
+                    !If last element close file
+                    if (l == Me%TotalDates -1) then
+                        call UnitsManager(Me%UnitProps(p), CLOSE_FILE, STAT = STAT_CALL) 
+                        if (STAT_CALL /= SUCCESS_) stop 'OutputSwanASCIIVectorial - ModuleHDF5ToASCIIandBIN - ERR120'            
+                    endif
+                endif
+                
+                
+                
+                
+                
+                !always increase n and not make n point to a data that would be always > NextTime
+                !in subsequent properties
+                !n = Me%Output%Next
+                n = n + 1
+                if (n > Me%Output%Number) exit
+
+        enddo dw1        
+        
+
+        
+
+10  format (F12.6)
+30  format (3F12.6)
+100 format (2000F12.6)
+
+    end subroutine OutputSwanASCIIVectorial
+    
+
+    !----------------------------------------------------------------------------
+    
+    
     !--------------------------------------------------------------------------
 
     subroutine OutputWW3ASCII(AuxTime, Aux2D, FirstProp) 
@@ -939,9 +1387,16 @@ cd2 :           if (.not. BlockFound) then
         enddo
         enddo
 
- 
-        n = Me%Output%Next
-
+        !Logic was changed because the old logic could only process one propperty and other were ignored
+        !Because the Me%Output%OutTime(n) would be always > than NextTime in subsequent properties
+        !Now subsequent properties will start from where first property started
+        if (p == 1) then
+            n = Me%Output%Next
+            Me%OutPut%LastFirst = Me%Output%Next
+        else
+            n = Me%OutPut%LastFirst
+        endif
+        
         if (n <= Me%Output%Number) then
 
     !dw1:    do while (NextTime >= Me%Output%OutTime(n) .and. PrevTime <= Me%Output%OutTime(n))
@@ -975,15 +1430,31 @@ cd2 :           if (.not. BlockFound) then
                 enddo
 
                 if      (Me%OutPutOption < Mohid_) then
-                    call OutputSwanASCII (trim(Me%PropsName(p)), TimeName, Aux2D) 
+                    
+                    !check if need to save scalar components of vectorial prop
+                    if (Me%JoinVectorialProp) then
+                        if (trim(Me%PropsName(p)) == trim(Me%JoinVectorialPropUName)) then
+                            call SetMatrixValue(Me%VectorialU, Me%Size, Aux2D)
+                        else if (trim(Me%PropsName(p)) == trim(Me%JoinVectorialPropVName)) then
+                            call SetMatrixValue(Me%VectorialV, Me%Size, Aux2D)
+                        endif
+                    endif
+                        
+                    call OutputSwanASCII (trim(Me%PropsName(p)), TimeName, Aux2D, l, p)
+                    
                 else if (Me%OutPutOption == Mohid_) then
+
                     call OutputMohidBin  (trim(Me%PropsName(p)), TimeName, Aux2D, l) 
+                    
                 endif
+                
 
                 if (p==1) Me%Output%Next = Me%Output%Next + 1 
 
-                n = Me%Output%Next
-
+                !always increase n and not make n point to a data that would be always > NextTime
+                !in subsequent properties
+                !n = Me%Output%Next
+                n = n + 1
                 if (n > Me%Output%Number) exit
 
             enddo dw1

@@ -705,7 +705,8 @@ Module ModuleGlobalData
     integer, parameter ::  PeakDirection_                  = 3510
     integer, parameter ::  WindSeaPeakFrequency_           = 3511
     integer, parameter ::  WindSeaPeakDirection_           = 3512
-    integer, parameter ::  WaveSwellHeight_                = 3513 
+    integer, parameter ::  WaveSwellHeight_                = 3513
+    integer, parameter ::  Ubw_                            = 3514
     integer, parameter ::  PeakPeriod_                     = 3520
     integer, parameter ::  PeakDirectionX_                 = 3530    
     integer, parameter ::  PeakDirectionY_                 = 3531        
@@ -896,6 +897,11 @@ Module ModuleGlobalData
     integer, parameter :: SnowWaterEquivalent_              = 30005
     integer, parameter :: SurfaceDownLatentHeat_            = 30006
     integer, parameter :: SurfaceDownSensibleHeat_          = 30007
+    !Irrigation
+    integer, parameter :: ApplicationArea_                  = 31000
+    integer, parameter :: FixedIrrigation_                  = 31001
+    integer, parameter :: AccIrrigation_                    = 31002
+    
     
     !Percentage of a cell occupied by particles 
     integer, parameter :: CellPercentContamin_              = 40000
@@ -986,7 +992,11 @@ Module ModuleGlobalData
 
 
 !_______________________________________________________________________________________________
-
+    
+    !Name of MOHID LAND ModuleIrrigation properties
+    character(StringLength), private, parameter :: Char_ApplicationArea      = 'application area'
+    character(StringLength), private, parameter :: Char_FixedIrrigation      = 'fixed irrigation'
+    character(StringLength), private, parameter :: Char_AccIrrigation        = 'acc. irrigation'
       
     !Name of Waterproperties
     character(StringLength), private, parameter :: Char_Density              = 'density'
@@ -1501,6 +1511,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SignificantWaveHeight    = 'significant wave height'
     character(StringLength), private, parameter :: Char_SignificantWaveHeightBeaufort    = 'significant wave height beaufort'
     character(StringLength), private, parameter :: Char_MeanWaveLength           = 'mean wave length'
+    character(StringLength), private, parameter :: Char_Ubw                      = 'Ubw'
     character(StringLength), private, parameter :: Char_MeanWavePeriod           = 'mean wave period'
     character(StringLength), private, parameter :: Char_MeanWaveDirection        = 'mean wave direction'
     character(StringLength), private, parameter :: Char_MeanDirectionalSpread    = 'mean directional spread'
@@ -2980,6 +2991,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (WavePower_,               Char_WavePower,                  ListNumber)
             call AddPropList (TransportEnergyX_,        Char_TransportEnergyX,           ListNumber)
             call AddPropList (TransportEnergyY_,        Char_TransportEnergyY,           ListNumber)
+            call AddPropList (Ubw_,                     Char_Ubw,                        ListNumber)
             
             call AddPropList (ConsolidationFlux_,       Char_ConsolidationFlux,          ListNumber)
             call AddPropList (Porosity_,                Char_Porosity,                   ListNumber)
@@ -3095,7 +3107,10 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (SurfaceMapping_,          Char_SurfaceMapping,             ListNumber)                  
             call AddPropList (GasPhaseMapping_,         Char_GasPhaseMapping,            ListNumber)                  
             call AddPropList (SolidSolutionMapping_,    Char_SolidSolutionMapping,       ListNumber)                  
-            call AddPropList (KineticsMapping_,         Char_KineticsMapping,            ListNumber)                  
+            call AddPropList (KineticsMapping_,         Char_KineticsMapping,            ListNumber)  
+            call AddPropList (ApplicationArea_,         Char_ApplicationArea,            ListNumber)  
+            call AddPropList (FixedIrrigation_,         Char_FixedIrrigation,            ListNumber)  
+            call AddPropList (AccIrrigation_,           Char_AccIrrigation,              ListNumber)  
             !Place to add new properties to the names list
         
             !Ends building the property name list

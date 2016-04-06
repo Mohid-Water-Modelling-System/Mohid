@@ -69,18 +69,18 @@ Module ModuleConsolidation
                                       RewindBlock, RewindBuffer, ExtractBlockFromBlock,         &
                                       ExtractBlockFromBuffer, ReadFileName, Block_Unlock
     USE ModuleDrawing                                      
-    use ModuleGridData,         only: GetGridData, UngetGridData            
+    use ModuleGridData,         only: GetGridData, UngetGridData, ConstructGridData            
     use ModuleHorizontalMap
     use ModuleHorizontalGrid,   only: GetHorizontalGrid, GetGridCellArea, UnGetHorizontalGrid,  &
                                       WriteHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID,        &
                                       GetDDecompON, GetGridOutBorderPolygon
     use ModuleGeometry,         only: GetGeometrySize, UnGetGeometry, ComputeInitialGeometry,   &
                                       GetGeometryVolumes, ReadGeometryHDF,                      &
-                                      ComputeVerticalGeometry,                                  & 
+                                      ComputeVerticalGeometry, ConstructGeometry,               & 
                                       WriteGeometryHDF, GetGeometryAreas, GetGeometryDistances, &
                                       GetGeometryKTop       
     use ModuleMap,              only: GetWaterPoints3D, GetOpenPoints3D, UngetMap,              & 
-                                      GetComputeFaces3D, UpdateComputeFaces3D          
+                                      GetComputeFaces3D, UpdateComputeFaces3D, ConstructMap          
     use ModuleBoxDif,           only: StartBoxDif, BoxDif, KillBoxDif      
     use ModuleHDF5,             only: ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,          &
                                       HDF5WriteData, HDF5FlushMemory, HDF5ReadData, KillHDF5
@@ -246,6 +246,7 @@ Module ModuleConsolidation
 
 
     type      T_Consolidation
+        character(PathLength)                   ::  SedGeometryFile     = null_str
         private
         integer                                 :: InstanceID           = null_int
         type(T_Size3D        )                  :: Size   
@@ -357,19 +358,21 @@ Module ModuleConsolidation
                                       GridDataID,                            & 
                                       HorizontalMapID,                       &
                                       HorizontalGridID,                      &
+                                      SedGeometryFile,                       &
                                       GeometryID,                            &
                                       MapID,                                 &
                                       STAT)
 
         !Arguments-------------------------------------------------------------
 
-        integer                                      :: ConsolidationID
-        integer                                      :: GridDataID
-        integer                                      :: HorizontalGridID
+        integer                                      :: ConsolidationID 
+        character(PathLength)                        :: SedGeometryFile
+        integer                                      :: HorizontalGridID  
         integer                                      :: TimeID
-        integer                                      :: HorizontalMapID
-        integer                                      :: GeometryID
-        integer                                      :: MapID
+        integer, intent(out)                         :: GridDataID
+        integer, intent(out)                         :: HorizontalMapID
+        integer, intent(out)                         :: GeometryID         
+        integer, intent(out)                         :: MapID
         integer, optional, intent(out)               :: STAT
         
         !External--------------------------------------------------------------
@@ -396,16 +399,18 @@ Module ModuleConsolidation
 
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
-            Me%ObjGridData       = AssociateInstance (mGRIDDATA_,       GridDataID      )
+            !Me%ObjGridData       = AssociateInstance (mGRIDDATA_,       GridDataID      )
             
             !REVIEW THIS
-            Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
+            !Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
             !REVIEW THIS
 
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
-            Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
-            Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
-
+            !Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
+            !Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
+            
+            Me%SedGeometryFile = SedGeometryFile
+            
             call SetTimeLimits
 
             call ReadConsolidationFilesName
@@ -413,6 +418,8 @@ Module ModuleConsolidation
             call DataFileConnection(ON)
 
             call Construct_GlobalVariables
+            
+            call ConstructSedimentGridAndGeometry
 
             call Construct_Initial_Geometry
 
@@ -425,7 +432,12 @@ Module ModuleConsolidation
             ConsolidationID = Me%InstanceID
 
             STAT_ = SUCCESS_
-        
+            
+            GridDataID = Me%ObjGridData
+            HorizontalMapID = Me%ObjHorizontalMap
+            GeometryID = Me%ObjGeometry
+            MapID = Me%ObjMap
+            
         else 
             
             stop 'ConstructConsolidation - ModuleConsolidation - ERR99' 
@@ -439,7 +451,66 @@ Module ModuleConsolidation
     end subroutine ConstructConsolidation
 
     !--------------------------------------------------------------------------
-   
+    
+    subroutine ConstructSedimentGridAndGeometry()
+        !Local-----------------------------------------------------------------
+        integer                          :: STAT_CALL, iflag
+        character(PathLength)            :: SedimentFile
+        !Begin-----------------------------------------------------------------
+    
+    
+        !Gets the file name of the Bathymetry
+        call GetData(SedimentFile,                                                       &
+                     Me%ObjEnterData, iflag,                                             & 
+                     SearchType   = FromFile,                                            &
+                     keyword      ='IN_SEDIMENT',                                        &
+                     ClientModule ='ModuleConsolidation',                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructSedimentGridAndGeometry - ModuleConsolidation - ERR01'
+        if (iflag == 0) then
+            write(*,*) 
+            write(*,*) 'Need to define IN_SEDIMENT in Sediment_X.dat'
+            write(*,*) 'ConstructSedimentGridAndGeometry - ModuleConsolidation - ERR01a'
+        endif
+        
+        !Horizontal Grid Data - Sediment Column (Bathymetry)
+        call ConstructGridData      (GridDataID          = Me%ObjGridData,              &
+                                        HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                        FileName         = SedimentFile,                &
+                                        STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSedimentGridAndGeometry - ModuleConsolidation - ERR10'
+
+        !Horizontal Map
+        call ConstructHorizontalMap (HorizontalMapID  = Me%ObjHorizontalMap,            &
+                                        GridDataID       = Me%ObjGridData,              &
+                                        HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                        ActualTime       = Me%ExternalVar%Now,          &
+                                        STAT             = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSedimentGridAndGeometry - ModuleConsolidation - ERR100'        
+        
+        
+        !Geometry - Sediment Column
+        call ConstructGeometry      (GeometryID          = Me%ObjGeometry,              &
+                                        GridDataID       = Me%ObjGridData,              &
+                                        HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                        HorizontalMapID  = Me%ObjHorizontalMap,         &
+                                        ActualTime       = Me%ExternalVar%Now,          &
+                                        NewDomain        = Me%SedGeometryFile,          &
+                                        STAT             = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSedimentGridAndGeometry - ModuleConsolidation - ERR110'
+
+        !Map - Sediment Column            
+        call ConstructMap           (Map_ID           = Me%ObjMap,                      &
+                                        GeometryID       = Me%ObjGeometry,              &
+                                        HorizontalMapID  = Me%ObjHorizontalMap,         &
+                                        TimeID           = Me%ObjTime,                  &
+                                        STAT             = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructSedimentGridAndGeometry - ModuleConsolidation - ERR120'           
+        
+    end subroutine ConstructSedimentGridAndGeometry
+    
+    !--------------------------------------------------------------------------
+
     subroutine AllocateInstance
 
         !Local-----------------------------------------------------------------
@@ -1160,7 +1231,8 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                             :: i, j, k
 
         !Begin----------------------------------------------------------------
-
+        
+        
         !Initial sediment thickness equals the one specified in bathymetry 
         !so elevation equals zero
         Me%Elevation(:,:) = 0.
@@ -1168,14 +1240,14 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         if(Me%ContinuesCompute)then
             
             call ReadGeometryHDF(Me%ObjGeometry, trim(Me%Files%Initial)//"5", STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleConsolidation - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleConsolidation - ERR030'
 
         end if
 
         !Get WaterPoints3D
         call GetWaterPoints3D(Me%ObjMap, Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_)                                             &
-            call SetError (FATAL_, INTERNAL_, "Construct_Initial_Geometry - ModuleConsolidation - ERR02")
+            call SetError (FATAL_, INTERNAL_, "Construct_Initial_Geometry - ModuleConsolidation - ERR040")
 
         
         !Computes sediment initial geometry
@@ -1185,12 +1257,12 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                                     ContinuesCompute = Me%ContinuesCompute,              &
                                     ActualTime       = Me%ExternalVar%Now,               &
                                     STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleConsolidation - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleConsolidation - ERR050'
         
         !Unget WaterPoints3D
         call UnGetMap(Me%ObjMap,Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                             &
-            call SetError (FATAL_, INTERNAL_, "Construct_Initial_Geometry - ModuleConsolidation - ERR04")
+            call SetError (FATAL_, INTERNAL_, "Construct_Initial_Geometry - ModuleConsolidation - ERR060")
 
 
         call ReadLockExternalModules
@@ -1237,7 +1309,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         !Computes OpenPoints3D
         call UpdateComputeFaces3D(Me%ObjMap, STAT = STAT_CALL)      
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleConsolidation - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Initial_Geometry - ModuleConsolidation - ERR070'
 
 
             
@@ -3547,20 +3619,20 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 nUsers = DeassociateInstance(mTIME_,            Me%ObjTime)
                 if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR04'
 
-                nUsers = DeassociateInstance(mGRIDDATA_,        Me%ObjGridData)
-                if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR05'
-
-                nUsers = DeassociateInstance(mHORIZONTALMAP_,   Me%ObjHorizontalMap)
-                if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR06'
+                !nUsers = DeassociateInstance(mGRIDDATA_,        Me%ObjGridData)
+                !if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR05'
+                !
+                !nUsers = DeassociateInstance(mHORIZONTALMAP_,   Me%ObjHorizontalMap)
+                !if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR06'
 
                 nUsers = DeassociateInstance(mHORIZONTALGRID_,  Me%ObjHorizontalGrid)
                 if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR07'
 
-                nUsers = DeassociateInstance(mGEOMETRY_,        Me%ObjGeometry)
-                if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR08'
-
-                nUsers = DeassociateInstance(mMAP_,             Me%ObjMap)
-                if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR09'
+                !nUsers = DeassociateInstance(mGEOMETRY_,        Me%ObjGeometry)
+                !if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR08'
+                !
+                !nUsers = DeassociateInstance(mMAP_,             Me%ObjMap)
+                !if (nUsers == 0) stop 'KillConsolidation - ModuleConsolidation - ERR09'
 
                 deallocate(Me%Elevation, STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                    &

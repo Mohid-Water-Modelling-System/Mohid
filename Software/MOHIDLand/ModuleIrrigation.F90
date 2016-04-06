@@ -102,18 +102,15 @@ module ModuleIrrigation
     end interface  UnGetIrrigation
    
     !Parameters------------------------------------------------------------------
-    integer, parameter                              :: ApplicationArea_                 = 1
     integer, parameter                              :: StartHeadThreshold_              = 2
     integer, parameter                              :: StartHeadLimitThreshold_         = 3
     integer, parameter                              :: EndHeadThreshold_                = 4
-    integer, parameter                              :: IrrigationProperty_              = 5
     integer, parameter                              :: MinimumIntervalBetweenEvents_    = 6
     integer, parameter                              :: StartInstantThreshold_           = 7
     integer, parameter                              :: GearType_                        = 8
     integer, parameter                              :: GearEfficiency_                  = 9
     integer, parameter                              :: Debit_                           = 10
     integer, parameter                              :: Position_                        = 11
-    integer, parameter                              :: AccIrrigation_                   = 12
     integer, parameter                              :: SecondsToEventEnd_               = 13
     
     character(20), parameter                        :: BeginSchedule    = "<BeginSchedule>"
@@ -238,6 +235,11 @@ module ModuleIrrigation
         integer                                     :: ObjTimeSeries = 0
         
         integer                                     :: IrrigationMethod = FixedIrrigation
+        
+        type(T_Time)                                :: StartIrrigationTime
+        logical                                     :: DelayIrrigation = .false.
+        type(T_Time)                                :: StopIrrigationTime
+        logical                                     :: InfiniteIrrigation = .true.
         
         logical                                     :: IntegratedSchedule = .true.
         logical                                     :: AutoIrrigation = .false.
@@ -772,7 +774,7 @@ cd0:    if (ready_ == OFF_ERR_) then
         if (stat_call /= SUCCESS_) &
             stop 'ConstructSchedule - ModuleIrrigation - ERR030'
         
-        call GetData (new_schedule%HeadThreshold,            &
+        call GetData (new_schedule%HeadThreshold,           &
                       Me%ObjEnterData, iflag,               &
                       Keyword      = 'HEAD_THRESHOLD',      &
                       ClientModule = 'ModuleIrrigation',    &
@@ -945,6 +947,30 @@ cd0:    if (ready_ == OFF_ERR_) then
         if (stat_call /= SUCCESS_) &
             stop 'ConstructSchedule - ModuleIrrigation - ERR180'
         
+        call GetData (new_schedule%StartIrrigationTime,             &
+                      Me%ObjEnterData, iflag,                       &
+                      Keyword      = 'START_TIME',                  &
+                      ClientModule = 'ModuleIrrigation',            &
+                      SearchType   = FromBlock,                     &
+                      STAT = stat_call)
+        if (stat_call /= SUCCESS_) &
+            stop 'ConstructSchedule - ModuleIrrigation - ERR190'
+        if (iflag > 0) then
+            new_schedule%DelayIrrigation = .true.
+        endif
+        
+        call GetData (new_schedule%StopIrrigationTime,              &
+                      Me%ObjEnterData, iflag,                       &
+                      Keyword      = 'STOP_TIME',                   &
+                      ClientModule = 'ModuleIrrigation',            &
+                      SearchType   = FromBlock,                     &
+                      STAT = stat_call)
+        if (stat_call /= SUCCESS_) &
+            stop 'ConstructSchedule - ModuleIrrigation - ERR200'
+        if (iflag > 0) then
+            new_schedule%InfiniteIrrigation = .false.
+        endif
+        
         call ConstructProperties (new_schedule, client_number)
         call ConstructInternalProperties (new_schedule)
         
@@ -1087,18 +1113,18 @@ cd1 :       if (block_found) then
 
         !------------------------------------------------------------------------
         if ((new_property%ID%Name) == "application area") then
-            new_property%ID%IDNumber = ApplicationArea_
+            !new_property%ID%IDNumber = ApplicationArea_
             !new_schedule%ApplicationAreaMap => new_property
             allocate (new_schedule%ApplicationAreaMap%LogicalField(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))            
             new_property%IsLogical = .true.
               
         elseif (trim(new_property%ID%Name) == "fixed irrigation") then
             
-            new_property%ID%IDNumber = IrrigationProperty_
+            !new_property%ID%IDNumber = IrrigationProperty_
             new_schedule%Irrigation => new_property
             
         elseif (trim(new_property%ID%Name) == "acc. irrigation") then
-            new_property%ID%IDNumber = AccIrrigation_
+            !new_property%ID%IDNumber = AccIrrigation_
             
         else
             
@@ -1188,6 +1214,7 @@ cd1 :       if (block_found) then
                                       PointsToFill2D       = basin_points,              &
                                       Matrix2D             = new_property%Field,        &
                                       TypeZUV              = TypeZ_,                    &
+                                      CheckDates           = .false.,                   &
                                       STAT                 = stat_call)
             if (stat_call /= SUCCESS_) &
                 stop 'ConstructPropertyValues - ModuleIrrigation - ERR040'
@@ -2015,32 +2042,41 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
             
             do schedule_i = 1, Me%NumberOfSchedules
             
-                schedule_x => me%Schedules(schedule_i)                
-                call ReadPropertiesFromFile (schedule_x)                                
+                schedule_x => me%Schedules(schedule_i)
                 
-                !First, compute irrigation needs
-                select case (schedule_x%IrrigationMethod)
-                case (FixedIrrigation)
-                    
-                    !Fixed irrigation is provided by the user.
-                    !The Irrigation was already set at 'ReadPropertiesFromFile'
-                    
-                case (IrrigationBySteps)
-                    
-                    call ComputeIrrigationBySteps (schedule_x)
-                    
-                case (ContinuousIrrigation)
-                    
-                    call ComputeContinuousIrrigation (schedule_x)
-                    
-                case default
+                if ( &
+                    ((.not. schedule_x%DelayIrrigation) .or. (schedule_x%StartIrrigationTime >= (Me%Now - Me%DT))) &
+                    .and. &
+                    ((schedule_x%InfiniteIrrigation) .or. (schedule_x%StopIrrigationTime >= (Me%Now))) &
+                   ) then
                 
-                    stop 'ModifyIrrigation - ModuleIrrigation - ERR030'
+                    call ReadPropertiesFromFile (schedule_x)
+                
+                    !First, compute irrigation needs
+                    select case (schedule_x%IrrigationMethod)
+                    case (FixedIrrigation)
                     
-                end select                            
+                        !Fixed irrigation is provided by the user.
+                        !The Irrigation was already set at 'ReadPropertiesFromFile'
+                    
+                    case (IrrigationBySteps)
+                    
+                        call ComputeIrrigationBySteps (schedule_x)
+                
+                    case (ContinuousIrrigation)
+                    
+                        call ComputeContinuousIrrigation (schedule_x)
+                    
+                    case default
+                
+                        stop 'ModifyIrrigation - ModuleIrrigation - ERR030'
+                    
+                    end select                            
                                
-                !Remove any old (before today) schedule 
-                call RemoveOldDailySchedules (schedule_x)
+                    !Remove any old (before today) schedule 
+                    call RemoveOldDailySchedules (schedule_x)
+                
+                endif
                 
                 !Update the irrigation property used by Basin
                 call UpdateIrrigation (schedule_x)
@@ -2788,7 +2824,7 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
 
                 call ModifyFillMatrix (FillMatrixID   = property_x%ID%ObjFillMatrix,    &
                                        Matrix2D       = property_x%Field,               &
-                                       PointsToFill2D = Me%Data%BasinPoints,          &
+                                       PointsToFill2D = Me%Data%BasinPoints,            &                                       
                                        STAT           = stat_call)
                 if (stat_call /= SUCCESS_) then
                     write (*,*) "[ModuleIrrigation] ATTENTION"
