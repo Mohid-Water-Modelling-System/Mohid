@@ -21096,8 +21096,12 @@ d3:         do em =1, Me%EulerModelNumber
                         Me%EulerModel(em)%Monitor%InstBoxConc (Box) =                                           &
                         Me%EulerModel(em)%Monitor%InstBoxMass(Box) / Me%EulerModel(em)%Monitor%InstBoxVolume (Box)
 
-                        Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc (Box) =                            &
-                        SumContaminatedTracerConc(Box) / Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box)
+                        if (Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box) > 0.) then
+                            Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc (Box) =                            &
+                            SumContaminatedTracerConc(Box) / Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box)
+                        else
+                            Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc (Box) = 0.
+                        endif
                         
                     elseif (Me%MonitorMassFractionType .EQ. Geometric) then
                         if (Me%EulerModel(em)%Monitor%NumberOfTracers(Box) .GT. 0) then
