@@ -3618,7 +3618,17 @@ if17:                       if (SumDepth > 0) then
                                 DepthC = DepthC + SumDepth
                                 Aux    = DepthC
                             else if17
-                                Aux    = 2. * DepthC - Me%Depth%Value3DOut(i, j, k)
+                                Aux  = 2. * DepthC - Me%Depth%Value3DOut(i, j, k)
+                                
+                                if (k==Me%WorkSize%KUB) then
+                                    if (Me%Mapping%Value3DOut(i,j,k-1) == 1) then
+                                        DepthC_Below = GetCellInDepth(i, j, k-1,Me%WorkSize%KUB,iT)
+                                        if (Aux >= DepthC_Below) then
+                                            Aux = (DepthC + DepthC_Below)/2.
+                                        endif
+                                    endif
+                                endif                                    
+                                                     
                             endif if17
                             
 if18:                       if (Aux >= DepthC) then
