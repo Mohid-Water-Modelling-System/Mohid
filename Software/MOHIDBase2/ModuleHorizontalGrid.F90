@@ -104,6 +104,7 @@ Module ModuleHorizontalGrid
     public  :: GetGridFileName
     public  :: GetCheckDistortion
     public  :: GetGridRotation
+    public  :: GetCellRotation    
     public  :: GetDefineCellsMap
     public  :: GetNotDefinedCells
     public  :: GetZCoordinates 
@@ -305,8 +306,10 @@ Module ModuleHorizontalGrid
 
     public :: ReceiveSendProperitiesMPI
     interface ReceiveSendProperitiesMPI
-        module procedure ReceiveSendProperities3DMPI    
-        module procedure ReceiveSendProperities2DMPI        
+        module procedure ReceiveSendProperities3DMPIr4    
+        module procedure ReceiveSendProperities2DMPIr4   
+        module procedure ReceiveSendProperities3DMPIr8    
+        module procedure ReceiveSendProperities2DMPIr8   
     endinterface
 
     public :: ReceiveSendLogicalMPI
@@ -7055,11 +7058,11 @@ if2:        if (Me%DDecomp%Master) then
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    subroutine ReceiveSendProperities3DMPI(HorizontalGridID, Property3D, KLB, KUB, di, dj, STAT)
+    subroutine ReceiveSendProperities3DMPIr8(HorizontalGridID, Property3D, KLB, KUB, di, dj, STAT)
 
         !Arguments------------------------------------------------------------
         integer                            :: HorizontalGridID
-        real   , dimension(:,:,:), pointer :: Property3D    
+        real(8), dimension(:,:,:), pointer :: Property3D    
         integer                            :: KLB, KUB
         integer                 , optional :: di, dj
         integer                 , optional :: STAT        
@@ -7106,7 +7109,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     dj_ = 0
                 endif
 
-                Precision   = MPIKind(Property3D)
+                !Precision   = MPIKind(Property3D)
+                Precision = MPI_DOUBLE_PRECISION                
                 
         difd:   do ifd = 1, Me%DDecomp%NInterfaces
 
@@ -7234,7 +7238,202 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_                     
         
 
-    end subroutine ReceiveSendProperities3DMPI         
+    end subroutine ReceiveSendProperities3DMPIr8         
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine exchange 3D properties between decompose domains                     !
+    ! coefficients of all domains                                                          !
+    !                                                                                      !
+    ! Input : Property3D halo region                                                       !
+    ! OutPut: Property3D halo region - boundary domains                                    !
+    ! Author: Paulo Chambel (2015/11)                                                      !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    subroutine ReceiveSendProperities3DMPIr4(HorizontalGridID, Property3D, KLB, KUB, di, dj, STAT)
+
+        !Arguments------------------------------------------------------------
+        integer                            :: HorizontalGridID
+        real(4), dimension(:,:,:), pointer :: Property3D    
+        integer                            :: KLB, KUB
+        integer                 , optional :: di, dj
+        integer                 , optional :: STAT        
+        !Local---------------------------------------------------------------
+        integer                            :: STAT_CALL, IUB, ILB, JUB, JLB
+        integer                            :: IUB_R, ILB_R, JUB_R, JLB_R
+        integer                            :: IUB_S, ILB_S, JUB_S, JLB_S
+        integer                            :: Bandwidth
+        integer                            :: DomainA, DomainB, ifd, Direction
+        
+        integer                            :: Source, Destination         
+        integer                            :: iSize
+        integer, save                      :: Precision
+        integer                            :: status(MPI_STATUS_SIZE)    
+        integer                            :: di_, dj_   
+        integer                            :: STAT_, ready_
+        
+        !Begin---------------------------------------------------------------
+        
+       STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+       
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            
+    idd:    if (Me%DDecomp%MasterOrSlave) then
+
+                IUB = Me%WorkSize%IUB
+                ILB = Me%WorkSize%ILB
+                JUB = Me%WorkSize%JUB
+                JLB = Me%WorkSize%JLB
+                
+                if (present(di)) then
+                    di_ = di
+                else
+                    di_ = 0
+                endif
+
+                if (present(dj)) then
+                    dj_ = dj
+                else
+                    dj_ = 0
+                endif
+
+                !Precision   = MPIKind(Property3D)
+                Precision = MPI_REAL                
+                
+        difd:   do ifd = 1, Me%DDecomp%NInterfaces
+
+                    DomainA   = Me%DDecomp%Interfaces(ifd,1) 
+                    DomainB   = Me%DDecomp%Interfaces(ifd,2) 
+                    Direction = Me%DDecomp%Interfaces(ifd,3)
+                
+        iSN:        if (Direction == SouthNorth_) then
+                
+                        !Then North border communication
+        iN:             if (Me%DDecomp%MPI_ID == DomainA) then
+
+                            Bandwidth   = Me%DDecomp%Halo_Points + di_
+                            iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
+                            Source      = DomainB
+                            Destination = Source
+                            
+                            IUB_R = IUB                     + di_
+                            ILB_R = IUB_R - Bandwidth   + 1 
+                            IUB_S = ILB_R               - 1 + di_
+                            ILB_S = IUB_S - Bandwidth   + 1
+                            
+                            !Receive
+                            call MPI_Recv (Property3D(ILB_R:IUB_R, JLB:JUB, KLB:KUB), iSize, Precision,      &
+                                           Source, 180001, MPI_COMM_WORLD, status, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR20'
+                            
+                            !Send
+                            call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
+                                           Destination, 180002, MPI_COMM_WORLD, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR30'
+                        
+                        endif iN
+
+                        !Then South border communication
+        iS:             if (Me%DDecomp%MPI_ID == DomainB) then
+
+                            Bandwidth   = Me%DDecomp%Halo_Points + di_
+                            iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
+                            Source      = DomainA
+                            Destination = Source
+                            
+                            ILB_R = ILB
+                            IUB_R = ILB_R + Bandwidth - 1             
+                            ILB_S = IUB_R             + 1 - di_
+                            IUB_S = ILB_S + Bandwidth - 1 
+                            
+                            !Send
+                            call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
+                                           Destination, 180001, MPI_COMM_WORLD, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR40'
+
+                            !Receive
+                            call MPI_Recv (Property3D(ILB_R:IUB_R, JLB:JUB, KLB:KUB), iSize, Precision,      &
+                                           Source, 180002, MPI_COMM_WORLD, status, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR50'
+
+                        endif iS
+                        
+                    endif iSN  
+                    
+        iWE:        if (Direction == WestEast_) then
+                    
+                        !Then East border communication
+        iE:             if (Me%DDecomp%MPI_ID == DomainA) then
+
+                            Bandwidth   = Me%DDecomp%Halo_Points + dj_
+                            iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
+                            Source      = DomainB
+                            Destination = Source
+                            
+                            !Receive
+                            JUB_R = JUB                     + dj_
+                            JLB_R = JUB_R - Bandwidth   + 1 
+                            JUB_S = JLB_R               - 1 + dj_
+                            JLB_S = JUB_S - Bandwidth   + 1
+                            
+                            call MPI_Recv (Property3D(ILB:IUB, JLB_R:JUB_R, KLB:KUB), iSize, Precision,      &
+                                           Source, 180005, MPI_COMM_WORLD, status, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR60'
+
+                            !Send
+                            call MPI_Send (Property3D(ILB:IUB, JLB_S:JUB_S, KLB:KUB), iSize, Precision,      &
+                                           Destination, 180006, MPI_COMM_WORLD, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR70'
+
+                        endif iE
+
+                        !Then West border communication
+        iW:             if (Me%DDecomp%MPI_ID == DomainB) then
+
+                            Bandwidth   = Me%DDecomp%Halo_Points + dj_
+                            iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
+                            Source      = DomainA
+                            Destination = Source
+                            
+                            !Receive
+                            JLB_R = JLB
+                            JUB_R = JLB_R + Bandwidth - 1  
+                            JLB_S = JUB_R             + 1 - dj_
+                            JUB_S = JLB_S + Bandwidth - 1 
+
+                            !Send
+                            call MPI_Send (Property3D(ILB:IUB, JLB_S:JUB_S, KLB:KUB), iSize, Precision,      &
+                                           Destination, 180005, MPI_COMM_WORLD, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR80'
+
+                            call MPI_Recv (Property3D(ILB:IUB, JLB_R:JUB_R, KLB:KUB), iSize, Precision,      &
+                                           Source, 180006, MPI_COMM_WORLD, status, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR90'
+
+                        endif iW
+                        
+                    endif iWE                
+                       
+                enddo difd
+
+            endif idd     
+            
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_                     
+        
+
+    end subroutine ReceiveSendProperities3DMPIr4         
+
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -7247,11 +7446,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    subroutine ReceiveSendProperities2DMPI(HorizontalGridID, Property2D, STAT)
+    subroutine ReceiveSendProperities2DMPIr8(HorizontalGridID, Property2D, STAT)
 
         !Arguments------------------------------------------------------------
         integer                            :: HorizontalGridID
-        real   , dimension(:,:)  , pointer :: Property2D    
+        real(8), dimension(:,:)  , pointer :: Property2D    
         integer                 , optional :: STAT        
         !Local---------------------------------------------------------------
         integer                            :: STAT_CALL, IUB, ILB, JUB, JLB
@@ -7283,7 +7482,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 JUB = Me%WorkSize%JUB
                 JLB = Me%WorkSize%JLB
                 
-                Precision   = MPIKind(Property2D)
+                !Precision   = MPIKind(Property2D)
+                Precision = MPI_DOUBLE_PRECISION
+                
                 
         difd:   do ifd = 1, Me%DDecomp%NInterfaces
 
@@ -7411,8 +7612,185 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(STAT)) STAT = STAT_                     
         
 
-    end subroutine ReceiveSendProperities2DMPI         
+    end subroutine ReceiveSendProperities2DMPIr8         
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !                                                                                      !
+    ! This subroutine exchange 2D properties between decompose domains                     !
+    ! coefficients of all domains                                                          !
+    !                                                                                      !
+    ! Input : Property3D halo region                                                       !
+    ! OutPut: Property3D halo region - boundary domains                                    !
+    ! Author: Paulo Chambel (2015/11)                                                      !
+    !                                                                                      !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+    subroutine ReceiveSendProperities2DMPIr4(HorizontalGridID, Property2D, STAT)
+
+        !Arguments------------------------------------------------------------
+        integer                            :: HorizontalGridID
+        real(4), dimension(:,:)  , pointer :: Property2D    
+        integer                 , optional :: STAT        
+        !Local---------------------------------------------------------------
+        integer                            :: STAT_CALL, IUB, ILB, JUB, JLB
+        integer                            :: IUB_R, ILB_R, JUB_R, JLB_R
+        integer                            :: IUB_S, ILB_S, JUB_S, JLB_S
+        integer                            :: Bandwidth
+        integer                            :: DomainA, DomainB, ifd, Direction
+        
+        integer                            :: Source, Destination         
+        integer                            :: iSize
+        integer, save                      :: Precision
+        integer                            :: status(MPI_STATUS_SIZE)       
+        integer                            :: STAT_, ready_
+        
+        !Begin---------------------------------------------------------------
+        
+       STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)    
+       
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            
+    idd:    if (Me%DDecomp%MasterOrSlave) then
+
+                IUB = Me%WorkSize%IUB
+                ILB = Me%WorkSize%ILB
+                JUB = Me%WorkSize%JUB
+                JLB = Me%WorkSize%JLB
+                
+                !Precision   = MPIKind(Property2D)
+                Precision = MPI_REAL               
+                
+        difd:   do ifd = 1, Me%DDecomp%NInterfaces
+
+                    DomainA   = Me%DDecomp%Interfaces(ifd,1) 
+                    DomainB   = Me%DDecomp%Interfaces(ifd,2) 
+                    Direction = Me%DDecomp%Interfaces(ifd,3)
+                
+        iSN:        if (Direction == SouthNorth_) then
+                
+                        !Then North border communication
+        iN:             if (Me%DDecomp%MPI_ID == DomainA) then
+
+                            Bandwidth   = Me%DDecomp%Halo_Points 
+                            iSize       = Bandwidth * (JUB-JLB+1)
+                            Source      = DomainB
+                            Destination = Source
+                            
+                            IUB_R = IUB                 
+                            ILB_R = IUB_R - Bandwidth   + 1 
+                            IUB_S = ILB_R               - 1
+                            ILB_S = IUB_S - Bandwidth   + 1
+                            
+                            !Receive
+                            call MPI_Recv (Property2D(ILB_R:IUB_R, JLB:JUB), iSize, Precision,      &
+                                           Source, 281001, MPI_COMM_WORLD, status, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR20'
+                            
+                            !Send
+                            call MPI_Send (Property2D(ILB_S:IUB_S, JLB:JUB), iSize, Precision,      &
+                                           Destination, 281002, MPI_COMM_WORLD, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR30'
+                        
+                        endif iN
+
+                        !Then South border communication
+        iS:             if (Me%DDecomp%MPI_ID == DomainB) then
+
+                            Bandwidth   = Me%DDecomp%Halo_Points
+                            iSize       = Bandwidth * (JUB-JLB+1)
+                            Source      = DomainA
+                            Destination = Source
+                            
+                            ILB_R = ILB
+                            IUB_R = ILB_R + Bandwidth - 1             
+                            ILB_S = IUB_R             + 1
+                            IUB_S = ILB_S + Bandwidth - 1 
+                            
+                            !Send
+                            call MPI_Send (Property2D(ILB_S:IUB_S, JLB:JUB), iSize, Precision,      &
+                                           Destination, 281001, MPI_COMM_WORLD, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR40'
+
+                            !Receive
+                            call MPI_Recv (Property2D(ILB_R:IUB_R, JLB:JUB), iSize, Precision,      &
+                                           Source, 281002, MPI_COMM_WORLD, status, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR50'
+
+                        endif iS
+                        
+                    endif iSN  
+                    
+        iWE:        if (Direction == WestEast_) then
+                    
+                        !Then East border communication
+        iE:             if (Me%DDecomp%MPI_ID == DomainA) then
+
+                            Bandwidth   = Me%DDecomp%Halo_Points 
+                            iSize       = Bandwidth * (IUB-ILB+1)
+                            Source      = DomainB
+                            Destination = Source
+                            
+                            !Receive
+                            JUB_R = JUB                 
+                            JLB_R = JUB_R - Bandwidth   + 1 
+                            JUB_S = JLB_R               - 1
+                            JLB_S = JUB_S - Bandwidth   + 1
+                            
+                            call MPI_Recv (Property2D(ILB:IUB, JLB_R:JUB_R), iSize, Precision, &
+                                           Source, 281005, MPI_COMM_WORLD, status, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR60'
+
+                            !Send
+                            call MPI_Send (Property2D(ILB:IUB, JLB_S:JUB_S), iSize, Precision,      &
+                                           Destination, 281006, MPI_COMM_WORLD, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR70'
+
+                        endif iE
+
+                        !Then West border communication
+        iW:             if (Me%DDecomp%MPI_ID == DomainB) then
+
+                            Bandwidth   = Me%DDecomp%Halo_Points 
+                            iSize       = Bandwidth * (IUB-ILB+1)
+                            Source      = DomainA
+                            Destination = Source
+                            
+                            !Receive
+                            JLB_R = JLB
+                            JUB_R = JLB_R + Bandwidth - 1  
+                            JLB_S = JUB_R             + 1
+                            JUB_S = JLB_S + Bandwidth - 1 
+
+                            !Send
+                            call MPI_Send (Property2D(ILB:IUB, JLB_S:JUB_S), iSize, Precision,      &
+                                           Destination, 281005, MPI_COMM_WORLD, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR80'
+
+                            call MPI_Recv (Property2D(ILB:IUB, JLB_R:JUB_R), iSize, Precision,      &
+                                           Source, 281006, MPI_COMM_WORLD, status, STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR90'
+
+                        endif iW
+                        
+                    endif iWE                
+                       
+                enddo difd
+
+            endif idd     
+            
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_                     
+        
+
+    end subroutine ReceiveSendProperities2DMPIr4         
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -8369,6 +8747,54 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !----------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+
+    !Get cell rotation in radians 
+    subroutine GetCellRotation(HorizontalGridID, i, j, CellRotation, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                 :: HorizontalGridID
+        integer                                 :: i, j
+        real                                    :: CellRotation
+        integer, optional                       :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_, ready_
+
+        !Begin--------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+            CellRotation = 0.
+
+            if      (Me%Distortion) then 
+                
+                !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
+                !and rotation Y is not accounted
+                CellRotation = Me%RotationX(i, j) 
+                
+            else if (Me%RegularRotation) then
+
+                CellRotation = Me%Grid_Angle * Pi / 180. 
+
+            endif
+
+            STAT_ = SUCCESS_
+
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine GetCellRotation
+
+    !--------------------------------------------------------------------------
 
     subroutine GetGridLatitudeLongitude(HorizontalGridID,                       &
                                         GridLatitude,                           &
