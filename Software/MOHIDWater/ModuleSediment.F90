@@ -2792,14 +2792,14 @@ ifMS:       if (MasterOrSlave) then
             
             allocate(Aux3D(ILW:IUW, JLW:JUW, KLB:KUB))
 
-            !call HDF5ReadData   (ObjHDF5, "/Results3D", trim(FieldName),                 &
+            !call HDF5ReadData   (ObjHDF5, "/Results", trim(FieldName),                 &
             !                        Array3D = Field3D,                                   &
             !                        STAT    = STAT_CALL)
             !if (STAT_CALL /= SUCCESS_)                                                   &
             !    stop 'ReadInitialField3D; ModuleSediment - ERR03.'
             
             call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
-                                GroupName     = "/Results3D",                           &
+                                GroupName     = "/Results",                             &
                                 Name          = trim(FieldName),                        &
                                 Array3D       = Aux3D,                                  &
                                 STAT          = STAT_CALL)
@@ -6280,7 +6280,7 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR130'
                 
-                call HDF5WriteData  (Me%ObjHDF5, "/Results3D/Porosity", "Porosity",            &
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Porosity", "Porosity",            &
                                      "%", Array3D = Me%Porosity,                             &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR140'
@@ -6321,7 +6321,7 @@ do1:            do n=1,Me%NumberOfClasses
                                          OutputNumber = OutPutNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR190'
                     
-                    call HDF5WriteData   (Me%ObjHDF5, "/Results3D/"//trim(Me%SandClass(n)%ID%Name),     &
+                    call HDF5WriteData   (Me%ObjHDF5, "/Results/"//trim(Me%SandClass(n)%ID%Name),     &
                                          trim(Me%SandClass(n)%ID%Name),                                                        &
                                          "%", Array3D = Me%SandClass(n)%Field3D,                                               &
                                          OutputNumber = OutPutNumber,                                                        &
@@ -6340,7 +6340,7 @@ do1:            do n=1,Me%NumberOfClasses
                                         STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR210'
             
-                call HDF5WriteData   (Me%ObjHDF5, "/Results3D/Cohesive Sediment",           &
+                call HDF5WriteData   (Me%ObjHDF5, "/Results/Cohesive Sediment",           &
                                         "Cohesive Sediment",                                &
                                         "%", Array3D = Me%CohesiveClass%Field3D,            &
                                         OutputNumber = OutPutNumber,                        &
@@ -6348,7 +6348,7 @@ do1:            do n=1,Me%NumberOfClasses
                 if (STAT_CALL /= SUCCESS_)                                                  &
                     stop 'OutPutSedimentHDF - ModuleSediment - ERR220'
             
-                call HDF5WriteData   (Me%ObjHDF5, "/Results3D/Cohesive_DryDensity",           &
+                call HDF5WriteData   (Me%ObjHDF5, "/Results/Cohesive_DryDensity",           &
                                         "Cohesive_DryDensity",                              &
                                         "kg/m3", Array3D = Me%CohesiveDryDensity%Field3D,   &
                                          OutputNumber = OutPutNumber,                       &
@@ -6933,7 +6933,7 @@ do1 :               do i=1, Me%NumberOfClasses
             
         do n=1,Me%NumberOfClasses
             
-            call HDF5WriteData   (Me%ObjHDF5, "/Results3D",                              &
+            call HDF5WriteData   (Me%ObjHDF5, "/Results",                                &
                                     trim(Me%SandClass(n)%ID%Name),                       &
                                     "%", Array3D = Me%SandClass(n)%Field3D,              &
                                     STAT = STAT_CALL)
@@ -6944,14 +6944,14 @@ do1 :               do i=1, Me%NumberOfClasses
         
         if (Me%CohesiveClass%Run) then
             
-            call HDF5WriteData   (Me%ObjHDF5, "/Results3D",                             &
+            call HDF5WriteData   (Me%ObjHDF5, "/Results",                               &
                         trim(Me%CohesiveClass%ID%Name),                                 &
                         "%", Array3D = Me%CohesiveClass%Field3D,                        &
                         STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'WriteFinalState - ModuleSediment - ERR15'
             
-            call HDF5WriteData   (Me%ObjHDF5, "/Results3D",         &
+            call HDF5WriteData   (Me%ObjHDF5, "/Results",            &
             "Cohesive_DryDensity",                                                      &
             "kg/m3", Array3D = Me%CohesiveDryDensity%Field3D,                           &
             STAT = STAT_CALL)
