@@ -53,7 +53,8 @@ Module ModuleAssimilation
                                       GetGeometryKFloor
     use ModuleMap,              only: GetWaterPoints3D, GetOpenPoints3D, GetWaterFaces3D, UngetMap
     use ModuleFillMatrix,       only: ConstructFillMatrix, GetDefaultValue, KillFillMatrix, &
-                                      ModifyFillMatrix
+                                      ModifyFillMatrix, GetAnalyticCelerityON,              &
+                                      GetAnalyticCelerity, UngetFillMatrix
     use ModuleFunctions,        only: ConstructPropertyID, Density, Sigma, CHUNK_J
 
     implicit none
@@ -87,6 +88,7 @@ Module ModuleAssimilation
     public  ::  GetAssimilationAltimetryDT
     public  ::  GetAltimetryDecayTime
     public  ::  GetAltimSigmaDensAnalyzed
+    public  ::  GetWaveCelerityField
 
     public  ::  UngetAssimilation
 
@@ -150,6 +152,9 @@ Module ModuleAssimilation
         real                                    :: Minimum              = null_real
         real                                    :: DefaultValue         = null_real
         integer                                 :: TypeZUV              = null_int
+        real, dimension(:,:  ), pointer         :: WaveCelerity         => null()
+        real                                    :: WaveDirection        = null_real
+        real                                    :: AverageValue         = null_real        
     end type   T_Field
 
     private :: T_OutPut
@@ -935,20 +940,20 @@ cd2 :           if (BlockFound) then
         type(T_property),          pointer      :: NewProperty
         integer                                 :: ClientNumber
 
-        !External--------------------------------------------------------------
+        !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL, i, j, k
         integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
         integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D 
         real,    dimension(:,:  ), pointer      :: Matrix2D
         real,    dimension(:,:,:), pointer      :: Matrix3D
-
-
-        !Local-----------------------------------------------------------------
+        real,    dimension(:,:  ), pointer      :: AnalyticCelerity        
+        real                                    :: AnalyticDirection, AnalyticAverageValue
         integer                                 :: iflag
         integer                                 :: SizeILB, SizeIUB, SizeJLB
         integer                                 :: SizeJUB, SizeKLB, SizeKUB
         character(len=StringLength)             :: Char_TypeZUV
         logical                                 :: BlockFound
+        logical                                 :: AnalyticCelerityON
 
         !----------------------------------------------------------------------
  
@@ -1110,12 +1115,41 @@ cd2 :           if (BlockFound) then
 
                     nullify   (PointsToFill2D)
                     nullify   (Matrix2D)
+                    
+                    call GetAnalyticCelerityON(FillMatrixID       = NewProperty%ID%ObjFillMatrix, &
+                                               AnalyticCelerityON = AnalyticCelerityON,           &
+                                               STAT               = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR110'
+                    
+                    if (AnalyticCelerityON) then
+                    
+                        allocate(NewProperty%Field%WaveCelerity(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                        call GetAnalyticCelerity(FillMatrixID         = NewProperty%ID%ObjFillMatrix, &
+                                                 AnalyticCelerity     = AnalyticCelerity,             &
+                                                 AnalyticDirection    = AnalyticDirection,            &
+                                                 AnalyticAverageValue = AnalyticAverageValue,         &   
+                                                 STAT                 = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR120'
+                        
+                        NewProperty%Field%WaveCelerity(:,:) = AnalyticCelerity(:,:)
+                        
+                        NewProperty%Field%WaveDirection = AnalyticDirection
+                        
+                        NewProperty%Field%AverageValue  = AnalyticAverageValue                     
+                        
+                        call UngetFillMatrix(FillMatrixID = NewProperty%ID%ObjFillMatrix, &
+                                             Array        = AnalyticCelerity,           &
+                                             STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR130' 
+                        
+                    endif
 
 
                     if(.not. NewProperty%ID%SolutionFromFile)then
 
                         call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR110'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR140'
             
                     end if
 
@@ -1124,7 +1158,7 @@ cd2 :           if (BlockFound) then
 
                     allocate(NewProperty%Field%R3D   (SizeILB:SizeIUB, SizeJLB:SizeJUB, SizeKLB:SizeKUB), &
                              STAT = STAT_CALL)            
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR120'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR150'
 
                     NewProperty%Field%R3D(:,:,:) = FillValueReal
 
@@ -1158,7 +1192,7 @@ cd2 :           if (BlockFound) then
 
                     else
 
-                        stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR130'
+                        stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR160'
 
                     endif
 
@@ -1174,10 +1208,10 @@ cd2 :           if (BlockFound) then
                                                TypeZUV              = NewProperty%Field%TypeZUV,&
                                                ClientID             = ClientNumber,             &
                                                STAT                 = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR140'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR170'
 
                     call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR150'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR180'
 
                     if (NewProperty%Field%TypeZUV == TypeZ_) then
                         if (GetPropertyIDNumber(NewProperty%ID%Name) == VelocityU_) then
@@ -1230,25 +1264,25 @@ cd2 :           if (BlockFound) then
                     if(.not. NewProperty%ID%SolutionFromFile)then
 
                         call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR160'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR190'
             
                     end if
                
                 else
 
-                    stop 'ConstructAssimilationField - ModuleAssimilation - ERR170'
+                    stop 'ConstructAssimilationField - ModuleAssimilation - ERR200'
 
                 end if
 
             else
 
-                stop 'ConstructAssimilationField - ModuleAssimilation - ERR180'
+                stop 'ConstructAssimilationField - ModuleAssimilation - ERR210'
 
             end if
 
         else
 
-            stop 'ConstructAssimilationField - ModuleAssimilation - ERR190'
+            stop 'ConstructAssimilationField - ModuleAssimilation - ERR220'
 
         end if
 
@@ -1277,7 +1311,7 @@ cd2 :           if (BlockFound) then
                      SearchType     = FromBlock,                                        &
                      ClientModule   = 'ModuleAssimilation',                             &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR200'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR230'
 
         !By default cold coefficient follows a x^4 evolution
         call GetData(NewProperty%ColdOrder,                                             &
@@ -1287,7 +1321,7 @@ cd2 :           if (BlockFound) then
                      SearchType     = FromBlock,                                        &
                      ClientModule   = 'ModuleAssimilation',                             &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR210'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR240'
 
         !By default property don't have time serie
         call GetData(NewProperty%TimeSerie,                                             &
@@ -1297,7 +1331,7 @@ cd2 :           if (BlockFound) then
                      SearchType     = FromBlock,                                        &
                      ClientModule   = 'ModuleAssimilation',                             &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR220'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR250'
 
         if (NewProperty%TimeSerie) then
             NewProperty%LastTimeSerieOutput = Me%ActualTime
@@ -1312,27 +1346,27 @@ cd2 :           if (BlockFound) then
                      SearchType     = FromBlock,                                        &
                      ClientModule   = 'ModuleAssimilation',                             &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR230'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR260'
 
         call UngetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR240'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR270'
 
         call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_U, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR250'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR280'
 
         call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_V, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR260'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR290'
 
         
         call UnGetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR270'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR300'
 
         call UnGetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR280'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR310'
 
         call UnGetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR290'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR320'
 
         !----------------------------------------------------------------------
 
@@ -2284,7 +2318,93 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     end subroutine GetAltimSigmaDensAnalyzed 
 
     !--------------------------------------------------------------------------
+    
+    subroutine GetWaveCelerityField(AssimilationID, ID,                                 & 
+                                    WaveCelerity, WaveDirection, AverageValue, STAT)
 
+        !Arguments--------------------------------------------------------------
+        integer                                     :: AssimilationID
+        integer                                     :: ID
+        real, dimension(:,:  ), pointer             :: WaveCelerity
+        real, optional                              :: WaveDirection, AverageValue
+        integer, optional, intent(OUT)              :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+        type (T_Property), pointer                  :: PropertyX    
+        integer                                     :: STAT_CALL, STAT_CALL1
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(AssimilationID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            nullify(PropertyX)
+            call SearchProperty(PropertyX = PropertyX, PropertyXIDNumber = ID, STAT = STAT_CALL) 
+                                         
+                           
+cd2:        if (STAT_CALL == SUCCESS_) then
+
+
+                STAT_CALL1 = SUCCESS_
+
+                if (associated(PropertyX%Field%WaveCelerity)) then
+                
+                    call Read_Lock(mASSIMILATION_, Me%InstanceID)
+                
+                    WaveCelerity  => PropertyX%Field%WaveCelerity
+                    
+                    if (present(WaveDirection)) then
+
+                        WaveDirection =  PropertyX%Field%WaveDirection                    
+
+                    endif                        
+
+                    if (present(AverageValue)) then
+
+                        AverageValue =  PropertyX%Field%AverageValue                    
+
+                    endif        
+                    
+                else
+                    write(*,*) "Define an analytic wave in the assimilation_x.dat input file"
+                    write(*,*) "Property Name = ",trim(GetPropertyName(ID))
+                    stop "GetWaveCelerityField - ModuleAssimilation - ERR80"
+                
+                endif                            
+
+
+                STAT_ = STAT_CALL1
+
+            else  cd2
+
+                STAT_ = STAT_CALL
+
+            endif cd2
+
+        else cd1
+         
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                               &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetWaveCelerityField
+
+    !--------------------------------------------------------------------------
+   
     !--------------------------------------------------------------------------
 
     subroutine UngetAssimilation2D(AssimilationID, Array, STAT)
@@ -4220,6 +4340,10 @@ cd1:        if (PropertyX%Dim == Dim_2D) then
                     call SetError(FATAL_, INTERNAL_, 'DeAllocateVariables - ModuleAssimilation - ERR02') 
 
                 nullify   (PropertyX%CoefField%R2D)
+                
+                if (associated(PropertyX%Field%WaveCelerity)) then
+                    deallocate(PropertyX%Field%WaveCelerity)
+                endif
 
 
             else if (PropertyX%Dim == Dim_3D) then  cd1                      

@@ -56,7 +56,8 @@ Module ModuleFillMatrix
                                        RotateVectorFieldToGrid, GetCheckDistortion,     &
                                        GetGridOutBorderCartLimits,                      &
                                        GetGridBorderCartPolygon,                        &
-                                       GetHorizontalGrid
+                                       GetHorizontalGrid, ConstructHorizontalGrid,      &
+                                       KillHorizontalGrid, GetDDecompON, GetCellRotation
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue,          &
                                        GetTimeSerieDTForNextEvent,                      &
                                        GetTimeSerieTimeOfNextDataset,                   & 
@@ -111,6 +112,8 @@ Module ModuleFillMatrix
     public  :: UngetFillMatrix
     public  :: GetAngleField
     public  :: GetVectorialField
+    public  :: GetAnalyticCelerityON
+    public  :: GetAnalyticCelerity
                      
     
     !Modifier
@@ -123,6 +126,7 @@ Module ModuleFillMatrix
     private ::          ModifyHDFInput3DTime
     private ::          ModifyHDFInput3DGeneric4D
     private ::      ModifyProfileTimeSerie
+   
 
     !Destructor
     public  :: KillFillMatrix                                                     
@@ -226,6 +230,7 @@ Module ModuleFillMatrix
     integer, parameter                              :: EnteringWaveCell_  = 1
     integer, parameter                              :: LeavingWaveCell_   = 2
     integer, parameter                              :: InteriorWaveCell_  = 3
+    integer, parameter                              :: ExteriorWaveCell_  = 4    
     
     
     !Parameter-----------------------------------------------------------------
@@ -270,25 +275,37 @@ Module ModuleFillMatrix
         !1 - South; 2 - North; 3 - West; 4 - East        
         logical, dimension(1:4)                     :: OpenBordersON = .true.
     end type T_Sponge
+    
+    type T_EnteringCell
+        integer, dimension(:),   pointer            :: i             => null()
+        integer, dimension(:),   pointer            :: j             => null()
+        real,    dimension(:,:), pointer            :: dx            => null()
+        real,    dimension(:,:), pointer            :: dy            => null()    
+        real,    dimension(:),   pointer            :: TimeLag       => null()
+        integer                                     :: nCells        =  null_int
+        integer                                     :: iStart        = null_int
+        integer                                     :: jStart        = null_int
+        integer                                     :: n             = null_int
+    end type T_EnteringCell
 
     type T_AnalyticWave
         logical                                     :: ON            = .false. 
         real                                        :: Amplitude     = null_real
-        real                                        :: AmpAux        = null_real        
         real                                        :: Direction     = null_real
         real                                        :: Period        = null_real
-        real                                        :: Depth         = null_real
-        real                                        :: WaterColumn   = null_real
-        real                                        :: Celerity      = null_real
-        real                                        :: Length        = null_real
-        real                                        :: AverageValue = null_real
-        ! WaveType = 1 (Sine), WaveType = 2 (Cnoidal), WaveType = 3 (solitary)
+        real                                        :: AverageValue  = null_real
+       ! WaveType = 1 (Sine), WaveType = 2 (Cnoidal), WaveType = 3 (solitary)
         integer                                     :: WaveType      = null_int
-        real(8), dimension(:,:), pointer            :: X2D           => null()
+        real,    dimension(:,:), pointer            :: X2D           => null()
+        real,    dimension(:,:), pointer            :: Celerity      => null()
+        real,    dimension(:,:), pointer            :: AmpAux        => null()
 !        EnteringWaveCell_  = 1
 !        LeavingWaveCell_   = 2
 !        InteriorWaveCell_  = 3
+!        ExteriorWaveCell_  = 4
         integer, dimension(:,:), pointer            :: CellType     => null()
+        integer, dimension(:,:), pointer            :: TlagMissing  => null()        
+        type (T_EnteringCell)                       :: EnteringCell 
     end type T_AnalyticWave
 
 
@@ -4306,9 +4323,10 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
 
         !Local-----------------------------------------------------------------
         integer,   dimension(:,:), pointer  :: Aux2D
-        real,      dimension(:,:), pointer  :: XX2D, YY2D
+        real,      dimension(:,:), pointer  :: XX2D, YY2D, Bathymetry, DUX, DVY
         integer                             :: STAT_CALL
         integer                             :: iflag, i, j
+        integer                             :: ObjHorizontalGridAux
         type (T_Polygon), pointer           :: InteriorCellsArea
         type (T_PointF ), pointer           :: Point, Point0
         type (T_Segment), pointer           :: Segment   
@@ -4319,18 +4337,25 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         real(8)                             :: CircleCenterX, CircleCenterY, Radius
         real(8)                             :: WaveDirection, Xorig, Yorig
         real(8)                             :: RunPeriod
-        real(8)                             :: Omega, k, Aux, A, H
+        real(8)                             :: Omega, k, Aux, A, H, MinDX, T, L
+        character(len = PathLength)         :: BathymetryFile
+        real(8)                             :: Dif, AuxL1, AuxL
+        integer                             :: ObjBathymetry
+        integer                             :: EnterNcells, n
+        real                                :: WaveHeight
         !Begin----------------------------------------------------------------
 
         !Gets the wave amplitude (m)
-        call GetData(Me%AnalyticWave%Amplitude,                                         &
+        call GetData(WaveHeight,                                                        &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
-                     keyword      = 'WAVE_AMPLITUDE',                                   &
+                     keyword      = 'WAVE_HEIGHT',                                      &
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
         if (iflag == 0           ) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR10'
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR20'
+        
+        Me%AnalyticWave%Amplitude = WaveHeight / 2. 
         
 
         !Gets the wave direction (degrees in meteorological convention)
@@ -4359,31 +4384,15 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         
         RunPeriod   = Me%EndTime - Me%BeginTime
         
-        if(real(int(RunPeriod/Me%AnalyticWave%Period)) /= real(RunPeriod/Me%AnalyticWave%Period)) then
-            write(*,*) 'Wave Period needs to be a multiple of the run period'
-            stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR70'
-        endif
+        !if(real(int(RunPeriod/Me%AnalyticWave%Period)) /= real(RunPeriod/Me%AnalyticWave%Period)) then
+        !    write(*,*) 'Wave Period needs to be a multiple of the run period'
+        !    stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR70'
+        !endif
         
-        if (.not. Me%AnalyticWave%Period > 0.) then
-            write(*,*) 'wave period needs to be positive'
+        if (Me%AnalyticWave%Period <= 0.) then
+            write(*,*) 'wave period needs to be greater than 0'
             stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR80'
         endif
-        
-
-        !Gets the wave depth (m)
-        call GetData(Me%AnalyticWave%Depth,                                             &
-                     Me%ObjEnterData , iflag,                                           &
-                     SearchType   = ExtractType,                                        &
-                     keyword      = 'WAVE_DEPTH',                                       &
-                     default      = 0.,                                                 &
-                     ClientModule = 'ModuleFillMatrix',                                 &
-                     STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR130'
-        
-        if (.not. Me%AnalyticWave%Depth > 0.) then
-            write(*,*) 'wave depth needs to be positive'
-            stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR140'
-        endif        
         
 
         !Gets the wave type 
@@ -4421,62 +4430,124 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR120'
-
-
-        Me%AnalyticWave%WaterColumn = Me%AnalyticWave%Depth + Me%AnalyticWave%AverageValue
-
-        Me%AnalyticWave%AmpAux    = Me%AnalyticWave%Amplitude        
         
+        !Gets the file name of the Bathymetry
+        call ReadFileName('IN_BATIM', BathymetryFile, "Bathymetry File", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR130'
+        
+        ObjBathymetry = 0
+        
+        !Horizontal Grid Data - Water Column (Bathymetry)
+        call ConstructGridData      (GridDataID       = ObjBathymetry,               &
+                                     HorizontalGridID = Me%ObjHorizontalGrid,        &
+                                     TimeID           = Me%ObjTime,                  &
+                                     FileName         = BathymetryFile,              &
+                                     STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR140'
+        
+
+        !Gets Bathymetry
+        call GetGridData(ObjBathymetry, Bathymetry, STAT = STAT_CALL)
+                           
+        allocate(Me%AnalyticWave%AmpAux  (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+        allocate(Me%AnalyticWave%Celerity(Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+                          
+               
         A = Me%AnalyticWave%Amplitude
-        H = Me%AnalyticWave%WaterColumn        
-        
+        T = Me%AnalyticWave%Period    
+                
         if (Me%AnalyticWave%WaveType == SineWaveSeaLevel_  .or.                         &
             Me%AnalyticWave%WaveType == SineWaveVelX_      .or.                         &
             Me%AnalyticWave%WaveType == SineWaveVelY_) then
-            
-            Me%AnalyticWave%Length = WaveLengthHuntsApproximation(Me%AnalyticWave%Period, real(H))
-            
-            if (Me%AnalyticWave%Length <= 0) then
-                stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR220'
-            endif 
-            
-            Omega = 2. * Pi / Me%AnalyticWave%Period
-            k     = 2. * Pi / Me%AnalyticWave%Length
-            
-            Me%AnalyticWave%Celerity = Me%AnalyticWave%Length / Me%AnalyticWave%Period
-            
-            Me%AnalyticWave%Celerity = Me%AnalyticWave%Length / Me%AnalyticWave%Period
-            
-            Aux = Me%AnalyticWave%Length / Me%AnalyticWave%WaterColumn
-            
-            if (Me%AnalyticWave%WaveType == SineWaveVelX_      .or.                     &
-                Me%AnalyticWave%WaveType == SineWaveVelY_) then     
+                            
                 
-                if     ( Aux >  20.               ) then
+            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+
+                H = max(Bathymetry(i, j) + Me%AnalyticWave%AverageValue, 0.1)
+                Me%AnalyticWave%AmpAux(i, j) = A        
+            
+                L = WaveLengthHuntsApproximation(real(T), real(H))
+                
+                AuxL = sqrt(Gravity*H) * T
+                Dif  = - FillValueReal 
+                
+                do while (Dif>1e-5)
+                   AuxL1 = Gravity / (2*Pi)* T**2. * tanh(2*Pi*H/AuxL)
+                   Dif   = abs(AuxL1 - AuxL)
+                   AuxL  = AuxL1
+                enddo
+                
+                L = AuxL
+                
+                if (L <= 0) then
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR150'
+                endif 
+                
+                Omega = 2. * Pi / T
+                k     = 2. * Pi / L
+                
+                
+                Me%AnalyticWave%Celerity(i,j) = L / T
+                
+                !write(*,*) 'Wave celerity - ', Me%AnalyticWave%Celerity(i, j)
+                
+                
+                Aux = L / H
+                
+                if (Me%AnalyticWave%WaveType == SineWaveVelX_      .or.                     &
+                    Me%AnalyticWave%WaveType == SineWaveVelY_) then     
                     
-                    Me%AnalyticWave%AmpAux = Omega * A / k / H
+                    if     ( Aux >  20.               ) then
+                        
+                        Me%AnalyticWave%AmpAux(i, j) = Omega * A / k / H
+                        
+                    elseif  (Aux >  2. .and. Aux <=20.) then 
                     
-                elseif  (Aux >  2. .and. Aux <=20.) then 
+                        Me%AnalyticWave%AmpAux(i, j) = Omega * A / k / H      
+                    
+                    elseif  (Aux <= 2.                ) then
+                    
+                        Me%AnalyticWave%AmpAux(i, j) = Omega * A / k / H * (1. - exp(-k*H))                
+                    
+                    endif
+                endif            
+                    
+            enddo
+            enddo
                 
-                    Me%AnalyticWave%AmpAux = Omega * A / k / H      
-                
-                elseif  (Aux <= 2.                ) then
-                
-                    Me%AnalyticWave%AmpAux = Omega * A / k / H * (1. - exp(-k*H))                
-                
-                endif
-            endif            
-            
         endif
-
-
+        
+        !Kills Bathymetry
+        call KillGridData(ObjBathymetry, STAT = STAT_CALL)
+        
         call GetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,             & 
                                XX2D_Z           = XX2D,                             &
                                YY2D_Z           = YY2D,                             &
+                               DUX              = DUX,                              &
+                               DVY              = DVY,                              &
                                STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR150'       
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR160'
         
-        call GetGridOutBorderCartLimits(HorizontalGridID  = Me%ObjHorizontalGrid,       & 
+        
+        
+        if (GetDDecompON(Me%ObjHorizontalGrid)) then
+        
+            ObjHorizontalGridAux = 0
+    
+            !Horizontal Grid
+            call ConstructHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,       &
+                                         DataFile         = BathymetryFile,             &
+                                         STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR170'
+        
+        else
+        
+            ObjHorizontalGridAux = Me%ObjHorizontalGrid
+        
+        endif
+        
+        call GetGridOutBorderCartLimits(HorizontalGridID  = ObjHorizontalGridAux,       & 
                                         West              = West,                       &
                                         East              = East,                       &
                                         South             = South,                      &
@@ -4484,24 +4555,27 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
                                         STAT              = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR180'
         
-        call GetGridBorderCartPolygon  (HorizontalGridID  = Me%ObjHorizontalGrid,       & 
+        call GetGridBorderCartPolygon  (HorizontalGridID  = ObjHorizontalGridAux,       & 
                                         Polygon           = InteriorCellsArea,          &
                                         STAT              = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR190'
         
-        allocate(Me%AnalyticWave%X2D     (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
-        allocate(Me%AnalyticWave%CellType(Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
-        allocate(Aux2D                   (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))   
+        allocate(Me%AnalyticWave%X2D        (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+        allocate(Me%AnalyticWave%CellType   (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+        allocate(Me%AnalyticWave%TlagMissing(Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))        
+        allocate(Aux2D                      (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
+           
 
-        Me%AnalyticWave%X2D     (:,:) = null_real
-        Me%AnalyticWave%CellType(:,:) = null_int
-        Aux2D                   (:,:) = null_int 
+        Me%AnalyticWave%X2D         (:,:) = null_real
+        Me%AnalyticWave%CellType    (:,:) = null_int
+        Aux2D                       (:,:) = null_int 
+        Me%AnalyticWave%TlagMissing (:,:) = 0
         
         
         CircleCenterX = (West  + East )/2.
         CircleCenterY = (South + North)/2.        
         
-        Radius = max((East-West)/2.,(North-South)/2.) 
+        Radius = 100 * sqrt(((East-West)/2.)**2.+((North-South)/2.)**2.) 
         
         WaveDirection = Me%AnalyticWave%Direction       
         
@@ -4517,6 +4591,8 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         Point0%Y    = Yorig
         
         Segment%StartAt     => Point0
+        
+        MinDX       = - FillValueReal
                 
         do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
         do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
@@ -4531,7 +4607,7 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
             DifDirection                = PointDirection - WaveDirection
 
             Me%AnalyticWave%X2D(i, j)   = sqrt(DifX**2.+DifY**2.)*cos(DifDirection)
-
+            
             Point%X                     = PointX
             Point%Y                     = PointY
             
@@ -4540,68 +4616,201 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
 !            EnteringWaveCell_ 
 !            LeavingWaveCell_  
 !            InteriorWaveCell_ 
+!            ExteriorWaveCell_
 
-            if (IsPointInsidePolygon(Point, InteriorCellsArea)) then
-                !interior cell
-                Aux2D(i, j) = InteriorWaveCell_
-            !boundary cell
-            else
-                if (Intersect2D_SegPoly(Segment= Segment, Polygon= InteriorCellsArea)) then
-                    !leaving wave cell
-                    Aux2D(i, j) = LeavingWaveCell_
-                else
-                    !entering wave cell
-                    Aux2D(i, j) = EnteringWaveCell_
-                endif
-            endif
-            
+!            if (IsPointInsidePolygon(Point, InteriorCellsArea)) then
+!                !interior cell
+!                Aux2D(i, j) = InteriorWaveCell_
+!            !boundary cell
+!            else
+!                if (Intersect2D_SegPoly(Segment= Segment, Polygon= InteriorCellsArea)) then
+!                    !leaving wave cell
+!                    Aux2D(i, j) = LeavingWaveCell_
+!                else
+!                    !entering wave cell
+!                    Aux2D(i, j) = EnteringWaveCell_
+!                endif
+!            endif
+!            
         enddo
         enddo
+!        
+!        !SW corner
+!        i = Me%WorkSize2D%ILB
+!        j = Me%WorkSize2D%JLB
+!        
+!        Aux2D(i, j) = ExteriorWaveCell_
+!        
+!        !NW corner
+!        i = Me%WorkSize2D%IUB
+!        j = Me%WorkSize2D%JLB
+!        
+!        Aux2D(i, j) = ExteriorWaveCell_
+!        
+!        !SE corner
+!        i = Me%WorkSize2D%ILB
+!        j = Me%WorkSize2D%JUB
+!        
+!        Aux2D(i, j) = ExteriorWaveCell_
+!        
+!        !NE corner
+!        i = Me%WorkSize2D%IUB
+!        j = Me%WorkSize2D%JUB
+!        
+!        Aux2D(i, j) = ExteriorWaveCell_
+!        
+!        Me%AnalyticWave%CellType(:,:) = Aux2D(:,:)
         
-        Me%AnalyticWave%CellType(:,:) = Aux2D(:,:)
         
         !leaving wave adjacent cells
-        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-        do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
-        
-                if (Aux2D(i-1,j  ) == LeavingWaveCell_ .or.                             &
-                    Aux2D(i+1,j  ) == LeavingWaveCell_ .or.                             &
-                    Aux2D(i  ,j-1) == LeavingWaveCell_ .or.                             &                    
-                    Aux2D(i  ,j+1) == LeavingWaveCell_ ) then
-                    Me%AnalyticWave%CellType(i, j) = LeavingWaveCell_
-                endif                    
-            
-        enddo
-        enddo        
+!        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+!        do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB   
+!        
+!                if (Aux2D(i, j) == ExteriorWaveCell_) cycle
+!        
+!                if (Aux2D(i-1,j  ) == LeavingWaveCell_ .or.                             &
+!                    Aux2D(i+1,j  ) == LeavingWaveCell_ .or.                             &
+!                    Aux2D(i  ,j-1) == LeavingWaveCell_ .or.                             &                    
+!                    Aux2D(i  ,j+1) == LeavingWaveCell_ ) then
+!                    Me%AnalyticWave%CellType(i, j) = LeavingWaveCell_
+!                endif                    
+!            
+!        enddo
+!        enddo        
         
         !entering wave adjacent cells - these cells have priority over Leaving cells
+!        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+!        do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+!        
+!                if (Aux2D(i, j) == ExteriorWaveCell_) cycle        
+!        
+!                if (Aux2D(i-1,j  ) == EnteringWaveCell_ .or.                            &
+!                    Aux2D(i+1,j  ) == EnteringWaveCell_ .or.                            &
+!                    Aux2D(i  ,j-1) == EnteringWaveCell_ .or.                            &                    
+!                    Aux2D(i  ,j+1) == EnteringWaveCell_ ) then
+!                    Me%AnalyticWave%CellType(i, j) = EnteringWaveCell_
+!                endif       
+!                
+!                !Temporary
+!                if (Aux2D(i, j) == InteriorWaveCell_) then
+!                    Me%AnalyticWave%CellType(i, j) = EnteringWaveCell_
+!                endif          
+!            
+!        enddo
+!        enddo     
+        
+        Me%AnalyticWave%CellType(:,:) = EnteringWaveCell_
+        
+        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+        do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB   
+        
+            if (Me%AnalyticWave%CellType(i, j) == EnteringWaveCell_) then             
+        
+                if (Me%AnalyticWave%X2D(i, j) < MinDX) then
+                    MinDX = Me%AnalyticWave%X2D(i, j)
+                    Me%AnalyticWave%EnteringCell%iStart = i
+                    Me%AnalyticWave%EnteringCell%jStart = j                
+                endif        
+                
+            endif                
+
+        enddo
+        enddo            
+        
         do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
         do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
-        
-                if (Aux2D(i-1,j  ) == EnteringWaveCell_ .or.                            &
-                    Aux2D(i+1,j  ) == EnteringWaveCell_ .or.                            &
-                    Aux2D(i  ,j-1) == EnteringWaveCell_ .or.                            &                    
-                    Aux2D(i  ,j+1) == EnteringWaveCell_ ) then
-                    Me%AnalyticWave%CellType(i, j) = EnteringWaveCell_
-                endif                    
-            
+            Me%AnalyticWave%X2D(i, j) = Me%AnalyticWave%X2D(i, j) - MinDX
         enddo
-        enddo                
+        enddo            
+        
+        Me%AnalyticWave%EnteringCell%nCells = 0
+        
+        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+        do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+            
+            if (Me%AnalyticWave%CellType(i, j) == EnteringWaveCell_) then
 
-        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               &
+                Me%AnalyticWave%EnteringCell%nCells = Me%AnalyticWave%EnteringCell%nCells + 1
+
+            endif                    
+        
+        enddo
+        enddo      
+        
+        EnterNcells = Me%AnalyticWave%EnteringCell%nCells 
+        
+        allocate(Me%AnalyticWave%EnteringCell%i      (EnterNcells))
+        allocate(Me%AnalyticWave%EnteringCell%j      (EnterNcells))    
+        allocate(Me%AnalyticWave%EnteringCell%TimeLag(EnterNcells))            
+
+        
+        Me%AnalyticWave%EnteringCell%dx => DUX
+        Me%AnalyticWave%EnteringCell%dy => DVY
+        
+        Me%AnalyticWave%EnteringCell%i      (1) = Me%AnalyticWave%EnteringCell%iStart
+        Me%AnalyticWave%EnteringCell%j      (1) = Me%AnalyticWave%EnteringCell%jStart
+        Me%AnalyticWave%EnteringCell%n          = 1
+        Me%AnalyticWave%EnteringCell%TimeLag(1) = 0.     
+        
+        Me%AnalyticWave%TlagMissing (Me%AnalyticWave%EnteringCell%iStart,               &
+                                     Me%AnalyticWave%EnteringCell%jStart) = 1        
+           
+        
+        !Compute TimeLag
+        !call ComputeTimeLag(i    = Me%AnalyticWave%EnteringCell%i      (1),             &
+        !                    j    = Me%AnalyticWave%EnteringCell%j      (1),             &
+        !                    Tlag = Me%AnalyticWave%EnteringCell%TimeLag(1)) 
+        
+        n = 0
+        
+        do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+        do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
+            
+            if (Me%AnalyticWave%CellType(i, j) == EnteringWaveCell_) then
+                n = n + 1
+                Me%AnalyticWave%EnteringCell%TimeLag(n) =  Me%AnalyticWave%X2D(i, j) / Me%AnalyticWave%Celerity(i, j)
+                Me%AnalyticWave%EnteringCell%i      (n) = i
+                Me%AnalyticWave%EnteringCell%j      (n) = j
+            endif                    
+        
+        enddo
+        enddo              
+                            
+        nullify(Me%AnalyticWave%EnteringCell%dx)
+        nullify(Me%AnalyticWave%EnteringCell%dy)
+                            
+
+        call UngetHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,               &
                                  Polygon          = InteriorCellsArea,                  &
                                  STAT             = STAT_CALL)                          
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR200'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR210'
+        
+        if (GetDDecompON(Me%ObjHorizontalGrid)) then        
+            call KillHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,            &
+                                    STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR220'           
+        endif            
 
         call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               & 
                                  Array            = XX2D,                               &
                                  STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR210'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR230'
 
         call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               & 
                                  Array            = YY2D,                               &
                                  STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR220'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR240'
+
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               & 
+                                 Array            = DUX,                                &
+                                 STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR250'
+
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               & 
+                                 Array            = DVY,                                &
+                                 STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR260'
+
 
         deallocate(Segment)
         deallocate(Point)
@@ -4609,11 +4818,214 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         
         deallocate(Aux2D)
         
+        
         Me%AnalyticWave%ON = .true.
+        
 
     end subroutine ConstructAnalyticWave
 
     !--------------------------------------------------------------------------
+    
+    recursive subroutine ComputeTimeLag(i, j, Tlag)
+            
+        !Arguments-------------------------------------------------------------
+        integer                                         :: i, j
+        real                                            :: Tlag
+        !Local-----------------------------------------------------------------            
+        integer                                         :: i1, j1
+        real                                            :: T
+        real                                            :: CellRotation, dr1, dr2
+        real                                            :: dx1, dy1, dx2, dy2, dt1, dt2, NewTime
+        real                                            :: wc1, wc2
+        integer                                         :: STAT_CALL
+        integer                                         :: nn, ns, nw, ne        
+        integer                                         :: in, is, iw, ie
+        integer                                         :: jn, js, jw, je        
+
+        !Begin-----------------------------------------------------------------    
+    
+
+        
+        T  = Tlag
+        i1 = i
+        j1 = j
+
+        dx1 = Me%AnalyticWave%EnteringCell%dx(i1, j1) / 2.
+        dy1 = Me%AnalyticWave%EnteringCell%dy(i1, j1) / 2.      
+        wc1 = Me%AnalyticWave%Celerity       (i1, j1)
+        
+        call GetCellRotation(Me%ObjHorizontalGrid, i1, j1, CellRotation, STAT = STAT_CALL)
+        
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ComputeTimeLag - ModuleFillMatrix - ERR10'
+        endif
+
+        dr1 = Me%AnalyticWave%Direction - CellRotation
+        
+        !North
+        in = i1 + 1
+        jn = j1 
+        
+        if (Me%AnalyticWave%CellType    (in, jn) == EnteringWaveCell_ .and.             &
+            Me%AnalyticWave%TlagMissing (in, jn) == 0) then
+            
+            call GetCellRotation(Me%ObjHorizontalGrid, in, jn, CellRotation, STAT = STAT_CALL)
+            
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ComputeTimeLag - ModuleFillMatrix - ERR20'
+            endif
+            
+            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+                 
+            dy2 = Me%AnalyticWave%EnteringCell%dy(in, jn) / 2.      
+            wc2 = Me%AnalyticWave%Celerity       (in, jn)
+
+            dt1 = dy1 * sin(dr1) / wc1
+            dt2 = dy2 * sin(dr2) / wc2
+                         
+            NewTime = T + dt1 + dt2
+            
+            Me%AnalyticWave%EnteringCell%n = Me%AnalyticWave%EnteringCell%n + 1
+            
+            nn  = Me%AnalyticWave%EnteringCell%n
+
+            Me%AnalyticWave%TlagMissing(in, jn) = nn
+
+            Me%AnalyticWave%EnteringCell%i(nn)       = in
+            Me%AnalyticWave%EnteringCell%j(nn)       = jn
+            Me%AnalyticWave%EnteringCell%TimeLag(nn) = NewTime
+            
+        endif
+        
+        !South
+        is = i1 - 1
+        js = j1 
+        
+        if (Me%AnalyticWave%CellType    (is, js) == EnteringWaveCell_ .and.             &
+            Me%AnalyticWave%TlagMissing (is, js) == 0) then
+
+            
+            call GetCellRotation(Me%ObjHorizontalGrid, is, js, CellRotation, STAT = STAT_CALL)
+            
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ComputeTimeLag - ModuleFillMatrix - ERR30'
+            endif
+            
+            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+                 
+            dy2 = Me%AnalyticWave%EnteringCell%dy(is, js) / 2.      
+            wc2 = Me%AnalyticWave%Celerity       (is, js)
+
+            dt1 = - dy1 * sin(dr1) / wc1
+            dt2 = - dy2 * sin(dr2) / wc2
+                         
+            NewTime = T + dt1 + dt2
+        
+            Me%AnalyticWave%EnteringCell%n = Me%AnalyticWave%EnteringCell%n + 1
+
+            ns  = Me%AnalyticWave%EnteringCell%n
+
+            Me%AnalyticWave%TlagMissing(is, js) = ns
+
+            Me%AnalyticWave%EnteringCell%i(ns)       = is
+            Me%AnalyticWave%EnteringCell%j(ns)       = js
+            Me%AnalyticWave%EnteringCell%TimeLag(ns) = NewTime
+
+        endif   
+        
+        !West
+        iw = i1
+        jw = j1 - 1 
+        
+        if (Me%AnalyticWave%CellType    (iw, jw) == EnteringWaveCell_ .and.             &
+            Me%AnalyticWave%TlagMissing (iw, jw) == 0) then
+        
+            call GetCellRotation(Me%ObjHorizontalGrid, iw, jw, CellRotation, STAT = STAT_CALL)
+            
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ComputeTimeLag - ModuleFillMatrix - ERR40'
+            endif
+            
+            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+                 
+            dx2 = Me%AnalyticWave%EnteringCell%dx(iw, jw) / 2.      
+            wc2 = Me%AnalyticWave%Celerity       (iw, jw)
+
+            dt1 = - dx1 * cos(dr1) / wc1
+            dt2 = - dx2 * cos(dr2) / wc2
+                         
+            NewTime = T + dt1 + dt2
+
+            Me%AnalyticWave%EnteringCell%n = Me%AnalyticWave%EnteringCell%n + 1
+            
+            nw  = Me%AnalyticWave%EnteringCell%n
+            
+            Me%AnalyticWave%TlagMissing(iw, jw) = nw            
+
+            Me%AnalyticWave%EnteringCell%i(nw)       = iw
+            Me%AnalyticWave%EnteringCell%j(nw)       = jw
+            Me%AnalyticWave%EnteringCell%TimeLag(nw) = NewTime
+       
+        
+        endif             
+
+        !East
+        ie = i1
+        je = j1 + 1 
+        
+        if (Me%AnalyticWave%CellType    (ie, je) == EnteringWaveCell_ .and.             &
+            Me%AnalyticWave%TlagMissing (ie, je) == 0) then
+        
+            call GetCellRotation(Me%ObjHorizontalGrid, ie, je, CellRotation, STAT = STAT_CALL)
+            
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ComputeTimeLag - ModuleFillMatrix - ERR50'
+            endif
+            
+            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+                 
+            dx2 = Me%AnalyticWave%EnteringCell%dx(ie, je) / 2.      
+            wc2 = Me%AnalyticWave%Celerity       (ie, je)
+
+            dt1 = dx1 * cos(dr1) / wc1
+            dt2 = dx2 * cos(dr2) / wc2
+                         
+            NewTime = T + dt1 + dt2
+            
+            Me%AnalyticWave%EnteringCell%n = Me%AnalyticWave%EnteringCell%n + 1
+            
+            ne  = Me%AnalyticWave%EnteringCell%n
+            
+            Me%AnalyticWave%TlagMissing(ie, je) = ne
+            
+            Me%AnalyticWave%EnteringCell%i(ne)       = ie
+            Me%AnalyticWave%EnteringCell%j(ne)       = je
+            Me%AnalyticWave%EnteringCell%TimeLag(ne) = NewTime
+            
+        endif       
+
+        !Compute TimeLag
+        if (Me%AnalyticWave%CellType    (in, jn) == EnteringWaveCell_ .and.             &
+            Me%AnalyticWave%TlagMissing (in, jn) == nn) then
+            call ComputeTimeLag(i=in,j=jn,Tlag=Me%AnalyticWave%EnteringCell%TimeLag(nn))
+        endif            
+
+        if (Me%AnalyticWave%CellType    (is, js) == EnteringWaveCell_ .and.             &
+            Me%AnalyticWave%TlagMissing (is, js) == ns) then
+            call ComputeTimeLag(i=is,j=js,Tlag=Me%AnalyticWave%EnteringCell%TimeLag(ns))
+        endif            
+        
+        if (Me%AnalyticWave%CellType    (iw, jw) == EnteringWaveCell_ .and.             &
+            Me%AnalyticWave%TlagMissing (iw, jw) == nw) then
+            call ComputeTimeLag(i=iw,j=jw,Tlag=Me%AnalyticWave%EnteringCell%TimeLag(nw))
+        endif            
+        
+        if (Me%AnalyticWave%CellType    (ie, je) == EnteringWaveCell_ .and.             &
+            Me%AnalyticWave%TlagMissing (ie, je) == ne) then
+            call ComputeTimeLag(i=ie,j=je,Tlag=Me%AnalyticWave%EnteringCell%TimeLag(ne))
+        endif                    
+    
+    end subroutine ComputeTimeLag
 
     !--------------------------------------------------------------------------
     
@@ -7738,6 +8150,83 @@ if2D:   if (Me%Dim == Dim2D) then
     end subroutine GetMultiTimeSeries
     
     !--------------------------------------------------------------------------
+
+    !Get if Analytic Celerity is ON
+    subroutine GetAnalyticCelerityON (FillMatrixID, AnalyticCelerityON, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: FillMatrixID
+        logical                                         :: AnalyticCelerityON
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
+            (ready_ .EQ. READ_LOCK_ERR_ )) then
+            
+            AnalyticCelerityON = Me%AnalyticWave%ON
+
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetAnalyticCelerityON
+
+    !--------------------------------------------------------------------------  
+        
+    !Get Analytic Celerity
+    subroutine GetAnalyticCelerity (FillMatrixID, AnalyticCelerity, AnalyticDirection, AnalyticAverageValue, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: FillMatrixID
+        real,    dimension(:, :),  intent(OUT), pointer :: AnalyticCelerity
+        real                                            :: AnalyticDirection
+        real                                            :: AnalyticAverageValue
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_ )) then
+            
+            call Read_Lock(mFILLMATRIX_, Me%InstanceID)
+
+            AnalyticCelerity => Me%AnalyticWave%Celerity
+            
+            AnalyticDirection    = Me%AnalyticWave%Direction
+            
+            AnalyticAverageValue = Me%AnalyticWave%AverageValue
+
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetAnalyticCelerity
+
+    !--------------------------------------------------------------------------        
+   
     
     subroutine UngetFillMatrix2D(FillMatrixID, Array, STAT)
 
@@ -8948,9 +9437,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer                                         :: ilb, iub, jlb, jub, klb, kub
         integer                                         :: i, j, k  
         type (T_Time)                                   :: Now
-        real(8)                                         :: Amplitude, Period, X, AverageValue
-        real(8)                                         :: TimeSeconds, WaveCelerity, T, Dir
-        integer                                         :: WaveType     
+        real(8)                                         :: Amplitude, Period, AverageValue
+        real(8)                                         :: TimeSeconds, T1, T2, T3, Dir, A
+        integer                                         :: WaveType, n     
         
         !----------------------------------------------------------------------
         
@@ -8958,8 +9447,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         call GetComputeCurrentTime(Me%ObjTime, Now, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyAnalyticWave - ModuleFillMatrix - ERR010'
         
-        Amplitude     = Me%AnalyticWave%AmpAux
-        WaveCelerity  = Me%AnalyticWave%Celerity
         Period        = Me%AnalyticWave%Period
         WaveType      = Me%AnalyticWave%WaveType
         AverageValue  = Me%AnalyticWave%AverageValue
@@ -8976,23 +9463,45 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             do i = ILB, IUB
 
                 if (PointsToFill2D(i,j) == WaterPoint) then
-                                                        
-                    X = Me%AnalyticWave%X2D(i, j)
-                    T = TimeSeconds
-                    
-                    T = T + X / WaveCelerity
-                    
-                    Dir = Me%AnalyticWave%Direction
+                
+                    Me%Matrix2D(i,j) = AverageValue                    
+                
+                endif
+                
+            enddo
+            enddo
+            
+            
+            do n = 1, Me%AnalyticWave%EnteringCell%nCells
 
-                    if (Me%AnalyticWave%CellType(i, j) == EnteringWaveCell_) then
-                        Me%Matrix2D(i,j) = AverageValue + ComputeWaveAnalytic1D (Amplitude, Period, T, WaveType, Dir)
-                    else
-                        Me%Matrix2D(i,j) = AverageValue
-                    endif                        
-                    
+                                                    
+                !X  = Me%AnalyticWave%X2D(i, j)
+
+                i = Me%AnalyticWave%EnteringCell%i(n)
+                j = Me%AnalyticWave%EnteringCell%j(n)
+                
+                if (Me%AnalyticWave%CellType(i, j) /= EnteringWaveCell_) then
+                    stop 'ModifyAnalyticWave - ModuleFillMatrix - ERR020'
                 endif
 
-            enddo
+                Amplitude     = Me%AnalyticWave%AmpAux  (i, j)
+                !WaveCelerity  = Me%AnalyticWave%Celerity(i, j
+                
+                T1 = TimeSeconds
+                !T2 = X / WaveCelerity
+                T2 = Me%AnalyticWave%EnteringCell%TimeLag(n)
+                T3 = T1 - T2
+                A  = Amplitude
+
+                if (T3 >= - Period) then
+
+                    Dir = Me%AnalyticWave%Direction
+!                    if (T1 < Period) then
+!                        A = A * T1 / Period
+!                    endif
+                    Me%Matrix2D(i,j) = AverageValue + ComputeWaveAnalytic1D (A, Period, T3, WaveType, Dir)
+
+                endif                        
             enddo
 
          else
@@ -10972,9 +11481,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !Begin-----------------------------------------------------------------
         
-        deallocate(Me%AnalyticWave%X2D     )
-        deallocate(Me%AnalyticWave%CellType)
-    
+        deallocate(Me%AnalyticWave%X2D                  )
+        deallocate(Me%AnalyticWave%CellType             )
+        deallocate(Me%AnalyticWave%TlagMissing          )
+        deallocate(Me%AnalyticWave%AmpAux               )
+        deallocate(Me%AnalyticWave%Celerity             )
+        deallocate(Me%AnalyticWave%EnteringCell%i       )
+        deallocate(Me%AnalyticWave%EnteringCell%j       )
+        deallocate(Me%AnalyticWave%EnteringCell%TimeLag )        
     
     end subroutine KillAnalyticWave
     
