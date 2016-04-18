@@ -10755,6 +10755,9 @@ em1:    do em =1, Me%EulerModelNumber
 
             Count = AuxPolygon%Count
             
+            !Do not write polygons with less three vertices 
+            if (count < 3) cycle 
+            
             NumberName = "      "
             
             write(NumberName,'(I6)') i
