@@ -10756,7 +10756,10 @@ em1:    do em =1, Me%EulerModelNumber
             Count = AuxPolygon%Count
             
             !Do not write polygons with less three vertices 
-            if (count < 3) cycle 
+            if (count < 3) then
+                AuxPolygon => AuxPolygon%Next
+                cycle 
+            endif                
             
             NumberName = "      "
             
