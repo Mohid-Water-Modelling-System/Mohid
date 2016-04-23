@@ -232,6 +232,8 @@ module ModuleIrrigation
         
         type(T_PropertyID)                          :: ID
         
+        logical                                     :: Active
+        
         integer                                     :: ObjTimeSeries = 0
         
         integer                                     :: IrrigationMethod = FixedIrrigation
@@ -745,6 +747,17 @@ cd0:    if (ready_ == OFF_ERR_) then
         real, dimension(:), pointer         :: aux
 
         !Begin-------------------------------------------------------------------
+        
+        call GetData (new_schedule%ID%Active,               &
+                      Me%ObjEnterData, iflag,               &
+                      Keyword      = 'ACTIVE',              &
+                      ClientModule = 'ModuleIrrigation',    &
+                      Default      = .true.,                &
+                      SearchType   = FromBlock,             &
+                      STAT = stat_call)
+        if (stat_call /= SUCCESS_) &
+            stop 'ConstructSchedule - ModuleIrrigation - ERR001'        
+        
         call GetData (new_schedule%ID%Name,                 &
                       Me%ObjEnterData, iflag,               &
                       Keyword      = 'NAME',                &
@@ -2044,45 +2057,48 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
             
                 schedule_x => me%Schedules(schedule_i)
                 
-                if ( &
-                    ((.not. schedule_x%DelayIrrigation) .or. (schedule_x%StartIrrigationTime >= (Me%Now - Me%DT))) &
-                    .and. &
-                    ((schedule_x%InfiniteIrrigation) .or. (schedule_x%StopIrrigationTime >= (Me%Now))) &
-                   ) then
+                if (schedule_x%Active) then
                 
-                    call ReadPropertiesFromFile (schedule_x)
+                    if ( &
+                        ((.not. schedule_x%DelayIrrigation) .or. (schedule_x%StartIrrigationTime >= (Me%Now - Me%DT))) &
+                        .and. &
+                        ((schedule_x%InfiniteIrrigation) .or. (schedule_x%StopIrrigationTime >= (Me%Now))) &
+                       ) then
                 
-                    !First, compute irrigation needs
-                    select case (schedule_x%IrrigationMethod)
-                    case (FixedIrrigation)
-                    
-                        !Fixed irrigation is provided by the user.
-                        !The Irrigation was already set at 'ReadPropertiesFromFile'
-                    
-                    case (IrrigationBySteps)
-                    
-                        call ComputeIrrigationBySteps (schedule_x)
+                        call ReadPropertiesFromFile (schedule_x)
                 
-                    case (ContinuousIrrigation)
+                        !First, compute irrigation needs
+                        select case (schedule_x%IrrigationMethod)
+                        case (FixedIrrigation)
                     
-                        call ComputeContinuousIrrigation (schedule_x)
+                            !Fixed irrigation is provided by the user.
+                            !The Irrigation was already set at 'ReadPropertiesFromFile'
                     
-                    case default
+                        case (IrrigationBySteps)
+                    
+                            call ComputeIrrigationBySteps (schedule_x)
                 
-                        stop 'ModifyIrrigation - ModuleIrrigation - ERR030'
+                        case (ContinuousIrrigation)
                     
-                    end select                            
+                            call ComputeContinuousIrrigation (schedule_x)
+                    
+                        case default
+                
+                            stop 'ModifyIrrigation - ModuleIrrigation - ERR030'
+                    
+                        end select                            
                                
-                    !Remove any old (before today) schedule 
-                    call RemoveOldDailySchedules (schedule_x)
+                        !Remove any old (before today) schedule 
+                        call RemoveOldDailySchedules (schedule_x)
                 
+                    endif
+                
+                    !Update the irrigation property used by Basin
+                    call UpdateIrrigation (schedule_x)
+                
+                    !Update the output (accumulated) timeseries
+                    call UpdateOutputTimeSeries (schedule_x)
                 endif
-                
-                !Update the irrigation property used by Basin
-                call UpdateIrrigation (schedule_x)
-                
-                !Update the output (accumulated) timeseries
-                call UpdateOutputTimeSeries (schedule_x)
             enddo
             
             !Restart Output File
