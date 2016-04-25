@@ -748,7 +748,7 @@ cd0:    if (ready_ == OFF_ERR_) then
 
         !Begin-------------------------------------------------------------------
         
-        call GetData (new_schedule%ID%Active,               &
+        call GetData (new_schedule%Active,               &
                       Me%ObjEnterData, iflag,               &
                       Keyword      = 'ACTIVE',              &
                       ClientModule = 'ModuleIrrigation',    &
