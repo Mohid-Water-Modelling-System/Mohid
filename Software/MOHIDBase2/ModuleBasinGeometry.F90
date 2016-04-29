@@ -1296,7 +1296,7 @@ doDrain:            do
         JUB = Me%WorkSize%JUB
 
 
-        !Calculates the cell slope (maior slope off all adjecent cells)
+        !Calculates the cell slope (maior slope off all Adjacent cells)
         do jCen = JLB, JUB
         do iCen = ILB, IUB
 

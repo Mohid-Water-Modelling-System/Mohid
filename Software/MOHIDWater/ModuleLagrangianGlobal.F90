@@ -1178,6 +1178,7 @@ Module ModuleLagrangianGlobal
          logical                                :: DummyParticleStartDate = .false.
          logical                                :: ExportArrvlBeachTimes= .false. 
          character(len=PathLength)              :: RootPath
+         logical                                :: OutputEnvelopeTimeSeries   = .false.
     end type T_OutPut
 
   
@@ -1574,6 +1575,8 @@ Module ModuleLagrangianGlobal
         real                                    :: MDeposited               = null_real
         real                                    :: MSurface                 = null_real
         real                                    :: MDegraded                = null_real
+        character(PathLength)                   :: OutputEnvelopeTimeSerieFileName = null_str 
+        integer                                 :: eroUnit                  = null_int
 
     end type T_Origin
 
@@ -2086,6 +2089,11 @@ em2:            do em =1, Me%EulerModelNumber
             ! Opens Output Tracer Info File, if Needed
             if (Me%State%OutputTracerInfo) then
                 call ConstructOutputTracerTimeSeries
+            end if
+
+            ! Opens Output Envelope Info File, if Needed
+            if (Me%Output%OutputEnvelopeTimeSeries) then
+                call ConstructOutputEnvelopeTimeSeries
             end if
 
             call LagrangianOutput            
@@ -3951,6 +3959,19 @@ d2:     do em =1, Me%EulerModelNumber
                      Default      = .false.,                                            &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR40'
+
+        !Write origin envelope to text file, in case of origin envelope output is on
+        if (Me%OutPut%OriginEnvelope) then
+            call GetData(Me%OutPut%OutputEnvelopeTimeSeries,                                 & 
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      ='OUTPUT_ENVELOPE_TIMESERIE',                         &
+                         ClientModule ='ModuleLagrangianGlobal',                            &
+                         Default      = .false.,                                            &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR44'
+        end if
 
         !Write dummy particle in the start date if start emission > start date 
         call GetData(Me%OutPut%DummyParticleStartDate,                                  &
@@ -6855,17 +6876,21 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             NewOrigin%OutputTracerInfoFileName = trim(RootPath)//trim(NewOrigin%Name)//".tro"
         endif
 
+        if (Me%Output%OutputEnvelopeTimeSeries) then
+            call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
+            NewOrigin%OutputEnvelopeTimeSerieFileName = trim(RootPath)//trim(NewOrigin%Name)//".ero"
+        endif
 
         !model the tracers as if they were solid floating objects (containers, e.g.)
-!        call GetData(NewOrigin%State%FloatingObject,                                   &
-!                     Me%ObjEnterData,                                                  &
-!                     flag,                                                             &
-!                     SearchType   = FromBlock,                                         &
-!                     keyword      ='FLOATING_OBJECT',                                  &
-!                     Default      = OFF,                                               &
-!                     ClientModule ='ModuleLagrangianGlobal',                           &
-!                     STAT         = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1660'
+        call GetData(NewOrigin%State%FloatingObject,                                   &
+                     Me%ObjEnterData,                                                  &
+                     flag,                                                             &
+                     SearchType   = FromBlock,                                         &
+                     keyword      ='FLOATING_OBJECT',                                  &
+                     Default      = OFF,                                               &
+                     ClientModule ='ModuleLagrangianGlobal',                           &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1660'
 
         if (NewOrigin%State%FloatingObject) then
             call GetData(NewOrigin%FloatingObject%AirDragCoef,                          &
@@ -8606,14 +8631,14 @@ CurrOr: do while (associated(CurrentOrigin))
                 Write(CurrentOrigin%troUnit,*)
             If (CurrentOrigin%State%Oil) then
             151 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A3, 4X, A6, 4X, A7, 4X,  &
-                       A3, 4X, A3, 4X, A3, 4X, A12, 4X, A12, 4X, A6, 4X, A6, 4X, A3, 4X, A3, 4X, A6)
+                       A3, 4X, A3, 4X, A3, 4X, A12, 4X, A12, 4X, A6, 4X, A6, 4X, A3, 4X, A3, 4X, A6, 4X, A12, 4X, A7, 4X, A12)
                 Write(CurrentOrigin%troUnit,151) "Number", &
                         "Time",     &
                         "Lat",      &   
                         "Lon",      &
                         "Status",   &
-                        "Type",     &
-                        "Mass",     &   
+                        "Thick",    &
+                        "OilMass",  &   
                         "%ev",      &
                         "%em",      &
                         "%di",      &
@@ -8623,10 +8648,13 @@ CurrOr: do while (associated(CurrentOrigin))
                         "Cur",      &
                         "SST",      &
                         "Err",      &
-                        "Depth"
+                        "Depth",    &
+                        "Area",     &
+                        "Mass",     &
+                        "Volume"
             Else
-            152 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A12, 4X, A12, 4X, A3, 4X, A6, 4X, &
-                       A6, 4X, A3, 4X, A3, 4X, A6)
+            152 format(4X, A6,4X,A12, 4X, A12, 4X, A12, 4X, A3, 4X, A3, 4X, A3, 4X, A6, 4X, &
+                       A6, 4X, A3, 4X, A3, 4X, A6, 4X, A12)
                 Write(CurrentOrigin%troUnit,152) "Number", &
                         "Time",     &
                         "Lat",      &   
@@ -8638,9 +8666,9 @@ CurrOr: do while (associated(CurrentOrigin))
                         "Cur",      &
                         "SST",      &
                         "Err",      &
-                        "Depth"
-            
-
+                        "Depth",    & 
+                        "Volume"
+                
                   if (STAT_CALL /= SUCCESS_) then
                       write(*,*) 'Error opening ouput tracers info file ', &
                                   trim(CurrentOrigin%OutputTracerInfoFileName)
@@ -8652,9 +8680,50 @@ CurrOr: do while (associated(CurrentOrigin))
 
         enddo CurrOr
 
-     end subroutine ConstructOutputTracerTimeSeries
+    end subroutine ConstructOutputTracerTimeSeries
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructOutputEnvelopeTimeSeries
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin), pointer                                :: CurrentOrigin
+        integer                                                 :: STAT_CALL
+        character   (StringLength)                              :: Name
+        real                                                    :: Year, Month, Day, Hour, Minute, Second
 
 
+        if (Me%nGroups > 1) then
+            write(*,*)'Cannot write Time Series for simulation with more then one Group'
+            stop 'ConstructOutputEnvelopeTimeSeries - ModuleLagrangianGlobal - ERR0001a'
+        endif
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+                call UnitsManager(CurrentOrigin%eroUnit, OPEN_FILE,             &
+                                STAT = STAT_CALL)
+                OPEN (FILE  = trim(CurrentOrigin%OutputEnvelopeTimeSerieFileName),   &
+                    UNIT  = CurrentOrigin%eroUnit,                              &
+                    STATUS= "unknown",                                          &
+                    FORM  = "formatted", IOSTAT = STAT_CALL)
+
+                Name = trim(CurrentOrigin%Name)
+
+                call ExtractDate(Me%ExternalVar%BeginTime, Year, Month, Day, Hour, Minute, Second)                   
+                
+10              format(A15, f5.0, 1x, f3.0, 1x, f3.0, 1x, f3.0, 1x, f3.0, 1x, f4.0)
+                Write(CurrentOrigin%eroUnit,*) "MOHID Particle Envelope Output Time Serie"
+                Write(CurrentOrigin%eroUnit,"(A15, 2X, A30)") "Name         : ", Name
+                Write(CurrentOrigin%eroUnit,10) "Begin Time   : ", Year, Month, Day, Hour, Minute, Second
+                Write(CurrentOrigin%eroUnit,*)
+
+                
+            CurrentOrigin => CurrentOrigin%Next
+        enddo CurrOr
+
+    end subroutine
+    
     !--------------------------------------------------------------------------
 
     subroutine VerifyOriginProperties 
@@ -10686,6 +10755,12 @@ em1:    do em =1, Me%EulerModelNumber
 
             Count = AuxPolygon%Count
             
+            !Do not write polygons with less three vertices 
+            if (count < 3) then
+                AuxPolygon => AuxPolygon%Next
+                cycle 
+            endif                
+            
             NumberName = "      "
             
             write(NumberName,'(I6)') i
@@ -11177,6 +11252,12 @@ CurrOr: do while (associated(CurrentOrigin))
                 if (Me%State%OutputTracerInfo) then
                     call UnitsManager(OriginToDelete%troUnit, CLOSE_FILE, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangianGlobal - ERR02.5'
+                end if
+
+                ! Closes Output Envelope File
+                if (Me%Output%OutputEnvelopeTimeSeries) then
+                    call UnitsManager(OriginToDelete%eroUnit, CLOSE_FILE, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'DeleteOrigin - ModuleLagrangianGlobal - ERR02.6'
                 end if
 
                 !Kill TimeSerie
@@ -21096,8 +21177,12 @@ d3:         do em =1, Me%EulerModelNumber
                         Me%EulerModel(em)%Monitor%InstBoxConc (Box) =                                           &
                         Me%EulerModel(em)%Monitor%InstBoxMass(Box) / Me%EulerModel(em)%Monitor%InstBoxVolume (Box)
 
-                        Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc (Box) =                            &
-                        SumContaminatedTracerConc(Box) / Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box)
+                        if (Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box) > 0.) then
+                            Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc (Box) =                            &
+                            SumContaminatedTracerConc(Box) / Me%EulerModel(em)%Monitor%VolBoxContaminatedTracers(Box)
+                        else
+                            Me%EulerModel(em)%Monitor%AverageBoxContaminatedConc (Box) = 0.
+                        endif
                         
                     elseif (Me%MonitorMassFractionType .EQ. Geometric) then
                         if (Me%EulerModel(em)%Monitor%NumberOfTracers(Box) .GT. 0) then
@@ -24805,6 +24890,19 @@ CurrOr:     do while (associated(CurrentOrigin))
             if (STAT_CALL /= SUCCESS_) stop 'WriteOriginEnvelope - ModuleLagrangianGlobal - ERR60'
 
 
+            if (Me%OutPut%OutputEnvelopeTimeSeries) then
+                If (Me%EulerModel(em)%Grid%HaveLatLongGrid) then
+                    If (StringX == 'Longitude') then
+                        Call WriteOutputEnvelopeTimeSerie(OriginName, Envelope1DX, Envelope1DY, NumberOfBoundaryNodes)
+                    endif
+                Else
+                    If (StringX == 'X Pos') then
+                        Call WriteOutputEnvelopeTimeSerie(OriginName, Envelope1DX, Envelope1DY, NumberOfBoundaryNodes)
+                    Endif
+                Endif
+                
+            endif
+
             deallocate(Envelope1DX, Envelope1DY)
 
         endif
@@ -26738,14 +26836,17 @@ CurrOr:     do while (associated(CurrentOrigin))
         integer                                     :: kbottom     
         real                                        :: NearCoastDistance
         logical                                     :: InsideDomain   
+        real                                        :: ParticArea
+        real                                        :: ParticVolume
+        real                                        :: Mass
         
         WaterTemperature = -99
        
-        RunPeriod = (Me%ExternalVar%Now - Me%ExternalVar%BeginTime) / 3600
+        RunPeriod = (Me%Now - Me%ExternalVar%BeginTime) / 3600
 
         NearCoastDistance = Me%NearCoastDistance        
         OutPutNumber = Me%OutPut%NextOutPut
-if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then 
+if1:    if (Me%Now >= Me%OutPut%OutTime(OutPutNumber)) then 
 
             CurrentOrigin => Me%FirstOrigin
     CurrOr: do while (associated(CurrentOrigin))
@@ -26790,6 +26891,8 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                 if (STAT_CALL /= SUCCESS_) stop 'WriteIndividualTracerOutput - ModuleLagrangianGlobal - ERR01'
 
                 If (CurrentOrigin%State%Oil)   then
+                    call ReadLockEulerianDensity()
+                    
                     !Just writes the output if there are particle
                     if (CurrentOrigin%nParticle > 0) then
                         !thickness in um
@@ -26798,7 +26901,8 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                     endif
                 end if
 
-
+                ParticArea = Me%ExternalVar%AreaTotal
+                
                 Write(CurrentOrigin%troUnit,"(4X, i6)") CurrentOrigin%nParticle
 
                  !Compute the total volume tracer by cell 
@@ -26806,8 +26910,11 @@ if1:    if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                 n = 0
     CurrPartic: do while (associated(CurrentPartic))
                     n = n + 1
+                    ParticVolume          = CurrentPartic%Geometry%Volume
+                    
+                If (CurrentOrigin%State%Oil)   then
                     MassOil               = CurrentPartic%Geometry%VolumeOil * Me%ExternalVar%OilDensity
-                                   
+                end if
 
                     i  = CurrentPartic%Position%I
                     j  = CurrentPartic%Position%J
@@ -26874,8 +26981,14 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                     
                             end if
                         
-                    endif IfParticNotBeached
+endif IfParticNotBeached
 
+
+                    If (CurrentOrigin%State%Oil)   then
+                        Mass = (1 - CurrentPartic%VWaterContent)*CurrentPartic%Geometry%Volume*Me%ExternalVar%OilDensity  + &
+                               (CurrentPartic%VWaterContent)    *CurrentPartic%Geometry%Volume*Me%EulerModel(em)%Density (i, j, k)
+                    end if
+                    
                     !tracer status = at the bottom
                     kbottom = Me%EulerModel(em)%KFloor(i, j)
                     
@@ -26893,55 +27006,32 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
 
 
 
-                    !Linear Interpolation to obtain the velocity of the Water
-                    U = LinearInterpolation(Velocity_U(i,  j  ,k), Velocity_U(i,  j+1,k), BALX)
-                    V = LinearInterpolation(Velocity_V(i,  j  ,k), Velocity_V(i+1,j  ,k), BALY)
+                    U = CurrentPartic%CurrentX
+                    V = CurrentPartic%CurrentY
 
                     !Velocity due wind                      
-                    if (CurrentOrigin%Movement%WindOriginON) then
-                        WindX = CurrentOrigin%Movement%WindX
-                        WindY = CurrentOrigin%Movement%WindY
-                    else
-                        if (associated(Me%EulerModel(em)%WindX)) then
-                            WindX = Me%EulerModel(em)%WindX(i,j)
-                        else
-                            WindX = 0.
-                        end if
-                        if (associated(Me%EulerModel(em)%WindY)) then
-                            WindY = Me%EulerModel(em)%WindY(i,j)
-                        else
-                            WindY = 0.
-                        end if
-                    endif
+                    WindX = CurrentPartic%WindX
+                    WindY = CurrentPartic%WindY
                     
-                    WindIntensityInKnots     = sqrt((WindX)**2. + (WindY)**2.) * 19.4384449411995
-                    CurrentsIntensityInKnots = sqrt((U)**2. + (V)**2.) * 19.4384449411995
-                    if (CurrentsIntensityInKnots > 0.) then
-                        CurrentsDirection    = atan2(u,v) * 180. / Pi + 180
-                    else
-                        CurrentsDirection    = 0.
-                    endif    
-                    
-                    if (WindIntensityInKnots > 0.) then
-                        WindDirection        = atan2(WindX,WindY) * 180. / Pi + 180
-                    else
-                        WindDirection        = 0.
-                    endif                        
+                    WindIntensityInKnots    = sqrt((WindX)**2. + (WindY)**2.) * 19.4384449411995
+                    CurrentsIntensityInKnots= sqrt((U)**2. + (V)**2.) * 19.4384449411995
+                    CurrentsDirection       = atan2(u,v) * 180. / Pi + 180
+                    WindDirection           = atan2(WindX,WindY) * 180. / Pi + 180
                     
                     WaterTemperature        = Temperature3D             (i, j, k)
 
 
                 100 format(4X, i6,4X,f12.2, 4X, f12.5, 4X, f12.5, 4X, i3, 4X, i6, 4X,   &
                            i7, 4X,  i3, 4X, i3, 4X, i3, 4X, f12.2, 4X, f12.2, 4X, i3.3, &
-                           i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
+                           i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2, 4X, f12.2, 4X, i7, 4X, f12.2)
                 110 format(4X, i6,4X,f12.2, 4X, f12.5, 4X, f12.5, 4X, i3, 4X, i3, 4X, i3, 4X,   &
-                           i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2)
+                           i3.3, i3.3, 4X, i3.3, i3.3, 4X, i3, 4X, i3, 4X, f6.2, 4X, f12.2)
                                                                  
                     If (CurrentOrigin%State%Oil) then
                         Write(CurrentOrigin%troUnit,100) n, &
                         RunPeriod, &
-                        GeographicCoordinates(em, CurrentPartic%Position, 1), &
                         GeographicCoordinates(em, CurrentPartic%Position, 2), &
+                        GeographicCoordinates(em, CurrentPartic%Position, 1), &
                         TracerStatus, &
                         nint(OilGridThick2D(i,j)), &
                         nint(MassOil), &
@@ -26956,14 +27046,17 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                         nint(CurrentsIntensityInKnots), &
                         nint(WaterTemperature), &
                         -99, &
-                        - CurrentPartic%Position%Z
+                        - CurrentPartic%Position%Z, &
+                        ParticArea, &
+                        nint(Mass), &
+                        ParticVolume
 
                     Else                 
                     
                         Write(CurrentOrigin%troUnit,110) n, &
                         RunPeriod, &
-                        GeographicCoordinates(em, CurrentPartic%Position, 1), &
                         GeographicCoordinates(em, CurrentPartic%Position, 2), &
+                        GeographicCoordinates(em, CurrentPartic%Position, 1), &
                         CurrentPartic%Position%I, &
                         CurrentPartic%Position%J, &
                         TracerStatus, &                  
@@ -26973,7 +27066,8 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                         nint(CurrentsIntensityInKnots), &
                         nint(WaterTemperature), &
                         -99, &
-                        - CurrentPartic%Position%Z
+                        - CurrentPartic%Position%Z, & 
+                        ParticVolume
                     End if
 
                     CurrentPartic => CurrentPartic%Next
@@ -26985,7 +27079,11 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
             !Ungets Concentration from the eulerian module
             call UngetWaterProperties (Me%EulerModel(em)%ObjWaterProperties, Temperature3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteIndividualTracerOutput - ModuleLagrangianGlobal - ERR10'
-
+            
+            If (CurrentOrigin%State%Oil)   then
+                call ReadUnLockEulerianDensity()
+            end if
+            
             CurrentOrigin => CurrentOrigin%Next
             enddo CurrOr
 
@@ -26993,6 +27091,41 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
 
 
     end subroutine WriteIndividualTracerOutput
+    
+    subroutine WriteOutputEnvelopeTimeSerie(originName, Envelope1DX, Envelope1DY, NumberOfBoundaryNodes)
+
+        character(Len=*)                    :: OriginName
+        real(8),   dimension(:), pointer    :: Envelope1DX, Envelope1DY
+        integer                             :: NumberOfBoundaryNodes
+        integer                             :: i
+        type (T_Origin), pointer            :: CurrentOrigin
+        real                                :: RunPeriod
+
+        CurrentOrigin => Me%FirstOrigin
+        do while (associated(CurrentOrigin))
+            if (CurrentOrigin%Name == OriginName) then
+
+                RunPeriod = (Me%Now - Me%ExternalVar%BeginTime) / 3600
+              
+11              format(f7.2, A2)                                     
+12              format(f11.7, f11.7)                                     
+13              format(A2, f11.7, f11.7)                                      
+14              format(A2, f11.7, f11.7)                                      
+
+                Write (CurrentOrigin%eroUnit, 11, ADVANCE='NO') RunPeriod, ","
+                Write(CurrentOrigin%eroUnit, 12, ADVANCE='NO') Envelope1DY(1), Envelope1DX(1)                    
+                do i = 2, NumberOfBoundaryNodes - 1
+                    Write(CurrentOrigin%eroUnit,13, ADVANCE="NO") ",", Envelope1DY(i), Envelope1DX(i)
+                enddo
+                Write(CurrentOrigin%eroUnit,14) ",", Envelope1DY(NumberOfBoundaryNodes), Envelope1DX(NumberOfBoundaryNodes)                    
+            endif
+                
+            CurrentOrigin => CurrentOrigin%Next
+        enddo
+    
+
+    end subroutine
+    
     
     real function F_BLimit(em, i,j)
 

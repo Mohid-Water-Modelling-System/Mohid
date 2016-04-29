@@ -325,11 +325,11 @@ Module ModuleWRFFormat
                      keyword      = 'FILENAME',                         &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR10'
         
         if (iflag == 0)then
             write(*,*)'Must specify name of file to convert'
-            stop 'ReadOptions - ModuleWRFFormat - ERR02'
+            stop 'ReadOptions - ModuleWRFFormat - ERR20'
         end if
 
         call GetData(Me%GridFileName,                                   &
@@ -338,7 +338,7 @@ Module ModuleWRFFormat
                      keyword      = 'OUTPUT_GRID_FILENAME',             &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR30'
 
         if (iflag == 0)then
             Me%OutputGridNotSpecified = .true.
@@ -357,7 +357,7 @@ Module ModuleWRFFormat
                      keyword      = 'OUTPUTFILENAME',                   &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR40'
 
 
         call GetData(Me%WriteXYZ,                                       &
@@ -367,7 +367,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR50'
 
         call GetData(Me%ComputeWindStress,                              &
                      Me%ObjEnterData, iflag,                            &
@@ -376,7 +376,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR07'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR60'
         
 
         call GetData(Me%ComputeWindModulus,                             &
@@ -386,7 +386,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR07a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR70'
 
 
         call GetData(Me%ComputeRelativeHumidity,                        &
@@ -396,7 +396,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR08'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR80'
 
         call GetData(Me%ComputeRelativeHumidity3D,                      &
                      Me%ObjEnterData, iflag,                            &
@@ -405,7 +405,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR08'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR90'
 
 
         call GetData(Me%ComputePrecipitation,                           &
@@ -415,7 +415,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR08a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR100'
 
         call GetData(Me%ComputeMeanSeaLevelPressureMM5,                 &
                      Me%ObjEnterData, iflag,                            &
@@ -424,7 +424,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR08b'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR110'
 
         call GetData(Me%ComputeMeanSeaLevelPressureWRF,                 &
                      Me%ObjEnterData, iflag,                            &
@@ -433,7 +433,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR08b1'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR120'
 
         call GetData(Me%WriteTerrain,                                   &
                      Me%ObjEnterData, iflag,                            &
@@ -442,7 +442,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR09'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR130'
         
         call GetData(Me%WriteLandUse,                                   &
                      Me%ObjEnterData, iflag,                            &
@@ -451,7 +451,7 @@ Module ModuleWRFFormat
                      Default      = OFF,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR09a'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR140'
 
         
         call GetData(Me%StartTime,                                      &
@@ -460,7 +460,7 @@ Module ModuleWRFFormat
                      keyword      = 'START',                            &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR150'
 
 
         call GetData(Me%EndTime,                                        &
@@ -469,7 +469,7 @@ Module ModuleWRFFormat
                      keyword      = 'END',                              &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR11'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR160'
 
         if (iflag==1 .AND. iflag1==1) Me%TimeWindow = .TRUE.
         
@@ -478,7 +478,7 @@ Module ModuleWRFFormat
             if (Me%StartTime .GE. Me%EndTime) then
                 write (*,*)
                 write (*,*) 'START greater or equal than END'
-                stop 'ReadOptions - ModuleWRFFormat - ERR12'
+                stop 'ReadOptions - ModuleWRFFormat - ERR170'
             endif
 
         endif
@@ -490,7 +490,7 @@ Module ModuleWRFFormat
                      Default      = 0.0,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR13'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR180'
 
         call GetData(Me%ToMohid,                                        &
                      Me%ObjEnterData, iflag1,                           &
@@ -499,10 +499,11 @@ Module ModuleWRFFormat
                      Default      = .false.,                                &
                      ClientModule = 'ModuleWRFFormat',                  &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR13'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleWRFFormat - ERR190'
 
         write(*,*) 'Output To Mohid        = ', Me%ToMohid
-        write(*,*)         
+        write(*,*)  
+
 
         
         call ReadFieldsToConvert(ClientNumber)
@@ -813,7 +814,7 @@ Module ModuleWRFFormat
 
         select case (DimName)
 
-            case ('west_east')                 
+            case ('west_east','x')                 
 
                 Me%Size%JLB = 0
                 Me%Size%JUB = Size + 1
@@ -821,7 +822,7 @@ Module ModuleWRFFormat
                 Me%WorkSize%JLB = Me%Size%JLB + 1
                 Me%WorkSize%JUB = Size
 
-            case ('south_north')
+            case ('south_north','y')
 
                 Me%Size%ILB = 0
                 Me%Size%IUB = Size + 1
@@ -829,7 +830,7 @@ Module ModuleWRFFormat
                 Me%WorkSize%ILB = Me%Size%ILB + 1
                 Me%WorkSize%IUB = Size
 
-            case ('bottom_top')
+            case ('bottom_top','lev')
 
                 Me%Size%KLB = 0           ; Me%WorkSize%KLB = Me%Size%KLB + 1
                 Me%Size%KUB = size + 1
@@ -931,34 +932,45 @@ Module ModuleWRFFormat
         write(*,*) 'Reading Times...'
 
         status = nf90_inq_varid(ncid, 'Times', varid)
-        call handle_error(status); if (status /= NF90_NOERR) stop 'Times - OpenAndReadWRFFile - ModuleWRFFormat - ERR04'
+        call handle_error(status); 
+        if (status /= NF90_NOERR) then
+            status = nf90_inq_varid(ncid, 'time', varid)
+            call handle_error(status); 
+            if (status /= NF90_NOERR) then
+                stop 'Times - OpenAndReadWRFFile - ModuleWRFFormat - ERR04'
+            else
+                call ReadTimeNetCDF(ncid, 'time', varid)                
+            endif
+        else
+            status = nf90_inquire_variable(ncid, varid, name, xtype, ndims=nDimensions, natts=natts)
+            call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR05'
 
-        status = nf90_inquire_variable(ncid, varid, name, xtype, ndims=nDimensions, natts=natts)
-        call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR05'
+            allocate(VarDimIds(nDimensions))
 
-        allocate(VarDimIds(nDimensions))
+            status = nf90_inquire_variable(ncid, varid, name, dimids=VarDimIds)
+            call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR06'
+            
+            DateStrLen = Dims(VarDimIds(1))%Size !DateStrLen = 19
+            TimeSize   = Dims(VarDimIds(2))%Size !Time
 
-        status = nf90_inquire_variable(ncid, varid, name, dimids=VarDimIds)
-        call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR06'
+            allocate(DataAuxChar(DateStrLen,TimeSize, 1,1))
+
+            status = nf90_get_var(ncid, varid, DataAuxChar, start=(/1,1,1/), count=(/DateStrLen, TimeSize, 1/))
+            call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR07'
         
-        DateStrLen = Dims(VarDimIds(1))%Size !DateStrLen = 19
-        TimeSize   = Dims(VarDimIds(2))%Size !Time
-
-        allocate(DataAuxChar(DateStrLen,TimeSize, 1,1))
-
-        status = nf90_get_var(ncid, varid, DataAuxChar, start=(/1,1,1/), count=(/DateStrLen, TimeSize, 1/))
-        call handle_error(status); if (status /= NF90_NOERR) stop 'OpenAndReadWRFFile - ModuleWRFFormat - ERR07'
-    
-        do j=1,TimeSize
-            current_date = ''
-            do i=1,DateStrLen
-                current_date = trim(adjustl(current_date))//trim(adjustl(DataAuxChar(i,j,1,1)))
+            do j=1,TimeSize
+                current_date = ''
+                do i=1,DateStrLen
+                    current_date = trim(adjustl(current_date))//trim(adjustl(DataAuxChar(i,j,1,1)))
+                enddo
+                call SetNewDate(current_date)
             enddo
-            call SetNewDate(current_date)
-        enddo
 
-        deallocate(DataAuxChar)
-        deallocate(VarDimIds)
+            deallocate(DataAuxChar)
+            deallocate(VarDimIds)
+                    
+        endif
+
             
         !VARS - time dependent ------------------------------------------------
 
@@ -1290,6 +1302,219 @@ if0:        if(VariableIsToRead(name, MohidName)) then
     
     !----------------------------------------------------------------------
 
+    subroutine ReadTimeNetCDF(ncid, name, varid)
+        !Arguments-------------------------------------------------------------
+        integer                                 :: ncid
+        character(len=*)                        :: name
+        integer                                 :: varid
+        
+        !Local-----------------------------------------------------------------
+        character(Len=StringLength)             :: ref_date
+        real, dimension(6)                      :: AuxTime
+        real(8)                                 :: Aux, HundredDays, Aux1
+        integer                                 :: status, dimid, i, tmax, jmax
+        integer                                 :: stat
+        logical                                 :: ReadTime
+        type (T_Time)                           :: CurrentTime, RefDateTimeIn
+        type(T_Date), pointer                   :: NewDate        
+        integer                                 :: NumberInst
+        real, dimension(:), pointer             :: ValueIn        
+        real                                    :: UnitsFactor
+        
+        
+        !Begin-----------------------------------------------------------------
+        
+        write(*,*)
+        write(*,*)'Read Time NetCDF file...'
+
+
+        status=NF90_INQ_DIMID(ncid,trim(name),dimid)
+        call handle_error(status); if (status /= NF90_NOERR) stop 'ReadTimeNetCDF - ModuleWRFFormat - ERR10'
+
+        status=NF90_INQUIRE_DIMENSION(ncid, dimid, len =NumberInst)
+        call handle_error(status); if (status /= NF90_NOERR) stop 'ReadTimeNetCDF - ModuleWRFFormat - ERR20'
+        
+        allocate(ValueIn(1:NumberInst))
+
+        status = nf90_inq_varid(ncid, trim(name), varid)
+        call handle_error(status); if (status /= NF90_NOERR) stop 'ReadTimeNetCDF - ModuleWRFFormat - ERR30'
+
+        status = nf90_get_var(ncid, varid, ValueIn)
+        call handle_error(status); if (status /= NF90_NOERR) stop 'ReadTimeNetCDF - ModuleWRFFormat - ERR40'
+            
+        
+        status=NF90_GET_ATT(ncid,  varid,"units", ref_date)
+        call handle_error(status); if (status /= NF90_NOERR) stop 'ReadTimeNetCDF - ModuleWRFFormat - ERR50'
+        
+        
+        
+        tmax = len_trim(ref_date)
+
+        ReadTime =.false.
+        
+        UnitsFactor = 3600.
+
+        do i=1,tmax-5
+            if (ref_date(i:i+5)== "second") then
+                ReadTime =.true.
+                UnitsFactor = 1.
+                exit
+            endif
+        enddo
+        
+        do i=1,tmax-2
+            if (ref_date(i:i+2)== "day") then
+                ReadTime =.true.
+                UnitsFactor = 86400.
+                exit
+            endif
+        enddo            
+
+        do i=1,tmax-5
+            if (ref_date(i:i+5)== "minute") then
+                ReadTime =.true.
+                UnitsFactor = 60.
+                exit
+            endif
+        enddo            
+
+
+        do i=1,tmax-4            
+            if (ref_date(i:i+4)== "since") then
+                ref_date = ref_date(i+5:tmax)
+                exit
+            endif
+            
+        enddo
+
+        ReadTime = .false.
+        do i=1,len_trim(ref_date)
+
+            if (ref_date(i:i) ==':') then
+                ReadTime = .true.
+            endif
+
+        enddo  
+
+        do i=1,len(ref_date)
+
+!                if (ref_date(i:i) =='_'.or.ref_date(i:i) ==':'.or. ref_date(i:i) =='-'&
+!                    .or. ref_date(i:i) =='Z'.or. ref_date(i:i) =='T') then
+!                    ref_date(i:i) = ' '
+!                endif
+            if (ichar(ref_date(i:i))>57 .or. ichar(ref_date(i:i))<48) ref_date(i:i)=' '
+            
+            !write(*,*) ichar("1"), ichar("9"), ichar("0")
+        enddo  
+        
+        jmax = len(ref_date)-3
+        
+        do i=1,jmax
+
+            if (ref_date(i:i+3) ==' 00 ') then
+                ref_date(i:i+3) = ' 0  '
+            endif
+
+            if (ref_date(i:i+3) ==' 0.0') then
+                ref_date(i:i+3) = ' 0  '
+            endif          
+            
+            if (ref_date(i:i+2) ==' 01 ') then
+                ref_date(i:i+2) = '  1 '
+            endif                              
+
+            if (ref_date(i:i+2) ==' 02 ') then
+                ref_date(i:i+2) = '  2 '
+            endif                   
+            
+            if (ref_date(i:i+2) ==' 03 ') then
+                ref_date(i:i+2) = '  3 '
+            endif        
+            
+            if (ref_date(i:i+2) ==' 04 ') then
+                ref_date(i:i+2) = '  4 '
+            endif                   
+
+            if (ref_date(i:i+2) ==' 05 ') then
+                ref_date(i:i+2) = '  5 '
+            endif                   
+
+            if (ref_date(i:i+2) ==' 06 ') then
+                ref_date(i:i+2) = '  6 '
+            endif                   
+
+            if (ref_date(i:i+2) ==' 07 ') then
+                ref_date(i:i+2) = '  7 '
+            endif                   
+
+            if (ref_date(i:i+2) ==' 08 ') then
+                ref_date(i:i+2) = '  8 '
+            endif                   
+
+            if (ref_date(i:i+2) ==' 09 ') then
+                ref_date(i:i+2) = '  9 '
+            endif                   
+
+        enddo            
+        
+        !ref_date(1:19) = trim(adjustl(ref_date))
+        
+        AuxTime(:) = 0.
+
+        if (ReadTime) then                            
+            read(ref_date,*,iostat=stat) (AuxTime (i), i = 1, 6)
+            if (stat /= SUCCESS_) then
+                read(ref_date,*,iostat=stat) (AuxTime (i), i = 1, 5)
+                AuxTime(6) = 0
+            endif                    
+            
+        else
+            read(ref_date,*) (AuxTime (i), i = 1, 3)
+        endif
+
+                    
+        call SetDate (RefDateTimeIn, Year    = AuxTime(1),                &
+                                     Month   = AuxTime(2),                &
+                                     Day     = AuxTime(3),                &
+                                     Hour    = AuxTime(4),                &
+                                     Minute  = AuxTime(5),                &
+                                     Second  = AuxTime(6))
+
+        
+        do i=1, NumberInst
+
+            Aux = ValueIn(i)
+            
+            Aux = Aux * dble(UnitsFactor)
+            
+            HundredDays = 100*86400 
+            Aux1        = Aux
+            call JulianDateToGregorianDate(RefDateTimeIn, CurrentTime)
+
+            if (Aux1 > HundredDays) then            
+                
+                do while (Aux1 > HundredDays)
+                    
+                    CurrentTime = CurrentTime + HundredDays
+                    
+                    Aux1 = Aux1 - HundredDays                 
+                enddo
+            
+            endif
+                        
+            CurrentTime = CurrentTime + Aux1
+            
+            call AddDate(Me%FirstDate, NewDate)
+            
+            NewDate%Date = CurrentTime
+            
+        enddo        
+    
+ 
+    end subroutine ReadTimeNetCDF
+    
+    !-----------------------------------------------------------------------------------
+
     subroutine BeginEndTime
 
         !Local-------------------------------------------------------------
@@ -1373,14 +1598,15 @@ if1:    if (Me%TimeWindow) then
         integer                                         :: ILB , IUB , JLB , JUB , KLB , KUB
         integer                                         :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
         real            , pointer, dimension(:,:,:,:)   :: DataAux
-        logical                                         :: Bathymetry_OK  = .false.
-        logical                                         :: LandUse_OK     = .false.        
-        logical                                         :: CenterX_OK     = .false.
-        logical                                         :: CenterY_OK     = .false.
-        logical                                         :: ConnectionX_OK = .false.
-        logical                                         :: ConnectionY_OK = .false.
+        logical                                         :: Bathymetry_OK      = .false.
+        logical                                         :: LandUse_OK         = .false.        
+        logical                                         :: CenterX_OK         = .false.
+        logical                                         :: CenterY_OK         = .false.
+        logical                                         :: ConnectionX_OK     = .false.
+        logical                                         :: ConnectionY_OK     = .false.
+        logical                                         :: CorrectCornersOnce = .true.
         
-
+        !Begin-----------------------------------------------------------------
 
         ILB = Me%Size%ILB; WILB = Me%WorkSize%ILB
         IUB = Me%Size%IUB; WIUB = Me%WorkSize%IUB
@@ -1515,7 +1741,11 @@ if1:    if (Me%TimeWindow) then
 
             end select
 
-            if (ConnectionX_OK .and. ConnectionY_OK) call CorrectCorners
+            if (ConnectionX_OK .and. ConnectionY_OK .and. CorrectCornersOnce) then
+                call CorrectCorners
+                !correction should be done only once 
+                CorrectCornersOnce = .false.
+            endif                                    
 
             if (Bathymetry_OK  .and. & LandUse_OK .and. &
                 CenterX_OK     .and. CenterY_OK .and. &
@@ -1660,7 +1890,7 @@ if1:    if (Me%TimeWindow) then
 
             status = prj90_inv(Me%Proj, x, y, lon, lat)
             call handle_proj_error(status); if (status /= PRJ90_NOERR) stop 'CorrectCorners - ModuleWRFFormat - ERR02'
-
+            
             Me%ConnectionX(i,j) = lon
             Me%ConnectionY(i,j) = lat
 
