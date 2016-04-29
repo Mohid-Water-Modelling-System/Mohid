@@ -31349,7 +31349,7 @@ cd3:                   if (Manning) then
                         
         if (present(Ubw)) then
                             
-            if(UC.gt.1e-6 .and. Ubw.gt.0.)then !combined wave and current flow
+            if(UC.gt.1e-6 .and. Ubw.gt.1e-3)then !combined wave and current flow
                         
                 REW=Ubw*Abw/WaterCinematicVisc     
                 FWS=0.0521*REW**(-0.187)
