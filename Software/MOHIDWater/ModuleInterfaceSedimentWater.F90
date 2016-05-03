@@ -5444,7 +5444,7 @@ do2:        do i = ILB, IUB
                     
                         if(CDMAX .gt. 0.) Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = MIN(CDMAX_/CDMAX, 1.0)
                     
-                        if (Me%ExtWater%Ubw(i,j).gt.0) then                        
+                        if (Me%ExtWater%Ubw(i,j).gt.1e-3) then                        
                             if(CDM .gt. 0.) Me%Shear_Stress%EfficiencyFactorMean(i,j)    = MIN(CDM_/CDM, 1.0)
                             if (FW .gt. 0.) Me%Shear_Stress%EfficiencyFactorWaves(i,j)   = MIN(FW_/FW, 1.0)
                         else

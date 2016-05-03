@@ -203,6 +203,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: Reflectivity2Precipitation
         character(len=StringLength)             :: ReflectivityName
         integer                                 :: DirectionReferential
+        real                                    :: Limit
     end type  T_Field
 
     type T_NetCDF_Out                                         
@@ -2581,6 +2582,16 @@ BF:         if (BlockFound) then
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR290'
                                         
 
+                    call GetData(Me%Field(ip)%Limit,                                &
+                                 Me%ObjEnterData, iflag,                            &
+                                 SearchType   = FromBlockInBlock,                   &
+                                 keyword      = 'LIMIT',                            &
+                                 default      = -1000.,                             &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR295'
+
+
 
                     call GetData(Me%Field(ip)%ComputeRH,                            &
                                  Me%ObjEnterData, iflag,                            &
@@ -3602,6 +3613,12 @@ if14:                   if (k==Me%WorkSize%KUB) then
                         endif if14
                         
 if15:                   if (.not. Me%Depth%Interpolate) then
+
+                            if (Me%WorkSize%KUB == 1) then
+                                Me%Depth%Value3DOut(i, j, k  ) = 0.
+                                Me%Depth%Value3DOut(i, j, k-1) = 1.
+                                cycle
+                            endif
                                                 
                             DepthC = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT)
                             
@@ -3947,11 +3964,11 @@ i5:         if (Me%OutHDF5) then
                     Me%Field(iP)%Value3DOut(i, j, k) = 0.
                 
                     if (Me%Mapping%Value3DOut(i,j,k) == 1) then
-                        if (abs(Aux2D(i,j))<1000) then
+                        if (abs(Aux2D(i,j))<abs(Me%Field(iP)%Limit)) then
                             Me%Field(iP)%Value3DOut(i, j, k) = Aux2D(i,j)/2.
                         endif                                
 
-                        if (abs(Aux2D(i+di,j+dj))<1000) then
+                        if (abs(Aux2D(i+di,j+dj))<abs(Me%Field(iP)%Limit)) then
                             Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) + Aux2D(i+di,j+dj)/2.
                         endif              
 
@@ -3981,11 +3998,11 @@ i5:         if (Me%OutHDF5) then
                 
                 if (mask == 1) then
 
-                    if (abs(Aux2D(i,j))<1000) then
+                    if (abs(Aux2D(i,j))<abs(Me%Field(iP)%Limit)) then
                         Me%Field(iP)%Value2DOut(i, j) = Aux2D(i,j)/2.
                     endif                                
 
-                    if (abs(Aux2D(i+di,j+dj))<1000) then
+                    if (abs(Aux2D(i+di,j+dj))<abs(Me%Field(iP)%Limit)) then
                         Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) + Aux2D(i+di,j+dj)/2.
                     endif              
 

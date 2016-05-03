@@ -1055,6 +1055,12 @@ da:     do while (associated(auxRefA))
 
             call sutherlandHodgman(ref = auxRefA, clip = Polygon, outputPolygon = NewPolygon)
             
+            !Do not allow polygons with less than 3 vertices 
+            if (NewPolygon%Count < 3) then
+                auxRefA => auxRefA%Next
+                cycle 
+            endif            
+            
             call SetLimits(NewPolygon)
             
             call Add(Polygons, NewPolygon)

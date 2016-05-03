@@ -299,6 +299,8 @@ Module ModuleAtmosphere
         logical                                     :: IrriReqConv              = .false.
         integer, dimension(2)                       :: IrriMaxCoord
         
+        logical                                     :: OverrideWindVelStandard  = .false. 
+        
         !Instance of Module HDF5
         integer                                     :: ObjHDF5 = 0
 
@@ -690,6 +692,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%Irrigation%Heavy%Limit  = limits(5)
             Me%Irrigation%Heavy%DT     = limits(6)
         endif        
+        
+        call GetData(Me%OverrideWindVelStandard,                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OVERRIDE_WIND_VEL_STANDARD',                       &
+                     ClientModule = 'ModuleAtmosphere',                                 &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR100'        
 
     end subroutine ConstructGlobalVariables
 
@@ -997,7 +1008,7 @@ cd2 :           if (BlockFound) then
                     
                     call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
                     if (STAT_CALL /= SUCCESS_) &
-                        stop 'ConstructPropertyList - ModuleAtmosphere - ERR01'
+                        stop 'ConstructPropertyList - ModuleAtmosphere - ERR10'
 
                     exit do1    !No more blocks
 
@@ -1006,25 +1017,29 @@ cd2 :           if (BlockFound) then
             else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
                 write(*,*)  
                 write(*,*) 'Error calling ExtractBlockFromBuffer. '
-                stop 'ConstructPropertyList - ModuleAtmosphere - ERR02'
+                stop 'ConstructPropertyList - ModuleAtmosphere - ERR20'
             end if cd1
         end do do1
 
+        if (Me%OverrideWindVelStandard) then
 
-        !Verifies Wind consistence. Now is done by vectorial prop
-        call SearchProperty(PropertyX, WindVelocityX_, .false., STAT = STAT_CALL)
-        if (STAT_CALL == SUCCESS_) then
-            write(*,*) 'Vectorial Property wind velocity is now defined in one single block'
-            write(*,*) 'See Documentation on how to implement it'
-            stop 'ConstructPropertyList - ModuleAtmosphere . ERR03'                     
+            call ConstructOverrideWindVel
+
+        else
+            !Verifies Wind consistence. Now is done by vectorial prop
+            call SearchProperty(PropertyX, WindVelocityX_, .false., STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                write(*,*) 'Vectorial Property wind velocity is now defined in one single block'
+                write(*,*) 'See Documentation on how to implement it'
+                stop 'ConstructPropertyList - ModuleAtmosphere . ERR30'                     
+            endif
+            call SearchProperty(PropertyX, WindVelocityY_, .false., STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                write(*,*) 'Vectorial Property wind velocity is now defined in one single block'
+                write(*,*) 'See Documentation on how to implement it'
+                stop 'ConstructPropertyList - ModuleAtmosphere . ERR40'                     
+            endif        
         endif
-        call SearchProperty(PropertyX, WindVelocityY_, .false., STAT = STAT_CALL)
-        if (STAT_CALL == SUCCESS_) then
-            write(*,*) 'Vectorial Property wind velocity is now defined in one single block'
-            write(*,*) 'See Documentation on how to implement it'
-            stop 'ConstructPropertyList - ModuleAtmosphere . ERR03'                     
-        endif        
-        
         
         !Rotates Vectores
         !call RotateAtmosphereVectorFields(Constructing = .true.)
@@ -1037,7 +1052,7 @@ cd2 :           if (BlockFound) then
                 if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
                     if (PropertyX%Field(i, j) > 1.0) then
                         write(*,*)'Relative Humidity must be given between 0 and 1'
-                        stop 'ConstructPropertyList - ModuleAtmosphere - ERR98'
+                        stop 'ConstructPropertyList - ModuleAtmosphere - ERR50'
                     endif
                 endif    
             enddo
@@ -1049,7 +1064,7 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL == SUCCESS_) then
 
             allocate (NewProperty, STAT = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleAtmosphere - ERR99'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleAtmosphere - ERR60'
 
             !nullify(NewProperty%Field    )
             !nullify(NewProperty%FieldGrid)
@@ -1083,7 +1098,7 @@ cd2 :           if (BlockFound) then
                          keyword      = 'CLOUD_COVER_METHOD',                               &
                          ClientModule = 'ModuleAtmosphere',                                 &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleAtmosphere - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleAtmosphere - ERR70'
         
             !if keyword not found but model will compute it, warn user that the default method has changed
             if (iflag == 0 .and. .not. PropertyX%ID%SolutionFromFile .and. .not. PropertyX%Constant) then
@@ -1111,7 +1126,7 @@ cd2 :           if (BlockFound) then
                     write (*,*) 'and method for radiation uses cloud cover '
                     write (*,*) 'This options are inconsistent. Change them '
                     write (*,*) ''                     
-                    stop 'ConstructPropertyList - ModuleAtmosphere - ERR110'
+                    stop 'ConstructPropertyList - ModuleAtmosphere - ERR80'
                     
                 endif
             endif
@@ -1119,6 +1134,69 @@ cd2 :           if (BlockFound) then
         endif
 
     end subroutine ConstructPropertyList
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructOverrideWindVel
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX        => null()
+        type (T_Property), pointer                  :: PropertyY        => null()
+        type (T_Property), pointer                  :: PropertyZ        => null()        
+        integer                                     :: STAT_CALL
+        !Begin-----------------------------------------------------------------    
+        
+        call SearchProperty(PropertyX, WindVelocityX_, .false., STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR10' 
+        endif    
+        
+        if (.not. PropertyX%Constant) then
+            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR20'             
+        endif
+    
+        call SearchProperty(PropertyY, WindVelocityY_, .false., STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR30' 
+        endif
+
+        if (.not. PropertyY%Constant) then
+            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR40'             
+        endif
+
+        call SearchProperty(PropertyZ, WindVelocity_, .false., STAT = STAT_CALL) 
+        if (STAT_CALL == SUCCESS_) then 
+        
+            if (.not. PropertyZ%Constant) then
+                stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR50'             
+            endif
+                                           
+            PropertyZ%FieldX(:,:) = PropertyX%Field(:,:)
+            PropertyZ%FieldY(:,:) = PropertyY%Field(:,:)
+            
+            !!Need to rotate input field (Me%Matrix2DX and Me%Matrix2DY) to grid (Me%Matrix2DU and Me%Matrix2DV)     
+            call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid,      &
+                                         VectorInX         = PropertyZ%FieldX,          &
+                                         VectorInY         = PropertyZ%FieldY,          &
+                                         VectorOutX        = PropertyZ%FieldU,          &
+                                         VectorOutY        = PropertyZ%FieldV,          &   
+                                         WaterPoints2D     = Me%ExternalVar%MappingPoints2D,&
+                                         RotateX           = .true.,                    &
+                                         RotateY           = .true.,                    &
+                                         STAT              = STAT_CALL)                
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR60' 
+            endif                                                                    
+        else
+            write(*,*) 'Missing wind velocity property'
+            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR70'                                 
+        endif 
+            
+        nullify (PropertyX)
+        nullify (PropertyY)        
+        nullify (PropertyZ)        
+    
+    end subroutine ConstructOverrideWindVel
 
     !--------------------------------------------------------------------------
 
