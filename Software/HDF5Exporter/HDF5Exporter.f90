@@ -128,13 +128,13 @@ program HDF5Exporter
     end subroutine print_help    
     
     subroutine print_version ()
-        print '(a)', ''
-#if defined (CODEPLEXVERSION)
-        print '(a, i0)', 'HDF5Exporter version (codeplex): ', CODEPLEXVERSION
-#else
-        print '(a)', 'HDF5Exporter version : PERSONAL'
-#endif
-        print '(a)', ''
+!        print '(a)', ''
+!#if defined (CODEPLEXVERSION)
+!        print '(a, i0)', 'HDF5Exporter version (codeplex): ', CODEPLEXVERSION
+!#else
+!        print '(a)', 'HDF5Exporter version : PERSONAL'
+!#endif
+!        print '(a)', ''
     end subroutine print_version
     
     !--------------------------------------------------------------------------

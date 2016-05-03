@@ -2905,7 +2905,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
             PolygonX   => DischargeX%Localization%Polygon
             LineX      => DischargeX%Localization%Line
-            XYZPointsX => DischargeX%Localization%XYZPoints
+            if (present(XYZPointsX)) XYZPointsX => DischargeX%Localization%XYZPoints
 
             nullify(DischargeX)
 
