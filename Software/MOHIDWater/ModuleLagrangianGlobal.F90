@@ -10680,29 +10680,33 @@ em1:    do em =1, Me%EulerModelNumber
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR19'
             
-            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
-                                   Polygons         = Me%GridsBounds,                   & 
-                                   DataFieldName    = 'GridBoundary')
+
 
             if (associated(Me%GridsBounds)) then
+                call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                       Polygons         = Me%GridsBounds,                   & 
+                                       DataFieldName    = 'GridBoundary')
+            
                 call WriteItem(Polygon  = Me%GridsBounds,                               &
                                FilePath = trim(Me%OutPut%RootPath)//'GridsBounds.xy')
             endif
-                                                       
-            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
-                                   Polygons         = Me%CoastLine,                     & 
-                                   DataFieldName    = 'CoastLine')
+                                                    
                                    
             if (associated(Me%CoastLine)) then
+                call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                       Polygons         = Me%CoastLine,                     & 
+                                       DataFieldName    = 'CoastLine')                
                 call WriteItem(Polygon  = Me%CoastLine,                                 &
                                FilePath = trim(Me%OutPut%RootPath)//'CoastLine.xy')
             endif                
 
-            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
-                                   Polygons         = Me%ThinWalls,                     & 
-                                   DataFieldName    = 'ThinWalls')
 
             if (associated(Me%ThinWalls)) then
+                
+                call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                       Polygons         = Me%ThinWalls,                     & 
+                                       DataFieldName    = 'ThinWalls')                
+                
                 call WriteItem(Polygon  = Me%ThinWalls,                                 &
                                FilePath = trim(Me%OutPut%RootPath)//'ThinWalls.xy')
             endif

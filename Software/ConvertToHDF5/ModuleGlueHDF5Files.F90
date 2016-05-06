@@ -1163,11 +1163,12 @@ if2 :           if (BlockFound) then
         integer                                     :: Rank, STAT_CALL, k, ia
         real, pointer, dimension(:)                 :: DataVal1D
         real, pointer, dimension(:,:)               :: DataVal2D
+        integer, pointer, dimension(:,:)            :: DataInt2D
         real, pointer, dimension(:,:,:)             :: DataVal3D
         integer, pointer, dimension(:,:,:)          :: DataInt3D
         integer(HID_T)                              :: attr_id, type_id
         character(len=StringLength)                 :: Units
-
+        logical                                     :: data_is_integer
 
 
 
@@ -1210,8 +1211,7 @@ if2 :           if (BlockFound) then
                 !Gets dims
                 call h5sget_simple_extent_dims_f  (space_id, dims, maxdims, Rank) 
                 if (Rank < 0) stop 'GlueInResults - ModuleHDF5Files - ERR70'
-
-
+                
                 if     (Rank==1) then
 
                     allocate(DataVal1D(1:dims(1)))
@@ -1226,7 +1226,18 @@ if2 :           if (BlockFound) then
                     allocate(DataVal2D(1:dims(1),1:dims(2)))
 
                     call ReadInterface(dset_id, DataVal2D, dims,   STAT_CALL)
-
+                    
+                    if (STAT_CALL /= 0) then
+                        
+                        data_is_integer = .true.
+                        
+                        deallocate(DataVal2D)
+                        
+                        allocate(DataInt2D(1:dims(1),1:dims(2)))
+                        
+                        call ReadInterface(dset_id, DataInt2D, dims,   STAT_CALL)
+                    endif
+                        
                     if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR90'
 
 
@@ -1311,11 +1322,20 @@ if2 :           if (BlockFound) then
                     call HDF5SetLimits  (ObjHDF5_Out, 1, dims_int(1), 1, dims_int(2), STAT = STAT_CALL)
                     if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR220'
                     
-                    call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
-                                       Units, Array2D = DataVal2D, OutputNumber = nmembersOut + k, STAT = STAT_CALL)
-                    if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR230'
+                    if (data_is_integer == .true.) then
+                        
+                        call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
+                                           Units, Array2D = DataInt2D, OutputNumber = nmembersOut + k, STAT = STAT_CALL)
+                        if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR225'
 
-                    deallocate(DataVal2D)
+                        deallocate(DataInt2D)
+                    else                    
+                        call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
+                                           Units, Array2D = DataVal2D, OutputNumber = nmembersOut + k, STAT = STAT_CALL)
+                        if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR230'
+
+                        deallocate(DataVal2D)
+                    endif
 
                 elseif(Rank == 3) then
 

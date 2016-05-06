@@ -443,10 +443,10 @@ program MohidLand
                     return            
             elseif (CurrentTime + DT > EndTime) then
                 DT = EndTime - CurrentTime
-!                if (abs(DT) < 1e-5) then
-!                    DoOneTimeStep = .false.
-!                    return
-!                endif 
+                if (abs(DT) < 1e-5) then
+                    DoOneTimeStep = .false.
+                    return
+                endif 
             else
                 if ((EndTime - (CurrentTime + DT)) < 1e-5) then
                     DT = EndTime - CurrentTime 
