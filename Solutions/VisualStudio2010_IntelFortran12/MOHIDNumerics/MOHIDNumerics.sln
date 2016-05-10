@@ -460,7 +460,8 @@ Global
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double Openmp|x64.ActiveCfg = Debug Double Openmp|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double PhreeqC|Win32.ActiveCfg = Debug|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double PhreeqC|x64.ActiveCfg = Debug Double PhreeqC|x64
-		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double|Win32.ActiveCfg = Debug|Win32
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double|Win32.ActiveCfg = Debug Double|Win32
+		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double|Win32.Build.0 = Debug Double|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug Double|x64.ActiveCfg = Debug Double Openmp|x64
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug OpenMI|Win32.ActiveCfg = Debug OpenMI|Win32
 		{4D8FB248-4615-441A-AF9E-0C7FA58C4F6B}.Debug OpenMI|Win32.Build.0 = Debug OpenMI|Win32
