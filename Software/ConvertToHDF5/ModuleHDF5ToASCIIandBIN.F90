@@ -1359,7 +1359,7 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
 
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                if (Aux2DPrev(i,j) == FillValueReal) then
+                if (Aux2DPrev(i,j) < FillValueReal / 2.) then
                     Aux2DPrev(i,j) = -999.
                 endif
             enddo
@@ -1381,7 +1381,7 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
 
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            if (Aux2DNext(i,j) == FillValueReal) then
+            if (Aux2DNext(i,j) < FillValueReal / 2.) then
                 Aux2DNext(i,j) = -999.
             endif
         enddo

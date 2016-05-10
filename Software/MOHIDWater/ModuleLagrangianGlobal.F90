@@ -10680,29 +10680,33 @@ em1:    do em =1, Me%EulerModelNumber
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR19'
             
-            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
-                                   Polygons         = Me%GridsBounds,                   & 
-                                   DataFieldName    = 'GridBoundary')
+
 
             if (associated(Me%GridsBounds)) then
+                call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                       Polygons         = Me%GridsBounds,                   & 
+                                       DataFieldName    = 'GridBoundary')
+            
                 call WriteItem(Polygon  = Me%GridsBounds,                               &
                                FilePath = trim(Me%OutPut%RootPath)//'GridsBounds.xy')
             endif
-                                                       
-            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
-                                   Polygons         = Me%CoastLine,                     & 
-                                   DataFieldName    = 'CoastLine')
+                                                    
                                    
             if (associated(Me%CoastLine)) then
+                call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                       Polygons         = Me%CoastLine,                     & 
+                                       DataFieldName    = 'CoastLine')                
                 call WriteItem(Polygon  = Me%CoastLine,                                 &
                                FilePath = trim(Me%OutPut%RootPath)//'CoastLine.xy')
             endif                
 
-            call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
-                                   Polygons         = Me%ThinWalls,                     & 
-                                   DataFieldName    = 'ThinWalls')
 
             if (associated(Me%ThinWalls)) then
+                
+                call WriteHDF5Polygons(ObjHDF5          = Me%ObjHDF5(em),                   &
+                                       Polygons         = Me%ThinWalls,                     & 
+                                       DataFieldName    = 'ThinWalls')                
+                
                 call WriteItem(Polygon  = Me%ThinWalls,                                 &
                                FilePath = trim(Me%OutPut%RootPath)//'ThinWalls.xy')
             endif
@@ -15571,7 +15575,7 @@ MF:             if (CurrentPartic%Position%Surface) then
                     if (CurrentOrigin%State%StokesDrift) then
 
 
-                        if (CurrentPartic%WavePeriod    < 0) then
+                        if (CurrentPartic%WavePeriod    <= 0) then
                             CurrentPartic%WavePeriod    = Me%EulerModel(emp)%WavePeriod2D(i, j)
                         endif
 
@@ -15592,7 +15596,8 @@ MF:             if (CurrentPartic%Position%Surface) then
                         
                         if (WavePeriod == 0 .and. WaveHeight>0) then
                             write(*,*) 'Can not have a null wave period and a positive wave height'
-                            stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR10'
+                            !stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR10'
+                            CurrentPartic%WavePeriod = 0.01
                         endif
 
                         Depth               = CurrentPartic%Position%Z-             &
@@ -15965,7 +15970,13 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                     CurrentPartic%RelU = CurrentPartic%U - UINT
                     CurrentPartic%RelV = CurrentPartic%V - VINT
 
-                    CurrentPartic%SD   = StandardDeviation
+                    !aqui MJ
+                    
+                    if (CurrentOrigin%Movement%MovType .NE. NotRandom_ ) then
+                    
+                        CurrentPartic%SD   = StandardDeviation
+                    
+                    endif    
 
                 endif
 
@@ -17711,7 +17722,18 @@ DB:                 if (.not. CurrentPartic%Deposited .and.                     
                             !In the far field is assumed that the turbulence is mainly horizontal
                             RelativeVel  = CurrentPartic%RelU**2 + CurrentPartic%RelV**2
                             RelativeVel  = RelativeVel * CurrentOrigin%Movement%CoefInitialMixing
-                            VarianceTurb = CurrentPartic%SD
+                            
+                            !aqui MJ
+                            
+                            if (CurrentOrigin%Movement%MovType .EQ. NotRandom_ ) then
+                                
+                                VarianceTurb = 0.0
+                            
+                            else 
+                                
+                                VarianceTurb = CurrentPartic%SD
+                            
+                            endif    
 
                             if (VarianceTurb> abs(null_real)) then
                                 write(*,*)'CurrentPartic%SD - horizontal turbulent velocity standard deviation', CurrentPartic%SD

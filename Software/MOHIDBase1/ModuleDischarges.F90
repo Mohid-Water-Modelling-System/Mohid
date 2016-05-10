@@ -2905,7 +2905,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
             PolygonX   => DischargeX%Localization%Polygon
             LineX      => DischargeX%Localization%Line
-            XYZPointsX => DischargeX%Localization%XYZPoints
+            if (present(XYZPointsX)) XYZPointsX => DischargeX%Localization%XYZPoints
 
             nullify(DischargeX)
 
@@ -3741,8 +3741,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 cd2 :       if (STAT_CALL == SUCCESS_) then
 
                 if(PropertyX%FromIntake)then
-
-                    PropertyFromIntake      = ON
+                    
+                    if (present(PropertyFromIntake)) PropertyFromIntake      = ON
                     PropertyIncreaseValue   = PropertyX%IncreaseValue
 
 
@@ -3762,8 +3762,8 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
                         endif
                     endif
                 else
-
-                    PropertyFromIntake = OFF
+                    
+                    if (present(PropertyFromIntake)) PropertyFromIntake = OFF
 
                 end if
                                                                          
@@ -3777,11 +3777,12 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
                     Concentration = PropertyX%Scalar
 
                 endif
-
-                if(PropertyFromIntake)then
-                    Concentration = Concentration + PropertyIncreaseValue
-                end if
-             
+                
+                if (present(PropertyFromIntake)) then
+                    if(PropertyFromIntake) then
+                        Concentration = Concentration + PropertyIncreaseValue
+                    end if
+                endif
 
                 nullify(PropertyX)
 
