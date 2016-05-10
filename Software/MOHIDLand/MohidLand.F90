@@ -253,7 +253,7 @@ program MohidLand
         integer                                     :: iflag
         character(PathLength)                       :: WatchFile, DTLogFile
 
-        !$ openmp_num_threads = omp_get_max_threads()
+        !!!!$ openmp_num_threads = omp_get_max_threads()
         
         !Monitor Performance of the model execution?
         call ReadFileName('OUTWATCH', WatchFile, Message = 'Start Watch File', STAT = STAT_CALL)
@@ -306,17 +306,39 @@ program MohidLand
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR040'        
         
-        !Model Name
-        call GetData(openmp_num_threads,                                                &
-                     ObjEnterData, iflag,                                               &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'OMP_NUM_THREADS',                                  &
-                     default      = openmp_num_threads,                                     & 
-                     ClientModule = 'MOHIDLand',                                        &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050'
-        !$  call omp_set_num_threads(openmp_num_threads)
+        !This only should be used in case of openmp
+        !See Code below
+        !call GetData(openmp_num_threads,                                                &
+        !             ObjEnterData, iflag,                                               &
+        !             SearchType   = FromFile,                                           &
+        !             keyword      = 'OMP_NUM_THREADS',                                  &
+        !             default      = openmp_num_threads,                                 & 
+        !             ClientModule = 'MOHIDLand',                                        &
+        !             STAT         = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050'        
+        !!!$  call omp_set_num_threads(openmp_num_threads)
 
+        !$ call GetData(openmp_num_threads, ObjEnterData, iflag, keyword = 'OPENMP_NUM_THREADS',  &
+        !$         SearchType   = FromFile,                                                      &
+        !$         ClientModule = 'MOHIDLand',                                                   &
+        !$         default      = 0,                                                             &
+        !$         STAT         = STAT_CALL)
+        !$ if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050' 
+        !$    write(*,*)
+        !$    write(*,*)"OPENMP: Max number of threads available is ", omp_get_max_threads()
+        !$    if ( openmp_num_threads .gt. 0 ) then
+        !$       write(*,*)"OPENMP: Number of threads requested is ", openmp_num_threads
+        !$       if (openmp_num_threads .gt. omp_get_max_threads()) then
+        !$        openmp_num_threads = omp_get_max_threads()
+        !$        write(*,*)"<Compilation Options Warning>"
+        !$       endif
+        !$       call omp_set_num_threads(openmp_num_threads)
+        !$       write(*,*)"OPENMP: Number of threads implemented is ", openmp_num_threads
+        !$    else
+        !$       openmp_num_threads = omp_get_max_threads()
+        !$       write(*,*)"OPENMP: Using the max number of threads available"
+        !$    endif        
+        
         !add the option to continue model in case of bathymetry verifications  
         !(geometry check and isolated cells check)
         !for runs on demand it is needed or the model wont run by itself
