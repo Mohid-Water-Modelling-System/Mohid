@@ -4720,7 +4720,7 @@ do1:    do n=1,Me%NumberOfClasses
         !Local-----------------------------------------------------------------
         real    :: HW, LW, KW, h
         integer :: i, j
-        integer :: WILB, WIUB, WJLB, WJUB, WKUB
+        integer :: WILB, WIUB, WJLB, WJUB
         
         !Begin----------------------------------------------------------------
         
@@ -4842,7 +4842,7 @@ do1:    do n=1,Me%NumberOfClasses
       
         !Local-----------------------------------------------------------------                
         integer                 :: i, j, n
-        real(8)                 :: Xaux, Yaux, AbsFlux
+        real(8)                 :: Xaux, Yaux, AbsFlux, FluxX, FluxY
         class(T_Sand), pointer  :: SandClass
         integer                 :: WILB, WIUB, WJLB, WJUB
         real(8), parameter      :: PI_DBLE = 3.1415926536 !PI
@@ -4922,11 +4922,15 @@ do1:    do n=1,Me%NumberOfClasses
                                 Me%ExternalVar%ShearStress(i,j))**0.5 * dzdn
                                 
                         !Adjustment of bedload transport for bed-slope effects
-                        SandClass%FluxX(i, j) = alfa_s * (SandClass%FluxX(i, j) -   &
+                        FluxX = alfa_s * (SandClass%FluxX(i, j) -   &
                                                 alfa_n * SandClass%FluxY(i, j))
                             
-                        SandClass%FluxY(i, j) = alfa_s * (SandClass%FluxY(i, j) +   &
-                                                alfa_n * SandClass%FluxX(i, j))                            
+                        FluxY = alfa_s * (SandClass%FluxY(i, j) +   &
+                                                alfa_n * SandClass%FluxX(i, j))   
+                        
+                        SandClass%FluxX(i, j) = FluxX
+                        
+                        SandClass%FluxY(i, j) = FluxY
                         
                     endif
                 endif               
