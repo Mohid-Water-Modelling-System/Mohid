@@ -14,6 +14,7 @@ program RiverNetwork
     type(T_Time)                                :: BeginTime, EndTime, CurrentTime
     real                                        :: DT, MaxDT
     logical                                     :: VariableDT
+    type (T_Time)                               :: InitialModelTime    
     type (T_Time)                               :: InitialSystemTime, FinalSystemTime
     real                                        :: TotalCPUTime, ElapsedSeconds
     integer, dimension(8)                       :: F95Time
@@ -310,6 +311,15 @@ program RiverNetwork
         Running      = .true.
         CurrentTime  = BeginTime
 
+        call date_and_time(Values = F95Time)
+        call SetDate      (InitialModelTime, float(F95Time(1)), float(F95Time(2)),      &
+                                              float(F95Time(3)), float(F95Time(5)),      &
+                                              float(F95Time(6)), float(F95Time(7))+      &
+                                              float(F95Time(8))/1000.)
+
+        call SetInitialModelTime (ObjTime, InitialModelTime, STAT_CALL)        
+        
+        
         do while (Running)
             
             !Actualize the CurrentTime with Model time interval DT

@@ -7980,16 +7980,17 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             call SearchProperty(Property, PropertyXIDNumber = Cohesive_Sediment_)
         endif
         
-        BottomSedimentConc => Property%BottomConcentration        
+        !BottomSedimentConc => Property%BottomConcentration        
         SedimentGenerationRate => Me%SedimentGenerationRate%Field
         WaterColumn        => Me%ExtVar%WaterColumn
         
-        nullify (Property)
-        Property => Me%FirstProperty                                                    
-        do while (associated (Property)) 
+        !Only add sediment and not properties
+        !nullify (Property)
+        !Property => Me%FirstProperty                                                    
+        !do while (associated (Property)) 
  
-if1:        if (Property%Evolution%BottomFluxes   &
-                .AND. Property%ID%IDNumber /= VSS_ .AND. Property%ID%IDNumber /= TSS_) then
+!if1:        if (Property%Evolution%BottomFluxes   &
+!                .AND. Property%ID%IDNumber /= VSS_ .AND. Property%ID%IDNumber /= TSS_) then
                         
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7997,14 +7998,14 @@ if1:        if (Property%Evolution%BottomFluxes   &
 if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then   
                             
                             !generates new sediment with same property ratio as the one present (below soil is similar to top soil)
-                            if (BottomSedimentConc (i,j) > AllmostZero) then                               
-                                EnrichmentRatio = Property%BottomConcentration (i,j) / BottomSedimentConc (i,j)
-                            else
-                                EnrichmentRatio = 1.0
-                            endif
+                            !if (BottomSedimentConc (i,j) > AllmostZero) then                               
+                            !    EnrichmentRatio = Property%BottomConcentration (i,j) / BottomSedimentConc (i,j)
+                            !else
+                            !    EnrichmentRatio = 1.0
+                            !endif
                             
                             ![kg.m-2] = [kg.m-2.s-1] * [s]
-                            GenerationConc = SedimentGenerationRate(i,j) * Me%ExtVar%DT * EnrichmentRatio
+                            GenerationConc = SedimentGenerationRate(i,j) * Me%ExtVar%DT  !* EnrichmentRatio
                            
                             Property%BottomConcentration (i,j) = Property%BottomConcentration (i,j)       &
                                                                  + GenerationConc                        
@@ -8024,10 +8025,10 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
                 enddo
                 enddo
             
-            endif if1
+            !endif if1
  
-            Property => Property%Next
-        enddo        
+            !Property => Property%Next
+        !enddo        
                 
     
     end subroutine ModifySedimentGeneration   
