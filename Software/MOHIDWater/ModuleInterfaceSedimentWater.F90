@@ -6259,7 +6259,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         
                     endif
 
-                    !$OMP PARALLEL PRIVATE(i,j,KUB)
+                    !$OMP PARALLEL PRIVATE(i,j)
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
                     do j = JLB, JUB
                     do i = ILB, IUB
