@@ -291,6 +291,14 @@ i5:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_))
         if (STAT_CALL /= SUCCESS_)                                            &
                 stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR140' 
 
+        
+        !!also use for stationary where BeginTime == EndTime
+        !!writed a dummy OUTPUT_TIME : 0 XXX (where XXX exists so that Output exists
+        !!Only one output (the first, the second is dummy with same date)
+        if (Me%BeginTime .eq. Me%EndTime) then
+            Me%OutPut%TotalOutputs = 1;
+        endif
+        
         call GetData(Me%Nautical,                                             &
                      Me%ObjEnterData, iflag,                                  &
                      SearchType   = FromBlock,                                &

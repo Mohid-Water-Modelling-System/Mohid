@@ -5421,43 +5421,46 @@ do2:            do i = ILB, IUB
 do1:        do j = JLB, JUB
 do2:        do i = ILB, IUB
     
-                KTOP = Me%ExtSed%KTop(i, j)  
+                if (Me%ExtWater%OpenPoints2D(i,j) == OpenPoint) then
+    
+                    KTOP = Me%ExtSed%KTop(i, j)  
                             
-                if(Me%ExtSed%OpenPoints3D(i,j,KTOP) == OpenPoint) then
+                    if(Me%ExtSed%OpenPoints3D(i,j,KTOP) == OpenPoint) then
                 
-                    H  = Me%ExtWater%WaterColumn(i,j)
-                    Z0_ = GrainRoughness(i,j)/30.
-                    Z0 = Me%Rugosity%Field(i,j)
+                        H  = Me%ExtWater%WaterColumn(i,j)
+                        Z0_ = GrainRoughness(i,j)/30.
+                        Z0 = Me%Rugosity%Field(i,j)
                 
-                    !Average velocity
-                    U = Me%Shear_Stress%Velocity(i,j)/0.4* &
-                        (log(H/Me%Rugosity%Field(i,j)) - 1 + Me%Rugosity%Field(i,j)/H)
+                        !Average velocity
+                        U = Me%Shear_Stress%Velocity(i,j)/0.4* &
+                            (log(H/Me%Rugosity%Field(i,j)) - 1 + Me%Rugosity%Field(i,j)/H)
                                 
-                    if (Me%WaveShear_Stress%Yes) then 
+                        if (Me%WaveShear_Stress%Yes) then 
                     
-                        CWphi = Me%WaveShear_Stress%CWphi(i,j)
-                        Ubw = Me%ExtWater%Ubw(i,j)
-                        Abw = Me%ExtWater%Abw(i,j)
+                            CWphi = Me%WaveShear_Stress%CWphi(i,j)
+                            Ubw = Me%ExtWater%Ubw(i,j)
+                            Abw = Me%ExtWater%Abw(i,j)
                                             
-                        call Compute_DragCoef(H, Z0, U, CDMAX, CDM, FW, CWphi, Ubw, Abw)                                    
-                        call Compute_DragCoef(H, Z0_, U, CDMAX_, CDM_, FW_, CWphi, Ubw, Abw)
+                            call Compute_DragCoef(H, Z0, U, CDMAX, CDM, FW, CWphi, Ubw, Abw)                                    
+                            call Compute_DragCoef(H, Z0_, U, CDMAX_, CDM_, FW_, CWphi, Ubw, Abw)
                     
-                        if(CDMAX .gt. 0.) Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = MIN(CDMAX_/CDMAX, 1.0)
+                            if(CDMAX .gt. 0.) Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = MIN(CDMAX_/CDMAX, 1.0)
                     
-                        if (Me%ExtWater%Ubw(i,j).gt.1e-3) then                        
-                            if(CDM .gt. 0.) Me%Shear_Stress%EfficiencyFactorMean(i,j)    = MIN(CDM_/CDM, 1.0)
-                            if (FW .gt. 0.) Me%Shear_Stress%EfficiencyFactorWaves(i,j)   = MIN(FW_/FW, 1.0)
-                        else
-                            Me%Shear_Stress%EfficiencyFactorMean(i,j) = Me%Shear_Stress%EfficiencyFactorCurrent(i,j)
-                            Me%Shear_Stress%EfficiencyFactorWaves(i,j) = 0.
+                            if (Me%ExtWater%Ubw(i,j).gt.1e-3) then                        
+                                if(CDM .gt. 0.) Me%Shear_Stress%EfficiencyFactorMean(i,j)    = MIN(CDM_/CDM, 1.0)
+                                if (FW .gt. 0.) Me%Shear_Stress%EfficiencyFactorWaves(i,j)   = MIN(FW_/FW, 1.0)
+                            else
+                                Me%Shear_Stress%EfficiencyFactorMean(i,j) = Me%Shear_Stress%EfficiencyFactorCurrent(i,j)
+                                Me%Shear_Stress%EfficiencyFactorWaves(i,j) = 0.
+                            endif
+                        else                    
+                            call Compute_DragCoef(H, Z0, U, CDMAX, CDM, FW)                    
+                            call Compute_DragCoef(H, Z0_, U, CDMAX_, CDM_, FW_)
+                    
+                            if(CDMAX .gt. 0.) Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = MIN(CDMAX_/CDMAX, 1.0)
                         endif
-                    else                    
-                        call Compute_DragCoef(H, Z0, U, CDMAX, CDM, FW)                    
-                        call Compute_DragCoef(H, Z0_, U, CDMAX_, CDM_, FW_)
-                    
-                        if(CDMAX .gt. 0.) Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = MIN(CDMAX_/CDMAX, 1.0)
-                    endif
-                endif 
+                    endif 
+                endif
             enddo do2
             enddo do1
     
@@ -5466,27 +5469,29 @@ do2:        do i = ILB, IUB
             
 do3:        do j = JLB, JUB
 do4:        do i = ILB, IUB
-            
-                KTOP = Me%ExtSed%KTop(i, j)  
+                
+                if (Me%ExtWater%OpenPoints2D(i,j) == OpenPoint) then
+                    KTOP = Me%ExtSed%KTop(i, j)  
                             
-                if(Me%ExtSed%OpenPoints3D(i,j,KTOP) == OpenPoint) then
+                    if(Me%ExtSed%OpenPoints3D(i,j,KTOP) == OpenPoint) then
                                 
-                    ks = Me%Rugosity%Field(i,j) * 30 !z0 = ks/30
+                        ks = Me%Rugosity%Field(i,j) * 30 !z0 = ks/30
                                 
-                    if(GrainRoughness(i,j) .ge. ks) then
+                        if(GrainRoughness(i,j) .ge. ks) then
                                     
-                        Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = 1.
-                    else                                              
-                        H  = Me%ExtWater%WaterColumn(i,j)
+                            Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = 1.
+                        else                                              
+                            H  = Me%ExtWater%WaterColumn(i,j)
                         
-                        fc = 0.24*(log10(12*H/ks))**-2
-                        fc1= 0.24*(log10(12*H/GrainRoughness(i,j)))**-2
+                            fc = 0.24*(log10(12*H/ks))**-2
+                            fc1= 0.24*(log10(12*H/GrainRoughness(i,j)))**-2
                         
-                        Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = fc1/fc
+                            Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = fc1/fc
+                        endif
+                    else
+                        Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = 0.
                     endif
-                else
-                    Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = 0.
-                endif 
+                endif
             enddo do4
             enddo do3
         endif

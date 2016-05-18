@@ -252,8 +252,9 @@ program MohidLand
         integer                                     :: ObjEnterData = 0
         integer                                     :: iflag
         character(PathLength)                       :: WatchFile, DTLogFile
+        real                                        :: auxFactor, ErrorAux, DTaux
 
-        !$ openmp_num_threads = omp_get_max_threads()
+        !!!!$ openmp_num_threads = omp_get_max_threads()
         
         !Monitor Performance of the model execution?
         call ReadFileName('OUTWATCH', WatchFile, Message = 'Start Watch File', STAT = STAT_CALL)
@@ -306,17 +307,39 @@ program MohidLand
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR040'        
         
-        !Model Name
-        call GetData(openmp_num_threads,                                                &
-                     ObjEnterData, iflag,                                               &
-                     SearchType   = FromFile,                                           &
-                     keyword      = 'OMP_NUM_THREADS',                                  &
-                     default      = openmp_num_threads,                                     & 
-                     ClientModule = 'MOHIDLand',                                        &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050'
-        !$  call omp_set_num_threads(openmp_num_threads)
+        !This only should be used in case of openmp
+        !See Code below
+        !call GetData(openmp_num_threads,                                                &
+        !             ObjEnterData, iflag,                                               &
+        !             SearchType   = FromFile,                                           &
+        !             keyword      = 'OMP_NUM_THREADS',                                  &
+        !             default      = openmp_num_threads,                                 & 
+        !             ClientModule = 'MOHIDLand',                                        &
+        !             STAT         = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050'        
+        !!!$  call omp_set_num_threads(openmp_num_threads)
 
+        !$ call GetData(openmp_num_threads, ObjEnterData, iflag, keyword = 'OPENMP_NUM_THREADS',  &
+        !$         SearchType   = FromFile,                                                      &
+        !$         ClientModule = 'MOHIDLand',                                                   &
+        !$         default      = 0,                                                             &
+        !$         STAT         = STAT_CALL)
+        !$ if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR050' 
+        !$    write(*,*)
+        !$    write(*,*)"OPENMP: Max number of threads available is ", omp_get_max_threads()
+        !$    if ( openmp_num_threads .gt. 0 ) then
+        !$       write(*,*)"OPENMP: Number of threads requested is ", openmp_num_threads
+        !$       if (openmp_num_threads .gt. omp_get_max_threads()) then
+        !$        openmp_num_threads = omp_get_max_threads()
+        !$        write(*,*)"<Compilation Options Warning>"
+        !$       endif
+        !$       call omp_set_num_threads(openmp_num_threads)
+        !$       write(*,*)"OPENMP: Number of threads implemented is ", openmp_num_threads
+        !$    else
+        !$       openmp_num_threads = omp_get_max_threads()
+        !$       write(*,*)"OPENMP: Using the max number of threads available"
+        !$    endif        
+        
         !add the option to continue model in case of bathymetry verifications  
         !(geometry check and isolated cells check)
         !for runs on demand it is needed or the model wont run by itself
@@ -341,7 +364,21 @@ program MohidLand
                                             default      =  MaxDT,                &
                                             STAT         = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR080'            
+            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - MohidLand - ERR080'   
+            
+            !!DT needs to be multiple of duration
+            !!Run period in seconds
+            !DTaux = EndTime - BeginTime
+            !
+            !auxFactor = DTaux / SyncDTInterval
+            !
+            !ErrorAux = auxFactor - int(auxFactor)
+            !if (ErrorAux /= 0) then
+            !    write(*,*) 
+            !    write(*,*) 'Using SYNC and model run is not a multiple of SYNC_DT_INTERVAL.'
+            !    write(*,*) 'Please review your input data.'
+            !    stop 'ReadKeywords - MohidLand - ER085'
+            !end if
          endif
     
         call KillEnterData (ObjEnterData, STAT = STAT_CALL)
@@ -456,8 +493,15 @@ program MohidLand
             
             !synchronize so that output can occur at multiples of sync interval and not some minutes, seconds or milisseconds 
             !after output times as it can occur with variable dt
-            !The user needs to set the output times and restart times of modules as multiples of sync interval. this is not verified            
-            if (SyncDT) then
+            !The user needs to set the output times and restart times of modules as multiples of sync interval. this is not verified  
+            
+            !In order to avoid increase DT that can go wrong and avoid the creation of small time steps that can make the model to slowdown until it recovers
+            !When a sync period is approahing if the next differece to synctime is higher then next DT, does nothing
+            !if it is lower than next DT, split the difference to synctime in half
+            !When it reaches less than a milisecond increase the next DT do synctime
+            !The split of difference to synctime in half makes that a lower next DT probably will make the model pass with no dt reduction from Modules
+            !(but even increase) and in subsquent DT's the synctime will be surpassed with a DT not very different from the original (or in the order of half)
+            if (SyncDT .and. DoOneTimeStep) then
                 
                 !if passed time to sync, cut dt to sync time
                 if (CurrentTime + DT >= NextSyncTime) then
@@ -465,6 +509,7 @@ program MohidLand
                     NextSyncTime = NextSyncTime + SyncDTInterval
                 else
                     !to avoid that small timesteps are created when setting the dt to time to sync (previous if)
+                    !in a proactive way
                     
                     !if next next dt will be very small, ignore it and increase this dt to next sync time (+1milisecond)
                     if ((NextSyncTime - CurrentTime + DT) < 0.001) then
@@ -474,9 +519,11 @@ program MohidLand
                     !verify if the remainder time to sync is not lower than current step, otherwise
                     !divide it by 2
                     else if ((NextSyncTime - CurrentTime + DT) < DT) then
-                        DT = DT / 2.0
+                        DT = (NextSyncTime - CurrentTime) / 2.0
                     endif   
                 endif
+                
+                
             endif
             
             call ActualizeDT(TimeID = ObjComputeTime, DT = DT, STAT = STAT_CALL)     
