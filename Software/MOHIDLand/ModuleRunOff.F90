@@ -184,6 +184,11 @@ Module ModuleRunOff
         logical                                     :: WriteMaxFloodRisk              = .false.        
         character(Pathlength)                       :: MaxFloodRiskFile               = null_str
         real, dimension(:,:), pointer               :: MaxFloodRisk                   => null()            
+        
+        logical                                     :: WriteFloodPeriod               = .false.        
+        character(Pathlength)                       :: FloodPeriodFile                = null_str
+        real, dimension(:,:), pointer               :: FloodPeriod                    => null()        
+        real                                        :: FloodWaterColumnLimit          = null_real 
     end type T_OutPut
 
 
@@ -1720,6 +1725,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%Output%WriteMaxWaterColumn           = .true.
             Me%Output%WriteVelocityAtMaxWaterColumn = .true.
             Me%Output%WriteMaxFloodRisk             = .true.  
+            Me%Output%WriteFloodPeriod              = .true.              
 
             !Gets the root path from the file nomfich.dat
             call ReadFileName("ROOT_SRT", Me%Output%MaxWaterColumnFile, STAT = STAT_CALL)
@@ -1736,6 +1742,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ReadFileName("ROOT_SRT", Me%Output%MaxFloodRiskFile, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0734'
             Me%Output%MaxFloodRiskFile = trim(adjustl(Me%Output%MaxFloodRiskFile))//"MaxFloodRisk.dat"                             
+
+            !Gets the root path from the file nomfich.dat
+            call ReadFileName("ROOT_SRT", Me%Output%FloodPeriodFile, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0740'
+            Me%Output%FloodPeriodFile = trim(adjustl(Me%Output%FloodPeriodFile))//"FloodPeriod.dat"     
             
         else        
         
@@ -1791,20 +1802,49 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ReadFileName("ROOT_SRT", Me%Output%MaxFloodRiskFile, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0790'
                 Me%Output%MaxFloodRiskFile = trim(adjustl(Me%Output%MaxFloodRiskFile))//"MaxFloodRisk.dat"   
-                                          
             endif
+            
+            !Write flood period
+            call GetData(Me%Output%WriteFloodPeriod,                                &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType   = FromFile,                                   &
+                         keyword      = 'WRITE_FLOOD_PERIOD',                       &
+                         default      = .false.,                                    &
+                         ClientModule = 'ModuleRunOff',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR792'          
+
+        
+            if(Me%Output%WriteFloodPeriod) then
+                !Gets the root path from the file nomfich.dat
+                call ReadFileName("ROOT_SRT", Me%Output%FloodPeriodFile, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0793'
+                Me%Output%FloodPeriodFile = trim(adjustl(Me%Output%FloodPeriodFile))//"FloodPeriod.dat"   
+            endif            
         endif
         
         !factor for velocity in flood risk
         if (Me%Output%OutputFloodRisk .or. Me%Output%WriteMaxFloodRisk) then
-                call GetData(Me%Output%FloodRiskVelCoef,                                &
-                             Me%ObjEnterData, iflag,                                    &
-                             SearchType   = FromFile,                                   &
-                             keyword      = 'FLOOD_RISK_VEL_COEF',                      &
-                             default      = 0.5,                                        &
-                             ClientModule = 'ModuleRunOff',                             &
-                             STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR795'            
+            call GetData(Me%Output%FloodRiskVelCoef,                                &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType   = FromFile,                                   &
+                         keyword      = 'FLOOD_RISK_VEL_COEF',                      &
+                         default      = 0.5,                                        &
+                         ClientModule = 'ModuleRunOff',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR795'            
+        endif
+
+        !water column limit above which the cell is considered flooded
+        if (Me%Output%OutputFloodRisk .or. Me%Output%WriteFloodPeriod) then
+            call GetData(Me%Output%FloodWaterColumnLimit,                           &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType   = FromFile,                                   &
+                         keyword      = 'FLOOD_WATER_COLUMN_LIMIT',                 &
+                         default      = 0.05,                                       &
+                         ClientModule = 'ModuleRunOff',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR796'            
         endif
                 
         call ReadConvergenceParameters
@@ -2929,6 +2969,9 @@ do4:            do di = -1, 1
         allocate (Me%Output%MaxFloodRisk (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB)) 
         Me%Output%MaxFloodRisk = null_real
       
+
+        allocate (Me%Output%FloodPeriod (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB)) 
+        Me%Output%FloodPeriod = 0.
 
         allocate (Me%LowestNeighborI (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         allocate (Me%LowestNeighborJ (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -4447,6 +4490,10 @@ doIter:         do while (iter <= Niter)
             if (Me%Output%WriteMaxWaterColumn .or. Me%Output%WriteMaxFloodRisk) then
                 call OutputFlooding
             endif
+            
+            if (Me%Output%WriteFloodPeriod) then            
+                call OutputFloodPeriod            
+            endif                
             
             call CalculateTotalStoredVolume
 
@@ -8823,6 +8870,39 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
     end subroutine OutputFlooding
 
     !---------------------------------------------------------------------------
+    
+    subroutine OutputFloodPeriod
+
+        !Locals----------------------------------------------------------------
+        integer                                 :: ILB,IUB, JLB, JUB, i, j
+        integer                                 :: STAT_CALL
+        !Begin-----------------------------------------------------------------        
+        
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        
+        do j = JLB, JUB
+        do i = ILB, IUB
+   
+            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                
+                !Flooded cell
+                if (Me%myWaterColumn(i, j) > Me%Output%FloodWaterColumnLimit) then
+                    Me%Output%FloodPeriod(i, j) = Me%Output%FloodPeriod(i, j) + Me%ExtVar%DT
+                endif
+
+            endif
+
+        enddo
+        enddo
+
+
+    end subroutine OutputFloodPeriod
+
+    !-----------------------------------------------------------------------------    
 
 !    subroutine  WriteChannelsLevelData
 !
@@ -9058,7 +9138,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 !Writes Mass Error
                 call ReadFileName("ROOT_SRT", MassErrorFile, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR02a'
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR010'
                 MassErrorFile = trim(adjustl(MassErrorFile))//"MassError.dat"
                 
                 call WriteGridData  (MassErrorFile,                            &
@@ -9069,7 +9149,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                      OverWrite        = .true.,                                &
                      GridData2D_Real  = Me%MassError,                          &
                      STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR001'
+                if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR020'
         
                 if(Me%Output%WriteMaxFlowModulus) then
                     call WriteGridData  (Me%Output%MaxFlowModulusFile,         &
@@ -9080,7 +9160,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                          OverWrite        = .true.,                            &
                          GridData2D_Real  = Me%Output%MaxFlowModulus,          &
                          STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR002'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR030'
                 endif
                 
                 if (Me%Output%WriteMaxWaterColumn) then
@@ -9092,7 +9172,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                          OverWrite        = .true.,                            &
                          GridData2D_Real  = Me%Output%MaxWaterColumn,          &
                          STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR003'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR040'
                     
                     if (Me%Output%WriteVelocityAtMaxWaterColumn) then
                         call WriteGridData  (Me%Output%VelocityAtMaxWaterColumnFile, &
@@ -9103,7 +9183,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                              OverWrite        = .true.,                            &
                              GridData2D_Real  = Me%Output%VelocityAtMaxWaterColumn, &
                              STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR004'                    
+                        if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR050'                    
                     endif
                 endif
 
@@ -9116,32 +9196,46 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                          OverWrite        = .true.,                            &
                          GridData2D_Real  = Me%Output%MaxFloodRisk,            &
                          STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR003'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR060'
                 endif
+                
+
+                if (Me%Output%WriteFloodPeriod) then
+                    call WriteGridData  (Me%Output%FloodPeriodFile,            &
+                         COMENT1          = "FloodPeriod",                     &
+                         COMENT2          = "FloodPeriod",                     &
+                         HorizontalGridID = Me%ObjHorizontalGrid,              &
+                         FillValue        = -99.0,                             &
+                         OverWrite        = .true.,                            &
+                         GridData2D_Real  = Me%Output%FloodPeriod,             &
+                         STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - RunOff - ERR070'
+                endif
+                
 
                 if (Me%ObjDrainageNetwork /= 0) then
  
 !                    if(Me%WriteMaxWaterColumn) call WriteChannelsLevelData
 
                     nUsers = DeassociateInstance (mDRAINAGENETWORK_, Me%ObjDrainageNetwork)
-                    if (nUsers == 0) stop 'KillRunOff - RunOff - ERR01'
+                    if (nUsers == 0) stop 'KillRunOff - RunOff - ERR080'
                 endif
 
                 if (Me%OutPut%Yes) then
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR01'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR090'
                 endif
                 
                 if (Me%Discharges) then
                     call Kill_Discharges(Me%ObjDischarges, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR02'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR100'
                 endif
 
                 if (Me%ImposeBoundaryValue .and. Me%BoundaryImposedLevelInTime) then
                     
                     if (Me%ImposedLevelTS%TimeSerie%ObjTimeSerie /= 0) then
                         call KillTimeSerie(Me%ImposedLevelTS%TimeSerie%ObjTimeSerie, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModulePorousMedia - ERR03' 
+                        if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModulePorousMedia - ERR110' 
                     endif
 
                 endif
@@ -9149,24 +9243,24 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Output%BoxFluxes) then
                     call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                               &
-                        stop 'KillRunOff - RunOff - ERR04'
+                        stop 'KillRunOff - RunOff - ERR120'
                 endif
                 
                 !Deassociates External Instances
                 nUsers = DeassociateInstance (mTIME_, Me%ObjTime)
-                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR05'
+                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR130'
 
                 nUsers = DeassociateInstance (mBASINGEOMETRY_, Me%ObjBasinGeometry)
-                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR06'
+                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR140'
 
                 nUsers = DeassociateInstance (mGRIDDATA_, Me%ObjGridData)
-                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR07'
+                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR150'
 
                 nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid)
-                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR08'
+                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR160'
 
                 nUsers = DeassociateInstance (mHORIZONTALMAP_,  Me%ObjHorizontalMap)
-                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR09'
+                if (nUsers == 0) stop 'KillRunOff - RunOff - ERR170'
                 
                 deallocate(Me%myWaterColumnOld)
                 
