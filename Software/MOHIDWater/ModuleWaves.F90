@@ -2924,13 +2924,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         endif
                     endif
                 endif
-            endif
-
-            !if (Me%ParametersON .and. (.not. Me%WaveHeight%Constant .or. .not. Me%WavePeriod%Constant)) then
-
-                !call ComputeWaveParameters
-
             !endif
+
+            elseif (Me%ParametersON .and. (.not. Me%WaveHeight%Constant .or. .not. Me%WavePeriod%Constant)) then
+
+                call ComputeWaveParameters
+
+            endif
 
 
             !Modifies Radiation Tension (get matrixes in cell referential (u,v) and in input ref (x,y)
@@ -3054,6 +3054,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.          
                         Me%WaveLength_(i, j)      = Celerity   * Me%WavePeriod%Field(i,j)
                         OMEG                     = 2.  * PI   / Me%WavePeriod%Field(i,j)
                         WAVN                     = 2.  * PI   / Me%WaveLength_(i, j)
+
 
                         !To avoid sinh results larger then 1e100
                         !if (WAVN * Me%ExternalVar%WaterColumn(i,j) .gt. 230) then
