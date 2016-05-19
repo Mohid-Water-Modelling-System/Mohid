@@ -542,10 +542,21 @@ Module ModuleSediment
         !Local-------------------------------------------------------------------
         integer                                         :: STAT_
         integer                                         :: n
+        real                                            :: dummyPrecision = FillValueReal
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
+        !Do not run in single precision with sediment: mass errors!
+        if (PRECISION(dummyPrecision) < 8) then
+            write(*,*) ''
+            write(*,*) 'Running Sediment Module in single precision.'
+            write(*,*) 'Please use a double precision MOHID executable and try again.'
+            stop 'ConstructSediment - ModuleSediment - ERR01'
+        endif
+        
+        
+        
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mSediment_)) then
             nullify (FirstObjSediment)
@@ -694,7 +705,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (iflag == 0) then
             write(*,*) 
             write(*,*) 'Need to define IN_SEDIMENT in Sediment_X.dat'
-            write(*,*) 'ConstructSedimentGridAndGeometry - ModuleSediment - ERR01a'
+            stop 'ConstructSedimentGridAndGeometry - ModuleSediment - ERR01a'
         endif
         
         !Horizontal Grid Data - Sediment Column (Bathymetry)
@@ -4029,7 +4040,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     
                     if(Me%GrainRoughness(i,j) .le. 0.) then
                         write(*,*) Me%GrainRoughness(i,j),Me%D50(i,j), i, j, WKUB
-                        stop
+                        stop 'ComputeD50Cell - ModuleSediment - ERR01'
                     endif
                     
             endif
