@@ -32788,7 +32788,7 @@ cd6:            if (NewInstant >= NextInstant) then
             call StartWatch ("ModuleHydrodynamic", "Modify_ChezyZ")
         endif 
             
-        !$OMP PARALLEL PRIVATE(i,j,AuxZ,Kbottom,EP,Rugosity,WallDistance)
+        !$OMP PARALLEL PRIVATE(i,j,AuxZ,Kbottom,EP,Rugosity,WallDistance,Ubw,Abw,U,V,VelMod_Z)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
 doj:    do  j = JLB, JUB
 doi:    do  i = ILB, IUB
@@ -32973,8 +32973,9 @@ cd3:                    if (Manning) then
         !$OMP PARALLEL PRIVATE( AuxZ, EP, WallDistance,         &
         !$OMP                   Rugosity, Chezy, DT_Z,          &
         !$OMP                   VelMod_UV,                      &
-        !$OMP                   iSouth, jWest, i_North, j_East,    &
-        !$OMP                   I, J, kbottom, ChezyVelUV)
+        !$OMP                   iSouth, jWest, i_North, j_East,  &
+        !$OMP                   I, J, kbottom, ChezyVelUV,      &
+        !$OMP                   Ubw, Abw)
 
         ChezyVelUV        => Me%External_Var%ChezyVelUV
 
