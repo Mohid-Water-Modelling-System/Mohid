@@ -181,7 +181,8 @@ Module ModuleInterfaceSedimentWater
     use ModuleFreeVerticalMovement, only: Get_FreeConvFlux, SetDepositionProbability,       &
                                           UngetFreeVerticalMovement, FreeVertPropertyExists,&
                                           Get_FreeVelocity, FreeVertPropertyHasDeposition,  &
-                                          SetShearVelocity, GetDepositionIntertidalZones
+                                          SetShearVelocity, GetDepositionIntertidalZones,   &
+                                          SetSandParameters
 #ifndef _SEDIMENT_ 
     use ModuleSedimentProperties,   only: SedimentPropertyExists,GetSedimentPropertyOptions,&
                                           GetSedimentConcentration, UnGetSedimentProperties,&
@@ -214,7 +215,9 @@ Module ModuleInterfaceSedimentWater
                                           GetCohesiveMass, GetCohesiveContent, GetSandMass, &
                                           GetSandContent, GetCriticalShearStress,           &
                                           GetReferenceLevel, SetWaveTensionON,              &
-                                          GetGrainRoughness, GetD50, UnGetSediment 
+                                          GetGrainRoughness, GetD50, UnGetSediment,         &
+                                          SetWaterPointsOpenPoints2D, GetNumberOfClasses,   &
+                                          GetSandParameters
     implicit none
 
     private 
@@ -3034,6 +3037,9 @@ do1 :   do
         integer                                              :: STAT_CALL
         integer                                              :: FreeVerticalMovementID
         integer                                              :: ILB, IUB, JLB, JUB
+        integer                                              :: NumberOfClasses, SandIDNumber, n
+        real                                                 :: RelativeDensity
+        real(8)                                              :: D50
 
         !----------------------------------------------------------------------
 
@@ -3183,7 +3189,44 @@ do1 :   do while (associated(PropertyX))
                 else
                     Me%WaterPointsorOpenPoints2D => Me%ExtWater%OpenPoints2D
                 endif
+                
+                
+                if (Me%RunSedimentModule) then
+                    
+                    !get and set information in Module Sediment so that it does not need to comunicate with free vertical
+                    !movement
+                    call SetWaterPointsOpenPoints2D(ObjSedimentID = Me%ObjSediment,                         &
+                                                  WaterPointsOpenPoints2D = Me%WaterPointsorOpenPoints2D,   &
+                                                  STAT = STAT_CALL)
+                    if (STAT_CALL  /= SUCCESS_)                                                             &
+                        stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR4.5'
 
+
+                    call GetNumberOfClasses(ObjSedimentID = Me%ObjSediment,                         &
+                                                  NumberOfClasses = NumberOfClasses,                &
+                                                  STAT = STAT_CALL)
+                    if (STAT_CALL  /= SUCCESS_)                                                     &
+                        stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR4.6'
+                
+                
+                    do n=1, NumberOfClasses
+                        call GetSandParameters(ObjSedimentID = Me%ObjSediment,                      &
+                                               SandID = n,                                          &
+                                               SandIDNumber = SandIDNumber,                         &
+                                               SandD50 = D50,                                       &
+                                               RelativeDensity = RelativeDensity,                   &
+                                               STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR4.7'
+                    
+                        call SetSandParameters(FreeVerticalMovementID = FreeVerticalMovementID,     &
+                                               PropertyID = SandIDNumber,                           &
+                                               SandDiameter = D50,                                  & 
+                                               RelativeDensity = RelativeDensity,                   &
+                                               STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR4.8'                    
+                    enddo                
+                endif
+                
             end if
             
             ILB = Me%Size2D%ILB

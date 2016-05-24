@@ -69,7 +69,7 @@ Module ModuleSediment
                                        ComputeInitialGeometry, ComputeVerticalGeometry,         &
                                        GetGeometryVolumes, ReadGeometryHDF, WriteGeometryHDF,   &
                                        ConstructGeometry
-    use ModuleFreeVerticalMovement,  only: SetSandParameters, GetDepositionIntertidalZones
+    !use ModuleFreeVerticalMovement,  only: SetSandParameters, GetDepositionIntertidalZones
     
 #ifndef _WAVES_
     use ModuleWaves,            only : GetWaves, UnGetWaves
@@ -108,6 +108,9 @@ Module ModuleSediment
     !Selector
     public  :: SetCohesiveFlux
     public  :: SetNonCohesiveFlux
+    public  :: SetWaterPointsOpenPoints2D
+    public  :: GetNumberOfClasses
+    public  :: GetSandParameters
     public  :: GetTopCriticalShear
     public  :: GetCohesiveMass
     public  :: GetCohesiveContent
@@ -510,13 +513,13 @@ Module ModuleSediment
                          ObjHorizontalMapID,                    &
                          ObjTimeID,                             &
                          ObjWavesID,                            &
-                         ObjDischargesID,                       &
+                         !ObjDischargesID,                       &
                          SedimentGridDataID,                    &
                          SedimentHorizontalMapID,               &
                          SedimentMapID,                         &
                          SedGeometryFile,                       &
                          SedimentGeometryID,                    &
-                         FreeVerticalMovementID,                &
+                         !FreeVerticalMovementID,                &
                          STAT)
 
         !Arguments-------------------------------------------------------------
@@ -527,9 +530,9 @@ Module ModuleSediment
         integer                                         :: ObjHorizontalMapID
         integer                                         :: ObjTimeID
         integer                                         :: ObjWavesID
-        integer                                         :: ObjDischargesID
+        !integer                                         :: ObjDischargesID
         character(PathLength)                           :: SedGeometryFile
-        integer                                         :: FreeVerticalMovementID        
+        !integer                                         :: FreeVerticalMovementID        
         integer, optional, intent(OUT)                  :: SedimentGridDataID
         integer, optional, intent(OUT)                  :: SedimentHorizontalMapID
         integer, optional, intent(OUT)                  :: SedimentMapID
@@ -604,13 +607,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !since this is the Module that handles them
             call ConstructSedimentGridAndGeometry
             
-            !Set options to grid data so that sediment parameters were all constructed here and not in bathymetry creation
+            !Set options to grid data so that sediment parameters are all constructed here
+            !If continuous computation, Me%Files%Initial is defined and bathymetry values
+            !read in nomfich by ModuleModel will be overitten by the ones in Me%Files%Initial
             call SetGridDataEvolution(GridDataID          = Me%ObjBathym,              &
                                       Evolution           = Me%Evolution%Bathym,       &
                                       SedimentInitialFile = Me%Files%Initial, STAT = STAT_CALL) 
             
             call AllocateVariables      
             
+            !If continuous computation, geometry read in nomfich by ModuleModel (SED_GEOM) will be
+            !overitten by the ones in Me%Files%Initial
             call Construct_Initial_Geometry
                         
             call ConstructClasses
@@ -633,27 +640,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (Me%OutPut%Yes) call Open_HDF5_OutPut_File(Me%Files%OutPutFields)
             
-            if(FreeVerticalMovementID .ne. 0) then
-                
-                do n=1, Me%NumberOfClasses
-                    call SetSandParameters(FreeVerticalMovementID, Me%SandClass(n)%ID%IDNumber, Me%SandClass(n)%D50, & 
-                                            Me%RelativeDensity, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR60'
-                enddo
-                
-                call GetDepositionIntertidalZones(FreeVerticalMovementID = FreeVerticalMovementID, &
-                                    DepositionIntertidalZones = Me%DepositionIntertidalZones, &
-                                    STAT                   = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)                                        &
-                        stop 'ConstructSediment - ModuleSediment - ERR50'
-                
-                if(Me%DepositionIntertidalZones) then
-                    Me%WaterPointsorOpenPoints2D => Me%ExternalVar%WaterPoints2D
-                else
-                    Me%WaterPointsorOpenPoints2D => Me%ExternalVar%OpenPoints2D
-                endif
-                    
-            endif
+            !this information is set by ModuleInterfaceSedimentWater
+            !WaterPointsorOpenPoints2D is only used in modify phase
+            !FreeVerticalMovement uses D50 to compute fall velocity
+            !if(FreeVerticalMovementID .ne. 0) then
+            !    
+            !    do n=1, Me%NumberOfClasses
+            !        call SetSandParameters(FreeVerticalMovementID, Me%SandClass(n)%ID%IDNumber, Me%SandClass(n)%D50, & 
+            !                                Me%RelativeDensity, STAT = STAT_CALL)
+            !        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSediment - ModuleSediment - ERR60'
+            !    enddo
+            !    
+            !    call GetDepositionIntertidalZones(FreeVerticalMovementID = FreeVerticalMovementID, &
+            !                        DepositionIntertidalZones = Me%DepositionIntertidalZones, &
+            !                        STAT                   = STAT_CALL)
+            !    if (STAT_CALL .NE. SUCCESS_)                                        &
+            !            stop 'ConstructSediment - ModuleSediment - ERR50'
+            !    
+            !    if(Me%DepositionIntertidalZones) then
+            !        Me%WaterPointsorOpenPoints2D => Me%ExternalVar%WaterPoints2D
+            !    else
+            !        Me%WaterPointsorOpenPoints2D => Me%ExternalVar%OpenPoints2D
+            !    endif
+            !        
+            !endif
 
 
             call ReadUnLockExternalVar
@@ -708,7 +718,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             stop 'ConstructSedimentGridAndGeometry - ModuleSediment - ERR01a'
         endif
         
-        !Horizontal Grid Data - Sediment Column (Bathymetry)
+        !Horizontal Grid Data - Sediment Column depths
         call ConstructGridData      (GridDataID          = Me%ObjSedimentGridData,      &
                                         HorizontalGridID = Me%ObjHorizontalGrid,        &
                                         FileName         = SedimentFile,                &
@@ -3445,6 +3455,82 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     
     !--------------------------------------------------------------------------
  
+    subroutine GetNumberOfClasses(ObjSedimentID, NumberOfClasses, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjSedimentID
+        integer, intent(OUT)                        :: NumberOfClasses
+        integer, optional, intent(OUT)              :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            NumberOfClasses = Me%NumberOfClasses
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine GetNumberOfClasses
+    
+    !--------------------------------------------------------------------------    
+    
+    subroutine GetSandParameters(ObjSedimentID, SandID, SandIDNumber, SandD50, RelativeDensity, STAT) 
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: ObjSedimentID
+        integer                                     :: SandID
+        integer, intent(OUT)                        :: SandIDNumber
+        real(8), intent(OUT)                        :: SandD50
+        real, intent(OUT)                           :: RelativeDensity
+        integer, optional, intent(OUT)              :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+
+            SandIDNumber = Me%SandClass(SandID)%ID%IDNumber
+            SandD50 = Me%SandClass(SandID)%D50
+            RelativeDensity = Me%RelativeDensity
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine GetSandParameters    
+    
     !--------------------------------------------------------------------------
     
     subroutine SetCohesiveFlux(ObjSedimentID, ConsolidationFlux,  STAT)
@@ -3576,7 +3662,44 @@ do1:        do n=1,Me%NumberOfClasses
     end subroutine SetNonCohesiveFlux
 
     !--------------------------------------------------------------------------
-       
+    !Interface sediment water communication - construct phase
+    subroutine SetWaterPointsOpenPoints2D(ObjSedimentID, WaterPointsOpenPoints2D, STAT)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                 :: ObjSedimentID
+        integer, pointer, dimension(:,:)        :: WaterPointsOpenPoints2D
+        integer, optional, intent(OUT)          :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_            
+        integer                                 :: ready_
+        
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjSedimentID, ready_)  
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Me%WaterPointsorOpenPoints2D => WaterPointsOpenPoints2D
+            
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        
+    end subroutine SetWaterPointsOpenPoints2D
+
+    !--------------------------------------------------------------------------    
+    
     subroutine SetWaveTensionON(ObjSedimentID, WaveTensionON, STAT)
         
         !Arguments-------------------------------------------------------------
