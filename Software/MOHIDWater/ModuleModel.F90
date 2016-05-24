@@ -722,6 +722,81 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
 #endif
 
+
+#ifndef _SEDIMENT_
+            
+            !3D SEDIMENT MODULES NEED TO CONSTRUCT BEFORE HYDRODYNAMICS call ComputeInitialGeometry
+            !TO UPDATE BATHYMETRY (ONLY IMPORTANT IN CASE OF BATHYMETRY EVOLUTION AND CONTINUOUS SIMULATION)
+            !LEAVE THIS HERE BEFORE ANY CALL TO MODULEGEOMETRY WITH BATHYMETRY
+            if (Me%RunSediments) then
+
+                !Gets the file name of the sediment collumn geometry
+                call ReadFileName('SED_GEOM', SedGeometryFile, "Sediment Geometry File", STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR350'
+
+  
+                call ConstructConsolidation(ConsolidationID     = Me%ObjConsolidation,          &
+                                            TimeID              = Me%ObjTime,                   &
+                                            GridDataID          = Me%Sediment%ObjBathymetry,    &
+                                            HorizontalMapID     = Me%Sediment%ObjHorizontalMap, &
+                                            HorizontalGridID    = Me%ObjHorizontalGrid,         &
+                                            SedGeometryFile     = SedGeometryFile,              &
+                                            GeometryID          = Me%Sediment%ObjGeometry,      &
+                                            MapID               = Me%Sediment%ObjMap,           &
+                                            STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR400'
+                
+                
+                !Constructs SedimentProperties
+                call Construct_SedimentProperties(SedimentPropertiesID  = Me%ObjSedimentProperties,     &
+                                                  TimeID                = Me%ObjTime,                   &     
+                                                  HorizontalGridID      = Me%ObjHorizontalGrid,         &
+                                                  GridDataID            = Me%Sediment%ObjBathymetry,    &
+                                                  HorizontalMapID       = Me%Sediment%ObjHorizontalMap, &
+                                                  MapID                 = Me%Sediment%ObjMap,           &
+                                                  GeometryID            = Me%Sediment%ObjGeometry,      &
+                                                  ConsolidationID       = Me%ObjConsolidation,          &
+                                                  STAT                  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR410'
+                
+            endif
+                
+            if (Me%SedimentModule) then
+
+                !Gets the file name of the sediment collumn geometry
+                call ReadFileName('SED_GEOM', SedGeometryFile, "Sediment Geometry File", STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR351'
+
+                
+                call ConstructSediment(ObjSedimentID           = Me%ObjSediment,                 &
+                                   ObjGridDataID               = Me%Water%ObjBathymetry,         &
+                                   GeometryID                  = Me%Water%ObjGeometry,           &
+                                   ObjHorizontalGridID         = Me%ObjHorizontalGrid,           &
+                                   ObjHorizontalMapID          = Me%Water%ObjMap,                &
+                                   ObjTimeID                   = Me%ObjTime,                     &
+                                   ObjWavesID                  = Me%ObjWaves,                    &
+                                   SedimentGridDataID          = Me%Sediment%ObjBathymetry,      &
+                                   SedimentHorizontalMapID     = Me%Sediment%ObjHorizontalMap,   &
+                                   SedimentMapID               = Me%Sediment%ObjMap,             &
+                                   SedGeometryFile             = SedGeometryFile,                &
+                                   SedimentGeometryID          = Me%Sediment%ObjGeometry,        &
+                                   STAT                 = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR411'
+
+            endif
+#else
+            write(*,*)
+            write(*,*)"<Compilation Options Warning>"
+            write(*,*)"This executable was not compiled with the Sediment modules."
+            if(Me%RunSediments)then
+                stop 'ConstructModel - ModuleModel - ERR420'
+            endif
+            write(*,*)"<Compilation Options Warning>"
+            write(*,*)
+
+#endif
+
+
             !Turbulence
             call ConstructTurbulence    (ModelName        = trim(Me%ModelName),         &  
                                          TurbulenceID     = Me%ObjTurbulence,           &
@@ -870,78 +945,7 @@ il:         if (Me%RunLagrangian) then
 
 #endif
 
-#ifndef _SEDIMENT_
 
-            if (Me%RunSediments) then
-
-
-                !Gets the file name of the Bathymetry
-                call ReadFileName('SED_GEOM', SedGeometryFile, "Sediment Geometry File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR350'
-
-  
-                call ConstructConsolidation(ConsolidationID     = Me%ObjConsolidation,          &
-                                            TimeID              = Me%ObjTime,                   &
-                                            GridDataID          = Me%Sediment%ObjBathymetry,    &
-                                            HorizontalMapID     = Me%Sediment%ObjHorizontalMap, &
-                                            HorizontalGridID    = Me%ObjHorizontalGrid,         &
-                                            SedGeometryFile     = SedGeometryFile,              &
-                                            GeometryID          = Me%Sediment%ObjGeometry,      &
-                                            MapID               = Me%Sediment%ObjMap,           &
-                                            STAT                = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR400'
-                
-                
-                !Constructs SedimentProperties
-                call Construct_SedimentProperties(SedimentPropertiesID  = Me%ObjSedimentProperties,     &
-                                                  TimeID                = Me%ObjTime,                   &     
-                                                  HorizontalGridID      = Me%ObjHorizontalGrid,         &
-                                                  GridDataID            = Me%Sediment%ObjBathymetry,    &
-                                                  HorizontalMapID       = Me%Sediment%ObjHorizontalMap, &
-                                                  MapID                 = Me%Sediment%ObjMap,           &
-                                                  GeometryID            = Me%Sediment%ObjGeometry,      &
-                                                  ConsolidationID       = Me%ObjConsolidation,          &
-                                                  STAT                  = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR410'
-                
-            endif
-                
-            if (Me%SedimentModule) then
-
-                !Gets the file name of the Bathymetry
-                call ReadFileName('SED_GEOM', SedGeometryFile, "Sediment Geometry File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR351'
-
-                
-                call ConstructSediment(ObjSedimentID    = Me%ObjSediment,                        &
-                                   ObjGridDataID        = Me%Water%ObjBathymetry,                &
-                                   GeometryID           = Me%Water%ObjGeometry,                  &
-                                   ObjHorizontalGridID  = Me%ObjHorizontalGrid,                  &
-                                   ObjHorizontalMapID   = Me%Water%ObjMap,                       &
-                                   ObjTimeID            = Me%ObjTime,                            &
-                                   ObjWavesID           = Me%ObjWaves,                           &
-                                   ObjDischargesID      = Me%ObjDischarges,                      &
-                                   SedimentGridDataID          = Me%Sediment%ObjBathymetry,      &
-                                   SedimentHorizontalMapID     = Me%Sediment%ObjHorizontalMap,   &
-                                   SedimentMapID               = Me%Sediment%ObjMap,             &
-                                   SedGeometryFile             = SedGeometryFile,                &
-                                   SedimentGeometryID          = Me%Sediment%ObjGeometry,        &
-                                   FreeVerticalMovementID      = Me%ObjFreeVerticalMovement,     &
-                                   STAT                 = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR411'
-
-            endif
-#else
-            write(*,*)
-            write(*,*)"<Compilation Options Warning>"
-            write(*,*)"This executable was not compiled with the Sediment modules."
-            if(Me%RunSediments)then
-                stop 'ConstructModel - ModuleModel - ERR420'
-            endif
-            write(*,*)"<Compilation Options Warning>"
-            write(*,*)
-
-#endif
 
             call StartInterfaceSedimentWater(ModelName                   = trim(Me%ModelName),&  
                                              ObjInterfaceSedimentWaterID = Me%ObjInterfaceSedimentWater, &
