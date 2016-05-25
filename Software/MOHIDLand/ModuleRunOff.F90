@@ -5354,7 +5354,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     endif 
                     
                     !m3 = m3 + (-m3/s * s)
-                    Me%myWaterVolumePred(i,j) = Me%myWaterVolumePred(i,j) + (Me%lFlowX(i, j) * LocalDT)
+                    Me%myWaterVolumePred(i,j  ) = Me%myWaterVolumePred(i,j  ) + (Me%lFlowX(i, j) * LocalDT)
                     Me%myWaterVolumePred(i,j-1) = Me%myWaterVolumePred(i,j-1) - (Me%lFlowX(i, j) * LocalDT) 
                                    
                 endif
@@ -5644,8 +5644,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         endif
                     endif                
                     
-                    Me%myWaterVolumePred(i,j) = Me%myWaterVolumePred(i,j) +  (Me%lFlowY(i, j) * LocalDT)                        
-                    Me%myWaterVolumePred(i-1,j) = Me%myWaterVolumePred(i-1,j) - (Me%lFlowX(i, j) * LocalDT) 
+                    Me%myWaterVolumePred(i  ,j) = Me%myWaterVolumePred(i,  j) + (Me%lFlowY(i, j) * LocalDT)                        
+                    Me%myWaterVolumePred(i-1,j) = Me%myWaterVolumePred(i-1,j) - (Me%lFlowY(i, j) * LocalDT) 
                     
                 endif
 

@@ -9496,9 +9496,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 if (T3 >= - Period) then
 
                     Dir = Me%AnalyticWave%Direction
-!                    if (T1 < Period) then
-!                        A = A * T1 / Period
-!                    endif
+                    if (T1 < Period) then
+                        A = A * T1 / Period
+                    endif
                     Me%Matrix2D(i,j) = AverageValue + ComputeWaveAnalytic1D (A, Period, T3, WaveType, Dir)
 
                 endif                        

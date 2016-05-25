@@ -2924,7 +2924,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         endif
                     endif
                 endif
-            !endif
 
             elseif (Me%ParametersON .and. (.not. Me%WaveHeight%Constant .or. .not. Me%WavePeriod%Constant)) then
 
