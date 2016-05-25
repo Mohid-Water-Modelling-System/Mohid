@@ -65,7 +65,7 @@ Module ModuleExportHDF5ToTimeSerie
     use ModuleTimeSerie,         only : StartTimeSerie, WriteTimeSerie, KillTimeSerie, &
                                         GetTimeSerieLocation, GetNumberOfTimeSeries,   &
                                         CorrectsCellsTimeSerie,                        &
-                                        WriteSpecificTimeSerieLine
+                                        WriteSpecificTimeSerieLine, GetTimeSerieName
     use ModuleFunctions         
     use ModuleHDF5,              only : GetHDF5FileAccess, ConstructHDF5,              &
                                         GetHDF5GroupNumberOfItems, HDF5SetLimits,      &
@@ -178,8 +178,9 @@ Module ModuleExportHDF5ToTimeSerie
         real                                        :: CV   !Coefficient of Variation
         logical                                     :: First
         integer                                     :: Count = 0
-        real, dimension(:), pointer                 :: ParamsData
-        type(T_TimeSeriesData), pointer             :: Next => null()
+        real, dimension(:), pointer                 :: ParamsData       => null()
+        real, dimension(:), pointer                 :: ParamsDataFinal  => null()
+        type(T_TimeSeriesData), pointer             :: Next             => null()
     end type  T_TimeSeriesData
 
     ! Definition of type T_TimeSerieTime
@@ -218,6 +219,7 @@ Module ModuleExportHDF5ToTimeSerie
         type(T_Size3D)                              :: Size3D
         type (T_Parameter),            pointer      :: FirstParameter
         integer                                     :: ParameterNumber = 0
+        integer                                     :: TimeSerieNumber        
         character(len=StringLength), dimension(:), pointer :: ParameterList
         integer                                     :: ObjEnterData          = 0
         integer                                     :: ObjTime               = 0
@@ -236,6 +238,7 @@ Module ModuleExportHDF5ToTimeSerie
         logical                                     :: UseAreaFillValue
         character(PathLength)                       :: PolygonsFile
         logical                                     :: PolygonON
+        logical                                     :: EndTSPerParameter
         real, dimension(:,:), pointer               :: mask_2D
         type(T_HDF5File),              pointer      :: FirstHDF5File
         type(T_HDF5File),              pointer      :: FirstTSHDF5File
@@ -493,6 +496,18 @@ Module ModuleExportHDF5ToTimeSerie
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)          &
         stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR52' 
+
+        call GetData(Me%EndTSPerParameter,                      &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromFile,                   &
+                     keyword      = 'END_TS_PER_PARAMETER',     &
+                     ClientModule = 'ExportToTimeSerie',        &
+                     Default      = .false.,                    &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                            &
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR60' 
+        
+        
 
     end subroutine ReadMaskData
     
@@ -831,7 +846,7 @@ Module ModuleExportHDF5ToTimeSerie
         !Arguments-------------------------------------------------------------
           
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL, TimeSerieNumber, dn, Id, Jd
+        integer                                     :: STAT_CALL, dn, Id, Jd
         real                                        :: CoordX, CoordY
         logical                                     :: CoordON
 
@@ -891,13 +906,13 @@ Module ModuleExportHDF5ToTimeSerie
 
         endif
 
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, Me%TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OpenOutputFiles - ModuleExportHDF5ToTimeSerie - ERR050'        
+
         if(.not. Me%VariableGrid)then
 
             !Corrects if necessary the cell of the time serie based in the time serie coordinates
-            call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OpenOutputFiles - ModuleExportHDF5ToTimeSerie - ERR050'
-
-            do dn = 1, TimeSerieNumber
+            do dn = 1, Me%TimeSerieNumber
 
                 call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &  
                                           CoordX   = CoordX,                                &
@@ -941,10 +956,6 @@ Module ModuleExportHDF5ToTimeSerie
 
         end if
 
-
-        !Deallocates Parameter list
-        deallocate(Me%ParameterList)
-        nullify(Me%ParameterList)
 
     end subroutine OpenOutputFiles
   
@@ -2575,7 +2586,8 @@ cd2 :           if (BlockFound) then
         
         TS => Me%FirstTimeSeriesData
         do while (associated(TS))
-            allocate (TS%ParamsData (Me%ParameterNumber * 7))
+            allocate (TS%ParamsData      (Me%ParameterNumber * 7))
+            allocate (TS%ParamsDataFinal (Me%ParameterNumber * 7))            
             
             TS%ParamsData = 0.0
             TS%Sum        = 0.0
@@ -2934,14 +2946,18 @@ do_ts4:                         do while (associated(TS))
                                 enddo
                                 enddo  
                                 
-                                if (TS%Count > 0) then
+                                if (TS%Count > 1) then
                                     TS%SD = sqrt(TS%QSum / (TS%Count - 1))
-                                    TS%CV = TS%SD / abs(TS%Mean)
                                 else
                                     TS%SD = 0.0
-                                    TS%CV = 0.0                                    
                                 endif
-                                
+
+                                if (abs(TS%Mean) > 0.) then
+                                    TS%CV = TS%SD / abs(TS%Mean)
+                                else
+                                    TS%CV = 0.0
+                                endif
+                                                        
                                 TS => TS%Next
                             enddo                        
                         endif   ifIs3D
@@ -2988,7 +3004,9 @@ do_ts4:                         do while (associated(TS))
                     if (STAT_CALL /= SUCCESS_) &
                         stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR030'
                         
-                    TS%ParamsData = 0.0
+                    TS%ParamsDataFinal = TS%ParamsData
+                    TS%ParamsData      = 0.0
+                    
                     TS            => TS%Next
                     ts_index      = ts_index + 1
                 enddo                
@@ -3012,9 +3030,14 @@ do_ts4:                         do while (associated(TS))
                     Running = .true.
                 else
                     Running = .false.
-                end if
+                endif                    
 
             end do
+            
+            if (Me%EndTSPerParameter) then
+                call WriteEndTSPerParameter
+            endif
+            
 
             Count = 0
 
@@ -3050,15 +3073,91 @@ do_ts4:                         do while (associated(TS))
 
         TS => Me%FirstTimeSeriesData
         do while (associated(TS))
-            deallocate (TS%ParamsData)
+            deallocate (TS%ParamsDataFinal)        
+            deallocate (TS%ParamsData     )
             TS => TS%Next
         enddo
 
         call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)                                                 &
-        stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR070'
+            stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR070'   
     
     end subroutine ModifyExportHDF5AreaToTimeSerie    
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine WriteEndTSPerParameter
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        character(len=2000)                         :: AuxString
+        character(len = StringLength)               :: FileName, TimeSerieName
+        integer                                     :: STAT_CALL
+        type (T_TimeSeriesData), pointer            :: TS
+        integer                                     :: ts_index, iP, UnitNumber, iaux
+        real, dimension(7)                          :: OutPutParameter
+        
+
+        !Begin-----------------------------------------------------------------   
+        
+        do  iP = 1, Me%ParameterNumber 
+        
+            FileName = Me%ParameterList(1+(iP-1)*7) 
+            iaux     = len_trim(Filename)
+            FileName = trim(FileName(1:iaux-4))//".txt"
+            
+            call UnitsManager(UnitNumber, OPEN_FILE, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Error opening time series file ', trim(FileName)
+                stop 'WriteEndTSPerParameter - ModuleExportHDF5ToTimeSerie - ERR10'   
+            endif
+            
+            open (file   = FileName,                                                    &
+                  unit   = UnitNumber,                                                  &             
+                  status = "unknown",                                                   &
+                  form   = "formatted", IOSTAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Error opening time series file ', trim(FileName)
+                stop 'WriteEndTSPerParameter - ModuleExportHDF5ToTimeSerie - ERR20'   
+            endif            
+            
+            write(UnitNumber,*) 'TimeSerieName  sum  mean  min  max  sd  cv  count'
+            
+            TS       => Me%FirstTimeSeriesData                
+            ts_index = 1
+            do while (associated(TS))
+            
+                call GetTimeSerieName(TimeSerieID = Me%ObjTimeSerie,                    &
+                                      iTimeSerie  = ts_index,                           &
+                                      Name        = TimeSerieName,                      &
+                                      STAT        = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'WriteEndTSPerParameter - ModuleExportHDF5ToTimeSerie - ERR30'   
+                endif            
+                                      
+                OutPutParameter(1:7) = TS%ParamsDataFinal(iP:iP+6)
+ 
+                write(AuxString,'(A50,7F12.4)') trim(TimeSerieName), OutPutParameter(1:7)
+                write(UnitNumber,'(A)') trim(adjustl(AuxString))
+
+                TS            => TS%Next
+                ts_index      = ts_index + 1            
+                
+            enddo                
+            
+            call UnitsManager(UnitNumber, CLOSE_FILE, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Error closing time series file ', trim(FileName)
+                stop 'WriteEndTSPerParameter - ModuleExportHDF5ToTimeSerie - ERR40'   
+            endif
+            
+        enddo
+            
+    end subroutine WriteEndTSPerParameter
     
     !--------------------------------------------------------------------------
 
@@ -3515,6 +3614,10 @@ do_ts4:                         do while (associated(TS))
                 if (associated(TSToKill%ParamsData)) then
                     deallocate (TSToKill%ParamsData)
                     nullify (TSToKill%ParamsData)
+
+                    deallocate (TSToKill%ParamsDataFinal)
+                    nullify (TSToKill%ParamsDataFinal)
+
                 endif
                 
                 deallocate (TSToKill)
@@ -3531,6 +3634,10 @@ do_ts4:                         do while (associated(TS))
             call KillIndividualParameter(ParameterToKill)
         end do
         nullify(Me%FirstParameter)
+        
+        !Deallocates Parameter list
+        deallocate(Me%ParameterList)
+        nullify(Me%ParameterList)        
 
         deallocate(Me)
         nullify(Me)

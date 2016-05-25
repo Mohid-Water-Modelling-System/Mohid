@@ -63,7 +63,9 @@ Program HDF5_2_EsriGridData
         logical                                             :: WindowON
         integer                                             :: Layer, KUB
         character(30)                                       :: DX
-        character(30), dimension(2)                         :: Origin        
+        character(30), dimension(2)                         :: Origin  
+        logical                                             :: Dim2D      
+        logical                                             :: NoNegativeValues        
     end type  T_HDF5_2_EsriGridData
 
     type(T_HDF5_2_EsriGridData), pointer              :: Me
@@ -367,6 +369,26 @@ d2:     do l= 1, Me%FieldNumber
         if (STAT_CALL /= SUCCESS_) stop 'ReadESRI_2_HDF5_Options - HDF5_2_EsriGridData - ERR10'
         if (iflag     == 0)        stop 'ReadESRI_2_HDF5_Options - HDF5_2_EsriGridData - ERR20'
 
+
+        call GetData(Me%Dim2D,                                                          &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'DIM_2D',                                           &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     Default      = .true.,                                             &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadESRI_2_HDF5_Options - HDF5_2_EsriGridData - ERR30'
+        
+
+        call GetData(Me%NoNegativeValues,                                               &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NO_NEGATVIE_VALUES',                               &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadESRI_2_HDF5_Options - HDF5_2_EsriGridData - ERR40'
+
     end subroutine ReadESRI_2_HDF5_Options
 
     !--------------------------------------------------------------------------
@@ -550,16 +572,16 @@ d11:    do l = 1, Me%FieldNumber
 
                 write(Unit,'(A14,I6)'   ) 'ncols         ', JUB - JLB + 1
                 write(Unit,'(A14,I6)'   ) 'nrows         ', IUB - ILB + 1
-                write(Unit,'(A14,A)')     'xllcorner     ', trim(Me%Origin(1))
-                write(Unit,'(A14,A)')     'yllcorner     ', trim(Me%Origin(2))
-                write(Unit,'(A14,A)')     'cellsize      ', trim(Me%DX)
+                write(Unit,'(A14,A30)')     'xllcorner     ', trim(adjustl(Me%Origin(1)))
+                write(Unit,'(A14,A30)')     'yllcorner     ', trim(adjustl(Me%Origin(2)))
+                write(Unit,'(A14,A30)')     'cellsize      ', trim(adjustl(Me%DX))
                 write(Unit,'(A14,f12.6)') 'nodata_value  ', Me%FillValue
                
                 do i = IUB, ILB, -1
                     do j = JLB, JUB
                         if (abs(Aux3D(i,j,k)) > abs(Me%FillValue)) Aux3D(i,j,k) = Me%FillValue
                     enddo
-                    write(Line,'(2000(f12.6,1x))') Aux3D(i,JLB:JUB,k)
+                    write(Line,'(4000(f12.6,1x))') Aux3D(i,JLB:JUB,k)
                     Line = adjustl(Line)
                     Found2Blanks = .true.
 
@@ -593,8 +615,10 @@ d11:    do l = 1, Me%FieldNumber
         !Arguments---------------------------------------------------------------
 
         !Local-------------------------------------------------------------------
-        real,    dimension(:,:,:), pointer    :: Aux3D                      
+        real,    dimension(:,:,:), pointer    :: Aux3D
+        real,    dimension(:,:  ), pointer    :: Aux2D        
         integer, dimension(:,:,:), pointer    :: WaterPoints    
+        integer, dimension(:,:) ,  pointer    :: WaterPoints2D        
         real,    dimension(:,:  ), pointer    :: Bathymetry
         character(len=PathLength)             :: Field, AuxChar, FileName
         character(len=StringLength)           :: PropName
@@ -624,11 +648,20 @@ d11:    do l = 1, Me%FieldNumber
 
         call WriteHorizontalGrid (Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR30'
+
+        if (Me%Dim2D) then
         
-        Me%KUB = 1
+            allocate(Aux2D        (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))  
+            allocate(WaterPoints2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         
-        allocate(Aux3D      (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,1: Me%KUB))  
-        allocate(WaterPoints(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,1: Me%KUB))
+        else
+
+            Me%KUB = 1
+            allocate(Aux3D      (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,1: Me%KUB))  
+            allocate(WaterPoints(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,1: Me%KUB))
+        
+        endif
+
         allocate(Bathymetry (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB          ))
 
 
@@ -664,11 +697,19 @@ d11:    do l = 1, Me%FieldNumber
         
         enddo
         
-        call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,                &
-                           Me%WorkSize%JLB,Me%WorkSize%JUB, 1, Me%KUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR60'
+        if (Me%Dim2D) then        
+        
+            call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,                &
+                               Me%WorkSize%JLB,Me%WorkSize%JUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR60'
       
-
+        else
+        
+            call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,                &
+                               Me%WorkSize%JLB,Me%WorkSize%JUB, 1, Me%KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR65'
+        endif
+        
 do1:    do it = 1, Me%InstantNumber
 do2:    do l  = 1, Me%PropNumber
 
@@ -697,7 +738,7 @@ do2:    do l  = 1, Me%PropNumber
             
             PropName = GetPropertyName(Me%PropESRI(l))
 
-            FileName = trim(AuxChar)//trim(PropName)//".dat"
+            FileName = trim(AuxChar)//trim(PropName)//".asc"
 
             open(Unit   = Unit,                                                     &
                  File   = trim(FileName),                                           &
@@ -752,50 +793,107 @@ do2:    do l  = 1, Me%PropNumber
             iend   = Len_Trim(AuxChar) 
             
             read(AuxChar(istart:iend),*) nodata_value
-                        
-            do i = IUB, ILB, -1
-                read(Unit,*) (Aux3D(i,j,k),j=JLB,JUB)
-            enddo
+            
+            if (Me%Dim2D) then
+                do i = IUB, ILB, -1
+                    read(Unit,*) (Aux2D(i,j),j=JLB,JUB)
+                    if (Me%NoNegativeValues) then
+                        do j=JLB,JUB
+                            if (Aux2D(i,j)<0.) then
+                                Aux2D(i,j) = 0.
+                            endif
+                        enddo  
+                    endif                      
+                enddo
+                
+                call HDF5WriteData(Me%ObjHDF5,                                              &
+                                   GroupName    = "/Results/"//PropName,                    &
+                                   Name         = PropName,                                 &
+                                   Units        = '-',                                      &       
+                                   Array2D      = Aux2D,                                    &
+                                   OutputNumber = it,                                       &
+                                   STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR125'
+
+                
+            else                        
+                do i = IUB, ILB, -1
+                    read(Unit,*) (Aux3D(i,j,k),j=JLB,JUB)
+                    if (Me%NoNegativeValues) then
+                        do j=JLB,JUB
+                            if (Aux3D(i,j,k)<0.) then
+                                Aux3D(i,j,k) = 0.
+                            endif
+                        enddo  
+                    endif                      
+                enddo
+                
+                call HDF5WriteData(Me%ObjHDF5,                                              &
+                                   GroupName    = "/Results/"//PropName,                    &
+                                   Name         = PropName,                                 &
+                                   Units        = '-',                                      &       
+                                   Array3D      = Aux3D,                                    &
+                                   OutputNumber = it,                                       &
+                                   STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR130'
+                
+            endif
             
             
             call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR120'
-            
-            call HDF5WriteData(Me%ObjHDF5,                                              &
-                               GroupName    = "/Results/"//PropName,                    &
-                               Name         = PropName,                                 &
-                               Units        = '-',                                      &       
-                               Array3D      = Aux3D,                                    &
-                               OutputNumber = it,                                       &
-                               STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR130'
-            
-            call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR140'
+
             
             
             if (FirstTime) then
-                WaterPoints(:,:,:) = 0
-                
-                do j = JLB, JUB
-                do i = ILB, IUB
-                    if (Aux3D(i,j,k) /= nodata_value) WaterPoints(i,j,k) = 1
-                enddo
-                enddo
-                
-                Bathymetry(:,:) = WaterPoints(:,:,k)
+            
+                if (Me%Dim2D) then            
+                    WaterPoints2D(:,:) = 0
+                    
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                        if (Aux2D(i,j) /= nodata_value) then
+                            WaterPoints2D(i,j) = 1
+                        endif                        
+                    enddo
+                    enddo
+                    
+                    Bathymetry(:,:) = WaterPoints2D(:,:)
 
-                call HDF5WriteData(Me%ObjHDF5,                                          &
-                                   GroupName    = "/Grid",                              &
-                                   Name         = "WaterPoints3D",                      &
-                                   Units        = '-',                                  &       
-                                   Array3D      = WaterPoints,                          &
-                                   STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR150'
+                    call HDF5WriteData(Me%ObjHDF5,                                          &
+                                       GroupName    = "/Grid",                              &
+                                       Name         = "WaterPoints2D",                      &
+                                       Units        = '-',                                  &       
+                                       Array2D      = WaterPoints2D,                        &
+                                       STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR150'
 
-                deallocate(WaterPoints)
+                    deallocate(WaterPoints2D)
 
+                else
+                    WaterPoints(:,:,:) = 0
+                    
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                        if (Aux3D(i,j,k) /= nodata_value) then
+                            WaterPoints(i,j,k) = 1
+                        endif                        
+                    enddo
+                    enddo
+                    
+                    Bathymetry(:,:) = WaterPoints(:,:,k)
 
+                    call HDF5WriteData(Me%ObjHDF5,                                          &
+                                       GroupName    = "/Grid",                              &
+                                       Name         = "WaterPoints3D",                      &
+                                       Units        = '-',                                  &       
+                                       Array3D      = WaterPoints,                          &
+                                       STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR150'
+
+                    deallocate(WaterPoints)
+
+                endif
 
                 call HDF5WriteData(Me%ObjHDF5,                                          &
                                    GroupName    = "/Grid",                              &
@@ -813,8 +911,11 @@ do2:    do l  = 1, Me%PropNumber
         enddo do2
         enddo do1
         
-
-        deallocate(Aux3D)  
+        if (me%Dim2D) then
+            deallocate(Aux2D)
+        else
+            deallocate(Aux3D)
+        endif                        
 
     end subroutine ModifyEsriGridData_2_HDF5
  
