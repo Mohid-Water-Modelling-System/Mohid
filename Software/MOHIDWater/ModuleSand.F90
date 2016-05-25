@@ -353,6 +353,7 @@ Module ModuleSand
         logical                                    :: BedLoad               = .true.
         logical                                    :: SuspendedLoad         = .true.        
         logical                                    :: WaveEffect            = .true.                
+        logical                                    :: BedSlopeEffects       = .false.         
                        
         !Instance of ModuleHDF5        
         integer                                    :: ObjHDF5               = 0
@@ -2077,22 +2078,20 @@ cd2 :               if (BlockFound) then
                 
         END SELECT 
 
-        if     ( Me%TransportMethod == VanRijn1  &
-            .OR. Me%TransportMethod == VanRijn2  &
-            .OR. Me%TransportMethod == Bijker )  then
+        if     ( Me%TransportMethod == VanRijn1                                         &
+            .OR. Me%TransportMethod == VanRijn2                                         &
+            .OR. Me%TransportMethod == Bijker)  then
     !.OR. Me%TransportMethod == VanRijn2 .OR. Me%TransportMethod == Bijker
      
             if (Me%ObjWaves == 0) stop 'ConstructGlobalParameters - ModuleSand - ERR250'
 
             if (.not. Me%ExternalVar%WaveTensionON) stop 'ConstructGlobalParameters - ModuleSand - ERR260'
 
-            allocate (Me%Dast(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-
-            Me%Dast(:,:) = FillValueReal
-
         endif
 
+        allocate (Me%Dast(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
+        Me%Dast(:,:) = FillValueReal
 
 
         call GetData(AuxChar,                                                            &
@@ -2240,6 +2239,15 @@ cd2 :               if (BlockFound) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR400'
 
         endif    
+        
+         call GetData(Me%BedSlopeEffects,                                                &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'BEDSLOPE',                                          &
+                     default      = .TRUE.,                                              &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR410'
 
 
 
@@ -2796,14 +2804,14 @@ ifMS:   if (MasterOrSlave) then
                         iw >= Me%WorkSize%ILB .and. iw <= Me%WorkSize%IUB) then
                         if(Me%ExternalVar%WaterPoints2D(iw, jw) == WaterPoint) then
                             Counter = Counter + 1
-                            AuxSum  = AuxSum + Me%DZ_Residual%Field2D(iw, jw)
+                            AuxSum  = AuxSum + Me%BatimIncrement%Field2D(iw, jw)
                         end if
                     endif
 
                 enddo
                 enddo
 
-                Me%Filter%Field2D(i, j) = Beta * (AuxSum / real(Counter) - Me%DZ_Residual%Field2D(i, j))
+                Me%Filter%Field2D(i, j) = Beta * (AuxSum / real(Counter) - Me%BatimIncrement%Field2D(i,j))
 
             endif
                                    
@@ -2872,6 +2880,7 @@ ifMS:   if (MasterOrSlave) then
                             
         endif
 
+!Compute FluxX and FluxY
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
 
@@ -2914,11 +2923,6 @@ ifMS:   if (MasterOrSlave) then
                         Me%FluxX (i, j) = Me%TransportCapacity(i, j) * FluxX  * Me%TransportFactor
                         Me%FluxY (i, j) = Me%TransportCapacity(i, j) * FluxY  * Me%TransportFactor
                         
-                        DT_Racio = Me%Evolution%SandDT / Me%Evolution%DZDT
-                
-                        Me%FluxXIntegral (i, j) = Me%FluxXIntegral (i, j) + Me%FluxX (i, j) * DT_Racio
-                        Me%FluxYIntegral (i, j) = Me%FluxYIntegral (i, j) + Me%FluxY (i, j) * DT_Racio
-
                     endif
 
                 endif
@@ -2927,9 +2931,126 @@ ifMS:   if (MasterOrSlave) then
 
         enddo
         enddo
+        
+        if(Me%BedSlopeEffects)then
+            call ComputeBedSlopeEffects
+        endif
+        
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+
+            if (Me%ExternalVar%OpenPoints2D(i, j) == OpenPoint) then
+
+                DT_Racio = Me%Evolution%SandDT / Me%Evolution%DZDT
+                
+                Me%FluxXIntegral (i, j) = Me%FluxXIntegral (i, j) + Me%FluxX (i, j) * DT_Racio
+                Me%FluxYIntegral (i, j) = Me%FluxYIntegral (i, j) + Me%FluxY (i, j) * DT_Racio
+
+            endif
+
+        enddo
+        enddo        
 
     end subroutine ComputeFluxes
     !--------------------------------------------------------------------------
+    
+   !--------------------------------------------------------------------------
+
+    subroutine ComputeBedSlopeEffects
+      
+        !Local-----------------------------------------------------------------                
+        integer                 :: i, j
+        real(8)                 :: Xaux, Yaux, AbsFlux, AuxFluxX, AuxFluxY
+        real(8), parameter      :: PI_DBLE = 3.1415926536 !PI
+        real                    :: alfa_bs, alfa_bn, phi, dhdx, dhdy
+        real                    :: dzds, dzdn, alfa_s, alfa_n
+        !----------------------------------------------------------------------
+ 
+        alfa_bs = 1.0
+        alfa_bn = 1.5
+        
+        !internal angle of friction of bed material (assumed to be 35º)
+        phi = 35. * pi/180.
+        
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+
+            if (Me%ExternalVar%OpenPoints2D(i, j) == OpenPoint) then
+
+                AbsFlux = (Me%FluxX(i, j)**2. + Me%FluxY(i, j)**2.)**0.5
+
+                if (AbsFlux > 0.) then
+                        
+                    Xaux = Me%FluxX(i, j) / AbsFlux
+                    Yaux = Me%FluxY(i, j) / AbsFlux
+                        
+                    dhdx = 0.
+                    dhdy = 0.
+                        
+                    if (Me%FluxX(i, j) < 0.) then                            
+                        if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
+                                
+                            dhdx = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i, j-1)) /  &
+                                    Me%ExternalVar%DZX(i,j-1)
+                        endif
+                    else
+                        if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
+                                
+                            dhdx = (Me%ExternalVar%Bathymetry(i, j+1) - Me%ExternalVar%Bathymetry(i, j)) /  &
+                                    Me%ExternalVar%DZX(i,j)
+                        endif                    
+                    endif
+
+                    if (Me%FluxY(i, j) < 0.) then
+                        if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+                        
+                                dhdy = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i-1, j)) /  &
+                                        Me%ExternalVar%DZY(i-1,j)     
+                        endif
+                    else 
+                        if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
+                                
+                            dhdy = (Me%ExternalVar%Bathymetry(i+1, j) - Me%ExternalVar%Bathymetry(i, j)) /  &
+                                        Me%ExternalVar%DZY(i,j)        
+                        endif
+                    endif
+                        
+                    !Longitudinal bed slope
+                    dzds = dhdx * Xaux + dhdy * Yaux
+                        
+                    dzds = min(dzds,0.9*tan(phi))                        
+                        
+                    alfa_s = 1 + alfa_bs * (tan(phi) / (cos(atan(dzds)) * (tan(phi) - dzds)) - 1)
+                        
+                    !Transverse bed slope                            
+                    dzdn = -dhdx * Yaux + dhdy * Xaux
+                    
+                    !alfa_n = alfa_bn * (Me%CriticalShearStress(i,j) /    &
+                    !        Me%ExternalVar%ShearStress(i,j))**0.5 * dzdn
+                    
+                    if (Me%ExternalVar%TauTotal(i,j) > 0.) then
+                        alfa_n = alfa_bn * (Me%TauCritic(i,j) / Me%ExternalVar%TauTotal(i,j))**0.5 * dzdn                     
+                    else
+                        alfa_n = 0.
+                    endif                        
+                            
+                    !Adjustment of bedload transport for bed-slope effects
+                    
+                    AuxFluxX = alfa_s * (Me%FluxX(i, j) - alfa_n * Me%FluxY(i, j))
+                    AuxFluxY = alfa_s * (Me%FluxY(i, j) + alfa_n * Me%FluxX(i, j))
+                    
+                    Me%FluxX(i, j) = AuxFluxX
+                    Me%FluxY(i, j) = AuxFluxY
+                    
+                endif
+            endif
+        enddo
+        enddo
+
+
+    end subroutine ComputeBedSlopeEffects
+      
+   !--------------------------------------------------------------------------    
 
     subroutine MeyerPeterTransport
         !Local-----------------------------------------------------------------
@@ -4124,7 +4245,6 @@ ifMS:   if (MasterOrSlave) then
         SELECT CASE (Me%TransportMethod)
 
         Case (MeyerPeter)
-!        Case (MeyerPeter .or. Ackers)
             
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -4135,14 +4255,16 @@ ifMS:   if (MasterOrSlave) then
 
                 else
 
-                    Me%TauCritic(i, j) = FillValueReal
+                    Me%TauCritic(i, j) = 0. 
 
                 endif
 
             enddo
             enddo
+            
+        case default                         
 
-        Case (VanRijn1,VanRijn2,Bijker)
+!        Case (VanRijn1,VanRijn2,Bijker, VanRijn2007)
 !     Case (VanRijn, Bijker)
             
             do j=Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -4150,6 +4272,7 @@ ifMS:   if (MasterOrSlave) then
 
                 if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
                     
+                    ! []         = [m] * ([] * m/s2 / [m2/s]^2)^(1/3)
                     Me%Dast(I,J) = Me%D50%Field2D(I,J)*(Me%RelativeDensity*Gravity/WaterCinematicVisc**2)**Exp
                     If (Me%Dast(I,J).GT.1.AND.Me%Dast(I,J).LE.4) Then
                        TetaCrit = 0.24/Me%Dast(I,J)
@@ -4167,7 +4290,7 @@ ifMS:   if (MasterOrSlave) then
 
                 else
 
-                    Me%TauCritic(i, j)= FillValueReal
+                    Me%TauCritic(i, j)= 0.
 
                 endif
 
@@ -5123,9 +5246,7 @@ if1:            if (Me%Classes%Number > 0) then
                 
                 !if (Me%TransportMethod == VanRijn1) deallocate (Me%Dast)
                 
-                if   (Me%TransportMethod == VanRijn1  &
-                 .OR. Me%TransportMethod == VanRijn2  &
-                 .OR. Me%TransportMethod == Bijker ) deallocate (Me%Dast)
+                if   (associated(Me%Dast)) deallocate (Me%Dast)
 
                 if (Me%Boxes%Yes) then
 

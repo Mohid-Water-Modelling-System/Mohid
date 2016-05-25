@@ -248,6 +248,7 @@ Module ModuleTurbulence
          integer                                    :: ContinuousFormat      = null_int        
          logical                                    :: WaveBreaking          = .false. 
          real                                       :: CoefBreaking          = null_real
+         logical                                    :: VisHVariableInTime    = .false.      
     end type T_TurbOptions
 
     type       T_Statistics
@@ -259,6 +260,7 @@ Module ModuleTurbulence
     type       T_Viscosity
         real, dimension(:,:,:), pointer             :: Vertical         => null() !inicialization: Carina
         real, dimension(:,:,:), pointer             :: HorizontalCenter => null() !inicialization: Carina
+        real, dimension(:,:,:), pointer             :: HorizontalCenterIni => null() !inicialization: Carina        
         real, dimension(:,:,:), pointer             :: HorizontalCorner => null() !inicialization: Carina
         real                                        :: Background       = null_real !inicialization: Carina
         real                                        :: VertMax          = null_real !inicialization: Carina
@@ -1018,6 +1020,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%OutPut%Aux3D(:,:,:) = null_real
         end if
         
+        if (Me%TurbOptions%WaveBreaking) then
+            allocate(Me%Viscosity%HorizontalCenterIni(ILB:IUB, JLB:JUB, KLB:KUB))        
+            Me%Viscosity%HorizontalCenterIni(:,:,:)   = null_real
+        endif
+        
 
         !----------------------------------------------------------------------
 
@@ -1157,27 +1164,39 @@ case1 : select case  (Me%TurbOptions%MODVISH)
             case (File2D_     )
 
                 call InicFileHorizontalModel
+                
+                Me%TurbOptions%VisHVariableInTime = .false.                
                  
             case (Constant_   )
 
                 call InicConstantHorizontalModel
+                
+                Me%TurbOptions%VisHVariableInTime = .false.                
      
             case (Estuary_    )
 
                 call InicEstuarySmagorinskyModel
         
-                call InicEstuaryModel           
+                call InicEstuaryModel       
+                
+                Me%TurbOptions%VisHVariableInTime = .true.
         
             case (Smagorinsky_ , smagorinsky3d_)
 
                 call InicEstuarySmagorinskyModel
        
                 call InicSmagorinskyModel
+                
+                Me%TurbOptions%VisHVariableInTime = .true.                
         
             case default
                 stop 'Subroutine InicHorizontalModels - ModuleTurbulence. ERR07.'
 
         end select case1
+        
+        if (Me%TurbOptions%WaveBreaking) then
+            Me%Viscosity%HorizontalCenterIni(:,:,:) = Me%Viscosity%HorizontalCenter(:,:,:)
+        endif
 
         
         call TurbulentViscosity_CellCorner
@@ -1342,14 +1361,14 @@ cd1 :   if (flag .EQ. 0) then
                      Keyword      = 'MODTURB',              &
                      ClientModule = 'ModuleTurbulence',     &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'TurbulenceOptions - ModuleTurbulence - ERR01'
+        if (STAT_CALL .NE. SUCCESS_) stop 'TurbulenceOptions - ModuleTurbulence - ERR10'
 
 cd1 :   if (flag .EQ. 0) then
             Me%TurbOptions%MODTURB = Constant_
         else
             String = trim(adjustl(String))
             call CheckVerticalTurbulenceOption(String, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'TurbulenceOptions - ModuleTurbulence - ERR02'
+            if (STAT_CALL .NE. SUCCESS_) stop 'TurbulenceOptions - ModuleTurbulence - ERR20'
         end if cd1
 
 
@@ -1358,14 +1377,14 @@ cd1 :   if (flag .EQ. 0) then
                      Keyword      = 'MODVISH',              &
                      ClientModule = 'ModuleTurbulence',     &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'TurbulenceOptions - ModuleTurbulence - ERR03'
+        if (STAT_CALL .NE. SUCCESS_) stop 'TurbulenceOptions - ModuleTurbulence - ERR30'
 
 cd2 :   if (flag .EQ. 0) then
             Me%TurbOptions%MODVISH = Constant_
         else
             String = trim(adjustl(String))
             call CheckHorizontalTurbulenceOption(String, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'TurbulenceOptions - ModuleTurbulence - ERR04'
+            if (STAT_CALL .NE. SUCCESS_) stop 'TurbulenceOptions - ModuleTurbulence - ERR40'
         end if cd2
 
 
@@ -1377,7 +1396,7 @@ cd2 :   if (flag .EQ. 0) then
                             ClientModule = 'ModuleTurbulence',  &
                             Default      = .false.,             & 
                             STAT         = STAT_CALL)            
-            if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR05'
+            if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR50'
                 
 
         else
@@ -1392,7 +1411,7 @@ cd2 :   if (flag .EQ. 0) then
                       ClientModule = 'ModuleTurbulence',    &
                       Default      = .false.,               &
                       STAT         = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR06'
+        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR60'
         
         
         call GetData (Me%Output%ProfileON,                  &
@@ -1401,7 +1420,7 @@ cd2 :   if (flag .EQ. 0) then
                       ClientModule = 'ModuleTurbulence',    &
                       Default      = .false.,               &
                       STAT         = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR07'
+        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR70'
 
         call GetData(Me%TurbOptions%PressureCorrec,                                      &
                      Me%ObjEnterData, flag,                                              &
@@ -1410,7 +1429,7 @@ cd2 :   if (flag .EQ. 0) then
                      Default    = .true.,                                                &
                      ClientModule = 'ModuleWaterProperties',                             &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR09'
+        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR80'
 
         !<BeginKeyword>
             !Keyword          : MLD
@@ -1431,7 +1450,7 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule = 'ModuleTurbulence',     &
                      Default      = .false.,                &
                      STAT         = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR10'
+        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR90'
         
         
         if(Me%TurbOptions%MLD_Calc) then
@@ -1455,7 +1474,7 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule = 'ModuleTurbulence',     &
                      Default      = .false.,                &
                      STAT         = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR11'
+        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR100'
            
             !<BeginKeyword>
             !Keyword          : MLD_Method
@@ -1477,7 +1496,7 @@ cd2 :   if (flag .EQ. 0) then
                         ClientModule = 'ModuleTurbulence',      &
                         Default      = rich_mld_,               &
                         STAT         = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR12'
+        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR110'
 
            !<BeginKeyword>
             !Keyword          : TKE_MLD
@@ -1501,7 +1520,7 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule = 'ModuleTurbulence',     &
                      Default      = 1.e-5,                  &
                      STAT         = STAT_CALL)            
-                if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR13'
+                if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR120'
               
               else
               
@@ -1536,7 +1555,7 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule = 'ModuleTurbulence',     &
                      Default      = 0.5,                    &
                      STAT         = STAT_CALL)            
-             if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR14'
+             if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR130'
         
            end if
 
@@ -1552,7 +1571,7 @@ cd2 :   if (flag .EQ. 0) then
                            OutPutsOn   = Me%OutPut%ON,                                   &
                            STAT        = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR15'
+        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR140'
 
         if (Me%OutPut%ON) then
 
@@ -1569,7 +1588,7 @@ cd2 :   if (flag .EQ. 0) then
                            OutPutsOn   = Me%OutPut%WriteRestartFile,                    &
                            STAT        = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR15'
+        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR150'
 
         if(Me%TurbOptions%MODTURB .ne. TurbulenceEquation_ .and. &
            Me%OutPut%WriteRestartFile)then
@@ -1612,7 +1631,7 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule = 'Turbulence',                                       &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, KEYWORD_, "TurbulenceOptions - Turbulence - ERR16")
+            call SetError(FATAL_, KEYWORD_, "TurbulenceOptions - Turbulence - ERR160")
             
 #ifdef _USE_MPI        
 
@@ -1645,7 +1664,7 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule ='Turbulence',                                        &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR200.')
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR170.')
 
         !<BeginKeyword>
             !Keyword          : WRITE_CONTINUOUS_FORMAT
@@ -1669,7 +1688,7 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule ='Turbulence',                                        &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR250.')
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR180.')
             
             
 
@@ -1696,7 +1715,7 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule ='Turbulence',                                        &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR270.')
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR190.')
             
         if (flag == 1) then
             Me%TurbOptions%ReadContinuousFormat  = Me%TurbOptions%ContinuousFormat
@@ -1705,12 +1724,12 @@ cd2 :   if (flag .EQ. 0) then
         
         if (Me%TurbOptions%ReadContinuousFormat /= Binary_ .and.                        &
             Me%TurbOptions%ReadContinuousFormat /= HDF5_) then
-            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR290.')
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR200.')
         endif
             
         if (Me%TurbOptions%WriteContinuousFormat /= Binary_ .and.                       &
             Me%TurbOptions%WriteContinuousFormat /= HDF5_) then
-            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR300.')
+            call SetError(FATAL_, INTERNAL_, 'TurbulenceOptions - Turbulence - ERR210.')
         endif
                 
         
@@ -1735,7 +1754,7 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule = 'ModuleTurbulence',                                 &
                      Default      = .false.,                                            &
                      STAT         = STAT_CALL)            
-         if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR14'
+         if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR220'
          
         if (Me%TurbOptions%WaveBreaking) then
 
@@ -1764,9 +1783,21 @@ cd2 :   if (flag .EQ. 0) then
                          ClientModule = 'ModuleTurbulence',                             &
                          Default      = 1.4,                                            &
                          STAT         = STAT_CALL)            
-             if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR20'
+             if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR230'
         
         endif
+        
+        !Maximum horizontal viscosity
+        call GetData(Me%TurbVar%MAXHorizontalViscosity,                                 &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'VISH_MAX',                                         &
+                     ClientModule = 'ModuleTurbulence',                                 &
+                     default      = -FillValueReal,                                     &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'TurbulenceOptions - ModuleTurbulence - ERR240'        
+        
     
     end subroutine TurbulenceOptions   
 
@@ -2060,16 +2091,6 @@ cd1 :   if (iflag .EQ. 0) then
             write(*,*) 
         end if cd1
         
-        !Minimum horizontal viscosity
-        call GetData(Me%TurbVar%MAXHorizontalViscosity,         &
-                     Me%ObjEnterData, iflag,                    &
-                     SearchType   = FromFile,                   &
-                     keyword      = 'VISH_MAX',                 &
-                     ClientModule = 'ModuleTurbulence',         &
-                     default      = -FillValueReal,             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                              &
-            stop 'InicEstuarySmagorinskyModel - ModuleTurbulence - ERR20'        
         
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
@@ -3446,16 +3467,14 @@ do1 :                   do K = kbottom, KUB+1
                 !$OMP END PARALLEL
 
             end if cd2
-
+            
                 !Horizontal turbulence model
 cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then 
-                
-                continue    !If turbulence is Constant_ it does not change in time and space
+
                 
             elseif (Me%TurbOptions%MODVISH .EQ. File2D_     ) then cd4
             
-                continue
-            
+                          
             elseif (Me%TurbOptions%MODVISH .EQ. Estuary_    ) then cd4
             
                 call EstuaryModel
@@ -3475,7 +3494,12 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
             end if cd4
             
             if (Me%TurbOptions%WaveBreaking) then
+                if (Me%TurbOptions%VisHVariableInTime) then
+                    Me%Viscosity%HorizontalCenterIni(:,:,:) = Me%Viscosity%HorizontalCenter(:,:,:)                
+                endif
+                
                 call WaveBreaking
+                                    
             endif
 
             call TurbulentViscosity_CellCorner
@@ -4717,8 +4741,8 @@ do1 :           do k = kbottom, KUB
                     
                     ! [m^2/s]        = [ ] * [ ] * [m] * [m/s]
                     TurbWaveBreaking = CoefBreaking * B * WaterColumnZ(i, j) * abs(WLt)
-
-                    Me%Viscosity%HorizontalCenter(i, j, k) = Me%Viscosity%HorizontalCenter(i, j, k) + TurbWaveBreaking
+                    
+                    Me%Viscosity%HorizontalCenter(i, j, k) = Me%Viscosity%HorizontalCenterIni(i, j, k) + TurbWaveBreaking
                                                                  
                     if (Me%Viscosity%HorizontalCenter(i, j, k) > Me%TurbVar%MaxHorizontalViscosity) then
                         Me%Viscosity%HorizontalCenter(i, j, k) = Me%TurbVar%MaxHorizontalViscosity
@@ -6509,6 +6533,12 @@ cd7 :           if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
                 nullify(Me%ExternalVar%SigmaNoPressure )
                 nullify(Me%ExternalVar%Temperature     )
                 nullify(Me%ExternalVar%Salinity        )
+                
+       
+                if (Me%TurbOptions%WaveBreaking) then
+                    deallocate(Me%Viscosity%HorizontalCenterIni)
+                    nullify   (Me%Viscosity%HorizontalCenterIni)
+                endif                
 
                 call DeallocateInstance
 

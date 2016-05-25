@@ -3334,6 +3334,7 @@ BF1:    if (Me%ReadCartCorners) then
 
         !Local-----------------------------------------------------------------
         integer                 :: Imax, Jmax, STAT_CALL
+        logical                 :: Exist
         !----------------------------------------------------------------------
 
         !Nullify T_Distances
@@ -3368,9 +3369,48 @@ BF1:    if (Me%ReadCartCorners) then
         nullify (Me%LatitudeConn )
         nullify (Me%LongitudeConn)
         
-        call GetHDF5ArrayDimensions (HDF5ID = Me%ObjHDF5, GroupName = "/Grid",          &
-                                    ItemName = "Latitude", Imax = Imax, Jmax = Jmax,  &
-                                    STAT = STAT_CALL)
+        call GetHDF5DataSetExist (HDF5ID        = Me%ObjHDF5,                           &
+                                  DataSetName   = "/Grid/Latitude",                     &
+                                  Exist         = Exist,                                & 
+                                  STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR10'
+        
+        if (Exist) then
+        
+            call GetHDF5ArrayDimensions (HDF5ID = Me%ObjHDF5, GroupName = "/Grid",      &
+                                        ItemName = "Latitude", Imax = Imax, Jmax = Jmax,&
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR20'
+
+            !Reads COORD_TIP
+            Me%CoordType = SIMPLE_GEOG_
+            
+            Me%Datum     = WGS_84_DATUM
+            
+            Me%ProjType = PAULO_PROJECTION_
+        else
+
+            call GetHDF5DataSetExist (HDF5ID        = Me%ObjHDF5,                       &
+                                      DataSetName   = "/Grid/ConnectionX",              &
+                                      Exist         = Exist,                            & 
+                                      STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR30'
+            
+                if (Exist) then
+                call GetHDF5ArrayDimensions (HDF5ID = Me%ObjHDF5, GroupName = "/Grid",      &
+                                            ItemName = "ConnectionX", Imax = Imax, Jmax = Jmax,&
+                                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR40'            
+
+                !Reads COORD_TIP
+                Me%CoordType = GRID_COORD_
+                
+            else
+                stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR50'
+            endif
+
+        
+        endif
     
         Me%WorkSize%ILB = 1
         Me%WorkSize%IUB = Imax - 1
@@ -3386,15 +3426,6 @@ BF1:    if (Me%ReadCartCorners) then
         Me%Size%JUB     = Me%WorkSize%JUB+1 
 
 
-        !Reads COORD_TIP
-        Me%CoordType = SIMPLE_GEOG_
-
-        
-        Me%Datum = WGS_84_DATUM
-        
-        
-        Me%ProjType = PAULO_PROJECTION_
-        
         Me%Xorig = 0
         Me%Yorig = 0
 
@@ -3434,12 +3465,16 @@ BF1:    if (Me%ReadCartCorners) then
         
         call ReadHDF5HorizontalGrid()
         
-        Me%YY_IE = Me%LatitudeConn
-        Me%XX_IE = Me%LongitudeConn
+        if (Me%CoordType == SIMPLE_GEOG_) then
         
-        Me%Latitude   = Me%LatitudeConn (1,1)
-        Me%Longitude  = Me%LongitudeConn(1,1)
-     
+            Me%YY_IE = Me%LatitudeConn
+            Me%XX_IE = Me%LongitudeConn
+            
+            Me%Latitude   = Me%LatitudeConn (1,1)
+            Me%Longitude  = Me%LongitudeConn(1,1)
+        
+        endif
+        
         !Allocates variables common to the module
         call AllocateVariables
 
@@ -12997,35 +13032,52 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
         WorkIUB = Me%WorkSize%IUB
         WorkJLB = Me%WorkSize%JLB
         WorkJUB = Me%WorkSize%JUB
-
+        
 
         !Sets limits for next write operations
         call HDF5SetLimits   (Me%ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
                               STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR10'
 
-        call HDF5ReadData   (Me%ObjHDF5, "/Grid", "Longitude",                          &
-                              Array2D = Me%LongitudeConn,                               &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR05'
+        if (Me%CoordType == SIMPLE_GEOG_) then
 
-        call HDF5ReadData   (Me%ObjHDF5, "/Grid", "Latitude",                           &
-                              Array2D = Me%LatitudeConn,                                &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR06'
+            call HDF5ReadData   (Me%ObjHDF5, "/Grid", "Longitude",                          &
+                                  Array2D = Me%LongitudeConn,                               &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR20'
+
+            call HDF5ReadData   (Me%ObjHDF5, "/Grid", "Latitude",                           &
+                                  Array2D = Me%LatitudeConn,                                &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR30'
+        
+        else
+        
+            call HDF5ReadData   (Me%ObjHDF5, "/Grid", "ConnectionX",                        &
+                                  Array2D = Me%XX_IE,                                       &
+                                  STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR40'
+
+            call HDF5ReadData   (Me%ObjHDF5, "/Grid", "ConnectionY",                        &
+                                  Array2D = Me%YY_IE,                                       &
+                                  STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR50'
+        
+        endif
+
 
         if (Me%CornersXYInput) then
         
             call GetHDF5DataSetExist (Me%ObjHDF5, DataSetName ="/Grid/Define Cells",    &
                                       Exist = Exist, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR07'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR60'
 
             if (Exist) then
 
                 call HDF5ReadData   (Me%ObjHDF5, "/Grid", "Define Cells",               &
                                       Array2D = Me%DefineCellsMap,                      &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR09'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR70'
 
             endif
 
