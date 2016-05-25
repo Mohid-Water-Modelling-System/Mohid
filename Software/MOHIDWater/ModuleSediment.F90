@@ -335,7 +335,7 @@ Module ModuleSediment
         !real                                    :: WeakConsolidated_CSS = FillValueReal
         real                                    :: PM1_MAX              = FillValueReal
         real                                    :: PM2                  = FillValueReal
-        
+        real                                    :: Beta                 = FillValueReal
         
         real,    dimension(:,:), pointer        :: CriticalShearStress   => null ()
         real, dimension(:,:), pointer           :: PM1                   => null ()
@@ -2014,15 +2014,15 @@ cd2 :           if (BlockFound) then
                         
             if (iflag .NE. 1) stop 'ConstructClasses - ModuleSediment - ERR120'
                  
-                !Maximum mud percentage in which the bed starts to have a cohesive behaviour
-                call GetData(Me%CohesiveClass%PM1_MAX,                              &
-                            Me%ObjEnterData,iflag,                           &
-                            SearchType   = FromBlock,                        &
-                            keyword      = 'PM1_MAX',                            &
-                            default      = 0.3,                              &
-                            ClientModule = 'ModuleSediment',                 &
-                            STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR126'
+            !Maximum mud percentage in which the bed starts to have a cohesive behaviour
+            call GetData(Me%CohesiveClass%PM1_MAX,                              &
+                        Me%ObjEnterData,iflag,                           &
+                        SearchType   = FromBlock,                        &
+                        keyword      = 'PM1_MAX',                            &
+                        default      = 0.3,                              &
+                        ClientModule = 'ModuleSediment',                 &
+                        STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR126'
                  
             !Mud percentage for a fully cohesive bed 
             call GetData(Me%CohesiveClass%PM2,                              &
@@ -2043,6 +2043,16 @@ cd2 :           if (BlockFound) then
                                 Default      = 1e-2,                                   &
                                 STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR128'
+            
+            !Calibration coefficient for critical shear stress equation of sand particles in a non-cohesive bed (depending on mud content)
+            call GetData(Me%CohesiveClass%Beta,                          &
+                        Me%ObjEnterData,iflag,                           &
+                        SearchType   = FromBlock,                        &
+                        keyword      = 'BETA',                           &
+                        default      = 2.2,                              &
+                        ClientModule = 'ModuleSediment',                 &
+                        STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR129'
                 
             allocate(Me%CohesiveClass%CriticalShearStress(ILB:IUB, JLB:JUB))
             Me%CohesiveClass%CriticalShearStress(:,:) = FillValueReal
@@ -3738,13 +3748,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 write(*,*) 'Define WAVETENSION: 1 in module InterfaceSedimentWater'
                 stop 'SetWaveTensionON - ModuleSediment - ERR10'
             endif
-        !else           
-            !if (Me%ExternalVar%WaveTensionON == .true.) then  
-                !write(*,*)
-                !write(*,*) 'WAVETENSION: 1 is defined in ModuleInterfaceSedimentWater'
-                !write(*,*) 'Change BEDLOAD_METHOD to 2 or 3'
-                !stop 'SetWaveTensionON - ModuleSediment - ERR20'
-            !endif
+        elseif(Me%BedloadMethod == 1) then         
+            if (Me%ExternalVar%WaveTensionON) then  
+                write(*,*)
+                write(*,*) 'WAVETENSION: 1 is defined in ModuleInterfaceSedimentWater'
+                write(*,*) 'Change BEDLOAD_METHOD to 2 or 3'
+                stop 'SetWaveTensionON - ModuleSediment - ERR20'
+            endif
         endif
         
     end subroutine SetWaveTensionON
@@ -3996,19 +4006,6 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     call ComputeSedimentWaterFluxes
 
                     call BoundaryCondition
-                    
-!#if _USE_MPI        
-!do2:                do n=1,Me%NumberOfClasses
-!                        SandClass => Me%SandClass(n)
-!                        !MPI and Domain Decomposition is ON exchanges data along domain interfaces
-!                        call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
-!                                                        Property2D       = SandClass%DM,        &
-!                                                        STAT             = STAT_CALL)
-!                        if (STAT_CALL /= SUCCESS_) then
-!                            stop 'ComputeEvolution - ModuleSediment - ERR10'
-!                        endif
-!                    enddo do2
-!#endif _USE_MPI
                     
                     call ComputeMass
                     
@@ -4293,7 +4290,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     if (Me%CohesiveClass%Run) then
                     
                         alfa = 2.*10**3
-                        beta = 1.0
+                        beta = Me%CohesiveClass%Beta
                 
                         pm = Me%CohesiveClass%Field3D(i,j,WKUB)
                         
@@ -5595,106 +5592,109 @@ if5:                if (aux < SandClass%Mass_Min) then
        
         do j=WJLB, WJUB
         do i=WILB, WIUB
-                
-            !Erosion
-            if (Me%DM(i,j) .lt. 0.) then
-                    
-                WKUB = Me%KTop(i, j)
-    
-                if  (Me%ExternalVar%ComputeFacesU2D(i, j) == Not_Covered .and. &
-                     Me%ExternalVar%WaterPoints3D (i,j-1,WKUB) == WaterPoint) then
-                        
-                    !Me%DM(i,j) is always negative
-                    Me%DM(i,j-1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
-                    Me%DM(i,j  ) = Me%DM(i,j) - Me%DM(i,j-1)
-                    
-                    Me%Mass(i,j-1) =  Me%DM(i,j-1) + Me%Mass(i,j-1)
-                    Me%Mass(i,j  ) = -Me%DM(i,j-1) + Me%Mass(i,j  )
-                    
-                    WKUB1 = Me%KTop(i, j-1)
-                    
-                    if (Me%CohesiveClass%Run) then
-                        Me%CohesiveClass%Mass(i,j-1,WKUB1) =  Me%CohesiveClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + Me%CohesiveClass%Mass(i,j-1,WKUB1)
-                        Me%CohesiveClass%Mass(i,j  ,WKUB ) = -Me%CohesiveClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + Me%CohesiveClass%Mass(i,j  ,WKUB )
-                    endif
-                        
-                    do n=1,Me%NumberOfClasses
-                        SandClass => Me%SandClass(n)                            
-                        SandClass%Mass(i,j-1,WKUB1) =  SandClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + SandClass%Mass(i,j-1,WKUB1)
-                        SandClass%Mass(i,j , WKUB ) = -SandClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + SandClass%Mass(i,j  ,WKUB )
-                    enddo
-                endif
             
-                if  (Me%ExternalVar%ComputeFacesU2D(i, j+1) == Not_Covered .and. &
-                     Me%ExternalVar%WaterPoints3D (i,j+1,WKUB) == WaterPoint) then
+            if (Me%ExternalVar%OpenPoints2D(i,j) == OpenPoint) then
+                
+                !Erosion
+                if (Me%DM(i,j) .lt. 0.) then
+                    
+                    WKUB = Me%KTop(i, j)
+    
+                    if  (Me%ExternalVar%ComputeFacesU2D(i, j) == Not_Covered .and. &
+                         Me%ExternalVar%WaterPoints3D (i,j-1,WKUB) == WaterPoint) then
                         
-                    !Me%DM(i,j) is always negative
-                    Me%DM(i,j+1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
-                    Me%DM(i,j  ) = Me%DM(i,j) - Me%DM(i,j+1)
+                        !Me%DM(i,j) is always negative
+                        Me%DM(i,j-1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
+                        Me%DM(i,j  ) = Me%DM(i,j) - Me%DM(i,j-1)
                     
-                    Me%Mass(i,j+1) =  Me%DM(i,j+1) + Me%Mass(i,j+1)
-                    Me%Mass(i,j  ) = -Me%DM(i,j+1) + Me%Mass(i,j  )
+                        Me%Mass(i,j-1) =  Me%DM(i,j-1) + Me%Mass(i,j-1)
+                        Me%Mass(i,j  ) = -Me%DM(i,j-1) + Me%Mass(i,j  )
                     
-                    WKUB1 = Me%KTop(i, j+1)
+                        WKUB1 = Me%KTop(i, j-1)
                     
-                    if (Me%CohesiveClass%Run) then
-                        Me%CohesiveClass%Mass(i,j+1,WKUB1) =  Me%CohesiveClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + Me%CohesiveClass%Mass(i,j+1,WKUB1)
-                        Me%CohesiveClass%Mass(i,j  ,WKUB ) = -Me%CohesiveClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + Me%CohesiveClass%Mass(i,j  ,WKUB )
+                        if (Me%CohesiveClass%Run) then
+                            Me%CohesiveClass%Mass(i,j-1,WKUB1) =  Me%CohesiveClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + Me%CohesiveClass%Mass(i,j-1,WKUB1)
+                            Me%CohesiveClass%Mass(i,j  ,WKUB ) = -Me%CohesiveClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + Me%CohesiveClass%Mass(i,j  ,WKUB )
+                        endif
+                        
+                        do n=1,Me%NumberOfClasses
+                            SandClass => Me%SandClass(n)                            
+                            SandClass%Mass(i,j-1,WKUB1) =  SandClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + SandClass%Mass(i,j-1,WKUB1)
+                            SandClass%Mass(i,j , WKUB ) = -SandClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + SandClass%Mass(i,j  ,WKUB )
+                        enddo
                     endif
+            
+                    if  (Me%ExternalVar%ComputeFacesU2D(i, j+1) == Not_Covered .and. &
+                         Me%ExternalVar%WaterPoints3D (i,j+1,WKUB) == WaterPoint) then
                         
-                    do n=1,Me%NumberOfClasses
-                        SandClass => Me%SandClass(n)                            
-                        SandClass%Mass(i,j+1,WKUB1) =  SandClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + SandClass%Mass(i,j+1,WKUB1)
-                        SandClass%Mass(i,j , WKUB ) = -SandClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + SandClass%Mass(i,j , WKUB )
-                    enddo
-                endif
-        
-                if  (Me%ExternalVar%ComputeFacesV2D(i, j) == Not_Covered .and. &
-                     Me%ExternalVar%WaterPoints3D (i-1,j,WKUB) == WaterPoint) then
+                        !Me%DM(i,j) is always negative
+                        Me%DM(i,j+1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
+                        Me%DM(i,j  ) = Me%DM(i,j) - Me%DM(i,j+1)
+                    
+                        Me%Mass(i,j+1) =  Me%DM(i,j+1) + Me%Mass(i,j+1)
+                        Me%Mass(i,j  ) = -Me%DM(i,j+1) + Me%Mass(i,j  )
+                    
+                        WKUB1 = Me%KTop(i, j+1)
+                    
+                        if (Me%CohesiveClass%Run) then
+                            Me%CohesiveClass%Mass(i,j+1,WKUB1) =  Me%CohesiveClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + Me%CohesiveClass%Mass(i,j+1,WKUB1)
+                            Me%CohesiveClass%Mass(i,j  ,WKUB ) = -Me%CohesiveClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + Me%CohesiveClass%Mass(i,j  ,WKUB )
+                        endif
                         
-                    !Me%DM(i,j) is always negative
-                    Me%DM(i-1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
-                    Me%DM(i  ,j) = Me%DM(i,j) - Me%DM(i-1,j)
-                    
-                    Me%Mass(i-1,j) =  Me%DM(i-1,j) + Me%Mass(i-1,j)
-                    Me%Mass(i  ,j) = -Me%DM(i-1,j) + Me%Mass(i  ,j)
-                    
-                    WKUB1 = Me%KTop(i-1, j)
-                    
-                    if (Me%CohesiveClass%Run) then
-                        Me%CohesiveClass%Mass(i-1,j,WKUB1) =  Me%CohesiveClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + Me%CohesiveClass%Mass(i-1,j,WKUB1)
-                        Me%CohesiveClass%Mass(i  ,j,WKUB) = - Me%CohesiveClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + Me%CohesiveClass%Mass(i  ,j,WKUB )
+                        do n=1,Me%NumberOfClasses
+                            SandClass => Me%SandClass(n)                            
+                            SandClass%Mass(i,j+1,WKUB1) =  SandClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + SandClass%Mass(i,j+1,WKUB1)
+                            SandClass%Mass(i,j , WKUB ) = -SandClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + SandClass%Mass(i,j , WKUB )
+                        enddo
                     endif
-                        
-                    do n=1,Me%NumberOfClasses
-                        SandClass => Me%SandClass(n)                            
-                        SandClass%Mass(i-1,j,WKUB1) =  SandClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + SandClass%Mass(i-1,j,WKUB1)
-                        SandClass%Mass(i  ,j,WKUB ) = -SandClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + SandClass%Mass(i  ,j,WKUB )
-                    enddo
-                endif
         
-                if  (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Not_Covered .and. &
-                     Me%ExternalVar%WaterPoints3D (i+1,j,WKUB) == WaterPoint) then
+                    if  (Me%ExternalVar%ComputeFacesV2D(i, j) == Not_Covered .and. &
+                         Me%ExternalVar%WaterPoints3D (i-1,j,WKUB) == WaterPoint) then
                         
-                    !Me%DM(i,j) is always negative
-                    Me%DM(i+1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
-                    Me%DM(i  ,j) = Me%DM(i,j) - Me%DM(i+1,j)
+                        !Me%DM(i,j) is always negative
+                        Me%DM(i-1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
+                        Me%DM(i  ,j) = Me%DM(i,j) - Me%DM(i-1,j)
                     
-                    Me%Mass(i+1,j) =  Me%DM(i+1,j) + Me%Mass(i+1,j)
-                    Me%Mass(i  ,j) = -Me%DM(i+1,j) + Me%Mass(i  ,j)
+                        Me%Mass(i-1,j) =  Me%DM(i-1,j) + Me%Mass(i-1,j)
+                        Me%Mass(i  ,j) = -Me%DM(i-1,j) + Me%Mass(i  ,j)
                     
-                    WKUB1 = Me%KTop(i+1, j)
+                        WKUB1 = Me%KTop(i-1, j)
+                    
+                        if (Me%CohesiveClass%Run) then
+                            Me%CohesiveClass%Mass(i-1,j,WKUB1) =  Me%CohesiveClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + Me%CohesiveClass%Mass(i-1,j,WKUB1)
+                            Me%CohesiveClass%Mass(i  ,j,WKUB) = - Me%CohesiveClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + Me%CohesiveClass%Mass(i  ,j,WKUB )
+                        endif
+                        
+                        do n=1,Me%NumberOfClasses
+                            SandClass => Me%SandClass(n)                            
+                            SandClass%Mass(i-1,j,WKUB1) =  SandClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + SandClass%Mass(i-1,j,WKUB1)
+                            SandClass%Mass(i  ,j,WKUB ) = -SandClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + SandClass%Mass(i  ,j,WKUB )
+                        enddo
+                    endif
+        
+                    if  (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Not_Covered .and. &
+                         Me%ExternalVar%WaterPoints3D (i+1,j,WKUB) == WaterPoint) then
+                        
+                        !Me%DM(i,j) is always negative
+                        Me%DM(i+1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
+                        Me%DM(i  ,j) = Me%DM(i,j) - Me%DM(i+1,j)
+                    
+                        Me%Mass(i+1,j) =  Me%DM(i+1,j) + Me%Mass(i+1,j)
+                        Me%Mass(i  ,j) = -Me%DM(i+1,j) + Me%Mass(i  ,j)
+                    
+                        WKUB1 = Me%KTop(i+1, j)
                      
-                    if (Me%CohesiveClass%Run) then
-                        Me%CohesiveClass%Mass(i+1,j,WKUB1) =  Me%CohesiveClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + Me%CohesiveClass%Mass(i+1,j,WKUB1)
-                        Me%CohesiveClass%Mass(i  ,j,WKUB ) = -Me%CohesiveClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + Me%CohesiveClass%Mass(i  ,j,WKUB )
-                    endif
+                        if (Me%CohesiveClass%Run) then
+                            Me%CohesiveClass%Mass(i+1,j,WKUB1) =  Me%CohesiveClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + Me%CohesiveClass%Mass(i+1,j,WKUB1)
+                            Me%CohesiveClass%Mass(i  ,j,WKUB ) = -Me%CohesiveClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + Me%CohesiveClass%Mass(i  ,j,WKUB )
+                        endif
                         
-                    do n=1,Me%NumberOfClasses
-                        SandClass => Me%SandClass(n)                            
-                        SandClass%Mass(i+1,j,WKUB1) =  SandClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + SandClass%Mass(i+1,j,WKUB1)
-                        SandClass%Mass(i  ,j,WKUB ) = -SandClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + SandClass%Mass(i  ,j,WKUB )
-                    enddo
+                        do n=1,Me%NumberOfClasses
+                            SandClass => Me%SandClass(n)                            
+                            SandClass%Mass(i+1,j,WKUB1) =  SandClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + SandClass%Mass(i+1,j,WKUB1)
+                            SandClass%Mass(i  ,j,WKUB ) = -SandClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + SandClass%Mass(i  ,j,WKUB )
+                        enddo
+                    endif
                 endif
             endif
         enddo
