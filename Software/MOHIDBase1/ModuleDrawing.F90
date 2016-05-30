@@ -3290,11 +3290,12 @@ i6:                         if (DirectionX.ne.0.) then
         real, optional                       :: LineAng
         type (T_polygon), pointer, optional  :: AreaOfInterest
         !Local------------------------------------------------------
-        type (T_polygon), pointer            :: AuxPolygon
+        type (T_polygon), pointer            :: AuxPolygon, AuxPolygon1
         real(8)                              :: x1_r8,y1_r8,x2_r8,y2_r8,x3,y3,x4,y4
         real                                 :: dx, dy    
         integer                              :: n    
         logical                              :: SearchSeg
+        real                                 :: ymin, ymax, xmin, xmax
         !Begin------------------------------------------------------
 
         SegIntersectPolygon = .false.
@@ -3305,6 +3306,33 @@ i6:                         if (DirectionX.ne.0.) then
         y1_r8 = y1                
         x2_r8 = x2
         y2_r8 = y2
+        
+        if (present(AreaOfInterest)) then
+        
+            AuxPolygon1 => AreaOfInterest
+
+            ymin = - FillValueReal
+            ymax =   FillValueReal                        
+
+            xmin = - FillValueReal
+            xmax =   FillValueReal                        
+            
+            do while(associated(AuxPolygon1)) 
+            
+                if (ymin > AuxPolygon1%Limits%Bottom) ymin = AuxPolygon1%Limits%Bottom
+                if (ymax < AuxPolygon1%Limits%Top   ) ymax = AuxPolygon1%Limits%Top
+                
+                if (xmin > AuxPolygon1%Limits%Left  ) xmin = AuxPolygon1%Limits%Left
+                if (xmax < AuxPolygon1%Limits%Right ) xmax = AuxPolygon1%Limits%Right
+
+            
+                AuxPolygon1 => AuxPolygon1%Next
+                
+            enddo
+            
+            nullify(AuxPolygon)                        
+        
+        endif                    
         
         
         AuxPolygon => PolygonX
@@ -3330,11 +3358,17 @@ i6:                         if (DirectionX.ne.0.) then
                     
                     if (present(AreaOfInterest)) then
                     
-                        if (y3 > AreaOfInterest%Limits%Top    .and. y4 > AreaOfInterest%Limits%Top   ) cycle
-                        if (y3 < AreaOfInterest%Limits%Bottom .and. y4 < AreaOfInterest%Limits%Bottom) cycle
+                        if (y3 > ymax .and. y4 > ymax) cycle
+                        if (y3 < ymin .and. y4 < ymin) cycle
 
-                        if (x3 > AreaOfInterest%Limits%Right  .and. x4 > AreaOfInterest%Limits%right ) cycle
-                        if (x3 < AreaOfInterest%Limits%Left   .and. x4 < AreaOfInterest%Limits%left  ) cycle
+                        if (x3 > xmax .and. x4 > xmax) cycle
+                        if (x3 < xmin .and. x4 < xmin) cycle
+
+!                        if (y3 > AreaOfInterest%Limits%Top    .and. y4 > AreaOfInterest%Limits%Top   ) cycle
+!                        if (y3 < AreaOfInterest%Limits%Bottom .and. y4 < AreaOfInterest%Limits%Bottom) cycle
+!
+!                        if (x3 > AreaOfInterest%Limits%Right  .and. x4 > AreaOfInterest%Limits%right ) cycle
+!                        if (x3 < AreaOfInterest%Limits%Left   .and. x4 < AreaOfInterest%Limits%left  ) cycle                        
                         
                     endif                    
                     
