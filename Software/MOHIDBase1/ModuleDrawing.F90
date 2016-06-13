@@ -1048,7 +1048,9 @@ db:         do while (associated(auxPolyB))
         auxRefA => NewRef
         
         allocate(NewPolygon)
-        allocate(NewPolygon%VerticesF(1:Polygon%Count))        
+        !Add 5 more vertices to accommodate the rear case where 
+        !in the clipping processes the number of vertices grow.
+        allocate(NewPolygon%VerticesF(1:Polygon%Count+5))        
 
         !Reduce PolygonsRef
 da:     do while (associated(auxRefA))
