@@ -266,6 +266,11 @@ Module ModuleFunctions
     !Tide
     public  :: CheckAlternativeTidalCompNames
     
+    !esri grid ascii format
+    public  :: WriteEsriGrid
+    public  :: ReadEsriGrid
+    public  :: ReadEsriGridData    
+    
     
     public  :: WGS84toGoogleMaps    
     interface  WGS84toGoogleMaps
@@ -11138,6 +11143,233 @@ D2:     do I=imax-1,2,-1
     end function WaveLengthHuntsApproximation
 
     !------------------------------------------------------------------------------        
+    
+    integer function WriteEsriGrid(UnitOut, ILB, IUB, JLB, JUB, OriginX, OriginY,       &
+                                   DXY, FillValue, Matrix2D)
+    
+        !Arguments-------------------------------------------------------------    
+        real,   dimension(:,:), pointer, intent(IN) :: Matrix2D
+        real,                            intent(IN) :: OriginX, OriginY, DXY, FillValue
+        integer,                         intent(IN) :: UnitOut, ILB, IUB, JLB, JUB
+        !Local-----------------------------------------------------------------
+        integer                                     :: Imax, Jmax, bt, ba, a, i
+        integer                                     :: STAT_CALL
+        character(len=:),            allocatable    :: Line
+        character(len=StringLength), allocatable    :: AuxChar        
+        logical                                     :: Found2Blanks         
+        !Begin-----------------------------------------------------------------   
+    
+        Imax = IUB - ILB + 1
+        Jmax = JUB - JLB + 1    
+        
+     
+        write(UnitOut,'(A14,I6)', IOSTAT = STAT_CALL) 'ncols         ', Jmax
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR10'
+        endif
+
+        write(UnitOut,'(A14,I6)', IOSTAT = STAT_CALL) 'nrows         ', Imax
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR20'
+        endif
+                
+        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) OriginX    
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR30'
+        endif        
+        
+        write(UnitOut,'(A14,A)',  IOSTAT = STAT_CALL) 'xllcorner     ', trim(adjustl(AuxChar))
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR40'
+        endif
+                
+        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) OriginY  
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR50'
+        endif
+              
+        write(UnitOut,'(A14,A)',  IOSTAT = STAT_CALL) 'yllcorner     ', trim(adjustl(AuxChar))
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR60'
+        endif
+        
+        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) DXY    
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR70'
+        endif
+        
+        write(UnitOut,'(A14,A)',  IOSTAT = STAT_CALL) 'cellsize      ', trim(adjustl(AuxChar))
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR80'
+        endif
+        
+        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) FillValue
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR90'
+        endif
+        
+        write(UnitOut,'(A14,A)',  IOSTAT = STAT_CALL) 'nodata_value  ', trim(adjustl(AuxChar))
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'WriteEsriGrid - ModuleFunctions - ERR100'
+        endif
+        
+        
+        do i=Imax,1,-1
+        
+            write(Line,'(20000(f12.6,1x))', IOSTAT = STAT_CALL) Matrix2D(i,1:Jmax)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'WriteEsriGrid - ModuleFunctions - ERR110'
+            endif
+            
+            Line = adjustl(Line)
+            Found2Blanks = .true.
+
+            bt = len_trim(Line)
+            ba = bt
+            do a = 1, bt-1
+                do while (Line(a:a+1)=='  ') 
+                    Line(a:ba)=Line(a+1:ba+1)
+                    ba = ba - 1
+                    if (ba == a) exit
+                enddo
+                if (ba == a) exit
+            enddo
+            write(UnitOut,'(A)', IOSTAT = STAT_CALL) trim(Line)        
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'WriteEsriGrid - ModuleFunctions - ERR120'
+            endif            
+            
+        enddo
+        
+        WriteEsriGrid = SUCCESS_
+    
+    end function WriteEsriGrid
+    
+    !----------------------------------------------------------------------------------
+    
+    integer function ReadEsriGrid(UnitIn, Imax, Jmax, OriginX, OriginY,                 &
+                                  DXY, FillValue)
+    
+        !Arguments-------------------------------------------------------------    
+        integer,                         intent(IN)  :: UnitIn
+!        real,   dimension(:,:), pointer, intent(OUT) :: Matrix2D
+        real,                            intent(OUT) :: OriginX, OriginY, DXY, FillValue
+        integer,                         intent(OUT) :: Imax, Jmax
+        !Local-----------------------------------------------------------------
+        integer                                      :: STAT_CALL, i, j
+        character(len=:),            allocatable     :: Line
+        character(len=256), allocatable     :: AuxChar        
+     
+        !Begin-----------------------------------------------------------------   
+    
+        read(UnitIn,'(A256)') AuxChar
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR10'
+        endif        
+        
+        read(AuxChar(14:256),*) Jmax        
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR20'
+        endif        
+        
+        read(UnitIn,'(A256)') AuxChar
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR30'
+        endif        
+        
+        read(AuxChar(14:256),*) Imax        
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR40'
+        endif        
+        
+        read(UnitIn,'(A256)') AuxChar
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR50'
+        endif        
+        
+        read(AuxChar(14:256),*, IOSTAT = STAT_CALL) OriginX
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR60'
+        endif        
+        
+        read(UnitIn,'(A256)', IOSTAT = STAT_CALL) AuxChar
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR10'
+        endif        
+        
+        read(AuxChar(14:256),*, IOSTAT = STAT_CALL) OriginY
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR70'
+        endif        
+        
+        read(UnitIn,'(A256)', IOSTAT = STAT_CALL) AuxChar
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR80'
+        endif        
+        
+        read(AuxChar(14:256),*, IOSTAT = STAT_CALL) DXY
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR90'
+        endif        
+          
+        read(UnitIn,'(A256)', IOSTAT = STAT_CALL) AuxChar
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR100'
+        endif        
+        
+        read(AuxChar(14:256),*, IOSTAT = STAT_CALL) FillValue  
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadEsriGrid - ModuleFunctions - ERR110'
+        endif        
+!
+!        do i=Imax,1,-1
+!       
+!            read(UnitIn,*, IOSTAT = STAT_CALL) (Matrix2D(i, j),j=1,Jmax)
+!            if (STAT_CALL /= SUCCESS_) then
+!                stop 'ReadEsriGrid - ModuleFunctions - ERR120'
+!            endif                    
+!        
+!        enddo            
+   
+        ReadEsriGrid = SUCCESS_
+    
+    end function ReadEsriGrid
+        
+    !----------------------------------------------------------------------------------
+    
+    integer function ReadEsriGridData(UnitIn, Imax, Jmax, Matrix2D)
+    
+        !Arguments-------------------------------------------------------------    
+        integer,                         intent(IN)  :: UnitIn
+        integer,                         intent(IN)  :: Imax, Jmax
+        real,   dimension(:,:), pointer, intent(OUT) :: Matrix2D        
+        !Local-----------------------------------------------------------------
+        integer                                      :: STAT_CALL, i, j
+        character(len=:),            allocatable     :: Line
+        character(len=StringLength), allocatable     :: AuxChar        
+     
+        !Begin-----------------------------------------------------------------   
+    
+        do I=1,6
+            read(UnitIn,*) 
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ReadEsriGridData - ModuleFunctions - ERR10'
+            endif        
+        enddo
+        
+        do i=Imax,1,-1
+       
+            read(UnitIn,*, IOSTAT = STAT_CALL) (Matrix2D(i, j),j=1,Jmax)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ReadEsriGridData - ModuleFunctions - ERR20'
+            endif                    
+        
+        enddo            
+   
+        ReadEsriGridData = SUCCESS_
+    
+    end function ReadEsriGridData
+
     
     end module ModuleFunctions
 
