@@ -16041,9 +16041,9 @@ iOpen2D:                if  (Me%EulerModel(em)%OpenPoints3D(AuxPosition%i, AuxPo
                             call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(em), AuxPosition, PositionCorrected)
                             call Convert_CellK_K (                                  AuxPosition)
 
-                            CurrentPartic%Position%ModelID = em
-                            
                             CurrentPartic%Position         = AuxPosition
+                            
+                            CurrentPartic%Position%ModelID = em                            
 
                             ComputeTrajectory = .true.
 

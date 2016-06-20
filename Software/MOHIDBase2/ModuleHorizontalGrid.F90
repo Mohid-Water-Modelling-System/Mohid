@@ -2491,11 +2491,12 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         !Opens Data File
         call ConstructEnterData(Me%ObjEnterData, Me%FileName, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR10'
+        
 
         !Reads ILB_IUB
-        call GetData(AuxInt,Me%ObjEnterData, flag,                                 &
-                     keyword      = 'ILB_IUB',                                  &
-                     ClientModule = 'HorizontalGrid',                           &
+        call GetData(AuxInt,Me%ObjEnterData, flag,                                      &
+                     keyword      = 'ILB_IUB',                                          &
+                     ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)           
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR20'
         if (flag      /= 2       ) stop 'ConstructGlobalVariables - HorizontalGrid - ERR30'
@@ -2601,7 +2602,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
 
         
         !Reads Latitude (Reference latitude. If externally specificed is the center of domain)
-        call GetData(Me%Latitude, Me%ObjEnterData, flag,                                   &
+        call GetData(Me%Latitude, Me%ObjEnterData, flag,                                &
                      keyword      = 'LATITUDE',                                         &
                      ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)
@@ -6319,7 +6320,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     
                 iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
                 
-                Precision   = MPI_REAL
+                Precision   = MPI_DOUBLE_PRECISION
                 
                 Destination =  Me%DDecomp%Slaves_MPI_ID(i)
 
@@ -6339,7 +6340,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             
        
             iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
-            Precision   = MPI_REAL
+            Precision   = MPI_DOUBLE_PRECISION
             Source      = Me%DDecomp%Master_MPI_ID
             
             call MPI_Recv (Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
@@ -6573,7 +6574,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     
                 iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)*(KUB-KLB+1)
                 
-                Precision   = MPI_REAL
+                Precision   = MPI_DOUBLE_PRECISION
                 
                 Destination =  Me%DDecomp%Slaves_MPI_ID(i)
 
@@ -6593,7 +6594,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             
        
             iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1) * (KUB-KLB+1)
-            Precision   = MPI_REAL
+            Precision   = MPI_DOUBLE_PRECISION
             Source      = Me%DDecomp%Master_MPI_ID
             
             call MPI_Recv (Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB), iSize, Precision,   &
