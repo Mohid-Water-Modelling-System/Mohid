@@ -1908,7 +1908,7 @@ cd2 :           if (BlockFound) then
                                  keyword      ='MASS_MIN',                              &
                                  SearchType   = FromBlock,                              &
                                  ClientModule = 'ModuleSediment',                       &
-                                 Default      = 1e-2,                                   &
+                                 Default      = 0.,                                   &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR75'
                                       
@@ -2040,7 +2040,7 @@ cd2 :           if (BlockFound) then
                                 keyword      ='MASS_MIN',                              &
                                 SearchType   = FromBlock,                              &
                                 ClientModule = 'ModuleSediment',                       &
-                                Default      = 1e-2,                                   &
+                                Default      = 0.,                                   &
                                 STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR128'
             
@@ -5601,7 +5601,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                     WKUB = Me%KTop(i, j)
     
                     if  (Me%ExternalVar%ComputeFacesU2D(i, j) == Not_Covered .and. &
-                         Me%ExternalVar%WaterPoints3D (i,j-1,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i,j-1,WKUB) == WaterPoint) then
                         
                         !Me%DM(i,j) is always negative
                         Me%DM(i,j-1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
@@ -5625,7 +5625,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                     endif
             
                     if  (Me%ExternalVar%ComputeFacesU2D(i, j+1) == Not_Covered .and. &
-                         Me%ExternalVar%WaterPoints3D (i,j+1,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i,j+1,WKUB) == WaterPoint) then
                         
                         !Me%DM(i,j) is always negative
                         Me%DM(i,j+1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
@@ -5649,7 +5649,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                     endif
         
                     if  (Me%ExternalVar%ComputeFacesV2D(i, j) == Not_Covered .and. &
-                         Me%ExternalVar%WaterPoints3D (i-1,j,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i-1,j,WKUB) == WaterPoint) then
                         
                         !Me%DM(i,j) is always negative
                         Me%DM(i-1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
@@ -5673,7 +5673,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                     endif
         
                     if  (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Not_Covered .and. &
-                         Me%ExternalVar%WaterPoints3D (i+1,j,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i+1,j,WKUB) == WaterPoint) then
                         
                         !Me%DM(i,j) is always negative
                         Me%DM(i+1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
