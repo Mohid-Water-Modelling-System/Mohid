@@ -766,7 +766,7 @@ cd0:    if (ready_ == OFF_ERR_) then
                       STAT = stat_call)
         if (stat_call /= SUCCESS_) &
             stop 'ConstructSchedule - ModuleIrrigation - ERR010'
-        
+               
         call GetData (new_schedule%IrrigationMethod,        &
                       Me%ObjEnterData, iflag,               &
                       Keyword      = 'METHOD',              &
@@ -1217,7 +1217,7 @@ cd1 :       if (block_found) then
             stop 'ConstructPropertyValues - ModuleIrrigation - ERR030'
         endif
 
-        if (.NOT. new_property%old .and. .not. is_internal) then
+        if (.NOT. new_property%old .and. .not. is_internal .and. new_schedule%Active) then
             
             call ConstructFillMatrix (PropertyID           = new_property%ID,           &
                                       EnterDataID          = Me%ObjEnterData,           &
@@ -2060,7 +2060,7 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
                 if (schedule_x%Active) then
                 
                     if ( &
-                        ((.not. schedule_x%DelayIrrigation) .or. (schedule_x%StartIrrigationTime >= (Me%Now - Me%DT))) &
+                        ((.not. schedule_x%DelayIrrigation) .or. (schedule_x%StartIrrigationTime < (Me%Now))) &
                         .and. &
                         ((schedule_x%InfiniteIrrigation) .or. (schedule_x%StopIrrigationTime >= (Me%Now))) &
                        ) then
@@ -2283,39 +2283,59 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         Me%Irrigation = 0.0
         
         do index = 1, Me%NumberOfSchedules
-        
             schedule => Me%Schedules(index)
-            sch_day => schedule%FirstDailySchedule
-
-            schedule%ActualIrrigation = 0.0
             
-            if (associated (sch_day)) then
-            if (Me%Now > sch_day%StartInstant) then
-            if (Me%Now <= sch_day%EndInstant) then
-        
-                ![mm]                     = (     [mm/s]        *  [s] )
-                schedule%ActualIrrigation = (sch_day%Irrigation * Me%DT)
-                if (schedule%ActualIrrigation > 0.0) then
-                    schedule%TimeSinceLastEvent = 0.0
-                endif
+            if (schedule%Active .eqv. .false.) cycle
+            
+            if (schedule%IrrigationMethod .eq. FixedIrrigation) then
                 
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
-                    if (schedule%ApplicationAreaMap%LogicalField(i,j).eqv..true.) then                        
-                        ![mm]              =        [mm]        + (      [mm/s]       *  [s] )
-                        Me%Irrigation(i,j) = Me%Irrigation(i,j) + (sch_day%Irrigation * Me%DT)
+                    if (schedule%ApplicationAreaMap%LogicalField(i,j).eqv..true.) then  
+                        ![mm]              =        [mm]        + (      [mm/s]                   * [s] )
+                        Me%Irrigation(i,j) = Me%Irrigation(i,j) + (schedule%Irrigation%Field(i,j) * Me%DT)
                     else
                         Me%Irrigation(i,j) = 0.0
                     endif
                 
                 enddo
-                enddo                                
+                enddo    
                 
-            endif
-            endif
-            endif
+            else if (schedule%IrrigationMethod .eq. IrrigationBySteps) then
+            
+                
+                sch_day => schedule%FirstDailySchedule
+
+                schedule%ActualIrrigation = 0.0
+            
+                if (associated (sch_day)) then
+                if (Me%Now > sch_day%StartInstant) then
+                if (Me%Now <= sch_day%EndInstant) then
         
+                    ![mm]                     = (     [mm/s]        *  [s] )
+                    schedule%ActualIrrigation = (sch_day%Irrigation * Me%DT)
+                    if (schedule%ActualIrrigation > 0.0) then
+                        schedule%TimeSinceLastEvent = 0.0
+                    endif
+                
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                        if (schedule%ApplicationAreaMap%LogicalField(i,j).eqv..true.) then                        
+                            ![mm]              =        [mm]        + (      [mm/s]       *  [s] )
+                            Me%Irrigation(i,j) = Me%Irrigation(i,j) + (sch_day%Irrigation * Me%DT)
+                        else
+                            Me%Irrigation(i,j) = 0.0
+                        endif
+                
+                    enddo
+                    enddo                                
+                
+                endif
+                endif
+                endif
+            endif
         enddo
 
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -2830,8 +2850,11 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
         !Local-------------------------------------------------------------------
         type (T_IrriProperty), pointer      :: property_x
         integer                             :: stat_call
+        real                                :: year, month, day, hour, minute, second
       
         !Begin-------------------------------------------------------------------
+        
+        !call ExtractDate (Me%Now, year, month, day, hour, minute, second)
         
         property_x => schedule%FirstProperty
         do while (associated(property_x))
@@ -3277,8 +3300,9 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
         !Local-------------------------------------------------------------------
         integer                             :: ready_              
         integer                             :: stat_, nUsers
-        integer                             :: i
+        integer                             :: i, p
         integer                             :: STAT_CALL
+        type(T_IrriProperty), pointer       :: property
 
         !------------------------------------------------------------------------
 
@@ -3301,6 +3325,19 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
                         call KillTimeSerie(Me%Schedules(i)%ObjTimeSeries, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_) stop 'KillPorousMedia - ModuleIrrigation - ERR010'
                     endif
+                    
+                    property => Me%Schedules(i)%FirstProperty
+                    do while (associated(property))                    
+                        if(property%ID%SolutionFromFile )then
+
+                            call KillFillMatrix (property%ID%ObjFillMatrix, STAT = stat_)
+                            if (stat_ /= SUCCESS_) &
+                                stop 'ConstructPropertyValues - ModuleIrrigation - ERR050'
+            
+                        end if
+                        
+                        property => property%Next
+                    enddo
                     
                 enddo
                 
