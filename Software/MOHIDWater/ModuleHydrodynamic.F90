@@ -105,8 +105,9 @@ Module ModuleHydrodynamic
     use ModuleFunctions         
     use ModuleTime              
     use ModuleEnterData           
-    use ModuleGridData,         only : GetGridData, WriteGridData, UngetGridData,       &
-                                       ConstructGridData, KillGridData
+    use ModuleGridData,         only : GetGridData, WriteGridData, UngetGridData,        &
+                                       ConstructGridData, GetGridDataEvolution,          &
+                                       KillGridData
     use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile
     use ModuleDischarges,       only : Construct_Discharges, GetDischargesNumber,        &
                                        GetDischargesGridLocalization, GetDischargeON,    &
@@ -10045,8 +10046,7 @@ cd10:   if (Evolution == Read_File_) then
         
             call ConstructLandAbsorptionCoef
             
-        endif
-        
+        endif        
         !------------------------------------------------------------------------
 
     end subroutine ConstructHydrodynamicProperties
@@ -26048,14 +26048,14 @@ idd:    if (Me%DDecomp%MasterOrSlave) then
 
         integer                             :: i, j, STAT_CALL
 !        integer                             :: M
-        integer                             :: IUB, ILB, JUB, JLB
+        integer                             :: IUB, ILB, JUB, JLB, KUB
         integer, pointer, dimension (:,:)   :: WaterPoints2D
 
         real,    dimension(:,:), pointer    :: WaterLevel_New, Bathymetry, VolumeCreated, &
                                                DUX, DVY 
         real                                :: MinWaterColumn, WaterLevelMin, dh
 
-        logical                             :: CorrectWaterLevel 
+        logical                             :: CorrectWaterLevel, BathymEvolution 
 
         integer                             :: CHUNK
 
@@ -26068,6 +26068,7 @@ idd:    if (Me%DDecomp%MasterOrSlave) then
         ILB = Me%WorkSize%ILB
         JUB = Me%WorkSize%JUB
         JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB  
 
         WaterLevel_New    => Me%WaterLevel%New
         WaterPoints2D     => Me%External_Var%WaterPoints2D
@@ -26090,6 +26091,10 @@ idd:    if (Me%DDecomp%MasterOrSlave) then
                                        MinWaterColumn, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'WaterLevelCorrection - ModuleHydrodynamic - ERR02'
+        
+        call GetGridDataEvolution(Me%ObjGridData, BathymEvolution, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'WaterLevelCorrection - ModuleHydrodynamic - ERR04'
 
         CHUNK = CHUNK_J(JLB, JUB) 
          
@@ -26115,8 +26120,7 @@ cd2:            if (WaterLevel_New(i, j) < (- Bathymetry(i, j) + MinWaterColumn 
 
                     WaterLevel_New(i, j) = - Bathymetry(i, j) + MinWaterColumn / 2.
 
-                endif cd2
-
+                endif cd2   
 
                 !This second correction is optional and is used when the user wants to 
                 !define a reference level below which the water level is corrected.
@@ -26125,6 +26129,18 @@ cd3:            if (CorrectWaterLevel .and. WaterLevel_New(i, j) < (WaterLevelMi
                     WaterLevel_New(i, j) = WaterLevelMin + MinWaterColumn / 2.
 
                 endif cd3
+                
+                !If BathymEvolution is turned on, the water level in eroded non-covered cells is updated
+                !to avoid high gradients when cells become covered
+cd4:            if (BathymEvolution) then
+                    
+cd5:                if (Me%External_Var%OpenPoints3D(i, j, KUB) .ne. OpenPoint .and. Bathymetry(i, j) < 0. .and. &
+                        (WaterLevel_New(i, j) + Bathymetry(i, j)) > MinWaterColumn) then
+                    
+                        WaterLevel_New(i, j) = - Bathymetry(i, j) + MinWaterColumn
+                    
+                    endif cd5
+                endif cd4 
         
             endif cd1
 
@@ -33384,9 +33400,9 @@ cd3:                   if (Manning) then
                         
         if (present(Ubw)) then
                             
-            if(UC.gt.1e-6 .and. Ubw.gt.0.)then !combined wave and current flow
+            if(UC.gt.1e-6 .and. Ubw.gt.1e-6 .and. Abw.gt.1e-6)then !combined wave and current flow
                         
-                REW=Ubw*Abw/WaterCinematicVisc     
+                REW=Ubw*Abw/WaterCinematicVisc
                 FWS=0.0521*REW**(-0.187)
                 FWR=1.39*(Abw/Z0)**(-0.52)
                           
