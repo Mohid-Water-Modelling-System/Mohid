@@ -103,12 +103,15 @@ Module ModuleReadSWANNonStationary
         integer                                 :: Clientumber
 
         logical                                 :: WriteVelModulus = .false., WriteWindModulus = .false.
+        logical                                 :: NullGradientWaveStressLandBoundary
         real                                    :: FillValue
         real                                    :: Generic4DValue
         integer                                 :: Generic4DPropertyIndeX
         integer                                 :: Generic4D
         integer                                 :: ReadType
         integer, dimension(:,:  ),  pointer     :: WaterPoints2D
+        integer, dimension(:,:  ),  pointer     :: BoundaryFacesU
+        integer, dimension(:,:  ),  pointer     :: BoundaryFacesV
         type(T_OutPut)                          :: OutPut
         type(T_Size2D)                          :: WorkSize, Size
     end type  T_SWAN
@@ -156,6 +159,10 @@ Module ModuleReadSWANNonStationary
         call Open_HDF5_OutPut_File
 
         call ReadFieldFromFile
+        
+        if (Me%NullGradientWaveStressLandBoundary) then
+            call NullGradientWaveStressLandBoundary
+        endif
             
         Me%OutPut%NextOutPut = 1.0
 
@@ -329,6 +336,16 @@ i5:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_))
         if (STAT_CALL /= SUCCESS_)                                            &
          stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR170' 
         
+        call GetData(Me%NullGradientWaveStressLandBoundary,                   &
+                     Me%ObjEnterData, iflag,                                  &
+                     SearchType   = FromBlock,                                &
+                     keyword      = 'NULL_GRADIENT_WAVE_STRESS_LAND_BOUNDARY',&
+                     default      = .TRUE.,                                   &
+                     ClientModule = 'SWAN',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_)                                            &
+         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR180' 
+        
     end subroutine ReadGlobalOptions
 
     !--------------------------------------------------------------------------
@@ -465,29 +482,31 @@ d2:     do l= 1, Me%NumberUnits
 
              do p = 1, Me%NumberProps
 
-                  if(trim(Me%Generic4DProperty) == trim(Me%PropsName(p))) Then 
+                if(trim(Me%Generic4DProperty) == trim(Me%PropsName(p))) Then 
             
-                       Me%Generic4DPropertyIndeX=p
+                    Me%Generic4DPropertyIndeX=p
             
-                  end if
+                end if
                   
-                  Me%Fields(k, p, i, j) = Me%PropVector(p)
+                Me%Fields(k, p, i, j) = Me%PropVector(p)
             
-                  if (Me%Fields(k, p, i, j).eq.-9.0 .OR. Me%Fields(k, p, i, j).eq.-99.0 &
+                if (Me%Fields(k, p, i, j).eq.-9.0 .OR. Me%Fields(k, p, i, j).eq.-99.0 &
                       .OR. Me%Fields(k, p, i, j).eq.-999.0) Then
                         
-                    if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_)) then
+                    if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_) .or. &
+                       (trim(Me%PropsName(p)) == GetPropertyName(WaveStressX_)) .or. &
+                       (trim(Me%PropsName(p)) == GetPropertyName(WaveStressY_))) then
+                        
                         Me%Fields(k, p, i, j) = FillValueReal
                     else
-                        Me%Fields(k, p, i, j) = 0
-                    endif
-                   
-                  end if
+                        Me%Fields(k, p, i, j) = 0.
+                    end if
+                endif
             
-                  if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
-                       Me%Generic4DValue=Me%PropVector(p)
-                       Me%Generic4DUnits=trim(Me%PropsUnits(p))
-                  end if
+                if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
+                    Me%Generic4DValue=Me%PropVector(p)
+                    Me%Generic4DUnits=trim(Me%PropsUnits(p))
+                end if
 
              enddo
 
@@ -530,6 +549,12 @@ d2:     do l= 1, Me%NumberUnits
 
         call GetWaterPoints2D   (Me%ObjHorizontalMap, Me%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructBathymetry - ModuleReadSWANNonStationary - ERR50'
+        
+        call GetBoundaryFaces(Me%ObjHorizontalMap,                         &
+                              Me%BoundaryFacesU,                           &
+                              Me%BoundaryFacesV,                           &
+                              STAT = STAT_CALL)   
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructBathymetry - ModuleReadSWANNonStationary - ERR60'
 
     end subroutine ConstructBathymetry
     
@@ -781,7 +806,77 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
     end subroutine CalculateWavePower
 
    !----------------------------------------------------------------------
+    subroutine NullGradientWaveStressLandBoundary 
 
+    !Arguments-------------------------------------------------------------
+
+    !Local----------------------------------------------------------------
+    integer                                     :: i, j, p, STAT_CALL,k
+    real                                        :: a1, a2, a3, a4, atotal
+    !Begin-----------------------------------------------------------------
+    
+    
+    do k=1,Me%OutPut%TotalOutputs
+    
+         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+
+             do p = 1, Me%NumberProps
+                  
+                if (trim(Me%PropsName(p)) == GetPropertyName(WaveStressX_) .or. &
+                           (trim(Me%PropsName(p)) == GetPropertyName(WaveStressY_))) then
+            
+                    if (Me%Fields(k, p, i, j).eq.FillValueReal) then
+                        
+                        if (Me%WaterPoints2D(i, j) == 1) then
+                            
+                            a1 = 0; a2 = 0; a3 = 0; a4 = 0
+                            
+                            if (Me%BoundaryFacesU(i, j) == Not_Boundary .and. Me%WaterPoints2D(i, j-1) == 1 .and. &                                
+                                Me%Fields(k, p, i, j-1).ne.FillValueReal) then
+                                
+                                a1 = 1
+                                
+                            elseif(Me%BoundaryFacesU(i, j+1) == Not_Boundary .and. Me%WaterPoints2D(i, j+1) == 1 .and. &
+                                   Me%Fields(k, p, i, j+1).ne.FillValueReal) then
+                                
+                                a2 = 1
+                                
+                            endif
+                            
+                            if (Me%BoundaryFacesV(i, j) == Not_Boundary .and. Me%WaterPoints2D(i-1, j) == 1 .and. &
+                                Me%Fields(k, p, i-1, j).ne.FillValueReal) then
+                                
+                                a3 = 1
+                                
+                            elseif(Me%BoundaryFacesV(i+1, j) == Not_Boundary .and. Me%WaterPoints2D(i+1, j) == 1 .and. &
+                                   Me%Fields(k, p, i+1, j).ne.FillValueReal) then
+                                
+                                a4 = 1
+                                
+                            endif
+                                  
+                            atotal = (a1 + a2 + a3 + a4)
+                            
+                            if (atotal > 0) then
+                                Me%Fields(k, p, i, j) = (a1*Me%Fields(k, p, i, j-1) + a2*Me%Fields(k, p, i, j+1) + &
+                                                         a3*Me%Fields(k, p, i-1, j) + a4*Me%Fields(k, p, i+1, j))/atotal
+                            else
+                                Me%Fields(k, p, i, j) = 0.
+                            endif
+                                
+                        endif
+                    endif
+                   
+                  end if
+             enddo
+         enddo
+         enddo         
+    enddo
+
+    end subroutine NullGradientWaveStressLandBoundary
+    
+    !----------------------------------------------------------------------------
    !------------------------------------------------------------------------
     subroutine Open_HDF5_OutPut_File
 
@@ -872,6 +967,12 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
         
         !Begin-----------------------------------------------------------------
 
+        call UnGetHorizontalMap (Me%ObjHorizontalMap, Me%BoundaryFacesU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'KillSWAN - ModuleReadSWANNonStationary - ERR01'
+        
+        call UnGetHorizontalMap (Me%ObjHorizontalMap, Me%BoundaryFacesV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'KillSWAN - ModuleReadSWANNonStationary - ERR02'
+        
         call UnGetHorizontalMap (Me%ObjHorizontalMap, Me%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'KillSWAN - ModuleReadSWANNonStationary - ERR10'
 
