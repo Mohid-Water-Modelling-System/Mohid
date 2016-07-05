@@ -313,8 +313,6 @@ Module ModuleSediment
         real(8), dimension(:,:), pointer        :: Bedload               => null ()
         real(8), dimension(:,:), pointer        :: BedloadU              => null ()  !vectorial field in grid referential - U comp.
         real(8), dimension(:,:), pointer        :: BedloadV              => null ()  !vectorial field in grid referential - V comp.
-        real(8), dimension(:,:), pointer        :: BedloadX              => null ()  !vectorial field in cartesian referential - X (zonal comp.)
-        real(8), dimension(:,:), pointer        :: BedloadY              => null ()  !vectorial field in cartesian referential - Y (meridional comp.)
         real,    dimension(:,:), pointer        :: CriticalShearStress   => null ()
         real, dimension(:,:), pointer           :: NDCriticalShearStress => null ()
         real(8), dimension(:,:), pointer        :: DM                    => null ()
@@ -1988,12 +1986,6 @@ cd2 :           if (BlockFound) then
                         
                         allocate(Me%SandClass(n)%BedloadV(ILB:IUB, JLB:JUB))
                         Me%SandClass(n)%BedloadV(:,:) = null_real
-                        
-                        allocate(Me%SandClass(n)%BedloadX(ILB:IUB, JLB:JUB))
-                        Me%SandClass(n)%BedloadX(:,:) = null_real
-                        
-                        allocate(Me%SandClass(n)%BedloadY(ILB:IUB, JLB:JUB))
-                        Me%SandClass(n)%BedloadY(:,:) = null_real
                         
                         allocate(Me%SandClass(n)%NDShearStressWaves(ILB:IUB, JLB:JUB))
                          Me%SandClass(n)%NDShearStressWaves(:,:) = FillValueReal
