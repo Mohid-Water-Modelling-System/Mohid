@@ -5647,7 +5647,8 @@ if5:                if (aux < SandClass%Mass_Min) then
         do j=WJLB, WJUB
         do i=WILB, WIUB
             
-            if (Me%ExternalVar%OpenPoints2D(i,j) == OpenPoint) then
+            if (Me%OpenSediment(i,j) == OpenPoint .and. &
+                Me%ExternalVar%BoundaryPoints2D(i, j) /= Boundary) then
                 
                 !Erosion
                 if (Me%DM(i,j) .lt. 0.) then
@@ -5655,7 +5656,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                     WKUB = Me%KTop(i, j)
     
                     if  (Me%ExternalVar%ComputeFacesU2D(i, j) == Not_Covered .and. &
-                         Me%ExternalVar%OpenPoints3D (i,j-1,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i,j-1,Me%KTop(i, j-1)) == WaterPoint) then
                         
                         !Me%DM(i,j) is always negative
                         Me%DM(i,j-1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
@@ -5692,7 +5693,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                     endif
             
                     if  (Me%ExternalVar%ComputeFacesU2D(i, j+1) == Not_Covered .and. &
-                         Me%ExternalVar%OpenPoints3D (i,j+1,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i,j+1,Me%KTop(i, j+1)) == WaterPoint) then
                         
                         !Me%DM(i,j) is always negative
                         Me%DM(i,j+1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
@@ -5728,7 +5729,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                     endif
         
                     if  (Me%ExternalVar%ComputeFacesV2D(i, j) == Not_Covered .and. &
-                         Me%ExternalVar%OpenPoints3D (i-1,j,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i-1,j,Me%KTop(i-1, j)) == WaterPoint) then
                         
                         !Me%DM(i,j) is always negative
                         Me%DM(i-1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
@@ -5764,7 +5765,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                     endif
         
                     if  (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Not_Covered .and. &
-                         Me%ExternalVar%OpenPoints3D (i+1,j,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i+1,j,Me%KTop(i+1, j)) == WaterPoint) then
                         
                         !Me%DM(i,j) is always negative
                         Me%DM(i+1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
