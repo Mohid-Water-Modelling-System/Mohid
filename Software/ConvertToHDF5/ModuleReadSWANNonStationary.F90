@@ -103,6 +103,8 @@ Module ModuleReadSWANNonStationary
         integer                                 :: Clientumber
 
         logical                                 :: WriteVelModulus = .false., WriteWindModulus = .false.
+        logical                                 :: ReplaceNonComputedValues
+        integer                                 :: ReplacementMethod
         real                                    :: FillValue
         real                                    :: Generic4DValue
         integer                                 :: Generic4DPropertyIndeX
@@ -159,6 +161,8 @@ Module ModuleReadSWANNonStationary
 
         call ReadFieldFromFile
         
+        if (Me%ReplaceNonComputedValues) then
+            call ReplaceNonComputedValues
         endif
             
         Me%OutPut%NextOutPut = 1.0
@@ -333,8 +337,10 @@ i5:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_))
         if (STAT_CALL /= SUCCESS_)                                            &
          stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR170' 
         
+        call GetData(Me%ReplaceNonComputedValues,                           &
                      Me%ObjEnterData, iflag,                                  &
                      SearchType   = FromBlock,                                &
+                     keyword      = 'REPLACE_NON_COMPUTED_VALUES',            &
                      default      = .TRUE.,                                   &
                      ClientModule = 'SWAN',                                   &
                      STAT         = STAT_CALL)        
@@ -342,8 +348,10 @@ i5:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_))
          stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR180' 
         
         ! 1-Null Value 2-Null Gradient
+        call GetData(Me%ReplacementMethod,                                    &
                      Me%ObjEnterData, iflag,                                  &
                      SearchType   = FromBlock,                                &
+                     keyword      = 'REPLACEMENT_METHOD',                     &
                      default      = 2,                                        &
                      ClientModule = 'SWAN',                                   &
                      STAT         = STAT_CALL)        
@@ -802,6 +810,7 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
     end subroutine CalculateWavePower
 
    !----------------------------------------------------------------------
+    subroutine ReplaceNonComputedValues
 
     !Arguments-------------------------------------------------------------
 
@@ -822,8 +831,10 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
                         
                     if (Me%WaterPoints2D(i, j) == 1) then
                                                 
+                        if (Me%ReplacementMethod == 1) then !NullValue
                             Me%Fields(k, p, i, j) = 0.
                             
+                        elseif (Me%ReplacementMethod == 2) then !NullGradient
                             
                             a1 = 0; a2 = 0; a3 = 0; a4 = 0
                             
@@ -867,6 +878,7 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
          enddo         
     enddo
 
+    end subroutine ReplaceNonComputedValues
     
     !----------------------------------------------------------------------------
    !------------------------------------------------------------------------
