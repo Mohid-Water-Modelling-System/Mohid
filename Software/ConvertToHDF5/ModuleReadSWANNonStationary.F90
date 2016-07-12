@@ -103,7 +103,8 @@ Module ModuleReadSWANNonStationary
         integer                                 :: Clientumber
 
         logical                                 :: WriteVelModulus = .false., WriteWindModulus = .false.
-        logical                                 :: NullGradientWaveStressLandBoundary
+        logical                                 :: ReplaceNonComputedValues
+        integer                                 :: ReplacementMethod
         real                                    :: FillValue
         real                                    :: Generic4DValue
         integer                                 :: Generic4DPropertyIndeX
@@ -160,8 +161,8 @@ Module ModuleReadSWANNonStationary
 
         call ReadFieldFromFile
         
-        if (Me%NullGradientWaveStressLandBoundary) then
-            call NullGradientWaveStressLandBoundary
+        if (Me%ReplaceNonComputedValues) then
+            call ReplaceNonComputedValues
         endif
             
         Me%OutPut%NextOutPut = 1.0
@@ -336,16 +337,26 @@ i5:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_))
         if (STAT_CALL /= SUCCESS_)                                            &
          stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR170' 
         
-        call GetData(Me%NullGradientWaveStressLandBoundary,                   &
+        call GetData(Me%ReplaceNonComputedValues,                           &
                      Me%ObjEnterData, iflag,                                  &
                      SearchType   = FromBlock,                                &
-                     keyword      = 'NULL_GRADIENT_WAVE_STRESS_LAND_BOUNDARY',&
+                     keyword      = 'REPLACE_NON_COMPUTED_VALUES',            &
                      default      = .TRUE.,                                   &
                      ClientModule = 'SWAN',                                   &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_)                                            &
          stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR180' 
         
+        ! 1-Null Value 2-Null Gradient
+        call GetData(Me%ReplacementMethod,                                    &
+                     Me%ObjEnterData, iflag,                                  &
+                     SearchType   = FromBlock,                                &
+                     keyword      = 'REPLACEMENT_METHOD',                     &
+                     default      = 2,                                        &
+                     ClientModule = 'SWAN',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_)                                            &
+         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR190' 
     end subroutine ReadGlobalOptions
 
     !--------------------------------------------------------------------------
@@ -491,16 +502,9 @@ d2:     do l= 1, Me%NumberUnits
                 Me%Fields(k, p, i, j) = Me%PropVector(p)
             
                 if (Me%Fields(k, p, i, j).eq.-9.0 .OR. Me%Fields(k, p, i, j).eq.-99.0 &
-                      .OR. Me%Fields(k, p, i, j).eq.-999.0) Then
+                      .OR. Me%Fields(k, p, i, j).eq.-999.0 .OR. Me%Fields(k, p, i, j).eq.-10.0) Then
                         
-                    if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_) .or. &
-                       (trim(Me%PropsName(p)) == GetPropertyName(WaveStressX_)) .or. &
-                       (trim(Me%PropsName(p)) == GetPropertyName(WaveStressY_))) then
-                        
-                        Me%Fields(k, p, i, j) = FillValueReal
-                    else
-                        Me%Fields(k, p, i, j) = 0.
-                    end if
+                    Me%Fields(k, p, i, j) = FillValueReal
                 endif
             
                 if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
@@ -806,7 +810,7 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
     end subroutine CalculateWavePower
 
    !----------------------------------------------------------------------
-    subroutine NullGradientWaveStressLandBoundary 
+    subroutine ReplaceNonComputedValues
 
     !Arguments-------------------------------------------------------------
 
@@ -822,13 +826,15 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
          do j=Me%WorkSize%JLB, Me%WorkSize%JUB
 
              do p = 1, Me%NumberProps
-                  
-                if (trim(Me%PropsName(p)) == GetPropertyName(WaveStressX_) .or. &
-                           (trim(Me%PropsName(p)) == GetPropertyName(WaveStressY_))) then
             
-                    if (Me%Fields(k, p, i, j).eq.FillValueReal) then
+                if (Me%Fields(k, p, i, j).eq.FillValueReal) then
                         
-                        if (Me%WaterPoints2D(i, j) == 1) then
+                    if (Me%WaterPoints2D(i, j) == 1) then
+                                                
+                        if (Me%ReplacementMethod == 1) then !NullValue
+                            Me%Fields(k, p, i, j) = 0.
+                            
+                        elseif (Me%ReplacementMethod == 2) then !NullGradient
                             
                             a1 = 0; a2 = 0; a3 = 0; a4 = 0
                             
@@ -864,17 +870,15 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
                             else
                                 Me%Fields(k, p, i, j) = 0.
                             endif
-                                
                         endif
-                    endif
-                   
+                    endif                   
                   end if
              enddo
          enddo
          enddo         
     enddo
 
-    end subroutine NullGradientWaveStressLandBoundary
+    end subroutine ReplaceNonComputedValues
     
     !----------------------------------------------------------------------------
    !------------------------------------------------------------------------
