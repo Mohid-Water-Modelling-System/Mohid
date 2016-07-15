@@ -1,4 +1,5 @@
 #include "string.h"
+#include <algorithm>
 
 //=============================================================================
 //  Constructors & Destructors

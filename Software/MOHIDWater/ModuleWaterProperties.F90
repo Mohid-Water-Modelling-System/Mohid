@@ -18572,6 +18572,7 @@ case1 :     select case(Property%ID%IDNumber)
                         write(*,*)'Cant calculate carbon dioxide flux through surface without salinity'
                         call CloseAllAndStop ('Surface_Processes - ModuleWaterProperties - ERR05')
                     endif
+                                    
 
                     Pressure = 0.01
 
@@ -18584,7 +18585,7 @@ case1 :     select case(Property%ID%IDNumber)
                             CO2PP = CO2PartialPressure(Property%Concentration(i,j,KUB), &
                                     PropTemperature%Concentration(i,j,KUB),             &
                                     PropSalinity%Concentration(i,j,KUB),                &
-                                    Pressure)
+                                    Pressure, Me%Density%Field(i,j,KUB))
                                     
                             !0.24 * 1E-3 * 1025.  -> units conversion (cm h-1 to m s-1)
                             !CarbonDioxideFlux    -> gas transfer velocity, k (m s-1)
@@ -22172,6 +22173,7 @@ AO:     if (Actual >= SurfaceOutTime) then
             if (STAT_CALL /= SUCCESS_) then
                 call CloseAllAndStop ('OutPutHDF_AditionalFields - ModuleWaterProperties - ERR20')
             endif
+            
         endif
 
 
@@ -22345,7 +22347,7 @@ i2:     if (Me%OutPut%Radiation) then
                             CO2PP = CO2PartialPressure(PropCO2%Concentration(i,j,k),    &
                                     PropTemperature%Concentration(i,j,k),               &
                                     PropSalinity%Concentration(i,j,k),                  &
-                                    Pressure)
+                                    Pressure, Me%Density%Field(i,j,k))
 
                             !New Concentration
                             Me%OutPut%Aux3D(i, j, k) = CO2PP

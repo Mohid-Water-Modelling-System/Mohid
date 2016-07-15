@@ -2,7 +2,7 @@
 #define errorsH
 
 #include <string.h>
-#include <error.h>
+//#include <error.h>
 
 #include "string.h"
 
