@@ -3340,7 +3340,7 @@ do4 :       DO II = KLB+1, KUB+1
     !
     ! M Mateus by Nov2009
     
-    real function CO2PartialPressure(CO2, Temperature, Salinity, Pressure)   !uatm
+    real function CO2PartialPressure(CO2, Temperature, Salinity, Pressure, WaterDensity)   !uatm
     
         !Arguments-------------------------------------------------------------
 
@@ -3348,6 +3348,7 @@ do4 :       DO II = KLB+1, KUB+1
         real, intent(IN) :: Salinity
         real, intent(IN) :: Pressure        !atm
         real, intent(IN) :: CO2             !mg/l
+        real, intent(IN) :: WaterDensity    !kg m-3
 
         !Local-----------------------------------------------------------------
 
@@ -3358,7 +3359,8 @@ do4 :       DO II = KLB+1, KUB+1
 
         TKelvin = Temperature + 273.15
         
-        CO2mass = (CO2 / 44.0 / 1025.0)               !mg/l to mol/kg    water density = 1025 kg m-3
+        !CO2mass = (CO2 / 44.0 / 1025.0)               !mg/l to mol/kg    water density = 1025 kg m-3
+        CO2mass = (CO2 / 44.0 / WaterDensity)               !mg/l to mol/kg 
         
         Ff = -1636.75 + 12.0408 * TKelvin - 0.0327957 * (TKelvin**2.0) + 3.16528 * (1.0E-5) * (TKelvin**3.0)
         

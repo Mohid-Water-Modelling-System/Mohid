@@ -58,7 +58,7 @@ module ModuleDrawFluxesInHDF5
 
     interface Killocate
         module procedure Killocate1D_real
-        module procedure Killocate1D_real8
+        !module procedure Killocate1D_real8
         module procedure Killocate1D_integer
         module procedure Killocate2D_real
         module procedure Killocate2D_integer
@@ -86,7 +86,8 @@ module ModuleDrawFluxesInHDF5
         character(len=PathLength)           :: Name
         integer                             :: ObjHDF5      = 0
         integer                             :: nInstants
-        real(8), dimension(:), pointer      :: Times
+        !real(8), dimension(:), pointer      :: Times
+        real, dimension(:), pointer         :: Times
         type(T_Time)                        :: InitialDate
         type(T_Size3D)                      :: Size
         character(len=StringLength)         :: SizeGroup, SizeDataSet
@@ -1892,17 +1893,17 @@ module ModuleDrawFluxesInHDF5
 
     !--------------------------------------------------------------------------
 
-    subroutine Killocate1D_real8(Var)
-        
-        !Arguments----------------------------------------
-        real(8), dimension(:), pointer              :: Var
-
-        if(associated(Var)) then
-            deallocate(Var)
-            nullify(Var)
-        end if
-
-    end subroutine Killocate1D_real8
+    !subroutine Killocate1D_real8(Var)
+    !    
+    !    !Arguments----------------------------------------
+    !    real(8), dimension(:), pointer              :: Var
+    !
+    !    if(associated(Var)) then
+    !        deallocate(Var)
+    !        nullify(Var)
+    !    end if
+    !
+    !end subroutine Killocate1D_real8
 
     !--------------------------------------------------------------------------
 
