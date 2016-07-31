@@ -1148,12 +1148,19 @@ cd1:    if(present(WaterPoints3D)) then
             !Calculates the size of the buffer
             if (nProperties * nOutputs * AuxTypeReal > Me%MaxBufferSize) then
                 Me%TimeSerie(iTimeSerie)%BufferSize  = int(Me%MaxBufferSize / (nProperties * AuxTypeReal))
+
+                if (Me%TimeSerie(iTimeSerie)%BufferSize <= 0) then
+                    write(*,*) 'Max Buffer Size is too small. Increase it'
+                    stop 'AllocateTimeSerieBuffer - ModuleTimeSerie - ERR00'
+                endif
+
                 Me%TimeSerie(iTimeSerie)%BufferCount = 0
             else
                 Me%TimeSerie(iTimeSerie)%BufferSize  = nOutputs
                 Me%TimeSerie(iTimeSerie)%BufferCount = 0
             endif
 
+            
             !Allocates the TimeSerie Data Buffer
             allocate(Me%TimeSerie(iTimeSerie)%TimeSerieData(nProperties,            &
                      Me%TimeSerie(iTimeSerie)%BufferSize), STAT = STAT_CALL)
