@@ -495,8 +495,8 @@ d2:     do l= 1, Me%NumberUnits
                   
             Me%Fields(n, i, j) = Me%PropVector(p)
             
-            if (Me%Fields(n, i, j).eq.-9.0 .OR. Me%Fields(n, i, j).eq.-99.0 &
-                    .OR. Me%Fields(n, i, j).eq.-999.0 .OR. Me%Fields(n, i, j).eq.-10.0) Then
+            if (Me%Fields(n, i, j).eq.-99.0 &
+                    .OR. Me%Fields(n, i, j).eq.-999.0) Then
                         
                 Me%Fields(n, i, j) = FillValueReal
             endif
