@@ -23,7 +23,6 @@ Module ModuleReadSWANNonStationary
     use ModuleFunctions
     use ModuleHDF5
     use ModuleEnterData
-    use ModuleTime
     use ModuleHorizontalGrid
     use ModuleGridData
     use ModuleHorizontalMap
@@ -62,7 +61,13 @@ Module ModuleReadSWANNonStationary
          logical                                :: ON
          logical                                :: Yes                  = .false.
          integer                                :: TotalOutputs
-    end type T_OutPut                                   
+    end type T_OutPut
+    
+    type      T_OutW
+        logical                                 :: OutPutWindowON     = .false.
+        integer                                 :: IUB, ILB, JUB, JLB = FillValueInt
+
+    end type  T_OutW
     
     private :: T_SWAN
     type       T_SWAN
@@ -118,6 +123,7 @@ Module ModuleReadSWANNonStationary
         integer, dimension(:,:  ),  pointer     :: BoundaryFacesU
         integer, dimension(:,:  ),  pointer     :: BoundaryFacesV
         type(T_OutPut)                          :: OutPut
+        type(T_OutW)                            :: OutW 
         type(T_Size2D)                          :: WorkSize, Size
     end type  T_SWAN
 
@@ -341,10 +347,69 @@ Module ModuleReadSWANNonStationary
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_)                                            &
          stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR190' 
+        
+        call GetOutPutWindow
+            
     end subroutine ReadGlobalOptions
 
     !--------------------------------------------------------------------------
 
+    subroutine GetOutPutWindow
+
+        !Arguments---------------------------------------------------------------
+ 
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: STAT_, STAT_CALL
+        integer, dimension(2)                       :: Aux
+        integer                                     :: iflag
+
+        !Begin-----------------------------------------------------------------
+
+        call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                     &
+                                       '<<beginoutwindow>>', '<<endoutwindow>>',        &
+                                       Me%OutW%OutPutWindowOn, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR10'
+        
+        if(Me%OutW%OutPutWindowOn) then
+            
+            call Getdata    (Aux,                                                   &
+                                     Me%ObjEnterData, iflag,                                  &
+                                     Keyword        = 'ILB_IUB_W',                          &
+                                     SearchType     = FromBlockinBlock,                     &
+                                     ClientModule   = 'ModuleEnterData',                    &
+                                     STAT           = STAT_CALL)
+                                 
+            if (STAT_CALL /= SUCCESS_)                                              &
+                        call SetError(FATAL_, INTERNAL_, 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR20') 
+
+            if (iflag == 0)                                                         &
+                call SetError(FATAL_, INTERNAL_, 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR30') 
+
+            Me%OutW%ILB = Aux(1)
+            Me%OutW%IUB = Aux(2)
+
+            call Getdata    (Aux,                                                   &
+                                Me%ObjEnterData, iflag,                                  &
+                                Keyword        = 'JLB_JUB_W',                          &
+                                SearchType     = FromBlockinBlock,                     &
+                                ClientModule   = 'ModuleEnterData',                    &
+                                STAT           = STAT_CALL)
+                                 
+            if (STAT_CALL /= SUCCESS_)                                              &
+                call SetError(FATAL_, INTERNAL_, 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR40') 
+
+            if (iflag == 0)                                                         &
+                call SetError(FATAL_, INTERNAL_, 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR50') 
+
+            Me%OutW%JLB = Aux(1)
+            Me%OutW%JUB = Aux(2)
+        endif
+        
+        call RewindBlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR60'
+
+    end subroutine GetOutPutWindow
     !--------------------------------------------------------------------------
 
     subroutine ReadProperties
@@ -585,6 +650,7 @@ i5:         if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_)) the
         real, dimension(:,:), pointer                   :: Aux2D
         real,    dimension(:), pointer                  :: RealArray1D
         REAL, PARAMETER                                 :: RADE= 180./pi
+        integer                                         :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                                         :: STAT_CALL, i, n
         !Begin-----------------------------------------------------------------
 
@@ -624,8 +690,27 @@ i2:         if (Me%Generic4D==1) then
         write(*,*)"Converting: "//trim(Me%PropsName(p))
         write(*,*)
         
-        call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
-                           Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
+        
+        if (Me%OutW%OutPutWindowON) then
+        
+            WorkILB = Me%OutW%ILB
+            WorkIUB = Me%OutW%IUB
+
+            WorkJLB = Me%OutW%JLB
+            WorkJUB = Me%OutW%JUB    
+            
+        else
+
+            WorkILB = Me%WorkSize%ILB 
+            WorkIUB = Me%WorkSize%IUB 
+
+            WorkJLB = Me%WorkSize%JLB 
+            WorkJUB = Me%WorkSize%JUB            
+
+        endif
+        
+        call HDF5SetLimits(Me%ObjHDF5, WorkILB, WorkIUB,            &
+                           WorkJLB, WorkJUB,                        &
                            STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR60'
             
@@ -674,6 +759,7 @@ d1:     do n=1,Me%OutPut%TotalOutputs
         integer                                         :: STAT_CALL, ii, jj
         integer                                         :: n
         character(len=StringLength)                     :: FieldNameX, FieldNameY
+        integer                                         :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         !Begin-----------------------------------------------------------------
         
         !allocate(Aux2DWD(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -718,9 +804,27 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
             
             FieldNameX = GetPropertyName(WaveX_)
             FieldNameY = GetPropertyName(WaveY_)
+            
+            if (Me%OutW%OutPutWindowON) then
         
-            call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
-                               Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
+                WorkILB = Me%OutW%ILB
+                WorkIUB = Me%OutW%IUB
+
+                WorkJLB = Me%OutW%JLB
+                WorkJUB = Me%OutW%JUB    
+            
+            else
+
+                WorkILB = Me%WorkSize%ILB 
+                WorkIUB = Me%WorkSize%IUB 
+
+                WorkJLB = Me%WorkSize%JLB 
+                WorkJUB = Me%WorkSize%JUB            
+
+            endif
+        
+            call HDF5SetLimits(Me%ObjHDF5, WorkILB, WorkIUB,            &
+                               WorkJLB, WorkJUB,                        &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR10'
 
@@ -771,6 +875,7 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
         integer                                         :: STAT_CALL, ii, jj
         integer                                         :: n
         character(len=StringLength)                     :: FieldName
+        integer                                         :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         !Begin-----------------------------------------------------------------
         
         allocate(Aux2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -788,8 +893,26 @@ d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
             
             FieldName = GetPropertyName(WavePower_)
             
-            call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
-                                Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
+            if (Me%OutW%OutPutWindowON) then
+        
+                WorkILB = Me%OutW%ILB
+                WorkIUB = Me%OutW%IUB
+
+                WorkJLB = Me%OutW%JLB
+                WorkJUB = Me%OutW%JUB    
+            
+            else
+
+                WorkILB = Me%WorkSize%ILB 
+                WorkIUB = Me%WorkSize%IUB 
+
+                WorkJLB = Me%WorkSize%JLB 
+                WorkJUB = Me%WorkSize%JUB            
+
+            endif
+            
+            call HDF5SetLimits(Me%ObjHDF5, WorkILB, WorkIUB,            &
+                                WorkJLB, WorkJUB,                        &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR10'
 
@@ -887,8 +1010,11 @@ d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
         real,    dimension(6), target               :: AuxTime
         real,    dimension(:), pointer              :: TimePtr
         real,    dimension(:,:), pointer            :: Bathymetry
+        integer                                     :: WorkILB, WorkIUB
+        integer                                     :: WorkJLB, WorkJUB
         integer                                     :: STAT_CALL,i
         integer                                     :: HDF5_CREATE
+        type(T_Size2D)                              :: WorkSize2D, GlobalWorkSizeWindow
 
         !----------------------------------------------------------------------
 
@@ -901,26 +1027,53 @@ d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
       
         !Opens HDF5 File
         call ConstructHDF5(Me%ObjHDF5, Me%OutputFileName, HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR30'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR20'
         
         
-        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,              &
-                             Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR40'
+        if (Me%OutW%OutPutWindowON) then
+            
+            WorkILB = Me%OutW%ILB
+            WorkIUB = Me%OutW%IUB
+
+            WorkJLB = Me%OutW%JLB
+            WorkJUB = Me%OutW%JUB
+            
+            WorkSize2D%ILB = WorkILB            
+            WorkSize2D%IUB = WorkIUB 
+            
+            WorkSize2D%JLB = WorkJLB
+            WorkSize2D%JUB = WorkJUB
+            
+            GlobalWorkSizeWindow         = WorkSize2D
+
+            call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjHDF5,                 &
+                                        WorkSize                = WorkSize2D,          &           
+                                        WindowGrid              = .true.,              &   
+                                        GlobalWorkSizeWindow    = GlobalWorkSizeWindow,&
+                                        STAT                    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR30'
+            
+        else
+
+            WorkILB = Me%WorkSize%ILB 
+            WorkIUB = Me%WorkSize%IUB 
+
+            WorkJLB = Me%WorkSize%JLB 
+            WorkJUB = Me%WorkSize%JUB
+            
+            call WriteHorizontalGrid (Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR40'
+
+        endif
+        
+        call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,              &
+                             WorkJLB, WorkJUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR50'
 
             
         call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "m",                   &
                               Array2D =  Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR50'            
-
-
-        call WriteHorizontalGrid (Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR60'            
-   
-       
-        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,              &
-                             Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR70'            
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR60'                      
 
         call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints2D", "-",                &
                               Array2D = Me%WaterPoints2D,  STAT = STAT_CALL)
