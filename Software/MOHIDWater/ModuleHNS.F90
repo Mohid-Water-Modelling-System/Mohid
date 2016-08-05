@@ -262,21 +262,6 @@ Module ModuleHNS
 
         integer :: STAT_
 
-        !Parameter---------------------------------------------------------------
-        character(LEN = StringLength), parameter :: Char_Gas                          = 'Gas (GD)'
-        character(LEN = StringLength), parameter :: Char_GasDissolver                 = 'Gas - Dissolver (GD)'
-        character(LEN = StringLength), parameter :: Char_Evaporator                   = 'Evaporator (E)'
-        character(LEN = StringLength), parameter :: Char_EvaporatorDissolver          = 'Evaporator - Dissolver (ED)'
-        character(LEN = StringLength), parameter :: Char_FloaterEvaporator            = 'Floater - Evaporator (FE)'
-        character(LEN = StringLength), parameter :: Char_FloaterEvaporatorDissolver   = 'Floater - Evaporator - Dissolver (FDE)'
-        character(LEN = StringLength), parameter :: Char_Floater                      = 'Floater (F)'
-        character(LEN = StringLength), parameter :: Char_FloaterDissolver             = 'Floater - Dissolver (FD)'
-        character(LEN = StringLength), parameter :: Char_DissolverEvaporator          = 'Dissolver - Evaporator (DE)'
-        character(LEN = StringLength), parameter :: Char_Dissolver                    = 'Dissolver (D)'
-        character(LEN = StringLength), parameter :: Char_SinkerDissolver              = 'Sinker - Dissolver (SD)'
-        character(LEN = StringLength), parameter :: Char_Sinker                       = 'Sinker (S)'
-        character(LEN = StringLength), parameter :: Char_Unknown                      = 'Unknown'
-       
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -338,53 +323,6 @@ ifContCalc: if (.NOT. ContCalc ) then
 !                Me%Var%Volume            = 0.0
                 Me%State%FirstStepIP     = ON
 
-                !Find HNS behaviour class
-                call FindHNSBehaviourClass(VaporPressure     = Me%Var%VaporPressure,     &
-                                          WaterSolubility = Me%Var%WaterSolubility, &
-                                          Density           = Me%Var%Density,           &
-                                          HNSBehaviourClass = Me%Var%HNSBehaviourClass)
-                
-                select case(Me%Var%HNSBehaviourClass)
-                case(Gas_)
-                    write(*,*) 'The chemical used is classified as ',  Char_Gas                
-
-                case(GasDissolver_)
-                    write(*,*) 'The chemical used is classified as ',  Char_GasDissolver                        
-
-                case(Evaporator_)
-                    write(*,*) 'The chemical used is classified as ',  Char_Evaporator
-                
-                case(EvaporatorDissolver_)
-                    write(*,*) 'The chemical used is classified as ',  Char_EvaporatorDissolver  
-                
-                case(FloaterEvaporator_)
-                    write(*,*) 'The chemical used is classified as ',  Char_FloaterEvaporator
-                
-                case(FloaterEvaporatorDissolver_)
-                    write(*,*) 'The chemical used is classified as ',  Char_FloaterEvaporatorDissolver            
-                
-                case(Floater_)
-                    write(*,*) 'The chemical used is classified as ',  Char_Floater   
-                
-                case(FloaterDissolver_)
-                    write(*,*) 'The chemical used is classified as ',  Char_FloaterDissolver
-                
-                case(DissolverEvaporator_)
-                    write(*,*) 'The chemical used is classified as ',  Char_DissolverEvaporator          
-                
-                case(Dissolver_)
-                    write(*,*) 'The chemical used is classified as ',  Char_Dissolver    
-                
-                case(SinkerDissolver_)
-                    write(*,*) 'The chemical used is classified as ',  Char_SinkerDissolver             
-                
-                case(Sinker_)
-                    write(*,*) 'The chemical used is classified as ',  Char_Sinker            
-                
-                case(ClassUnknown_)
-                    write(*,*) 'The chemical used is classified as ',  Char_Unknown
-                
-                end select
             end if ifContCalc
             
 
@@ -730,22 +668,31 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
         !------------------------------------------------------------------------
     
-    subroutine FindHNSBehaviourClass(VaporPressure,WaterSolubility,Density, HNSBehaviourClass)
+    subroutine FindHNSBehaviourClass(VaporPressure,WaterSolubility,Density, WaterDensity, HNSBehaviourClass)
 
         !Arguments---------------------------------------------------------------
-        real, intent(IN )                           :: VaporPressure     
-        real, intent(IN )                           :: WaterSolubility     
-        real, intent(IN )                           :: Density     
-        integer, intent(OUT)                        :: HNSBehaviourClass
+        real,           intent(IN )                           :: VaporPressure     
+        real,           intent(IN )                           :: WaterSolubility     
+        real,           intent(IN )                           :: Density     
+        real, optional, intent(IN )                           :: WaterDensity     
+        integer,        intent(OUT)                           :: HNSBehaviourClass
+
+        !Local-----------------------------------------------------------------
+        real                                                  :: WaterDensity_
 
         !--------------------------------------------------------------------------------     
         
-        
+        if (present(WaterDensity)) then
+            WaterDensity_ = WaterDensity
+        else
+            WaterDensity_ = 1023.0
+        end if
+
         if ((VaporPressure > 101.3E3) .and. (WaterSolubility <= 100000.)) then
                 HNSBehaviourClass = Gas_
         elseif ((VaporPressure > 101.3E3) .and. (WaterSolubility > 100000.)) then
                 HNSBehaviourClass = GasDissolver_
-        elseif ((VaporPressure > 3.E3) .and. (WaterSolubility <= 10000.) .and. (Density <= 1025.)) then
+        elseif ((VaporPressure > 3.E3) .and. (WaterSolubility <= 10000.) .and. (Density <= WaterDensity_)) then
                 HNSBehaviourClass = Evaporator_
         elseif ((VaporPressure > 3.E3) .and. ((WaterSolubility > 10000.) .and.       &
                 (WaterSolubility <= 50000.)) .and. (Density <= 1025.)) then
@@ -754,14 +701,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                 (WaterSolubility <= 1000.) .and. (Density <= 1025.)) then
                 HNSBehaviourClass = FloaterEvaporator_
         elseif ((VaporPressure > 0.3E3) .and. (VaporPressure <= 3.E3) .and.             &
-                (WaterSolubility > 1000.) .and. (WaterSolubility <= 50000.) .and. (Density <= 1025.)) then
+                (WaterSolubility > 1000.) .and. (WaterSolubility <= 50000.) .and. (Density <= WaterDensity_)) then
                 HNSBehaviourClass = FloaterEvaporatorDissolver_
-        elseif ((VaporPressure <= 0.3E3) .and. (WaterSolubility <= 1000.) .and. (Density <= 1025.)) then
+        elseif ((VaporPressure <= 0.3E3) .and. (WaterSolubility <= 1000.) .and. (Density <= WaterDensity_)) then
                 HNSBehaviourClass = Floater_
         elseif ((VaporPressure <= 0.3E3) .and. ((WaterSolubility > 10000.) .and.    &
                 (WaterSolubility <= 50000.)) .and. (Density <= 1025.)) then
                 HNSBehaviourClass = FloaterDissolver_
-        elseif ((VaporPressure > 10.E3) .and. (WaterSolubility > 50000.) .and. (Density <= 1025.)) then
+        elseif ((VaporPressure > 10.E3) .and. (WaterSolubility > 50000.) .and. (Density <= WaterDensity_)) then
                 HNSBehaviourClass = DissolverEvaporator_
         elseif ((VaporPressure <= 10.E3) .and. (WaterSolubility > 50000.)) then
                 HNSBehaviourClass = Dissolver_
@@ -1209,6 +1156,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer                                     :: ready_ 
         integer                                     :: STAT_ 
 
+        !Parameter---------------------------------------------------------------
+        character(LEN = StringLength), parameter :: Char_Gas                          = 'Gas (GD)'
+        character(LEN = StringLength), parameter :: Char_GasDissolver                 = 'Gas - Dissolver (GD)'
+        character(LEN = StringLength), parameter :: Char_Evaporator                   = 'Evaporator (E)'
+        character(LEN = StringLength), parameter :: Char_EvaporatorDissolver          = 'Evaporator - Dissolver (ED)'
+        character(LEN = StringLength), parameter :: Char_FloaterEvaporator            = 'Floater - Evaporator (FE)'
+        character(LEN = StringLength), parameter :: Char_FloaterEvaporatorDissolver   = 'Floater - Evaporator - Dissolver (FDE)'
+        character(LEN = StringLength), parameter :: Char_Floater                      = 'Floater (F)'
+        character(LEN = StringLength), parameter :: Char_FloaterDissolver             = 'Floater - Dissolver (FD)'
+        character(LEN = StringLength), parameter :: Char_DissolverEvaporator          = 'Dissolver - Evaporator (DE)'
+        character(LEN = StringLength), parameter :: Char_Dissolver                    = 'Dissolver (D)'
+        character(LEN = StringLength), parameter :: Char_SinkerDissolver              = 'Sinker - Dissolver (SD)'
+        character(LEN = StringLength), parameter :: Char_Sinker                       = 'Sinker (S)'
+        character(LEN = StringLength), parameter :: Char_Unknown                      = 'Unknown'
+
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -1247,6 +1209,57 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                     Me%Var%DropletDiameter              = DropletsDiameterIN
                     
                     Call InitializeVariables
+                    
+                    if (Me%State%FirstStepIP) then                     
+                        !Find HNS behaviour class
+                        call FindHNSBehaviourClass(VaporPressure     = Me%Var%VaporPressure,        &
+                                                  WaterSolubility    = Me%Var%WaterSolubility,      &
+                                                  Density            = Me%Var%Density,              &
+                                                  WaterDensity       = Me%ExternalVar%WaterDensity, &
+                                                  HNSBehaviourClass  = Me%Var%HNSBehaviourClass     )
+                        
+                        select case(Me%Var%HNSBehaviourClass)
+                        case(Gas_)
+                            write(*,*) 'The chemical used is classified as ',  Char_Gas                
+
+                        case(GasDissolver_)
+                            write(*,*) 'The chemical used is classified as ',  Char_GasDissolver                        
+
+                        case(Evaporator_)
+                            write(*,*) 'The chemical used is classified as ',  Char_Evaporator
+                
+                        case(EvaporatorDissolver_)
+                            write(*,*) 'The chemical used is classified as ',  Char_EvaporatorDissolver  
+                
+                        case(FloaterEvaporator_)
+                            write(*,*) 'The chemical used is classified as ',  Char_FloaterEvaporator
+                
+                        case(FloaterEvaporatorDissolver_)
+                            write(*,*) 'The chemical used is classified as ',  Char_FloaterEvaporatorDissolver            
+                
+                        case(Floater_)
+                            write(*,*) 'The chemical used is classified as ',  Char_Floater   
+                
+                        case(FloaterDissolver_)
+                            write(*,*) 'The chemical used is classified as ',  Char_FloaterDissolver
+                
+                        case(DissolverEvaporator_)
+                            write(*,*) 'The chemical used is classified as ',  Char_DissolverEvaporator          
+                
+                        case(Dissolver_)
+                            write(*,*) 'The chemical used is classified as ',  Char_Dissolver    
+                
+                        case(SinkerDissolver_)
+                            write(*,*) 'The chemical used is classified as ',  Char_SinkerDissolver             
+                
+                        case(Sinker_)
+                            write(*,*) 'The chemical used is classified as ',  Char_Sinker            
+                
+                        case(ClassUnknown_)
+                            write(*,*) 'The chemical used is classified as ',  Char_Unknown
+                
+                        end select
+                    endif
                     
                     if (Me%Var%HNSParticleState .EQ. Surface_) then
                         if (Me%Var%HNSEvaporation) call Evaporation
@@ -1568,8 +1581,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         
         !Dynamic Viscocity in cP (mPa/s)
         WaterDynamicVisc_ = GetWaterDynamicVisc(WaterTemperature)
-        !Water Kynematic Visc in cSt (cm2/s)
-        WaterCinVisc_cSt = 10. * WaterDynamicVisc_ / WaterDensity
+        !Water Kynematic Visc in cSt (mm2/s)
+        WaterCinVisc_cSt = WaterDynamicVisc_ / WaterDensity
         
         WaterSolubility = Me%Var%WaterSolubility
 
@@ -1597,7 +1610,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
            
             ReynoldsVelocity = Me%ExternalVar%Wind 
                       
-            ReynoldsNbr = ReynoldsVelocity * Diameter / (WaterCinVisc_cSt*1e-4)
+            ReynoldsNbr = ReynoldsVelocity * Diameter / (WaterCinVisc_cSt*1e-6)
 
             SherwoodNbr = .578 * (SchmidtNbr **(1./3.)) * (ReynoldsNbr ** 0.5)
                  
@@ -1610,7 +1623,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             ReynoldsVelocity = Me%ExternalVar%Currents 
 
-            ReynoldsNbr = ReynoldsVelocity * Diameter / (WaterCinVisc_cSt*1.e-4)
+            ReynoldsNbr = ReynoldsVelocity * Diameter / (WaterCinVisc_cSt*1.e-6)
 
             SherwoodNbr = 2. + 0.552 * sqrt(ReynoldsNbr) * (SchmidtNbr **(1./3.))
 
