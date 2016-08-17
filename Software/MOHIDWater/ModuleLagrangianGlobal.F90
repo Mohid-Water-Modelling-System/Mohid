@@ -185,7 +185,7 @@ Module ModuleLagrangianGlobal
 !   KILL_LAND_PARTICLES     : 0/1                       [0]                     !Kills particles which are located in a Waterpoint
 !                                                                               !which is not a OpenPoint                   
 !   STOKES_DRIFT            : 0/1                       [0]                     !Wave-driven particle velocity (Stokes Drift)
-!   STOKES_DRIFT_METHOD     : LonguetHigginsDeep/LonguetHigginsGeneric  [LonguetHigginsGeneric]  Stokes Drift Method
+!   STOKES_DRIFT_METHOD     : LonguetHigginsDeep/LonguetHigginsGeneric/Ardhuin  [LonguetHigginsGeneric]  Stokes Drift Method
 !   WINDDRIFTCORRECTION     : 0/1/2                     [0]                     ! 0 = no wind drift correction; 
 !                                                                               ! 1 = user-defined; 3 = computed (Samuels, 1982)
 !   (next keyword is only read if WINDDRIFTCORRECTION = 1)
@@ -697,6 +697,7 @@ Module ModuleLagrangianGlobal
     !Methods for Stokes Drift
     integer, parameter                          :: LonguetHigginsDeep       = 1
     integer, parameter                          :: LonguetHigginsGeneric    = 2
+    integer, parameter                          :: Ardhuin                  = 3
     
     !Spatial definition for BeachingLimit
     integer, parameter                          :: Constant_                = 1
@@ -763,6 +764,7 @@ Module ModuleLagrangianGlobal
     
     character(LEN = StringLength), parameter    :: Char_LonguetHigginsDeep  = 'LonguetHigginsDeep'
     character(LEN = StringLength), parameter    :: Char_LonguetHigginsGeneric = 'LonguetHigginsGeneric'
+    character(LEN = StringLength), parameter    :: Char_Ardhuin             = 'Ardhuin'
     
 !----------------------------------------------------------------------------
 !                                   Eulerian types
@@ -5150,6 +5152,8 @@ TURB_V:                 if (flag == 1) then
                 NewOrigin%Movement%StokesDriftMethod = LonguetHigginsDeep
             case (Char_LonguetHigginsGeneric)
                 NewOrigin%Movement%StokesDriftMethod = LonguetHigginsGeneric
+            case (Char_Ardhuin)
+                NewOrigin%Movement%StokesDriftMethod = Ardhuin
 
             case default
                 write(*,*)'Invalid Stokes Drift method'
@@ -6882,15 +6886,15 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         endif
 
         !model the tracers as if they were solid floating objects (containers, e.g.)
-        call GetData(NewOrigin%State%FloatingObject,                                   &
-                     Me%ObjEnterData,                                                  &
-                     flag,                                                             &
-                     SearchType   = FromBlock,                                         &
-                     keyword      ='FLOATING_OBJECT',                                  &
-                     Default      = OFF,                                               &
-                     ClientModule ='ModuleLagrangianGlobal',                           &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1660'
+        !call GetData(NewOrigin%State%FloatingObject,                                   &
+        !             Me%ObjEnterData,                                                  &
+        !             flag,                                                             &
+        !             SearchType   = FromBlock,                                         &
+        !             keyword      ='FLOATING_OBJECT',                                  &
+        !             Default      = OFF,                                               &
+        !             ClientModule ='ModuleLagrangianGlobal',                           &
+        !             STAT         = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1660'
 
         if (NewOrigin%State%FloatingObject) then
             call GetData(NewOrigin%FloatingObject%AirDragCoef,                          &
@@ -9268,7 +9272,28 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
             call ActualizeOrigin (CurrentOrigin, ParticleVolume)
         endif
 
+        if (CurrentOrigin%State%HNS) then   
 
+            !Volume
+            select case (CurrentOrigin%EmissionTemporal)
+
+            case (Instantaneous_)
+
+                call GetInitialArea(CurrentOrigin%ObjHNS,                                      &
+                                        VolInic                = CurrentOrigin%PointVolume,    &
+                                        AreaTotal              = AreaTotal,                    &
+                                        STAT = STAT_CALL)
+            case (Continuous_)
+
+                call GetInitialArea(CurrentOrigin%ObjHNS,                                      &
+                                        VolInic                = CurrentOrigin%Flow *          &
+                                                                 CurrentOrigin%DT_EMIT,        &
+                                        AreaTotal              = AreaTotal,                    &
+                                        STAT = STAT_CALL)           
+            end select
+
+        endif
+                
         do nP = 1, CurrentOrigin%NbrParticlesIteration
 
             !Allocates a new Particle
@@ -9368,20 +9393,7 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                NewParticle%Geometry%VolumeOil     = NewParticle%Geometry%Volume
 
             if (CurrentOrigin%State%HNS) then   
-                DensityInAPI = .false.
-                call GetHNSDensity(CurrentOrigin%ObjHNS, Density = Density, STAT = STAT_CALL)
-                
-                ! just one of the next methods for compute initial area must be used
-                call GetInitialArea(CurrentOrigin%ObjHNS,                                   &
-                                     VolInic                = CurrentOrigin%PointVolume,    &
-                                     AreaTotal              = AreaTotal,                    &
-                                     STAT = STAT_CALL)
 
-!                    AreaTotal = F_FayArea(VolInic          = CurrentOrigin%PointVolume,        & 
-!                                          Density          = Density,                          & 
-!                                          WaterDensity     = GetFirstParticDens(CurrentOrigin),& 
-!                                          WaterTemperature = GetFirstParticTemp(CurrentOrigin),&
-!                    
                 !Calcula a area ocupada por cada tracador
                 AreaParticle = AreaTotal / float(CurrentOrigin%NbrParticlesIteration)
 
@@ -9921,7 +9933,6 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                     DensityInAPI = .false.
                     call GetHNSDensity(CurrentOrigin%ObjHNS, Density = Density, STAT = STAT_CALL)
                     
-                    ! just one of the next methods for compute initial area must be used
                     call GetInitialArea(CurrentOrigin%ObjHNS,                                   &
                                          VolInic                = CurrentOrigin%PointVolume,    &
                                          AreaTotal              = AreaTotal,                    &
@@ -13265,13 +13276,17 @@ i2:                 if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint
                         WaveHeightAux = max(WaveHeight, 0.01)
 
                         !Calculates the Concentration
-                        ! CurrentOrigin%OilGridConcentration = (Specific_MSurface + Specific_MDispersed) / (MixingDepth * WaterDensity)
-                        Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration(i, j) =                     &
-                                      1.e6 * ((Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j) * &
-                                      Me%ExternalVar%OilDensity) + & 
-                                      (Me%ExternalVar%MDispersed / max(AllmostZero,Me%ExternalVar%AreaTotal))) / & 
-                                      (1.5 * WaveHeightAux * WaterDensity)                      
-
+                        
+i3:                     if (Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j) == 0.) then
+                            Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration(i, j) = 0.
+                        else                           
+                            ! CurrentOrigin%OilGridConcentration = (Specific_MSurface + Specific_MDispersed) / (MixingDepth * WaterDensity)
+                            Me%EulerModel(em)%OilSpreading(ig)%OilGridConcentration(i, j) =                     &
+                                          1.e6 * ((Me%EulerModel(em)%OilSpreading(ig)%GridThickness(i, j) * &
+                                          Me%ExternalVar%OilDensity) + & 
+                                          (Me%ExternalVar%MDispersed / max(AllmostZero,Me%ExternalVar%AreaTotal))) / & 
+                                          (1.5 * WaveHeightAux * WaterDensity)                      
+                        endif i3
                     endif i2
 
                 enddo d4
@@ -13607,14 +13622,20 @@ d1:     do em = 1, Me%EulerModelNumber
                      if (Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) > 0.) then
                          Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D (i, j,k) = 1.E6 *  &
                          Me%EulerModel(em)%HNS(ig)%GridDissolvedMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
+                     else
+                         Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D (i, j,k) = 0.0
                      endif
                      if (Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) > 0.) then
                          Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i,j,k) = 1.E6 *  &
-                         Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
+                         Me%EulerModel(em)%HNS(ig)%GridDropletsMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))
+                     else
+                         Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i,j,k) = 0.0
                      endif
                      if (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) > 0.) then
                          Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D (i, j,k) = 1.E6 *  &
-                         Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))  
+                         Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass3D(i,j,k) / (Me%EulerModel(em)%VolumeZ(i,j,k))
+                     else
+                         Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D (i, j,k) = 0.0
                      endif
                 end if
             enddo
@@ -13783,7 +13804,9 @@ d1:     do em = 1, Me%EulerModelNumber
             do i = ILB, IUB
                 IntegratedVolume = 0.
                 do k = KLB, KUB
-                    IntegratedVolume = IntegratedVolume + Me%EulerModel(em)%VolumeZ(i,j,k)
+                    if (Me%EulerModel(em)%VolumeZ(i,j,k) > 0.0) then
+                        IntegratedVolume = IntegratedVolume + Me%EulerModel(em)%VolumeZ(i,j,k)
+                    endif
                 enddo
 
                if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
@@ -13791,23 +13814,33 @@ d1:     do em = 1, Me%EulerModelNumber
                          Me%EulerModel(em)%HNS(ig)%GridAirConc2D (i, j) = 1.E6 *  &
                          Air_MassSumParticCell(i,j) / (Me%EulerModel(em)%GridCellArea (i, j) * 2.)  
                          ! the value of 2(m) above is the surface layer where there would be exposure 
-                         ! to humans and wildlife 
+                         ! to humans and wildlife
+                     else
+                         Me%EulerModel(em)%HNS(ig)%GridAirConc2D (i, j) = 0.0
                      endif
                      if (Dissolved_MassSumParticCell(i, j) > 0.) then
                          Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D (i, j) = 1.E6 *  &
-                         Dissolved_MassSumParticCell(i,j) / IntegratedVolume  
+                         Dissolved_MassSumParticCell(i,j) / IntegratedVolume
+                     else
+                         Me%EulerModel(em)%HNS(ig)%GridDissolvedConc2D (i, j) = 0.0
                      endif
                      if (Droplets_MassSumParticCell(i, j) > 0.) then
                          Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D (i, j) = 1.E6 *  &
-                         Droplets_MassSumParticCell(i,j) / IntegratedVolume  
+                         Droplets_MassSumParticCell(i,j) / IntegratedVolume
+                     else
+                         Me%EulerModel(em)%HNS(ig)%GridDropletsConc2D (i, j) = 0.0
                      endif
                      if (SuspendedParticulates_MassSumParticCell(i, j) > 0.) then
                          Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D (i, j) = 1.E6 *  &
                          SuspendedParticulates_MassSumParticCell(i,j) / IntegratedVolume    
+                     else
+                         Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc2D (i, j) = 0.0
                      endif
                      if (DepositedParticulates_MassSumParticCell(i, j) > 0.) then
                          Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D (i, j) = 1.E6 *  &
                          DepositedParticulates_MassSumParticCell(i,j) / Me%EulerModel(em)%GridCellArea (i, j)    
+                     else
+                         Me%EulerModel(em)%HNS(ig)%GridDepositedParticulateMassPerArea2D (i, j) = 0.0
                      endif
                 end if
 
@@ -13903,47 +13936,80 @@ d1:     do em = 1, Me%EulerModelNumber
             MaxDissolvedMassSumParticCell(:,:) = 0.
             MaxDropletsMassSumParticCell(:,:) = 0.
             MaxSuspendedParticulateMassSumParticCell(:,:) = 0.
+            KMax_Dissolved(:,:) = 0.
+            KMax_Droplets(:,:) = 0.
+            KMax_SuspendedParticulates(:,:) = 0.
+            
+            Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(:,:) = 0.
+            Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(:,:) = 0.
+            Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(:,:) = 0.
+
+            !!Calculates the HNS Grid Vertical Max Concentration (2D)
             do j = JLB, JUB
             do i = ILB, IUB
                 do k = KLB, KUB
-                    if (MaxDissolvedMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)) then
-                        MaxDissolvedMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)
-                        KMax_Dissolved(i,j) = k
-                    end if
-                    if (MaxDropletsMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)) then
-                        MaxDropletsMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)
-                        KMax_Droplets(i,j) = k
-                    end if
-                    if (MaxSuspendedParticulateMassSumParticCell(i, j) <    &
-                        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)) then
-                        MaxSuspendedParticulateMassSumParticCell(i, j) =                &
-                            Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)
-                        KMax_SuspendedParticulates(i,j) = k
-                    end if
+                    if (Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) < Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(i, j, k)) then
+                        Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) = Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(i, j, k)
+                    endif
+                    if (Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) < Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i, j, k)) then
+                        Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) = Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i, j, k)
+                    endif
+                    if (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) < Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(i, j, k)) then
+                        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(i, j, k)
+                    endif
                 enddo
             enddo
             enddo
 
-            !Calculates the HNS Grid Max Concentration (2D)
-            do j = JLB, JUB
-            do i = ILB, IUB
-                   if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
-                        if (MaxDissolvedMassSumParticCell(i, j) > 0.) then
-                             Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) = 1.E6 * &
-                             MaxDissolvedMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Dissolved(i,j))  
-                        endif
-                        if (MaxDropletsMassSumParticCell(i, j) > 0.) then
-                             Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) = 1.E6 * &
-                             MaxDropletsMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Droplets(i,j))  
-                        endif
-                        if (MaxSuspendedParticulateMassSumParticCell(i, j) > 0.) then
-                             Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = 1.E6 * &
-                             MaxSuspendedParticulateMassSumParticCell(i, j) /           &
-                             Me%EulerModel(em)%VolumeZ(i,j,KMax_SuspendedParticulates(i,j))  
-                        endif
-                   end if
-            enddo
-            enddo
+            
+            
+            !do j = JLB, JUB
+            !do i = ILB, IUB
+            !    do k = KLB, KUB
+            !        if (MaxDissolvedMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)) then
+            !            MaxDissolvedMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDissolvedMass2D(i, j)
+            !            KMax_Dissolved(i,j) = k
+            !        end if
+            !        if (MaxDropletsMassSumParticCell(i, j) < Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)) then
+            !            MaxDropletsMassSumParticCell(i, j) = Me%EulerModel(em)%HNS(ig)%GridDropletsMass2D(i, j)
+            !            KMax_Droplets(i,j) = k
+            !        end if
+            !        if (MaxSuspendedParticulateMassSumParticCell(i, j) <    &
+            !            Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)) then
+            !            MaxSuspendedParticulateMassSumParticCell(i, j) =                &
+            !                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMass2D(i, j)
+            !            KMax_SuspendedParticulates(i,j) = k
+            !        end if
+            !    enddo
+            !enddo
+            !enddo
+            !
+            !!Calculates the HNS Grid Max Concentration (2D)
+            !do j = JLB, JUB
+            !do i = ILB, IUB
+            !       if (Me%EulerModel(em)%WaterPoints3D(i, j, KUB) == WaterPoint) then 
+            !            if (MaxDissolvedMassSumParticCell(i, j) > 0. .AND. Me%EulerModel(em)%VolumeZ(i,j,KMax_Dissolved(i,j)) > 0.0) then
+            !                 Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) = 1.E6 * &
+            !                 MaxDissolvedMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Dissolved(i,j))  
+            !            else
+            !                 Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) = 0.0
+            !            endif
+            !            if (MaxDropletsMassSumParticCell(i, j) > 0.) then
+            !                 Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) = 1.E6 * &
+            !                 MaxDropletsMassSumParticCell(i, j) / Me%EulerModel(em)%VolumeZ(i,j,KMax_Droplets(i,j))  
+            !            else
+            !                 Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) = 0.0
+            !            endif
+            !            if (MaxSuspendedParticulateMassSumParticCell(i, j) > 0. .AND. Me%EulerModel(em)%VolumeZ(i,j,KMax_SuspendedParticulates(i,j)) > 0.0) then
+            !                 Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = 1.E6 * &
+            !                 MaxSuspendedParticulateMassSumParticCell(i, j) /           &
+            !                 Me%EulerModel(em)%VolumeZ(i,j,KMax_SuspendedParticulates(i,j))  
+            !            else
+            !                Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = 0.0
+            !            endif
+            !       end if
+            !enddo
+            !enddo
 
             deallocate (MaxDissolvedMassSumParticCell, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'HNSGridMaxConc2D - ModuleLagrangianGlobal- ERR10'
@@ -15642,6 +15708,16 @@ if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == Long
                                 VelStokesDrift     = WaveAmplitude * WaveAmplitude * AngFrequency * WaveNumber * &
                                                      exp(-2* WaveNumber * Depth)
                                                                                
+                            elseif (CurrentOrigin%Movement%StokesDriftMethod == Ardhuin) then             if_stm
+                                ! Approximation from Ardhuin et al, 2009 (DOI: 10.1175/2009JPO4169.1)
+                                Wind               = abs(cmplx(WindX, WindY))
+                                VelStokesDrift     = 0.0005 * (1.25 - 0.25 * ((0.5 * WavePeriod)**1.3)) * Wind * &
+                                                     min(Wind, 14.5) + 0.025 * (WaveHeight - 0.4)
+                                If (VelStokesDrift .LT. 0.) then 
+                                    VelStokesDrift = 0.
+                                endif
+                                
+
                             end if if_stm
                         
                         End If
