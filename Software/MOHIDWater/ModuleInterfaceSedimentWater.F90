@@ -5282,7 +5282,8 @@ do2:            do i = ILB, IUB
                                 If(Cphi < 0.) Cphi = Cphi + 360  
                                 Me%WaveShear_Stress%Cphi(i,j) = Cphi !Current angle                        
                                 Wphi = Me%ExtWater%WaveDirection(i,j)                                    
-                                CWphi = Cphi - Wphi !Current-wave angle
+                                !CWphi = Cphi - Wphi !Current-wave angle
+                                CWphi = Wphi - Cphi !Wave - Current angle
                                 Me%WaveShear_Stress%CWphi(i,j) = CWphi
                             
                                 !Compute drag coefficient
