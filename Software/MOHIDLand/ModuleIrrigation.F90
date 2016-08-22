@@ -318,7 +318,7 @@ module ModuleIrrigation
         logical                                     :: IsIrrigationScheduledForToday = .false.
         
     end type T_IrriSchedule
-    
+       
     !============================================================================
     !T_Files
     !
@@ -394,7 +394,7 @@ module ModuleIrrigation
         
         integer                                     :: NumberOfSchedules = 0
         type(T_IrriSchedule), dimension(:), pointer :: Schedules => null()
-        
+                
         logical, dimension(:,:), pointer            :: ComputePoints => null()
         
         type (T_Time)                               :: Now
@@ -684,10 +684,10 @@ cd0:    if (ready_ == OFF_ERR_) then
     end subroutine CheckConfiguration
     
     !----------------------------------------------------------------------------  
+    
+    subroutine ConstructSchedules ()
       
-    subroutine ConstructSchedules
-      
-        !Arguments---------------------------------------------------------------
+        !Arguments---------------------------------------------------------------        
    
         !Local-------------------------------------------------------------------
         integer                                 :: client_number
@@ -706,12 +706,12 @@ cd0:    if (ready_ == OFF_ERR_) then
         allocate (Me%Schedules (Me%NumberOfSchedules))
         
         do n = 1, Me%NumberOfSchedules
-            call ExtractBlockFromBuffer (Me%ObjEnterData,                   &
-                                         ClientNumber    = client_number,   &
-                                         block_begin     = BeginSchedule,   &
-                                         block_end       = EndSchedule,     &
-                                         BlockFound      = block_found,     &
-                                         STAT            = stat_call)
+            call ExtractBlockFromBuffer (Me%ObjEnterData,                       &
+                                         ClientNumber       = client_number,    &
+                                         block_begin        = BeginSchedule,    &
+                                         block_end          = EndSchedule,      &
+                                         BlockFound         = block_found,      &
+                                         STAT               = stat_call)
             if (stat_call /= SUCCESS_) &
                 stop 'ConstructSchedules - ModuleIrrigation - ERR030'
             
@@ -2034,9 +2034,9 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
         !Local-------------------------------------------------------------------
         integer                                     :: STAT_, ready_
         integer                                     :: schedule_i
-        type(T_IrriSchedule), pointer               :: schedule_x
-        
-        !------------------------------------------------------------------------
+        type(T_IrriSchedule), pointer               :: schedule_x        
+      
+        !Begin-------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
@@ -2055,7 +2055,7 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
             
             do schedule_i = 1, Me%NumberOfSchedules
             
-                schedule_x => me%Schedules(schedule_i)
+                schedule_x => me%Schedules(schedule_i)                
                 
                 if (schedule_x%Active) then
                 
@@ -2063,19 +2063,19 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
                         ((.not. schedule_x%DelayIrrigation) .or. (schedule_x%StartIrrigationTime < (Me%Now))) &
                         .and. &
                         ((schedule_x%InfiniteIrrigation) .or. (schedule_x%StopIrrigationTime >= (Me%Now))) &
-                       ) then
-                
+                       ) then                        
+                        
                         call ReadPropertiesFromFile (schedule_x)
                 
                         !First, compute irrigation needs
                         select case (schedule_x%IrrigationMethod)
                         case (FixedIrrigation)
-                    
+
                             !Fixed irrigation is provided by the user.
                             !The Irrigation was already set at 'ReadPropertiesFromFile'
                     
                         case (IrrigationBySteps)
-                    
+                                                                            
                             call ComputeIrrigationBySteps (schedule_x)
                 
                         case (ContinuousIrrigation)
@@ -2096,11 +2096,14 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
                     !Update the irrigation property used by Basin
                     call UpdateIrrigation (schedule_x)
                 
-                    !Update the output (accumulated) timeseries
-                    call UpdateOutputTimeSeries (schedule_x)
+                    schedule_x%AccOutput%Value = schedule_x%AccOutput%Value + schedule_x%ActualIrrigation
+
                 endif
             enddo
             
+            !Update the output (accumulated) timeseries
+            call UpdateOutputTimeSeries ()
+                    
             !Restart Output File
             if (Me%Output%WriteRestartFile .AND. .NOT. (Me%Now == Me%EndTime)) then
                 if(Me%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
@@ -2281,30 +2284,31 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         !Begin-------------------------------------------------------------------        
         
         Me%Irrigation = 0.0
-        
-        do index = 1, Me%NumberOfSchedules
-            schedule => Me%Schedules(index)
-            
-            if (schedule%Active .eqv. .false.) cycle
-            
-            if (schedule%IrrigationMethod .eq. FixedIrrigation) then
+                   
+        if (schedule%IrrigationMethod .eq. FixedIrrigation) then
                 
+            if (Me%Now > schedule%StartIrrigationTime) then
+            if (Me%Now <= schedule%StopIrrigationTime) then
+            
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
                     if (schedule%ApplicationAreaMap%LogicalField(i,j).eqv..true.) then  
                         ![mm]              =        [mm]        + (      [mm/s]                   * [s] )
                         Me%Irrigation(i,j) = Me%Irrigation(i,j) + (schedule%Irrigation%Field(i,j) * Me%DT)
-                    else
-                        Me%Irrigation(i,j) = 0.0
+                        schedule%ActualIrrigation = schedule%Irrigation%Field(i,j) * Me%DT
                     endif
                 
                 enddo
                 enddo    
-                
-            else if (schedule%IrrigationMethod .eq. IrrigationBySteps) then
             
+            endif
+            endif
                 
+        else if (schedule%IrrigationMethod .eq. IrrigationBySteps) then
+            
+            if (Me%Now > schedule%StartIrrigationTime) then
+            if (Me%Now <= schedule%StopIrrigationTime) then
                 sch_day => schedule%FirstDailySchedule
 
                 schedule%ActualIrrigation = 0.0
@@ -2325,8 +2329,6 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                         if (schedule%ApplicationAreaMap%LogicalField(i,j).eqv..true.) then                        
                             ![mm]              =        [mm]        + (      [mm/s]       *  [s] )
                             Me%Irrigation(i,j) = Me%Irrigation(i,j) + (sch_day%Irrigation * Me%DT)
-                        else
-                            Me%Irrigation(i,j) = 0.0
                         endif
                 
                     enddo
@@ -2336,8 +2338,11 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                 endif
                 endif
             endif
-        enddo
+            endif
+        endif
 
+        if (Me%Now > schedule%StartIrrigationTime) then
+        if (Me%Now <= schedule%StopIrrigationTime) then
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
@@ -2348,6 +2353,8 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
                 
         enddo
         enddo
+        endif
+        endif
                 
     end subroutine UpdateIrrigation
     
@@ -2937,34 +2944,37 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
-    subroutine UpdateOutputTimeSeries (schedule)
+    subroutine UpdateOutputTimeSeries ()
         
-        !Arguments---------------------------------------------------------------
-        type(T_IrriSchedule), pointer       :: schedule
+        !Arguments---------------------------------------------------------------        
 
         !Local-------------------------------------------------------------------
+        type(T_IrriSchedule), pointer       :: schedule
         integer                             :: stat_call
+        integer                             :: i
 
-        !------------------------------------------------------------------------
+        !------------------------------------------------------------------------    
+                
+        do i=1, Me%NumberOfSchedules
 
-        schedule%AccOutput%Value = schedule%AccOutput%Value + schedule%ActualIrrigation
+            schedule => Me%Schedules(i)
+            if (Me%Now .ge. schedule%AccOutput%NextOutputTime .or. Me%Now .ge. Me%EndTime) then
+                                
+                Me%AccIrrigation(1) = schedule%AccOutput%Value
+                        
+                call WriteTimeSerieLineNow(schedule%ObjTimeSeries,      &
+                                           DataLine = Me%AccIrrigation, &
+                                           STAT = stat_call)
+                if (stat_call /= SUCCESS_) stop 'ModuleIrrigation - UpdateOutputTimeSeries - ERR01'                              
+            
+                schedule%AccOutput%NextOutputTime = schedule%AccOutput%NextOutputTime + &
+                                                    schedule%AccOutput%OutputInterval
         
-        if (Me%Now .ge. schedule%AccOutput%NextOutputTime .or. Me%Now .ge. Me%EndTime) then
+                schedule%AccOutput%Value = 0.0            
+            
+            endif
+        enddo
 
-            Me%AccIrrigation(1) = schedule%AccOutput%Value
-            
-            call WriteTimeSerieLineNow(schedule%ObjTimeSeries,      &
-                                       DataLine = Me%AccIrrigation, &
-                                       STAT = stat_call)
-            if (stat_call /= SUCCESS_) stop 'ModuleDrainageNetwork - OutputIntFlow - ERR01'                              
-            
-            schedule%AccOutput%NextOutputTime = schedule%AccOutput%NextOutputTime + &
-                                                schedule%AccOutput%OutputInterval
-        
-            schedule%AccOutput%Value = 0.0
-            
-        endif
-        
     end subroutine UpdateOutputTimeSeries
     
     !============================================================================
