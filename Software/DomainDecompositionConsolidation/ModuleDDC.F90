@@ -1667,7 +1667,7 @@ if2 :       if (iUnderScore > 0) then
 
                 
 if3 :           if (iUnderScore2 > 0) then
-                    ConsolidatedFile = adjustl(trim(Directory)) // '\' // MPIResultsFile(5+iUnderScore2:)
+                    ConsolidatedFile = adjustl(trim(Directory)) // '/' // MPIResultsFile(5+iUnderScore2:)
                     
                     IDOut = hash_get(hash_map_out, ConsolidatedFile)
                     
@@ -1689,11 +1689,11 @@ if4 :               if (IDOut <0) then
                         
                     endif if4
 
-                    call hash_set(hash_map_in, key = adjustl(trim(Directory)) // '\' // HDFinfile, value_ = IDOut)
+                    call hash_set(hash_map_in, key = adjustl(trim(Directory)) // '/' // HDFinfile, value_ = IDOut)
                 
-                    call hash_setObjID(hash_map_in, key = adjustl(trim(Directory)) // '\' // HDFinfile, ObjID = ObjHDF5_Out)
+                    call hash_setObjID(hash_map_in, key = adjustl(trim(Directory)) // '/' // HDFinfile, ObjID = ObjHDF5_Out)
                 
-                    call GetDomainDecomposition(HDFFile = adjustl(trim(Directory)) // '\' // HDFinfile,   &
+                    call GetDomainDecomposition(HDFFile = adjustl(trim(Directory)) // '/' // HDFinfile,   &
                                                 hash_map_in = hash_map_in,                                &
                                                 FirstTime = FirstTime)
                                     
@@ -1981,7 +1981,7 @@ if1 :   if (GroupType == H5G_DATASET_F) then
 if2 :   if (iModel .LE. nbrModels) then
             write (AuxString, '(i10)') iModel
             DDFile = adjustl(trim(                                              &
-                         adjustl(trim(Directory))//'\MPI_'//                    &
+                         adjustl(trim(Directory))//'/MPI_'//                    &
                          adjustl(trim(AuxString))))//'_'//                      &
                          adjustl(trim(DecomposedFiles))//'.dat'
             inquire(file = DDFile, EXIST = DDFileExists)
