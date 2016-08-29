@@ -1240,13 +1240,13 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             Me%WaveShear_Stress%ChezyVel  (:,:) = FillValueReal
 
             allocate(Me%WaveShear_Stress%Cphi(ILB:IUB, JLB:JUB)) 
-            Me%WaveShear_Stress%Cphi(:,:) = FillValueReal
+            Me%WaveShear_Stress%Cphi(:,:) = 0.
             
             allocate(Me%WaveShear_Stress%CWphi(ILB:IUB, JLB:JUB)) 
-            Me%WaveShear_Stress%CWphi(:,:) = FillValueReal
+            Me%WaveShear_Stress%CWphi(:,:) = 0.
             
             allocate(Me%WaveShear_Stress%TensionMean(ILB:IUB, JLB:JUB)) 
-            Me%WaveShear_Stress%TensionMean(:,:) = FillValueReal
+            Me%WaveShear_Stress%TensionMean(:,:) = 0.
 
         end if
 
@@ -5230,7 +5230,11 @@ do1 :       do while (associated(Property))
 
                 if (MonitorPerformance) then
                     call StartWatch ("ModuleInterfaceSedimentWater", "ModifyShearStress_Method2")
-                endif                
+                endif
+                
+                if (Me%WaveShear_Stress%Yes) then                    
+                    Me%WaveShear_Stress%CWphi(:,:) = 0.
+                endif
 
 do1:            do j = JLB, JUB
 do2:            do i = ILB, IUB  
@@ -5278,7 +5282,8 @@ do2:            do i = ILB, IUB
                                 If(Cphi < 0.) Cphi = Cphi + 360  
                                 Me%WaveShear_Stress%Cphi(i,j) = Cphi !Current angle                        
                                 Wphi = Me%ExtWater%WaveDirection(i,j)                                    
-                                CWphi = Cphi - Wphi !Current-wave angle
+                                !CWphi = Cphi - Wphi !Current-wave angle
+                                CWphi = Wphi - Cphi !Wave - Current angle
                                 Me%WaveShear_Stress%CWphi(i,j) = CWphi
                             
                                 !Compute drag coefficient
@@ -7319,6 +7324,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                             
                 if(MaximumFlux .lt. 0.)then
                     write(*,*)'Maximum erosion flux cannot negative.', 'i,j', i,j, 'KTOP = ', KTOP
+                    write(*,*) 'Sand Mass', SandMass(i,j,KTOP), 'Property : '//trim(PropertyX%ID%Name)
                     stop 'ModifyNonCohesiveErosionFluxes - ModuleInterfaceSedimentWater - ERR80'
                 end if       
 

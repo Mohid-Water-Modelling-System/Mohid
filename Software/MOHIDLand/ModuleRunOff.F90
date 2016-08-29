@@ -7884,7 +7884,10 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
     end subroutine DebugStability
     
     !--------------------------------------------------------------------------
-
+    !FUNCTION: This routine updates the water level, column and volume at each iteration
+    !step if convergence is not met
+    !INPUT: old water column
+    !RESULT: updated 2D fields of water level, column and volume to initial values
     subroutine LocalWaterColumn (WaterColumn)
 
         !Arguments-------------------------------------------------------------

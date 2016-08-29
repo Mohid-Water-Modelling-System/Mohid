@@ -497,6 +497,7 @@ Module ModuleBasin
     type T_BasinDT
         real                                        :: SyncDT = 86400.
         real                                        :: NextDT = 86400.
+        real                                        :: MinDTThreshold = 0.
     end type T_BasinDT
     
     type T_Basin
@@ -1736,6 +1737,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR700'
         
         Me%InternalDT%NextDT = Me%InternalDT%SyncDT
+        write (*,*) "Basin internal DT: ", Me%InternalDT%SyncDT 
+        
+        call GetData(Me%InternalDT%MinDTThreshold,                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MIN_DT',                                           &
+                     ClientModule = 'ModuleBasin',                                      &
+                     Default      = Me%InternalDT%MinDTThreshold,                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR700'
+        
         
     end subroutine ReadDataFile
     
@@ -9369,7 +9381,7 @@ cd2 :           if (BlockFound) then
                 index = index + 1
             endif
         
-            Me%Integration%NextOutputTime = Me%CurrentTime + Me%Integration%Interval
+            Me%Integration%NextOutputTime = Me%Integration%NextOutputTime + Me%Integration%Interval
         
         endif
         
@@ -9632,6 +9644,8 @@ cd2 :           if (BlockFound) then
         character(len=30)                           :: time_string 
         type(T_Time)                                :: NextTime  
         logical                                     :: round_dt
+        real                                        :: DT_control
+        real                                        :: year, month, day, hour, minute, second
         !------------------------------------------------------------------------
         
         call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
@@ -9650,6 +9664,10 @@ cd2 :           if (BlockFound) then
             DTForNextEvent  = -null_real
         endif
 
+        !if (Me%InternalDT%NextDT < DTForNextEvent) then
+        !    DTForNextEvent = Me%InternalDT%NextDT
+        !endif
+        
         if (Me%Coupled%DrainageNetwork) then
             call GetNextDrainageNetDT (Me%ObjDrainageNetwork, DNetDT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleBasin - ERR020'
@@ -9703,11 +9721,7 @@ cd2 :           if (BlockFound) then
             
         endif
         
-        if (Me%InternalDT%NextDT < NewDT) then
-            NewDT = Me%InternalDT%NextDT
-            ID_DT = 9
-        endif
-            
+           
         !If the next event is happening...     
         if (DTForNextEvent <= 0.0) then
                    
@@ -9753,21 +9767,27 @@ cd2 :           if (BlockFound) then
             
         endif
 
+        if (Me%InternalDT%NextDT < DTForNextEvent) then
+            DT_control = Me%InternalDT%NextDT
+        else
+            DT_Control = DTForNextEvent
+        endif
+        
         !ControlDTChanges, if .true., try to avoid DT's too small only because of the time to the "next event".
         if (Me%ControlDTChanges) then
             
             !if the NewDT is lower than DTForNextEvent and is greater than Half the DTForNextEvent, 
             !decrease NewDT to be the half of DTForNextEvent, avoiding a smaller DT on the next 
             !prevision (because proximity with new event).
-            if (NewDT < DTForNextEvent) then
-                if (DTForNextEvent/NewDT < 2.0) then
+            if (NewDT < DT_Control) then
+                if (DT_Control/NewDT < 2.0) then
             
-                    NewDT = DTForNextEvent / 2
+                    NewDT = DT_Control / 2
                     ID_DT = 7
                 
                 endif
             else
-                if (DTForNextEvent <= AlmostZero) then
+                if (DT_Control <= AlmostZero) then
                     if (NewDT < AtmosphereDT) then
                         if (AtmosphereDT/NewDT < 2.0) then
                     
@@ -9793,12 +9813,23 @@ cd2 :           if (BlockFound) then
             NewDT = NewDT / 1000.0                    
         
         endif
+
+        if (NewDT < Me%InternalDT%MinDTThreshold) then
+            NewDT = Me%InternalDT%MinDTThreshold
+            ID_DT = 10
+        endif
         
+        if (Me%InternalDT%NextDT < NewDT) then
+            NewDT = Me%InternalDT%NextDT
+            ID_DT = 9
+        endif
+                
         !synchronize so that output can occur at multiples of MaxDT and not some minutes, seconds or milisseconds after        
         NextTime = Me%CurrentTime + NewDT
         time_string = ConvertTimeToString (NextTime)
 
-        
+        call ExtractDate (NextTime, year, month, day, hour, minute, second)
+               
         write(AuxString, fmt=10)min(DNetDT, MaxDT), min(RunOffDT, MaxDT), min(PorousMediaDT, MaxDT), &
                                 min(AtmosphereDT, MaxDT), DTForNextEvent, time_string                                
         

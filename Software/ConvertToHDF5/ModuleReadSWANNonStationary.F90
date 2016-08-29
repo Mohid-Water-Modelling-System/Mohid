@@ -23,7 +23,6 @@ Module ModuleReadSWANNonStationary
     use ModuleFunctions
     use ModuleHDF5
     use ModuleEnterData
-    use ModuleTime
     use ModuleHorizontalGrid
     use ModuleGridData
     use ModuleHorizontalMap
@@ -62,7 +61,13 @@ Module ModuleReadSWANNonStationary
          logical                                :: ON
          logical                                :: Yes                  = .false.
          integer                                :: TotalOutputs
-    end type T_OutPut                                   
+    end type T_OutPut
+    
+    type      T_OutW
+        logical                                 :: OutPutWindowON     = .false.
+        integer                                 :: IUB, ILB, JUB, JLB = FillValueInt
+
+    end type  T_OutW
     
     private :: T_SWAN
     type       T_SWAN
@@ -97,19 +102,28 @@ Module ModuleReadSWANNonStationary
 !        integer,                     dimension(:), pointer :: ConvertProp
 
         type(T_Time)                            :: BeginTime, EndTime
-        real,   dimension(:,:,:,:),     pointer :: Fields 
+        real,   dimension(:,:,:),         pointer :: Fields
+        real,   dimension(:,:,:),         pointer :: HS 
+        real,   dimension(:,:,:),         pointer :: WD 
+        real,   dimension(:,:,:),         pointer :: TEX
+        real,   dimension(:,:,:),         pointer :: TEY
         real,   dimension(:),           pointer :: PropVector
 
         integer                                 :: Clientumber
 
         logical                                 :: WriteVelModulus = .false., WriteWindModulus = .false.
+        logical                                 :: ReplaceNonComputedValues
+        integer                                 :: ReplacementMethod
         real                                    :: FillValue
         real                                    :: Generic4DValue
         integer                                 :: Generic4DPropertyIndeX
         integer                                 :: Generic4D
         integer                                 :: ReadType
         integer, dimension(:,:  ),  pointer     :: WaterPoints2D
+        integer, dimension(:,:  ),  pointer     :: BoundaryFacesU
+        integer, dimension(:,:  ),  pointer     :: BoundaryFacesV
         type(T_OutPut)                          :: OutPut
+        type(T_OutW)                            :: OutW 
         type(T_Size2D)                          :: WorkSize, Size
     end type  T_SWAN
 
@@ -135,7 +149,7 @@ Module ModuleReadSWANNonStationary
 
         !Local-------------------------------------------------------------------
 !        integer                                         :: l
-        integer                                         :: p, WD, HS,TEX, TEY
+        integer                                         :: p
         !------------------------------------------------------------------------
 
         STAT = UNKNOWN_
@@ -154,39 +168,23 @@ Module ModuleReadSWANNonStationary
         call ReadProperties
 
         call Open_HDF5_OutPut_File
-
-        call ReadFieldFromFile
-            
-        Me%OutPut%NextOutPut = 1.0
-
-d1:     do p=1, Me%NumberProps
-
-           call OutputFields (p)
-           
-i1:        if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_)) then
-                WD = P
-           endif i1
-i2:        if (trim(Me%PropsName(p)) == GetPropertyName(SignificantWaveHeight_) .and. Me%ScaleToHS) then
-                HS = P
-           else
-                HS = 0. 
-           endif i2
-           
-i3:        if (Me%WavePower) then
-i4:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyX_)) then
-                     TEX = P
-                endif i4
-i5:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_)) then
-                     TEY = P
-                endif i5
-           endif i3
-
-        enddo d1
         
-        call OutputWaveVector (WD, HS)
+        do p = 1, Me%NumberProps
+            
+            call ReadFieldFromFile(p)
+            
+            if (Me%ReplaceNonComputedValues) then
+                call ReplaceNonComputedValues(p)
+            endif
+
+            call OutputFields (p)
+            
+        enddo
+        
+        call OutputWaveVector
         
         if (Me%WavePower) then
-            call CalculateWavePower (TEX, TEY)
+            call CalculateWavePower
         endif
         
         call KillSWAN
@@ -329,10 +327,89 @@ i5:             if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_))
         if (STAT_CALL /= SUCCESS_)                                            &
          stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR170' 
         
+        call GetData(Me%ReplaceNonComputedValues,                           &
+                     Me%ObjEnterData, iflag,                                  &
+                     SearchType   = FromBlock,                                &
+                     keyword      = 'REPLACE_NON_COMPUTED_VALUES',            &
+                     default      = .TRUE.,                                   &
+                     ClientModule = 'SWAN',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_)                                            &
+         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR180' 
+        
+        ! 1-Null Value 2-Null Gradient
+        call GetData(Me%ReplacementMethod,                                    &
+                     Me%ObjEnterData, iflag,                                  &
+                     SearchType   = FromBlock,                                &
+                     keyword      = 'REPLACEMENT_METHOD',                     &
+                     default      = 2,                                        &
+                     ClientModule = 'SWAN',                                   &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_)                                            &
+         stop 'ReadGlobalOptions - ModuleReadSWANNonStationary - ERR190' 
+        
+        call GetOutPutWindow
+            
     end subroutine ReadGlobalOptions
 
     !--------------------------------------------------------------------------
 
+    subroutine GetOutPutWindow
+
+        !Arguments---------------------------------------------------------------
+ 
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: STAT_, STAT_CALL
+        integer, dimension(2)                       :: Aux
+        integer                                     :: iflag
+
+        !Begin-----------------------------------------------------------------
+
+        call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                     &
+                                       '<<beginoutwindow>>', '<<endoutwindow>>',        &
+                                       Me%OutW%OutPutWindowOn, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR10'
+        
+        if(Me%OutW%OutPutWindowOn) then
+            
+            call Getdata    (Aux,                                                   &
+                                     Me%ObjEnterData, iflag,                                  &
+                                     Keyword        = 'ILB_IUB_W',                          &
+                                     SearchType     = FromBlockinBlock,                     &
+                                     ClientModule   = 'ModuleEnterData',                    &
+                                     STAT           = STAT_CALL)
+                                 
+            if (STAT_CALL /= SUCCESS_)                                              &
+                        call SetError(FATAL_, INTERNAL_, 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR20') 
+
+            if (iflag == 0)                                                         &
+                call SetError(FATAL_, INTERNAL_, 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR30') 
+
+            Me%OutW%ILB = Aux(1)
+            Me%OutW%IUB = Aux(2)
+
+            call Getdata    (Aux,                                                   &
+                                Me%ObjEnterData, iflag,                                  &
+                                Keyword        = 'JLB_JUB_W',                          &
+                                SearchType     = FromBlockinBlock,                     &
+                                ClientModule   = 'ModuleEnterData',                    &
+                                STAT           = STAT_CALL)
+                                 
+            if (STAT_CALL /= SUCCESS_)                                              &
+                call SetError(FATAL_, INTERNAL_, 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR40') 
+
+            if (iflag == 0)                                                         &
+                call SetError(FATAL_, INTERNAL_, 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR50') 
+
+            Me%OutW%JLB = Aux(1)
+            Me%OutW%JUB = Aux(2)
+        endif
+        
+        call RewindBlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GetOutPutWindow - ModuleReadSWANNonStationary - ERR60'
+
+    end subroutine GetOutPutWindow
     !--------------------------------------------------------------------------
 
     subroutine ReadProperties
@@ -434,71 +511,93 @@ d2:     do l= 1, Me%NumberUnits
 
     !--------------------------------------------------------------------------
 
-    subroutine ReadFieldFromFile 
+    subroutine ReadFieldFromFile(p)
 
     !Arguments-------------------------------------------------------------
-
+    integer                                     :: p
     !Local----------------------------------------------------------------
-    integer                                     :: i, j, p, STAT_CALL,k
+    integer                                     :: i, j, n, STAT_CALL,k
     !Begin-----------------------------------------------------------------
     
-    allocate(Me%Fields(Me%OutPut%TotalOutputs,Me%NumberProps,                      &
-    Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+    if (p == 1) then
+        allocate(Me%Fields(Me%OutPut%TotalOutputs, Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%HS(Me%OutPut%TotalOutputs,Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%WD(Me%OutPut%TotalOutputs,Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        
+        if (Me%WavePower) then
+            allocate(Me%TEX(Me%OutPut%TotalOutputs,Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%TEY(Me%OutPut%TotalOutputs,Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        endif
+        
+        call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR10'
 
-    call UnitsManager(Me%Unit, OPEN_FILE, STAT = STAT_CALL) 
-    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR10'
-
-    open(Unit   = Me%Unit,                                                          &
-         File   = trim(Me%SwanFileName),                                                  &
-         Form   = 'FORMATTED',                                                      &
-         STATUS = 'OLD',                                                            &
-         Action = 'READ',                                                           &
-         IOSTAT = STAT_CALL) 
-    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR20'
+        open(Unit   = Me%Unit,                                                          &
+             File   = trim(Me%SwanFileName),                                                  &
+             Form   = 'FORMATTED',                                                      &
+             STATUS = 'OLD',                                                            &
+             Action = 'READ',                                                           &
+             IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR20'
+    endif
     
-    do k=1,Me%OutPut%TotalOutputs
+    Me%Fields(:,:,:) = 0.
     
-         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+    rewind (Me%Unit)
+    
+    do n=1,Me%OutPut%TotalOutputs
+    
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
 
-             read(Me%Unit,*) Me%PropVector
+            read(Me%Unit,*) Me%PropVector
 
-             do p = 1, Me%NumberProps
-
-                  if(trim(Me%Generic4DProperty) == trim(Me%PropsName(p))) Then 
+            if(trim(Me%Generic4DProperty) == trim(Me%PropsName(p))) Then 
             
-                       Me%Generic4DPropertyIndeX=p
+                Me%Generic4DPropertyIndeX=p
             
-                  end if
+            end if
                   
-                  Me%Fields(k, p, i, j) = Me%PropVector(p)
+            Me%Fields(n, i, j) = Me%PropVector(p)
             
-                  if (Me%Fields(k, p, i, j).eq.-9.0 .OR. Me%Fields(k, p, i, j).eq.-99.0 &
-                      .OR. Me%Fields(k, p, i, j).eq.-999.0) Then
+            if (Me%Fields(n, i, j).eq.-99.0 &
+                    .OR. Me%Fields(n, i, j).eq.-999.0) Then
                         
-                    if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_)) then
-                        Me%Fields(k, p, i, j) = FillValueReal
-                    else
-                        Me%Fields(k, p, i, j) = 0
-                    endif
-                   
-                  end if
+                Me%Fields(n, i, j) = FillValueReal
+            endif
             
-                  if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
-                       Me%Generic4DValue=Me%PropVector(p)
-                       Me%Generic4DUnits=trim(Me%PropsUnits(p))
-                  end if
+            if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
+                Me%Generic4DValue=Me%PropVector(p)
+                Me%Generic4DUnits=trim(Me%PropsUnits(p))
+            end if
 
-             enddo
-
-         enddo
-         enddo
-         
+        enddo
+        enddo
+             
+i1:     if (trim(Me%PropsName(p)) == GetPropertyName(MeanWaveDirection_)) then
+            Me%WD(n,:,:) = Me%Fields(n, :, :)
+        endif i1
+i2:     if (trim(Me%PropsName(p)) == GetPropertyName(SignificantWaveHeight_) .and. Me%ScaleToHS) then
+            Me%HS(n,:,:) = Me%Fields(n, :, :)
+        else
+            Me%HS(n,:,:) = 0. 
+        endif i2
+           
+i3:     if (Me%WavePower) then
+i4:         if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyX_)) then
+                Me%TEX(n,:,:) = Me%Fields(n, :, :)
+            endif i4
+i5:         if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_)) then
+                Me%TEY(n,:,:) = Me%Fields(n, :, :)
+            endif i5
+        endif i3
     enddo
-
-    call UnitsManager(Me%Unit, CLOSE_FILE, STAT = STAT_CALL) 
-    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR30'
-
+    
+    if (p == Me%NumberProps) then
+        call UnitsManager(Me%Unit, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldFromFile - ModuleReadSWANNonStationary - ERR30'
+    endif
+    
     end subroutine ReadFieldFromFile
     
     !----------------------------------------------------------------------------
@@ -530,6 +629,12 @@ d2:     do l= 1, Me%NumberUnits
 
         call GetWaterPoints2D   (Me%ObjHorizontalMap, Me%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructBathymetry - ModuleReadSWANNonStationary - ERR50'
+        
+        call GetBoundaryFaces(Me%ObjHorizontalMap,                         &
+                              Me%BoundaryFacesU,                           &
+                              Me%BoundaryFacesV,                           &
+                              STAT = STAT_CALL)   
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructBathymetry - ModuleReadSWANNonStationary - ERR60'
 
     end subroutine ConstructBathymetry
     
@@ -542,63 +647,85 @@ d2:     do l= 1, Me%NumberUnits
         !Arguments-------------------------------------------------------------
         integer                                         :: p
         !Local-----------------------------------------------------------------
-        real, dimension(:,:), pointer                   :: Aux2D, Aux2DX, Aux2DY
-        real, dimension(:,:), pointer                   :: Aux2DXY
+        real, dimension(:,:), pointer                   :: Aux2D
         real,    dimension(:), pointer                  :: RealArray1D
         REAL, PARAMETER                                 :: RADE= 180./pi
-        integer                                         :: STAT_CALL, i
-        integer                                         :: kk, k
+        integer                                         :: WorkILB, WorkIUB, WorkJLB, WorkJUB
+        integer                                         :: STAT_CALL, i, n
         !Begin-----------------------------------------------------------------
 
 
         allocate(Aux2D (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        allocate(Aux2DX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        allocate(Aux2DY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        allocate(RealArray1D(1:1))
+        !allocate(Aux2DX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        !allocate(Aux2DY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         
-        if (Me%Nautical .and. p == 1) then
-            write(*,*)'Swan in Nautical Convention...'
-            write(*,*)            
-        elseif (p == 1  )then
-            write(*,*)'Swan in Cartesian Convention...'
-            write(*,*)
-        endif
+        if (p == 1) then
+        
+            if (Me%Nautical) then
+                write(*,*)'Swan in Nautical Convention...'
+                write(*,*)            
+            else
+                write(*,*)'Swan in Cartesian Convention...'
+                write(*,*)
+            endif
             
-i2:     if (p==1 .AND. Me%Generic4D==1) then
+i2:         if (Me%Generic4D==1) then
+    
+                allocate(RealArray1D(1:1))
                 
-            RealArray1D(1) = Me%Generic4DValue
+                RealArray1D(1) = Me%Generic4DValue
                 
-            call HDF5SetLimits  (Me%ObjHDF5, 1, 1, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR30'
+                call HDF5SetLimits  (Me%ObjHDF5, 1, 1, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR30'
                 
-            call HDF5WriteData  (Me%ObjHDF5, "/Generic4D",                           &
-                                 "Generic4D", Me%Generic4DUnits,                     &
-                                 Array1D = RealArray1D,                              &
-                                 OutputNumber = k, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR40'
+                call HDF5WriteData  (Me%ObjHDF5, "/Generic4D",                           &
+                                     "Generic4D", Me%Generic4DUnits,                     &
+                                     Array1D = RealArray1D,                              &
+                                     OutputNumber = n, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR40'
                 
-        endif i2
+            endif i2
+        endif
 
-        call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
-                           Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
+        write(*,*)"Converting: "//trim(Me%PropsName(p))
+        write(*,*)
+        
+        
+        if (Me%OutW%OutPutWindowON) then
+        
+            WorkILB = Me%OutW%ILB
+            WorkIUB = Me%OutW%IUB
+
+            WorkJLB = Me%OutW%JLB
+            WorkJUB = Me%OutW%JUB    
+            
+        else
+
+            WorkILB = Me%WorkSize%ILB 
+            WorkIUB = Me%WorkSize%IUB 
+
+            WorkJLB = Me%WorkSize%JLB 
+            WorkJUB = Me%WorkSize%JUB            
+
+        endif
+        
+        call HDF5SetLimits(Me%ObjHDF5, WorkILB, WorkIUB,            &
+                           WorkJLB, WorkJUB,                        &
                            STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR60'
             
-d1:      do kk=1,Me%OutPut%TotalOutputs
+d1:     do n=1,Me%OutPut%TotalOutputs
 
-             Aux2D(:,:) = Me%Fields(kk, p,:,:)             
+            Aux2D(:,:) = Me%Fields(n,:,:)             
              
-             write(*,*)"Converting: "//trim(Me%PropsName(p)), kk
-             write(*,*)
-             
-             call HDF5WriteData(Me%ObjHDF5,                                         &
-                           "/Results/"//trim(Me%PropsName(p)),                      &
-                           trim(Me%PropsName(p)),                                   &
-                           trim(Me%PropsUnits(p)),                                  &
-                           Array2D      = Aux2D,                                    &
-                           OutputNumber = kk,                                       &
-                           STAT         = STAT_CALL)
-             if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR70'
+            call HDF5WriteData(Me%ObjHDF5,                                         &
+                        "/Results/"//trim(Me%PropsName(p)),                      &
+                        trim(Me%PropsName(p)),                                   &
+                        trim(Me%PropsUnits(p)),                                  &
+                        Array2D      = Aux2D,                                &
+                        OutputNumber = n,                                       &
+                        STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR70'
         
         enddo d1
 
@@ -606,11 +733,13 @@ d1:      do kk=1,Me%OutPut%TotalOutputs
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR90'
 
+        if (p == 1 .and. Me%Generic4D==1) then
+            deallocate(RealArray1D)
+            nullify(RealArray1D)
+        endif
+        
         deallocate(Aux2D)
-        deallocate(Aux2DX)
-        deallocate(Aux2DY)
-        deallocate(RealArray1D)
-        nullify(Aux2D, Aux2DX, Aux2DY, Aux2DXY,RealArray1D)
+        nullify(Aux2D)
 
     end subroutine OutputFields
     
@@ -618,31 +747,32 @@ d1:      do kk=1,Me%OutPut%TotalOutputs
     
     !------------------------------------------------------------------------
     
-    subroutine OutputWaveVector(WD,HS)
+    subroutine OutputWaveVector
 
         !Arguments-------------------------------------------------------------
-        integer                                         :: WD, HS
+
         !Local-----------------------------------------------------------------
-        real, dimension(:,:), pointer                   :: Aux2DWD, Aux2DHS
+        !real, dimension(:,:), pointer                   :: Aux2DWD, Aux2DHS
         real, dimension(:,:), pointer                   :: Aux2DX, Aux2DY
         REAL, PARAMETER                                 :: RADE= 180./pi
         real                                            :: Angle,Hsig
         integer                                         :: STAT_CALL, ii, jj
-        integer                                         :: kk
+        integer                                         :: n
         character(len=StringLength)                     :: FieldNameX, FieldNameY
+        integer                                         :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         !Begin-----------------------------------------------------------------
         
-        allocate(Aux2DWD(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        allocate(Aux2DHS(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        !allocate(Aux2DWD(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        !allocate(Aux2DHS(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         allocate(Aux2DX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         allocate(Aux2DY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             
-d1:     do kk=1,Me%OutPut%TotalOutputs
+d1:     do n=1,Me%OutPut%TotalOutputs
 
-             Aux2DWD(:,:) = Me%Fields(kk,WD,:,:)
-             if(Me%ScaleToHS)then
-                Aux2DHS(:,:) = Me%Fields(kk,HS,:,:)
-             endif             
+             !Aux2DWD(:,:) = Me%Fields(kk,WD,:,:)
+             !if(Me%ScaleToHS)then
+             !   Aux2DHS(:,:) = Me%Fields(kk,HS,:,:)
+             !endif             
 
              Aux2DX(:,:) = 0.
              Aux2DY(:,:) = 0.
@@ -652,9 +782,9 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
 
                     if (Me%WaterPoints2D(ii,jj) == WaterPoint) then
 
-                        Angle = Aux2DWD(ii,jj)
+                        Angle = Me%WD(n,ii,jj)
                         if(Me%ScaleToHS)then
-                            Hsig = Aux2DHS(ii,jj)
+                            Hsig = Me%HS(n,ii,jj)
                         else
                             Hsig = 1.
                         endif
@@ -674,9 +804,27 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
             
             FieldNameX = GetPropertyName(WaveX_)
             FieldNameY = GetPropertyName(WaveY_)
+            
+            if (Me%OutW%OutPutWindowON) then
         
-            call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
-                               Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
+                WorkILB = Me%OutW%ILB
+                WorkIUB = Me%OutW%IUB
+
+                WorkJLB = Me%OutW%JLB
+                WorkJUB = Me%OutW%JUB    
+            
+            else
+
+                WorkILB = Me%WorkSize%ILB 
+                WorkIUB = Me%WorkSize%IUB 
+
+                WorkJLB = Me%WorkSize%JLB 
+                WorkJUB = Me%WorkSize%JUB            
+
+            endif
+        
+            call HDF5SetLimits(Me%ObjHDF5, WorkILB, WorkIUB,            &
+                               WorkJLB, WorkJUB,                        &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR10'
 
@@ -685,7 +833,7 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
                                FieldNameX,                                       &
                                '-',                                             &
                                Array2D      = Aux2DX,                           &
-                               OutputNumber = kk,                               &
+                               OutputNumber = n,                               &
                                STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR20'
 
@@ -694,7 +842,7 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
                                FieldNameY,                                       &
                                '-',                                             &
                                Array2D      = Aux2DY,                           &
-                               OutputNumber = kk,                               &
+                               OutputNumber = n,                               &
                                STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR30'
 
@@ -704,11 +852,11 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR40'
 
-        deallocate(Aux2DWD)
-        deallocate(Aux2DHS)
+        !deallocate(Aux2DWD)
+        !deallocate(Aux2DHS)
         deallocate(Aux2DX)
         deallocate(Aux2DY)
-        nullify(Aux2DWD, Aux2DHS, Aux2DX, Aux2DY)
+        nullify(Aux2DX, Aux2DY)
 
     end subroutine OutputWaveVector
     
@@ -716,57 +864,66 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
     
     !------------------------------------------------------------------------
     
-    subroutine CalculateWavePower(TEX,TEY)
+    subroutine CalculateWavePower
 
         !Arguments-------------------------------------------------------------
-        integer                                         :: TEX, TEY
+
         !Local-----------------------------------------------------------------
         real, dimension(:,:), pointer                   :: Aux2D
-        real, dimension(:,:), pointer                   :: Aux2DX, Aux2DY
+        !real, dimension(:,:), pointer                   :: Aux2DX, Aux2DY
         REAL, PARAMETER                                 :: RADE= 180./pi
         integer                                         :: STAT_CALL, ii, jj
-        integer                                         :: kk
+        integer                                         :: n
         character(len=StringLength)                     :: FieldName
+        integer                                         :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         !Begin-----------------------------------------------------------------
         
         allocate(Aux2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        allocate(Aux2DX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        allocate(Aux2DY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            
-d1:     do kk=1,Me%OutPut%TotalOutputs
 
-             Aux2DX(:,:) = 0.
-             Aux2DY(:,:) = 0.
-
-             Aux2DX(:,:) = Me%Fields(kk,TEX,:,:)
-             Aux2DY(:,:) = Me%Fields(kk,TEY,:,:)
-
+d1:     do n=1,Me%OutPut%TotalOutputs
 d2:         do jj= Me%WorkSize%JLB,Me%WorkSize%JUB  
-d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB  
+d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB  
 
-                    if (Me%WaterPoints2D(ii,jj) == WaterPoint) then
-                        Aux2D(ii,jj) = SQRT((Aux2DX(ii,jj)*Aux2DX(ii,jj)+Aux2DY(ii,jj)*Aux2DY(ii,jj)))
-                    endif
+                if (Me%WaterPoints2D(ii,jj) == WaterPoint) then
+                    Aux2D(ii,jj) = SQRT((Me%TEX(n,ii,jj)*Me%TEX(n,ii,jj)+Me%TEY(n,ii,jj)*Me%TEY(n,ii,jj)))
+                endif
 
-                enddo d3
+            enddo d3
             enddo d2
             
             FieldName = GetPropertyName(WavePower_)
             
-            call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
-                               Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
-                               STAT = STAT_CALL)
+            if (Me%OutW%OutPutWindowON) then
+        
+                WorkILB = Me%OutW%ILB
+                WorkIUB = Me%OutW%IUB
+
+                WorkJLB = Me%OutW%JLB
+                WorkJUB = Me%OutW%JUB    
+            
+            else
+
+                WorkILB = Me%WorkSize%ILB 
+                WorkIUB = Me%WorkSize%IUB 
+
+                WorkJLB = Me%WorkSize%JLB 
+                WorkJUB = Me%WorkSize%JUB            
+
+            endif
+            
+            call HDF5SetLimits(Me%ObjHDF5, WorkILB, WorkIUB,            &
+                                WorkJLB, WorkJUB,                        &
+                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'OutputWaveVector - ModuleReadSWANNonStationary - ERR10'
 
             call HDF5WriteData(Me%ObjHDF5,                                      &
-                               "/Results/"//FieldName,                          &
-                               FieldName,                                       &
-                               '-',                                             &
-                               Array2D      = Aux2D,                            &
-                               OutputNumber = kk,                               &
-                               STAT         = STAT_CALL)
+                                "/Results/"//FieldName,                          &
+                                FieldName,                                       &
+                                '-',                                             &
+                                Array2D      = Aux2D,                            &
+                                OutputNumber = n,                               &
+                                STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'CalculateWavePower - ModuleReadSWANNonStationary - ERR20'
-
         enddo d1
 
         !Writes everything to disk
@@ -774,14 +931,78 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_)stop 'CalculateWavePower - ModuleReadSWANNonStationary - ERR30'
 
         deallocate(Aux2D)
-        deallocate(Aux2DX)
-        deallocate(Aux2DY)
-        nullify(Aux2D, Aux2DX, Aux2DY)
+        nullify(Aux2D)
 
     end subroutine CalculateWavePower
 
    !----------------------------------------------------------------------
+    subroutine ReplaceNonComputedValues(p)
 
+    !Arguments-------------------------------------------------------------
+    integer                                     :: p
+    !Local----------------------------------------------------------------
+    integer                                     :: i, j, n, STAT_CALL
+    real                                        :: a1, a2, a3, a4, atotal
+    !Begin-----------------------------------------------------------------
+    
+     do n=1,Me%OutPut%TotalOutputs   
+    
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+            if (Me%Fields(n, i, j).eq.FillValueReal) then
+                        
+                if (Me%WaterPoints2D(i, j) == 1) then
+                                                
+                    if (Me%ReplacementMethod == 1) then !NullValue
+                        Me%Fields(n, i, j) = 0.
+                            
+                    elseif (Me%ReplacementMethod == 2) then !NullGradient
+                            
+                        a1 = 0; a2 = 0; a3 = 0; a4 = 0
+                            
+                        if (Me%BoundaryFacesU(i, j) == Not_Boundary .and. Me%WaterPoints2D(i, j-1) == 1 .and. &                                
+                            Me%Fields(n, i, j-1).ne.FillValueReal) then
+                                
+                            a1 = 1
+                                
+                        elseif(Me%BoundaryFacesU(i, j+1) == Not_Boundary .and. Me%WaterPoints2D(i, j+1) == 1 .and. &
+                                Me%Fields(n, i, j+1).ne.FillValueReal) then
+                                
+                            a2 = 1
+                                
+                        endif
+                            
+                        if (Me%BoundaryFacesV(i, j) == Not_Boundary .and. Me%WaterPoints2D(i-1, j) == 1 .and. &
+                            Me%Fields(n, i-1, j).ne.FillValueReal) then
+                                
+                            a3 = 1
+                                
+                        elseif(Me%BoundaryFacesV(i+1, j) == Not_Boundary .and. Me%WaterPoints2D(i+1, j) == 1 .and. &
+                                Me%Fields(n, i+1, j).ne.FillValueReal) then
+                                
+                            a4 = 1
+                                
+                        endif
+                                  
+                        atotal = (a1 + a2 + a3 + a4)
+                            
+                        if (atotal > 0) then
+                            Me%Fields(n, i, j) = (a1*Me%Fields(n, i, j-1) + a2*Me%Fields(n, i, j+1) + &
+                                                        a3*Me%Fields(n, i-1, j) + a4*Me%Fields(n, i+1, j))/atotal
+                        else
+                            Me%Fields(n, i, j) = 0.
+                        endif
+                    endif
+                endif                   
+            endif
+        enddo
+    enddo
+    enddo         
+
+    end subroutine ReplaceNonComputedValues
+    
+    !----------------------------------------------------------------------------
    !------------------------------------------------------------------------
     subroutine Open_HDF5_OutPut_File
 
@@ -789,8 +1010,11 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
         real,    dimension(6), target               :: AuxTime
         real,    dimension(:), pointer              :: TimePtr
         real,    dimension(:,:), pointer            :: Bathymetry
+        integer                                     :: WorkILB, WorkIUB
+        integer                                     :: WorkJLB, WorkJUB
         integer                                     :: STAT_CALL,i
         integer                                     :: HDF5_CREATE
+        type(T_Size2D)                              :: WorkSize2D, GlobalWorkSizeWindow
 
         !----------------------------------------------------------------------
 
@@ -803,26 +1027,53 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
       
         !Opens HDF5 File
         call ConstructHDF5(Me%ObjHDF5, Me%OutputFileName, HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR30'
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR20'
         
         
-        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,              &
-                             Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR40'
+        if (Me%OutW%OutPutWindowON) then
+            
+            WorkILB = Me%OutW%ILB
+            WorkIUB = Me%OutW%IUB
+
+            WorkJLB = Me%OutW%JLB
+            WorkJUB = Me%OutW%JUB
+            
+            WorkSize2D%ILB = WorkILB            
+            WorkSize2D%IUB = WorkIUB 
+            
+            WorkSize2D%JLB = WorkJLB
+            WorkSize2D%JUB = WorkJUB
+            
+            GlobalWorkSizeWindow         = WorkSize2D
+
+            call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjHDF5,                 &
+                                        WorkSize                = WorkSize2D,          &           
+                                        WindowGrid              = .true.,              &   
+                                        GlobalWorkSizeWindow    = GlobalWorkSizeWindow,&
+                                        STAT                    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR30'
+            
+        else
+
+            WorkILB = Me%WorkSize%ILB 
+            WorkIUB = Me%WorkSize%IUB 
+
+            WorkJLB = Me%WorkSize%JLB 
+            WorkJUB = Me%WorkSize%JUB
+            
+            call WriteHorizontalGrid (Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR40'
+
+        endif
+        
+        call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,              &
+                             WorkJLB, WorkJUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR50'
 
             
         call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "m",                   &
                               Array2D =  Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR50'            
-
-
-        call WriteHorizontalGrid (Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR60'            
-   
-       
-        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,              &
-                             Me%WorkSize%JLB, Me%WorkSize%JUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR70'            
+        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleReadSWANNonStationary - ERR60'                      
 
         call HDF5WriteData   (Me%ObjHDF5, "/Grid", "WaterPoints2D", "-",                &
                               Array2D = Me%WaterPoints2D,  STAT = STAT_CALL)
@@ -872,6 +1123,12 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
         
         !Begin-----------------------------------------------------------------
 
+        call UnGetHorizontalMap (Me%ObjHorizontalMap, Me%BoundaryFacesU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'KillSWAN - ModuleReadSWANNonStationary - ERR01'
+        
+        call UnGetHorizontalMap (Me%ObjHorizontalMap, Me%BoundaryFacesV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'KillSWAN - ModuleReadSWANNonStationary - ERR02'
+        
         call UnGetHorizontalMap (Me%ObjHorizontalMap, Me%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'KillSWAN - ModuleReadSWANNonStationary - ERR10'
 
@@ -901,6 +1158,18 @@ d3:             do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
 
         deallocate(Me%Fields    )
         nullify   (Me%Fields    )
+        
+        deallocate(Me%HS    )
+        nullify   (Me%Hs    )
+        deallocate(Me%WD    )
+        nullify   (Me%WD    )
+        
+        if (Me%WavePower) then
+            deallocate(Me%TEX    )
+            nullify   (Me%TEX    )
+            deallocate(Me%TEY    )
+            nullify   (Me%TEY    )
+        endif
 
         deallocate(Me%PropVector)
         nullify   (Me%PropVector)

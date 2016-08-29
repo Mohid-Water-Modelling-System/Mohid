@@ -133,9 +133,9 @@ Module ModuleSediment
     private ::      ComputeReferenceConcentration
     private ::      ComputeBedload
     private ::          Cohesiveness_Adjust
-    private ::          CurrentOnly
-    private ::          CurrentPlusWaves
-    private ::          WavesOnly
+    private ::          CurrentOnlyBedload
+    private ::          CurrentPlusWavesBedload
+    private ::          WavesOnlyBedload
     private ::          ComputeAsymmetryFactor
     private ::      ComputeFluxes
     private ::          ComputeBedSlopeEffects
@@ -145,6 +145,7 @@ Module ModuleSediment
     private ::      BoundaryCondition
     private ::      ComputeMass
     private ::      ComputeErosionDryCells
+    private ::          ComputeCellsMass
     private ::      ComputePercentage
     private ::          ComputePorosity
     private ::      ComputeTotalDZ
@@ -255,9 +256,10 @@ Module ModuleSediment
     private :: T_Residual
     type       T_Residual
         logical                                 :: ON           = .false.
+        logical                                 :: LastRun      = .false.
         type(T_Time)                            :: StartTime    
-        real, dimension(:,:), pointer           :: FluxX        => null ()
-        real, dimension(:,:), pointer           :: FluxY        => null ()        
+        real, dimension(:,:), pointer           :: FluxU        => null () !vectorial field in grid referential - U comp.
+        real, dimension(:,:), pointer           :: FluxV        => null () !vectorial field in grid referential - V comp.
     end type   T_Residual
 
     private :: T_OutPut
@@ -307,11 +309,11 @@ Module ModuleSediment
         logical                                 :: SedimentWaterFluxes
         logical                                 :: Compute_ParameterA
                                                                
-        real(8), dimension(:,:), pointer        :: FluxX                 => null ()
-        real(8), dimension(:,:), pointer        :: FluxY                 => null ()        
+        real(8), dimension(:,:), pointer        :: FluxU                 => null ()  !vectorial field in grid referential - U comp.
+        real(8), dimension(:,:), pointer        :: FluxV                 => null ()  !vectorial field in grid referential - V comp. 
         real(8), dimension(:,:), pointer        :: Bedload               => null ()
-        real(8), dimension(:,:), pointer        :: BedloadX              => null ()
-        real(8), dimension(:,:), pointer        :: BedloadY              => null ()
+        real(8), dimension(:,:), pointer        :: BedloadU              => null ()  !vectorial field in grid referential - U comp.
+        real(8), dimension(:,:), pointer        :: BedloadV              => null ()  !vectorial field in grid referential - V comp.
         real,    dimension(:,:), pointer        :: CriticalShearStress   => null ()
         real, dimension(:,:), pointer           :: NDCriticalShearStress => null ()
         real(8), dimension(:,:), pointer        :: DM                    => null ()
@@ -373,8 +375,8 @@ Module ModuleSediment
         logical                                 :: Yes      = .false.
         character(Len = PathLength)             :: File     =  null_str
         real(8), dimension(:,:), pointer        :: Mass     => null()
-        real(8), dimension(:,:), pointer        :: FluxesX  => null()
-        real(8), dimension(:,:), pointer        :: FluxesY  => null()
+        real(8), dimension(:,:), pointer        :: FluxesU  => null() !vectorial field in grid referential - U comp.
+        real(8), dimension(:,:), pointer        :: FluxesV  => null() !vectorial field in grid referential - V comp.
     end type T_Boxes
 
 
@@ -406,8 +408,10 @@ Module ModuleSediment
         real, dimension(:, :, :), pointer          :: Porosity              => null ()
         real(8), dimension(:, :), pointer          :: D50                   => null () 
         real(8), dimension(:, :), pointer          :: SandD50               => null () 
-        real(8), dimension(:,:), pointer           :: FluxX                 => null ()
-        real(8), dimension(:,:), pointer           :: FluxY                 => null ()
+        real(8), dimension(:,:), pointer           :: FluxU                 => null () !vectorial field rotated to grid cells - U comp.
+        real(8), dimension(:,:), pointer           :: FluxV                 => null () !vectorial field rotated to grid cells - V comp.
+        real(8), dimension(:,:), pointer           :: AuxFluxX              => null () !vectorial field in cartesian referential - X (zonal comp.) - only for output
+        real(8), dimension(:,:), pointer           :: AuxFluxY              => null () !vectorial field in cartesian referential - Y (meridional comp.) - only for output
         real(8), dimension(:,:), pointer           :: Bedload               => null ()
         real(8), dimension(:, :), pointer          :: Mass                  => null ()
         real(8), dimension(:, :), pointer          :: DM                    => null ()
@@ -826,7 +830,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 0.01,                                                &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR11' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR10' 
 
         call GetData(Me%MaxLayerThickness,                                          &
                      Me%ObjEnterData, iflag,                                        &
@@ -835,8 +839,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = 0.5,                                            &
                      ClientModule = 'ModuleSediment',                               &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Parameters - ModuleConsolidation - ERR31'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR20'
 
+        if (Me%MinLayerThickness .ge. Me%MaxLayerThickness) then
+            write(*,*) 'MIN_THICKNESS must be lower than MAX_THICKNESS'
+            stop 'ConstructGlobalParameters - ModuleSediment - ERR30'
+        endif
 
         call GetData(Me%PorositySand,                                                    &
                      Me%ObjEnterData,iflag,                                              &
@@ -845,7 +853,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 0.4,                                                 &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR12' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR40' 
 
         call GetData(Me%Density,                                                         &
                      Me%ObjEnterData,iflag,                                              &
@@ -854,7 +862,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 2650.,                                               &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)               
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR13' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR50' 
         
         Me%RelativeDensity = Me%Density / Me%ExternalVar%WaterDensity
 
@@ -867,14 +875,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 1,                                                   &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR14' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR60' 
 
         !NoTransport = 0, CurrentOnly = 1, CurrentPlusWaves = 2, WavesOnly = 3
     
         if (Me%BedloadMethod == 2 .OR. Me%BedloadMethod == 3)  then        
             if (Me%ObjWaves == 0) then
                 write(*,*) 'ModuleWaves must be activated to run BEDLOAD_METHOD 2 or 3'
-                stop 'ConstructGlobalParameters - ModuleSediment - ERR16'
+                stop 'ConstructGlobalParameters - ModuleSediment - ERR70'
             endif            
                 Me%WavesOn = .true. 
         endif
@@ -886,7 +894,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .TRUE.,                                              &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR25' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR80' 
             
 
         call GetData(Me%Evolution%Bathym,                                                &
@@ -896,7 +904,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR26' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR90' 
 
 
         call GetData(Me%Boundary,                                                        &
@@ -906,7 +914,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleSediment',                                        &
                      Default      = NullGradient,                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR59'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR100'
 
         call GetData(Me%TauMax,                                                          &
                      Me%ObjEnterData,iflag,                                              &
@@ -915,7 +923,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 10.,                                                 &
                      ClientModule = 'ModuleSediment',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR79' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR110' 
         
         call GetData(Me%Evolution%OLD,                                                   &
                      Me%ObjEnterData,iflag,                                              &
@@ -924,7 +932,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR130' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR120'
+        
         if (Me%Evolution%OLD) then
             ! ---> Sediment properties initial values in HDF format
             Message   ='Sediment properties initial values in HDF format.'
@@ -941,20 +950,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                 write(*,*)  
                 write(*,*) 'Inicial file not found.'
-                stop 'Read_Sediment_Files_Name - ModuleSediment - ERR04' 
+                stop 'ConstructGlobalParameters - ModuleSediment - ERR130'
 
             else if (STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
                 write(*,*)  
                 write(*,*) 'Keyword for the inicial file not found in nomfich.dat.'
-                write(*,*) 'Read_Sediment_Files_Name - ModuleSediment - WRN01'
-                write(*,*)  
+                stop 'ConstructGlobalParameters - ModuleSediment - ERR140' 
 
             else if (STAT_CALL .EQ. SUCCESS_              ) then
                 continue
             else
                 write(*,*) 
                 write(*,*) 'Error calling ReadFileName.'
-                stop 'Read_Sediment_Files_Name - ModuleSediment - ERR05' 
+                stop 'ConstructGlobalParameters - ModuleSediment - ERR150'  
             end if cd1    
         endif
         
@@ -965,7 +973,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 1.,                                                  &
                      ClientModule = 'ModuleSediment',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR140' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR150'
 
 
         call GetData(Me%Residual%ON,                                                    &
@@ -975,7 +983,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleSediment',                                       &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructEvolution - ModuleSediment - ERR150' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR160'  
         
         call GetData(Me%ConcRefFactor,                                                   &
                      Me%ObjEnterData,iflag,                                              &
@@ -984,7 +992,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = 1.,                                                  &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR160' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR170' 
         
         call GetData(Me%RefConcMethod,                                                   &
                      Me%ObjEnterData,iflag,                                              &
@@ -1104,12 +1112,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate(Me%KTop(ILB:IUB, JLB:JUB)) 
         Me%KTop(:,:) = 0.
-            
-        allocate(Me%FluxX(ILB:IUB, JLB:JUB))
-        Me%FluxX(:,:) = null_real
+        
+        allocate(Me%FluxU(ILB:IUB, JLB:JUB))
+        Me%FluxU(:,:) = null_real
 
-        allocate(Me%FluxY(ILB:IUB, JLB:JUB))
-            Me%FluxY(:,:) = null_real
+        allocate(Me%FluxV(ILB:IUB, JLB:JUB))
+        Me%FluxV(:,:) = null_real
+            
+        allocate(Me%AuxFluxX(ILB:IUB, JLB:JUB))
+        Me%AuxFluxX(:,:) = null_real
+
+        allocate(Me%AuxFluxY(ILB:IUB, JLB:JUB))
+        Me%AuxFluxY(:,:) = null_real
 
         allocate(Me%Bedload(ILB:IUB, JLB:JUB))
         Me%Bedload(:,:) = null_real
@@ -1145,27 +1159,35 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%BatimIncrement(:,:) = 0.
         endif
 
-        allocate(Me%DZ_Residual(ILB:IUB, JLB:JUB))
-        if (Me%Evolution%OLD) then
-            call ReadInitialField(FieldName = "DZ_Residual", Field2D =Me%DZ_Residual)
-        else
-           Me%DZ_Residual(:,:) = 0.
-        endif
+        !allocate(Me%DZ_Residual(ILB:IUB, JLB:JUB))
+        !if (Me%Evolution%OLD) then
+         !   call ReadInitialField(FieldName = "DZ_Residual", Field2D =Me%DZ_Residual)
+        !else
+        !   Me%DZ_Residual(:,:) = 0.
+        !endif
         
         if (Me%Residual%ON) then
-            allocate(Me%Residual%FluxX(ILB:IUB, JLB:JUB))
-            Me%Residual%FluxX(:,:) = null_real
+            
+            allocate(Me%DZ_Residual(ILB:IUB, JLB:JUB))
+            Me%DZ_Residual(:,:) = 0.
+            
+            allocate(Me%Residual%FluxU(ILB:IUB, JLB:JUB))
+            Me%Residual%FluxU(:,:) = null_real
 
-            allocate(Me%Residual%FluxY(ILB:IUB, JLB:JUB))
-            Me%Residual%FluxY(:,:) = null_real
+            allocate(Me%Residual%FluxV(ILB:IUB, JLB:JUB))
+            Me%Residual%FluxV(:,:) = null_real
             
             if (Me%Evolution%Old) then
-            
                 call ReadResidualStartTime()
                 
-                call ReadInitialField(FieldName = "Bedload X", Field2D = Me%Residual%FluxX)
+                if (Me%Residual%LastRun) then
+                    
+                    call ReadInitialField(FieldName = "DZ_Residual", Field2D = Me%DZ_Residual)
                 
-                call ReadInitialField(FieldName = "Bedload Y", Field2D = Me%Residual%FluxY)                
+                    call ReadInitialField(FieldName = "Bedload U", Field2D = Me%Residual%FluxU)
+                
+                    call ReadInitialField(FieldName = "Bedload V", Field2D = Me%Residual%FluxV)
+                endif
             
             endif
             
@@ -1277,12 +1299,12 @@ i1:     if (Me%Boxes%Yes) then
 
             deallocate(FluxesOutputList)
             deallocate(ScalarOutputList)
+            
+            allocate(Me%Boxes%FluxesU(ILB:IUB, JLB:JUB))
+            Me%Boxes%FluxesU(:,:) = 0.
 
-            allocate(Me%Boxes%FluxesX(ILB:IUB, JLB:JUB))
-            Me%Boxes%FluxesX(:,:) = 0.
-
-            allocate(Me%Boxes%FluxesY(ILB:IUB, JLB:JUB))
-            Me%Boxes%FluxesY(:,:) = 0.
+            allocate(Me%Boxes%FluxesV(ILB:IUB, JLB:JUB))
+            Me%Boxes%FluxesV(:,:) = 0.
 
             allocate(Me%Boxes%Mass   (ILB:IUB, JLB:JUB))
             Me%Boxes%Mass   (:,:) = 0.
@@ -1419,7 +1441,7 @@ i1:     if (Me%Boxes%Yes) then
             
         endif
         
-        if (Me%Residual%ON .and. .not. Me%Evolution%OLD) then
+        if (Me%Residual%ON) then
             Me%Residual%StartTime = Me%BeginTime
         endif                
 
@@ -1471,25 +1493,29 @@ i1:     if (Me%Boxes%Yes) then
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR50'
         
         
-        if (Me%Evolution%Bathym) then
-
-            call GetGridData2Dreference(Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR60' 
-
-        else
-
-            call GetGridData           (Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
-            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR70' 
+        !if (Me%Evolution%Bathym) then
+        !
+        !    call GetGridData2Dreference(Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
+        !    if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR60' 
+        !
+        !else
+        !
+        !    call GetGridData           (Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
+        !    if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR70' 
+        !
+        !endif
         
-        endif
-
+        
+        call GetGridData           (Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR70' 
+        
         !Writes the Grid
         call HDF5WriteData   (Me%ObjHDF5, "/Grid", "Bathymetry", "m",                    &
-                              Array2D = Me%ExternalVar%InitialBathym,                    &
+                              Array2D = Me%ExternalVar%Bathymetry,                    &
                               STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR80'
-
-        call UnGetGridData(Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
+        
+        call UnGetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT = STAT_CALL)  
         if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSediment - ERR90' 
 
 
@@ -1908,18 +1934,18 @@ cd2 :           if (BlockFound) then
                                  keyword      ='MASS_MIN',                              &
                                  SearchType   = FromBlock,                              &
                                  ClientModule = 'ModuleSediment',                       &
-                                 Default      = 1e-2,                                   &
+                                 Default      = 1e-6,                                  &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR75'
                                       
                     call ConstructPropertyValue (Me%SandClass(n), FromBlock)
                         
-                    !Allocate variables of classes                    
-                    allocate(Me%SandClass(n)%FluxX(ILB:IUB, JLB:JUB))
-                    Me%SandClass(n)%FluxX(:,:) = null_real
+                    !Allocate variables of classes
+                    allocate(Me%SandClass(n)%FluxU(ILB:IUB, JLB:JUB))
+                    Me%SandClass(n)%FluxU(:,:) = null_real
 
-                    allocate(Me%SandClass(n)%FluxY(ILB:IUB, JLB:JUB))
-                    Me%SandClass(n)%FluxY(:,:) = null_real
+                    allocate(Me%SandClass(n)%FluxV(ILB:IUB, JLB:JUB))
+                    Me%SandClass(n)%FluxV(:,:) = null_real
 
                     allocate(Me%SandClass(n)%Bedload(ILB:IUB, JLB:JUB))
                     Me%SandClass(n)%Bedload(:,:) = null_real
@@ -1955,11 +1981,12 @@ cd2 :           if (BlockFound) then
                     Me%SandClass(n)%NDShearStress(:,:) = FillValueReal  
                     
                     if (Me%WavesOn) then
-                        allocate(Me%SandClass(n)%BedloadX(ILB:IUB, JLB:JUB))
-                        Me%SandClass(n)%BedloadX(:,:) = null_real
                         
-                        allocate(Me%SandClass(n)%BedloadY(ILB:IUB, JLB:JUB))
-                        Me%SandClass(n)%BedloadY(:,:) = null_real
+                        allocate(Me%SandClass(n)%BedloadU(ILB:IUB, JLB:JUB))
+                        Me%SandClass(n)%BedloadU(:,:) = null_real
+                        
+                        allocate(Me%SandClass(n)%BedloadV(ILB:IUB, JLB:JUB))
+                        Me%SandClass(n)%BedloadV(:,:) = null_real
                         
                         allocate(Me%SandClass(n)%NDShearStressWaves(ILB:IUB, JLB:JUB))
                          Me%SandClass(n)%NDShearStressWaves(:,:) = FillValueReal
@@ -2040,7 +2067,7 @@ cd2 :           if (BlockFound) then
                                 keyword      ='MASS_MIN',                              &
                                 SearchType   = FromBlock,                              &
                                 ClientModule = 'ModuleSediment',                       &
-                                Default      = 1e-2,                                   &
+                                Default      = 1e-6,                                  &
                                 STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructClasses - ModuleSediment - ERR128'
             
@@ -2883,8 +2910,6 @@ ifMS:       if (MasterOrSlave) then
 
     !--------------------------------------------------------------------------
 
-
-
     subroutine ReadResidualStartTime()
 
         !Arguments-------------------------------------------------------------
@@ -2895,6 +2920,7 @@ ifMS:       if (MasterOrSlave) then
         integer                                    :: ObjHDF5
         integer(4)                                 :: HDF5_READ
         real,    dimension(:    ), pointer         :: AuxTime
+        integer, dimension(:),     pointer         :: AuxInt
 
         !----------------------------------------------------------------------
 
@@ -2914,20 +2940,42 @@ cd0:    if (EXIST) then
                 stop 'ReadResidualStartTime; ModuleSediment - ERR10.'
 
 
-            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+            call HDF5SetLimits  (ObjHDF5, 1, 1, STAT = STAT_CALL)            
             if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSediment - ERR30'
             
-            allocate(AuxTime(6))
-
-            call HDF5ReadData  (ObjHDF5, "/Time",                                       &
-                                 "Residual Start Time",                                 &
-                                 Array1D = AuxTime, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSediment - ERR40'
+            allocate(AuxInt(1))
             
-            call SetDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3), &
-                            AuxTime(4), AuxTime(5), AuxTime(6))
+            call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
+                           GroupName     = "/Time",                                     &        
+                           Name          = "residual ON",                               &
+                           Array1D       = AuxInt,                                      &
+                           STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSediment - ERR35'
+        
+            if (AuxInt(1) == 1) then
+                Me%Residual%LastRun = .true.
+            else
+                Me%Residual%LastRun = .false.
+            endif
+            
+            deallocate(AuxInt)
+            
+            if(Me%Residual%LastRun) then
+                allocate(AuxTime(6))
+                
+                call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSediment - ERR30'
+
+                call HDF5ReadData  (ObjHDF5, "/Time",                                       &
+                                     "Residual Start Time",                                 &
+                                     Array1D = AuxTime, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadResidualStartTime - ModuleSediment - ERR40'
+            
+                call SetDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3), &
+                                AuxTime(4), AuxTime(5), AuxTime(6))
                       
-            deallocate(AuxTime)
+                deallocate(AuxTime)
+            endif
                 
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
@@ -4160,6 +4208,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     
                     if(Me%GrainRoughness(i,j) .le. 0.) then
                         write(*,*) Me%GrainRoughness(i,j),Me%D50(i,j), i, j, WKUB
+                        write(*,*) Me%Mass(i,j), Me%DZ(i,j), Me%ExternalVar%DWZ(i,j,WKUB) - Me%MinLayerThickness
                         stop 'ComputeD50Cell - ModuleSediment - ERR01'
                     endif
                     
@@ -4679,7 +4728,7 @@ do1:    do n=1,Me%NumberOfClasses
         !Local-----------------------------------------------------------------
         real    :: A, n1, p, DeltaTau, NDBedload, Cohesiveness_Factor
         real    :: NDBedload1, NDBedload2, Cphi, CWphi, Asym_Factor
-        real    :: NDBedloadNormal,NDBedloadParallel, NDBedloadX, NDBedloadY, aux
+        real    :: NDBedloadNormal,NDBedloadParallel, NDBedloadU, NDBedloadV, aux
         integer :: i, j, n
         integer :: WILB, WIUB, WJLB, WJUB, WKUB
         
@@ -4727,30 +4776,37 @@ do1:    do n=1,Me%NumberOfClasses
                             !Dimensionless bedload tranport rate paralell to the current direction
                             NDBedload1 = A*SandClass%NDShearStressMean(i, j)**n1*DeltaTau**p * SandClass%Field3D(i,j,WKUB)
                             
-                            NDBedload2 = A*(0.9534 + 0.1904 * cos(2*CWphi)) * &
-                                         SandClass%NDShearStressWaves(i,j)**0.5 * SandClass%NDShearStressMean(i, j) + &
-                                         A*0.229*Asym_Factor* SandClass%NDShearStressWaves(i,j)**1.5 * cos(CWphi)
                             
-                            NDBedloadParallel = max(NDBedload1, abs(NDBedload2))
+                            if (SandClass%NDShearStressWaves(i,j) > 0.) then
+                                
+                                NDBedload2 = A*(0.9534 + 0.1904 * cos(2*CWphi)) * &
+                                             SandClass%NDShearStressWaves(i,j)**0.5 * SandClass%NDShearStressMean(i, j) + &
+                                             A*0.229*Asym_Factor* SandClass%NDShearStressWaves(i,j)**1.5 * cos(CWphi)
+                                
+                                !Dimensionless bedload tranport rate normal to the current direction
+                                NDBedloadNormal = A*0.1907 * SandClass%NDShearStressWaves(i,j)**2 /        &
+                                                (SandClass%NDShearStressWaves(i,j)**1.5 + 1.5*SandClass%NDShearStressMean(i,j)**1.5) *    &
+                                                (SandClass%NDShearStressMean(i,j)*sin(2*CWphi) + 1.2*Asym_Factor*SandClass%NDShearStressWaves(i,j)*sin(CWphi)) 
+                            else
+                                NDBedload2 = 0.
+                                NDBedloadNormal = 0.
+                            endif
                             
-                            !Dimensionless bedload tranport rate normal to the current direction
-                            NDBedloadNormal = A*0.1907 * SandClass%NDShearStressWaves(i,j)**2 /        &
-                                            (SandClass%NDShearStressWaves(i,j)**1.5 + 1.5*SandClass%NDShearStressMean(i,j)**1.5) *    &
-                                            (SandClass%NDShearStressMean(i,j)*sin(2*CWphi) + 1.2*Asym_Factor*SandClass%NDShearStressWaves(i,j)*sin(CWphi)) 
+                            NDBedloadParallel = max(NDBedload1, abs(NDBedload2))          
                             
                             NDBedload = (NDBedloadParallel**2 + NDBedloadNormal**2)**0.5
                             
                             !Rotation to cartesian convention
-                            NDBedloadX = NDBedloadParallel * cos(Cphi) - NDBedloadNormal * sin(Cphi)
-                            NDBedloadY = NDBedloadParallel * sin(Cphi) + NDBedloadNormal * cos(Cphi)
+                            NDBedloadU = NDBedloadParallel * cos(Cphi) - NDBedloadNormal * sin(Cphi)
+                            NDBedloadV = NDBedloadParallel * sin(Cphi) + NDBedloadNormal * cos(Cphi)
                             
                             aux = (gravity*(Me%RelativeDensity-1)*    &
                                 SandClass%D50**3)**(1./2.)*Me%Density
                             
                             !Bedload transport rate per unit width [kg/s/m]
                             SandClass%BedLoad(i, j)  = NDBedload  * aux
-                            SandClass%BedLoadX(i, j) = NDBedloadX * aux
-                            SandClass%BedLoadY(i, j) = NDBedloadY * aux
+                            SandClass%BedloadU(i, j) = NDBedloadU * aux
+                            SandClass%BedloadV(i, j) = NDBedloadV * aux
                             
                             if (Me%CohesiveClass%Run) then
                                 
@@ -4760,8 +4816,8 @@ do1:    do n=1,Me%NumberOfClasses
                                                     PM2                 = Me%CohesiveClass%PM2)
                                 
                                 SandClass%BedLoad(i, j)  = Cohesiveness_Factor * SandClass%BedLoad(i, j)
-                                SandClass%BedLoadX(i, j) = Cohesiveness_Factor * SandClass%BedLoadX(i, j)
-                                SandClass%BedLoadY(i, j) = Cohesiveness_Factor * SandClass%BedLoadY(i, j)
+                                SandClass%BedloadU(i, j) = Cohesiveness_Factor * SandClass%BedloadU(i, j)
+                                SandClass%BedloadV(i, j) = Cohesiveness_Factor * SandClass%BedloadV(i, j)
                             
                             endif                            
                         
@@ -4845,8 +4901,8 @@ do1:    do n=1,Me%NumberOfClasses
                             
                             endif
                             
-                            SandClass%BedLoadX(i, j) =  SandClass%BedLoad(i, j) * cos(Wphi)
-                            SandClass%BedLoadY(i, j) =  SandClass%BedLoad(i, j) * sin(Wphi) 
+                            SandClass%BedloadU(i, j) =  SandClass%BedLoad(i, j) * cos(Wphi)
+                            SandClass%BedloadV(i, j) =  SandClass%BedLoad(i, j) * sin(Wphi) 
                                 
                         endif
                         
@@ -4942,7 +4998,7 @@ do1:    do n=1,Me%NumberOfClasses
       
         !Local-----------------------------------------------------------------                
         integer                 :: i, j, n
-        real(8)                 :: Xaux, Yaux
+        real(8)                 :: Uaux, Vaux
         class(T_Sand), pointer :: SandClass
         integer                :: WILB, WIUB, WJLB, WJUB, WKUB
         !----------------------------------------------------------------------
@@ -4956,8 +5012,8 @@ do1:    do n=1,Me%NumberOfClasses
 
             SandClass => Me%SandClass(n)
             
-            SandClass%FluxX  (:, :) =  0.
-            SandClass%FluxY  (:, :) =  0.
+            SandClass%FluxU  (:, :) =  0.
+            SandClass%FluxV  (:, :) =  0.
 
             !Computes the Sediment fluxes (kg/s) in the middle of the cells
 
@@ -4975,24 +5031,24 @@ do1:    do n=1,Me%NumberOfClasses
                          
                             if (Me%ExternalVar%VelMod(i,j)> 0.) then                            
                            
-                                Xaux = Me%ExternalVar%VelU(i,j) / Me%ExternalVar%VelMod(i,j)
-                                Yaux = Me%ExternalVar%VelV(i,j) / Me%ExternalVar%VelMod(i,j)
+                                Uaux = Me%ExternalVar%VelU(i,j) / Me%ExternalVar%VelMod(i,j)
+                                Vaux = Me%ExternalVar%VelV(i,j) / Me%ExternalVar%VelMod(i,j)
                             
                                 !kg/s
-                                SandClass%FluxX(i, j) = SandClass%Bedload(i, j) * Xaux *        &
+                                SandClass%FluxU(i, j) = SandClass%Bedload(i, j) * Uaux *        &
                                                         Me%ExternalVar%DVY(i, j) * Me%MorphologicalFactor                       
                                                     
-                                SandClass%FluxY(i, j) = SandClass%Bedload(i, j) * Yaux *        &
+                                SandClass%FluxV(i, j) = SandClass%Bedload(i, j) * Vaux *        &
                                                         Me%ExternalVar%DUX(i, j) * Me%MorphologicalFactor                               
                             endif
                             
                         elseif (Me%BedloadMethod==2 .or. Me%BedloadMethod==3) then
                             
                                 !kg/s
-                                SandClass%FluxX(i, j) = SandClass%BedloadX(i, j) * Me%ExternalVar%DVY(i, j) &
+                                SandClass%FluxU(i, j) = SandClass%BedloadU(i, j) * Me%ExternalVar%DVY(i, j) &
                                                         * Me%MorphologicalFactor
                                                     
-                                SandClass%FluxY(i, j) = SandClass%BedloadY(i, j) * Me%ExternalVar%DUX(i, j) &
+                                SandClass%FluxV(i, j) = SandClass%BedloadV(i, j) * Me%ExternalVar%DUX(i, j) &
                                                         * Me%MorphologicalFactor
                         endif
                     endif
@@ -5015,7 +5071,7 @@ do1:    do n=1,Me%NumberOfClasses
       
         !Local-----------------------------------------------------------------                
         integer                 :: i, j, n
-        real(8)                 :: Xaux, Yaux, AbsFlux, FluxX, FluxY
+        real(8)                 :: Uaux, Vaux, AbsFlux, FluxU, FluxV
         class(T_Sand), pointer  :: SandClass
         integer                 :: WILB, WIUB, WJLB, WJUB
         real(8), parameter      :: PI_DBLE = 3.1415926536 !PI
@@ -5045,15 +5101,15 @@ do1:    do n=1,Me%NumberOfClasses
                     
                     if (SandClass%Bedload(i, j)> 0.) then
                             
-                        AbsFlux = (SandClass%FluxX(i, j)**2 + SandClass%FluxY(i, j)**2)**0.5
+                        AbsFlux = (SandClass%FluxU(i, j)**2 + SandClass%FluxV(i, j)**2)**0.5
                             
-                        Xaux = SandClass%FluxX(i, j) / AbsFlux
-                        Yaux = SandClass%FluxY(i, j) / AbsFlux
+                        Uaux = SandClass%FluxU(i, j) / AbsFlux
+                        Vaux = SandClass%FluxV(i, j) / AbsFlux
                             
                         dhdx = 0.
                         dhdy = 0.
                             
-                        if (SandClass%FluxX(i, j) < 0.) then                            
+                        if (SandClass%FluxU(i, j) < 0.) then                            
                             if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
                                     
                                 dhdx = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i, j-1)) /  &
@@ -5067,7 +5123,7 @@ do1:    do n=1,Me%NumberOfClasses
                             endif                    
                         endif
 
-                        if (SandClass%FluxY(i, j) < 0.) then
+                        if (SandClass%FluxV(i, j) < 0.) then
                             if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
                             
                                     dhdy = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i-1, j)) /  &
@@ -5082,28 +5138,28 @@ do1:    do n=1,Me%NumberOfClasses
                         endif
                             
                         !Longitudinal bed slope
-                        dzds = dhdx * Xaux + dhdy * Yaux
+                        dzds = dhdx * Uaux + dhdy * Vaux
                             
                         dzds = min(dzds,0.9*tan(phi))                        
                             
                         alfa_s = 1 + alfa_bs * (tan(phi) / (cos(atan(dzds)) * (tan(phi) - dzds)) - 1)
                             
                         !Transverse bed slope                            
-                        dzdn = -dhdx * Yaux + dhdy * Xaux
+                        dzdn = -dhdx * Vaux + dhdy * Uaux
                         
                         alfa_n = alfa_bn * (SandClass%CriticalShearStress(i,j) /    &
                                 Me%ExternalVar%ShearStress(i,j))**0.5 * dzdn
                                 
                         !Adjustment of bedload transport for bed-slope effects
-                        FluxX = alfa_s * (SandClass%FluxX(i, j) -   &
-                                                alfa_n * SandClass%FluxY(i, j))
+                        FluxU = alfa_s * (SandClass%FluxU(i, j) -   &
+                                                alfa_n * SandClass%FluxV(i, j))
                             
-                        FluxY = alfa_s * (SandClass%FluxY(i, j) +   &
-                                                alfa_n * SandClass%FluxX(i, j))   
+                        FluxV = alfa_s * (SandClass%FluxV(i, j) +   &
+                                                alfa_n * SandClass%FluxU(i, j))   
                         
-                        SandClass%FluxX(i, j) = FluxX
+                        SandClass%FluxU(i, j) = FluxU
                         
-                        SandClass%FluxY(i, j) = FluxY
+                        SandClass%FluxV(i, j) = FluxV
                         
                     endif
                 endif               
@@ -5129,8 +5185,8 @@ do1:    do n=1,Me%NumberOfClasses
         WJLB = Me%SedimentWorkSize3D%JLB
         WJUB = Me%SedimentWorkSize3D%JUB
         
-        Me%FluxX  (:, :) =  0.
-        Me%FluxY  (:, :) =  0.
+        Me%FluxU  (:, :) =  0.
+        Me%FluxV  (:, :) =  0.
         
         do n=1,Me%NumberOfClasses
 
@@ -5145,7 +5201,7 @@ do1:    do n=1,Me%NumberOfClasses
                     
                     if(SandClass%Field3D(i,j,WKUB) > 0.) then                   
       
-                        MassWithdrawal = (abs(SandClass%FluxX(i, j)) + abs(SandClass%FluxY(i, j))) * Me%Evolution%SedimentDT
+                        MassWithdrawal = (abs(SandClass%FluxU(i, j)) + abs(SandClass%FluxV(i, j))) * Me%Evolution%SedimentDT
                         
                         if (SandClass%SedimentWaterFluxes) then                                
                             !Considers the flux to sediment (erosion, deposition)
@@ -5160,9 +5216,9 @@ do1:    do n=1,Me%NumberOfClasses
                                 
                             correction = SandClass%Mass(i,j,WKUB)/MassWithdrawal
                                 
-                            SandClass%FluxX(i, j) = SandClass%FluxX(i, j) * correction
+                            SandClass%FluxU(i, j) = SandClass%FluxU(i, j) * correction
                                 
-                            SandClass%FluxY(i, j) = SandClass%FluxY(i, j) * correction
+                            SandClass%FluxV(i, j) = SandClass%FluxV(i, j) * correction
                                 
                             Me%Bedload(i, j) = Me%Bedload(i, j) - SandClass%Bedload(i, j) * (1 - correction)
                                 
@@ -5177,9 +5233,9 @@ do1:    do n=1,Me%NumberOfClasses
                                 
                         endif
                         
-                        Me%FluxX(i,j) = Me%FluxX(i,j) + SandClass%FluxX(i, j)
+                        Me%FluxU(i,j) = Me%FluxU(i,j) + SandClass%FluxU(i, j)
                             
-                        Me%FluxY(i,j) = Me%FluxY(i,j) + SandClass%FluxY(i, j)
+                        Me%FluxV(i,j) = Me%FluxV(i,j) + SandClass%FluxV(i, j)
                         
                     endif
                 endif
@@ -5209,8 +5265,8 @@ do1:    do n=1,Me%NumberOfClasses
           
         if (Me%Boxes%Yes) then
 
-            Me%Boxes%FluxesX(:,:) = 0.
-            Me%Boxes%FluxesY(:,:) = 0.
+            Me%Boxes%FluxesU(:,:) = 0.
+            Me%Boxes%FluxesV(:,:) = 0.
 
         endif
       
@@ -5228,58 +5284,58 @@ do1:    do n=1,Me%NumberOfClasses
 
                     RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
                 
-                    Me%Residual%FluxX(:,:) = ( Me%Residual%FluxX(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
-                                               SandClass%FluxX(:,:) * Me%Evolution%SedimentDT) / RunPeriod
+                    Me%Residual%FluxU(:,:) = ( Me%Residual%FluxU(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
+                                               SandClass%FluxU(:,:) * Me%Evolution%SedimentDT) / RunPeriod
                                            
-                    Me%Residual%FluxY(:,:) = ( Me%Residual%FluxY(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
-                                               SandClass%FluxY(:,:) * Me%Evolution%SedimentDT) / RunPeriod
+                    Me%Residual%FluxV(:,:) = ( Me%Residual%FluxV(:,:) * (RunPeriod -  Me%Evolution%SedimentDT)          + &
+                                               SandClass%FluxV(:,:) * Me%Evolution%SedimentDT) / RunPeriod
                 endif
            
                 do j=WJLB, WJUB
                 do i=WILB, WIUB
                     
-                    if (SandClass%FluxX(i, j) < 0.) then 
+                    if (SandClass%FluxU(i, j) < 0.) then 
                         if      (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
                         
-                            SandClass%DM(i, j-1) = SandClass%DM(i, j-1) - Me%Evolution%SedimentDT * SandClass%FluxX(i, j)
-                            SandClass%DM(i, j  ) = SandClass%DM(i, j  ) + Me%Evolution%SedimentDT * SandClass%FluxX(i, j)
+                            SandClass%DM(i, j-1) = SandClass%DM(i, j-1) - Me%Evolution%SedimentDT * SandClass%FluxU(i, j)
+                            SandClass%DM(i, j  ) = SandClass%DM(i, j  ) + Me%Evolution%SedimentDT * SandClass%FluxU(i, j)
                          
 
                             if (Me%Boxes%Yes) then
-                                Me%Boxes%FluxesX(i,j) = Me%Boxes%FluxesX(i,j) + SandClass%FluxX(i, j) * Me%Evolution%SedimentDT
+                                Me%Boxes%FluxesU(i,j) = Me%Boxes%FluxesU(i,j) + SandClass%FluxU(i, j) * Me%Evolution%SedimentDT
                             endif
                         endif
                     else 
 
                         if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
                   
-                            SandClass%DM(i, j+1) = SandClass%DM(i, j+1) + Me%Evolution%SedimentDT * SandClass%FluxX(i, j)  
-                            SandClass%DM(i, j  ) = SandClass%DM(i, j  ) - Me%Evolution%SedimentDT * SandClass%FluxX(i, j) 
+                            SandClass%DM(i, j+1) = SandClass%DM(i, j+1) + Me%Evolution%SedimentDT * SandClass%FluxU(i, j)  
+                            SandClass%DM(i, j  ) = SandClass%DM(i, j  ) - Me%Evolution%SedimentDT * SandClass%FluxU(i, j) 
 
                             if (Me%Boxes%Yes) then
-                                Me%Boxes%FluxesX(i,j+1) = Me%Boxes%FluxesX(i,j+1) + SandClass%FluxX(i, j) * Me%Evolution%SedimentDT
+                                Me%Boxes%FluxesU(i,j+1) = Me%Boxes%FluxesU(i,j+1) + SandClass%FluxU(i, j) * Me%Evolution%SedimentDT
                             endif
                         endif                    
                     endif
 
-                    if (SandClass%FluxY(i, j) < 0.) then
+                    if (SandClass%FluxV(i, j) < 0.) then
                         if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
                             
-                            SandClass%DM(i-1, j) = SandClass%DM(i-1, j) - Me%Evolution%SedimentDT * SandClass%FluxY(i, j) 
-                            SandClass%DM(i  , j) = SandClass%DM(i  , j) + Me%Evolution%SedimentDT * SandClass%FluxY(i, j) 
+                            SandClass%DM(i-1, j) = SandClass%DM(i-1, j) - Me%Evolution%SedimentDT * SandClass%FluxV(i, j) 
+                            SandClass%DM(i  , j) = SandClass%DM(i  , j) + Me%Evolution%SedimentDT * SandClass%FluxV(i, j) 
 
                             if (Me%Boxes%Yes) then
-                                Me%Boxes%FluxesY(i,j) = Me%Boxes%FluxesY(i,j) + SandClass%FluxY(i, j) * Me%Evolution%SedimentDT
+                                Me%Boxes%FluxesV(i,j) = Me%Boxes%FluxesV(i,j) + SandClass%FluxV(i, j) * Me%Evolution%SedimentDT
                             endif
                         endif
                     else 
                         if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
 
-                            SandClass%DM(i+1, j) = SandClass%DM(i+1, j) + Me%Evolution%SedimentDT * SandClass%FluxY(i, j)
-                            SandClass%DM(i  , j) = SandClass%DM(i  , j) - Me%Evolution%SedimentDT * SandClass%FluxY(i, j) 
+                            SandClass%DM(i+1, j) = SandClass%DM(i+1, j) + Me%Evolution%SedimentDT * SandClass%FluxV(i, j)
+                            SandClass%DM(i  , j) = SandClass%DM(i  , j) - Me%Evolution%SedimentDT * SandClass%FluxV(i, j) 
 
                             if (Me%Boxes%Yes) then
-                                Me%Boxes%FluxesY(i+1,j) = Me%Boxes%FluxesY(i+1,j) + SandClass%FluxY(i, j) * Me%Evolution%SedimentDT
+                                Me%Boxes%FluxesV(i+1,j) = Me%Boxes%FluxesV(i+1,j) + SandClass%FluxV(i, j) * Me%Evolution%SedimentDT
                             endif
                         endif
                     endif
@@ -5579,9 +5635,9 @@ if5:                if (aux < SandClass%Mass_Min) then
     subroutine ComputeErosionDryCells 
         
         !Local-----------------------------------------------------------------
-        integer                 :: i, j, n
-        class(T_Sand), pointer  :: SandClass      
-        integer                 :: WILB, WIUB, WJLB, WJUB, WKUB, WKUB1
+        integer                 :: i, j, ii, jj, n    
+        integer                 :: WILB, WIUB, WJLB, WJUB, WKUB
+        class(T_Sand), pointer  :: SandClass   
         integer                 :: STAT_CALL
         !----------------------------------------------------------------------
         
@@ -5593,7 +5649,8 @@ if5:                if (aux < SandClass%Mass_Min) then
         do j=WJLB, WJUB
         do i=WILB, WIUB
             
-            if (Me%ExternalVar%OpenPoints2D(i,j) == OpenPoint) then
+            if (Me%OpenSediment(i,j) == OpenPoint .and. &
+                Me%ExternalVar%BoundaryPoints2D(i, j) /= Boundary) then
                 
                 !Erosion
                 if (Me%DM(i,j) .lt. 0.) then
@@ -5601,99 +5658,43 @@ if5:                if (aux < SandClass%Mass_Min) then
                     WKUB = Me%KTop(i, j)
     
                     if  (Me%ExternalVar%ComputeFacesU2D(i, j) == Not_Covered .and. &
-                         Me%ExternalVar%WaterPoints3D (i,j-1,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i,j-1,Me%KTop(i, j-1)) == WaterPoint) then
                         
-                        !Me%DM(i,j) is always negative
-                        Me%DM(i,j-1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
-                        Me%DM(i,j  ) = Me%DM(i,j) - Me%DM(i,j-1)
-                    
-                        Me%Mass(i,j-1) =  Me%DM(i,j-1) + Me%Mass(i,j-1)
-                        Me%Mass(i,j  ) = -Me%DM(i,j-1) + Me%Mass(i,j  )
-                    
-                        WKUB1 = Me%KTop(i, j-1)
-                    
-                        if (Me%CohesiveClass%Run) then
-                            Me%CohesiveClass%Mass(i,j-1,WKUB1) =  Me%CohesiveClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + Me%CohesiveClass%Mass(i,j-1,WKUB1)
-                            Me%CohesiveClass%Mass(i,j  ,WKUB ) = -Me%CohesiveClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + Me%CohesiveClass%Mass(i,j  ,WKUB )
-                        endif
+                        ii = i
+                        jj = j-1
                         
-                        do n=1,Me%NumberOfClasses
-                            SandClass => Me%SandClass(n)                            
-                            SandClass%Mass(i,j-1,WKUB1) =  SandClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + SandClass%Mass(i,j-1,WKUB1)
-                            SandClass%Mass(i,j , WKUB ) = -SandClass%Field3D(i,j-1,WKUB1) * Me%DM(i,j-1) + SandClass%Mass(i,j  ,WKUB )
-                        enddo
+                        call ComputeCellsMass(i,j,ii,jj)
+                        
                     endif
             
                     if  (Me%ExternalVar%ComputeFacesU2D(i, j+1) == Not_Covered .and. &
-                         Me%ExternalVar%WaterPoints3D (i,j+1,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i,j+1,Me%KTop(i, j+1)) == WaterPoint) then                        
+                                                
+                        ii = i
+                        jj = j+1
                         
-                        !Me%DM(i,j) is always negative
-                        Me%DM(i,j+1) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
-                        Me%DM(i,j  ) = Me%DM(i,j) - Me%DM(i,j+1)
-                    
-                        Me%Mass(i,j+1) =  Me%DM(i,j+1) + Me%Mass(i,j+1)
-                        Me%Mass(i,j  ) = -Me%DM(i,j+1) + Me%Mass(i,j  )
-                    
-                        WKUB1 = Me%KTop(i, j+1)
-                    
-                        if (Me%CohesiveClass%Run) then
-                            Me%CohesiveClass%Mass(i,j+1,WKUB1) =  Me%CohesiveClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + Me%CohesiveClass%Mass(i,j+1,WKUB1)
-                            Me%CohesiveClass%Mass(i,j  ,WKUB ) = -Me%CohesiveClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + Me%CohesiveClass%Mass(i,j  ,WKUB )
-                        endif
-                        
-                        do n=1,Me%NumberOfClasses
-                            SandClass => Me%SandClass(n)                            
-                            SandClass%Mass(i,j+1,WKUB1) =  SandClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + SandClass%Mass(i,j+1,WKUB1)
-                            SandClass%Mass(i,j , WKUB ) = -SandClass%Field3D(i,j+1,WKUB1) * Me%DM(i,j+1) + SandClass%Mass(i,j , WKUB )
-                        enddo
+                        call ComputeCellsMass(i,j,ii,jj)
+ 
                     endif
         
                     if  (Me%ExternalVar%ComputeFacesV2D(i, j) == Not_Covered .and. &
-                         Me%ExternalVar%WaterPoints3D (i-1,j,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i-1,j,Me%KTop(i-1, j)) == WaterPoint) then                        
+                                                
+                        ii = i-1
+                        jj = j
                         
-                        !Me%DM(i,j) is always negative
-                        Me%DM(i-1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
-                        Me%DM(i  ,j) = Me%DM(i,j) - Me%DM(i-1,j)
-                    
-                        Me%Mass(i-1,j) =  Me%DM(i-1,j) + Me%Mass(i-1,j)
-                        Me%Mass(i  ,j) = -Me%DM(i-1,j) + Me%Mass(i  ,j)
-                    
-                        WKUB1 = Me%KTop(i-1, j)
-                    
-                        if (Me%CohesiveClass%Run) then
-                            Me%CohesiveClass%Mass(i-1,j,WKUB1) =  Me%CohesiveClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + Me%CohesiveClass%Mass(i-1,j,WKUB1)
-                            Me%CohesiveClass%Mass(i  ,j,WKUB) = - Me%CohesiveClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + Me%CohesiveClass%Mass(i  ,j,WKUB )
-                        endif
-                        
-                        do n=1,Me%NumberOfClasses
-                            SandClass => Me%SandClass(n)                            
-                            SandClass%Mass(i-1,j,WKUB1) =  SandClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + SandClass%Mass(i-1,j,WKUB1)
-                            SandClass%Mass(i  ,j,WKUB ) = -SandClass%Field3D(i-1,j,WKUB1) * Me%DM(i-1,j) + SandClass%Mass(i  ,j,WKUB )
-                        enddo
+                        call ComputeCellsMass(i,j,ii,jj)
+ 
                     endif
         
                     if  (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Not_Covered .and. &
-                         Me%ExternalVar%WaterPoints3D (i+1,j,WKUB) == WaterPoint) then
+                         Me%ExternalVar%OpenPoints3D (i+1,j,Me%KTop(i+1, j)) == WaterPoint) then
+                                                
+                        ii = i+1
+                        jj = j
                         
-                        !Me%DM(i,j) is always negative
-                        Me%DM(i+1,j) = Me%ErosionDryCellsFactor * Me%DM(i,j)                        
-                        Me%DM(i  ,j) = Me%DM(i,j) - Me%DM(i+1,j)
-                    
-                        Me%Mass(i+1,j) =  Me%DM(i+1,j) + Me%Mass(i+1,j)
-                        Me%Mass(i  ,j) = -Me%DM(i+1,j) + Me%Mass(i  ,j)
-                    
-                        WKUB1 = Me%KTop(i+1, j)
-                     
-                        if (Me%CohesiveClass%Run) then
-                            Me%CohesiveClass%Mass(i+1,j,WKUB1) =  Me%CohesiveClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + Me%CohesiveClass%Mass(i+1,j,WKUB1)
-                            Me%CohesiveClass%Mass(i  ,j,WKUB ) = -Me%CohesiveClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + Me%CohesiveClass%Mass(i  ,j,WKUB )
-                        endif
-                        
-                        do n=1,Me%NumberOfClasses
-                            SandClass => Me%SandClass(n)                            
-                            SandClass%Mass(i+1,j,WKUB1) =  SandClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + SandClass%Mass(i+1,j,WKUB1)
-                            SandClass%Mass(i  ,j,WKUB ) = -SandClass%Field3D(i+1,j,WKUB1) * Me%DM(i+1,j) + SandClass%Mass(i  ,j,WKUB )
-                        enddo
+                        call ComputeCellsMass(i,j,ii,jj)                        
+ 
                     endif
                 endif
             endif
@@ -5744,6 +5745,106 @@ if5:                if (aux < SandClass%Mass_Min) then
     
     end subroutine ComputeErosionDryCells
     
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+      
+    subroutine ComputeCellsMass(i,j,ii,jj)
+        
+        !Argument--------------------------------------------------------------
+        integer                 :: i, j, ii, jj
+        !Local-----------------------------------------------------------------
+        integer                 :: n
+        class(T_Sand), pointer  :: SandClass      
+        integer                 :: WKUB, WKUB1
+        real(8)                 :: MassEroded, aux
+        !----------------------------------------------------------------------
+        
+        !Me%DM(i,j) is always negative
+        MassEroded = Me%ErosionDryCellsFactor * Me%DM(i,j)
+        
+        WKUB = Me%KTop(i, j)
+        WKUB1 = Me%KTop(ii, jj)
+                    
+        if (Me%CohesiveClass%Run) then
+            
+            if (Me%CohesiveClass%Mass(ii,jj,WKUB1) > 0.) then
+
+                Me%CohesiveClass%DM(ii, jj) =  Me%CohesiveClass%DM(ii, jj) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
+                            
+                !kg/m2
+                aux = (Me%CohesiveClass%Mass(ii,jj,WKUB1) + Me%CohesiveClass%DM(ii, jj))/Me%ExternalVar%GridCellArea(ii,jj)
+                    
+                if (aux < Me%CohesiveClass%Mass_Min) then
+                        
+                    Me%CohesiveClass%DM(ii,jj) = - Me%CohesiveClass%Mass(ii,jj,WKUB1)                       
+                    Me%CohesiveClass%Mass(ii,jj,WKUB1) = 0.                        
+                    Me%CohesiveClass%Field3D(ii,jj,WKUB1) = 0.                        
+                    Me%CohesiveClass%TopPercentage(ii,jj) = 0.
+                    
+                    Me%CohesiveClass%Mass(i,j,WKUB) = Me%CohesiveClass%Mass(i,j,WKUB) - Me%CohesiveClass%DM(ii,jj)
+            
+                    Me%Mass(i ,j ) = Me%Mass(i ,j ) - Me%CohesiveClass%DM(ii,jj)                            
+                    Me%Mass(ii,jj) = Me%Mass(ii,jj) + Me%CohesiveClass%DM(ii,jj)                
+                
+                    Me%DM(i ,j ) = Me%DM(i ,j ) - Me%CohesiveClass%DM(ii,jj)
+                    Me%DM(ii,jj) = Me%DM(ii,jj) + Me%CohesiveClass%DM(ii,jj)                            
+                else    
+                    Me%CohesiveClass%Mass(ii,jj,WKUB1)= Me%CohesiveClass%Mass(ii,jj,WKUB1) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
+                    
+                    Me%CohesiveClass%Mass(i,j,WKUB) = Me%CohesiveClass%Mass(i,j,WKUB) - Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
+            
+                    Me%Mass(i ,j ) = Me%Mass(i ,j ) - Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded                             
+                    Me%Mass(ii,jj) = Me%Mass(ii,jj) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded                 
+                
+                    Me%DM(i ,j ) = Me%DM(i ,j ) - Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded   
+                    Me%DM(ii,jj) = Me%DM(ii,jj) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded                    
+                endif
+            endif          
+        endif
+                        
+        do n=1,Me%NumberOfClasses
+            SandClass => Me%SandClass(n)                            
+               
+            if (SandClass%Mass(ii,jj,WKUB1) > 0.) then
+            
+                SandClass%DM(ii,jj) =  SandClass%DM(ii,jj) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded
+                            
+                !kg/m2                    
+                aux = (SandClass%Mass(ii,jj,WKUB1) + SandClass%DM(ii,jj))/Me%ExternalVar%GridCellArea(ii,jj)
+                    
+                if (aux < SandClass%Mass_Min) then
+                        
+                    SandClass%DM(ii, jj) = - SandClass%Mass(ii,jj,WKUB1)
+                    SandClass%Mass(ii,jj,WKUB1) = 0.                        
+                    SandClass%Field3D(ii,jj,WKUB1) = 0.                        
+                    SandClass%TopPercentage(ii,jj) = 0.
+                    
+                    SandClass%Mass(i,j,WKUB) =  SandClass%Mass(i,j,WKUB) - SandClass%DM(ii, jj)
+                    
+                    Me%Mass(i ,j ) = Me%Mass(i ,j ) - SandClass%DM(ii, jj)
+                    Me%Mass(ii,jj) = Me%Mass(ii,jj) + SandClass%DM(ii, jj)
+                    
+                    Me%DM(i ,j ) = Me%DM(i ,j ) - SandClass%DM(ii, jj)
+                    Me%DM(ii,jj) = Me%DM(ii,jj) + SandClass%DM(ii, jj)
+                    
+                else
+                    SandClass%Mass(ii,jj,WKUB1) = SandClass%Mass(ii,jj,WKUB1) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded                    
+                                                
+                    SandClass%Mass(i,j,WKUB) =  SandClass%Mass(i,j,WKUB) - SandClass%Field3D(ii,jj,WKUB1) * MassEroded
+                
+                    Me%Mass(i ,j ) = Me%Mass(i ,j ) - SandClass%Field3D(ii,jj,WKUB1) * MassEroded                            
+                    Me%Mass(ii,jj) = Me%Mass(ii,jj) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded               
+                
+                    Me%DM(i ,j ) = Me%DM(i ,j ) - SandClass%Field3D(ii,jj,WKUB1) * MassEroded
+                    Me%DM(ii,jj) = Me%DM(ii,jj) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded     
+                    
+                endif          
+                
+            endif                            
+        enddo
+    
+    end subroutine ComputeCellsMass
     !--------------------------------------------------------------------------
     
     subroutine ComputePercentage
@@ -6509,7 +6610,9 @@ if9:        if (Me%CohesiveClass%Run) then
                     Me%BatimIncrement(i,j) = Me%BatimIncrement(i,j) + Me%DZ(i, j)
                 endif
                     
-                Me%DZ_Residual(i, j) = Me%DZ_Residual(i, j) + Me%DZ(i, j)
+                if (Me%Residual%ON) then
+                    Me%DZ_Residual(i, j) = Me%DZ_Residual(i, j) + Me%DZ(i, j)
+                endif
 
             endif
 
@@ -6604,23 +6707,34 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR90'
 
-                call HDF5WriteData  (Me%ObjHDF5, "/Results/DZ_Residual", "DZ_Residual",    &
-                                     "m", Array2D =Me%DZ_Residual,                           &
-                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR100'
+                !call HDF5WriteData  (Me%ObjHDF5, "/Results/DZ_Residual", "DZ_Residual",    &
+                !                     "m", Array2D =Me%DZ_Residual,                           &
+                !                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR100'
                 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Bedload", "Bedload",            &
                                     "kg/s/m", Array2D = Me%Bedload,                          &
                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR110'
                 
+               call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid, &
+                                                VectorInX         = Me%FluxU,              &
+                                                VectorInY         = Me%FluxV,              &
+                                                VectorOutX        = Me%AuxFluxX,              &
+                                                VectorOutY        = Me%AuxFluxY,              &   
+                                                WaterPoints2D     = Me%ExternalVar%WaterPoints2D,       &
+                                                RotateX           = .true.,                               &
+                                                RotateY           = .true.,                               &
+                                                STAT              = STAT_CALL)               
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR115'
+                
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Bedload X", "Bedload X",        &
-                                    "kg/s", Array2D = Me%FluxX,                              &
+                                    "kg/s", Array2D = Me%AuxFluxX,                              &
                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR120'
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Bedload Y", "Bedload Y",        &
-                                    "kg/s", Array2D = Me%FluxY,                              &
+                                    "kg/s", Array2D = Me%AuxFluxY,                              &
                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR125'
                 
@@ -6657,16 +6771,26 @@ do1:            do n=1,Me%NumberOfClasses
                                          OutputNumber = OutPutNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR170'
                     
+                    call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid, &
+                                                VectorInX         = Me%SandClass(n)%FluxU,              &
+                                                VectorInY         = Me%SandClass(n)%FluxV,              &
+                                                VectorOutX        = Me%AuxFluxX,              &
+                                                VectorOutY        = Me%AuxFluxY,              &   
+                                                WaterPoints2D     = Me%ExternalVar%WaterPoints2D,       &
+                                                RotateX           = .true.,                               &
+                                                RotateY           = .true.,                               &
+                                                STAT              = STAT_CALL)               
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR175'
 
                     call HDF5WriteData  (Me%ObjHDF5, "/Results/Classes/Bedload X/"//trim(Me%SandClass(n)%ID%Name),         &
                                          trim(Me%SandClass(n)%ID%Name),                                                      &
-                                         "kg/s", Array2D = Me%SandClass(n)%FluxX,                                            &
+                                         "kg/s", Array2D = Me%AuxFluxX,                                            &
                                          OutputNumber = OutPutNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR180'
 
                     call HDF5WriteData  (Me%ObjHDF5, "/Results/Classes/Bedload Y/"//trim(Me%SandClass(n)%ID%Name),         &
                                         trim(Me%SandClass(n)%ID%Name),                                                       &
-                                         "kg/s", Array2D = Me%SandClass(n)%FluxY,                                            &
+                                         "kg/s", Array2D = Me%AuxFluxY,                                            &
                                          OutputNumber = OutPutNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR190'
                     
@@ -6678,61 +6802,77 @@ do1:            do n=1,Me%NumberOfClasses
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR200'
                     
                
-            enddo do1
+                enddo do1
 
-            if (Me%CohesiveClass%Run) then
+                if (Me%CohesiveClass%Run) then
                 
-                call HDF5WriteData   (Me%ObjHDF5, "/Results/Classes/TopPercentage/Cohesive Sediment",      &
-                                        "Cohesive Sediment",                                               &
-                                        "%", Array2D = Me%CohesiveClass%TopPercentage,                     &
-                                        OutputNumber = OutPutNumber,                                       &
-                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR210'
+                    call HDF5WriteData   (Me%ObjHDF5, "/Results/Classes/TopPercentage/Cohesive Sediment",      &
+                                            "Cohesive Sediment",                                               &
+                                            "%", Array2D = Me%CohesiveClass%TopPercentage,                     &
+                                            OutputNumber = OutPutNumber,                                       &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR210'
             
-                call HDF5WriteData   (Me%ObjHDF5, "/Results/Cohesive Sediment",           &
-                                        "Cohesive Sediment",                                &
-                                        "%", Array3D = Me%CohesiveClass%Field3D,            &
-                                        OutputNumber = OutPutNumber,                        &
-                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    stop 'OutPutSedimentHDF - ModuleSediment - ERR220'
+                    call HDF5WriteData   (Me%ObjHDF5, "/Results/Cohesive Sediment",           &
+                                            "Cohesive Sediment",                                &
+                                            "%", Array3D = Me%CohesiveClass%Field3D,            &
+                                            OutputNumber = OutPutNumber,                        &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                  &
+                        stop 'OutPutSedimentHDF - ModuleSediment - ERR220'
             
-                call HDF5WriteData   (Me%ObjHDF5, "/Results/Cohesive_DryDensity",           &
-                                        "Cohesive_DryDensity",                              &
-                                        "kg/m3", Array3D = Me%CohesiveDryDensity%Field3D,   &
-                                         OutputNumber = OutPutNumber,                       &
-                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                  &
-                    stop 'OutPutSedimentHDF - ModuleSediment - ERR230'
+                    call HDF5WriteData   (Me%ObjHDF5, "/Results/Cohesive_DryDensity",           &
+                                            "Cohesive_DryDensity",                              &
+                                            "kg/m3", Array3D = Me%CohesiveDryDensity%Field3D,   &
+                                             OutputNumber = OutPutNumber,                       &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                  &
+                        stop 'OutPutSedimentHDF - ModuleSediment - ERR230'
                 
-                call HDF5WriteData   (Me%ObjHDF5, "/Results/Classes/Critical Shear Stress/Cohesive Sediment",    &
-                                        "Cohesive Sediment",                                                       &
-                                        "%", Array2D = Me%CohesiveClass%CriticalShearStress,                       &
-                                        OutputNumber = OutPutNumber,                                               &
-                                        STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR240'
+                    call HDF5WriteData   (Me%ObjHDF5, "/Results/Classes/Critical Shear Stress/Cohesive Sediment",    &
+                                            "Cohesive Sediment",                                                       &
+                                            "%", Array2D = Me%CohesiveClass%CriticalShearStress,                       &
+                                            OutputNumber = OutPutNumber,                                               &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR240'
             
-            endif
+                endif
                     
                 if (Me%Residual%ON) then
-                
+                    
+                    call HDF5WriteData  (Me%ObjHDF5, "/Residual/DZ_Residual", "DZ_Residual",    &
+                                        "m", Array2D =Me%DZ_Residual,                           &
+                                        OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR250'
+                    
+                    call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid, &
+                                                VectorInX         = Me%Residual%FluxU,              &
+                                                VectorInY         = Me%Residual%FluxV,              &
+                                                VectorOutX        = Me%AuxFluxX,              &
+                                                VectorOutY        = Me%AuxFluxY,              &   
+                                                WaterPoints2D     = Me%ExternalVar%WaterPoints2D,       &
+                                                RotateX           = .true.,                               &
+                                                RotateY           = .true.,                               &
+                                                STAT              = STAT_CALL)               
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR270'
+                    
                     call HDF5WriteData  (Me%ObjHDF5, "/Residual/Bedload X", &
                                          "Bedload X",                      &
-                                         "kg/s", Array2D = Me%Residual%FluxX,            &
+                                         "kg/s", Array2D = Me%AuxFluxX,            &
                                          OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR250'
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR280'
 
                     call HDF5WriteData  (Me%ObjHDF5, "/Residual/Bedload Y", &
                                          "Bedload Y",                      &
-                                         "kg/s", Array2D = Me%Residual%FluxY,            &
+                                         "kg/s", Array2D = Me%AuxFluxY,            &
                                          OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR260'
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR290'
                 
                 endif
 
                 !Writes everything to disk
                 call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR270'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSedimentHDF - ModuleSediment - ERR300'
 
                 Me%OutPut%NextOutPut = OutPutNumber + 1
 
@@ -6769,10 +6909,12 @@ do1:            do n=1,Me%NumberOfClasses
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR02'
         
-        call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D =Me%DZ_Residual, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                              &
-            stop 'OutPut_TimeSeries - ModuleSediment - ERR03'
+        if (Me%Residual%ON) then
+            call WriteTimeSerie(Me%ObjTimeSerie,                                    &
+                                Data2D =Me%DZ_Residual, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                              &
+                stop 'OutPut_TimeSeries - ModuleSediment - ERR03'
+        endif
 
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
                             Data2D_8 =Me%D50, STAT = STAT_CALL)
@@ -6789,13 +6931,24 @@ do1:            do n=1,Me%NumberOfClasses
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR06'
         
+        call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid, &
+                                    VectorInX         = Me%FluxU,              &
+                                    VectorInY         = Me%FluxV,              &
+                                    VectorOutX        = Me%AuxFluxX,              &
+                                    VectorOutY        = Me%AuxFluxY,              &   
+                                    WaterPoints2D     = Me%ExternalVar%WaterPoints2D,       &
+                                    RotateX           = .true.,                               &
+                                    RotateY           = .true.,                               &
+                                    STAT              = STAT_CALL)               
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleSediment - ERR070'
+        
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D_8 =Me%FluxX, STAT = STAT_CALL)
+                            Data2D_8 =Me%AuxFluxX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR07'
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                    &
-                            Data2D_8 =Me%FluxY, STAT = STAT_CALL)
+                            Data2D_8 =Me%AuxFluxY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OutPut_TimeSeries - ModuleSediment - ERR08'
         
@@ -6887,31 +7040,42 @@ do1:    do n=1,Me%NumberOfClasses
                                         Me%ExternalVar%DUX(i,j) * Me%ExternalVar%DVY(i,j) 
 
                 !This fluxes are initialised and partial computed in the subroutine ComputeEvolution
-                Me%Boxes%FluxesX(i,j) = Me%Boxes%FluxesX(i,j)   * (1.- Me%Porosity(i,j,WKUB)) * Me%Density
-                Me%Boxes%FluxesY(i,j) = Me%Boxes%FluxesY(i,j)   * (1.- Me%Porosity(i,j,WKUB)) * Me%Density
+                Me%Boxes%FluxesU(i,j) = Me%Boxes%FluxesU(i,j)   * (1.- Me%Porosity(i,j,WKUB)) * Me%Density
+                Me%Boxes%FluxesV(i,j) = Me%Boxes%FluxesV(i,j)   * (1.- Me%Porosity(i,j,WKUB)) * Me%Density
 
             end do
             end do
                     
             !Integration of the bottom changes
             call BoxDif(Me%ObjBoxDif, Me%Boxes%Mass,                                        &
-                        trim(GetPropertyName (mSediment_)),                                      &
+                        trim(GetPropertyName (mSediment_)),                                 &
                         Me%ExternalVar%WaterPoints2D,                                       &
                         STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_)                                                      &
-                stop 'OutputBoxFluxes - ModuleSediment - ERR01'
+                stop 'OutputBoxFluxes - ModuleSediment - ERR010'
 
+            call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid,         &
+                                        VectorInX         = Me%Boxes%FluxesU,              &
+                                        VectorInY         = Me%Boxes%FluxesV,              &
+                                        VectorOutX        = Me%AuxFluxX,                   &
+                                        VectorOutY        = Me%AuxFluxY,                   &   
+                                        WaterPoints2D     = Me%ExternalVar%WaterPoints2D,  &
+                                        RotateX           = .true.,                        &
+                                        RotateY           = .true.,                        &
+                                        STAT              = STAT_CALL)               
+            if (STAT_CALL /= SUCCESS_) stop 'OutputBoxFluxes - ModuleSediment - ERR020'
+            
             !Integration of fluxes
             call BoxDif(Me%ObjBoxDif,                                                       &
-                        Me%Boxes%FluxesX,                                                   &
-                        Me%Boxes%FluxesY,                                                   &
-                        trim(GetPropertyName (mSediment_)),                                      &
+                        Me%AuxFluxX,                                                        &
+                        Me%AuxFluxY,                                                        &
+                        trim(GetPropertyName (mSediment_)),                                 &
                         Me%ExternalVar%WaterPoints2D,                                       &
                         STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                      &
-                stop 'OutputBoxFluxes - ModuleSediment - ERR20'
+                stop 'OutputBoxFluxes - ModuleSediment - ERR30'
         
         enddo do1
 
@@ -6979,20 +7143,20 @@ do1 :               do i=1, Me%NumberOfClasses
                         nullify(Me%SandClass(i)%DM)
                         deallocate(Me%SandClass(i)%FluxToSediment)
                         nullify(Me%SandClass(i)%FluxToSediment)
-                        deallocate(Me%SandClass(i)%FluxX)
-                        nullify(Me%SandClass(i)%FluxX)
-                        deallocate(Me%SandClass(i)%FluxY) 
-                        nullify(Me%SandClass(i)%FluxY) 
+                        deallocate(Me%SandClass(i)%FluxU)
+                        nullify(Me%SandClass(i)%FluxU)
+                        deallocate(Me%SandClass(i)%FluxV) 
+                        nullify(Me%SandClass(i)%FluxV) 
                         deallocate(Me%SandClass(i)%Bedload)
                         nullify(Me%SandClass(i)%Bedload)
                         deallocate(Me%SandClass(i)%NDShearStress)
                         nullify(Me%SandClass(i)%NDShearStress)
                         
                         if(Me%WavesOn) then
-                            deallocate(Me%SandClass(i)%BedloadX)
-                            nullify(Me%SandClass(i)%BedloadX)
-                            deallocate(Me%SandClass(i)%BedloadY)
-                            nullify(Me%SandClass(i)%BedloadY)
+                            deallocate(Me%SandClass(i)%BedloadU)
+                            nullify(Me%SandClass(i)%BedloadU)
+                            deallocate(Me%SandClass(i)%BedloadV)
+                            nullify(Me%SandClass(i)%BedloadV)
                             deallocate (Me%SandClass(i)%NDShearStressWaves) 
                             nullify (Me%SandClass(i)%NDShearStressWaves)
                             deallocate (Me%SandClass(i)%NDShearStressMean)
@@ -7036,14 +7200,18 @@ do1 :               do i=1, Me%NumberOfClasses
 
                 deallocate(Me%DZ)
                 nullify(Me%DZ)
-                deallocate(Me%DZ_Residual)
-                nullify(Me%DZ_Residual)
+                !deallocate(Me%DZ_Residual)
+                !nullify(Me%DZ_Residual)
                 deallocate(Me%DZ_Consolidation)
                 nullify(Me%DZ_Consolidation)
-                deallocate(Me%FluxX)
-                nullify(Me%FluxX)
-                deallocate(Me%FluxY)
-                nullify(Me%FluxY)
+                deallocate(Me%FluxU)
+                nullify(Me%FluxU)
+                deallocate(Me%FluxV)
+                nullify(Me%FluxV)
+                deallocate(Me%AuxFluxX)
+                nullify(Me%AuxFluxX)
+                deallocate(Me%AuxFluxY)
+                nullify(Me%AuxFluxY)
                 deallocate(Me%Bedload)
                 nullify(Me%Bedload)
                 deallocate(Me%DM)
@@ -7103,27 +7271,25 @@ do1 :               do i=1, Me%NumberOfClasses
                 nullify (Me%OpenSediment)
                 
                 if (Me%Residual%ON) then
-                    deallocate(Me%Residual%FluxX)
-                    nullify(Me%Residual%FluxX)
-                    deallocate(Me%Residual%FluxY)
-                    nullify(Me%Residual%FluxY)
+                    deallocate(Me%DZ_Residual)
+                    nullify(Me%DZ_Residual)
+                    deallocate(Me%Residual%FluxU)
+                    nullify(Me%Residual%FluxU)
+                    deallocate(Me%Residual%FluxV)
+                    nullify(Me%Residual%FluxV)
                 endif
                 
                 if (Me%Boxes%Yes) then
-
                     call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillSediment - ModuleSediment - ERR30'
 
-                    deallocate(Me%Boxes%FluxesX)
-                    nullify   (Me%Boxes%FluxesX)
-
-                    deallocate(Me%Boxes%FluxesY)
-                    nullify   (Me%Boxes%FluxesY)
-
+                    deallocate(Me%Boxes%FluxesU)
+                    nullify   (Me%Boxes%FluxesU)
+                    deallocate(Me%Boxes%FluxesV)
+                    nullify   (Me%Boxes%FluxesV)
 
                     deallocate(Me%Boxes%Mass   )
                     nullify   (Me%Boxes%Mass   )
-
                 endif
 
 
@@ -7193,8 +7359,11 @@ do1 :               do i=1, Me%NumberOfClasses
         integer                                :: WorkJLB, WorkJUB
         integer                                :: WorkKLB, WorkKUB
         integer                                :: STAT_CALL, n
+        integer, dimension(:), pointer         :: AuxInt
         !----------------------------------------------------------------------
-
+        
+        allocate(AuxInt(1))
+        
         !Bounds
         WorkILB = Me%SedimentWorkSize3D%ILB 
         WorkIUB = Me%SedimentWorkSize3D%IUB 
@@ -7205,13 +7374,33 @@ do1 :               do i=1, Me%NumberOfClasses
         
         call Open_HDF5_OutPut_File(Me%Files%Final)
         
+        !Sets limits for next write operations
+        call HDF5SetLimits   (Me%ObjHDF5, 1, 1, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSediment - ERR10'
+        
+        !write(FinalFile) Me%Residual%ON
+        !Convert logical in int 
+        if (Me%Residual%ON) then
+            AuxInt(1) = 1
+        else
+            AuxInt(1) = 0
+        endif            
+
+        call HDF5WriteData  (HDF5ID         = Me%ObjHDF5,                               &
+                             GroupName      = "/Time",                                  &
+                             Name           = "residual ON",                            & 
+                             Units          = "0/1",                                    &
+                             Array1D        = AuxInt,                                   &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSediment - ERR20'
+        
         call ReadUnLockExternalVar
         
         !Writes geometry
         call WriteGeometryHDF(Me%ObjSedimentGeometry,                                    &
                               Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSediment - ERR01'
+            stop 'WriteFinalState - ModuleSediment - ERR30'
         
         call ReadLockExternalVar
 
@@ -7220,57 +7409,66 @@ do1 :               do i=1, Me%NumberOfClasses
                              WorkJLB, WorkJUB,                                           &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSediment - ERR10'
+            stop 'WriteFinalState - ModuleSediment - ERR40'
 
-        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                     &
-                             "DZ_Residual",                                              &
-                             "m",                                                        &
-                             Array2D =Me%DZ_Residual,                                    &
-                             STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSediment - ERR20'
+        !call HDF5WriteData  (Me%ObjHDF5, "/Results",                                     &
+        !                     "DZ_Residual",                                              &
+        !                     "m",                                                        &
+        !                     Array2D =Me%DZ_Residual,                                    &
+        !                     STAT    = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                                                       &
+        !    stop 'WriteFinalState - ModuleSediment - ERR20'
 
+        
         call HDF5WriteData  (Me%ObjHDF5, "/Results",                                     &
                              "Bathymetry",                                               &
                              "m",                                                        &
                              Array2D = Me%ExternalVar%Bathymetry,                        &
                              STAT    = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSediment - ERR30'
+            stop 'WriteFinalState - ModuleSediment - ERR50'
 
         if (Me%Residual%ON) then
+            
+            call HDF5WriteData  (Me%ObjHDF5, "/Results",                                    &
+                                "DZ_Residual",                                              &
+                                "m",                                                        &
+                                Array2D =Me%DZ_Residual,                                    &
+                                STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'WriteFinalState - ModuleSediment - ERR60'
+            
             call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
-                                 "Bedload X",                                           &
+                                 "Bedload U",                                           &
                                  "kg/s",                                              &
-                                 Array2D = Me%Residual%FluxX,                           &
+                                 Array2D = Me%Residual%FluxU,                           &
                                  STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'WriteFinalState - ModuleSediment - ERR40'
+                stop 'WriteFinalState - ModuleSediment - ERR80'
 
             call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
-                                 "Bedload Y",                                           &
+                                 "Bedload V",                                           &
                                  "kg/s",                                              &
-                                 Array2D = Me%Residual%FluxY,                           &
+                                 Array2D = Me%Residual%FluxV,                           &
                                  STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'WriteFinalState - ModuleSediment - ERR50'
+                stop 'WriteFinalState - ModuleSediment - ERR90'
 
             call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'WriteFinalState - ModuleSediment - ERR60'
+                stop 'WriteFinalState - ModuleSediment - ERR100'
 
             !Writes current time
             call ExtractDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3), &
                                 AuxTime(4), AuxTime(5), AuxTime(6))
             TimePtr => AuxTime
             call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSediment - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSediment - ERR110'
 
             call HDF5WriteData  (Me%ObjHDF5, "/Time",                                    &
                                  "Residual Start Time", "YYYY/MM/DD HH:MM:SS",           &
                                  Array1D = TimePtr, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSediment - ERR80'
-                                 
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSediment - ERR120'                           
 
         endif
         
@@ -7278,7 +7476,7 @@ do1 :               do i=1, Me%NumberOfClasses
                              WorkJLB, WorkJUB, WorkKLB, WorkKUB,                         &
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSediment - ERR13'
+            stop 'WriteFinalState - ModuleSediment - ERR130'
             
         do n=1,Me%NumberOfClasses
             
@@ -7287,7 +7485,7 @@ do1 :               do i=1, Me%NumberOfClasses
                                     "%", Array3D = Me%SandClass(n)%Field3D,              &
                                     STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'WriteFinalState - ModuleSediment - ERR14'
+                stop 'WriteFinalState - ModuleSediment - ERR140'
             
         enddo
         
@@ -7298,25 +7496,27 @@ do1 :               do i=1, Me%NumberOfClasses
                         "%", Array3D = Me%CohesiveClass%Field3D,                        &
                         STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'WriteFinalState - ModuleSediment - ERR15'
+                stop 'WriteFinalState - ModuleSediment - ERR150'
             
             call HDF5WriteData   (Me%ObjHDF5, "/Results",            &
             "Cohesive_DryDensity",                                                      &
             "kg/m3", Array3D = Me%CohesiveDryDensity%Field3D,                           &
             STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'WriteFinalState - ModuleSediment - ERR16'
+                stop 'WriteFinalState - ModuleSediment - ERR160'
             
         endif
    
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSediment - ERR90'
+            stop 'WriteFinalState - ModuleSediment - ERR170'
 
         call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSediment - ERR100'
+            stop 'WriteFinalState - ModuleSediment - ERR180'
+        
+        deallocate(AuxInt)
 
     end subroutine WriteFinalState
 

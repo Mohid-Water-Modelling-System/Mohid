@@ -116,7 +116,7 @@ Module ModulePorousMediaProperties
                                          UngetAdvectionDiffusion, KillAdvectionDiffusion
 
 #ifdef _PHREEQC_     
-    use ModulePhreeqC
+    !use ModulePhreeqC
 #endif
 
 #ifdef _ENABLE_CUDA

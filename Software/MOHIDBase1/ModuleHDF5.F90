@@ -2242,8 +2242,12 @@ Module ModuleHDF5
         character(len=*)                            :: ItemName
 
         !Local-----------------------------------------------------------------
-        integer(HID_T)                              :: STAT_CALL
-
+        integer                                     :: STAT_CALL
+        !integer (HID_T)                             :: STAT_CALL
+        !!strangely this would not work with intel16. specs of HDF show that all
+        !!stat parameters are integer and no need for integer (HID_T)
+        !!but only on h5pcreate_f it failed
+        
         !Creates a simple dataspace
         call h5screate_simple_f(Rank, dims, space_id, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
@@ -7108,7 +7112,7 @@ Module ModuleHDF5
         integer(HID_T)                                  :: space_id
         integer(HID_T)                                  :: datatype_id
         integer(HID_T)                                  :: GroupType
-        integer(HSIZE_T)                                :: size
+        integer(SIZE_T)                                 :: size
         integer(HID_T)                                  :: class_id
 
         !Begin-----------------------------------------------------------------
