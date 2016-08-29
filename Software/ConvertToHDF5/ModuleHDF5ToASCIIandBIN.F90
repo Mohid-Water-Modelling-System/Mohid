@@ -110,6 +110,7 @@ Module ModuleHDF5ToASCIIandBIN
         real,     dimension(:,:),       pointer :: VectorialU, VectorialV
 
         integer                                 :: OutPutOption
+        integer                                 :: StartEndWaveWatch3
 
         integer                                 :: Clientumber
 
@@ -158,8 +159,8 @@ Module ModuleHDF5ToASCIIandBIN
         !Local-------------------------------------------------------------------
         real, dimension(:  ), pointer                   :: AuxTime
         real, dimension(:,:), pointer                   :: Aux2DNext, Aux2DPrev, Aux2D
-        integer                                         :: l, p, STAT_CALL
-        type (T_Time)                                   :: NextTime, PrevTime
+        integer                                         :: l, p, STAT_CALL, FirstInstant
+        type (T_Time)                                   :: NextTime, PrevTime, NowTime
         logical                                         :: FirstProp
         !------------------------------------------------------------------------
 
@@ -174,9 +175,9 @@ Module ModuleHDF5ToASCIIandBIN
 
         call ReadGlobalOptions
 
-        if (Me%OutPutOption /= WW3_) then
-            call ConstructGlobalOutput
-        endif
+!        if (Me%OutPutOption /= WW3_) then
+        call ConstructGlobalOutput
+!        endif
 
         call Open_HDF5_InPut_File
 
@@ -209,9 +210,9 @@ Module ModuleHDF5ToASCIIandBIN
  
 
             if (trim(Me%OutPutPath) /= '*') then
-                Me%OutPutPath =  'WW3_Input.txt'
-            else
                 Me%OutPutPath = trim(Me%OutPutPath)//'/'//'WW3_Input.txt'
+            else
+                Me%OutPutPath =  'WW3_Input.txt'
             endif
 
             open(Unit   = Me%Unit,                                                          &
@@ -226,11 +227,41 @@ Module ModuleHDF5ToASCIIandBIN
 
 i11:    if (Me%OutPutOption == WW3_) then
 
+i12:        if (Me%StartEndWaveWatch3 == 1) then
 
-d11:        do l = 1, Me%TotalDates
+d13:            do l = 1, Me%TotalDates
+
+                    call HDF5SetLimits(Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
+                    
+                    if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR30'
+                        call HDF5ReadData(Me%ObjHDF5,                                               &
+                                           "/Time",                                                 &
+                                           "Time",                                                  &
+                                           Array1D      = AuxTime,                                  &
+                                           OutputNumber = l,                                        &
+                                           STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR40'
+
+                        call SetDate(NowTime, AuxTime(1), AuxTime(2), AuxTime(3), AuxTime(4), AuxTime(5), AuxTime(6))
+                        
+i13:                    if (NowTime.EQ.Me%OutPut%OutTime(1)) then
+                            FirstInstant = l 
+                            Me%TotalDates = Me%OutPut%Number                       
+                            exit
+                        endif i13
+                    
+                enddo d13
+                
+            else
+            
+                FirstInstant = 1
+
+            endif i12
+
+d11:        do l = FirstInstant, Me%TotalDates
 
                 call HDF5SetLimits(Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR30'
+                if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR50'
 
 
                 call HDF5ReadData(Me%ObjHDF5,                                               &
@@ -239,7 +270,7 @@ d11:        do l = 1, Me%TotalDates
                                    Array1D      = AuxTime,                                  &
                                    OutputNumber = l,                                        &
                                    STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR40'
+                if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR60'
 
 
     d12:         do p=1, Me%NumberProps
@@ -248,7 +279,7 @@ d11:        do l = 1, Me%TotalDates
                         call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,            &
                                            Me%WorkSize%JLB, Me%WorkSize%JUB,                        &
                                            STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR50'
+                        if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR70'
 
 
                         call HDF5ReadData(Me%ObjHDF5,                                                   &
@@ -257,7 +288,7 @@ d11:        do l = 1, Me%TotalDates
                                            Array2D      = Aux2D,                                        &
                                            OutputNumber = l,                                            &
                                            STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR60'
+                        if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR80'
 
                         FirstProp = .false. 
 
@@ -573,7 +604,18 @@ d11:        do l = 1, Me%TotalDates
             if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR130'            
                       
         endif        
-        
+        if (Me%OutPutOption == WW3_) then
+            
+            call GetData(Me%StartEndWaveWatch3,                                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'START_END_WW3',                                    &
+                     default      = 0,                                                  &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - ModuleHDF5ToASCIIandBIN - ERR140'               
+                      
+        endif 
     end subroutine ReadGlobalOptions
 
     !--------------------------------------------------------------------------
@@ -1443,7 +1485,6 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
                     call OutputSwanASCII (trim(Me%PropsName(p)), TimeName, Aux2D, l, p)
                     
                 else if (Me%OutPutOption == Mohid_) then
-
                     call OutputMohidBin  (trim(Me%PropsName(p)), TimeName, Aux2D, l) 
                     
                 endif
