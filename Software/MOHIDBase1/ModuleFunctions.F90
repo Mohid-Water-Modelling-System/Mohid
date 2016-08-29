@@ -148,8 +148,11 @@ Module ModuleFunctions
     public  :: RODAXY
     public  :: FromCartesianToGrid
     public  :: FromGridToCartesian
-    
-    !Angle Conversion
+    interface  FromGridToCartesian
+        module procedure FromGridToCartesianR4
+        module procedure FromGridToCartesianR8
+    end interface  FromGridToCartesian    
+   
     public  :: AngleFromFieldToGrid
     public  :: AngleFromGridToField
 
@@ -4228,20 +4231,36 @@ end function
 
     !--------------------------------------------------------------------------
 
-    subroutine FromGridToCartesian (Xgrid, Ygrid, Tetha1, Tetha2, Xcart, Ycart)
+    subroutine FromGridToCartesianR4 (Xgrid, Ygrid, Tetha1, Tetha2, Xcart, Ycart)
 
         !Arguments-------------------------------------------------------------
-        real, intent (in)     :: Xgrid, Ygrid, Tetha1, Tetha2
-        real, intent (out)    :: Xcart, Ycart
+        real(4), intent (in)     :: Xgrid, Ygrid, Tetha1, Tetha2
+        real(4), intent (out)    :: Xcart, Ycart
 
         !Local-----------------------------------------------------------------
 
         Xcart = Xgrid * cos(Tetha1) + Ygrid * cos(Tetha2)
         Ycart = Xgrid * sin(Tetha1) + Ygrid * sin(Tetha2)
 
-    end subroutine FromGridToCartesian
+    end subroutine FromGridToCartesianR4
 
     !--------------------------------------------------------------------------
+
+    subroutine FromGridToCartesianR8 (Xgrid, Ygrid, Tetha1, Tetha2, Xcart, Ycart)
+
+        !Arguments-------------------------------------------------------------
+        real(8), intent (in)     :: Xgrid, Ygrid, Tetha1, Tetha2
+        real(8), intent (out)    :: Xcart, Ycart
+
+        !Local-----------------------------------------------------------------
+
+        Xcart = Xgrid * cos(Tetha1) + Ygrid * cos(Tetha2)
+        Ycart = Xgrid * sin(Tetha1) + Ygrid * sin(Tetha2)
+
+    end subroutine FromGridToCartesianR8
+
+    !--------------------------------------------------------------------------
+    
     !Convert from user referential (Nautical, Currents) to cell trigonometric angle
     subroutine AngleFromFieldToGrid (AngleInReferential, Referential, GridAngle, AngleOutGrid)
 

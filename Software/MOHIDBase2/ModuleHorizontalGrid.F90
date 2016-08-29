@@ -227,11 +227,13 @@ Module ModuleHorizontalGrid
         module procedure RotateVectorFieldToGrid3D
     end interface  RotateVectorFieldToGrid
 
-    private:: RotateVectorGridToField2D
+    private:: RotateVectorGridToField2DR4
+    private:: RotateVectorGridToField2DR8    
     private:: RotateVectorGridToField3D
     public :: RotateVectorGridToField
     interface  RotateVectorGridToField
-        module procedure RotateVectorGridToField2D
+        module procedure RotateVectorGridToField2DR4
+        module procedure RotateVectorGridToField2DR8        
         module procedure RotateVectorGridToField3D
     end interface  RotateVectorGridToField
 
@@ -13528,18 +13530,18 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
     !--------------------------------------------------------------------------                                         
                                          
-    subroutine RotateVectorGridToField2D(HorizontalGridID, VectorInX, VectorInY,        &
-                                         VectorOutX, VectorOutY, WaterPoints2D,         &
-                                         RotateX, RotateY, STAT)
+    subroutine RotateVectorGridToField2DR4(HorizontalGridID, VectorInX, VectorInY,      &
+                                           VectorOutX, VectorOutY, WaterPoints2D,       &
+                                           RotateX, RotateY, STAT)
 
         !Arguments-------------------------------------------------------------
-        real,    dimension(:, :), pointer       :: VectorInX, VectorInY, VectorOutX, VectorOutY
+        real(4), dimension(:, :), pointer       :: VectorInX, VectorInY, VectorOutX, VectorOutY
         integer, dimension(:, :), pointer       :: WaterPoints2D
         integer                                 :: HorizontalGridID
         logical                                 :: RotateX, RotateY
         integer, optional                       :: STAT
         !Local-----------------------------------------------------------------
-        real                                    :: XGrid, YGrid, AngleX, AngleY
+        real(4)                                 :: XGrid, YGrid, AngleX, AngleY
         integer                                 :: ILB, IUB, JLB, JUB
         integer                                 :: i, j
         integer                                 :: STAT_, ready_
@@ -13640,7 +13642,124 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
         if (present(STAT))  STAT = STAT_
 
-    end subroutine RotateVectorGridToField2D
+    end subroutine RotateVectorGridToField2DR4
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------                                         
+                                         
+    subroutine RotateVectorGridToField2DR8(HorizontalGridID, VectorInX, VectorInY,      &
+                                           VectorOutX, VectorOutY, WaterPoints2D,       &
+                                           RotateX, RotateY, STAT)
+
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:, :), pointer       :: VectorInX, VectorInY, VectorOutX, VectorOutY
+        integer, dimension(:, :), pointer       :: WaterPoints2D
+        integer                                 :: HorizontalGridID
+        logical                                 :: RotateX, RotateY
+        integer, optional                       :: STAT
+        !Local-----------------------------------------------------------------
+        real(8)                                 :: XGrid, YGrid, AngleX, AngleY
+        integer                                 :: ILB, IUB, JLB, JUB
+        integer                                 :: i, j
+        integer                                 :: STAT_, ready_
+        real                                    :: GridRotationRadians
+
+        !Begin--------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
+
+            
+        
+if1:        if  (Me%Distortion .or. Me%RegularRotation) then
+
+                !Bounds
+                ILB = Me%WorkSize%ILB 
+                IUB = Me%WorkSize%IUB 
+
+                JLB = Me%WorkSize%JLB 
+                JUB = Me%WorkSize%JUB 
+                
+                GridRotationRadians = Me%Grid_Angle * Pi / 180.
+
+                !Rotate
+                do j = JLB, JUB
+                do i = ILB, IUB
+                        
+if2:                if (WaterPoints2D(i, j) == WaterPoint) then
+
+                        !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
+                        !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
+                        
+                        AngleX = 0. 
+                        AngleY = Pi / 2.
+
+                        if      (Me%Distortion) then 
+                
+                            AngleX = Me%RotationX(i, j)
+                            AngleY = Me%RotationY(i, j)
+
+                        else if (Me%RegularRotation) then
+
+                            AngleX = GridRotationRadians
+                            AngleY = GridRotationRadians + Pi / 2.
+
+                        endif
+
+                        call FromGridToCartesian (VectorInX(i, j), VectorInY(i, j),           &
+                                                  AngleX, AngleY, Xgrid, Ygrid)
+
+                        if (RotateX) then
+
+                            VectorOutX(i, j) = Xgrid
+
+                        endif
+
+                        if (RotateY) then
+
+                            VectorOutY(i, j) = Ygrid
+
+                        endif
+
+
+                    endif if2
+
+                enddo
+                enddo
+
+            else  if1
+
+
+                if (RotateX) then
+
+                    VectorOutX(:, :) = VectorInX(:, :)
+
+                endif
+
+                if (RotateY) then
+
+                    VectorOutY(:, :) = VectorInY(:, :)
+
+                endif
+
+
+            endif if1
+
+            STAT_ = SUCCESS_
+
+        else               
+
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))  STAT = STAT_
+
+    end subroutine RotateVectorGridToField2DR8
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
