@@ -14244,7 +14244,8 @@ CurrOr1:    do while (associated(CurrentOrigin))
                         CurrentPartic%ErosionRateProbability =                      &
                             min (1., CurrentOrigin%Deposition%ErosionRate *         &
                                      Me%DT_Partic              /                    &
-                                     Me%EulerModel(emp)%Lag2Euler%MassSedGrid(i, j, ig))
+                                    (Me%EulerModel(emp)%Lag2Euler%MassSedGrid(i, j, ig) / &
+                                     Me%EulerModel(emp)%GridCellArea(i,j)))
 
                     else 
                         CurrentPartic%ErosionRateProbability = 0. 
