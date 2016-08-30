@@ -107,7 +107,8 @@ Module ModuleReadSWANNonStationary
         real,   dimension(:,:,:),         pointer :: WD 
         real,   dimension(:,:,:),         pointer :: TEX
         real,   dimension(:,:,:),         pointer :: TEY
-        real,   dimension(:),           pointer :: PropVector
+        real,   dimension(:    ),         pointer :: PropVector
+        logical,dimension(:,:,:),         pointer :: NonComputedPoint
 
         integer                                 :: Clientumber
 
@@ -523,6 +524,8 @@ d2:     do l= 1, Me%NumberUnits
         allocate(Me%Fields(Me%OutPut%TotalOutputs, Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         allocate(Me%HS(Me%OutPut%TotalOutputs,Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         allocate(Me%WD(Me%OutPut%TotalOutputs,Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%NonComputedPoint(Me%OutPut%TotalOutputs, Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        
         
         if (Me%WavePower) then
             allocate(Me%TEX(Me%OutPut%TotalOutputs,Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -542,6 +545,8 @@ d2:     do l= 1, Me%NumberUnits
     endif
     
     Me%Fields(:,:,:) = 0.
+    
+    Me%NonComputedPoint(:,:,:) = .false.
     
     rewind (Me%Unit)
     
@@ -564,6 +569,8 @@ d2:     do l= 1, Me%NumberUnits
                     .OR. Me%Fields(n, i, j).eq.-999.0) Then
                         
                 Me%Fields(n, i, j) = FillValueReal
+                
+                Me%NonComputedPoint(n, i, j) = .true.
             endif
             
             if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
@@ -962,24 +969,24 @@ d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
                         a1 = 0; a2 = 0; a3 = 0; a4 = 0
                             
                         if (Me%BoundaryFacesU(i, j) == Not_Boundary .and. Me%WaterPoints2D(i, j-1) == 1 .and. &                                
-                            Me%Fields(n, i, j-1).ne.FillValueReal) then
+                            Me%NonComputedPoint(n, i, j-1).ne..true.) then
                                 
                             a1 = 1
                                 
                         elseif(Me%BoundaryFacesU(i, j+1) == Not_Boundary .and. Me%WaterPoints2D(i, j+1) == 1 .and. &
-                                Me%Fields(n, i, j+1).ne.FillValueReal) then
+                               Me%NonComputedPoint(n, i, j+1).ne..true.) then
                                 
                             a2 = 1
                                 
                         endif
                             
                         if (Me%BoundaryFacesV(i, j) == Not_Boundary .and. Me%WaterPoints2D(i-1, j) == 1 .and. &
-                            Me%Fields(n, i-1, j).ne.FillValueReal) then
+                            Me%NonComputedPoint(n, i-1, j).ne..true.) then
                                 
                             a3 = 1
                                 
                         elseif(Me%BoundaryFacesV(i+1, j) == Not_Boundary .and. Me%WaterPoints2D(i+1, j) == 1 .and. &
-                                Me%Fields(n, i+1, j).ne.FillValueReal) then
+                                Me%NonComputedPoint(n, i+1, j).ne..true.) then
                                 
                             a4 = 1
                                 
@@ -1158,6 +1165,9 @@ d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
 
         deallocate(Me%Fields    )
         nullify   (Me%Fields    )
+        
+        deallocate(Me%NonComputedPoint)
+        nullify   (Me%NonComputedPoint)
         
         deallocate(Me%HS    )
         nullify   (Me%Hs    )
