@@ -381,11 +381,11 @@ program MohidTidePreview
             end do
 
             call cpu_time(CPUTime)
-            if (CPUTime - LastCPUTime > 10.) then
-                LastCPUTime = CPUTime
-                call PrintProgress(ObjTime, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR40'
-            endif
+            !if (CPUTime - LastCPUTime > 10.) then
+            !    LastCPUTime = CPUTime
+            !    call PrintProgress(ObjTime, STAT = STAT_CALL)
+            !    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidTidePreview - MohidTidePreview - ERR40'
+            !endif
 
             
             CurrentTime     = CurrentTime + DT
