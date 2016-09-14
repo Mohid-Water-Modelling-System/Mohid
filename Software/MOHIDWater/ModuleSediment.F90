@@ -155,7 +155,7 @@ Module ModuleSediment
     private ::      BoundaryCondition
     private ::      ComputeMass
     private ::      ComputeErosionDryCells
-    private ::          ComputeCellsMass
+    private ::          ComputeDMDryCells
     private ::      ComputePercentage
     private ::          ComputePorosity
     private ::      ComputeTotalDZ
@@ -4305,14 +4305,31 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     call ComputeEvolution
                     
                     call ComputeSedimentWaterFluxes
-
-                    call BoundaryCondition
-                    
-                    call ComputeMass
                     
                     if (Me%ErosionDryCells) then
                         call ComputeErosionDryCells
                     endif
+
+                    call BoundaryCondition
+                    
+#if _USE_MPI                    
+                    !MPI and Domain Decomposition is ON exchanges data along domain interfaces                    
+                    do n=1,Me%NumberOfClasses
+                        SandClass => Me%SandClass(n)
+                        call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
+                                                        Property2D       = SandClass%DM,        &
+                                                        STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ComputeEvolution - ModuleSediment - ERR10'
+                        endif
+                    enddo
+#endif _USE_MPI
+                    
+                    call ComputeMass
+                    
+                    !if (Me%ErosionDryCells) then
+                    !    call ComputeErosionDryCells
+                    !endif
                     
                     call ComputePercentage
 
@@ -5595,15 +5612,15 @@ do1:    do n=1,Me%NumberOfClasses
                 enddo
                 enddo
                 
-#if _USE_MPI                    
-                !MPI and Domain Decomposition is ON exchanges data along domain interfaces
-                call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
-                                                Property2D       = SandClass%DM,        &
-                                                STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) then
-                    stop 'ComputeEvolution - ModuleSediment - ERR10'
-                endif                        
-#endif _USE_MPI
+!#if _USE_MPI                    
+!                !MPI and Domain Decomposition is ON exchanges data along domain interfaces
+!                call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
+!                                                Property2D       = SandClass%DM,        &
+!                                                STAT             = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) then
+!                    stop 'ComputeEvolution - ModuleSediment - ERR10'
+!                endif                        
+!#endif _USE_MPI
             endif
            
             if (Me%TimeSerie)then
@@ -5916,7 +5933,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                         ii = i
                         jj = j-1
                         
-                        call ComputeCellsMass(i,j,ii,jj)
+                        call ComputeDMDryCells(i,j,ii,jj)
                         
                     endif
             
@@ -5926,7 +5943,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                         ii = i
                         jj = j+1
                         
-                        call ComputeCellsMass(i,j,ii,jj)
+                        call ComputeDMDryCells(i,j,ii,jj)
  
                     endif
         
@@ -5936,7 +5953,7 @@ if5:                if (aux < SandClass%Mass_Min) then
                         ii = i-1
                         jj = j
                         
-                        call ComputeCellsMass(i,j,ii,jj)
+                        call ComputeDMDryCells(i,j,ii,jj)
  
                     endif
         
@@ -5946,63 +5963,19 @@ if5:                if (aux < SandClass%Mass_Min) then
                         ii = i+1
                         jj = j
                         
-                        call ComputeCellsMass(i,j,ii,jj)                        
+                        call ComputeDMDryCells(i,j,ii,jj)                        
  
                     endif
                 endif
             endif
         enddo
         enddo
-        
-#if _USE_MPI
-        !MPI and Domain Decomposition is ON exchanges data along domain interfaces
-        
-        call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
-                                        Property2D       = Me%DM,               &
-                                        STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) then
-            stop 'ComputeErosionDryCells - ModuleSediment - ERR10'
-        endif
-
-        call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
-                                            Property2D       = Me%Mass,         &
-                                            STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) then
-            stop 'ComputeErosionDryCells - ModuleSediment - ERR20'
-        endif
-            
-        do n=1,Me%NumberOfClasses
-            SandClass => Me%SandClass(n)
-            call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
-                                            Property3D       = SandClass%Mass,      &
-                                            KLB              = Me%SedimentWorkSize3D%KLB, &
-                                            KUB              = Me%SedimentWorkSize3D%KUB, &
-                                            STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) then
-                stop 'ComputeErosionDryCells - ModuleSediment - ERR30'
-            endif
-        enddo
-        
-        if (Me%CohesiveClass%Run) then
-            call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid,     & 
-                                            Property3D       = Me%CohesiveClass%Mass,   &
-                                            KLB              = Me%SedimentWorkSize3D%KLB, & 
-                                            KUB              = Me%SedimentWorkSize3D%KUB, &
-                                            STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) then
-                stop 'ComputeErosionDryCells - ModuleSediment - ERR40'
-            endif
-        endif
-                        
-#endif _USE_MPI
     
     end subroutine ComputeErosionDryCells
     
     !--------------------------------------------------------------------------
     
-    !--------------------------------------------------------------------------
-      
-    subroutine ComputeCellsMass(i,j,ii,jj)
+       subroutine ComputeDMDryCells(i,j,ii,jj)
         
         !Argument--------------------------------------------------------------
         integer                 :: i, j, ii, jj
@@ -6023,36 +5996,10 @@ if5:                if (aux < SandClass%Mass_Min) then
             
             if (Me%CohesiveClass%Mass(ii,jj,WKUB1) > 0.) then
 
-                Me%CohesiveClass%DM(ii, jj) =  Me%CohesiveClass%DM(ii, jj) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
-                            
-                !kg/m2
-                aux = (Me%CohesiveClass%Mass(ii,jj,WKUB1) + Me%CohesiveClass%DM(ii, jj))/Me%ExternalVar%GridCellArea(ii,jj)
-                    
-                if (aux < Me%CohesiveClass%Mass_Min) then
-                        
-                    Me%CohesiveClass%DM(ii,jj) = - Me%CohesiveClass%Mass(ii,jj,WKUB1)                       
-                    Me%CohesiveClass%Mass(ii,jj,WKUB1) = 0.                        
-                    Me%CohesiveClass%Field3D(ii,jj,WKUB1) = 0.                        
-                    Me%CohesiveClass%TopPercentage(ii,jj) = 0.
-                    
-                    Me%CohesiveClass%Mass(i,j,WKUB) = Me%CohesiveClass%Mass(i,j,WKUB) - Me%CohesiveClass%DM(ii,jj)
-            
-                    Me%Mass(i ,j ) = Me%Mass(i ,j ) - Me%CohesiveClass%DM(ii,jj)                            
-                    Me%Mass(ii,jj) = Me%Mass(ii,jj) + Me%CohesiveClass%DM(ii,jj)                
+                Me%CohesiveClass%DM(ii,jj) =  Me%CohesiveClass%DM(ii,jj) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
                 
-                    Me%DM(i ,j ) = Me%DM(i ,j ) - Me%CohesiveClass%DM(ii,jj)
-                    Me%DM(ii,jj) = Me%DM(ii,jj) + Me%CohesiveClass%DM(ii,jj)                            
-                else    
-                    Me%CohesiveClass%Mass(ii,jj,WKUB1)= Me%CohesiveClass%Mass(ii,jj,WKUB1) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
-                    
-                    Me%CohesiveClass%Mass(i,j,WKUB) = Me%CohesiveClass%Mass(i,j,WKUB) - Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
-            
-                    Me%Mass(i ,j ) = Me%Mass(i ,j ) - Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded                             
-                    Me%Mass(ii,jj) = Me%Mass(ii,jj) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded                 
+                Me%CohesiveClass%DM(i ,j ) =  Me%CohesiveClass%DM(i ,j ) - Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
                 
-                    Me%DM(i ,j ) = Me%DM(i ,j ) - Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded   
-                    Me%DM(ii,jj) = Me%DM(ii,jj) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded                    
-                endif
             endif          
         endif
                         
@@ -6062,43 +6009,15 @@ if5:                if (aux < SandClass%Mass_Min) then
             if (SandClass%Mass(ii,jj,WKUB1) > 0.) then
             
                 SandClass%DM(ii,jj) =  SandClass%DM(ii,jj) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded
+                
+                SandClass%DM(i ,j ) =  SandClass%DM(i ,j ) - SandClass%Field3D(ii,jj,WKUB1) * MassEroded
                             
-                !kg/m2                    
-                aux = (SandClass%Mass(ii,jj,WKUB1) + SandClass%DM(ii,jj))/Me%ExternalVar%GridCellArea(ii,jj)
-                    
-                if (aux < SandClass%Mass_Min) then
-                        
-                    SandClass%DM(ii, jj) = - SandClass%Mass(ii,jj,WKUB1)
-                    SandClass%Mass(ii,jj,WKUB1) = 0.                        
-                    SandClass%Field3D(ii,jj,WKUB1) = 0.                        
-                    SandClass%TopPercentage(ii,jj) = 0.
-                    
-                    SandClass%Mass(i,j,WKUB) =  SandClass%Mass(i,j,WKUB) - SandClass%DM(ii, jj)
-                    
-                    Me%Mass(i ,j ) = Me%Mass(i ,j ) - SandClass%DM(ii, jj)
-                    Me%Mass(ii,jj) = Me%Mass(ii,jj) + SandClass%DM(ii, jj)
-                    
-                    Me%DM(i ,j ) = Me%DM(i ,j ) - SandClass%DM(ii, jj)
-                    Me%DM(ii,jj) = Me%DM(ii,jj) + SandClass%DM(ii, jj)
-                    
-                else
-                    SandClass%Mass(ii,jj,WKUB1) = SandClass%Mass(ii,jj,WKUB1) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded                    
-                                                
-                    SandClass%Mass(i,j,WKUB) =  SandClass%Mass(i,j,WKUB) - SandClass%Field3D(ii,jj,WKUB1) * MassEroded
-                
-                    Me%Mass(i ,j ) = Me%Mass(i ,j ) - SandClass%Field3D(ii,jj,WKUB1) * MassEroded                            
-                    Me%Mass(ii,jj) = Me%Mass(ii,jj) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded               
-                
-                    Me%DM(i ,j ) = Me%DM(i ,j ) - SandClass%Field3D(ii,jj,WKUB1) * MassEroded
-                    Me%DM(ii,jj) = Me%DM(ii,jj) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded     
-                    
-                endif          
-                
             endif                            
         enddo
     
-    end subroutine ComputeCellsMass
+    end subroutine ComputeDMDryCells
     !--------------------------------------------------------------------------
+    
     
     subroutine ComputePercentage
         !Local-----------------------------------------------------------------
