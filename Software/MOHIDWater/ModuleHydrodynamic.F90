@@ -192,7 +192,8 @@ Module ModuleHydrodynamic
                                        AddStatisticLayers, KillStatistic         
     use ModuleHDF5       
 #ifndef _WAVES_
-    use ModuleWaves,            only : GetWavesStress, GetWaves, SetGeneric4DValues, UnGetWaves       
+    use ModuleWaves,            only : GetWavesStress, GetWaves, SetGeneric4DValues, UnGetWaves, &
+                                       GetWavesForcing3D, UnGetWaves3D
 #endif
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix, KillFillMatrix
     use ModuleDrawing
@@ -318,6 +319,7 @@ Module ModuleHydrodynamic
     private ::                      ModifyDiffSub_UY_VX
     private ::                      ModifyVolumeVariation
     private ::                      ModifyMomentumDischarge
+    private ::                  Modify_WaveForces3D
     private ::                  ModifyRelaxHorizAdv
     private ::                  Modify_InertiaForces
     private ::                  Modify_ROX3
@@ -613,6 +615,10 @@ Module ModuleHydrodynamic
     integer, parameter :: AltimGeostrophicVelocity  = 5
     integer, parameter :: BaroclinicForce           = 6
     integer, parameter :: SubModelVelocity          = 7
+    integer, parameter :: StokesDriftVelocity       = 8
+    integer, parameter :: WaveBreakingForceAccel    = 9
+    integer, parameter :: WaveVortexForceAccel      = 10
+    integer, parameter :: WavePressureForceAccel    = 11
 
     integer, parameter :: Solve_Equations_       = 1
     integer, parameter :: Read_File_             = 2
@@ -716,6 +722,14 @@ Module ModuleHydrodynamic
     integer, parameter     :: Mass_               = 1
     integer, parameter     :: MomentumHorizontal_ = 2
     integer, parameter     :: MomentumVertical_   = 3
+    
+    !Wave forcing 3D
+    integer, parameter        :: NoWave3D             = 0
+    integer, parameter        :: ExpRadiationStress   = 1
+    integer, parameter        :: GLM                  = 2
+
+    integer, parameter        :: TauSurface           = 1
+    integer, parameter        :: TauWalstra           = 2
 
     !Types---------------------------------------------------------------------
 
@@ -905,8 +919,39 @@ Module ModuleHydrodynamic
         real,    dimension (:,:),     pointer :: TidePotentialLevel => null()
         real,    dimension (:, :, :), pointer :: Scraper_Aceleration => null()
         real,    dimension (:, :, :), pointer :: ThinWalls_Dissipation => null()
+        
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_Acceleration
+
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_FPressureAccelU
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_FPressureAccelV
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_FPressureAccelUV
+
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_FVortexAccelU
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_FVortexAccelV
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_FVortexAccelUV
+        
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_FBreakingAccelU
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_FBreakingAccelV
+        real,    dimension (:, :, :), pointer :: Wave3DExplicit_FBreakingAccelUV
     end type T_Forces
 
+    private :: T_WaveRad3D
+    type T_WaveRad3D
+        real,    dimension (:,:,:),   pointer :: WaveExpRadU 
+        real,    dimension (:,:,:),   pointer :: WaveExpRadV
+        real,    dimension (:,:,:),   pointer :: WaveExpRadUV
+    end type T_WaveRad3D
+
+    private :: T_StokesVel
+    type T_StokesVel
+        type (T_Horizontal)                   :: Horizontal
+
+        type (T_Vertical)                     :: Vertical
+
+        real,    dimension (:,:),     pointer :: BottomStokesVertVel 
+        
+    end type T_StokesVel
+    
     private :: T_HorAdvection
     type T_HorAdvection
 
@@ -1236,6 +1281,15 @@ Module ModuleHydrodynamic
         real,    pointer, dimension(:,:,:) :: DirectionH       => null()
         real,    pointer, dimension(:,:  ) :: Ubw              => null(), &
                                               Abw              => null()
+        
+        integer,                   pointer :: StokesFreqNum
+        real,    dimension(:,:,:), pointer :: StokesWaveNumber
+        real,    dimension(:,:),   pointer :: WaveInducedPressureJ
+        real,    dimension(:,:,:), pointer :: StokesDriftSpectrumX
+        real,    dimension(:,:,:), pointer :: StokesDriftSpectrumY
+        real,    dimension(:,:),   pointer :: AtmToWaveMomentumU, AtmToWaveMomentumV, AtmToWaveMomentum_UV
+        real,    dimension(:,:),   pointer :: WaveToOceanMomentumU, WaveToOceanMomentumV, WaveToOceanMomentum_UV
+        real,    dimension(:,:),   pointer :: WaveLength
 
         !Altimetry Assimilation
         real,    dimension(:,:  ), pointer :: AltimWaterLevelAnalyzed   => null()
@@ -1447,7 +1501,11 @@ Module ModuleHydrodynamic
         integer                         :: WriteContinuousFormat = null_int
         integer                         :: ContinuousFormat      = null_int    
             
-        logical                         :: EmersionTime          = .false.  
+        logical                         :: EmersionTime          = .false.
+        
+        integer                         :: WaveForcing3D
+        integer                         :: WaveForcing3D_Two
+        
     end type T_HydroOptions
     
     type T_LandAbsorption
@@ -1514,6 +1572,12 @@ Module ModuleHydrodynamic
          real,    dimension(:,:), pointer         :: MapMax                   => null()
          real,    dimension(:,:), pointer         :: MapMin                   => null()         
          character(Pathlength)                    :: FloodRiskRootPath        = null_str
+         
+         real,          dimension(:,:,:), pointer :: ModulusHglm, CenterUglm, CenterVglm, CenterWglm
+         real,          dimension(:,:,:), pointer :: ModulusHstokes, CenterUstokes, CenterVstokes, CenterWstokes
+         real,          dimension(:,:,:), pointer :: Wave3D_FBreakingAccelU, Wave3D_FBreakingAccelV
+         real,          dimension(:,:,:), pointer :: Wave3D_FVortexAccelU, Wave3D_FVortexAccelV
+         real,          dimension(:,:,:), pointer :: Wave3D_FPressureAccelU, Wave3D_FPressureAccelV
          
     end type T_OutPut
 
@@ -1776,6 +1840,10 @@ Module ModuleHydrodynamic
         type(T_DDecomp       ) :: DDecomp
         type(T_Tsunami       ) :: Tsunami
         type(T_LandAbsorption) :: LandAbsorption
+        
+        type(T_WaveRad3D     ) :: WaveRad3D
+        type(T_StokesVel     ) :: StokesVel
+        type(T_WaterFluxes   ) :: StokesWaterFluxes
                 
         logical                :: FirstIteration = .true.
 #ifdef _USE_SEQASSIMILATION
@@ -7085,6 +7153,43 @@ cd21:   if (Baroclinic) then
 
         if (STAT_CALL /= SUCCESS_)                                             &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR940')
+        
+! Modified by Matthias DELPEY - 27/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 27/07/2011 - 24/11/2011
+        call GetData(Me%ComputeOptions%WaveForcing3D,                          & 
+                     Me%ObjEnterData, iflag,                                   & 
+                     Keyword    = 'WAVE_FORCING_3D',                           &
+                     Default    = NoWave3D,                                    &
+                     SearchType = FromFile,                                    &
+                     ClientModule ='ModuleHydrodynamic',                       &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                             &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR940a')
+        
+        if (Me%ComputeOptions%WaveStress .and.  Me%ComputeOptions%WaveForcing3D /= NoWave3D) then
+            stop 'Construct_Numerical_Options - Hydrodynamic - ERR942'
+        endif
+
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            write(*,*) 'INFO: use of glm2-RANS approach for 3D wave-current modelling'
+        endif
+
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+            call GetData(Me%ComputeOptions%WaveForcing3D_Two,                  & 
+                     Me%ObjEnterData, iflag,                                   & 
+                     Keyword    = 'TWO_PARAM',                                 &
+                     Default    = TauSurface,                                  &
+                     SearchType = FromFile,                                    &
+                     ClientModule ='ModuleHydrodynamic',                       &
+                     STAT       = STAT_CALL)            
+
+            if (STAT_CALL /= SUCCESS_)                                             &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR940b')
+
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         !<BeginKeyword>
             !Keyword          : OBSTACLE
@@ -8376,7 +8481,52 @@ cd1:    if (Me%ComputeOptions%Residual) then
 
         allocate (Me%Forces%Horizontal_Transport    (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
         allocate (Me%Forces%Inertial_Aceleration    (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
-        allocate (Me%Forces%TidePotentialLevel      (ILB:Pad(ILB, IUB), JLB:JUB)) 
+        allocate (Me%Forces%TidePotentialLevel      (ILB:Pad(ILB, IUB), JLB:JUB))
+        
+! Modified by Matthias DELPEY - 15/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 25/10/2011 - 25/11/2011
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress)   then
+
+            allocate (Me%Forces%Wave3DExplicit_Acceleration (ILB:IUB, JLB:JUB, KLB:KUB))
+               
+            Me%Forces%Wave3DExplicit_Acceleration(:,:,:)= 0.
+                  
+        endif
+
+        if (Me%ComputeOptions%WaveForcing3D == GLM)   then
+
+            allocate (Me%Forces%Wave3DExplicit_Acceleration (ILB:IUB, JLB:JUB, KLB:KUB))
+            
+            allocate (Me%Forces%Wave3DExplicit_FPressureAccelU (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%Forces%Wave3DExplicit_FPressureAccelV (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%Forces%Wave3DExplicit_FPressureAccelUV (ILB:IUB, JLB:JUB, KLB:KUB))
+
+            allocate (Me%Forces%Wave3DExplicit_FVortexAccelU (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%Forces%Wave3DExplicit_FVortexAccelV (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%Forces%Wave3DExplicit_FVortexAccelUV (ILB:IUB, JLB:JUB, KLB:KUB))
+            ! allocate (Me%Forces%AdvectVelocity (ILB:IUB, JLB:JUB, KLB:KUB))
+
+            allocate (Me%Forces%Wave3DExplicit_FBreakingAccelU (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%Forces%Wave3DExplicit_FBreakingAccelV (ILB:IUB, JLB:JUB, KLB:KUB))
+            allocate (Me%Forces%Wave3DExplicit_FBreakingAccelUV (ILB:IUB, JLB:JUB, KLB:KUB))
+               
+            Me%Forces%Wave3DExplicit_Acceleration       (:,:,:)= 0.
+
+            Me%Forces%Wave3DExplicit_FPressureAccelU   (:,:,:)= 0.
+            Me%Forces%Wave3DExplicit_FPressureAccelV   (:,:,:)= 0.
+            Me%Forces%Wave3DExplicit_FPressureAccelUV  (:,:,:)= 0.
+
+            Me%Forces%Wave3DExplicit_FVortexAccelU   (:,:,:)= 0.
+            Me%Forces%Wave3DExplicit_FVortexAccelV   (:,:,:)= 0.
+            Me%Forces%Wave3DExplicit_FVortexAccelUV  (:,:,:)= 0.
+            ! Me%Forces%AdvectVelocity  (:,:,:)= 0.
+            
+            Me%Forces%Wave3DExplicit_FBreakingAccelU (:,:,:)= 0.
+            Me%Forces%Wave3DExplicit_FBreakingAccelV (:,:,:)= 0.
+            Me%Forces%Wave3DExplicit_FBreakingAccelUV(:,:,:)= 0.
+                  
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         if(Me%ComputeOptions%AltimetryAssimilation%Yes) then 
             allocate (Me%Forces%Altim_Relax_Aceleration (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB)) 
@@ -8389,6 +8539,59 @@ cd1:    if (Me%ComputeOptions%Residual) then
         Me%Forces%Inertial_Aceleration(:,:,:)   = FillValueReal
         Me%Forces%TidePotentialLevel(:,:)       = FillValueReal
 
+! Modified by Matthias DELPEY - 29/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 19/07/2011 - 27/07/2011 - 04/08/2011 - 19/08/2011 - 24/08/2011
+
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+        
+            allocate (Me%WaveRad3D%WaveExpRadU  (ILB:IUB, JLB:JUB, KLB:KUB))     
+            allocate (Me%WaveRad3D%WaveExpRadV  (ILB:IUB, JLB:JUB, KLB:KUB))      
+        
+            Me%WaveRad3D%WaveExpRadU (:,:,:)  = 0.
+            Me%WaveRad3D%WaveExpRadV (:,:,:)  = 0.
+        
+        endif
+
+
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            
+            ! Dimensions : analogie avec matrice Me%Velocity%Horizontal%U%New.
+            ! Ne pas oublier qu'ici, IUB = Me%Size%IUB = Me%WorkSize%IUB + 1 
+            
+            ! Allocate Stokes velocity fields
+            allocate (Me%StokesVel%Horizontal%U%Old (ILB:IUB, JLB:JUB, KLB:KUB)) 
+            allocate (Me%StokesVel%Horizontal%U%New (ILB:IUB, JLB:JUB, KLB:KUB))
+            
+            allocate (Me%StokesVel%Horizontal%V%Old (ILB:IUB, JLB:JUB, KLB:KUB)) 
+            allocate (Me%StokesVel%Horizontal%V%New (ILB:IUB, JLB:JUB, KLB:KUB)) 
+                    
+            allocate (Me%StokesVel%Vertical%Across (ILB:IUB, JLB:JUB, KLB:KUB))      
+            allocate (Me%StokesVel%Vertical%Cartesian (ILB:IUB, JLB:JUB, KLB:KUB))
+
+            allocate (Me%StokesVel%BottomStokesVertVel (ILB:IUB, JLB:JUB))
+
+            Me%StokesVel%Horizontal%U%Old (:,:,:)        = 0.
+            Me%StokesVel%Horizontal%U%New (:,:,:)        = 0.
+            Me%StokesVel%Horizontal%V%Old (:,:,:)        = 0.
+            Me%StokesVel%Horizontal%V%New (:,:,:)        = 0.
+
+            Me%StokesVel%Vertical%Across (:,:,:)         = 0.
+            Me%StokesVel%Vertical%Cartesian (:,:,:)      = 0.
+
+            Me%StokesVel%BottomStokesVertVel (:,:)       = 0.
+
+            ! Allocate Stokes water fluxes
+            allocate (Me%StokesWaterFluxes%X          (ILB:IUB, JLB:JUB, KLB:KUB)) 
+            allocate (Me%StokesWaterFluxes%Y          (ILB:IUB, JLB:JUB, KLB:KUB)) 
+            allocate (Me%StokesWaterFluxes%Z          (ILB:IUB, JLB:JUB, KLB:KUB)) 
+ 
+            Me%StokesWaterFluxes%X         (:,:,:) = 0.
+            Me%StokesWaterFluxes%Y         (:,:,:) = 0.
+            Me%StokesWaterFluxes%Z         (:,:,:) = 0.
+
+        endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         allocate (Me%Coef%D2%D                      (ILB:Pad(ILB, IUB), JLB:JUB)) 
         allocate (Me%Coef%D2%E                      (ILB:Pad(ILB, IUB), JLB:JUB)) 
@@ -11092,6 +11295,29 @@ i1:         if (CoordON) then
         nullify  (Me%OutPut%CenterWaux) 
         nullify  (Me%OutPut%Aux2D) 
         
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 25/11/2011 - 02/03/2012
+        nullify  (Me%OutPut%CenterUglm)
+        nullify  (Me%OutPut%CenterVglm)
+        nullify  (Me%OutPut%ModulusHglm)
+        nullify  (Me%OutPut%CenterWglm)
+
+        nullify  (Me%OutPut%CenterUstokes)
+        nullify  (Me%OutPut%CenterVstokes)
+        nullify  (Me%OutPut%ModulusHstokes)
+        nullify  (Me%OutPut%CenterWstokes)
+
+        nullify  (Me%OutPut%Wave3D_FBreakingAccelU)
+        nullify  (Me%OutPut%Wave3D_FBreakingAccelV)
+
+        nullify  (Me%OutPut%Wave3D_FVortexAccelU)
+        nullify  (Me%OutPut%Wave3D_FVortexAccelV)
+
+        nullify  (Me%OutPut%Wave3D_FPressureAccelU)
+        nullify  (Me%OutPut%Wave3D_FPressureAccelV)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        
 
         allocate(Me%OutPut%CenterU     (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%CenterV     (ILB:IUB, JLB:JUB, KLB:KUB),                     &
@@ -11104,6 +11330,17 @@ i1:         if (CoordON) then
                  Me%OutPut%ModulusUVaux(ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%CenterWaux  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%Aux2D       (ILB:IUB, JLB:JUB         ),                     &
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 02/03/2012
+                Me%OutPut%CenterUglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                Me%OutPut%CenterVglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                Me%OutPut%ModulusHglm    (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                Me%OutPut%CenterWglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                Me%OutPut%CenterUstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                Me%OutPut%CenterVstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                Me%OutPut%ModulusHstokes (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                Me%OutPut%CenterWstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR10'
 
@@ -11118,7 +11355,19 @@ i1:         if (CoordON) then
         Me%OutPut%ModulusUVaux  (:,:,:) = 0.
         Me%OutPut%CenterWaux    (:,:,:) = 0.
         Me%OutPut%Aux2D         (:,:  ) = 0. 
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 02/03/2012
 
+        Me%OutPut%CenterUglm    (:,:,:) = 0.
+        Me%OutPut%CenterVglm    (:,:,:) = 0.
+        Me%OutPut%ModulusHglm   (:,:,:) = 0.
+        Me%OutPut%CenterWglm    (:,:,:) = 0.
+
+        Me%OutPut%CenterUstokes (:,:,:) = 0.
+        Me%OutPut%CenterVstokes (:,:,:) = 0.
+        Me%OutPut%ModulusHstokes(:,:,:) = 0.
+        Me%OutPut%CenterWstokes (:,:,:) = 0.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
         if (Me%ComputeOptions%WaterLevelMaxMin) then   
 
@@ -11186,7 +11435,28 @@ i1:         if (CoordON) then
             call ReadUnLock_ModuleHorizontalMap
 
         endif
-    
+  
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*
+! Modified by Matthias DELPEY - 25/11/2011
+        allocate  (Me%OutPut%Wave3D_FBreakingAccelU(ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate  (Me%OutPut%Wave3D_FBreakingAccelV(ILB:IUB, JLB:JUB, KLB:KUB))
+
+        allocate  (Me%OutPut%Wave3D_FVortexAccelU(ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate  (Me%OutPut%Wave3D_FVortexAccelV(ILB:IUB, JLB:JUB, KLB:KUB))
+
+        allocate  (Me%OutPut%Wave3D_FPressureAccelU(ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate  (Me%OutPut%Wave3D_FPressureAccelV(ILB:IUB, JLB:JUB, KLB:KUB))
+
+        Me%OutPut%Wave3D_FBreakingAccelU (:,:,:) =0.
+        Me%OutPut%Wave3D_FBreakingAccelV (:,:,:) =0.
+
+        Me%OutPut%Wave3D_FVortexAccelU   (:,:,:) =0.
+        Me%OutPut%Wave3D_FVortexAccelV   (:,:,:) =0.
+
+        Me%OutPut%Wave3D_FPressureAccelU   (:,:,:) =0.
+        Me%OutPut%Wave3D_FPressureAccelV   (:,:,:) =0.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     end subroutine ConstructMatrixesOutput
 
     !--------------------------------------------------------------------------
@@ -12628,8 +12898,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            WavesStressON = Me%ComputeOptions%WaveStress
-            STAT_ = SUCCESS_
+! Modified by Matthias DELPEY - 01/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 27/07/2011
+! WaveStressON is also set at .true. when using WAVE_STRESS : 0 and WAVE_FORCING_3D : 1 or 2
+            ! WavesStressON = Me%ComputeOptions%WaveStress
+            WavesStressON = (Me%ComputeOptions%WaveStress                            .or.   &
+                             (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) .or.   &
+                             (Me%ComputeOptions%WaveForcing3D == GLM)                       )
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         else 
             STAT_ = ready_
         end if cd1
@@ -21046,6 +21323,14 @@ cd3:        if (Previous_Direction == DirectionY_) then
             
             call SetMatrixValue(Me%Velocity%Horizontal%U%Old, Me%Size, Me%Velocity%Horizontal%U%New)
             call SetMatrixValue(Me%Velocity%Horizontal%V%Old, Me%Size, Me%Velocity%Horizontal%V%New)
+            
+! Modified by Matthias DELPEY - 27/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                    call SetMatrixValue(Me%StokesVel%Horizontal%U%Old, Me%Size, Me%StokesVel%Horizontal%U%New)
+                    call SetMatrixValue(Me%StokesVel%Horizontal%V%Old, Me%Size, Me%StokesVel%Horizontal%V%New)
+                endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
             !Me%Velocity%Horizontal%U%Old(:,:,:) =                           &
             !Me%Velocity%Horizontal%U%New(:,:,:)
@@ -21624,6 +21909,18 @@ cd1:    if (Evolution == Solve_Equations_) then
                 
                 Me%Velocity%Horizontal%U%Old (:,:,:) = Me%Velocity%Horizontal%U%New (:,:,:)
                 Me%Velocity%Horizontal%V%Old (:,:,:) = Me%Velocity%Horizontal%V%New (:,:,:)
+                
+! Modified by Matthias DELPEY - 19/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                
+                if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+                    Me%StokesVel%Horizontal%U%Old (:,:,:) =  Me%StokesVel%Horizontal%U%New (:,:,:)
+                    Me%StokesVel%Horizontal%V%Old (:,:,:) =  Me%StokesVel%Horizontal%V%New (:,:,:)
+
+                endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
                 !Unfetch the reference variables
                 call UnGetAssimilation( Me%ObjAssimilation,                             &
@@ -21659,6 +21956,18 @@ cd1:    if (Evolution == Solve_Equations_) then
             Me%Velocity%Horizontal%V%New (:,:,:) = Me%Geostroph%V(:,:,:)
             Me%Velocity%Horizontal%U%Old (:,:,:) = Me%Velocity%Horizontal%U%New (:,:,:) 
             Me%Velocity%Horizontal%V%Old (:,:,:) = Me%Velocity%Horizontal%V%New (:,:,:)
+            
+! Modified by Matthias DELPEY - 19/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                
+                if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+                    Me%StokesVel%Horizontal%U%Old (:,:,:) =  Me%StokesVel%Horizontal%U%New (:,:,:)
+                    Me%StokesVel%Horizontal%V%Old (:,:,:) =  Me%StokesVel%Horizontal%V%New (:,:,:)
+
+                endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
             
             endif
 
@@ -23735,7 +24044,20 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         !the vertical water flux is compute with the effect of variable volume
         call Modify_VerticalWaterFlow (Grid)
 
-        call Filter_3D_Fluxes         
+        call Filter_3D_Fluxes
+        
+        ! Modified by Matthias DELPEY - 24/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            
+            ! Computation of the vertical stokes drift component at the bottom
+            call Compute_BottomStokesVertVel
+
+            ! Computation of the vertical stokes drift component at every depth
+            call Compute_StokesCartVertVel
+        
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                 
+
     
         call Compute_VerticalVelocity 
 
@@ -24199,7 +24521,37 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
          if (Me%ComputeOptions%WaveStress) then
             Me%External_Var%TauWaves_UV => Me%External_Var%TauWavesV
          endif
+         
+! Modified by Matthias DELPEY - 05/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 19/08/2011 - 24/08/2011 - 08/09/2011 - 25/10/2011 - 25/11/2011
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+            Me%External_Var%TauWaves_UV => Me%External_Var%TauWavesV
+            Me%WaveRad3D%WaveExpRadUV   => Me%WaveRad3D%WaveExpRadV
+        endif
 
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            ! Velocities
+            Me%StokesVel%Horizontal%UV%Old => Me%StokesVel%Horizontal%V%Old
+            Me%StokesVel%Horizontal%UV%New => Me%StokesVel%Horizontal%V%New
+
+            Me%StokesVel%Horizontal%VU%Old => Me%StokesVel%Horizontal%U%Old
+            Me%StokesVel%Horizontal%VU%New => Me%StokesVel%Horizontal%U%New
+
+            ! Water fluxes
+            Me%StokesWaterFluxes%XY        => Me%StokesWaterFluxes%Y
+            Me%StokesWaterFluxes%YX        => Me%StokesWaterFluxes%X
+
+            ! Surface QDM flux
+            Me%External_Var%AtmToWaveMomentum_UV => Me%External_Var%AtmToWaveMomentumV
+            Me%External_Var%WaveToOceanMomentum_UV => Me%External_Var%WaveToOceanMomentumV
+
+            ! Forces output variables
+            Me%Forces%Wave3DExplicit_FPressureAccelUV => Me%Forces%Wave3DExplicit_FPressureAccelV
+            Me%Forces%Wave3DExplicit_FVortexAccelUV => Me%Forces%Wave3DExplicit_FVortexAccelV
+            Me%Forces%Wave3DExplicit_FBreakingAccelUV => Me%Forces%Wave3DExplicit_FBreakingAccelV
+
+         endif 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         if( Me%Geostroph%ON)  then
             Me%Geostroph%UV  => Me%Geostroph%V
@@ -24408,7 +24760,36 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             Me%External_Var%TauWaves_UV => Me%External_Var%TauWavesU
         endif
         
+! Modified by Matthias DELPEY - 05/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 19/08/2011 - 24/08/2011 - 08/09/2011 - 30/10/2011 - 25/11/2011
+         if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+            Me%External_Var%TauWaves_UV        => Me%External_Var%TauWavesU
+            Me%WaveRad3D%WaveExpRadUV          => Me%WaveRad3D%WaveExpRadU
+         endif
 
+         if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            ! Velocities
+            Me%StokesVel%Horizontal%UV%Old => Me%StokesVel%Horizontal%U%Old
+            Me%StokesVel%Horizontal%UV%New => Me%StokesVel%Horizontal%U%New
+
+            Me%StokesVel%Horizontal%VU%Old => Me%StokesVel%Horizontal%V%Old
+            Me%StokesVel%Horizontal%VU%New => Me%StokesVel%Horizontal%V%New
+
+            ! Water fluxes
+            Me%StokesWaterFluxes%XY        => Me%StokesWaterFluxes%X
+            Me%StokesWaterFluxes%YX        => Me%StokesWaterFluxes%Y
+
+            ! Surface QDM flux
+            Me%External_Var%AtmToWaveMomentum_UV => Me%External_Var%AtmToWaveMomentumU
+            Me%External_Var%WaveToOceanMomentum_UV => Me%External_Var%WaveToOceanMomentumU
+
+            ! Forces output variables
+            Me%Forces%Wave3DExplicit_FPressureAccelUV => Me%Forces%Wave3DExplicit_FPressureAccelU
+            Me%Forces%Wave3DExplicit_FVortexAccelUV => Me%Forces%Wave3DExplicit_FVortexAccelU
+            Me%Forces%Wave3DExplicit_FBreakingAccelUV => Me%Forces%Wave3DExplicit_FBreakingAccelU
+
+         endif 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         if( Me%Geostroph%ON)  then
             Me%Geostroph%UV  => Me%Geostroph%U
@@ -24520,6 +24901,37 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             nullify(Me%External_Var%TauWaves_UV)
         endif
 
+! Modified by Matthias DELPEY - 05/08/20111 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 08/09/20111 - 30/10/2011 - 25/11/2011
+
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+            nullify(Me%External_Var%TauWaves_UV)
+            nullify(Me%WaveRad3D%WaveExpRadUV)
+        endif
+
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+            ! Horizontal velocities
+            nullify(Me%StokesVel%Horizontal%UV%New)
+            nullify(Me%StokesVel%Horizontal%UV%Old)
+            nullify(Me%StokesVel%Horizontal%VU%New)
+            nullify(Me%StokesVel%Horizontal%VU%Old)
+
+            ! Water fluxes
+            nullify(Me%StokesWaterFluxes%XY)
+            nullify(Me%StokesWaterFluxes%YX)
+
+            ! Surface momentum fluxes
+            nullify(Me%External_Var%AtmToWaveMomentum_UV)
+            nullify(Me%External_Var%WaveToOceanMomentum_UV)
+
+            ! Wave induced forces accelerations
+            nullify(Me%Forces%Wave3DExplicit_FPressureAccelUV)
+            nullify(Me%Forces%Wave3DExplicit_FVortexAccelUV)
+            nullify(Me%Forces%Wave3DExplicit_FBreakingAccelUV)
+
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
     End Subroutine  NullifyAuxiliarPointers
@@ -24632,6 +25044,17 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         endif
 
+! Modified by Matthias DELPEY - 29/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 06/07/2011 - 27/07/2011 - 04/08/2011  
+      
+        if (Me%ComputeOptions%WaveForcing3D == GLM    .or. & 
+            Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+
+            call Velocity_WaveForces3D
+
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         CHUNK = CHUNK_J(JLB,JUB)
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Compute_Velocity")
@@ -24716,6 +25139,15 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
         endif cd2D
 
         call InstantMixingSmallDepths
+        
+! Modified by Matthias DELPEY - 14/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            ! This subroutine set Velocity at land boundary to -(Stokes drift velocity) in case of use of GLM 
+            ! approach (WAVE_FORCING_3D : 2)
+            call Velocity_LandBoundaryGLM
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         call Velocity_OpenBoundary 
 
@@ -29838,6 +30270,12 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
         integer                             :: CHUNK
         
+! Modified by Matthias DELPEY - 22/11/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 29/11/2011
+        real,    dimension(:,:  ), pointer  :: WaveInducedPressureJ
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        
+        
         real                                :: dx1, dx2, dx3        
         
         !Begin----------------------------------------------------------------
@@ -29886,7 +30324,11 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
        
         MinLeavingComponent   =  Me%ComputeOptions%MinLeavingComponent
         MinLeavingVelocity    =  Me%ComputeOptions%MinLeavingVelocity
-
+        
+! Modified by Matthias DELPEY - 22/11/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 29/11/2011
+        WaveInducedPressureJ  => Me%External_Var%WaveInducedPressureJ
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
        
         !End   - Shorten variables name
 
@@ -30417,6 +30859,32 @@ cd15:           if (LocalSolution) then
 
                     FluxXY_E  = 0.
                     FluxYX_E  = 0.
+                    
+! Modified by Matthias DELPEY - 22/11/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 29/11/2011
+                    if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                    
+                        ! The total exterior flux (quasi-eulerian + stokes) is null 
+                        ! (keeping in mind that the variable WaterFlux_X,Y stands for the total 
+                        ! waterflux in the option WAVE_FORCING_3D: 2)
+                        FluxXY_E = 0.
+                        FluxYX_E = 0.
+                        
+                        !LocalWLa = 0.
+                        !LocalWLb = 0.
+
+                        ! The exterior waterlevel is equal to -Jext/g, and we assume that the J gradient is continuous
+                        ! through the open boundary, so that dJext/dx = dJ/dx.
+                        LocalWLa = - WaveInducedPressureJ(ib   , jb   ) / Gravity
+                        LocalWLb = - WaveInducedPressureJ(i_int, j_int) / Gravity
+
+                        LocalWave = (LocalWLa * DUX_VY(i_int, j_int) +  &
+                                     LocalWLb * DUX_VY(ib   , jb   ))/  &
+                                    (DUX_VY(i_int, j_int) + DUX_VY(ib   , jb))
+
+                    endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
                 endif cd15
 
@@ -30650,6 +31118,9 @@ cd25:   if (Me%ComputeOptions%LocalSolution == AssimilationField_    .or.       
         nullify(LocalVel2D_X )
         nullify(LocalVel2D_Y )
 
+! Modified by Matthias DELPEY - 21/11/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        nullify(WaveInducedPressureJ)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         !----------------------------------------------------------------------
 
@@ -31223,6 +31694,94 @@ cd1:        if (BoundaryPoints(i, j) == Boundary) then
         endif
     END FUNCTION dpythag
 
+! Modified by Matthias DELPEY - 14/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    Subroutine Velocity_LandBoundaryGLM
+        
+        !--------------------------------------------------------------------------
+        ! Impose a horizontal velocity in the land faces equal to minus the Stokes drift velocity. 
+        ! This ensures a zero total mass flux through land boundaries. 
+        ! This is only needed to compute the horizontal velocity in faces adjecent to land and
+        ! uncovered faces (with same definition as in Compute_Velocity)  
+
+        !Arguments-------------------------------------------------------------
+        
+
+        !Local-----------------------------------------------------------------
+        real, pointer, dimension(:,:,:)        :: Velocity_UV_New, StokesVel_UV_New
+
+        integer, pointer, dimension(:,:,:)     :: LandBoundaryFacesUV, ComputeFaces3D_UV, OpenPoints3D !WaterPoints3D
+
+        integer                                :: i, j, k, IUB, ILB, JUB, JLB, KUB, KLB, di, dj
+
+        integer                                :: FaceAdjacentToWater, Coef
+
+        !Begin----------------------------------------------------------------
+
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        di =  Me%Direction%di
+        dj =  Me%Direction%dj
+
+        LandBoundaryFacesUV => Me%External_Var%LandBoundaryFacesUV
+        ComputeFaces3D_UV   => Me%External_Var%ComputeFaces3D_UV
+        ! WaterPoints3D       => Me%External_Var%WaterPoints3D
+        OpenPoints3D       => Me%External_Var%OpenPoints3D
+
+        Velocity_UV_New     => Me%Velocity%Horizontal%UV%New
+        
+        StokesVel_UV_New     => Me%StokesVel%Horizontal%UV%New
+
+        !End - Shorten variables name 
+
+
+        do  k = KLB, KUB
+        do  j = JLB, JUB
+        do  i = ILB, IUB
+               
+            ! Land boundary condition (next to a non waterpoint cell)
+            ! Nul normal component of total velocity i.e. û = -Us
+            Velocity_UV_New (i, j, k) = Velocity_UV_New (i, j, k) * (1. - LandBoundaryFacesUV(i, j, k))   & 
+                                      - StokesVel_UV_New (i, j, k) * LandBoundaryFacesUV(i, j, k)
+            
+
+            ! UnCovered faces condition (next to a cell that is a waterpoint but uncovered at this time step)
+            ! Nul normal component of total velocity i.e. û = -Us
+            Coef = OpenPoints3D(i, j, k) + OpenPoints3D(i-di, j-dj, k)
+            ! Coef = WaterPoints3D(i, j, k) + WaterPoints3D(i-di, j-dj, k)
+            
+            if (Coef > 0) Coef = 1
+            
+            FaceAdjacentToWater = (1. - ComputeFaces3D_UV(i, j, k)) * Coef
+
+                            
+            Velocity_UV_New (i, j, k) = Velocity_UV_New (i, j, k) * (1 - FaceAdjacentToWater)             &
+                                      - StokesVel_UV_New (i, j, k) * FaceAdjacentToWater
+
+
+        enddo
+        enddo
+        enddo
+
+        ! nullify(Velocity_V_New)
+
+        nullify(Velocity_UV_New)
+        nullify(StokesVel_UV_New)
+
+        nullify(LandBoundaryFacesUV)
+        nullify(ComputeFaces3D_UV)
+        ! nullify(WaterPoints3D)
+        nullify(OpenPoints3D)
+
+
+    EndSubroutine Velocity_LandBoundaryGLM
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 
@@ -31750,6 +32309,11 @@ cd3:                if (ExteriorFacesUV(i, j) == Exterior) then
 
         integer                            :: I, J, K, di, dj     
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+        
+! Modified by Matthias DELPEY - 02/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real,    dimension(:,:,:), pointer :: StokesVel_UV_New
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
 
         integer                            :: CHUNK
 
@@ -31775,6 +32339,12 @@ cd3:                if (ExteriorFacesUV(i, j) == Exterior) then
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
+        
+! Modified by Matthias DELPEY - 02/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        StokesVel_UV_New  =>  Me%StokesVel%Horizontal%UV%New
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 
         !End   - Shorten variables name
         
@@ -31795,12 +32365,27 @@ cd1:    if (VelNormalBoundary == NULL_VALUE) then
             doj: do j = JLB, JUB + dj
             doi: do i = ILB, IUB + di
 
+! Modified by Matthias DELPEY - 02/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                !!In the exterior faces the 
+                !!velocity is imposed equal to zero
+                !Velocity_UV_New(i, j, k)   = Velocity_UV_New(i, j, k)         * &
+                !                             (1. - ImposedNormalFacesUV(i, j, k))
+                
+                if (Me%ComputeOptions%WaveForcing3D /= GLM) then
+                    !In the exterior faces the 
+                    !velocity is imposed equal to zero
+                    Velocity_UV_New(i, j, k)   = Velocity_UV_New(i, j, k)         * &
+                                                 (1. - ImposedNormalFacesUV(i, j, k))
 
-                !In the exterior faces the 
-                !velocity is imposed equal to zero
-                Velocity_UV_New(i, j, k)   = Velocity_UV_New(i, j, k)         * &
-                                             (1. - ImposedNormalFacesUV(i, j, k))  
-                                     
+                else      
+                    if (ImposedNormalFacesUV(i, j, k) == 1) then
+                        ! Impose the nul value for the sum of the Stokes Drift and the quasi-eulerian velocity
+                        Velocity_UV_New(i, j, k)   = - StokesVel_UV_New(i, j, k) * ImposedNormalFacesUV(i, j, k)
+                    endif
+
+                endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                                               
+                                 
             enddo doi
             enddo doj
             !$OMP END DO NOWAIT
@@ -31914,6 +32499,11 @@ cd3:            if (ImposedNormalFacesUV(i, j, k) == Imposed) then
         integer                            :: I, J, K, di, dj
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
         
+! Modified by Matthias DELPEY - 02/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real,    dimension(:,:,:), pointer :: StokesVel_UV_New
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     
+        
         integer                            :: CHUNK
         
         !Begin----------------------------------------------------------------
@@ -31945,6 +32535,9 @@ cd3:            if (ImposedNormalFacesUV(i, j, k) == Imposed) then
 
         VelTangentialBoundary =  Me%ComputeOptions%VelTangentialBoundary
 
+! Modified by Matthias DELPEY - 02/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        StokesVel_UV_New  =>  Me%StokesVel%Horizontal%UV%New
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
@@ -31970,14 +32563,29 @@ cd1:    if (VelTangentialBoundary == NULL_VALUE) then
                 !jWest   = j - dj
 
 
-                !In the faces that have boundary points in both sides  
-                !velocity is imposed equal to zero
-                Velocity_UV_New(i, j, k)   = Velocity_UV_New(i, j, k)         *          &
-                                             (1- ImposedTangentialFacesUV(i, j, k)) 
-!                                             (1. - BoundaryPoints(i, j)       *          &
-!                                             BoundaryPoints(iSouth, jWest))  
 
-                                  
+! Modified by Matthias DELPEY - 02/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+                !!In the faces that have boundary points in both sides  
+                !!velocity is imposed equal to zero
+                !Velocity_UV_New(i, j, k)   = Velocity_UV_New(i, j, k)         *          &
+                !                             (1- ImposedTangentialFacesUV(i, j, k)) 
+!!                                             (1. - BoundaryPoints(i, j)       *          &
+!!                                             BoundaryPoints(iSouth, jWest))
+                
+                if (Me%ComputeOptions%WaveForcing3D /= GLM) then
+                    !In the faces that have boundary points in both sides  
+                    !velocity is imposed equal to zero
+                    Velocity_UV_New(i, j, k)   = Velocity_UV_New(i, j, k)         *          &
+                                                 (1- ImposedTangentialFacesUV(i, j, k)) 
+                else
+                    
+                    if (ImposedTangentialFacesUV(i, j, k) == Imposed) then
+                        Velocity_UV_New(i, j, k)   = - StokesVel_UV_New(i, j, k) * ImposedTangentialFacesUV(i, j, k)
+                    endif
+
+                endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!  
+
             enddo doi
             enddo doj
             !$OMP END DO
@@ -33301,7 +33909,10 @@ cd3:                   if (Manning) then
                                 
                             elseif (Me%External_Var%ShearStressMethod == 2) then
                                 
-                                if (Me%ComputeOptions%WaveShearStress) then
+
+                                if (Me%ComputeOptions%WaveStress                          .or. & 
+                                    Me%ComputeOptions%WaveForcing3D == ExpRadiationStress .or. & 
+                                    Me%ComputeOptions%WaveForcing3D == GLM                     ) then
                                     
                                     Ubw = Me%External_Var%Ubw(i,j)                                            
                                     Abw = Me%External_Var%Abw(i,j)   
@@ -33492,7 +34103,15 @@ cd3:                   if (Manning) then
             call Modify_ROX3  (Me%External_Var%SigmaDens, Me%Forces%Rox3XY)
             
         !griflet: still needs to be parallelized
-        call Modify_Horizontal_Transport  
+        call Modify_Horizontal_Transport
+        
+! Modified by Matthias DELPEY - 15/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress  .or.   &
+            Me%ComputeOptions%WaveForcing3D == GLM    ) then
+            call Modify_WaveForces3D
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         !Compute the tide potential as a tide elevation
         !griflet: tide potential still needs to be correctly parallelized
@@ -33579,6 +34198,16 @@ cd3:                   if (Manning) then
         call SetMatrixValue(Horizontal_Transport, Me%WorkSize, dble(0.0))
 
 cd1:    if (Me%ComputeOptions%HorizontalAdvection) then
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 19/08/2011 
+            if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+                ! Stokes drift computation from input surface Stokes drift spectrum
+                call Compute_StokesDriftVelocity
+
+            endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 
             call Modify_Advection_UY_VX 
 
@@ -34342,6 +34971,462 @@ dok1:           do k = Kbottom, KUB
     
         !End ----------------------------------------------------------------------
 
+! Modified by Matthias DELPEY - 06/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 19/07/2011- 21/07/2011 - 19/08/2011 - 29/08/2011 - 24/10/2011 - 01/11/2011 - 21/11/2011
+!                             - 13/08/2012
+
+    Subroutine Compute_StokesDriftVelocity
+        
+
+        !Arguments------------------------------------------------------------
+
+
+        !Local---------------------------------------------------------------------
+        integer,                 pointer     :: IUB, ILB, JUB, JLB, KUB, KLB
+        integer,                 pointer     :: WorkIUB, WorkILB, WorkJUB, WorkJLB, WorkKUB, WorkKLB 
+        integer,                 pointer     :: NbFreq
+        integer                              :: i, j, k, i_freq, di, dj
+        real, dimension (:,:,:), allocatable :: U, V
+        real, dimension (:    ), allocatable :: FACT 
+        real, dimension (:,:,:), pointer     :: WAVN, SZZ
+        integer, dimension (:,:,:), pointer  :: OpenPoints3D, ComputeFaces3D_U, ComputeFaces3D_V 
+ 
+        real, dimension (:,:  ), pointer     :: Bathymetry, WaterColumn, DUX, DVY
+        real                                 :: ZCenterCell, MaxStokesVel
+        integer                              :: STAT_CALL
+
+        !Begin--------------------------------------------------------------------- 
+
+        ! Shorten variables
+        IUB               => Me%Size%IUB
+        ILB               => Me%Size%ILB
+        JUB               => Me%Size%JUB
+        JLB               => Me%Size%JLB
+        KUB               => Me%Size%KUB
+        KLB               => Me%Size%KLB
+
+        WorkIUB           => Me%WorkSize%IUB
+        WorkILB           => Me%WorkSize%ILB
+        WorkJUB           => Me%WorkSize%JUB
+        WorkJLB           => Me%WorkSize%JLB
+        WorkKUB           => Me%WorkSize%KUB
+        WorkKLB           => Me%WorkSize%KLB
+
+        DUX               => Me%External_Var%DUX
+        DVY               => Me%External_Var%DVY
+        SZZ               => Me%External_Var%SZZ
+
+        OpenPoints3D            => Me%External_Var%OpenPoints3D
+        ComputeFaces3D_U        => Me%External_Var%ComputeFaces3D_U
+        ComputeFaces3D_V        => Me%External_Var%ComputeFaces3D_V
+
+        NbFreq            => Me%External_Var%StokesFreqNum
+        WAVN              => Me%External_Var%StokesWaveNumber
+        WaterColumn       => Me%External_Var%WaterColumn
+
+        !Gets a pointer to Bathymetry
+        call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR20a'
+
+        ! Allocate variables
+        allocate( U    ( ILB:IUB, JLB:JUB, KLB:KUB ) )
+        allocate( V    ( ILB:IUB, JLB:JUB, KLB:KUB ) )
+        allocate( FACT ( 1:NbFreq                  ) )
+
+        U(:,:,:) = 0.
+        V(:,:,:) = 0.
+
+        ! TEMPORARY ! Maximum Stokes velocity allowed (stability reasons)
+        MaxStokesVel = 1.
+        
+        ! Computes Stokes Drift component at Z-points ----------------------------------------------------------------------
+        do i=WorkILB,WorkIUB
+        do j=WorkJLB,WorkJUB
+
+            do k=WorkKLB,WorkKUB
+
+                FACT(:) = 0.
+
+                if (OpenPoints3D(i,j,k) == 1) then
+                    
+                    ! Z-points depth                                             
+                    ZCenterCell = - 0.5 * ( SZZ(i,j,k) + SZZ(i,j,k-1) )  
+                    
+                    ! Computation of FACT = depth-dependent part of the Stokes drift
+                    do i_freq=1,NbFreq
+                    
+                        if (WAVN(i,j,i_freq) * WaterColumn(i,j) > 6.) then
+                    
+                            FACT(i_freq) = EXP( 2. * WAVN(i,j,i_freq) * ( ZCenterCell - Me%WaterLevel%New(i,j) ) )
+                    
+                        else
+
+                            FACT(i_freq) = cosh( 2. * WAVN(i,j,i_freq) * ( Bathymetry(i,j) + ZCenterCell ) ) & 
+                                           / cosh( 2. * WAVN(i,j,i_freq) * WaterColumn(i,j) )
+
+                        endif
+                    
+                    enddo
+
+                    ! Stokes drift at Z-points
+                    U(i,j,k) = SUM( Me%External_Var%StokesDriftSpectrumX(i,j,:) * FACT(:) )
+                    V(i,j,k) = SUM( Me%External_Var%StokesDriftSpectrumY(i,j,:) * FACT(:) )
+
+                    ! TEMPORARY ! A maximum value of the Stokes drift velocity is imposed, for stability reasons. 
+                    if ( ABS(U(i,j,k)) > MaxStokesVel ) then
+                        U(i,j,k) = U(i,j,k) / ABS(U(i,j,k)) * MaxStokesVel
+                    endif
+                    if ( ABS(V(i,j,k)) > MaxStokesVel ) then
+                        V(i,j,k) = V(i,j,k) / ABS(V(i,j,k)) * MaxStokesVel
+                    endif
+
+                endif
+
+            enddo
+
+        enddo
+        enddo
+
+
+        ! Interpolation at U,V-points ----------------------------------------------------------------------------------------
+        do k = WorkKLB,WorkKUB
+        
+            do j = WorkJLB,WorkJUB
+            do i = WorkILB,WorkIUB
+                
+                if (ComputeFaces3D_U(i,j,k) == Covered .and. ComputeFaces3D_U(i,j-1,k) == Covered) then
+                    
+                    Me%StokesVel%Horizontal%U%New(i,j,k) = Face_Interpolation(U(i,j,k), U(i,j-1,k), DUX(i,j), DUX(i,j-1))
+                
+                else
+                
+                    Me%StokesVel%Horizontal%U%New(i,j,k) = U(i,j  ,k) * ComputeFaces3D_U(i,j  ,k)                   &
+                                                         + U(i,j-1,k) * ComputeFaces3D_U(i,j-1,k)
+                endif
+                
+                if (ComputeFaces3D_V(i,j,k) == Covered .and. ComputeFaces3D_V(i-1,j,k) == Covered) then
+                    
+                    Me%StokesVel%Horizontal%V%New(i,j,k) = Face_Interpolation(V(i,j,k), V(i-1,j,k), DVY(i,j), DVY(i-1,j))
+                
+                else
+                
+                    Me%StokesVel%Horizontal%V%New(i,j,k) = V(i  ,j,k) * ComputeFaces3D_V(i  ,j,k)  &
+                                                         + V(i-1,j,k) * ComputeFaces3D_V(i-1,j,k)
+                endif
+
+            enddo
+            enddo
+
+        enddo
+
+        ! Imposes null gradient of Stokes Drift near boundaries ----------------------------------------------------------
+        ! (analogous to VelNormalOpenBoundary)
+        
+        call NullGradientNormalStokesVel
+
+        call NullGradientTangentialStokesVel
+
+
+
+        call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
+
+        nullify(IUB)
+        nullify(ILB)
+        nullify(JUB)
+        nullify(JLB)
+        nullify(KUB)
+        nullify(KLB)
+        
+        nullify(WorkIUB)
+        nullify(WorkILB)
+        nullify(WorkJUB)
+        nullify(WorkJLB)
+        nullify(WorkKUB)
+        nullify(WorkKLB)
+
+        nullify(SZZ)
+        nullify(OpenPoints3D, ComputeFaces3D_U, ComputeFaces3D_V)
+
+        nullify(NbFreq)
+        nullify(WAVN)
+
+        deallocate(U)
+        deallocate(V)
+        deallocate(FACT)
+
+    End Subroutine Compute_StokesDriftVelocity
+
+    !End-----------------------------------------------------------------------
+
+    Subroutine NullGradientNormalStokesVel
+        
+
+        ! Imposes null gradient of Stokes Drift normal near boundaries (analogous to VelNormalOpenBoundary)
+
+
+        !Arguments------------------------------------------------------------
+
+
+        !Local---------------------------------------------------------------------
+        integer,                 pointer     :: WorkIUB, WorkILB, WorkJUB, WorkJLB, WorkKUB, WorkKLB 
+
+        integer                              :: i, j, k, di, dj, Aux, imin, imax, jmin, jmax
+
+        integer, dimension (:,:,:), pointer  :: ComputeFaces3D_U, ComputeFaces3D_V, & 
+                                                ImposedNormalFacesU, ImposedNormalFacesV
+
+        real                                 :: Vel_Left, Vel_Right, Coef
+
+        integer                              :: STAT_CALL
+
+        !Begin--------------------------------------------------------------------- 
+
+        ! Shorten variables
+
+        WorkIUB           => Me%WorkSize%IUB
+        WorkILB           => Me%WorkSize%ILB
+        WorkJUB           => Me%WorkSize%JUB
+        WorkJLB           => Me%WorkSize%JLB
+        WorkKUB           => Me%WorkSize%KUB
+        WorkKLB           => Me%WorkSize%KLB
+
+        ComputeFaces3D_U        => Me%External_Var%ComputeFaces3D_U
+        ComputeFaces3D_V        => Me%External_Var%ComputeFaces3D_V
+        ImposedNormalFacesU     => Me%External_Var%ImposedNormalFacesU
+        ImposedNormalFacesV     => Me%External_Var%ImposedNormalFacesV
+
+
+        
+        do k = WorkKLB,WorkKUB
+        
+            do j = WorkJLB,WorkJUB
+            do i = WorkILB,WorkIUB
+                
+                ! U-component
+                di = 0 
+                dj = 1
+                if (ImposedNormalFacesU(i, j, k) == Imposed) then 
+
+                     Vel_Left  = Me%StokesVel%Horizontal%U%New (i - di, j - dj, k)   *  &
+                                 ComputeFaces3D_U(i - di, j - dj, k)
+
+                     Vel_Right = Me%StokesVel%Horizontal%U%New (i + di, j + dj, k)   *  &
+                                 ComputeFaces3D_U(i + di, j + dj, k)
+
+                    !In the exterior faces the 
+                    !velocity is imposed equal to the nearest computed face
+                    Me%StokesVel%Horizontal%U%New(i, j, k)   =  Vel_Left + Vel_Right
+    
+               endif
+
+               ! V-component
+               di = 1 
+               dj = 0
+               if (ImposedNormalFacesV(i, j, k) == Imposed) then 
+
+                     Vel_Left  = Me%StokesVel%Horizontal%V%New (i - di, j - dj, k)   *  &
+                                 ComputeFaces3D_V(i - di, j - dj, k)
+
+                     Vel_Right = Me%StokesVel%Horizontal%V%New (i + di, j + dj, k)   *  &
+                                 ComputeFaces3D_V(i + di, j + dj, k)
+
+                    !In the exterior faces the 
+                    !velocity is imposed equal to the nearest computed face
+                    Me%StokesVel%Horizontal%V%New(i, j, k)   =  Vel_Left + Vel_Right
+    
+               endif
+
+            enddo
+            enddo
+
+        enddo                                         
+                
+        ! U-component (upper bound special case)
+        di = 0
+        dj = 1
+
+        imin = di * (WorkIUB + di) + dj * WorkILB
+        imax = di * (WorkIUB + di) + dj * WorkIUB
+            
+        jmin = dj * (WorkJUB + dj) + di * WorkJLB
+        jmax = dj * (WorkJUB + dj) + di * WorkJUB
+
+        do k = WorkKLB, WorkKUB 
+        do i= imin, imax
+        do j= jmin, jmax
+
+            if (ImposedNormalFacesU(i, j, k) == Imposed) then 
+
+                Vel_Left  = Me%StokesVel%Horizontal%U%New  (i - di, j - dj, k) * &
+                            ComputeFaces3D_U(i - di, j - dj, k)
+
+                 !In the exterior faces the 
+                 !velocity is imposed equal to the nearest computed face
+                  Me%StokesVel%Horizontal%U%New(i, j, k)   =  Vel_Left
+
+            endif
+        enddo
+        enddo
+        enddo
+
+
+        ! V-component (upper bound special case)
+        di = 1
+        dj = 0
+
+        imin = di * (WorkIUB + di) + dj * WorkILB
+        imax = di * (WorkIUB + di) + dj * WorkIUB
+            
+        jmin = dj * (WorkJUB + dj) + di * WorkJLB
+        jmax = dj * (WorkJUB + dj) + di * WorkJUB
+
+        do k = WorkKLB, WorkKUB 
+        do i= imin, imax
+        do j= jmin, jmax
+
+            if (ImposedNormalFacesV(i, j, k) == Imposed) then 
+
+                Vel_Left  = Me%StokesVel%Horizontal%V%New  (i - di, j - dj, k) * &
+                            ComputeFaces3D_V(i - di, j - dj, k)
+
+                 !In the exterior faces the 
+                 !velocity is imposed equal to the nearest computed face
+                  Me%StokesVel%Horizontal%V%New(i, j, k)   =  Vel_Left
+
+            endif
+        enddo
+        enddo
+        enddo
+
+
+        
+        nullify(WorkIUB)
+        nullify(WorkILB)
+        nullify(WorkJUB)
+        nullify(WorkJLB)
+        nullify(WorkKUB)
+        nullify(WorkKLB)
+
+        nullify(ComputeFaces3D_U, ComputeFaces3D_V)
+        nullify(ImposedNormalFacesU, ImposedNormalFacesV)
+
+
+    End Subroutine NullGradientNormalStokesVel
+    
+    !End-----------------------------------------------------------------------
+
+
+    Subroutine NullGradientTangentialStokesVel
+        
+
+        ! Imposes null gradient of tangential Stokes Drift near boundaries (analogous to VelTangentialOpenBoundary)
+
+
+
+        !Arguments------------------------------------------------------------
+
+
+        !Local---------------------------------------------------------------------
+        integer,                 pointer     :: WorkIUB, WorkILB, WorkJUB, WorkJLB, WorkKUB, WorkKLB 
+
+        integer                              :: i, j, k, di, dj, Aux, imin, imax, jmin, jmax
+
+        integer, dimension (:,:,:), pointer  :: ComputeFaces3D_U, ComputeFaces3D_V, & 
+                                                ImposedTangentialFacesU, ImposedTangentialFacesV
+
+        real                                 :: Vel_Left, Vel_Right, Coef
+
+        integer                              :: STAT_CALL
+
+        !Begin--------------------------------------------------------------------- 
+
+        ! Shorten variables
+
+        WorkIUB           => Me%WorkSize%IUB
+        WorkILB           => Me%WorkSize%ILB
+        WorkJUB           => Me%WorkSize%JUB
+        WorkJLB           => Me%WorkSize%JLB
+        WorkKUB           => Me%WorkSize%KUB
+        WorkKLB           => Me%WorkSize%KLB
+
+        ComputeFaces3D_U        => Me%External_Var%ComputeFaces3D_U
+        ComputeFaces3D_V        => Me%External_Var%ComputeFaces3D_V
+
+        ImposedTangentialFacesU => Me%External_Var%ImposedTangentialFacesU
+        ImposedTangentialFacesV => Me%External_Var%ImposedTangentialFacesV
+
+
+        do k = WorkKLB,WorkKUB
+        
+            do j = WorkJLB,WorkJUB
+            do i = WorkILB,WorkIUB
+
+               ! U-component
+               di = 0 
+               dj = 1
+               if (ImposedTangentialFacesU(i, j, k) == Imposed) then 
+
+                    Aux = ComputeFaces3D_U(i + dj, j + di, k) *  &
+                          ComputeFaces3D_U(i - dj, j - di, k)
+        
+                    if (Aux == 1) then ! both faces are compute points
+                        Coef = 0.5 ! average between the two velocities
+                    else
+                        Coef = 1.
+                    endif
+
+                     Me%StokesVel%Horizontal%U%New(i, j, k) = Coef                                            * &
+                                                          (Me%StokesVel%Horizontal%U%New (i + dj, j + di, k)  * &
+                                                           ComputeFaces3D_U (i + dj, j + di, k)               + &
+                                                           Me%StokesVel%Horizontal%U%New(i - dj, j - di, k)   * &
+                                                           ComputeFaces3D_U (i - dj, j - di, k))
+                endif
+
+                ! V-component
+                di = 1 
+                dj = 0
+                if (ImposedTangentialFacesV(i, j, k) == Imposed) then 
+
+                    Aux = ComputeFaces3D_V(i + dj, j + di, k) *  &
+                          ComputeFaces3D_V(i - dj, j - di, k)
+        
+                    if (Aux == 1) then
+                        Coef = 0.5
+                    else
+                        Coef = 1.
+                    endif
+
+                     Me%StokesVel%Horizontal%V%New(i, j, k) = Coef                                            * &
+                                                          (Me%StokesVel%Horizontal%V%New (i + dj, j + di, k)  * &
+                                                           ComputeFaces3D_V (i + dj, j + di, k)               + &
+                                                           Me%StokesVel%Horizontal%V%New(i - dj, j - di, k)   * &
+                                                           ComputeFaces3D_V (i - dj, j - di, k))
+                endif
+
+            enddo
+            enddo
+
+        enddo                                         
+             
+        
+        nullify(WorkIUB)
+        nullify(WorkILB)
+        nullify(WorkJUB)
+        nullify(WorkJLB)
+        nullify(WorkKUB)
+        nullify(WorkKLB)
+
+        nullify(ComputeFaces3D_U, ComputeFaces3D_V)
+        nullify(ImposedTangentialFacesU, ImposedTangentialFacesV)
+
+
+    End Subroutine NullGradientTangentialStokesVel
+
+    !End-----------------------------------------------------------------------
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
 
     !------------------------------------------------------------------------------
 
@@ -39291,6 +40376,974 @@ do3:            do K=kbottom, KUB
     End Subroutine ModifyRelaxHorizAdv
 
     !End------------------------------------------------------------------------------
+    
+! Modified by Matthias DELPEY - 17/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    Subroutine Modify_WaveForces3D
+    
+
+        !Variables Categories-----------------------------------------------------------------
+
+
+        !Arguments--------------------------------------------------------------------------
+
+
+        !Local-----------------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration
+
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+
+        integer                            :: I, J, K
+                          
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        !--------------------------------------------------------------------------
+
+
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+       
+        Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
+
+        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
+
+        !End - Shorten variables name 
+
+        call SetMatrixValue(Wave3DExplicit_Acceleration, Me%Size, 0.0)
+
+        
+        ! EXPLONENTIAL PROFILE PARAMETERIZATION FOR RADIATION STRESSES
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+
+            call Compute_RadiationStressProfile
+
+        endif 
+        
+
+        ! GENERALIZED LAGRANGIAN MEAN APPROACH
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+            ! Wave induced pressure contribution
+            call Compute_WaveInducedPressure
+
+            if (Me%ComputeOptions%WaveForcing3D_Two == TauWalstra) then
+                ! Wave to ocean momentum flux (breaking waves contribution)
+                ! Linear repartition from the surface to depth equal to Hrms/2
+                call Compute_WaveToOceanMomentum_Walstra
+            endif
+
+            !Vortex force contribution
+            call Compute_WaveVortexForce
+            ! call Compute_WaveVortexForce2
+
+        endif
+
+
+        do  k = KLB, KUB
+        do  j = JLB, JUB
+        do  i = ILB, IUB
+
+            ! Large values (FillReal_Value) in non covered faces  
+            Wave3DExplicit_Acceleration (i, j, k) = Wave3DExplicit_Acceleration (i, j, k)    * &
+                                               ComputeFaces3D_UV(i, j, k)                    + &
+                                               (1. - ComputeFaces3D_UV(i, j, k))             * &
+                                               FillValueReal
+
+        enddo
+        enddo
+        enddo
+
+
+        !Nullify auxiliar pointers
+        nullify(Wave3DExplicit_Acceleration)
+        nullify(ComputeFaces3D_UV)
+
+    end Subroutine Modify_WaveForces3D
+
+
+! Modified by Matthias DELPEY - 01/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 03/08/2011 - 04/08/2011 - 12/09/2011 - 15/09/2011 -10/10/2011 - 08/03/2011
+
+    Subroutine Compute_RadiationStressProfile
+        
+        !Arguments------------------------------------------------------------
+
+
+        !Local----------------------------------------------------------------
+        real(8), dimension(:,:,:), pointer :: Volume_UV
+        
+        real,    dimension(:,:,:), pointer :: Density, SZZ, DUZ_VZ, Wave3DExplicit_Acceleration
+
+        real,    dimension(:,:  ), pointer :: DUX_VY, DYY_XX, DZX_ZY, TauWaves_UV, WaveLength, &
+                                              Waterlevel, WaterColumnUV
+
+        real,    dimension(:), allocatable :: SUZ_VZ
+
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV
+
+        real,  dimension(:,:), allocatable :: WAVN
+
+        real                               :: force_2D, TauFace, FaceDensity, WlevFace, BathyFace, Vprofile
+    
+        integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
+
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+
+        !DT_Velocity          =  Me%Velocity%DT
+
+        Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
+        
+        Volume_UV            => Me%External_Var%Volume_UV
+
+        DUX_VY               => Me%External_Var%DUX_VY
+        DYY_XX               => Me%External_Var%DYY_XX
+        DZX_ZY               => Me%External_Var%DZX_ZY
+        DUZ_VZ               => Me%External_Var%DUZ_VZ
+
+        SZZ                  => Me%External_Var%SZZ
+
+        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV            => Me%External_Var%KFloor_UV
+
+        Density              => Me%External_Var%Density
+
+        TauWaves_UV          => Me%External_Var%TauWaves_UV
+
+        Waterlevel           => Me%Waterlevel%Old
+        WaterColumnUV        => Me%External_Var%WaterColumnUV
+
+        WaveLength           => Me%External_Var%WaveLength
+
+        !End - Shorten variables name 
+
+
+        allocate( SUZ_VZ(KLB-1:KUB) )
+
+        allocate(WAVN(ILB:IUB,JLB:JUB))
+        !WAVN(:,:) = 2*Pi/WaveLength(:,:)
+        !WAVN = 2*Pi/150.
+
+  
+    doi: do j=JLB, JUB
+    doj: do i=ILB, IUB
+
+            iSouth = i-di
+            jWest  = j-dj
+
+    cd1:    if (ComputeFaces3D_UV(i, j, KUB)==Covered) then 
+        
+                Kbottom          = KFloor_UV(i, j)
+
+                if (WaveLength(i,j) > 10.) then
+                    WAVN(i,j) = 2*Pi/WaveLength(i,j)
+                else
+                    WAVN(i,j) = 2*Pi/10.
+                endif
+
+                TauFace  = Face_Interpolation(TauWaves_UV(I,J), TauWaves_UV(iSouth, jWest), &
+                                              DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                                            
+                !![M*m/s]   [s] * [m] * [m] * [M*m/s^2/m^2] 
+                !Aux_2D   = DT_Velocity * DZX_ZY(iSouth, jWest) * DYY_XX(I, J) * TauFace 
+                
+                ![M*m/s^2] = [m] * [m] * [M*m/s^2/m^2] = force
+                force_2D   = DZX_ZY(iSouth, jWest) * DYY_XX(I, J) * TauFace 
+
+
+                WlevFace = Face_Interpolation(Waterlevel(I,J), Waterlevel(iSouth, jWest), &
+                                              DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                
+                BathyFace = WaterColumnUV(I,J) - WlevFace    ! (positive downward)
+
+                ! SUZ computation = equivalent of SZZ for the U,V-cell
+                ! (Attention! Contrairement à SZZ, SUZ est compté positif vers le haut!)
+                do k = Kbottom-1, KUB-1
+                    SUZ_VZ(k) = WlevFace - SUM( DUZ_VZ(i,j,k+1:KUB) )
+                enddo
+                SUZ_VZ(KUB) = WlevFace
+
+    dok1:       do k = Kbottom, KUB
+
+                    if (Me%ComputeOptions%LocalDensity) then
+
+                        FaceDensity  = Face_Interpolation(Density(I, J, k),                  &
+                                                          Density(iSouth, jWest, k),       &
+                                                          DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                    else
+
+                        FaceDensity  = SigmaDensityReference
+
+                    endif
+
+                    if ( WAVN(i,j) * WaterColumnUV(I,J) < 50.) then  ! (stability threshold)
+
+                        ! Vertical profile parameterization [1/m * m]
+                        ! Vprofile is the vertical integration over the U,V-cell of the depth dependent part of 
+                        ! the stress.
+                        Vprofile = 1 / ( exp(WAVN(i,j) * WlevFace) - exp(- WAVN(i,j) * BathyFace ) ) &
+                                     * ( exp( WAVN(i,j) * SUZ_VZ(k) ) - exp( WAVN(i,j) * SUZ_VZ(k-1) ) )
+                    
+                    else 
+                        ! In deep water, wave stress is assumed to be a surface stress
+                        if (k==KUB) then
+                            Vprofile = 1.
+                        else
+                            Vprofile = 0.
+                        endif
+                    
+                    endif
+                     
+                    !![m/s]                                 [M*m/s] / [m^3] / [M/m^3] * [m/m]
+                    !TiCoef_3D(i,j,k)  = TiCoef_3D(i,j,k) + Aux_2D / Volume_UV(i, j, k) / FaceDensity &
+                    !                                     * Vprofile
+                    
+                    ![m/s^2]                            = [m/s^2] +  [M*m/s^2] / [m^3] / [M/m^3] * [m/m]
+                    Wave3DExplicit_Acceleration(i,j,k)  = Wave3DExplicit_Acceleration(i,j,k)           &
+                                                          + force_2D / Volume_UV(i, j, k) / FaceDensity  &
+                                                          * Vprofile
+
+
+                    ! Forcing output field
+                    Me%WaveRad3D%WaveExpRadUV(i,j,k) = TauWaves_UV(I,J) * Vprofile
+                         
+                enddo dok1
+
+            endif cd1
+
+        enddo doj
+        enddo doi
+
+        ! Deallocate instance
+        deallocate(WAVN)
+        deallocate(SUZ_VZ)
+
+        !Nullify auxiliar pointers 
+        ! nullify(TiCoef_3D)  
+        nullify(Wave3DExplicit_Acceleration)
+
+        nullify(DYY_XX)
+        nullify(DUX_VY)
+        nullify(DZX_ZY)
+        nullify(DUZ_VZ)
+
+        nullify(Volume_UV)
+
+        nullify(ComputeFaces3D_UV)
+        nullify(KFloor_UV)
+
+        nullify(TauWaves_UV, Density)
+        nullify(WaveLength)
+
+        nullify(WaterColumnUV, Waterlevel)
+
+    End Subroutine Compute_RadiationStressProfile
+
+        !End-----------------------------------------------------------------------
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 27/07/2011 - 02/08/2011 - 15/09/2011 - 25/11/2011
+
+    Subroutine Compute_WaveInducedPressure
+        
+
+        !Arguments------------------------------------------------------------
+
+
+
+        !Local---------------------------------------------------------------------
+
+        real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration, Wave3DExplicit_FPressureAccelUV
+
+        real,    dimension(:,:  ), pointer :: DZX_ZY, JWaves
+
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV
+    
+        integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
+
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        ! real                               :: a, b, c, d
+
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+
+        !DT_Velocity          =  Me%Velocity%DT
+
+        Wave3DExplicit_FPressureAccelUV => Me%Forces%Wave3DExplicit_FPressureAccelUV
+        Wave3DExplicit_Acceleration     => Me%Forces%Wave3DExplicit_Acceleration
+
+        DZX_ZY               => Me%External_Var%DZX_ZY
+
+        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV            => Me%External_Var%KFloor_UV
+
+        JWaves               => Me%External_Var%WaveInducedPressureJ
+
+        !End - Shorten variables name 
+        
+            do j=JLB, JUB
+            do i=ILB, IUB
+        
+                iSouth  = i-di
+                ! iSouth  = i
+                jWest   = j-dj
+                
+                if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
+
+                    Kbottom = KFloor_UV(i, j)
+
+                    ! Analogie avec la pression barotrope et barocline: la somme des flux de J à travers les 6 faces 
+                    ! de la cellule, i.e. 4 faces latérales + face inf et faces sup (inclinées en sigma, donc le flux 
+                    ! a une comp horiz), est équivalent à (Jij - Jij-1) * Area où Area = VolumeUV / DZX_ZY. 
+                    ! D'où l'expression ci-dessous en système de coordonnées quelconque : 
+                    ! flux de J = Area * DeltaJ
+                    ! flux de QDM = Density * flux de J
+                    ! Acceleration = flux de QDM / (Density*Volume) = Area*DeltaJ/Volume = DeltaJ/DZX_ZY       
+
+                    do k = Kbottom, KUB
+                        
+                        ! [m/s^2] = [m²/s²] / [m]
+                        Wave3DExplicit_FPressureAccelUV(i,j,k) = - ( JWaves(i, j) - JWaves(iSouth, jWest) )  & 
+                                                                 / DZX_ZY(iSouth, jWest)
+
+                        ! [m/s^2] = [m/s^2] + [m/s²]
+                        Wave3DExplicit_Acceleration(i,j,k)  = Wave3DExplicit_Acceleration(i,j,k)             & 
+                                                            + Wave3DExplicit_FPressureAccelUV(i,j,k)
+
+                    enddo  
+                      
+                endif 
+
+            enddo 
+            enddo       
+
+        !Nullify auxiliar pointers 
+        !nullify(TiCoef_3D)
+        nullify(Wave3DExplicit_Acceleration, Wave3DExplicit_FPressureAccelUV)  
+        
+        nullify(DZX_ZY)
+
+        nullify(ComputeFaces3D_UV)
+        nullify(KFloor_UV)
+
+        nullify(JWaves)
+
+    End Subroutine Compute_WaveInducedPressure
+
+        !End-----------------------------------------------------------------------
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 12/09/2011 - 15/09/2011 - 25/10/2011 - 18/11/2011 - 24/11/2011
+
+Subroutine Compute_WaveToOceanMomentum_Walstra
+
+
+        ! Cette routine est construite en partie par analogie à Velocity_WaveStress (forçage par 
+        ! un champ de stress 2D dont on paramètre un profil vertical...). 
+        ! Le forçage dépend cependant ici de z mais sa forme relativement simple permet 
+        ! le calcul de l'intégrale verticale de la force : lorsqu'on intégre la force sur
+        ! le volume, on considère qu'elle est constante horizontalement mais pas 
+        ! verticalement (différent de ce que fait MOHID pour la pression barotrope 
+        ! par exemple...)
+
+        
+        !Arguments------------------------------------------------------------
+
+
+        !Local----------------------------------------------------------------
+        real(8), dimension(:,:,:), pointer :: Volume_UV
+        real,    dimension(:,:,:), pointer :: Density, SZZ, DUZ_VZ, &
+                                              Wave3DExplicit_FBreakingAccelUV, Wave3DExplicit_Acceleration
+
+        real,    dimension(:,:  ), pointer :: DUX_VY, DYY_XX, DZX_ZY, Two_UV, Waterlevel, Hs
+                                              
+
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:  ), pointer :: KFloor_UV
+
+        real,    dimension(:), allocatable :: SUZ_VZ
+
+        real                               :: Z0, SUZ0
+
+        real                               :: force_2D, Two_Face, WlevFace, Vprofile
+    
+        integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest, INDEXZ0, iNorth, jEast
+
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB, imin, imax, jmin, jmax
+
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+
+        !DT_Velocity          =  Me%Velocity%DT
+
+        Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
+        Wave3DExplicit_FBreakingAccelUV => Me%Forces%Wave3DExplicit_FBreakingAccelUV
+        
+        Volume_UV            => Me%External_Var%Volume_UV
+
+        DUX_VY               => Me%External_Var%DUX_VY
+        DYY_XX               => Me%External_Var%DYY_XX
+        DZX_ZY               => Me%External_Var%DZX_ZY
+        DUZ_VZ               => Me%External_Var%DUZ_VZ
+
+        SZZ                  => Me%External_Var%SZZ
+
+        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV            => Me%External_Var%KFloor_UV
+
+        Two_UV               => Me%External_Var%WaveToOceanMomentum_UV
+        Hs                   => Me%External_Var%WaveHeight
+
+        Waterlevel           => Me%Waterlevel%Old
+
+        !End - Shorten variables name 
+
+
+        allocate( SUZ_VZ(KLB-1:KUB) )
+
+
+    doi: do j=JLB, JUB
+    doj: do i=ILB, IUB
+
+            iSouth = i-di
+            jWest  = j-dj
+
+    cd1:    if (ComputeFaces3D_UV(i, j, KUB)==Covered) then 
+        
+                Kbottom          = KFloor_UV(i, j)
+
+                Two_Face  = Face_Interpolation(Two_UV(I,J), Two_UV(iSouth, jWest), &
+                                              DUX_VY(I, J), DUX_VY(iSouth, jWest))
+
+                WlevFace  = Face_Interpolation(Waterlevel(I,J), Waterlevel(iSouth, jWest), &
+                                              DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                                            
+                !![M*m/s]   [s] * [m] * [m] * [M*m*s^-2/m^2] 
+                !Aux_2D   = DT_Velocity * DZX_ZY(iSouth, jWest) * DYY_XX(I, J) * Two_Face 
+                
+                ![M*m*s^-2] = [m] * [m] * [M*m*s^-2/m^2] 
+                force_2D   = DZX_ZY(iSouth, jWest) * DYY_XX(I, J) * Two_Face 
+
+
+                ! SUZ computation = equivalent of SZZ for the U,V-cell
+                ! (Attention! Contrairement à SZZ, SUZ est compté positif vers le haut!)
+                do k = Kbottom-1, KUB-1
+                    SUZ_VZ(k) = WlevFace - SUM( DUZ_VZ(i,j,k+1:KUB) )
+                enddo
+                SUZ_VZ(KUB) = WlevFace
+
+                ! Index of the closest sigma level from level (WlevFace - Hrms/2)
+                ! (Rem: on ajoute -Kbottom parce que les indices de SUZ_VZ sont entre 0 et KUB, alors
+                ! que MINLOC renvoie des valeurs entre Kbottom et KUB+1)
+                INDEXZ0 = -Kbottom + MINLOC( ABS( SUZ_VZ(:) - (WlevFace - 0.5 * Hs(i,j) / 1.4157) ), dim = 1 )
+                
+                ! Depth of zero momentum flux (the flux is always at least applied to the surface layer)
+                if (INDEXZ0 == KUB) then
+                    Z0 = SUZ_VZ(KUB-1)
+                else
+                    Z0 = SUZ_VZ(INDEXZ0)
+                endif
+
+
+    dok1:       do k = Kbottom, KUB
+
+                    ! Vertical profile parameterization [1/m*m] : linear from Z0 to WlevFace.
+                    ! Vprofile is the vertical integration over the U,V-cell of the depth dependent part of 
+                    ! the stress.
+                    if (k >= INDEXZ0+1) then
+                        
+                        ! [ ]    =    [1/m^2] * [m] * [m]
+                        Vprofile = 2 / (WlevFace - Z0)**2             & 
+                                   * DUZ_VZ(i,j,k) * ( 0.5*(SUZ_VZ(k) + SUZ_VZ(k-1)) - Z0 )
+                    
+                    else
+                        
+                        Vprofile = 0.
+                    
+                    endif
+                     
+
+                    ![m*s^-2]                      = [M*m*s^-2] / [m^3] / [M/m^3] * [m/m]
+                    Wave3DExplicit_FBreakingAccelUV(i,j,k)  = force_2D / Volume_UV(i, j, k) * Vprofile
+
+
+                    ![m*s^-2]                     =      [m*s^-2] + [m*s^-2] 
+                    Wave3DExplicit_Acceleration(i,j,k)  = Wave3DExplicit_Acceleration(i,j,k)             & 
+                                                         + Wave3DExplicit_FBreakingAccelUV(i,j,k)
+
+                enddo dok1
+
+            endif cd1
+
+        enddo doj
+        enddo doi
+
+
+        !Nullify auxiliar pointers 
+        nullify(Wave3DExplicit_Acceleration)
+        nullify(Wave3DExplicit_FBreakingAccelUV)
+
+        nullify(DYY_XX)
+        nullify(DUX_VY)
+        nullify(DZX_ZY)
+        nullify(DUZ_VZ)
+
+        deallocate(SUZ_VZ)
+
+        nullify(Volume_UV)
+
+        nullify(ComputeFaces3D_UV)
+        nullify(KFloor_UV)
+
+        nullify(Two_UV)
+
+    End Subroutine Compute_WaveToOceanMomentum_Walstra
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 15/09/2011 - 25/10/2011 - 30/10/2011 - 21/11/2011 - 03/08/2012
+
+    Subroutine Compute_WaveVortexForce
+        
+
+        !Arguments------------------------------------------------------------
+
+
+
+        !Local---------------------------------------------------------------------
+
+        real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration, Wave3DExplicit_FVortexAccelUV
+
+        real,    dimension(:,:  ), pointer :: DZX_ZY, DXX_YY
+
+        real, dimension(:,:,:), pointer    :: StokesVel_UV, StokesVel_VU,                   &
+                                              Velocity_UV_Old, Velocity_VU_Old
+                                                      
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
+
+        integer, dimension(:,:),   pointer :: KFloor_UV
+
+        real(8)                            :: FVortexAcceleration_1, FVortexAcceleration_2
+
+        real                               :: VUvar1, VUvar2,                               &
+                                              Vel_UV_WestSouth, Vel_VU_WestSouth,           &
+                                              Vel_UV_EastNorth, Vel_VU_EastNorth,           &
+                                              StokesVel_VU_center
+
+        integer                            :: i, j, k, IUB, ILB, JUB, JLB, KUB, KLB
+
+        integer                            :: di, dj, Kbottom, I1, I2, I3, I4, J1, J2,      &
+                                              J3, J4, Noland1, Noland2, Iaux
+
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+
+        !DT_Velocity          =  Me%Velocity%DT
+
+        Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
+
+        Wave3DExplicit_FVortexAccelUV => Me%Forces%Wave3DExplicit_FVortexAccelUV
+
+        DZX_ZY               => Me%External_Var%DZX_ZY
+        DXX_YY               => Me%External_Var%DXX_YY
+
+        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
+        ComputeFaces3D_VU    => Me%External_Var%ComputeFaces3D_VU
+        KFloor_UV            => Me%External_Var%KFloor_UV
+
+        ! The Stokes velocity considered here must imperatively be the same as for the 
+        ! water flux computation (see Modify_Horizontal_Waterflow)
+        StokesVel_UV         => Me%StokesVel%Horizontal%UV%Old
+        StokesVel_VU         => Me%StokesVel%Horizontal%VU%Old
+
+        Velocity_UV_Old      => Me%Velocity%Horizontal%UV%Old
+        Velocity_VU_Old      => Me%Velocity%Horizontal%VU%Old
+
+        !End - Shorten variables name 
+
+
+            do j=JLB, JUB
+            do i=ILB, IUB
+
+                I1    = i+dj-di
+                J1    = j-dj+di
+
+                I2    = i+dj
+                J2    = j+di
+
+                I3    = i-di
+                J3    = j-dj
+
+                I4    = i+di
+                J4    = j+dj
+
+                if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
+
+                    Kbottom = KFloor_UV(i, j)
+
+                    do k = Kbottom, KUB
+                        
+                        ! Interpolation of U,V in order to get spatial gradients centered at U,V-points
+                        ! The methodology used assumes a nul gradient of tangential velocity at land
+                        ! boundaries
+
+                        Vel_UV_WestSouth = ( Velocity_UV_Old(i , j , k) + Velocity_UV_Old(I3, J3, k) ) / 2
+
+                        Vel_UV_EastNorth = ( Velocity_UV_Old(i , j , k) + Velocity_UV_Old(I4, J4, k) ) / 2
+
+                        Vel_VU_WestSouth = ( Velocity_VU_Old(I3, J3, k) + Velocity_VU_Old(I1, J1, k) ) / 2
+
+                        Vel_VU_EastNorth = ( Velocity_VU_Old(i , j , k) + Velocity_VU_Old(I2, J2, k) ) / 2
+
+
+                        ! Interpolation of Vs,Us at U,V point.
+
+                        if (ComputeFaces3D_VU(I1, J1, k) == 1 .and. ComputeFaces3D_VU(I2, J2, k) == 1) then
+                            VUvar1 = (StokesVel_VU(I1, J1, k) * DXX_YY(I2, J2)                                    &
+                                      + StokesVel_VU(I2, J2, k) * DXX_YY(I1, J1))                                 &
+                                     / (DXX_YY(I1, J1) +  DXX_YY(I2, J2))
+                            
+                            NoLand1 = 1
+
+                        else
+                            VUvar1 = StokesVel_VU(I1, J1, k) * ComputeFaces3D_VU(I1, J1, k)                       &
+                                   + StokesVel_VU(I2, J2, k) * ComputeFaces3D_VU(I2, J2, k)
+                            
+                            NoLand1 = ComputeFaces3D_VU(I1, J1, k) + ComputeFaces3D_VU(I2, J2, k)
+
+                        endif
+
+                        if (ComputeFaces3D_VU(I3, J3, k) == 1 .and. ComputeFaces3D_VU(i,   j, k) ==1) then
+                            VUvar2 = (StokesVel_VU(I3, J3, k) * DXX_YY(i, j)                                      &
+                                      + StokesVel_VU(i,   j, k) * DXX_YY(I3, J3))                                 &
+                                     / (DXX_YY(I3, J3) +  DXX_YY(i, j))
+
+                            NoLand2 = 1
+
+                        else
+                            VUvar2 = StokesVel_VU(I3, J3, k) * ComputeFaces3D_VU(I3, J3, k)                       &
+                                   + StokesVel_VU(i,   j, k) * ComputeFaces3D_VU(i,   j, k)
+
+                            NoLand2 = ComputeFaces3D_VU(I3, J3, k) + ComputeFaces3D_VU(i,   j, k)
+                        endif
+
+                        Iaux = NoLand1 + NoLand2
+
+                        if (Iaux > 0) then
+                            StokesVel_VU_center   = (VUvar1 + VUvar2) / real(Iaux)
+                        else
+                            StokesVel_VU_center   = 0.0
+                        endif
+
+
+                        ! [m/s²] = [m/s] * [m/s] / [m] 
+                        FVortexAcceleration_1 = StokesVel_UV(i,j,k)    &
+                                              * (Vel_UV_EastNorth - Vel_UV_WestSouth) / DZX_ZY(I3,J3)
+
+                        FVortexAcceleration_2 = StokesVel_VU_center    & 
+                                              * (Vel_VU_EastNorth - Vel_VU_WestSouth) / DZX_ZY(I3,J3)
+                        
+                        ! Test pour codage du terme appelé ici WaveVortexForce
+                        !if (Me%Direction%dj==1) then
+                        !    FVortexAcceleration_1 = 0.
+                        !    FVortexAcceleration_2 = 0.
+                        !endif
+
+                        ! [m/s^2] = [m/s^2] + [m/s^2] 
+                        Wave3DExplicit_FVortexAccelUV(i,j,k)  = FVortexAcceleration_1 + FVortexAcceleration_2
+
+                        ! [m/s^2] = [m/s^2] + [m/s^2] 
+                        Wave3DExplicit_Acceleration(i,j,k)    = Wave3DExplicit_Acceleration(i,j,k)     &
+                                                              + FVortexAcceleration_1 + FVortexAcceleration_2
+                        
+                    enddo  
+                      
+                endif 
+
+            enddo 
+            enddo       
+
+
+        !Nullify auxiliar pointers 
+        nullify(Wave3DExplicit_Acceleration)
+        nullify(Wave3DExplicit_FVortexAccelUV)
+
+        nullify(DZX_ZY, DXX_YY)
+
+        nullify(ComputeFaces3D_UV)
+        nullify(ComputeFaces3D_VU)
+        nullify(KFloor_UV)
+
+        nullify(StokesVel_UV)
+        nullify(StokesVel_VU)
+        nullify(Velocity_UV_Old)
+        nullify(Velocity_VU_Old)
+
+    End Subroutine Compute_WaveVortexForce
+
+        !End-----------------------------------------------------------------------
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 03/08/2012
+
+    Subroutine Compute_WaveVortexForce2
+        
+
+        !Arguments------------------------------------------------------------
+
+
+
+        !Local---------------------------------------------------------------------
+
+        real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration, Wave3DExplicit_FVortexAccelUV
+
+        real(8), dimension(:,:,:), pointer :: StokesWaterFlux_XY, Volume_UV
+
+        real,    dimension(:,:  ), pointer :: DZX_ZY, DXX_YY
+
+        real, dimension(:,:,:), pointer    :: StokesVel_UV, StokesVel_VU,                   &
+                                              Velocity_UV_Old, Velocity_VU_Old
+                                                      
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
+
+        integer, dimension(:,:),   pointer :: KFloor_UV
+
+        real(8)                            :: FVortexAcceleration_1, FVortexAcceleration_2
+
+        real                               :: VUvar1, VUvar2,                               &
+                                              Vel_UV_WestSouth, Vel_VU_WestSouth,           &
+                                              Vel_UV_EastNorth, Vel_VU_EastNorth,           &
+                                              StokesVel_VU_center
+
+        integer                            :: i, j, k, IUB, ILB, JUB, JLB, KUB, KLB
+
+        integer                            :: di, dj, Kbottom, I1, I2, I3, I4, J1, J2,      &
+                                              J3, J4, Noland1, Noland2, Iaux
+
+        !Begin---------------------------------------------------------------------
+
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+
+        !DT_Velocity          =  Me%Velocity%DT
+
+        Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
+
+        Wave3DExplicit_FVortexAccelUV => Me%Forces%Wave3DExplicit_FVortexAccelUV
+
+        DZX_ZY               => Me%External_Var%DZX_ZY
+        DXX_YY               => Me%External_Var%DXX_YY
+        Volume_UV            => Me%External_Var%Volume_UV
+
+        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
+        ComputeFaces3D_VU    => Me%External_Var%ComputeFaces3D_VU
+        KFloor_UV            => Me%External_Var%KFloor_UV
+
+        ! The Stokes velocity considered here must imperatively be the same as for the 
+        ! water flux computation (see Modify_Horizontal_Waterflow)
+        StokesVel_UV         => Me%StokesVel%Horizontal%UV%Old
+        StokesVel_VU         => Me%StokesVel%Horizontal%VU%Old
+
+        StokesWaterFlux_XY   => Me%StokesWaterFluxes%XY
+
+        Velocity_UV_Old      => Me%Velocity%Horizontal%UV%Old
+        Velocity_VU_Old      => Me%Velocity%Horizontal%VU%Old
+
+        !End - Shorten variables name 
+
+
+            do j=JLB, JUB
+            do i=ILB, IUB
+
+                I1    = i+dj-di
+                J1    = j-dj+di
+
+                I2    = i+dj
+                J2    = j+di
+
+                I3    = i-di
+                J3    = j-dj
+
+                I4    = i+di
+                J4    = j+dj
+
+                if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
+
+                    Kbottom = KFloor_UV(i, j)
+
+                    do k = Kbottom, KUB
+                        
+                        ! Interpolation of U,V in order to get spatial gradients centered at U,V-points
+                        ! The methodology used assumes a nul gradient of tangential velocity at land
+                        ! boundaries
+
+                        Vel_UV_WestSouth = ( Velocity_UV_Old(i , j , k) + Velocity_UV_Old(I3, J3, k) ) / 2
+                        
+                        Vel_UV_EastNorth = ( Velocity_UV_Old(i , j , k) + Velocity_UV_Old(I4, J4, k) ) / 2
+
+                        Vel_VU_WestSouth = ( Velocity_VU_Old(I3, J3, k) + Velocity_VU_Old(I1, J1, k) ) / 2
+
+                        Vel_VU_EastNorth = ( Velocity_VU_Old(i , j , k) + Velocity_VU_Old(I2, J2, k) ) / 2
+
+
+                        ! Interpolation of Vs,Us at U,V point.
+
+                        if (ComputeFaces3D_VU(I1, J1, k) == 1 .and. ComputeFaces3D_VU(I2, J2, k) == 1) then
+                            VUvar1 = (StokesVel_VU(I1, J1, k) * DXX_YY(I2, J2)                                    &
+                                      + StokesVel_VU(I2, J2, k) * DXX_YY(I1, J1))                                 &
+                                     / (DXX_YY(I1, J1) +  DXX_YY(I2, J2))
+                            
+                            NoLand1 = 1
+
+                        else
+                            VUvar1 = StokesVel_VU(I1, J1, k) * ComputeFaces3D_VU(I1, J1, k)                       &
+                                   + StokesVel_VU(I2, J2, k) * ComputeFaces3D_VU(I2, J2, k)
+                            
+                            NoLand1 = ComputeFaces3D_VU(I1, J1, k) + ComputeFaces3D_VU(I2, J2, k)
+
+                        endif
+
+                        if (ComputeFaces3D_VU(I3, J3, k) == 1 .and. ComputeFaces3D_VU(i,   j, k) ==1) then
+                            VUvar2 = (StokesVel_VU(I3, J3, k) * DXX_YY(i, j)                                      &
+                                      + StokesVel_VU(i,   j, k) * DXX_YY(I3, J3))                                 &
+                                     / (DXX_YY(I3, J3) +  DXX_YY(i, j))
+
+                            NoLand2 = 1
+
+                        else
+                            VUvar2 = StokesVel_VU(I3, J3, k) * ComputeFaces3D_VU(I3, J3, k)                       &
+                                   + StokesVel_VU(i,   j, k) * ComputeFaces3D_VU(i,   j, k)
+
+                            NoLand2 = ComputeFaces3D_VU(I3, J3, k) + ComputeFaces3D_VU(i,   j, k)
+                        endif
+
+                        Iaux = NoLand1 + NoLand2
+
+                        if (Iaux > 0) then
+                            StokesVel_VU_center   = (VUvar1 + VUvar2) / real(Iaux)
+                        else
+                            StokesVel_VU_center   = 0.0
+                        endif
+
+
+                        ! [m/s²] = [m^3/s] * [m/s] / [m^3] 
+                        FVortexAcceleration_1 = StokesWaterFlux_XY(i,j,k)                               &
+                                              * (Vel_UV_EastNorth - Vel_UV_WestSouth) / Volume_UV(i,j,k)
+                        ! FVortexAcceleration_1 = 0.
+
+                        FVortexAcceleration_2 = StokesVel_VU_center    & 
+                                              * (Vel_VU_EastNorth - Vel_VU_WestSouth) / DZX_ZY(I3,J3)
+                        
+                        ! Test pour codage du terme appelé ici WaveVortexForce
+                        !if (Me%Direction%dj==1) then
+                        !    FVortexAcceleration_1 = 0.
+                        !    FVortexAcceleration_2 = 0.
+                        !endif
+
+                        ! [m/s^2] = [m/s^2] + [m/s^2] 
+                        Wave3DExplicit_FVortexAccelUV(i,j,k)  = FVortexAcceleration_1 + FVortexAcceleration_2
+
+                        ! [m/s^2] = [m/s^2] + [m/s^2] 
+                        Wave3DExplicit_Acceleration(i,j,k)    = Wave3DExplicit_Acceleration(i,j,k)     &
+                                                              + FVortexAcceleration_1 + FVortexAcceleration_2
+                        
+                    enddo  
+                      
+                endif 
+
+            enddo 
+            enddo       
+
+
+        !Nullify auxiliar pointers 
+        nullify(Wave3DExplicit_Acceleration)
+        nullify(Wave3DExplicit_FVortexAccelUV)
+
+        nullify(DZX_ZY, DXX_YY)
+        nullify(StokesWaterFlux_XY, Volume_UV)
+
+        nullify(ComputeFaces3D_UV)
+        nullify(ComputeFaces3D_VU)
+        nullify(KFloor_UV)
+
+        nullify(StokesVel_UV)
+        nullify(StokesVel_VU)
+        nullify(Velocity_UV_Old)
+        nullify(Velocity_VU_Old)
+
+    End Subroutine Compute_WaveVortexForce2
+
+        !End-----------------------------------------------------------------------
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
     !-----------------------------------------------------------------
 
@@ -39569,6 +41622,10 @@ it1:            if (Me%TidePotential%Algorithm == Kantha) then
 
         !Local---------------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: WaterFlux_XY
+! Modified by Matthias DELPEY - 24/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!      
+        real(8), dimension(:,:,:), pointer :: StokesWaterFlux_XY
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         real,    dimension(:,:,:), pointer :: Velocity_UV_Old, Velocity_UV_New, Area_UV, DWZ
         real,    dimension(:,:,:), pointer :: Baroclinic_UV_New, Baroclinic_UV_Old,      &
                                               DUZ_VZ, SZZ
@@ -39624,10 +41681,21 @@ it1:            if (Me%TidePotential%Algorithm == Kantha) then
         SZZ                      => Me%External_Var%SZZ
         WaterColumnUV            => Me%External_Var%WaterColumnUV
         DUZ_VZ                   => Me%External_Var%DUZ_VZ
+        
+! Modified by Matthias DELPEY - 24/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        StokesWaterFlux_XY      => Me%StokesWaterFluxes%XY
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         !End - Shorten variables name 
 
         call SetMatrixValue(WaterFlux_XY, Me%WorkSize, dble(0.0))
+        
+! Modified by Matthias DELPEY - 29/11/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            call SetMatrixValue(StokesWaterFlux_XY, Me%WorkSize, dble(0.0))
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         CHUNK = CHUNK_J(JLB, JUB)
         
@@ -39653,6 +41721,24 @@ dok:            do  k = Kbottom, KUB
                                             dble((1. - Me%WaterFluxes%New_Old)) *            &
                                             dble(Velocity_UV_Old(i, j, k))) * &
                                             dble(Area_UV(i, j, k))
+                
+! Modified by Matthias DELPEY - 19/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                    if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                        
+                        ! Contribution of the Stokes Drift to the advection
+                        StokesWaterFlux_XY(i,j,k) = (dble(Me%WaterFluxes%New_Old) *                  &
+                                                    dble(Me%StokesVel%Horizontal%UV%New(i, j, k))  +  &
+                                                    dble((1. - Me%WaterFluxes%New_Old)) *             &
+                                                    dble(Me%StokesVel%Horizontal%UV%Old(i, j, k))) *  &
+                                                    dble(Area_UV(i, j, k))
+                        
+                        WaterFlux_XY(i, j, k) = WaterFlux_XY(i, j, k) + StokesWaterFlux_XY(i,j,k)
+
+                    endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
                 enddo dok
 
             endif Cov1
@@ -41581,7 +43667,6 @@ do4:    do i = ILB, IUB
         WaterLevel_New      => Me%WaterLevel%New
         WaterLevel_Old      => Me%WaterLevel%Old
 
-
         !End - Shorten variables name 
 
 
@@ -41663,12 +43748,20 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
 
             !Vel_Z_Cartesian(ib, jb, k) - is temporarlly the grid velocity in the boundary points
 
+! Modified by Matthias DELPEY - 13/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            
+            if (Me%ComputeOptions%WaveForcing3D /= GLM) then  !(inchangé)
+                
+                !Across Velocity           = (cartesian = barotropic + baroclinic) - Grid velocity
+                Velocity_Z(ib, jb, k)      = Vel_Z_BoundBarot + Vel_Z_B_BarocUp - Vel_Z_Cartesian(ib, jb, k)
 
-            !Across Velocity           = (cartesian = barotropic + baroclinic) - Grid velocity
-            Velocity_Z(ib, jb, k)      = Vel_Z_BoundBarot + Vel_Z_B_BarocUp - Vel_Z_Cartesian(ib, jb, k)
+                !In this way the cartesian velocity is computed in a realistic way in the boundary points
+                Vel_Z_Cartesian(ib, jb, k) = Vel_Z_BoundBarot + Vel_Z_B_BarocUp
+            
+            endif
+            
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-            !In this way the cartesian velocity is computed in a realistic way in the boundary points
-            Vel_Z_Cartesian(ib, jb, k) = Vel_Z_BoundBarot + Vel_Z_B_BarocUp
 
             !The water flux across grid is also compute for the boundary points
             WaterFlux_Z(ib, jb, k)     = Velocity_Z(ib, jb, k) * DUX(ib, jb) * DVY(ib, jb)
@@ -41692,6 +43785,7 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
         nullify(WaterFlux_Z        )
         nullify(WaterLevel_New     )
         nullify(WaterLevel_Old     )
+        
  
     end Subroutine Compute_BoundaryVertFlux
 
@@ -41727,6 +43821,11 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
         logical                             :: MeshVelocity_, MeshSlope_
 
         integer                             :: CHUNK
+        
+! Modified by Matthias DELPEY - 26/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real,    dimension(:,:,:), pointer  :: StokesVelU, StokesVelV, StokesVelW_cart
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         !Begin-----------------------------------------------------------------
 
@@ -41761,6 +43860,12 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
                                
         WaterLevel_New          => Me%WaterLevel%New
         WaterLevel_Old          => Me%WaterLevel%Old        
+
+! Modified by Matthias DELPEY - 26/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        StokesVelU          => Me%StokesVel%Horizontal%U%New
+        StokesVelV          => Me%StokesVel%Horizontal%V%New
+        StokesVelW_cart     => Me%StokesVel%Vertical%Cartesian
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                
 
         ! ciclo a todos os pontos interiores
 
@@ -41816,7 +43921,18 @@ do2:    do j = JLB, JUB
 
             if (WaterPoints3D(i, j, KUB) == WaterPoint) then
 
-                Velocity_W_Cartesian(i,j,KUB+1)= (WaterLevel_New(i,j)-WaterLevel_Old(i,j)) / dt
+! Modified by Matthias DELPEY - 26/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                
+                ! Velocity_W_Cartesian(i,j,KUB+1)= (WaterLevel_New(i,j)-WaterLevel_Old(i,j)) / dt
+                
+                if (Me%ComputeOptions%WaveForcing3D /= GLM) then
+                    Velocity_W_Cartesian(i,j,KUB+1)= (WaterLevel_New(i,j)-WaterLevel_Old(i,j)) / dt
+                else
+                    Velocity_W_Cartesian(i,j,KUB+1)= (WaterLevel_New(i,j)-WaterLevel_Old(i,j)) / dt  &
+                                                     - StokesVelW_cart(i,j,KUB+1)
+                endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             endif
 
@@ -41854,35 +43970,103 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                           dszdy=0.0
                         endif
 
+! Modified by Matthias DELPEY - 26/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                        !! Velocity components at cell center
+                        !if ((ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k)) /=0) then
+                        !    velusup=(ComputeFaces3D_U(i,j,k)*uavar(i,j,k)+ComputeFaces3D_U(i,j+1,k)*uavar(i,j+1,k))/ &
+                        !            (ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k))
+                        !else
+                        !    velusup=0.0
+                        !endif
+                        !if ((ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)) /=0) then
+                        !    veluinf=(ComputeFaces3D_U(i,j,k-1)*uavar(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)*uavar(i,j+1,k-1))/ &
+                        !            (ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1))
+                        !else
+                        !    veluinf=0.0
+                        !endif
+                        !velu=(velusup*dwz(i,j,k-1)+veluinf*dwz(i,j,k))/(dwz(i,j,k-1)+dwz(i,j,k))
+                        !
+                        !if ((ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k)) /=0) then
+                        !    velvsup=(ComputeFaces3D_V(i,j,k)*vavar(i,j,k)+ComputeFaces3D_V(i+1,j,k)*vavar(i+1,j,k))/ &
+                        !            (ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k))
+                        !else
+                        !    velvsup=0.0
+                        !endif
+                        !if ((ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)) /=0) then
+                        !    velvinf=(ComputeFaces3D_V(i,j,k-1)*vavar(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)*vavar(i+1,j,k-1))/ &
+                        !            (ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1))
+                        !else
+                        !    velvinf=0.0
+                        !endif
+                        !
+                        !velv=(velvsup*dwz(i,j,k-1)+velvinf*dwz(i,j,k))/(dwz(i,j,k-1)+dwz(i,j,k))
+                        !
+
                         ! Velocity components at cell center
                         if ((ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k)) /=0) then
                             velusup=(ComputeFaces3D_U(i,j,k)*uavar(i,j,k)+ComputeFaces3D_U(i,j+1,k)*uavar(i,j+1,k))/ &
                                     (ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k))
+                            
+                            if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                                ! Stokes drift contribution to advection
+                                velusup = velusup +                                         &
+                                         ( ComputeFaces3D_U(i,j,k)*StokesVelU(i,j,k)      + & 
+                                          ComputeFaces3D_U(i,j+1,k)*StokesVelU(i,j+1,k) ) / &
+                                         (ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k))
+                            endif
+
                         else
                             velusup=0.0
                         endif
                         if ((ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)) /=0) then
                             veluinf=(ComputeFaces3D_U(i,j,k-1)*uavar(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)*uavar(i,j+1,k-1))/ &
                                     (ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1))
+
+                            if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                                veluinf = veluinf                                              + &
+                                          ( ComputeFaces3D_U(i,j,k-1)*StokesVelU(i,j,k-1)      + &
+                                           ComputeFaces3D_U(i,j+1,k-1)*StokesVelU(i,j+1,k-1) ) / &
+                                          (ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1))
+                            endif
+
                         else
                             veluinf=0.0
                         endif
+
                         velu=(velusup*dwz(i,j,k-1)+veluinf*dwz(i,j,k))/(dwz(i,j,k-1)+dwz(i,j,k))
 
                         if ((ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k)) /=0) then
                             velvsup=(ComputeFaces3D_V(i,j,k)*vavar(i,j,k)+ComputeFaces3D_V(i+1,j,k)*vavar(i+1,j,k))/ &
                                     (ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k))
+
+                            if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                                velvsup = velvsup                                          + & 
+                                          ( ComputeFaces3D_V(i,j,k)*StokesVelV(i,j,k)      + & 
+                                           ComputeFaces3D_V(i+1,j,k)*StokesVelV(i+1,j,k) ) / &
+                                          (ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k))
+                            endif
+
                         else
                             velvsup=0.0
                         endif
                         if ((ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)) /=0) then
                             velvinf=(ComputeFaces3D_V(i,j,k-1)*vavar(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)*vavar(i+1,j,k-1))/ &
                                     (ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1))
+
+                            if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                                velvinf = velvinf                                             + & 
+                                          (ComputeFaces3D_V(i,j,k-1)*StokesVelV(i,j,k-1)      + & 
+                                           ComputeFaces3D_V(i+1,j,k-1)*StokesVelV(i+1,j,k-1)) / &
+                                          (ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1))
+                            endif
+
                         else
                             velvinf=0.0
                         endif
                     
                         velv=(velvsup*dwz(i,j,k-1)+velvinf*dwz(i,j,k))/(dwz(i,j,k-1)+dwz(i,j,k))
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                     else  cd2
 
@@ -41891,8 +44075,21 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
 
                     endif cd2
 
+! Modified by Matthias DELPEY - 26/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    !!Cartesian vertical velocity
+                    !Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy
+                    
                     !Cartesian vertical velocity
-                    Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy
+                    if (Me%ComputeOptions%WaveForcing3D /= GLM) then                  
+                        
+                        Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy
+                    
+                    else
+
+                        Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy  &
+                                                    - StokesVelW_cart(i,j,k)
+                    endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 endif cd1
             enddo do3
@@ -42035,6 +44232,220 @@ dok:            do k = kbottom + 1, KUB
 
 
     end Subroutine ComputeBaroclinicVertVelocity
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!       
+! Modified by Matthias DELPEY - 31/08/2011 - 01/08/2012
+
+    Subroutine Compute_BottomStokesVertVel
+        
+
+        !Arguments------------------------------------------------------------
+
+
+        !Local---------------------------------------------------------------------
+        integer,                 pointer   :: IUB, ILB, JUB, JLB, KUB, KLB
+        integer,                 pointer   :: WorkIUB, WorkILB, WorkJUB, WorkJLB, WorkKUB, WorkKLB 
+        integer,                 pointer   :: NbFreq
+        integer                            :: i, j, i_freq
+        real, dimension (:    ), pointer   :: FACT 
+        real, dimension (:,:,:), pointer   :: WAVN
+        real, dimension (:,:  ), pointer   :: Bathymetry, WaterColumn, DUX, DVY, BottomStokesVertVel, Ubot, Vbot
+        integer                            :: STAT_CALL, kbottom
+
+        real                               :: BathyS, BathyN, BathyE, BathyW
+
+        !Begin--------------------------------------------------------------------- 
+
+        ! Shorten variables
+        IUB         => Me%Size%IUB
+        ILB         => Me%Size%ILB
+        JUB         => Me%Size%JUB
+        JLB         => Me%Size%JLB
+        KUB         => Me%Size%KUB
+        KLB         => Me%Size%KLB
+
+        WorkIUB     => Me%WorkSize%IUB
+        WorkILB     => Me%WorkSize%ILB
+        WorkJUB     => Me%WorkSize%JUB
+        WorkJLB     => Me%WorkSize%JLB
+        WorkKUB     => Me%WorkSize%KUB
+        WorkKLB     => Me%WorkSize%KLB
+
+        DUX         => Me%External_Var%DUX
+        DVY         => Me%External_Var%DVY
+
+        NbFreq      => Me%External_Var%StokesFreqNum
+        WAVN        => Me%External_Var%StokesWaveNumber
+        WaterColumn => Me%External_Var%WaterColumn
+
+        BottomStokesVertVel => Me%StokesVel%BottomStokesVertVel
+
+        !Gets a pointer to Bathymetry
+        call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR20a'
+
+        ! Allocate variables
+        allocate( Ubot ( ILB:IUB, JLB:JUB ) )
+        allocate( Vbot ( ILB:IUB, JLB:JUB ) )
+        allocate( FACT ( 1:NbFreq         ) )
+        
+
+        do i=WorkILB,WorkIUB
+        do j=WorkJLB,WorkJUB
+
+        kbottom = WorkKLB
+        
+        if (Me%External_Var%OpenPoints3D(i,j,kbottom) == 1) then   
+ 
+        ! Computation of FACT = depth-dependent part of the Stokes drift
+            do i_freq=1,NbFreq
+                        
+                if (WAVN(i,j,i_freq) * WaterColumn(i,j) > 6.) then
+
+                    FACT(i_freq) = EXP( 2. * WAVN(i,j,i_freq) * ( - WaterColumn(i,j) ) )
+            
+                else
+                        
+                    FACT(i_freq) = 1 / cosh( 2. * WAVN(i,j,i_freq) * WaterColumn(i,j) )
+                endif 
+                
+            enddo
+
+           ! Bottom horizontal Stokes drift
+           Ubot(i,j) = SUM( Me%External_Var%StokesDriftSpectrumX(i,j,:) * FACT(:) )
+           Vbot(i,j) = SUM( Me%External_Var%StokesDriftSpectrumY(i,j,:) * FACT(:) )
+
+        endif
+
+        enddo
+        enddo
+
+        do i=WorkILB,WorkIUB
+        do j=WorkJLB,WorkJUB
+            
+            if (Me%External_Var%OpenPoints3D(i,j,kbottom) == 1) then
+
+                ! Bathymetry interpolation at U,V-points (in order to get gradients centered at w-points) 
+                BathyE = Face_Interpolation(Bathymetry(i,j), Bathymetry(i,j+1), DUX(i,j), DUX(i,j+1))
+                BathyW = Face_Interpolation(Bathymetry(i,j-1), Bathymetry(i,j), DUX(i,j-1), DUX(i,j))
+                BathyN = Face_Interpolation(Bathymetry(i,j), Bathymetry(i+1,j), DVY(i,j), DVY(i+1,j))
+                BathyS = Face_Interpolation(Bathymetry(i-1,j), Bathymetry(i,j), DVY(i-1,j), DVY(i,j))
+
+                BottomStokesVertVel(i,j) = - Ubot(i,j) * (BathyE - BathyW) / DUX(i,j) & 
+                                           - Vbot(i,j) * (BathyN - BathyS) / DVY(i,j)
+
+            endif
+
+        enddo
+        enddo
+
+          
+       
+        call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
+
+        nullify(IUB)
+        nullify(ILB)
+        nullify(JUB)
+        nullify(JLB)
+        nullify(KUB)
+        nullify(KLB)
+        
+        nullify(WorkIUB)
+        nullify(WorkILB)
+        nullify(WorkJUB)
+        nullify(WorkJLB)
+        nullify(WorkKUB)
+        nullify(WorkKLB)
+
+        nullify(NbFreq)
+        nullify(WAVN)
+
+        nullify(BottomStokesVertVel)
+
+        deallocate(Ubot)
+        deallocate(Vbot)
+        deallocate(FACT)
+
+    End Subroutine Compute_BottomStokesVertVel
+
+    !End-----------------------------------------------------------------------
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! Modified by Matthias DELPEY - 24/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 29/08/2011
+
+    subroutine Compute_StokesCartVertVel
+
+        !Variables Categories  
+            !Flow           : 
+            !HorizontalGrid :
+        !Local---------------------------------------------------------------------
+ 
+        real,    dimension(:,:,:),   pointer :: StokesVelW_cart, StokesVelU, StokesVelV, DWZ
+                                                
+        real,    dimension(:,:),     pointer :: DUX, DVY, BottomStokesVelW
+
+        real                                 :: VELZ
+
+        integer                              :: STAT_CALL, i, j, k, kbottom
+
+        integer, dimension(:,:,:),   pointer :: OpenPoints3D
+
+        !Begin--------------------------------------------------------------------------
+
+        ! Shorten variables
+
+        DUX                 => Me%External_Var%DUX
+        DVY                 => Me%External_Var%DVY
+        DWZ                 => Me%External_Var%DWZ
+
+        OpenPoints3D        => Me%External_Var%OpenPoints3D
+
+        StokesVelU          => Me%StokesVel%Horizontal%U%New
+        StokesVelV          => Me%StokesVel%Horizontal%V%New
+        BottomStokesVelW    => Me%StokesVel%BottomStokesVertVel
+        StokesVelW_cart     => Me%StokesVel%Vertical%Cartesian
+
+        ! End shorten variables
+        
+
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB  
+            
+           ! Bottom Stokes drift vertical velocity (computed by Compute_BottomStokesVertVel)
+           kbottom = Me%WorkSize%KLB - 1
+
+           VELZ = BottomStokesVelW(i,j)
+           ! VELZ = 0.
+
+           StokesVelW_cart(i,j,kbottom) = VELZ
+
+           do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                
+                VELZ = VELZ                                                                 & 
+                      - DWZ(i,j,k-1) * (StokesVelU(i,j+1,k) - StokesVelU(i,j,k)) / DUX(i,j)  &
+                      - DWZ(i,j,k-1) * (StokesVelV(i+1,j,k) - StokesVelV(i,j,k)) / DVY(i,j)
+                
+                StokesVelW_cart(i,j,k) = VELZ 
+
+           enddo
+
+        enddo
+        enddo
+
+        
+        nullify(StokesVelW_cart, StokesVelU, StokesVelV)
+        nullify(DUX, DVY, BottomStokesVelW)
+        nullify(OpenPoints3D)
+
+    end subroutine Compute_StokesCartVertVel
+        
+        ! End -----------------------------------------------------------------------
+    
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -43306,6 +45717,85 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
         !End-----------------------------------------------------------------------
 
+! Modified by Matthias DELPEY - 29/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 27/07/2011 - 01/08/2011 - 18/08/2011 - 09/09/2011 - 15/09/2011
+
+    Subroutine Velocity_WaveForces3D
+        
+
+        !Arguments------------------------------------------------------------
+
+
+        !Local---------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer :: TiCoef_3D
+        real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration
+
+        real                               :: DT_Velocity
+
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        
+        integer, dimension(:,:  ), pointer :: KFloor_UV
+
+        integer                            :: I, J, K, Kbottom
+                          
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        !Begin---------------------------------------------------------------------
+        
+        !Begin - Shorten variables name 
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        DT_Velocity          =  Me%Velocity%DT
+
+        TiCoef_3D            => Me%Coef%D3%Ti
+
+        Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
+
+        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV            => Me%External_Var%KFloor_UV
+
+        !End - Shorten variables name
+
+
+        do j=JLB, JUB
+        do i=ILB, IUB
+            
+            Kbottom          = KFloor_UV(i, j)
+
+            if (ComputeFaces3D_UV(i, j, KUB)==Covered) then 
+
+                do k = Kbottom, KUB
+
+                    ! [m/s]          = [m/s] + [s] * [m/s^2]
+                    TiCoef_3D(i,j,k) = TiCoef_3D(i,j,k) + DT_Velocity * Wave3DExplicit_Acceleration(i,j,k)
+
+                enddo
+
+            endif
+
+        enddo
+        enddo
+
+        !Nullify auxiliar pointers 
+        nullify(TiCoef_3D)  
+        
+        nullify(Wave3DExplicit_Acceleration)
+        
+        nullify(ComputeFaces3D_UV)
+        nullify(KFloor_UV)
+        
+    End Subroutine Velocity_WaveForces3D
+
+        !End-----------------------------------------------------------------------
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -43372,6 +45862,11 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
         integer                            :: CHUNK
         
+! Modified by Matthias DELPEY - 08/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real,    dimension(:,:  ), pointer :: Taw_UV, Two_UV
+        real                               :: Taw_Face, Two_Face
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        
         !Begin---------------------------------------------------------------------
 
         !Begin - Shorten variables name 
@@ -43416,6 +45911,11 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV            => Me%External_Var%KFloor_UV
+        
+! Modified by Matthias DELPEY - 08/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        Taw_UV                => Me%External_Var%AtmToWaveMomentum_UV
+        Two_UV                => Me%External_Var%WaveToOceanMomentum_UV
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         !End - Shorten variables name 
   
@@ -43526,6 +46026,22 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
                                                   DUX_VY(I, J), DUX_VY(iSouth, jWest))
                     !!!! $OMP END CRITICAL (VVDB2_FNC02)
 
+! Modified by Matthias DELPEY - 08/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+                        Taw_Face = Face_Interpolation(Taw_UV(I,J), Taw_UV(iSouth, jWest), &
+                                                  DUX_VY(I, J), DUX_VY(iSouth, jWest))
+
+                        
+                        ! The surface momentum flux from atmosphere to wave is substracted to the total momentum flux
+                        ! from the atmosphere at the surface (Taw is in [m^2/s^2])
+                        ! TauFace = TauFace - Taw_Face
+                        ! [M*m/s^2/m^2] = [M*m/s^2/m^2] - [m^2/s^2]*[M/m^3]
+                        TauFace = TauFace - Taw_Face * Air_Density
+
+                    endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
                     TauFace  = SmoothCoef * TauFace
 
                     DT_Z                      = DT_Velocity / Volume_UV(i, j, KUB)       &
@@ -43539,7 +46055,24 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
 
                 endif
 
+! Modified by Matthias DELPEY - 24/11/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    if (Me%ComputeOptions%WaveForcing3D == GLM .and. Me%ComputeOptions%WaveForcing3D_Two == TauSurface) then
+                        
+                        Two_Face = Face_Interpolation(Two_UV(I,J), Two_UV(iSouth, jWest),        &
+                                                  DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                        
+                        DT_Z     = DT_Velocity / Volume_UV(i, j, KUB)                            &
+                                   * DZX_ZY(iSouth, jWest) * DYY_XX(I, J)
 
+                        ! The surface momentum flux from wave to ocean due to breaking is added to the total momentum flux
+                        ! at the surface
+
+                        ![m/s]                    = [m/s]   + [s*m^-3*m²] * [m²*s^-2]
+                        CellFace_TopFace = CellFace_TopFace +  DT_Z * Two_Face
+
+                    endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                
                 !In case of 3D models where the depth is very low a linear profile 
                 !is assumed to the shear stress (pressure = shear stress) and the momentum 
                 !is decrease in uniform way along the entire water column
@@ -43613,6 +46146,11 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
 
         nullify(ComputeFaces3D_UV)
         nullify(KFloor_UV)
+        
+! Modified by Matthias DELPEY - 08/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        nullify(Taw_UV, Two_UV)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
 
     End Subroutine VelVerticalDiffusionBoundaries
@@ -44030,6 +46568,12 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB, BarotropicRadia
         
+! Modified by Matthias DELPEY - 16/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 24/11/2011
+        real,    dimension(:,:,:), pointer :: StokesVel_UV_Old, Wave3DExplicit_Acceleration
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+        
         !$ integer                          :: CHUNK
     
         !Begin---------------------------------------------------------------------
@@ -44060,6 +46604,11 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         Rox3XY               => Me%Forces%Rox3XY
         TidePotentialLevel   => Me%Forces%TidePotentialLevel
         Relax_Aceleration    => Me%Forces%Relax_Aceleration
+! Modified by Matthias DELPEY - 16/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 24/11/2011
+        Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
+        StokesVel_UV_Old            => Me%StokesVel%Horizontal%UV%Old
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         AtmPressure          => Me%External_Var%AtmosphericPressure
         ChezyVelUV           => Me%External_Var%ChezyVelUV
@@ -44188,10 +46737,18 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                 ![m^3/s]
                 AuxExplicit  = 0.   
 
+! Modified by Matthias DELPEY - 24/11/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 !WaterFlow in the bottom layer
                 ![m^3/s]     = [m^3/s]      + [m^2]*[m/s] 
-                AuxExplicit  = AuxExplicit  + FC_Area * Velocity_UV_Old(I, J, kbottom) 
+                ! AuxExplicit  = AuxExplicit  + FC_Area * Velocity_UV_Old(I, J, kbottom) 
 
+                if (Me%ComputeOptions%WaveForcing3D /= GLM) then
+                    ![m^3/s]     = [m^3/s]      + [m^2]*[m/s]   
+                    AuxExplicit  = AuxExplicit  + FC_Area * Velocity_UV_Old(I, J, kbottom) 
+                else
+                    AuxExplicit  = AuxExplicit  + FC_Area * (Velocity_UV_Old(I, J, kbottom) + StokesVel_UV_Old(I, J, kbottom))
+                endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 if (Me%ComputeOptions%LocalDensity) then
 
@@ -44253,6 +46810,13 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     ![m^3/s]     = [m^3/s]      + [m^2]   * [s]         * [m/s^2]
                     AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *               &
                                                   Me%Forces%ObstacleDrag_Aceleration(I, J, kbottom)
+! Modified by Matthias DELPEY - 16/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if (Me%ComputeOptions%WaveForcing3D == GLM)                              &
+                    ![m^3/s]     = [m^3/s]      + [m^2]   * [s]         * [m/s^2]
+                    AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *                &
+                                                  Wave3DExplicit_Acceleration(I, J, kbottom)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
                                               
                 if (Me%ComputeOptions%Scraper)                                          &
                     AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *               &
@@ -44432,7 +46996,11 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         nullify(Velocity_VU_New)
 
         nullify(Vertical_Viscosity)
-
+        
+! Modified by Matthias DELPEY - 16/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!        
+! Modified by Matthias DELPEY - 24/11/2011
+        nullify(Wave3DExplicit_Acceleration, StokesVel_UV_Old)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     end Subroutine WaterLevel_BottomFriction
 
@@ -44579,6 +47147,14 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                               AreaCell1, AreaCell2, TauFace,                &
                                               Transport_Aceleration, SmoothCoef, RunPeriod, &
                                               Aux_2D
+        
+! Modified by Matthias DELPEY - 03/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 04/08/2011 - 08/09/2011 - 12/09/2011 - 15/09/2011 - 24/11/2011
+        real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration
+        real,    dimension(:,:  ), pointer :: Taw_UV, Two_UV
+        real                               :: Taw_Face, Two_Face
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         !$ integer                          :: CHUNK
 
         !Begin---------------------------------------------------------------------
@@ -44629,6 +47205,15 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         TauWaves_UV          => Me%External_Var%TauWaves_UV
         DUZ_VZ               => Me%External_Var%DUZ_VZ
         WaterColumnUV        => Me%External_Var%WaterColumnUV
+
+! Modified by Matthias DELPEY - 03/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 04/08/2011 - 08/09/2011 - 15/09/2011 - 24/11/2011
+
+        Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
+        Taw_UV                      => Me%External_Var%AtmToWaveMomentum_UV
+        Two_UV                      => Me%External_Var%WaveToOceanMomentum_UV
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         !End - Shorten variables name 
         
@@ -44754,7 +47339,19 @@ dok:            do  k = kbottom, KUB
 
                     endif
 
+! Modified by Matthias DELPEY - 03/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 04/08/2011 - 12/09/2011
 
+                    if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress .or.        & 
+                        Me%ComputeOptions%WaveForcing3D == GLM)    then
+
+                        ![m^3/s]           = [m^3/s] +  [s]  * [m^2] * [m/s^2]
+                        AuxExplicit = AuxExplicit +  DT_Velocity * Area_UV  (I, J, K)     & 
+                                                   * Wave3DExplicit_Acceleration(I,J,K)
+
+                    endif 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 
                 enddo dok
 
@@ -44792,6 +47389,23 @@ dok:            do  k = kbottom, KUB
 
                     TauFace  = Face_Interpolation(TauWind_UV(I,J), TauWind_UV(iSouth, jWest), &
                                                   DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                    
+! Modified by Matthias DELPEY - 08/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    
+                    if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                        
+                        Taw_Face = Face_Interpolation(Taw_UV(I,J), Taw_UV(iSouth, jWest), &
+                                                  DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                        
+                        ! The surface momentum flux from atmosphere to wave is substracted to the 
+                        ! total momentum flux from the atmosphere at the surface (Taw is in [m^2/s^2])
+                        ! TauFace = TauFace - Taw_Face
+                        ! [M*m/s^2/m^2] = [M*m/s^2/m^2] - [m^2/s^2]*[M/m^3]
+                        TauFace = TauFace - Taw_Face * Air_Density
+
+                    endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                     TauFace  = TauFace * SmoothCoef
 
@@ -44799,6 +47413,23 @@ dok:            do  k = kbottom, KUB
                     AuxExplicit  = AuxExplicit + TauFace * DYY_XX(I, J) *                       &
                                                  DT_Velocity / SurfaceFaceDensity        
                 endif
+
+! Modified by Matthias DELPEY - 24/11/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                
+                ! Surface momentum flux from waves to ocean due to wave breaking
+                if (Me%ComputeOptions%WaveForcing3D == GLM .and.                                & 
+                    Me%ComputeOptions%WaveForcing3D_Two == TauSurface) then
+
+                    Two_Face  = Face_Interpolation(Two_UV(I,J), Two_UV(iSouth, jWest),          &
+                                                  DUX_VY(I, J), DUX_VY(iSouth, jWest))
+
+
+                    ![m^3/s]     = [m^3/s]     + [m²*s^-2] * [m] * [s]
+                    ! AuxExplicit  = AuxExplicit + Two_Face * DYY_XX(I, J) * DT_Velocity / SurfaceFaceDensity  
+                    AuxExplicit  = AuxExplicit + Two_Face * DYY_XX(I, J) * DT_Velocity      
+                endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
                 DT_Aux = DT_Elevation * Num_Discretization / 2.
@@ -44898,6 +47529,11 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         nullify(Volume_UV)
         nullify(DUZ_VZ, WaterColumnUV)
 
+! Modififued by Matthias DELPEY - 01/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modififued by Matthias DELPEY - 08/09/2011 - 12/09/2011 - 15/09/2011
+        nullify(Wave3DExplicit_Acceleration)
+        nullify(Taw_UV, Two_UV)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
     end Subroutine WaterLevel_ExplicitForces
@@ -44939,6 +47575,11 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         real,    dimension(:,:,:), pointer :: Velocity_UV_Old, Velocity_UV_New, Area_UV, &
                                               Velocity_VU_Old, Velocity_VU_New, Area_VU
+        
+! Modified by Matthias DELPEY - 22/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+       real,    dimension(:,:,:), pointer ::  StokesVel_UV_Old, StokesVel_UV_New,        &
+                                              StokesVel_VU_Old, StokesVel_VU_New
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         real,    dimension(:,:  ), pointer :: TiCoef_2D, TiRadCoef_2D, DUX_VY, DVY_UX, TiCoef_2D_Aux
 
@@ -44956,6 +47597,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                               DT_AreaCell2, AreaCell1, AreaCell2
 
         real                               :: Aux !,CoefRelax
+        
 
         !$ integer                          :: CHUNK
         
@@ -44996,6 +47638,14 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         KFloor_UV            => Me%External_Var%KFloor_UV
         KFloor_VU            => Me%External_Var%KFloor_VU
         BoundaryFacesUV      => Me%External_Var%BoundaryFacesUV
+
+! Modified by Matthias DELPEY - 22/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        StokesVel_UV_Old     => Me%StokesVel%Horizontal%UV%Old
+        StokesVel_UV_New     => Me%StokesVel%Horizontal%UV%New
+
+        StokesVel_VU_Old     => Me%StokesVel%Horizontal%VU%Old
+        StokesVel_VU_New     => Me%StokesVel%Horizontal%VU%New
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
         !End - Shorten variables name 
@@ -45042,8 +47692,19 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                 ! !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
     do3:        do  k = kbottom, KUB
                 
-                    !old U or V water flux
-                    Aux = Velocity_UV_Old(I, J, K) * Area_UV (I, J, K) 
+! Modified by Matthias DELPEY - 22/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    !!old U or V water flux
+                    !Aux = Velocity_UV_Old(I, J, K) * Area_UV (I, J, K) 
+
+                    if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                        !Old U or V water flux
+                        Aux = ( Velocity_UV_Old(I, J, K) + StokesVel_UV_Old(I, J, K) ) * Area_UV (I, J, K)
+                    else
+                        !Old U or V water flux
+                        Aux = Velocity_UV_Old(I, J, K) * Area_UV (I, J, K) 
+                    endif 
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                     ! !! $OMP CRITICAL (WLWF1)
                     ![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
@@ -45133,17 +47794,45 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
     do6:        do  k = kbottom, KUB
                 
 
-                    !Old V or U water flux
 
-                    ![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
-                    AuxExplicit  = AuxExplicit  + Velocity_VU_Old(I, J, K) * Area_VU (I, J, K) 
-                
+! Modified by Matthias DELPEY - 22/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    !!Old V or U water flux
+                    !
+                    !![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
+                    !AuxExplicit  = AuxExplicit  + Velocity_VU_Old(I, J, K) * Area_VU (I, J, K) 
+                    !
+                    !
+                    !!New V or U water flux
+                    !
+                    !![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
+                    !AuxExplicit  = AuxExplicit  + (2. - Num_Discretization) * &
+                    !                              Velocity_VU_New(I, J, K) * Area_VU (I, J, K) 
 
-                    !New V or U water flux
+                    if (Me%ComputeOptions%WaveForcing3D == GLM) then
+                    
+                        !Old V or U water flux
+                        ![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
+                        AuxExplicit  = AuxExplicit  + ( Velocity_VU_Old(I, J, K) + StokesVel_VU_Old(I, J, K) ) * &
+                                                      Area_VU (I, J, K) 
 
-                    ![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
-                    AuxExplicit  = AuxExplicit  + (2. - Num_Discretization) * &
+                        !New V or U water flux                          ! Rem: contribution nul for Leendertse scheme
+                        ![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
+                        AuxExplicit  = AuxExplicit  + (2. - Num_Discretization) * &
+                                                      ( Velocity_VU_New(I, J, K) + StokesVel_VU_New(I, J, K) ) * &
+                                                      Area_VU (I, J, K) 
+
+                    else
+                        !Old V or U water flux
+                        ![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
+                        AuxExplicit  = AuxExplicit  + Velocity_VU_Old(I, J, K) * Area_VU (I, J, K) 
+                        
+                        !New V or U water flux
+                        ![m^3/s]     = [m^3/s]      + [m/s] * [m^2]
+                        AuxExplicit  = AuxExplicit  + (2. - Num_Discretization) * &
                                                   Velocity_VU_New(I, J, K) * Area_VU (I, J, K) 
+                    endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 enddo do6
 
@@ -45220,6 +47909,12 @@ ic2:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         nullify(Velocity_UV_New)
         nullify(Velocity_VU_Old)
         nullify(Velocity_VU_New)
+        
+        nullify(StokesVel_UV_Old)
+        nullify(StokesVel_UV_New)
+        nullify(StokesVel_VU_Old)
+        nullify(StokesVel_VU_New)
+
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "WaterLevel_WaterFluxes")
@@ -46883,7 +49578,144 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                              trim(GetPropertyName (VelocityW_)), "m/s",                 &
                              Array3D = Me%OutPut%CenterW,                               &
                              OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190'        
+        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190'
+        
+! Modified by Matthias DELPEY - 20/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 27/07/2011 - 05/08/2011 - 25/10/2011 - 24/11/2011 - 02/03/2012
+
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+            ! GLM velocity  -----------------------------------------------------------------------
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/"//trim(GetPropertyName (GlmVelocityU_)),     &
+                                trim(GetPropertyName (GlmVelocityU_)),                  &
+                                "m/s", Array3D =  Me%Output%CenterUglm,                 &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190a'
+
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/"//trim(GetPropertyName (GlmVelocityV_)),     &
+                                trim(GetPropertyName (GlmVelocityV_)),                  &
+                                "m/s", Array3D =  Me%Output%CenterVglm,                 &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190b'
+
+            call HDF5WriteData  (ObjHDF5,                                               &
+                             "/Results/"//trim(GetPropertyName (GlmVelocityModulus_)),  &
+                             trim(GetPropertyName (GlmVelocityModulus_)),               &
+                             "m/s", Array3D =  Me%OutPut%ModulusHglm,                   &
+                             OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR18c'
+
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/"//trim(GetPropertyName (GlmVelocityW_)),     &
+                                trim(GetPropertyName (GlmVelocityW_)),                  &
+                                "m/s", Array3D =  Me%Output%CenterWglm,                 &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190d'
+
+
+            ! Stokes Drift velocity  --------------------------------------------------------------
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/"//trim(GetPropertyName (StokesDriftU_)),     &
+                                trim(GetPropertyName (StokesDriftU_)),                  &
+                                "m/s", Array3D =  Me%Output%CenterUstokes,              &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190e'
+
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/"//trim(GetPropertyName (StokesDriftV_)),     &
+                                trim(GetPropertyName (StokesDriftV_)),                  &
+                                "m/s", Array3D =  Me%Output%CenterVstokes,              &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190f'
+
+            call HDF5WriteData  (ObjHDF5,                                               &
+                             "/Results/"//trim(GetPropertyName (StokesDriftModulus_)),  &
+                             trim(GetPropertyName (StokesDriftModulus_)),               &
+                             "m/s", Array3D =  Me%OutPut%ModulusHstokes,                &
+                             OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR18ff'
+
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/"//trim(GetPropertyName (StokesDriftW_)),     &
+                                trim(GetPropertyName (StokesDriftW_)),                  &
+                                "m/s", Array3D =  Me%Output%CenterWstokes,              &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190g'
+
+
+            ! Wave induced pressure acceleration -----------------------------------------------
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/WavePressureForceAccelU",                     &
+                                "WavePressureForceAccelU",                              &
+                                "m/s2", Array3D =  Me%Output%Wave3D_FPressureAccelU,    &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190h'
+
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/WavePressureForceAccelV",                     &
+                                "WavePressureForceAccelV",                              &
+                                "m/s2", Array3D =  Me%Output%Wave3D_FPressureAccelV,    &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190i'
+
+
+            ! Wave breaking induced acceleration ---------------------------------------------------
+            if (Me%ComputeOptions%WaveForcing3D_Two == TauWalstra) then
+                call HDF5WriteData  (ObjHDF5,                                           &
+                                    "/Results/WaveBreakingForceAccelU",                 &
+                                    "WaveBreakingForceAccelU",                          &
+                                    "m/s2", Array3D =  Me%Output%Wave3D_FBreakingAccelU, &
+                                    OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190j'
+
+                call HDF5WriteData  (ObjHDF5,                                           &
+                                    "/Results/WaveBreakingForceAccelV",                 &
+                                    "WaveBreakingForceAccelV",                          &
+                                    "m/s2", Array3D =  Me%Output%Wave3D_FBreakingAccelV, &
+                                    OutputNumber = Index, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190k'
+            endif
+
+            ! Wave vortex force induced acceleration -----------------------------------------------
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/WaveVortexForceAccelU",                       &
+                                "WaveVortexForceAccelU",                                &
+                                "m/s2", Array3D =  Me%Output%Wave3D_FVortexAccelU,      &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190l'
+
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/WaveVortexForceAccelV",                       &
+                                "WaveVortexForceAccelV",                                &
+                                "m/s2", Array3D =  Me%Output%Wave3D_FVortexAccelV,      &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190m'
+
+
+        endif
+
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+        
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/"//trim(GetPropertyName (WaveRad3DX_)),       &
+                                trim(GetPropertyName (WaveRad3DX_)),                    &
+                                "m/s", Array3D =  Me%WaveRad3D%WaveExpRadU,             &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190g'
+        
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                "/Results/"//trim(GetPropertyName (WaveRad3DY_)),       &
+                                trim(GetPropertyName (WaveRad3DY_)),                    &
+                                "m/s", Array3D =  Me%WaveRad3D%WaveExpRadV,             &
+                                OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190h'
+        
+        endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         if (Me%OutPut%Faces) then
             !Write velocity in faces
@@ -46919,8 +49751,6 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR170'
         endif
-
-
 
         !Do statistics analysis
         if (.not. present(iW)) then
@@ -47579,6 +50409,31 @@ cd3:        if (Me%ComputeOptions%Residual) then
         call CenterVelocity( Me%OutPut%CenterU, Me%OutPut%CenterV,    &
                             VectorType = CurrentVelocity)
 
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 24/11/2011 - 25/11/2011
+
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+            call CenterVelocity( Me%OutPut%CenterUstokes, Me%OutPut%CenterVstokes,                        &
+                                 VectorType = StokesDriftVelocity)
+
+            Me%OutPut%CenterUglm(:,:,:) = Me%OutPut%CenterU(:,:,:) + Me%OutPut%CenterUstokes(:,:,:)
+            Me%OutPut%CenterVglm(:,:,:) = Me%OutPut%CenterV(:,:,:) + Me%OutPut%CenterVstokes(:,:,:)
+
+            call CenterVelocity( Me%OutPut%Wave3D_FPressureAccelU, Me%OutPut%Wave3D_FPressureAccelV,      &
+                                 VectorType = WavePressureForceAccel)
+
+            call CenterVelocity( Me%OutPut%Wave3D_FVortexAccelU, Me%OutPut%Wave3D_FVortexAccelV,          &
+                                 VectorType = WaveVortexForceAccel)
+
+            if (Me%ComputeOptions%WaveForcing3D_Two == TauWalstra) then
+                call CenterVelocity( Me%OutPut%Wave3D_FBreakingAccelU, Me%OutPut%Wave3D_FBreakingAccelV,  &
+                                     VectorType = WaveBreakingForceAccel)
+            endif
+
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         CHUNK = CHUNK_J(JLB, JUB)
         
         if (MonitorPerformance) then
@@ -47607,6 +50462,12 @@ cd3:        if (Me%ComputeOptions%Residual) then
                 if (Me%OutPut%DirectionH(i, j, k) < 0.) then
                     Me%OutPut%DirectionH(i, j, k) = Me%OutPut%DirectionH(i, j, k) + 360.
                 endif
+
+! Modified by Matthias DELPEY - 02/03/2012 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                Me%OutPut%ModulusHglm   (i, j, k) = abs(cmplx(Me%OutPut%CenterUglm(i, j, k), Me%OutPut%CenterVglm(i, j, k)))
+                Me%OutPut%ModulusHstokes(i, j, k) = abs(cmplx(Me%OutPut%CenterUstokes(i, j, k), &
+                                                              Me%OutPut%CenterVstokes(i, j, k)))
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             end if
 
@@ -47638,6 +50499,20 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
                     Me%OutPut%CenterW(i, j, k) = (Me%Velocity%Vertical%Cartesian(i, j, k+1) +  &
                                                   Me%Velocity%Vertical%Cartesian(i, j, k)) / 2.
+                    
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+                        Me%OutPut%CenterWstokes(i, j, k) = (Me%StokesVel%Vertical%Cartesian(i, j, k+1) +  &
+                                                            Me%StokesVel%Vertical%Cartesian(i, j, k)) / 2.
+
+                        Me%OutPut%CenterWglm(i, j, k) = Me%OutPut%CenterW(i, j, k) + Me%OutPut%CenterWstokes(i, j, k)
+                        ! Me%OutPut%CenterWglm(i, j, k) = (Me%Velocity%Vertical%Across(i, j, k+1) +  &
+                        !                                    Me%Velocity%Vertical%Across(i, j, k)) / 2.
+                    
+                    endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
                 enddo
 
             endif
@@ -47785,6 +50660,37 @@ cd3:        if (Me%ComputeOptions%Residual) then
             FaceVelocityV => Me%Velocity%Horizontal%V%New
 
             Simple = .true.
+
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 25/11/2011
+        elseif (VectorType == StokesDriftVelocity) then
+
+            FaceVelocityU => Me%StokesVel%Horizontal%U%New
+            FaceVelocityV => Me%StokesVel%Horizontal%V%New
+
+            Simple = .true.
+
+        elseif (VectorType == WaveBreakingForceAccel) then
+
+            FaceVelocityU => Me%Forces%Wave3DExplicit_FBreakingAccelU
+            FaceVelocityV => Me%Forces%Wave3DExplicit_FBreakingAccelV
+
+            Simple = .true.
+
+        elseif (VectorType == WaveVortexForceAccel) then
+
+            FaceVelocityU => Me%Forces%Wave3DExplicit_FVortexAccelU
+            FaceVelocityV => Me%Forces%Wave3DExplicit_FVortexAccelV
+
+            Simple = .true.
+
+        elseif (VectorType == WavePressureForceAccel) then
+
+            FaceVelocityU => Me%Forces%Wave3DExplicit_FPressureAccelU
+            FaceVelocityV => Me%Forces%Wave3DExplicit_FPressureAccelV
+
+            Simple = .true.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         elseif (VectorType == BaroclinicVelocity) then
 
@@ -51958,6 +54864,105 @@ ic1:    if (Me%CyclicBoundary%ON) then
            
         endif
 
+! Modified by Matthias DELPEY - 21/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 27/07/2011 - 19/08/2011 - 24/08/2011 - 31/08/2011 - 08/09/2011 - 25/10/2011 - 25/11/2011
+! 25/01/2011
+        
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            
+            ! Horizontal velocities
+            deallocate(Me%StokesVel%Horizontal%U%New)
+            deallocate(Me%StokesVel%Horizontal%U%Old)
+            deallocate(Me%StokesVel%Horizontal%V%New)
+            deallocate(Me%StokesVel%Horizontal%V%Old)
+            
+            nullify(Me%StokesVel%Horizontal%U%New)
+            nullify(Me%StokesVel%Horizontal%U%Old)
+            nullify(Me%StokesVel%Horizontal%V%New)
+            nullify(Me%StokesVel%Horizontal%V%Old)
+
+            nullify(Me%StokesVel%Horizontal%UV%New)
+            nullify(Me%StokesVel%Horizontal%UV%Old)
+            nullify(Me%StokesVel%Horizontal%VU%New)
+            nullify(Me%StokesVel%Horizontal%VU%Old)
+
+            ! Vertical velocities
+            deallocate(Me%StokesVel%Vertical%Across)
+            deallocate(Me%StokesVel%Vertical%Cartesian)
+            deallocate(Me%StokesVel%BottomStokesVertVel)
+
+            nullify(Me%StokesVel%Vertical%Across)
+            nullify(Me%StokesVel%Vertical%Cartesian)
+            nullify(Me%StokesVel%BottomStokesVertVel)
+
+            ! Water fluxes
+            deallocate(Me%StokesWaterFluxes%X)
+            deallocate(Me%StokesWaterFluxes%Y)
+            deallocate(Me%StokesWaterFluxes%Z)
+
+            nullify(Me%StokesWaterFluxes%X)
+            nullify(Me%StokesWaterFluxes%Y)
+            nullify(Me%StokesWaterFluxes%Z)
+
+            nullify(Me%StokesWaterFluxes%XY)
+            nullify(Me%StokesWaterFluxes%YX)
+
+            ! Surface momentum fluxes (les autres champs sont nettoyés dans UnGetWaves3D)
+            nullify(Me%External_Var%AtmToWaveMomentum_UV)
+            nullify(Me%External_Var%WaveToOceanMomentum_UV)
+
+            ! Accelerations
+            deallocate (Me%Forces%Wave3DExplicit_Acceleration) 
+
+            deallocate (Me%Forces%Wave3DExplicit_FPressureAccelU) 
+            deallocate (Me%Forces%Wave3DExplicit_FPressureAccelV)
+            ! deallocate (Me%Forces%Wave3DExplicit_FPressureAccelUV)
+
+            deallocate (Me%Forces%Wave3DExplicit_FVortexAccelU) 
+            deallocate (Me%Forces%Wave3DExplicit_FVortexAccelV)
+            ! deallocate (Me%Forces%Wave3DExplicit_FVortexAccelUV)
+            ! deallocate (Me%Forces%AdvectVelocity)
+
+            deallocate (Me%Forces%Wave3DExplicit_FBreakingAccelU) 
+            deallocate (Me%Forces%Wave3DExplicit_FBreakingAccelV)
+            ! deallocate (Me%Forces%Wave3DExplicit_FBreakingAccelUV) 
+
+            nullify (Me%Forces%Wave3DExplicit_Acceleration)
+            
+            nullify (Me%Forces%Wave3DExplicit_FPressureAccelU) 
+            nullify (Me%Forces%Wave3DExplicit_FPressureAccelV)
+            nullify (Me%Forces%Wave3DExplicit_FPressureAccelUV) 
+
+            nullify (Me%Forces%Wave3DExplicit_FVortexAccelU) 
+            nullify (Me%Forces%Wave3DExplicit_FVortexAccelV)
+            nullify (Me%Forces%Wave3DExplicit_FVortexAccelUV)
+            ! nullify (Me%Forces%AdvectVelocity)
+
+            nullify (Me%Forces%Wave3DExplicit_FBreakingAccelU) 
+            nullify (Me%Forces%Wave3DExplicit_FBreakingAccelV)
+            nullify (Me%Forces%Wave3DExplicit_FBreakingAccelUV)
+
+        endif
+
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+            
+            ! Tensions de radiations 3D
+            deallocate(Me%WaveRad3D%WaveExpRadU)
+            deallocate(Me%WaveRad3D%WaveExpRadV)
+
+            nullify(Me%WaveRad3D%WaveExpRadU)
+            nullify(Me%WaveRad3D%WaveExpRadV)
+
+            nullify(Me%WaveRad3D%WaveExpRadUV)
+
+            ! Accelerations
+            deallocate (Me%Forces%Wave3DExplicit_Acceleration)
+
+            nullify (Me%Forces%Wave3DExplicit_Acceleration) 
+
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                       
+
        !----------------------------------------------------------------------
 
     end subroutine DeallocateVariables   
@@ -52031,6 +55036,17 @@ ic1:    if (Me%CyclicBoundary%ON) then
                    Me%OutPut%ModulusUVaux,                                              &
                    Me%OutPut%CenterWaux,                                                &
                    Me%OutPut%Aux2D,                                                     &
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 02/03/2012
+                   Me%OutPut%CenterUglm   ,                                             &
+                   Me%OutPut%CenterVglm   ,                                             &
+                   Me%OutPut%ModulusHglm  ,                                             &
+                   Me%OutPut%CenterWglm   ,                                             &
+                   Me%OutPut%CenterUstokes   ,                                          &
+                   Me%OutPut%CenterVstokes   ,                                          &
+                   Me%OutPut%ModulusHstokes  ,                                          &
+                   Me%OutPut%CenterWstokes   ,                                          &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'KillMatrixesOutput - ModuleHydrodynamic - ERR10'
 
@@ -52039,7 +55055,19 @@ ic1:    if (Me%CyclicBoundary%ON) then
         nullify  (Me%OutPut%ModulusH    )
         nullify  (Me%OutPut%DirectionH  )
         nullify  (Me%OutPut%CenterW     )
-       
+
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 02/03/2012
+        nullify  (Me%OutPut%CenterUglm     )
+        nullify  (Me%OutPut%CenterVglm     )
+        nullify  (Me%OutPut%ModulusHglm    )
+        nullify  (Me%OutPut%CenterWglm     )
+        nullify  (Me%OutPut%CenterUstokes  )
+        nullify  (Me%OutPut%CenterVstokes  )
+        nullify  (Me%OutPut%ModulusHstokes )
+        nullify  (Me%OutPut%CenterWstokes  )
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
         nullify  (Me%OutPut%CenterUaux  ) 
         nullify  (Me%OutPut%CenterVaux  ) 
         nullify  (Me%OutPut%ModulusUVaux)
@@ -52060,7 +55088,24 @@ ic1:    if (Me%CyclicBoundary%ON) then
             nullify  (Me%OutPut%WaterLevelDif       )    
 
         endif            
-    
+
+! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 25/11/2011
+        deallocate (Me%OutPut%Wave3D_FPressureAccelU  )
+        deallocate (Me%OutPut%Wave3D_FPressureAccelV  )
+        deallocate (Me%OutPut%Wave3D_FBreakingAccelU)
+        deallocate (Me%OutPut%Wave3D_FBreakingAccelV)
+        deallocate (Me%OutPut%Wave3D_FVortexAccelU  )
+        deallocate (Me%OutPut%Wave3D_FVortexAccelV  )
+        
+        nullify  (Me%OutPut%Wave3D_FPressureAccelU  )
+        nullify  (Me%OutPut%Wave3D_FPressureAccelV  )
+        nullify  (Me%OutPut%Wave3D_FBreakingAccelU)
+        nullify  (Me%OutPut%Wave3D_FBreakingAccelV)
+        nullify  (Me%OutPut%Wave3D_FVortexAccelU  )
+        nullify  (Me%OutPut%Wave3D_FVortexAccelV  )
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
     end subroutine KillMatrixesOutput
 
     !--------------------------------------------------------------------------
@@ -52430,6 +55475,57 @@ cd1:    if (HydrodynamicID > 0) then
                 stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR30.'
         endif
 
+! Modified by Matthias DELPEY - 29/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 06/07/2011 - 27/07/2011 - 04/08/2011 - 05/09/2011 - 09/09/2011 - 10/10/2011
+
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+        
+            call GetWavesForcing3D (Me%ObjWaves,                                        &
+                                    Me%External_Var%WaveInducedPressureJ,               &
+                                    Me%External_Var%StokesDriftSpectrumX,               &
+                                    Me%External_Var%StokesDriftSpectrumY,               &
+                                    Me%External_Var%StokesFreqNum,                      &
+                                    Me%External_Var%StokesWaveNumber,                   &
+                                    Me%External_Var%AtmToWaveMomentumU,                 &
+                                    Me%External_Var%AtmToWaveMomentumV,                 &
+                                    Me%External_Var%WaveToOceanMomentumU,               &
+                                    Me%External_Var%WaveToOceanMomentumV,               &
+                                    STAT = STAT_CALL)
+        
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR20a.'
+
+
+            call GetWaves (WavesID     = Me%ObjWaves,                                   &
+                          WaveHeight   = Me%External_Var%WaveHeight,                    &
+                          STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR20b.'
+
+        
+        endif
+
+
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+        
+           call GetWaves (WavesID      = Me%ObjWaves,                                   &
+                          WaveLength   = Me%External_Var%WaveLength,                    &
+                          STAT         = STAT_CALL)
+           if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR20c.'
+           
+
+           call GetWavesStress    (Me%ObjWaves,                                         &
+                                    Me%External_Var%TauWavesU,                          &
+                                    Me%External_Var%TauWavesV,                          &
+                                    STAT = STAT_CALL)
+        
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR20d.'
+        
+        endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     End Subroutine ReadLock_ModuleWaves
 
@@ -52502,8 +55598,52 @@ cd1:    if (HydrodynamicID > 0) then
             if (STAT_CALL /= SUCCESS_)                                                       &
                 stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR04.'
             
-    
         endif
+        
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                             Me%External_Var%TauWavesU, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR01a.'
+            
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                             Me%External_Var%TauWavesV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02b.'
+
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                            Me%External_Var%WaveLength, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02c.'
+         endif
+
+
+         if (Me%ComputeOptions%WaveForcing3D == GLM) then
+
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                             Me%External_Var%WaveInducedPressureJ, STAT = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02d.'
+
+            call UnGetWaves(Me%ObjWaves,                                                     &
+                             Me%External_Var%WaveHeight, STAT = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02e.'
+
+            call UnGetWaves3D(Me%ObjWaves,                                                   &
+                             Me%External_Var%StokesDriftSpectrumX,                           &
+                             Me%External_Var%StokesDriftSpectrumY,                           &
+                             Me%External_Var%StokesFreqNum,                                  & 
+                             Me%External_Var%StokesWaveNumber,                               &
+                             Me%External_Var%AtmToWaveMomentumU,                             & 
+                             Me%External_Var%AtmToWaveMomentumV,                             &
+                             Me%External_Var%WaveToOceanMomentumU,                           & 
+                             Me%External_Var%WaveToOceanMomentumV,                           & 
+                             STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02c.'
+            
+         endif
 
     End Subroutine ReadUnLock_ModuleWaves
 
