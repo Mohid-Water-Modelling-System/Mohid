@@ -1852,9 +1852,13 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         elseif(PropertyX%Ws_Type == WSFlocs) then
         !Method based on Soulsby et al. (2013)
             
-            call GetTurbGOTM_TurbEq(Me%ObjTurbGOTM,     &
-                                    TKE, eps, L, P, B,  &
-                                    STAT_CALL)
+            call GetTurbGOTM_TurbEq(TurbGOTMID = Me%ObjTurbGOTM,     &
+                                    TKE = TKE, & 
+                                    eps = eps, &
+                                    L = L, & 
+                                    P = P, &
+                                    B = B,  &
+                                    STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
                 write(*,*)
                 write(*,*) 'Module GOTM must be activated to use the option WS_TYPE : 6'
@@ -1942,9 +1946,13 @@ do1 :   do i=Me%WorkSize%ILB, Me%WorkSize%IUB
             enddo
             enddo
             
-            call UnGetTurbGOTM_TurbEq(Me%ObjTurbGOTM,     &
-                                     TKE, eps, L, P, B,   &
-                                     STAT_CALL)
+            call UnGetTurbGOTM_TurbEq(TurbGOTMID = Me%ObjTurbGOTM,     &
+                                    TKE = TKE, & 
+                                    eps = eps, &
+                                    L = L, & 
+                                    P = P, &
+                                    B = B,  &
+                                    STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Vertical_Velocity - ModuleFreeVerticalMovement - ERR50'
             
             call UnGetGeometry(Me%ObjGeometry, WaterColumnZ, STAT = STAT_CALL)
