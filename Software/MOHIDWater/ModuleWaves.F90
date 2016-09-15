@@ -122,6 +122,11 @@ Module ModuleWaves
     private ::         ComputeFetch
     private ::      ConstructWaveParameters   
     private ::          ReadWaveParameters
+! Modified by Matthias DELPEY - 27/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    private ::          ReadStokesDriftSpectrum
+! Modified by Matthias DELPEY - 04/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    private ::          ComputeStokesSpecWaveNum
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     private ::          ConstructGlobalOutput
     private ::          Construct_Time_Serie      
     private ::      Open_HDF5_OutPut_File
@@ -131,8 +136,14 @@ Module ModuleWaves
     !Selector
     public  :: GetWaves
     public  :: GetWavesStress
+! Modified by Matthias DELPEY - 29/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    public  :: GetWavesForcing3D
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     public  :: GetWavesOptions
     public  :: UnGetWaves
+! Modified by Matthias DELPEY - 30/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    public  :: UnGetWaves3D
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     public  :: SetWavesWind
     public  :: SetGeneric4DValues
@@ -237,6 +248,23 @@ Module ModuleWaves
         logical                                             :: OutputHDF            = .false.
         logical                                             :: TimeSerieOn          = .false.
     end type T_WaveProperty
+    
+! Modified by Matthias DELPEY - 27/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 04/07/2011
+    type T_WaveProperty3D                                 
+        type(T_PropertyID)                                  :: ID
+        logical                                             :: ON                   = .false.
+        logical                                             :: Constant             = .false.
+        integer                                             :: Source
+        real,    dimension(:,:,:),  pointer                 :: Field
+        integer, dimension(:,:,:),  pointer                 :: PseudoOpenPoints
+        logical                                             :: OutputHDF            = .false.
+        logical                                             :: TimeSerieOn          = .false.
+        real,    dimension(:),      pointer                 :: Freq
+        real,    dimension(:,:,:),  pointer                 :: WaveNumber
+        integer                                             :: NbFreq
+    end type T_WaveProperty3D
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     type       T_Waves
         integer                                             :: InstanceID              = null_int
@@ -250,6 +278,22 @@ Module ModuleWaves
         !type (T_WaveProperty)                               :: RadiationStressX
         !type (T_WaveProperty)                               :: RadiationStressY
         type (T_WaveProperty)                               :: RadiationStress
+! Modified by Matthias DELPEY - 24/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 05/09/2011 - 14/12/2011 - 16/12/2011
+        type (T_WaveProperty)                               :: WaveInducedPressureJ
+
+        type (T_WaveProperty)                               :: WaveToOceanMomentumU
+        type (T_WaveProperty)                               :: WaveToOceanMomentumV
+        
+        type (T_WaveProperty)                               :: AtmToWaveMomentumU
+        type (T_WaveProperty)                               :: AtmToWaveMomentumV
+        
+        type (T_WaveProperty3D)                             :: StokesDriftSpectrumX
+        type (T_WaveProperty3D)                             :: StokesDriftSpectrumY
+
+        type (T_WaveProperty)                               :: BreakingWaveHeight
+        type (T_WaveProperty)                               :: WaveSurfaceFluxTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         type (T_WaveProperty)                               :: WavePeriod
         type (T_WaveProperty)                               :: WaveHeight
         type (T_WaveProperty)                               :: WaveDirection
@@ -710,7 +754,216 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                     EndBlock     = "<end_radiationstress>")    
 
         endif
+        
+! Modified by Matthias DELPEY - 24/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 27/06/2011 - 04/07/2011 - 05/09/2011 - 14/12/2011 - 16/12/2011    
+        
+        ! Wave induced pressure term - 2D-time field, scalar -----------------------------------------
+        call GetData(Me%WaveInducedPressureJ%ON,                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'WAVE_INDUCED_PRESSURE_J',                            &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
 
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70a'
+
+
+        if (Me%WaveInducedPressureJ%ON) then
+
+            Me%WaveInducedPressureJ%ID%Name = GetPropertyName(WavePressureJ_)
+
+            call ReadWaveParameters(WaveProperty = Me%WaveInducedPressureJ,            &
+                                    BeginBlock   = "<begin_wavepressure_j>",           &
+                                    EndBlock     = "<end_wavepressure_j>")    
+
+        endif
+
+        ! Atmosphere to wave momentum flux - 2D-time field, vectorial ------------------------------- 
+        call GetData(Me%AtmToWaveMomentumU%ON,                                          &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'ATMOSPHERE_TO_WAVE_MOMENTUM',                        &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70c'
+
+
+        if (Me%AtmToWaveMomentumU%ON) then
+
+             Me%AtmToWaveMomentumU%ID%Name = GetPropertyName(AtmToWaveMomentumU_)
+
+             call ReadWaveParameters(WaveProperty = Me%AtmToWaveMomentumU,              &
+                                    BeginBlock   = "<begin_atmtowave_x>",               &
+                                    EndBlock     = "<end_atmtowave_x>")
+        endif
+        
+        call GetData(Me%AtmToWaveMomentumV%ON,                                          &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'ATMOSPHERE_TO_WAVE_MOMENTUM',                        &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70d'
+        
+        if (Me%AtmToWaveMomentumV%ON) then
+                     
+             Me%AtmToWaveMomentumV%ID%Name = GetPropertyName(AtmToWaveMomentumV_)
+                                      
+             call ReadWaveParameters(WaveProperty = Me%AtmToWaveMomentumV,              &
+                                    BeginBlock   = "<begin_atmtowave_y>",               &
+                                    EndBlock     = "<end_atmtowave_y>")                                        
+
+        endif
+
+        ! Wave to ocean momentum flux - 2D-time field, vectorial ------------------------------- 
+        call GetData(Me%WaveToOceanMomentumU%ON,                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'WAVE_TO_OCEAN_MOMENTUM',                             &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70e'
+
+
+        if (Me%WaveToOceanMomentumU%ON) then
+
+             Me%WaveToOceanMomentumU%ID%Name = GetPropertyName(WaveToOceanMomentumU_)
+
+             call ReadWaveParameters(WaveProperty = Me%WaveToOceanMomentumU,            &
+                                    BeginBlock   = "<begin_wavetoocean_x>",             &
+                                    EndBlock     = "<end_wavetoocean_x>")
+        endif
+
+        call GetData(Me%WaveToOceanMomentumV%ON,                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'WAVE_TO_OCEAN_MOMENTUM',                             &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70f'
+
+
+        if (Me%WaveToOceanMomentumV%ON) then
+
+             Me%WaveToOceanMomentumV%ID%Name = GetPropertyName(WaveToOceanMomentumV_)
+
+             call ReadWaveParameters(WaveProperty = Me%WaveToOceanMomentumV,            &
+                                    BeginBlock   = "<begin_wavetoocean_y>",             &
+                                    EndBlock     = "<end_wavetoocean_y>")
+        endif
+        
+
+        ! Wave induced Stokes Drift - 3D-time field ----------------------------------------------
+        call GetData(Me%StokesDriftSpectrumX%ON,                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'STOKES_DRIFT_SPECTRUM_X',                            &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70g'
+
+
+        if (Me%StokesDriftSpectrumX%ON) then
+
+            Me%StokesDriftSpectrumX%ID%Name = GetPropertyName(WaveDriftSpecU_)
+
+            call ReadStokesDriftSpectrum(WaveProperty3D = Me%StokesDriftSpectrumX,       &
+                                         BeginBlock   = "<begin_stokesdrift_x>",         &
+                                         EndBlock     = "<end_stokesdrift_x>") 
+             
+        endif
+
+        call GetData(Me%StokesDriftSpectrumY%ON,                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'STOKES_DRIFT_SPECTRUM_Y',                            &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70h'
+
+
+        if (Me%StokesDriftSpectrumY%ON) then
+
+            Me%StokesDriftSpectrumY%ID%Name = GetPropertyName(WaveDriftSpecV_)
+
+            call ReadStokesDriftSpectrum(WaveProperty3D = Me%StokesDriftSpectrumY,       &
+                                         BeginBlock   = "<begin_stokesdrift_y>",         &
+                                         EndBlock     = "<end_stokesdrift_y>")    
+
+        endif
+        
+        if (.not. Me%StokesDriftSpectrumX%ON .EQV. Me%StokesDriftSpectrumY%ON)           &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70i'
+
+
+        ! Height of breaking waves - 2D-time field, scalar ------------------------------------
+        call GetData(Me%BreakingWaveHeight%ON,                                          &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'BREAKING_WAVE_HEIGHT',                               &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70i'
+
+
+        if (Me%BreakingWaveHeight%ON) then
+
+            Me%BreakingWaveHeight%ID%Name = GetPropertyName(BreakingWaveHeight_)
+
+            call ReadWaveParameters(WaveProperty = Me%BreakingWaveHeight,               &
+                                    BeginBlock   = "<begin_breakingwaveheight>",        &
+                                    EndBlock     = "<end_breakingwaveheight>")    
+
+        endif
+
+
+        ! Wave induced surface TKE flux - 2D-time field, scalar ----------------------------
+        call GetData(Me%WaveSurfaceFluxTKE%ON,                                          &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'WAVEMODEL_TKE_FLUX',                                 &
+                     Default    = .False.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleWave',                                        &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR70j'
+
+
+        if (Me%WaveSurfaceFluxTKE%ON) then
+
+            Me%WaveSurfaceFluxTKE%ID%Name = GetPropertyName(WaveSurfaceFluxTKE_)
+
+            call ReadWaveParameters(WaveProperty = Me%WaveSurfaceFluxTKE,               &
+                                    BeginBlock   = "<begin_waveflux_tke>",              &
+                                    EndBlock     = "<end_waveflux_tke>")
+        endif                                      
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         call GetData(Me%WaveGen_type,                                                   &
                      Me%ObjEnterData, iflag,                                            &
@@ -1053,6 +1306,133 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ReadWaveParameters
 
     !--------------------------------------------------------------------------
+    
+! Modified by Matthias DELPEY - 27/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 07/10/2011
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadStokesDriftSpectrum(WaveProperty3D, BeginBlock, EndBlock)
+
+        !Arguments-------------------------------------------------------------
+        type (T_WaveProperty3D)                :: WaveProperty3D
+        character(LEN = *)                     :: BeginBlock, EndBlock
+
+        !Local-----------------------------------------------------------------
+        integer                                :: ClientNumber
+        integer                                :: STAT_CALL, iflag
+        logical                                :: BlockFound
+        integer                                :: ifreq
+        integer                                :: NbFreq
+
+        !Begin-----------------------------------------------------------------
+
+        !Searches for Wave Height
+        call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                                &
+                                     BeginBlock, EndBlock,                                         &
+                                     BlockFound, STAT = STAT_CALL)
+        
+
+        if (BlockFound) then
+
+            ! Read spectrum frequencies on which the Stokes Drift is discretized - - - - - - - - - -
+            call GetData(WaveProperty3D%NbFreq,                                                    &
+                         Me%ObjEnterData, iflag,                                                   &
+                         keyword       = 'NUMBER_OF_FREQUENCIES',                                  &
+                         Default       = 1,                                                        &
+                         SearchType    = FromBlock,                                                &
+                         ClientModule  = 'ModuleWaves',                                            &
+                         STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                             &
+                stop 'ReadWaveParameters - ModuleWaves - ERR01a'
+            
+            ! Shorten variable name
+            NbFreq = WaveProperty3D%NbFreq
+
+            allocate(WaveProperty3D%Freq( 1 : NbFreq ) )
+            
+            call GetData(WaveProperty3D%Freq,                                                      &
+                         Me%ObjEnterData, iflag,                                                   &
+                         keyword       = 'FREQUENCY_VALUES',                                       &
+                         Default       = 0.,                                                       &                                         
+                         SearchType    = FromBlock,                                                &
+                         ClientModule  = 'ModuleWaves',                                            &
+                         STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                             &
+                stop 'ReadWaveParameters - ModuleWaves - ERR01b'
+                
+            if (MAXVAL(WaveProperty3D%Freq(1:NbFreq)) == 0.) then
+                write (*,*)'Block ',trim(BeginBlock),' ',trim(EndBlock),' : need to specify frequencies' 
+                stop 'ReadWaveParameters - ModuleWaves - ERR01c'                            
+            endif
+
+            
+            
+            ! Allocate corresponding wave numbers matrix, that will be used later in the - - - - - 
+            ! subroutine ComputeStokesSpecWaveNum
+            allocate (WaveProperty3D%WaveNumber(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, 1:NbFreq ))
+
+            WaveProperty3D%WaveNumber (:,:,:) = null_real
+
+            ! Read surface Stokes drift spectrum from HDF - - - - - - - - - - - - - - - - - - - - - 
+            !Allocates Variables
+            allocate (WaveProperty3D%Field(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, 1:NbFreq ))
+
+            WaveProperty3D%Field      (:,:,:) = null_real
+            
+            ! Creation of a pseudo-OpenPoints3D, 
+            allocate (WaveProperty3D%PseudoOpenPoints(  Me%Size%ILB:Me%Size%IUB,                   & 
+                                                        Me%Size%JLB:Me%Size%JUB,                   &
+                                                        0:NbFreq+1 ))
+
+            do ifreq = 0, NbFreq+1
+                WaveProperty3D%PseudoOpenPoints (:,:,ifreq) = Me%ExternalVar%WaterPoints2D
+            enddo 
+            
+            ! In this field, the 3rd dimension actually stands for the frequencies of the Stokes drift spectrum (instead of 
+            ! the vertical discretization). Then the ConstructFillMatrix has been little modifided to allow MOHID to read 
+            ! a 3D field which dimensions are diffrent from the domain dimensions. 
+            call ConstructFillMatrix  (PropertyID           = WaveProperty3D%ID,                   &
+                                       EnterDataID          = Me%ObjEnterData,                     & 
+                                       TimeID               = Me%ObjTime,                          &
+                                       HorizontalGridID     = Me%ObjHorizontalGrid,                &
+                                       GeometryID           = Me%ObjGeometry,                      &
+                                       ExtractType          = FromBlock,                           &
+                                       PointsToFill3D       = WaveProperty3D%PseudoOpenPoints,     &
+                                       Matrix3D             = WaveProperty3D%Field,                &
+                                       TypeZUV              = TypeZ_,                              &
+                                       STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                             &
+                stop 'ReadWaveParameters - ModuleWaves - ERR01d'
+             
+
+            call GetData(WaveProperty3D%OutputHDF,                                                 &
+                         Me%ObjEnterData, iflag,                                                   &
+                         Keyword        = 'OUTPUT_HDF',                                            &
+                         Default        = .false.,                                                 &
+                         SearchType     = FromBlock,                                               &
+                         ClientModule   = 'ModuleWave',                                            &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                             &
+                stop 'ReadWaveParameters - ModuleWaves - ERR31'
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR50a'
+
+        else
+
+            write (*,*)'Block ',trim(BeginBlock),' ',trim(EndBlock),' not found'
+            stop 'ReadWaveParameters - ModuleWaves - ERR60a'
+
+        endif
+
+        call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR70a'
+
+        Me%LastCompute = Me%ActualTime
+
+    end subroutine ReadStokesDriftSpectrum
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine Open_HDF5_OutPut_File
 
@@ -1149,7 +1529,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if ((Me%WavePeriod%OutputHDF).or.(Me%WaveHeight%OutputHDF).or.                  &
             (Me%WaveDirection%OutputHDF).or.(Me%WaveLength%OutputHDF) .or.              & 
-            (Me%RadiationStress%OutputHDF .or. Me%Ubw%OutputHDF)) then
+            (Me%RadiationStress%OutputHDF .or. Me%Ubw%OutputHDF) .or.                   &
+            (Me%WaveInducedPressureJ%OutputHDF)) then
     
             OutputON = ON
             Me%Output%HDF = .true.
@@ -2500,12 +2881,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !--------------------------------------------------------------------------
 
     subroutine GetWaves (WavesID, WavePeriod, WaveHeight, Abw, Ubw, WaveLength, &
-                         WaveDirection, LastCompute, STAT)
+                         WaveDirection, BreakingWaveHeight, WaveSurfaceFluxTKE, &
+                         LastCompute, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: WavesID
         real, dimension(:,:),  pointer, optional        :: WaveHeight, WavePeriod
         real, dimension(:,:),  pointer, optional        :: Abw, Ubw, WaveLength, WaveDirection
+        real, dimension(:,:),  pointer, optional        :: BreakingWaveHeight, WaveSurfaceFluxTKE
         type(T_Time)        ,           optional        :: LastCompute
         integer, intent(OUT),           optional        :: STAT
 
@@ -2562,6 +2945,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     WaveDirection => Me%WaveDirection%Field
                 endif
 
+! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 16/12/2011
+                if (present(BreakingWaveHeight)) then
+                    call Read_Lock(mWaves_, Me%InstanceID)
+                    BreakingWaveHeight => Me%BreakingWaveHeight%Field
+                endif
+
+                if (present(WaveSurfaceFluxTKE)) then
+                    call Read_Lock(mWaves_, Me%InstanceID)
+                    WaveSurfaceFluxTKE => Me%WaveSurfaceFluxTKE%Field
+                endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 if (present(LastCompute)) then 
                     LastCompute = Me%LastCompute
@@ -2667,6 +3062,91 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     !--------------------------------------------------------------------------
 
+! Modified by Matthias DELPEY - 29/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 06/07/2011 - 05/09/2011 - 09/09/2011 -10/10/2011
+
+    subroutine GetWavesForcing3D (WavesID,                                    & 
+                                WaveInducedPressureJ,                       & 
+                                StokesDriftSpectrumX, StokesDriftSpectrumY, &
+                                NbFreq, WaveNumber,                         &
+                                AtmToWaveMomentumU, AtmToWaveMomentumV,     &
+                                WaveToOceanMomentumU, WaveToOceanMomentumV, &
+                                LastCompute, STAT)
+                                      
+        !Arguments-------------------------------------------------------------
+        integer                                         :: WavesID
+        real,   dimension(:,:  ), pointer               :: WaveInducedPressureJ
+        real,   dimension(:,:  ), pointer               :: AtmToWaveMomentumU, AtmToWaveMomentumV, &
+                                                           WaveToOceanMomentumU, WaveToOceanMomentumV
+        real,   dimension(:,:,:), pointer               :: StokesDriftSpectrumX, StokesDriftSpectrumY
+        integer,                  pointer               :: NbFreq
+        real,   dimension(:,:,:), pointer               :: WaveNumber
+        type(T_Time),           optional                :: LastCompute
+        integer, intent(OUT),   optional                :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WavesID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call Read_Lock(mWaves_, Me%InstanceID)
+            WaveInducedPressureJ => Me%WaveInducedPressureJ%Field
+
+            call Read_Lock(mWaves_, Me%InstanceID)
+            StokesDriftSpectrumX => Me%StokesDriftSpectrumX%Field
+
+            call Read_Lock(mWaves_, Me%InstanceID)
+            StokesDriftSpectrumY => Me%StokesDriftSpectrumY%Field
+
+            call Read_Lock(mWaves_, Me%InstanceID)
+            NbFreq => Me%StokesDriftSpectrumX%NbFreq
+
+            call Read_Lock(mWaves_, Me%InstanceID)
+            WaveNumber => Me%StokesDriftSpectrumX%WaveNumber
+
+
+            if (Me%AtmToWaveMomentumU%ON) then
+                call Read_Lock(mWaves_, Me%InstanceID)
+                AtmToWaveMomentumU => Me%AtmToWaveMomentumU%Field
+            endif
+            if (Me%AtmToWaveMomentumV%ON) then
+                call Read_Lock(mWaves_, Me%InstanceID)
+                AtmToWaveMomentumV => Me%AtmToWaveMomentumV%Field
+            endif
+
+            if (Me%WaveToOceanMomentumU%ON) then
+                call Read_Lock(mWaves_, Me%InstanceID)
+                WaveToOceanMomentumU => Me%WaveToOceanMomentumU%Field
+            endif
+
+            if (Me%WaveToOceanMomentumV%ON) then
+                call Read_Lock(mWaves_, Me%InstanceID)
+                WaveToOceanMomentumV => Me%WaveToOceanMomentumV%Field
+            endif
+
+            if (present(LastCompute)) LastCompute = Me%LastCompute
+
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetWavesForcing3D
+
+    !--------------------------------------------------------------------------
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     subroutine UnGetWaves(WavesID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -2699,6 +3179,59 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine UnGetWaves
 
     !--------------------------------------------------------------------------
+    
+! Modified by Matthias DELPEY - 30/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 05/09/2011
+
+    subroutine UnGetWaves3D(WavesID, Array1, Array2, Array3, Array4, Array5, Array6, Array7, Array8, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: WavesID
+        real, dimension(:,:,:), pointer                 :: Array1, Array2
+        integer               , pointer                 :: Array3
+        real, dimension(:,:,:), pointer                 :: Array4
+        real, dimension(:,:  ), pointer                 :: Array5, Array6, Array7, Array8
+        integer, intent(OUT  ),optional                 :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer                                         :: iw
+
+        !Begin-----------------------------------------------------------------
+
+        ! Array1, Array2 = StokesDriftSpectrumX and Y
+        ! Array3         = number of frequencies in the spectrum
+        ! Array4         = spectrum wave numbers
+        ! Array5, Array6 = Atmosphere to wave momentum flux
+        ! Array7, Array8 = Wave to ocean momentum flux
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WavesID, ready_)
+
+        if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array1)
+            nullify(Array2)
+            nullify(Array3)
+            nullify(Array4)
+            nullify(Array5, Array6, Array7, Array8)
+            do iw=1,8
+                call Read_Unlock(mWaves_, Me%InstanceID,  "UnGetWaves")
+            enddo
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine UnGetWaves3D
+
+    !--------------------------------------------------------------------------
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine SetWavesWind(WavesID, WindU, WindV, STAT)
 
@@ -2952,6 +3485,137 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif
             endif
            
+!Modified by Matthias DELPEY - 05/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!Modified by Matthias DELPEY - 05/09/2011 - 07/10/2011 - 14/12/2011 - 16/12/2011
+
+            ! Modifies 3D forcing terms
+            if (Me%WaveInducedPressureJ%ON) then
+                if (.not. Me%WaveInducedPressureJ%Constant) then
+                    if (Me%WaveInducedPressureJ%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%WaveInducedPressureJ%ID%ObjFillMatrix, &
+                                               Matrix2D         = Me%WaveInducedPressureJ%Field,            &
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,             &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,            &
+                                               STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR80a'
+                    endif
+                endif
+            endif
+            ! -----------------------------------------------------
+            if (Me%AtmToWaveMomentumU%ON) then
+
+                if (.not. Me%AtmToWaveMomentumU%Constant) then
+                    if (Me%AtmToWaveMomentumU%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%AtmToWaveMomentumU%ID%ObjFillMatrix,   &
+                                               Matrix2D         = Me%AtmToWaveMomentumU%Field,              &
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,             &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,            &
+                                               STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR80b'
+                    endif
+                endif
+            endif
+            if (Me%AtmToWaveMomentumV%ON) then
+                if (.not. Me%AtmToWaveMomentumV%Constant) then
+                    if (Me%AtmToWaveMomentumV%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%AtmToWaveMomentumV%ID%ObjFillMatrix,   &
+                                               Matrix2D         = Me%AtmToWaveMomentumV%Field,              &
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,             &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,            &
+                                               STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR80c'
+                    endif
+                endif
+
+            endif
+            ! -----------------------------------------------------------------
+            if (Me%WaveToOceanMomentumU%ON) then
+
+                if (.not. Me%WaveToOceanMomentumU%Constant) then
+                    if (Me%WaveToOceanMomentumU%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%WaveToOceanMomentumU%ID%ObjFillMatrix, &
+                                               Matrix2D         = Me%WaveToOceanMomentumU%Field,            &
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,             &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,            &
+                                               STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR80d'
+                    endif
+                endif
+            endif
+            if (Me%WaveToOceanMomentumV%ON) then
+                if (.not. Me%WaveToOceanMomentumV%Constant) then
+                    if (Me%WaveToOceanMomentumV%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%WaveToOceanMomentumV%ID%ObjFillMatrix, &
+                                               Matrix2D         = Me%WaveToOceanMomentumV%Field,            &
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,             &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,            &
+                                               STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR80e'
+                    endif
+                endif
+
+            endif
+            ! -------------------------------------------------
+            if (Me%StokesDriftSpectrumX%ON) then
+                if (.not. Me%StokesDriftSpectrumX%Constant) then
+                    if (Me%StokesDriftSpectrumX%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%StokesDriftSpectrumX%ID%ObjFillMatrix, &
+                                               Matrix3D         = Me%StokesDriftSpectrumX%Field,            &
+                                               PointsToFill3D   = Me%StokesDriftSpectrumX%PseudoOpenPoints, &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,            &
+                                               STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR80f'
+                    endif
+                endif
+            endif
+
+            if (Me%StokesDriftSpectrumY%ON) then
+                if (.not. Me%StokesDriftSpectrumY%Constant) then
+                    if (Me%StokesDriftSpectrumY%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%StokesDriftSpectrumY%ID%ObjFillMatrix, &
+                                               Matrix3D         = Me%StokesDriftSpectrumY%Field,            &
+                                               PointsToFill3D   = Me%StokesDriftSpectrumY%PseudoOpenPoints,   &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,            &
+                                               STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR80g'
+                    endif
+                endif
+            endif
+
+            if (Me%StokesDriftSpectrumX%ON .and. Me%StokesDriftSpectrumY%ON) then
+                
+                call ComputeStokesSpecWaveNum(Me%StokesDriftSpectrumX%WaveNumber)
+
+            endif
+            ! -------------------------------------------------
+            if (Me%BreakingWaveHeight%ON) then
+                if (.not. Me%BreakingWaveHeight%Constant) then
+                    if (Me%BreakingWaveHeight%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%BreakingWaveHeight%ID%ObjFillMatrix, &
+                                               Matrix2D         = Me%BreakingWaveHeight%Field,            &
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,             &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,            &
+                                               STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR80h'
+                    endif
+                endif
+            endif
+            ! -------------------------------------------------
+            if (Me%WaveSurfaceFluxTKE%ON) then
+                if (.not. Me%WaveSurfaceFluxTKE%Constant) then
+                    if (Me%WaveSurfaceFluxTKE%ID%SolutionFromFile) then
+                        call ModifyFillMatrix (FillMatrixID     = Me%WaveSurfaceFluxTKE%ID%ObjFillMatrix, &
+                                               Matrix2D         = Me%WaveSurfaceFluxTKE%Field,            &
+                                               PointsToFill2D   = Me%ExternalVar%WaterPoints2D,             &
+                                               Generic_4D_Value = Me%ExternalVar%CurrentValue4D,            &
+                                               STAT           = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR80i'
+                    endif
+                endif
+            endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            
             Me%LastCompute = Me%ActualTime
 
             !Ungets WaterPoints2D
@@ -3032,9 +3696,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
 
-cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.01 .or.                  &
-                        Me%ExternalVar%WaterColumn(i,j) .lt. 0.1  .or.                  &
-                        Me%WavePeriod%Field       (i,j) < 1e-3) then 
+cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.                  &
+                        Me%ExternalVar%WaterColumn(i,j) .lt. 0.1  .or.                 &
+                        Me%WavePeriod%Field       (i,j) .lt. 0.1) then 
                         
                         Me%Ubw_(i, j)              = 0.001
                         Me%Abw(i, j)              = 0.001
@@ -3807,6 +4471,87 @@ cd2:            if (Me%WavePeriod%Field(i,j) > 1e-3) then
            
     end subroutine ComputeAvInDepthStokesDriftAdvY
     !--------------------------------------------------------------------------
+
+! Modified by Matthias DELPEY - 04/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 07/10/2011
+
+        !--------------------------------------------------------------------------
+
+    subroutine ComputeStokesSpecWaveNum(WaveNumber)
+
+        !Arguments-------------------------------------------------------------
+        real, dimension(:,:,:), pointer        :: WaveNumber
+
+        ! External
+        integer                                :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        real                                   :: COEFA, COEFB, C0, WAVL, WAVN, Celerity, PERIOD
+        integer                                :: iz, i, j, IUB, ILB, JUB, JLB
+
+        integer                                :: NbFreq
+        real, dimension(:    ), pointer        :: Freq
+
+        ! real                                   :: a, b, c
+
+        !Begin-----------------------------------------------------------------
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+
+        NbFreq     = Me%StokesDriftSpectrumX%NbFreq
+        Freq       => Me%StokesDriftSpectrumX%Freq
+
+        call GetGeometryWaterColumn(Me%ObjGeometry,                                     &
+                                    WaterColumn = Me%ExternalVar%WaterColumn,           &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStokesSpecWaveNum - ModuleWaves. ERR01.'
+
+
+        ! allocate( WaveNumber(ILB:IUB,JLB:JUB,1:NbFreq) )
+        WaveNumber(:,:,:) = 0.
+
+
+        do iz=1,NbFreq
+
+            do i=1,IUB
+            do j=1,JUB
+
+                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+
+                    PERIOD = 1/Freq(iz)
+
+                    COEFA = Gravity * PERIOD / (2.*PI)
+                                                  
+                    COEFB = 2. * PI / PERIOD
+
+                    C0    = sqrt(Gravity*Me%ExternalVar%WaterColumn(i,j))
+
+                    call Secant(Celerity, C0, Me%ExternalVar%WaterColumn(i,j), COEFA, COEFB)
+
+                    WAVL     = Celerity   * PERIOD
+                    WAVN     = 2.  * PI   / WAVL
+
+                    WaveNumber(i,j,iz) = WAVN
+
+                endif
+
+            enddo
+            enddo
+        
+        enddo
+
+        call UnGetGeometry(Me%ObjGeometry, Me%ExternalVar%WaterColumn, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeStokesSpecWaveNum - ModuleWaves. ERR20'
+
+
+        nullify(Freq)
+
+    end subroutine ComputeStokesSpecWaveNum
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     !This subroutine compute the radiation stresses based in X
     !Xia et al. - Coastal Engineering 51 (2004) 309-321.
@@ -4095,6 +4840,87 @@ TOut:   if (Me%ActualTime >= Me%OutPut%OutTime(OutPutNumber)) then
  
             endif
             
+! Modified by Matthias DELPEY - 26/04/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 05/09/2011 - 16/12/2011
+            if (Me%WaveInducedPressureJ%OutputHDF) then
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%WaveInducedPressureJ%ID%Name),   &
+                                     trim(Me%WaveInducedPressureJ%ID%Name), "m2/s2",                   &
+                                     Array2D      = Me%WaveInducedPressureJ%Field,                     &
+                                     OutputNumber = OutPutNumber,                                      &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                             &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR90a'                 
+        
+            endif
+
+            if (Me%AtmToWaveMomentumU%OutputHDF) then
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%AtmToWaveMomentumU%ID%Name),     &
+                                     trim(Me%AtmToWaveMomentumU%ID%Name), "m2/s2",                     &
+                                     Array2D      = Me%AtmToWaveMomentumU%Field,                       &
+                                     OutputNumber = OutPutNumber,                                      &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                             &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR90b'                 
+        
+            endif
+            if (Me%AtmToWaveMomentumV%OutputHDF) then
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%AtmToWaveMomentumV%ID%Name),     &
+                                     trim(Me%AtmToWaveMomentumV%ID%Name), "m2/s2",                     &
+                                     Array2D      = Me%AtmToWaveMomentumV%Field,                       &
+                                     OutputNumber = OutPutNumber,                                      &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                             &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR90c'                 
+        
+            endif
+
+            if (Me%WaveToOceanMomentumU%OutputHDF) then
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%WaveToOceanMomentumU%ID%Name),   &
+                                     trim(Me%WaveToOceanMomentumU%ID%Name), "m2/s2",                   &
+                                     Array2D      = Me%WaveToOceanMomentumU%Field,                     &
+                                     OutputNumber = OutPutNumber,                                      &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                             &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR90d'                 
+        
+            endif
+            if (Me%WaveToOceanMomentumV%OutputHDF) then
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%WaveToOceanMomentumV%ID%Name),   &
+                                     trim(Me%WaveToOceanMomentumV%ID%Name), "m2/s2",                   &
+                                     Array2D      = Me%WaveToOceanMomentumV%Field,                     &
+                                     OutputNumber = OutPutNumber,                                      &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                             &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR90e'                 
+        
+            endif
+            if (Me%BreakingWaveHeight%OutputHDF) then
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%BreakingWaveHeight%ID%Name),     &
+                                     trim(Me%BreakingWaveHeight%ID%Name), "m",                         &
+                                     Array2D      = Me%BreakingWaveHeight%Field,                       &
+                                     OutputNumber = OutPutNumber,                                      &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                             &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR90f'                 
+        
+            endif
+            if (Me%WaveSurfaceFluxTKE%OutputHDF) then
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%WaveSurfaceFluxTKE%ID%Name),     &
+                                     trim(Me%WaveSurfaceFluxTKE%ID%Name), "W/m2",                      &
+                                     Array2D      = Me%WaveSurfaceFluxTKE%Field,                       &
+                                     OutputNumber = OutPutNumber,                                      &
+                                     STAT         = STAT_CALL)                      
+                if (STAT_CALL /= SUCCESS_)                                                             &
+                    stop 'OutPut_Results_HDF - ModuleWaves - ERR90g'                   
+        
+            endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
@@ -4332,6 +5158,108 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                         if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR90'
                     endif
                 endif
+
+! Modified by Matthias DELPEY - 24/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 05/09/2011 - 14/12/2011 - 16/12/2011
+                if (Me%WaveInducedPressureJ%ON) then
+
+                    deallocate(Me%WaveInducedPressureJ%Field)
+
+                    if (Me%WaveInducedPressureJ%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%WaveInducedPressureJ%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR100a'
+                    endif
+                
+                endif
+
+                if (Me%AtmToWaveMomentumU%ON) then
+
+                    deallocate(Me%AtmToWaveMomentumU%Field)
+                    
+                    if (Me%AtmToWaveMomentumU%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%AtmToWaveMomentumU%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR100b'
+                    endif
+                    
+                endif
+                if (Me%AtmToWaveMomentumV%ON) then
+
+                    deallocate(Me%AtmToWaveMomentumV%Field)
+                    
+                    if (Me%AtmToWaveMomentumV%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%AtmToWaveMomentumV%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR100c'
+                    endif
+                    
+                endif
+
+                if (Me%WaveToOceanMomentumU%ON) then
+
+                    deallocate(Me%WaveToOceanMomentumU%Field)
+                    
+                    if (Me%WaveToOceanMomentumU%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%WaveToOceanMomentumU%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR100d'
+                    endif
+                    
+                endif
+                if (Me%WaveToOceanMomentumV%ON) then
+
+                    deallocate(Me%WaveToOceanMomentumV%Field)
+                    
+                    if (Me%WaveToOceanMomentumV%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%WaveToOceanMomentumV%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR100e'
+                    endif
+                    
+                endif
+
+                if (Me%StokesDriftSpectrumX%ON) then
+
+                    deallocate(Me%StokesDriftSpectrumX%Field)
+                    ! deallocate(Me%StokesDriftSpectrumX%WaveNumber)
+
+                    if (Me%StokesDriftSpectrumX%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%StokesDriftSpectrumX%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR100f'
+                    endif
+                
+                endif
+
+                if (Me%StokesDriftSpectrumY%ON) then
+
+                    deallocate(Me%StokesDriftSpectrumY%Field)
+                    ! deallocate(Me%StokesDriftSpectrumY%WaveNumber)
+
+                    if (Me%StokesDriftSpectrumY%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%StokesDriftSpectrumY%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR100g'
+                    endif
+                
+                endif
+
+                if (Me%BreakingWaveHeight%ON) then
+
+                    deallocate(Me%BreakingWaveHeight%Field)
+
+                    if (Me%BreakingWaveHeight%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%BreakingWaveHeight%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR100h'
+                    endif
+                
+                endif
+
+                if (Me%WaveSurfaceFluxTKE%ON) then
+
+                    deallocate(Me%WaveSurfaceFluxTKE%Field)
+
+                    if (Me%WaveSurfaceFluxTKE%ID%SolutionFromFile) then
+                        call KillFillMatrix(Me%WaveSurfaceFluxTKE%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR100i'
+                    endif
+                
+                endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
                 if (Me%ParametersON) then

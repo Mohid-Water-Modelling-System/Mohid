@@ -77,7 +77,8 @@ Module ModuleInterfaceWaterAir
 #endif    
 #endif
 
-    use ModuleTurbGOTM,             only: SetTurbGOTMSurfaceRugosity, SetTurbGOTMWindShearVelocity
+    use ModuleTurbGOTM,             only: SetTurbGOTMSurfaceRugosity, SetTurbGOTMWindShearVelocity, &
+                                          SetTurbGOTMWaveSurfaceFluxTKE
     use ModuleAtmosphere,           only: GetAtmosphereProperty, AtmospherePropertyExists, UngetAtmosphere, &
                                           GetWindHeight, GetAirMeasurementHeight
     use ModuleFillMatrix,           only: ConstructFillMatrix, ModifyFillMatrix,                &
@@ -102,6 +103,11 @@ Module ModuleInterfaceWaterAir
     private ::      ConstructGlobalVariables
     private ::          AllocateCOAREVariables
     private ::      ConstructRugosity
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 16/12/2011
+    private ::      ConstructWaveFluxTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
     private ::      Construct_PropertyList
     private ::          Construct_Property
     private ::              Construct_PropertyValues
@@ -123,6 +129,10 @@ Module ModuleInterfaceWaterAir
     public  :: ModifyInterfaceWaterAir
     private ::      ModifyRugosity
     private ::          ComputeWavesRugosity
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    private ::      ModifyWaveFluxTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     private ::      ModifyLocalAtmVariables
     private ::      ModifyWaterAirFluxes
     private ::          ModifyAlbedo
@@ -196,7 +206,14 @@ Module ModuleInterfaceWaterAir
     real,    parameter                              :: RefLatentHeatOfVaporization = 2.5e6         ![J/kg]
 
     !Constant for Air-Sea kinetic energy transfer        
-    real,    parameter                              :: CDE = 0.63E-06        
+    real,    parameter                              :: CDE = 0.63E-06
+    
+    ! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Wave height used for surface rugosity parametrization
+    integer,    parameter                              :: NoWave                  = 0
+    integer,    parameter                              :: SurfaceRugosityFromHS   = 1
+    integer,    parameter                              :: SurfaceRugosityFromHSW  = 2
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!      
     
     !Methods to define the wind drag coefficient
     integer, parameter                              :: Constant = 1, WindFunction = 2, ShearVelocity = 3
@@ -368,10 +385,21 @@ Module ModuleInterfaceWaterAir
         real, pointer, dimension (:,:)              :: Field            => null()
         real                                        :: Scalar           = null_real, & !initialization: Jauch
                                                        WavesRelation    = null_real    !initialization: Jauch
-        logical                                     :: Constant         = .false., & !initialization: Jauch
-                                                       ON               = .false., & !initialization: Jauch
-                                                       WavesFunction    = .false.    !initialization: Jauch
+!Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! logical                                     :: Constant, ON, WavesFunction
+
+        logical                                     :: Constant, ON      = .false.
+        integer                                     :: WavesFunction     = 0
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     end type T_Rugosity
+    
+!Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    type       T_WaveFlux
+        type(T_PropertyID)                          :: ID
+        real, pointer, dimension (:,:)              :: Field            => null()
+        logical                                     :: Constant, ON     = .false.
+    end type T_WaveFlux
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     private :: T_InterfaceWaterAir
     type       T_InterfaceWaterAir
@@ -395,6 +423,9 @@ Module ModuleInterfaceWaterAir
         type(T_Int_Options)                         :: IntOptions
         type(T_Local_Atm  )                         :: LocalAtm
         type(T_Rugosity   )                         :: Rugosity
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        type(T_WaveFlux   )                         :: WaveFluxTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                         
         logical                                     :: COARE                    = .false.
         real                                        :: ReflectionCoef           = FillValueReal
         real                                        :: CDWIND                   = FillValueReal
@@ -606,6 +637,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructGlobalVariables
 
             call ConstructRugosity
+            
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            call ConstructWaveFluxTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             call Construct_PropertyList
 
@@ -954,6 +989,10 @@ i2:     if (iflag == 1) then
             Me%Rugosity%ON            = .true.
             Me%Rugosity%WavesFunction = .false.
         
+! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! Me%Rugosity%WavesFunction = .false.
+            Me%Rugosity%WavesFunction = NoWave
+!!!!!!!!!!!!!
         else i2
 
             !Reads the Atmosphere rugosity
@@ -997,12 +1036,19 @@ i1:         if(BlockFound)then
                              keyword      ='WAVES_FUNCTION',                            &
                              SearchType   = FromBlock,                                  &
                              ClientModule = 'ModuleInterfaceWaterAir',                  &
-                             Default      = .false.,                                    &
+! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                             !Default      = .false.,                                &
+                             Default      = NoWave,                                 &
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
                     stop 'ConstructRugosity - ModuleInterfaceWaterAir - ERR60'
 
-                if (Me%Rugosity%WavesFunction) then
+! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                ! if (Me%Rugosity%WavesFunction) then
+                if (Me%Rugosity%WavesFunction == SurfaceRugosityFromHS  .or.        &
+                    Me%Rugosity%WavesFunction == SurfaceRugosityFromHSW   ) then
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                    
 
                     call GetData(Me%Rugosity%WavesRelation,                             &
                                  Me%ObjEnterData, iflag,                                &
@@ -1045,6 +1091,52 @@ i1:         if(BlockFound)then
     end subroutine ConstructRugosity
 
     !--------------------------------------------------------------------------
+    
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 16/12/2011 
+
+    subroutine ConstructWaveFluxTKE
+
+        !Local------------------------------------------------------------------
+        integer                        :: ClientNumber, ILB, IUB, JLB, JUB 
+        integer                        :: STAT_CALL, iflag
+        
+        !Begin------------------------------------------------------------------
+
+        ILB = Me%Size2D%ILB
+        IUB = Me%Size2D%IUB
+        JLB = Me%Size2D%JLB
+        JUB = Me%Size2D%JUB
+
+        Me%WaveFluxTKE%ON                = .false.
+
+        ! If WAVEMODEL_TKE_FLUX : 1, the surface TKE flux read in Module Waves will be imported in the 
+        ! Module InterfaceWaterAir by subroutine ModifyWaveFluxTKE
+        ! If WAVEMODEL_TKE_FLUX : 2, the same + the surface shear velocity is computed in a manner consistent
+        ! with the GLM theory. To be used with option WAVE_FORCING_3D: 2 in module Hydrodynamics. 
+        call GetData(Me%WaveFluxTKE%ON,                                 &
+                     Me%ObjEnterData, iflag,                            &
+                     keyword      ='WAVEMODEL_TKE_FLUX',                &
+                     SearchType   = FromFile,                           &
+                     ClientModule = 'ModuleInterfaceWaterAir',          &
+                     Default      = .false.,                            &
+                     STAT         = STAT_CALL)
+
+        ! Allocate field
+        if (Me%WaveFluxTKE%ON) then
+            nullify (Me%WaveFluxTKE%Field)
+            allocate(Me%WaveFluxTKE%Field(ILB:IUB, JLB:JUB))
+            Me%WaveFluxTKE%Field(:,:) = FillValueReal
+        endif
+
+        ! Importation of the field from Module Waves
+        if (Me%WaveFluxTKE%ON) then
+            call ModifyWaveFluxTKE
+        endif
+
+    end subroutine ConstructWaveFluxTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     
     subroutine Construct_PropertyList
 
@@ -2689,7 +2781,18 @@ do1 :   do while (associated(PropertyX))
                                             STAT            = STAT_CALL)                
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'SetSubModulesConstructor - ModuleInterfaceWaterAir - ERR20'
+            
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 16/12/2011
+            if (Me%WaveFluxTKE%ON) then
 
+                call SetTurbGOTMWaveSurfaceFluxTKE(TurbGOTMID      = Me%ObjTurbGOTM,                 &
+                                                   WaveSurfaceFluxTKE = Me%WaveFluxTKE%Field,        &
+                                                   STAT            = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_)                                                           &
+                    stop 'SetSubModulesConstructor - ModuleInterfaceWaterAir - ERR20a'
+            endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         endif
 
@@ -2887,6 +2990,12 @@ do1 :   do while (associated(PropertyX))
             call ModifyWaterAirFluxes
 
             call ModifyRugosity
+
+! Modified by Matthias DELPEY - 16/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if (Me%WaveFluxTKE%ON) then
+                call ModifyWaveFluxTKE
+            endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             if(Me%Coupled%TimeSerie%Yes)            &
                 call Output_TimeSeries
@@ -5560,7 +5669,11 @@ do4:    do i=ILB, IUB
         !Arguments-------------------------------------------------------------
 #ifndef _WAVES_
         !Local-----------------------------------------------------------------
-        real, dimension(:,:), pointer               :: WaveHeight
+! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! real, dimension(:,:), pointer               :: WaveHeight
+        real, dimension(:,:), pointer               :: WaveHeightForRugosity
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
         integer                                     :: ILB, IUB, JLB, JUB, i, j
         integer                                     :: STAT_CALL
         integer                                     :: CHUNK
@@ -5572,8 +5685,21 @@ do4:    do i=ILB, IUB
         JLB = Me%WorkSize2D%JLB
         JUB = Me%WorkSize2D%JUB
 
-        !Gets wave height
-        call GetWaves (Me%ObjWaves, WaveHeight = WaveHeight, STAT = STAT_CALL)
+!Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !!Gets wave height
+        !call GetWaves (Me%ObjWaves, WaveHeight = WaveHeight, STAT = STAT_CALL)
+
+        !Gets wave height used for rugosity computation
+        if (Me%Rugosity%WavesFunction == SurfaceRugosityFromHS) then
+            call GetWaves (Me%ObjWaves, WaveHeight = WaveHeightForRugosity, STAT = STAT_CALL)
+        endif
+
+        if (Me%Rugosity%WavesFunction == SurfaceRugosityFromHSW) then
+            call GetWaves (Me%ObjWaves, BreakingWaveHeight = WaveHeightForRugosity, STAT = STAT_CALL)
+        endif
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         if (STAT_CALL /= SUCCESS_) stop 'ComputeWavesRugosity - InterfaceWaterAir - ERR10'
 
@@ -5587,7 +5713,16 @@ do4:    do i=ILB, IUB
         do j = JLB, JUB
         do i = ILB, IUB
             if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
-                Me%Rugosity%Field(i, j) = Me%Rugosity%WavesRelation * WaveHeight(i, j)
+! Modified by Matthias DELPEY - 17/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 15/12/2011
+                ! Me%Rugosity%Field(i, j) = Me%Rugosity%WavesRelation * WaveHeight(i, j)
+                if (WaveHeightForRugosity(i,j) > 0.) then
+                    Me%Rugosity%Field(i, j) = Me%Rugosity%WavesRelation * WaveHeightForRugosity(i, j)
+                else
+                    Me%Rugosity%Field(i, j) = Me%Rugosity%WavesRelation * 0.01
+                endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
             endif
         enddo
         enddo
@@ -5598,7 +5733,7 @@ do4:    do i=ILB, IUB
             call StopWatch ("ModuleInterfaceWaterAir", "ComputeWavesRugosity")
         endif
         
-        call UnGetWaves (Me%ObjWaves, WaveHeight, STAT = STAT_CALL)
+        call UnGetWaves (Me%ObjWaves, WaveHeightForRugosity, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeWavesRugosity - InterfaceWaterAir - ERR20'
     
 #endif
@@ -5626,7 +5761,11 @@ do4:    do i=ILB, IUB
 
         elseif(.not. Me%Rugosity%Constant)then
 
-            if (Me%Rugosity%WavesFunction) then
+ ! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! if (Me%Rugosity%WavesFunction) then
+            if (Me%Rugosity%WavesFunction == SurfaceRugosityFromHS  .or.                &
+                Me%Rugosity%WavesFunction == SurfaceRugosityFromHSW   ) then
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 call ComputeWavesRugosity
 
@@ -5637,6 +5776,37 @@ do4:    do i=ILB, IUB
     end subroutine ModifyRugosity
 
     !--------------------------------------------------------------------------
+    
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 28/11/2011 - 16/12/2011
+    
+    subroutine ModifyWaveFluxTKE
+
+        !Arguments-------------------------------------------------------------
+
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        real                                        :: DensityReferenceJustHere
+        real, dimension(:,:), pointer               :: WaveSurfaceFluxTKE
+
+        !Begin-----------------------------------------------------------------
+
+        DensityReferenceJustHere = 1026.2
+
+        ! Importation of the field from Module Waves
+        call GetWaves (Me%ObjWaves, WaveSurfaceFluxTKE = WaveSurfaceFluxTKE, STAT = STAT_CALL)
+
+        
+        ! Conversion to right unit to be used in Module TurbGOTM
+        Me%WaveFluxTKE%Field(:,:) = WaveSurfaceFluxTKE(:,:) / DensityReferenceJustHere
+
+
+        call UnGetWaves (Me%ObjWaves,  WaveSurfaceFluxTKE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaveFluxTKE - InterfaceWaterAir - ERR01a'
+    
+    end subroutine ModifyWaveFluxTKE
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     subroutine OutPut_TimeSeries
 
@@ -6516,6 +6686,25 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     endif
 
                 endif
+
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 16/12/2011
+                if (Me%WaveFluxTKE%ON) then
+
+                    deallocate(Me%WaveFluxTKE%Field,   STAT = STAT_CALL) 
+                    if(STAT_CALL .ne. SUCCESS_)&
+                        stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR170a'
+                    nullify(Me%WaveFluxTKE%Field)
+
+                    if(Me%WaveFluxTKE%ID%SolutionFromFile) then
+
+                        call KillFillMatrix(Me%WaveFluxTKE%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)&
+                            stop 'KillInterfaceWaterAir - ModuleInterfaceWaterAir - ERR180a'
+                    endif
+
+                endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 if(Me%Coupled%BoxTimeSerie%Yes)then
                 

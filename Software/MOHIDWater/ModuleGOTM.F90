@@ -155,6 +155,11 @@
         integer     :: stab_method=3
         logical     :: length_lim=.true.
         logical     :: craig_banner=.false.
+        
+! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        logical     :: ardhuin_etal_2010=.false.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         !Namelist stabilityfunctions
         logical     :: qesmooth=.true.
@@ -254,6 +259,9 @@
     ObjGOTMParameters%iw_model              = null_int
 
     ObjGOTMParameters%craig_banner = .false.
+! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ObjGOTMParameters%ardhuin_etal_2010 = .false.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ObjGOTMParameters%length_lim   = .false.
     ObjGOTMParameters%flux_bdy     = .false.
     ObjGOTMParameters%qesmooth     = .false.
@@ -321,6 +329,9 @@
     targetP%sig_e0       = sourceP%sig_e0
     targetP%sig_e1       = sourceP%sig_e1
     targetP%craig_banner = sourceP%craig_banner
+! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    targetP%ardhuin_etal_2010 = sourceP%ardhuin_etal_2010
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     targetP%length_lim   = sourceP%length_lim
     targetP%const_num    = sourceP%const_num
     targetP%const_nuh    = sourceP%const_nuh
@@ -396,6 +407,10 @@
 !
 ! !LOCAL VARIABLES:
    logical craig_banner,length_lim
+! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   logical ardhuin_etal_2010
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
    logical qesmooth,flux_bdy
    integer turb_method,tke_method,len_scale_method,stab_method,MY_length
    integer iw_model   
@@ -409,7 +424,7 @@
    
    namelist /turbulence/ turb_method,tke_method,len_scale_method,stab_method, &
                          craig_banner,length_lim,const_num,const_nuh,k_min,   &
-                         L_min,eps_min
+                         L_min,eps_min, ardhuin_etal_2010
    namelist /turb_parameters/ kappa,Prandtl0,cm0,cm_craig,cw,galp
    namelist /keps/ ce1,ce2,ce3minus,ce3plus,sig_k,flux_bdy
    namelist /my/ sl,e1,e2,e3,MY_length
@@ -449,6 +464,9 @@
      ObjGOTMParameters%len_scale_method    = len_scale_method
      ObjGOTMParameters%stab_method  = stab_method
      ObjGOTMParameters%craig_banner = craig_banner
+! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+     ObjGOTMParameters%ardhuin_etal_2010 = ardhuin_etal_2010
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
      ObjGOTMParameters%length_lim   = length_lim
      ObjGOTMParameters%const_num    = const_num
      ObjGOTMParameters%const_nuh    = const_nuh
@@ -654,7 +672,7 @@
 !
 ! !INTERFACE:
    subroutine do_turbulence(ObjGOTM,nlev,dt,depth,u_taus,u_taub,z0s,z0b,  &
-                            h,NN,SS,P,B)
+                            h,NN,SS,P,B,Foc)
 
 !
 ! !DESCRIPTION:
@@ -667,6 +685,10 @@
    double precision, intent(in) :: dt,depth,u_taus,u_taub,z0s,z0b
    double precision, intent(in) :: h(0:nlev)
    double precision, intent(in) :: NN(0:nlev),SS(0:nlev),P(0:nlev),B(0:nlev)
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+   double precision, intent(in), optional :: Foc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 ! !OUTPUT PARAMETERS:
 !
 ! !BUGS:
@@ -692,8 +714,17 @@
 !         case (2)
 !            call production(nlev,alpha,num,nuh,P,B)
             call stabilityfunctions(ObjGOTM,nlev,NN,SS)
-            call do_tke(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,NN,SS,P,B)
-            call lengthscale(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,depth,h,NN,P,B)
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+            ! call do_tke(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,NN,SS,P,B)
+            ! call lengthscale(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,depth,h,NN,P,B)
+            if (present(Foc)) then
+                call do_tke(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,NN,SS,P,B,Foc)
+                call lengthscale(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,depth,h,NN,P,B,Foc)
+             else
+                call do_tke(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,NN,SS,P,B)
+                call lengthscale(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,depth,h,NN,P,B)
+             endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             call kolpran(ObjGOTM,nlev,u_taub,u_taus,z0b,z0s)
 !         case default
 !        end select 
@@ -791,7 +822,7 @@
 ! !IROUTINE: Turbulent Kinetic Energy Calculation.
 !
 ! !INTERFACE:
-   subroutine do_tke(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,NN,SS,P,B)
+   subroutine do_tke(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,NN,SS,P,B,Foc)
 !
 ! !DESCRIPTION:
 !  Based on user input - this routines calls the appropriate routine for
@@ -806,6 +837,10 @@
    double precision, intent(in) :: h(0:nlev)
    double precision, intent(in) :: NN(0:nlev),SS(0:nlev)
    double precision, intent(in) :: P(0:nlev),B(0:nlev)
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   double precision, intent(in), optional :: Foc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -832,7 +867,14 @@
          do i=1,nlev-1
             numtke(i)=num(i)/sig_k
          end do
-         call tkeeq(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,P,B,numtke)
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        ! call tkeeq(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,P,B,numtke)
+        if (present(Foc)) then
+            call tkeeq(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,P,B,numtke,Foc)
+        else
+            call tkeeq(ObjGOTM,nlev,dt,u_taus,u_taub,z0s,h,P,B,numtke)
+        endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       case(tke_MY)
          do i=1,nlev-1
             numtke(i)=Sl*sqrt(2.*tke(i))*L(i)
@@ -853,7 +895,7 @@
 ! !IROUTINE: Length Scales: 
 !
 ! !INTERFACE:
-   subroutine lengthscale(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,depth,h,NN,P,B)
+   subroutine lengthscale(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,depth,h,NN,P,B,Foc)
 !
 ! !DESCRIPTION:
 !  Calls different subroutines that calculate the lengthscale $L$  
@@ -869,6 +911,9 @@
    double precision, intent(in) :: depth
    double precision, intent(in) :: h(0:nlev),NN(0:nlev)
    double precision, intent(in) :: P(0:nlev),B(0:nlev)
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   double precision, intent(in), optional :: Foc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 ! !INPUT/OUTPUT PARAMETERS:
 !
@@ -890,7 +935,15 @@
 !BOC
    select case(len_scale_method)
       case(diss_eq)
-         call dissipationeq(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,h,NN,P,B)
+         ! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         ! call dissipationeq(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,h,NN,P,B)
+         if (present(Foc)) then
+            call dissipationeq(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,h,NN,P,B,Foc)
+         else
+            call dissipationeq(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,h,NN,P,B)
+         endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
       case(length_eq)
          do i=1,nlev-1
             numtke(i)=Sl*sqrt(2.*tke(i))*L(i)
@@ -912,7 +965,7 @@
 ! !ROUTINE: Length scale from dissipation equation. 
 ! 
 ! !INTERFACE:
-   subroutine dissipationeq(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,h,NN,P,B)
+   subroutine dissipationeq(ObjGOTM,nlev,dt,z0b,z0s,u_taus,u_taub,h,NN,P,B,Foc)
 !
 ! !DESCRIPTION:
 !  This subroutine calculates the dissipation rate in the framework
@@ -1005,6 +1058,9 @@
    double precision, intent(in) :: h(0:nlev)
    double precision, intent(in) :: P(0:nlev),B(0:nlev)
    double precision, intent(in) :: NN(0:nlev)
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   double precision, intent(in), optional :: Foc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
    
 !
@@ -1038,7 +1094,10 @@
 
 !  Determination of the turbulent Schmidt number for the dissipation rate:
 
-   if (craig_banner) then     ! With wave breaking
+! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! if (craig_banner) then     ! With wave breaking
+    if (craig_banner .or. ardhuin_etal_2010) then     ! With wave breaking
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       sig_e(nlev)=sig_e0
       do i=1,nlev-1
          peps=(P(i)+B(i))/eps(i)
@@ -1064,6 +1123,14 @@
                 /sig_e(nlev-1)*cde*(kk**1.5+                           &
                 1.5/kappa/cmue1(nlev-1)*sig_k*cw*u_taus**3)/           &
                       (kappa*(z0s+0.5*h(nlev))**2.)
+! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      elseif (ardhuin_etal_2010) then
+         flux(nlev-1)=cmue1(nlev-1)*sqrt(kk)*kappa*(0.5*h(nlev)+z0s)   &
+                /sig_e(nlev-1)*cde*(kk**1.5+                           &
+                1.5/kappa/cmue1(nlev-1)*sig_k* Foc)/           &
+                      (kappa*(z0s+0.5*h(nlev))**2.)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
       else
          flux(nlev-1)=cmue1(nlev-1)*sqrt(kk)*kappa*(0.5*h(nlev)+z0s)   &
                 /sig_e(nlev-1)*cde*kk**1.5/                            &
@@ -1967,7 +2034,7 @@
 ! !ROUTINE: Dynamic equation for TKE.
 ! 
 ! !INTERFACE:
-   subroutine tkeeq(ObjGOTM,N,dt,u_taus,u_taub,z0s,h,P,B,numtke)
+   subroutine tkeeq(ObjGOTM,N,dt,u_taus,u_taub,z0s,h,P,B,numtke,Foc)
 !
 ! !DESCRIPTION:
 !  This subroutine calculates the turbulent kinetic energy as
@@ -2027,6 +2094,9 @@
    double precision, intent(in) :: h(0:N)
    double precision, intent(in) :: P(0:N),B(0:N)
    double precision, intent(in) :: numtke(0:N)
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+   double precision, intent(in), optional :: Foc
+!!!!!!!!!!!!!
 !
 ! !INPUT/OUTPUT PARAMETERS: 
 !
@@ -2110,6 +2180,22 @@
                  *((0.5*h(N)+z0s)/z0s)**(-craig_m)                      
    end if 
 
+! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
+    !  Surface flux of TKE due to surface wave breaking 
+    !  according to Ardhuin et al. 2010: 
+    if (ardhuin_etal_2010) then 
+        
+      if (warning) then
+        write(0,*) 'INFO: Use of Ardhuin et al. 2010 surface TKE flux'
+        warning=.false.    
+      endif
+
+      du(N-1)=du(N-1)+ Foc *dt/(0.5*(h(N)+h(N-1)))   &
+                 *((0.5*h(N)+z0s)/z0s)**(-craig_m)                      
+    end if
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    
+
    if (flux_bdy) then
 !  +-------------------------------------------------------------+
 !  | No-flux conditions for TKE                                  | 
@@ -2121,7 +2207,10 @@
 !  +-------------------------------------------------------------+
 !  | Dirichlet conditions for TKE                                | 
 !  +-------------------------------------------------------------+
-      if (craig_banner) then
+! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ! if (craig_banner) then
+      if (craig_banner .or. ardhuin_etal_2010) then
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
           write(0,*) 'For the Craig and Banner wave breaking condition,' 
           write(0,*) 'flux boundary conditions should be used.'
           write(0,*) 'Please, change namelist gotmturb.inp !'
