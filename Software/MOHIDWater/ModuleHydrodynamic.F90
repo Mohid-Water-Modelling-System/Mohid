@@ -12906,7 +12906,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                              (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) .or.   &
                              (Me%ComputeOptions%WaveForcing3D == GLM)                       )
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+            STAT_ = SUCCESS_
         else 
             STAT_ = ready_
         end if cd1
@@ -32651,7 +32651,7 @@ cd2:            if (ImposedTangentialFacesUV(i, j, k) == Imposed) then
         nullify(DUX_VY)
         nullify(SZZ)
 
-        
+        nullify(StokesVel_UV_New)
 
     end Subroutine VelTangentialOpenBoundary
 
@@ -40495,6 +40495,8 @@ do3:            do K=kbottom, KUB
         integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
 
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+        
+        real                               :: a1, a2, a3, a4, atotal
 
         !Begin---------------------------------------------------------------------
 
@@ -40633,7 +40635,7 @@ do3:            do K=kbottom, KUB
 
         enddo doj
         enddo doi
-
+    
         ! Deallocate instance
         deallocate(WAVN)
         deallocate(SUZ_VZ)
@@ -41938,6 +41940,7 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
 
 
         nullify (WaterFlux_XY)
+        nullify(StokesWaterFlux_XY)
         nullify (Velocity_UV_Old)
 
         nullify (ComputeFaces3D_UV       )
