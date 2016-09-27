@@ -26858,85 +26858,118 @@ cd1:        if (WaterPoints3D(i, j, KUB) == OpenPoint) then
     
         BoundaryFacesU    => Me%External_Var%BoundaryFacesU
         BoundaryFacesV    => Me%External_Var%BoundaryFacesV        
-        BoundaryPoints    => Me%External_Var%BoundaryPoints    
+        BoundaryPoints    => Me%External_Var%BoundaryPoints
         
-dj1:    do  j = JLB, JUB
-di1:    do  i = ILB, IUB
+        if(Me%ComputeOptions%NullWaterLevelGradI) then
+dj1:        do  j = JLB, JUB
+di1:        do  i = ILB, IUB
             
-cd1:        if  (BoundaryFacesU(i, j) == Boundary) then
+cd1:            if  (BoundaryFacesU(i, j) == Boundary) then
                 
-                if  (BoundaryPoints(i, j) == Boundary) then
-                    ib = i
-                    jb = j
-                    ii = i
-                    ji = j-1
-                    db = 1
-                else
-                    ib = i
-                    jb = j-1
-                    ii = i
-                    ji = j
-                    db = 0
-                endif
-                
-                DCoef_2D  (ib, jb) = 0.   
-                ECoef_2D  (ib, jb) = 1.      
-                FCoef_2D  (ib, jb) = 0.      
-                TiCoef_2D (ib, jb) = 0.     
-
-                if (Me%Direction%XY == DirectionX_) then
-                    if (db == 0) then
-                        ECoef_2D  (ib, jb) = Dcoef_2D(ii, ji)
+                    if  (BoundaryPoints(i, j) == Boundary) then
+                        ib = i
+                        jb = j
+                        ii = i
+                        ji = j-1
+                        db = 1
                     else
-                        ECoef_2D  (ib, jb) = Fcoef_2D(ii, ji)
+                        ib = i
+                        jb = j-1
+                        ii = i
+                        ji = j
+                        db = 0
                     endif
-                else
-                    TiCoef_2D (ib, jb) = TiCoef_2D (ii, ji)
-                endif
+                
+                    !DCoef_2D  (ib, jb) = 0.   
+                    !ECoef_2D  (ib, jb) = 1.      
+                    !FCoef_2D  (ib, jb) = 0.      
+                    !TiCoef_2D (ib, jb) = 0.     
 
-            endif cd1
+                    if (Me%Direction%XY == DirectionX_) then
+                        if (db == 0) then
+                            !ECoef_2D  (ib, jb) = Dcoef_2D(ii, ji)
+                        
+                            DCoef_2D  (ib, jb) = 0.   
+                            ECoef_2D  (ib, jb) = 1.      
+                            FCoef_2D  (ib, jb) = -1.      
+                            TiCoef_2D (ib, jb) = 0. 
+                        else
+                            !ECoef_2D  (ib, jb) = Fcoef_2D(ii, ji)
+                        
+                            DCoef_2D  (ib, jb) = -1.   
+                            ECoef_2D  (ib, jb) = 1.      
+                            FCoef_2D  (ib, jb) = 0.      
+                            TiCoef_2D (ib, jb) = 0.
+                        endif
+                    else
+                        !TiCoef_2D (ib, jb) = TiCoef_2D (ii, ji)
+                        DCoef_2D  (ib, jb) = 0.   
+                        ECoef_2D  (ib, jb) = 1.      
+                        FCoef_2D  (ib, jb) = 0.      
+                        TiCoef_2D (ib, jb) = TiCoef_2D (ii, ji)  
+                    endif
+
+                endif cd1
             
-        enddo di1
-        enddo dj1
+            enddo di1
+            enddo dj1
+        endif
         
-dj2:    do  j = JLB, JUB
-di2:    do  i = ILB, IUB
+        if(Me%ComputeOptions%NullWaterLevelGradJ) then
+dj2:        do  j = JLB, JUB
+di2:        do  i = ILB, IUB
             
-cd2:        if  (BoundaryFacesV(i, j) == Boundary) then
+cd2:            if  (BoundaryFacesV(i, j) == Boundary) then
                 
-                if  (BoundaryPoints(i, j) == Boundary) then
-                    ib = i
-                    jb = j
-                    ii = i-1
-                    ji = j
-                    db = 1
-                else
-                    ib = i-1
-                    jb = j
-                    ii = i
-                    ji = j
-                    db = 0
-                endif
-                
-                DCoef_2D  (ib, jb) = 0.   
-                ECoef_2D  (ib, jb) = 1.      
-                FCoef_2D  (ib, jb) = 0.      
-                TiCoef_2D (ib, jb) = 0.     
-
-                if (Me%Direction%XY == DirectionX_) then
-                    if (db == 0) then
-                        ECoef_2D  (ib, jb) = Dcoef_2D(ii, ji)
+                    if  (BoundaryPoints(i, j) == Boundary) then
+                        ib = i
+                        jb = j
+                        ii = i-1
+                        ji = j
+                        db = 1
                     else
-                        ECoef_2D  (ib, jb) = Fcoef_2D(ii, ji)
+                        ib = i-1
+                        jb = j
+                        ii = i
+                        ji = j
+                        db = 0
                     endif
-                else
-                    TiCoef_2D (ib, jb) = TiCoef_2D (ii, ji)
-                endif
+                
+                    !DCoef_2D  (ib, jb) = 0.   
+                    !ECoef_2D  (ib, jb) = 1.      
+                    !FCoef_2D  (ib, jb) = 0.      
+                    !TiCoef_2D (ib, jb) = 0.
+                
+                    !if (Me%Direction%XY == DirectionX_) then
+                    if (Me%Direction%XY == DirectionY_) then
+                        if (db == 0) then
+                            !ECoef_2D  (ib, jb) = Dcoef_2D(ii, ji)
+                        
+                            DCoef_2D  (ib, jb) = 0.   
+                            ECoef_2D  (ib, jb) = 1.      
+                            FCoef_2D  (ib, jb) = -1.      
+                            TiCoef_2D (ib, jb) = 0.  
+                        else
+                            !ECoef_2D  (ib, jb) = Fcoef_2D(ii, ji)
+                        
+                            DCoef_2D  (ib, jb) = -1.   
+                            ECoef_2D  (ib, jb) = 1.      
+                            FCoef_2D  (ib, jb) = 0.      
+                            TiCoef_2D (ib, jb) = 0. 
+                        endif
+                    else
+                        !TiCoef_2D (ib, jb) = TiCoef_2D (ii, ji)
+                        DCoef_2D  (ib, jb) = 0.   
+                        ECoef_2D  (ib, jb) = 1.      
+                        FCoef_2D  (ib, jb) = 0.      
+                        TiCoef_2D (ib, jb) = TiCoef_2D (ii, ji)                    
+                    endif
 
-            endif cd2
+                endif cd2
             
-        enddo di2
-        enddo dj2    
+            enddo di2
+            enddo dj2
+        endif
         
         nullify(DCoef_2D )
         nullify(ECoef_2D )
