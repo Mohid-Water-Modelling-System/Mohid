@@ -5317,6 +5317,23 @@ do2:            do i = ILB, IUB
                         endif
                                                                        
                     Me%Shear_Stress%Tension(i,j) = TAUMAX
+                    
+                    !Limit shear stress values in small depths
+                    if(Me%Shear_Stress%Limitation) then
+
+                        Me%Shear_Stress%Tension(i,j) = ShearStressLimitation(Me%ExtWater%WaterColumn(i,j),&
+                                                        Me%Shear_Stress%Tension(i,j))
+                        
+                        if (Me%WaveShear_Stress%Yes) then
+                            
+                           Me%WaveShear_Stress%Tension(i,j) = ShearStressLimitation(Me%ExtWater%WaterColumn(i,j),&
+                                                             Me%WaveShear_Stress%Tension(i,j))
+                           
+                           Me%WaveShear_Stress%TensionMean(i,j) = ShearStressLimitation(Me%ExtWater%WaterColumn(i,j),&
+                                                                 Me%WaveShear_Stress%TensionMean(i,j))
+                            
+                        endif 
+                    end if
  
                     Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension(i,j)/ WaterDensity) 
                     
