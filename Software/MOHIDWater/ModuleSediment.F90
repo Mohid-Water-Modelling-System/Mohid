@@ -4933,7 +4933,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
         
         !Local-----------------------------------------------------------------
         real    ::  A,n1,p,DeltaTau,NDBedload,Cohesiveness_Factor
-        real(8) :: Uaux, Vaux
+        real(8) :: Uaux, Vaux, aux
         integer :: i, j, n
         integer :: WILB, WIUB, WJLB, WJUB, WKUB
         !----------------------------------------------------------------------
@@ -4969,11 +4969,13 @@ do1:    do n=1,Me%NumberOfClasses
                         if (DeltaTau.GT.0.) then
                             
                             !Dimensionless bedload tranport rate
-                            NDBedload = A*SandClass%NDShearStress(i, j)**n1*DeltaTau**p * SandClass%Field3D(i,j,WKUB)
+                            NDBedload = A*SandClass%NDShearStress(i, j)**n1*DeltaTau**p
+                            
+                            aux = (gravity*(Me%RelativeDensity-1)*    &
+                                SandClass%D50**3)**(1./2.)*Me%Density * SandClass%Field3D(i,j,WKUB)
                             
                             !Bedload transport rate per unit width [kg/s/m]
-                            SandClass%BedLoad(i, j) = NDBedload*(gravity*(Me%RelativeDensity-1)*    &
-                                SandClass%D50**3)**(1./2.)*Me%Density
+                            SandClass%BedLoad(i, j) = NDBedload * aux
                             
                             if (Me%CohesiveClass%Run) then
                                 
@@ -5062,7 +5064,7 @@ do1:    do n=1,Me%NumberOfClasses
                             CWphi = Me%ExternalVar%CWphi(i,j) * pi/180. !Current-wave angle in radians
                             
                             !Dimensionless bedload tranport rate paralell to the current direction
-                            NDBedload1 = A*SandClass%NDShearStressMean(i, j)**n1*DeltaTau**p * SandClass%Field3D(i,j,WKUB)
+                            NDBedload1 = A*SandClass%NDShearStressMean(i, j)**n1*DeltaTau**p
                             
                             
                             if (SandClass%NDShearStressWaves(i,j) > 0.) then
@@ -5089,7 +5091,7 @@ do1:    do n=1,Me%NumberOfClasses
                             NDBedloadV = NDBedloadParallel * sin(Cphi) + NDBedloadNormal * cos(Cphi)
                             
                             aux = (gravity*(Me%RelativeDensity-1)*    &
-                                SandClass%D50**3)**(1./2.)*Me%Density
+                                SandClass%D50**3)**(1./2.)*Me%Density * SandClass%Field3D(i,j,WKUB)
                             
                             !Bedload transport rate per unit width [kg/s/m]
                             SandClass%BedLoad(i, j)  = NDBedload  * aux
@@ -5173,7 +5175,7 @@ do1:    do n=1,Me%NumberOfClasses
                             NDBedload = A*0.229*Asym_Factor* SandClass%NDShearStressWaves(i,j)**1.5                          
 
                             aux = (gravity*(Me%RelativeDensity-1)*    &
-                                SandClass%D50**3)**(1./2.)*Me%Density
+                                SandClass%D50**3)**(1./2.)*Me%Density * SandClass%Field3D(i,j,WKUB)
                             
                             !Bedload transport rate per unit width [kg/s/m]
                             SandClass%BedLoad(i, j)  = NDBedload  * aux                            
