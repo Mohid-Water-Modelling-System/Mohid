@@ -248,7 +248,10 @@ Module ModuleTurbulence
          integer                                    :: ContinuousFormat      = null_int        
          logical                                    :: WaveBreaking          = .false. 
          real                                       :: CoefBreaking          = null_real
-         logical                                    :: VisHVariableInTime    = .false.      
+         logical                                    :: VisHVariableInTime    = .false.
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         logical                                    :: WaveSurfTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     end type T_TurbOptions
 
     type       T_Statistics
@@ -296,7 +299,10 @@ Module ModuleTurbulence
         real                                        :: HORCON                 = null_real !Smagorinsky
         real                                        :: TKE_MLD,RICH_MLD       = null_real 
         logical                                     :: SmagorinskyStratified  = .false.   
-        real                                        :: RichardsonCritical     = null_real 
+        real                                        :: RichardsonCritical     = null_real
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real, dimension(:,:  ), pointer             ::  FOC
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     end type T_TurbVar
 
     type       T_External
@@ -1797,7 +1803,16 @@ cd2 :   if (flag .EQ. 0) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'TurbulenceOptions - ModuleTurbulence - ERR240'        
-        
+ 
+! Modified by Matthias DELPEy - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        call GetData(Me%TurbOptions%WaveSurfTKE,                                        &
+                     Me%ObjEnterData, flag,                                             &
+                     keyword      = 'OUTPUT_WAVE_SURFACE_FLUX_TKE ',                    &
+                     ClientModule = 'ModuleTurbulence',                                 &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR16a'
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     end subroutine TurbulenceOptions   
 
@@ -3670,13 +3685,36 @@ do1 :           do K = kbottom, Me%WorkSize%KUB+1
         if((Me%TurbOptions%MODTURB .eq. TurbulenceEquation_) .and.    &
            ((Me%Output%TimeSerie).or.(Me%OutPut%ON).or.(Me%OutPut%ProfileON)))then
                      
-            call  GetTurbGOTM_TurbEq(Me%ObjTurbGOTM,                  &
-                                     Me%TurbVar%TKE,                  &
-                                     Me%TurbVar%eps,                  &
-                                     Me%TurbVar%L,                    &
-                                     Me%TurbVar%P,                    &
-                                     Me%TurbVar%B,                    &
-                                     STAT  = STAT_CALL)
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                     
+            !call  GetTurbGOTM_TurbEq(Me%ObjTurbGOTM,                  &
+            !                         Me%TurbVar%TKE,                  &
+            !                         Me%TurbVar%eps,                  &
+            !                         Me%TurbVar%L,                    &
+            !                         Me%TurbVar%P,                    &
+            !                         Me%TurbVar%B,                    &
+            !                         STAT  = STAT_CALL)
+
+            if (Me%TurbOptions%WaveSurfTKE) then
+                call  GetTurbGOTM_TurbEq(TurbGOTMID = Me%ObjTurbGOTM,             &
+                                            TKE = Me%TurbVar%TKE,                  &
+                                            eps = Me%TurbVar%eps,                  &
+                                            L = Me%TurbVar%L,                      &
+                                            P = Me%TurbVar%P,                      &
+                                            B = Me%TurbVar%B,                      &
+                                            FOC = Me%TurbVar%FOC,                  &
+                                            STAT = STAT_CALL)
+            else
+                call  GetTurbGOTM_TurbEq(TurbGOTMID = Me%ObjTurbGOTM,             &
+                                            TKE = Me%TurbVar%TKE,                  &
+                                            eps = Me%TurbVar%eps,                  &
+                                            L = Me%TurbVar%L,                      &
+                                            P = Me%TurbVar%P,                      &
+                                            B = Me%TurbVar%B,                      &
+                                            STAT = STAT_CALL)
+            endif     
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                     
+
             if (STAT_CALL .NE. SUCCESS_)stop 'OutPut_Results_HDF - ModuleTurbulence - ERR10'
 
         end if
@@ -3728,13 +3766,35 @@ do1 :           do K = kbottom, Me%WorkSize%KUB+1
         if((Me%TurbOptions%MODTURB == TurbulenceEquation_).and.     &
            ((Me%Output%TimeSerie).or.(Me%OutPut%ON).or.(Me%OutPut%ProfileON)))  then
                 
-                call UnGetTurbGOTM_TurbEq (Me%ObjTurbGOTM,          &
-                                           Me%TurbVar%TKE,          &
-                                           Me%TurbVar%eps,          &
-                                           Me%TurbVar%L,            &
-                                           Me%TurbVar%P,            &
-                                           Me%TurbVar%B,            &
-                                           STAT = STAT_CALL)
+  ! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                
+                !call UnGetTurbGOTM_TurbEq (Me%ObjTurbGOTM,          &
+                !                           Me%TurbVar%TKE,          &
+                !                           Me%TurbVar%eps,          &
+                !                           Me%TurbVar%L,            &
+                !                           Me%TurbVar%P,            &
+                !                           Me%TurbVar%B,            &
+                !                           STAT = STAT_CALL)
+                
+                if (Me%TurbOptions%WaveSurfTKE) then
+                    call  UnGetTurbGOTM_TurbEq(TurbGOTMID = Me%ObjTurbGOTM,           &
+                                               TKE = Me%TurbVar%TKE,                  &
+                                               eps = Me%TurbVar%eps,                  &
+                                               L = Me%TurbVar%L,                      &
+                                               P = Me%TurbVar%P,                      &
+                                               B = Me%TurbVar%B,                      &
+                                               FOC = Me%TurbVar%FOC,                  &
+                                               STAT = STAT_CALL)
+                else
+                    call  UnGetTurbGOTM_TurbEq(TurbGOTMID = Me%ObjTurbGOTM,           &
+                                               TKE = Me%TurbVar%TKE,                  &
+                                               eps = Me%TurbVar%eps,                  &
+                                               L = Me%TurbVar%L,                      &
+                                               P = Me%TurbVar%P,                      &
+                                               B = Me%TurbVar%B,                      &
+                                               STAT = STAT_CALL)
+                endif                                            
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
                 if (STAT_CALL .NE. SUCCESS_)stop 'OutPut_Results_HDF - ModuleTurbulence - ERR30'
 
         end if 
@@ -5865,6 +5925,19 @@ ifTKE:  if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
                                  OutputNumber = Index, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleTurbulence - ERR16'
             
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if (Me%TurbOptions%WaveSurfTKE) then
+
+                call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, null_real)
+
+                Me%OutPut%Aux3D(:,:,WorkKUB) =  Me%TurbVar%FOC(:,:)
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/FOC",                         &
+                                     "FOC", "...", Array3D = Me%OutPut%Aux3D,            &
+                                     OutputNumber = Index, STAT = STAT_CALL)
+            endif
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleTurbulence - ERR16a'
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         endif ifTKE
                   
 ifMLD:  if(Me%TurbOptions%MLD_Calc) then
@@ -6329,13 +6402,22 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if((Me%TurbOptions%MODTURB .eq. TurbulenceEquation_) .and.    &
                        ((Me%OutPut%ProfileON)))then
                              
-                        call  GetTurbGOTM_TurbEq(Me%ObjTurbGOTM,                  &
-                                                 Me%TurbVar%TKE,                  &
-                                                 Me%TurbVar%eps,                  &
-                                                 Me%TurbVar%L,                    &
-                                                 Me%TurbVar%P,                    &
-                                                 Me%TurbVar%B,                    &
-                                                 STAT)
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                             
+                        !call  GetTurbGOTM_TurbEq(Me%ObjTurbGOTM,                  &
+                        !                         Me%TurbVar%TKE,                  &
+                        !                         Me%TurbVar%eps,                  &
+                        !                         Me%TurbVar%L,                    &
+                        !                         Me%TurbVar%P,                    &
+                        !                         Me%TurbVar%B,                    &
+                        !                         STAT)
+                        call  GetTurbGOTM_TurbEq(TurbGOTMID = Me%ObjTurbGOTM,           &
+                                                 TKE = Me%TurbVar%TKE,                  &
+                                                 eps = Me%TurbVar%eps,                  &
+                                                 L = Me%TurbVar%L,                      &
+                                                 P = Me%TurbVar%P,                      &
+                                                 B = Me%TurbVar%B,                      &
+                                                 STAT = STAT_CALL)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     end if
 
 
@@ -6344,13 +6426,24 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if((Me%TurbOptions%MODTURB == TurbulenceEquation_).and.     &
                        ((Me%OutPut%ProfileON)))  then
                     
-                            call UnGetTurbGOTM_TurbEq (Me%ObjTurbGOTM,          &
-                                                       Me%TurbVar%TKE,          &
-                                                       Me%TurbVar%eps,          &
-                                                       Me%TurbVar%L,            &
-                                                       Me%TurbVar%P,            &
-                                                       Me%TurbVar%B,            &
-                                                       STAT) 
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                    
+                            !call UnGetTurbGOTM_TurbEq (Me%ObjTurbGOTM,          &
+                            !                           Me%TurbVar%TKE,          &
+                            !                           Me%TurbVar%eps,          &
+                            !                           Me%TurbVar%L,            &
+                            !                           Me%TurbVar%P,            &
+                            !                           Me%TurbVar%B,            &
+                            !                           STAT) 
+
+                            call UnGetTurbGOTM_TurbEq (TurbGOTMID = Me%ObjTurbGOTM,    &
+                                                       TKE = Me%TurbVar%TKE,           &
+                                                       eps = Me%TurbVar%eps,           &
+                                                       L = Me%TurbVar%L,               &
+                                                       P = Me%TurbVar%P,               &
+                                                       B = Me%TurbVar%B,               &
+                                                       STAT = STAT_CALL) 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
                     end if
 
 

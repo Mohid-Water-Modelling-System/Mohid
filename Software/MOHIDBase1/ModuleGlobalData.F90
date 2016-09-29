@@ -690,6 +690,32 @@ Module ModuleGlobalData
     !vectorial
     integer, parameter :: WaveStress_                      = 3407
     
+! Modified by Matthias DELPEY - 26/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 21/07/2011 - 04/08/2011 - 05/09/2011 - 25/10/2011 - 14/12/2011 
+!                             - 16/12/2011 - 02/03/2012
+    integer, parameter ::  WaveDriftSpecU_                 = 3408
+    integer, parameter ::  WaveDriftSpecV_                 = 3409
+    integer, parameter ::  AtmToWaveMomentumU_             = 3410
+    integer, parameter ::  AtmToWaveMomentumV_             = 3411
+    integer, parameter ::  WaveToOceanMomentumU_           = 3412
+    integer, parameter ::  WaveToOceanMomentumV_           = 3413
+    integer, parameter ::  StokesDriftU_                   = 3414
+    integer, parameter ::  StokesDriftV_                   = 3415
+    integer, parameter ::  StokesDriftModulus_             = 3416
+    integer, parameter ::  StokesDriftW_                   = 3417
+    integer, parameter ::  GlmVelocityU_                   = 3418
+    integer, parameter ::  GlmVelocityV_                   = 3419
+    integer, parameter ::  GlmVelocityModulus_             = 3420
+    integer, parameter ::  GlmVelocityW_                   = 3421
+    integer, parameter ::  BreakingWaveHeight_             = 3422
+    integer, parameter ::  WaveSurfaceFluxTKE_             = 3423
+    
+    integer, parameter ::  WaveRad3DX_                     = 3424
+    integer, parameter ::  WaveRad3DY_                     = 3425
+
+    integer, parameter ::  WavePressureJ_                  = 3426
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    
     !!Monocromatic:
     integer, parameter ::  WaveLength_                     = 3500
     integer, parameter ::  WaveAmplitude_                  = 3501
@@ -1501,6 +1527,31 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_CurrentY                 = 'Current Y'
     character(StringLength), private, parameter :: Char_WaveX                    = 'wave_x'
     character(StringLength), private, parameter :: Char_WaveY                    = 'wave_y'
+    
+! Modified by Matthias DELPEY - 24/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 21/07/2011 - 04/08/2011 - 05/09/2011 - 25/10/2011 - 14/12/2011 
+!                             - 16/12/2011 - 02/03/2012
+    character(StringLength), private, parameter :: Char_WaveRad3DX               = 'exp radiation stress X'
+    character(StringLength), private, parameter :: Char_WaveRad3DY               = 'exp radiation stress Y' 
+    
+    character(StringLength), private, parameter :: Char_WavePressureJ            = 'wave induced pressure J'
+    character(StringLength), private, parameter :: Char_AtmToWaveMomentumU       = 'atmosphere to wave momentum flux X'
+    character(StringLength), private, parameter :: Char_AtmToWaveMomentumV       = 'atmosphere to wave momentum flux Y'
+    character(StringLength), private, parameter :: Char_WaveToOceanMomentumU     = 'wave to ocean momentum flux X'
+    character(StringLength), private, parameter :: Char_WaveToOceanMomentumV     = 'wave to ocean momentum flux Y'
+    character(StringLength), private, parameter :: Char_WaveDriftSpecU           = 'stokes drift spectrum X'
+    character(StringLength), private, parameter :: Char_WaveDriftSpecV           = 'stokes drift spectrum Y'  
+    character(StringLength), private, parameter :: Char_StokesDriftU             = 'velocity Ustokes'
+    character(StringLength), private, parameter :: Char_StokesDriftV             = 'velocity Vstokes'
+    character(StringLength), private, parameter :: Char_StokesDriftModulus       = 'velocity modulus stokes'
+    character(StringLength), private, parameter :: Char_StokesDriftW             = 'velocity Wstokes'  
+    character(StringLength), private, parameter :: Char_GlmVelocityU             = 'velocity Uglm'
+    character(StringLength), private, parameter :: Char_GlmVelocityV             = 'velocity Vglm'
+    character(StringLength), private, parameter :: Char_GlmVelocityModulus       = 'velocity modulus glm'
+    character(StringLength), private, parameter :: Char_GlmVelocityW             = 'velocity Wglm'
+    character(StringLength), private, parameter :: Char_BreakingWaveHeight       = 'breaking wave height'
+    character(StringLength), private, parameter :: Char_WaveSurfaceFluxTKE       = 'wave induced surface TKE flux' 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !!Monocromatic:
     character(StringLength), private, parameter :: Char_WaveLength               = 'wave length'
@@ -2965,6 +3016,31 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (CurrentY_,                Char_CurrentY,                   ListNumber)
             call AddPropList (WaveX_,                   Char_WaveX,                      ListNumber)
             call AddPropList (WaveY_,                   Char_WaveY,                      ListNumber)
+            
+! Modified by Matthias DELPEY - 24/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 21/07/2011 - 04/08/2011 - 05/09/2011 - 25/10/2011 - 14/12/2011 
+!                             - 16/12/2011 - 02/03/2012
+            call AddPropList (WaveRad3DX_,              Char_WaveRad3DX,                 ListNumber)
+            call AddPropList (WaveRad3DY_,              Char_WaveRad3DY,                 ListNumber)
+            
+            call AddPropList (WavePressureJ_,           Char_WavePressureJ,              ListNumber)
+            call AddPropList (AtmToWaveMomentumU_,      Char_AtmToWaveMomentumU,         ListNumber)
+            call AddPropList (AtmToWaveMomentumV_,      Char_AtmToWaveMomentumV,         ListNumber)
+            call AddPropList (WaveToOceanMomentumU_,    Char_WaveToOceanMomentumU,       ListNumber)
+            call AddPropList (WaveToOceanMomentumV_,    Char_WaveToOceanMomentumV,       ListNumber)
+            call AddPropList (WaveDriftSpecU_,          Char_WaveDriftSpecU,             ListNumber)
+            call AddPropList (WaveDriftSpecV_,          Char_WaveDriftSpecV,             ListNumber)
+            call AddPropList (StokesDriftU_,            Char_StokesDriftU,               ListNumber)
+            call AddPropList (StokesDriftV_,            Char_StokesDriftV,               ListNumber)
+            call AddPropList (StokesDriftModulus_,      Char_StokesDriftModulus,         ListNumber)
+            call AddPropList (StokesDriftW_,            Char_StokesDriftW,               ListNumber)
+            call AddPropList (GlmVelocityU_,            Char_GlmVelocityU,               ListNumber)
+            call AddPropList (GlmVelocityV_,            Char_GlmVelocityV,               ListNumber)
+            call AddPropList (GlmVelocityModulus_,      Char_GlmVelocityModulus,         ListNumber)
+            call AddPropList (GlmVelocityW_,            Char_GlmVelocityW,               ListNumber)
+            call AddPropList (BreakingWaveHeight_,      Char_BreakingWaveHeight,         ListNumber)
+            call AddPropList (WaveSurfaceFluxTKE_,      Char_WaveSurfaceFluxTKE,         ListNumber)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             !!Monocromatic:
             call AddPropList (WaveLength_,              Char_WaveLength,                 ListNumber)

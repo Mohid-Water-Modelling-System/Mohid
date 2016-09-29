@@ -71,6 +71,10 @@ Module ModuleTurbGOTM
 
     public  :: SetTurbGOTMBottomRugosity
     public  :: SetTurbGOTMSurfaceRugosity
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    public  :: SetTurbGOTMWaveSurfaceFluxTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   
     public  :: SetTurbGOTMBottomShearVelocity
     public  :: SetTurbGOTMWindShearVelocity
 
@@ -124,7 +128,11 @@ Module ModuleTurbGOTM
         !shear surface velocity
         real,    pointer, dimension(:,:  ) :: u_taus            => null() 
         integer, pointer, dimension(:,:  ) :: KFloorZ           => null() 
-        real,    pointer, dimension(:,:  ) :: SurfaceRugosity   => null() 
+        real,    pointer, dimension(:,:  ) :: SurfaceRugosity   => null()
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real,    pointer, dimension(:,:  ) :: WaveSurfaceFluxTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ 
         real,    pointer, dimension(:,:  ) :: BottomRugosity    => null() 
         type(T_Time)                       :: Now, BeginTime, EndTime
     end type T_External
@@ -144,6 +152,10 @@ Module ModuleTurbGOTM
         !real,    pointer, dimension(:,:,:)          :: Ldownward
         real,    pointer, dimension(:,:,:)          :: P          => null() !inicialization: Carina
         real,    pointer, dimension(:,:,:)          :: B          => null() !inicialization: Carina
+        ! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real,    pointer, dimension(:,:  )          :: FOC        => null()
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 !        real(8), pointer, dimension(:    )          :: P_1D,B_1D,NN_1D,SS_1D,h
 !        double precision, pointer, dimension(:)     :: tke_1D,L_1D,eps_1D,num_1D,nuh_1D
         real                           :: DT            = null_real
@@ -428,6 +440,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         Me%NUH                  = 0.
         Me%P                    = null_real
         Me%B                    = null_real
+        
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        allocate(Me%FOC         (ILB:IUB, JLB:JUB))
+        Me%FOC                  = null_real
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     end subroutine AllocateVariables
 
@@ -454,6 +471,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !real(8),    pointer, dimension(:)   :: h,NN_1D,SS_1D,P_1D,B_1D
         !real(8),    pointer, dimension(:)   :: tke_1D,eps_1D,L_1D,num_1D,nuh_1D   
         real(8)                             :: depth,u_taub,u_taus,dt,z0s,z0b
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real(8)                             :: Foc
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
         integer                             :: KBottom,nlev
         integer                             :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB                            
         integer                             :: STAT_                
@@ -570,6 +591,15 @@ ifwp :          if (Me%ExternalVar%OpenPoints3D(i,j,KUB) .EQ. Openpoint) then
                     z0s     = Me%ExternalVar%SurfaceRugosity(i,j)
                     nlev    = KUB - Kbottom + 1
 
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! Modified by Matthias DELPEY - 07/11/2011
+                     if (associated(Me%ExternalVar%WaveSurfaceFluxTKE)) then
+                        Foc     = Me%ExternalVar%WaveSurfaceFluxTKE(i,j)
+                     else
+                        Foc = 0.
+                     endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
                     ! We must be careful with the limits of the matrix, as GOTM computes from 0 to nlev
                     ! KBottom face correspond to 0 in GOTM notation
                     ! Level 0 is needed for boundary confitions of turbulent magnitudes...0
@@ -599,7 +629,8 @@ dok2:               do k=Kbottom,KUB
                                                    LocalObjGOTM%Impor%nn, &
                                                    LocalObjGOTM%Impor%ss, &
                                                    LocalObjGOTM%Impor%P,  &
-                                                   LocalObjGOTM%Impor%B)
+                                                   LocalObjGOTM%Impor%B,  &
+                                                   Foc)
 
 dok4 :              do k=Kbottom,KUB+1
                         Me%Tke   (i,j,k) = real(LocalObjGOTM%Export%tke(k-Kbottom))
@@ -608,6 +639,10 @@ dok4 :              do k=Kbottom,KUB+1
                         Me%num   (i,j,k) = real(LocalObjGOTM%Export%num(k-Kbottom))
                         Me%nuh   (i,j,k) = real(LocalObjGOTM%Export%nuh(k-Kbottom))
                     end do dok4
+
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    Me%FOC (i,j) = real(Foc)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 end if ifwp
 
@@ -1651,13 +1686,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetTurbGOTM_TurbEq(TurbGOTMID, TKE, eps, L, P, B, STAT)    
+    subroutine GetTurbGOTM_TurbEq(TurbGOTMID, TKE, eps, L, P, B, FOC, STAT)    
 
         !Arguments-------------------------------------------------------------
 
         integer, optional, intent(OUT) :: STAT
 
-        real, pointer, dimension(:,:,:) :: TKE, eps, L, P, B  
+        real, pointer, dimension(:,:,:) :: TKE, eps, L, P, B
+        
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real, pointer, dimension(:,:  ), optional :: FOC
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         integer                         :: TurbGOTMID
 
@@ -1683,6 +1723,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 L   => Me%L
                 P   => Me%P
                 B   => Me%B
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if (present(FOC)) then
+                    FOC   => Me%FOC
+                endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             STAT_ = SUCCESS_
         else 
@@ -1700,7 +1745,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !--------------------------------------------------------------------------
 
-    subroutine UngetTurbGOTM_TurbEq(TurbGOTMID, tke, eps, L, P, B, STAT)
+    subroutine UngetTurbGOTM_TurbEq(TurbGOTMID, tke, eps, L, P, B, FOC, STAT)
 
         !Arguments-------------------------------------------------------------
 
@@ -1709,6 +1754,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                         :: TurbGOTMID
 
         real, pointer, dimension(:,:,:) :: TKE, eps, L, P, B
+        
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        real, pointer, dimension(:,:  ), optional :: FOC
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
         !External--------------------------------------------------------------
 
@@ -1731,6 +1781,11 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             nullify(L)
             nullify(P)
             nullify(B)
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if (present(FOC)) then
+                nullify(FOC)
+            endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             call Read_Unlock(mTurbGOTM_,TurbGOTMID,'UngetTurbGOTM_TurbEq')
 
@@ -1873,6 +1928,48 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
 
     !----------------------------------------------------------------------
+    
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    subroutine SetTurbGOTMWaveSurfaceFluxTKE(TurbGOTMID, WaveSurfaceFluxTKE, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                         :: TurbGOTMID
+        real, dimension(:,:), pointer   :: WaveSurfaceFluxTKE
+        integer, optional, intent(OUT)  :: STAT
+
+        !External--------------------------------------------------------------
+        integer                         :: ready_              
+        
+        !Local-----------------------------------------------------------------
+        integer                         :: STAT_            
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(TurbGOTMID, ready_)  
+        
+cd1 :   if (ready_ == IDLE_ERR_)then
+
+
+            Me%ExternalVar%WaveSurfaceFluxTKE => WaveSurfaceFluxTKE
+            
+   
+            STAT_ = SUCCESS_
+
+        else cd1
+
+            STAT_ = ready_
+
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine SetTurbGOTMWaveSurfaceFluxTKE
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
 
     subroutine SetTurbGOTMWindShearVelocity(TurbGOTMID, WindShearVelocity, STAT)
 
@@ -2074,6 +2171,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         deallocate(Me%P         )
         deallocate(Me%B         )
         
+! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        deallocate(Me%FOC       )
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
         !griflet: doing a proper memory deallocation
         do p=1,Me%MaxThreads
             ptrObjGotm => Me%ObjGotm(p)

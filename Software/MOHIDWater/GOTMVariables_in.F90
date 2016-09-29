@@ -41,6 +41,10 @@
       integer turb_method,tke_method,len_scale_method,stab_method,MY_length
       integer iw_model   
       logical craig_banner,length_lim
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      logical ardhuin_etal_2010
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
       logical qesmooth,flux_bdy
       
       ! Variables in ObjGOTM%Export
@@ -78,6 +82,9 @@
       len_scale_method    = ObjGOTM%Parameters%len_scale_method
       stab_method  = ObjGOTM%Parameters%stab_method
       craig_banner = ObjGOTM%Parameters%craig_banner
+! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+      ardhuin_etal_2010 = ObjGOTM%Parameters%ardhuin_etal_2010
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
       length_lim   = ObjGOTM%Parameters%length_lim
       const_num    = ObjGOTM%Parameters%const_num
       const_nuh    = ObjGOTM%Parameters%const_nuh
