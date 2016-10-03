@@ -141,6 +141,11 @@ Module ModuleDischarges
     !Valve side
     integer, parameter :: SideA         = 1
     integer, parameter :: SideB         = 2
+    
+    !Valve - section type
+    integer, parameter :: circular_area     = 1
+    integer, parameter :: rectangular_area  = 2
+    
 
 
     character(len=StringLength), parameter :: block_begin               = '<begindischarge>'
@@ -198,10 +203,16 @@ Module ModuleDischarges
     end  type T_FlowOver
 
     type       T_Valve
+        integer                                 :: SectionType          = null_int
         real                                    :: Diameter             = null_real 
+        real                                    :: Height               = null_real 
+        real                                    :: Width                = null_real         
         real                                    :: DischargeCoeficient  = null_real 
         real                                    :: AxisHeigth           = null_real 
         real                                    :: SillHeigth           = null_real
+        real                                    :: PipeLength           = null_real 
+        real                                    :: PipeManning          = null_real 
+        real                                    :: AreaInTime           = null_real 
     end  type T_Valve
 
     type T_GridCoordinates
@@ -1272,19 +1283,69 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
             endif                
             
         else if (NewDischarge%DischargeType == Valve) then i2
+        
 
-            call GetData(NewDischarge%Valve%Diameter,                                   &
+            call GetData(NewDischarge%Valve%SectionType,                                &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
                          FromBlock,                                                     &
-                         keyword      ='VALVE_DIAMETER',                                &
+                         keyword      ='VALVE_SECTION_TYPE',                            &
+                         default      = circular_area,                                      &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR100'
             
-            if (flag /= 1) then
-                write(*,*) 'Valve diameter missing'
+            if      (NewDischarge%Valve%SectionType == circular_area) then
+
+                call GetData(NewDischarge%Valve%Diameter,                                   &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             FromBlock,                                                     &
+                             keyword      ='VALVE_DIAMETER',                                &
+                             ClientModule = 'ModuleDischarges',                             &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR102'
+                
+                if (flag /= 1) then
+                    write(*,*) 'Valve diameter missing - circular section'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR104'
+                endif
+                
+            elseif  (NewDischarge%Valve%SectionType == rectangular_area) then
+            
+
+                call GetData(NewDischarge%Valve%Height,                                     &
+                             Me%ObjEnterData,                                               &
+                             flag,                                                          &
+                             FromBlock,                                                     &
+                             keyword      ='VALVE_HEIGHT',                                  &
+                             ClientModule = 'ModuleDischarges',                             &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR106'
+                
+                if (flag /= 1) then
+                    write(*,*) 'Valve height missing - rectangular section'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR107'
+                endif
+                
+                call GetData(NewDischarge%Valve%Width,                                  &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             FromBlock,                                                 &
+                             keyword      ='VALVE_WIDTH',                               &
+                             ClientModule = 'ModuleDischarges',                         &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR108'
+                
+                if (flag /= 1) then
+                    write(*,*) 'Valve width missing - rectangular section'
+                    stop ' Construct_FlowValues - ModuleDischarges - ERR109'
+                endif
+                                
+            else
+            
                 stop ' Construct_FlowValues - ModuleDischarges - ERR110'
+            
             endif
 
             call GetData(NewDischarge%Valve%DischargeCoeficient,                        &
@@ -1326,7 +1387,15 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                     NewDischarge%Valve%AxisHeigth =  - NewDischarge%Valve%AxisHeigth
                 endif  
                 
-                NewDischarge%Valve%SillHeigth  = NewDischarge%Valve%AxisHeigth - NewDischarge%Valve%Diameter / 2.
+                if      (NewDischarge%Valve%SectionType == circular_area    ) then
+                
+                    NewDischarge%Valve%SillHeigth  = NewDischarge%Valve%AxisHeigth - NewDischarge%Valve%Diameter / 2.
+                    
+                elseif  (NewDischarge%Valve%SectionType == rectangular_area ) then
+                
+                    NewDischarge%Valve%SillHeigth  = NewDischarge%Valve%AxisHeigth - NewDischarge%Valve%Height / 2.
+                
+                endif                    
             
                 if (flag /= 1) then
                     write(*,*) 'Valve axis Missing'
@@ -1334,6 +1403,31 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                 endif
                                     
             endif
+            
+            call GetData(NewDischarge%Valve%PipeLength,                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='PIPE_LENGTH',                                   &
+                         ClientModule = 'ModuleDischarges',                             &
+                         default      = 0.,                                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR136'
+
+            !manning coefficient 
+            call GetData(NewDischarge%Valve%PipeManning,                                &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='PIPE_MANNING',                                  &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR137'      
+            
+            if (NewDischarge%Valve%PipeLength > 0. .and. flag == 0) then
+                write(*,*) 'need to define PIPE_MANNING'
+                stop 'Construct_FlowValues - ModuleDischarges - ERR138'
+            endif     
 
         endif i2
 
@@ -3138,7 +3232,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
     
     subroutine GetDischargeWaterFlow(DischargesID, TimeX, DischargeIDNumber,            &
                                      SurfaceElevation, Flow, SurfaceElevation2,         &
-                                     FlowDistribution, STAT)
+                                     FlowDistribution, FlowArea, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -3148,6 +3242,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real   ,                        intent(OUT) :: Flow
         real   , optional,              intent(IN)  :: SurfaceElevation2
         real   , optional,              intent(IN)  :: FlowDistribution        
+        real   , optional,              intent(OUT) :: FlowArea
         integer, optional,              intent(OUT) :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3160,6 +3255,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real                                        :: FlowFraction
         real                                        :: UpstreamH, DownstreamH, FlowDir
         real                                        :: D, TopValveH, BottomValveH, Haux, Theta
+        real                                        :: PipeFriction, P, Rh
          !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -3174,6 +3270,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop       'SetDischargeWaterFlow - ModuleDischarges - ERR01'
             end if cd3
+            
+            if (present(FlowArea)) FlowArea = -99. 
 
 
             if(DischargeX%FromIntake%ON .and. DischargeX%FromIntake%AssociateFlow)then
@@ -3239,12 +3337,23 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                     FlowDir      = 1
                 endif
                 
-                D            = DischargeX%Valve%Diameter
+                
+                if      (DischargeX%Valve%SectionType == circular_area) then
+                
+                    D  = DischargeX%Valve%Diameter                    
+                    
+                elseif  (DischargeX%Valve%SectionType == rectangular_area) then
+                
+                    D = DischargeX%Valve%Height
+                
+                endif                 
 
                 TopValveH    =   DischargeX%Valve%SillHeigth + D
                 BottomValveH =   DischargeX%Valve%SillHeigth
                 
                 H            = UpstreamH - max(DownstreamH, BottomValveH)
+                
+                C            = DischargeX%Valve%DischargeCoeficient                
                 
 
                 !if the axis valve minus the radius is above the water level in both sides than there is no flow
@@ -3257,29 +3366,67 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                 else
                     !pressure conditions    
                     if (UpstreamH >= TopValveH) then
-
-                        A    = Pi * (D/2.)**2
+                    
+                        if      (DischargeX%Valve%SectionType == circular_area) then
                         
+                            A    = Pi * (D/2.)**2
+                            P    = Pi * D
+                            
+                        elseif (DischargeX%Valve%SectionType == rectangular_area) then
+                        
+                            A    = D * DischargeX%Valve%Width
+                            P    = 2 * (D + DischargeX%Valve%Width)
+
+                        endif                                     
+
                     !free surface
                     else
                     
                         Haux  = UpstreamH - BottomValveH
-                        Theta = 2* acos(1-2*Haux/D)
-                        A     = (Theta - sin(Theta))* D**2 / 8.
+                        
+                        if      (DischargeX%Valve%SectionType == circular_area) then
+                        
+                            Theta = 2* acos(1-2*Haux/D)
+                            A     = (Theta - sin(Theta))* D**2 / 8.
+                            P     = Theta * D
+                            
+                        elseif  (DischargeX%Valve%SectionType == rectangular_area) then
+
+                            A    = Haux * DischargeX%Valve%Width
+                            P    = 2 * Haux + DischargeX%Valve%Width
+                        
+                        endif                         
+                        
+                        
+                        if (Haux < 0.01) then
+                            !no flow in the pipe is assumed
+                            C = 0.
+                        endif                    
+                        
                     
                     endif
                     
-                    if (H > 0.01) then
-                        C    = DischargeX%Valve%DischargeCoeficient
+                    if (P > 0.) then
+                        Rh  = A / P
                     else
-                        if (H > 0) then
-                            C = DischargeX%Valve%DischargeCoeficient * H**2  / 1e-4
-                        else
-                            C = 0.
-                        endif
+                        Rh  = 0. 
                     endif                        
+                    
+                    
+                    if (DischargeX%Valve%PipeLength > 0.) then
+                        if (Rh > 0.) then
+                        !based in BASIC HYDRAULIC PRINCIPLES OF OPEN-CHANNEL FLOW By Harvey E. Jobson and David C. Froehlich
+                        !U.S. GEOLOGICAL SURVEY Open-File Report 88-707
 
-                    Flow = sqrt(19.6) * C * A * sqrt(H)
+                        ![ ]     =  [m/s2] * [s/m^0.333]^2 * [m] / [m]^1.333] = [m] / [m^0.6667] * [m] / [m]^1.333 = [m]^(1 -0.6667 + 1 - 1.333] = [m]^0= [ ]
+                            PipeFriction = 2 * Gravity * C**2 * DischargeX%Valve%PipeManning ** 2 * DischargeX%Valve%PipeLength / Rh**1.3333
+                            H = H / (1 + PipeFriction)
+                        endif                            
+                    endif    
+
+                    Flow = sqrt(2* Gravity) * C * A * sqrt(H)
+                    
+                    if (present(FlowArea)) FlowArea = A
 
                     Flow = Flow * FlowDir
                 
