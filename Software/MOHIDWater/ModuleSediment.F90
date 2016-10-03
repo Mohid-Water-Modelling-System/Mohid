@@ -408,6 +408,7 @@ Module ModuleSediment
         real                                       :: RelativeDensity       = FillValueReal
         real                                       :: DeltaDensity          = FillValueReal
         integer                                    :: Boundary              = FillValueInt
+        integer                                    :: BoundaryCells         = FillValueInt
         real                                       :: TauMax                = FillValueReal
         logical                                    :: TimeSerie             = .false. 
         class (T_Sand), dimension(:), pointer      :: SandClass
@@ -927,6 +928,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = NullGradient,                                        &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR100'
+        
+        call GetData(Me%BoundaryCells,                                                   &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'NULL_GRADIENT_CELLS',                               &
+                     ClientModule = 'ModuleSediment',                                    &
+                     Default      = 1,                                                   &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR105'
 
         call GetData(Me%TauMax,                                                          &
                      Me%ObjEnterData,iflag,                                              &
@@ -5727,7 +5737,7 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
         !Local-----------------------------------------------------------------
         real                               :: a1, a2, a3, a4, atotal, Area
         integer                            :: i, j, ILB, IUB, JLB, JUB
-        integer                            :: n
+        integer                            :: n, nb, aux
         class(T_Sand), pointer            :: SandClass 
         !----------------------------------------------------------------------
 
@@ -5767,14 +5777,37 @@ do1:    do n=1,Me%NumberOfClasses
 
                         if (atotal > 0) then
                     
-                            SandClass%DM(i, j) = (a1 * SandClass%DM(i-1, j) + a2 * SandClass%DM(i+1, j)  +     &
-                                             a3 * SandClass%DM(i, j-1) + a4 * SandClass%DM(i, j+1)) / atotal
+                            !SandClass%DM(i, j) = (a1 * SandClass%DM(i-1, j) + a2 * SandClass%DM(i+1, j)  +     &
+                            !                 a3 * SandClass%DM(i, j-1) + a4 * SandClass%DM(i, j+1)) / atotal
                             
-                            !Correction needed to grids with variable resolution (DZ must be equal)
-                            Area = (a1 * Me%ExternalVar%DUX(i-1, j)*Me%ExternalVar%DVY(i-1, j) + a2 * Me%ExternalVar%DUX(i+1, j)*Me%ExternalVar%DVY(i+1, j)  +     &
-                                             a3 * Me%ExternalVar%DUX(i, j-1)*Me%ExternalVar%DVY(i, j-1) + a4 * Me%ExternalVar%DUX(i, j+1)*Me%ExternalVar%DVY(i, j+1)) / atotal
+                            !!Correction needed to grids with variable resolution (DZ must be equal)
+                            !Area = (a1 * Me%ExternalVar%DUX(i-1, j)*Me%ExternalVar%DVY(i-1, j) + a2 * Me%ExternalVar%DUX(i+1, j)*Me%ExternalVar%DVY(i+1, j)  +     &
+                            !                 a3 * Me%ExternalVar%DUX(i, j-1)*Me%ExternalVar%DVY(i, j-1) + a4 * Me%ExternalVar%DUX(i, j+1)*Me%ExternalVar%DVY(i, j+1)) / atotal
+                            !
+                            !SandClass%DM(i, j) = SandClass%DM(i, j) * Me%ExternalVar%DUX(i, j)*Me%ExternalVar%DVY(i, j) / Area
                             
-                            SandClass%DM(i, j) = SandClass%DM(i, j) * Me%ExternalVar%DUX(i, j)*Me%ExternalVar%DVY(i, j) / Area
+                            nb = Me%BoundaryCells
+                            
+                            do aux = 0, nb-1 
+                                if (a1 == 1) then
+                                    SandClass%DM(i-aux, j) = SandClass%DM(i-nb, j)
+                                    Area = Me%ExternalVar%DUX(i-nb, j)*Me%ExternalVar%DVY(i-nb, j)
+                                    SandClass%DM(i-aux, j) = SandClass%DM(i-aux, j) * Me%ExternalVar%DUX(i-aux, j)*Me%ExternalVar%DVY(i-aux, j) / Area
+                                elseif (a2 == 1) then
+                                    SandClass%DM(i+aux, j) = SandClass%DM(i+nb, j)
+                                    Area = Me%ExternalVar%DUX(i+nb, j)*Me%ExternalVar%DVY(i+nb, j)
+                                    SandClass%DM(i+aux, j) = SandClass%DM(i+aux, j) * Me%ExternalVar%DUX(i+aux, j)*Me%ExternalVar%DVY(i+aux, j) / Area
+                                elseif (a3 == 1) then
+                                    SandClass%DM(i, j-aux) = SandClass%DM(i, j-nb)
+                                    Area = Me%ExternalVar%DUX(i, j-nb)*Me%ExternalVar%DVY(i, j-nb)
+                                    SandClass%DM(i, j-aux) = SandClass%DM(i, j-aux) * Me%ExternalVar%DUX(i, j-aux)*Me%ExternalVar%DVY(i, j-aux) / Area
+                                elseif (a4 == 1) then
+                                    SandClass%DM(i, j+aux) = SandClass%DM(i, j+nb)
+                                    Area = Me%ExternalVar%DUX(i, j+nb)*Me%ExternalVar%DVY(i, j+nb)
+                                    SandClass%DM(i, j+aux) = SandClass%DM(i, j+aux) * Me%ExternalVar%DUX(i, j+aux)*Me%ExternalVar%DVY(i, j+aux) / Area
+                                endif
+                            enddo
+
                         endif
                                           
 
