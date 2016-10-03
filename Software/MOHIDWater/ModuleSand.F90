@@ -52,7 +52,9 @@ Module ModuleSand
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, WriteHorizontalGrid,                  &
                                        GetHorizontalGridSize, UnGetHorizontalGrid, GetXYCellZ,  &
                                        GetDDecompMPI_ID, GetDDecompON, GetGridOutBorderPolygon, &
-                                       GetDDecompParameters, GetDDecompWorkSize2D
+                                       GetDDecompParameters, GetDDecompWorkSize2D,              &
+                                       RotateVectorFieldToGrid, RotateVectorGridToField,        &
+                                       LocateCell1D
 #ifdef _USE_MPI                                                  
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI
 #endif
@@ -80,7 +82,7 @@ Module ModuleSand
     private ::      ConstructTimeSerie
     private ::      Read_Sand_Files_Name
     private ::      ReadInitialField
-
+    private ::      ConstructHybridMorph
 
     !Selector
     public  :: GetSandDensity
@@ -105,6 +107,12 @@ Module ModuleSand
     private ::          ComputeDischarges   
     private ::      ComputeSmoothSlope
     private ::      BoundaryCondition
+    private ::      ComputeHybridMorphEvolution
+    private ::          ComputeAlongShoreFlow1D
+    private ::          ComputeProfileCrossShoreMovement
+    private ::          ComputeNewBathymetryFromNewProfiles
+    !Update the bathym increment using the HybridMoprh methodology 
+    private ::          HybridMorphNewBathymIncrement 
     private ::      ComputeResidualEvolution
     private ::      OutPutSandHDF
     private ::      OutPut_TimeSeries
@@ -115,6 +123,7 @@ Module ModuleSand
     public  :: KillSand                                                     
     private ::      DeAllocateInstance
     private ::      WriteFinalState
+    private ::      KillHybridMorph
 
     !Management
     private ::      Ready
@@ -165,6 +174,12 @@ Module ModuleSand
     
     !srt(2.)
     real,    parameter :: SquareRoot2 = 1.414213562
+    
+    !domain side 
+    integer, parameter :: ILB_ = 1
+    integer, parameter :: IUB_ = 2
+    integer, parameter :: JLB_ = 3
+    integer, parameter :: JUB_ = 4
 
     !Types---------------------------------------------------------------------
 
@@ -215,8 +230,10 @@ Module ModuleSand
         type(T_Time)                            :: StartTime    
         real, dimension(:,:), pointer           :: FluxX        => null ()
         real, dimension(:,:), pointer           :: FluxY        => null ()        
+        real, dimension(:,:), pointer           :: OutFluxX     => null ()
+        real, dimension(:,:), pointer           :: OutFluxY     => null ()        
     end type   T_Residual
-
+   
     private :: T_Aceleration
     type       T_Aceleration
         logical                                 :: Yes          = .false.
@@ -308,9 +325,36 @@ Module ModuleSand
         real(8), dimension(:,:), pointer        :: FluxesX  => null()
         real(8), dimension(:,:), pointer        :: FluxesY  => null()
     end type T_Boxes
-
-
-
+    
+    type     T_HybridMorph
+        logical                                 :: ON                       = .false. 
+        !only one boundary can be the coast (1 - ILB_, 2 - IUB_, 3 - JLB_, 4 - JUB_
+        integer                                 :: CoastBoundary            = FillValueInt
+        !cell where the active profile starts - second water pointstarting from the coast line (CoastBoundary)
+        integer, dimension(:),   pointer        :: InShoreMapping           => null() 
+        !Offshore depth beyond which the depths do not change with time               
+        real                                    :: ClosureDepth           = FillValueReal        
+        !cell where the active profiel ends   - first cell with a depth greater than the depth of closure         
+        integer, dimension(:),   pointer        :: OffShoreMapping          => null()
+        real(8), dimension(:),   pointer        :: AlongShoreFlux           => null()
+        real(8), dimension(:),   pointer        :: ResidualAlongShoreFlux   => null()
+        integer                                 :: DintegLongShore          = 1
+        real(8), dimension(:),   pointer        :: CrossShoreVel            => null()
+        real(8), dimension(:),   pointer        :: ResidualCrossShoreVel    => null()        
+        real,    dimension(:,:), pointer        :: BathymetryNext           => null()
+        real,    dimension(:,:), pointer        :: BathymetryPrevious       => null()
+        !Difference between reference bathymetry and bathymetry at instant X (negative - erosion)
+        type (T_Property)                       :: DZ_Residual
+        !Distance of the cell centers to the domain side that corresponds to the coast boundary
+        real(8), dimension(:,:), pointer        :: DistanceToCoastRef       => null()
+        !Distance of the cell centers to the domain side that corresponds to the coast 
+        ! boundary plus the run period x crossShore profile shift       
+        real(8), dimension(:,:), pointer        :: DistanceToCoastInst      => null()  
+        
+        integer                                 :: Min1D                    = FillValueInt                 
+        integer                                 :: Max1D                    = FillValueInt
+              
+    end type T_HybridMorph
 
     private :: T_Sand
     type       T_Sand
@@ -342,8 +386,12 @@ Module ModuleSand
         type (T_Discharges)                        :: Discharges
         type (T_Boxes     )                        :: Boxes
         type (T_Residual  )                        :: Residual
+        type (T_HybridMorph)                       :: HybridMorph
+        
         real, dimension(:,:), pointer              :: FluxX                 => null ()
         real, dimension(:,:), pointer              :: FluxY                 => null ()
+        real, dimension(:,:), pointer              :: OutFluxX              => null ()
+        real, dimension(:,:), pointer              :: OutFluxY              => null ()
         real, dimension(:,:), pointer              :: FluxXIntegral         => null ()
         real, dimension(:,:), pointer              :: FluxYIntegral         => null ()        
         real, dimension(:,:), pointer              :: TransportCapacity     => null ()
@@ -484,6 +532,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call StartOutputBoxFluxes
 
             call ComputeTauCritic
+            
+            
+            if (Me%HybridMorph%ON) then
+                call ConstructHybridMorph
+            endif            
 
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'StartSand - ModuleSand - ERR30'
@@ -2000,27 +2053,51 @@ cd2 :               if (BlockFound) then
         allocate(Me%FluxY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         Me%FluxY(:,:) = 0.
         
+        allocate(Me%OutFluxX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%OutFluxX(:,:) = 0.
+
+        allocate(Me%OutFluxY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%OutFluxY(:,:) = 0.
+        
+        
         allocate(Me%FluxXIntegral(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         Me%FluxXIntegral(:,:) = 0.
 
         allocate(Me%FluxYIntegral(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         Me%FluxYIntegral(:,:) = 0.
 
-        
 
         allocate(Me%Residual%FluxX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         Me%Residual%FluxX(:,:) = 0.
 
         allocate(Me%Residual%FluxY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         Me%Residual%FluxY(:,:) = 0.
+
+        allocate(Me%Residual%OutFluxX(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%Residual%OutFluxX(:,:) = 0.
+
+        allocate(Me%Residual%OutFluxY(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        Me%Residual%OutFluxY(:,:) = 0.
         
         if (Me%Evolution%Old) then
         
             call ReadResidualStartTime()
             
-            call ReadInitialField(FieldName = "Residual Transport Flux X", Field2D = Me%Residual%FluxX)
+            call ReadInitialField(FieldName = "Residual Transport Flux X", Field2D = Me%Residual%OutFluxX)
             
-            call ReadInitialField(FieldName = "Residual Transport Flux Y", Field2D = Me%Residual%FluxY)                
+            call ReadInitialField(FieldName = "Residual Transport Flux Y", Field2D = Me%Residual%OutFluxY)    
+            
+            call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid,      &
+                                         VectorInX         = Me%Residual%OutFluxX,      &
+                                         VectorInY         = Me%Residual%OutFluxY,      &
+                                         VectorOutX        = Me%Residual%FluxX,         &
+                                         VectorOutY        = Me%Residual%FluxY,         &
+                                         WaterPoints2D     = Me%ExternalVar%WaterPoints2D,&
+                                         RotateX           = .true.,                    &
+                                         RotateY           = .true.,                    &
+                                         STAT              = STAT_CALL)
+            if (STAT_CALL  /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR225'
+                        
         
         endif
         
@@ -2245,15 +2322,202 @@ cd2 :               if (BlockFound) then
                      SearchType   = FromFile,                                            &
                      keyword      = 'BEDSLOPE',                                          &
                      default      = .TRUE.,                                              &
-                     ClientModule = 'ModuleSediment',                                    &
+                     ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
          if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR410'
+         
 
+         call GetData(Me%HybridMorph%ON,                                                 &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'HYBRID_MORPH',                                      &
+                     default      = .false.,                                             &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR420'
+         
+         if (Me%HybridMorph%ON .and. .not. Me%Evolution%Bathym) then
+            stop 'ConstructGlobalParameters - ModuleSand - ERR430'
+         endif
+         
+!         if (Me%HybridMorph%ON) then
+!            Me%Evolution%Bathym = .true.
+!         endif         
 
 
     end subroutine ConstructGlobalParameters
 
     !----------------------------------------------------------------------------
+    
+    subroutine ConstructHybridMorph
+
+        !Local-------------------------------------------------------------------
+        integer                             :: iflag, STAT_CALL
+        integer                             :: ILB, IUB, JLB, JUB, Min1D, Max1D, i, j
+
+        !------------------------------------------------------------------------
+    
+        ILB = Me%Size%ILB 
+        IUB = Me%Size%IUB 
+
+        JLB = Me%Size%JLB 
+        JUB = Me%Size%JUB 
+
+         call GetData(Me%HybridMorph%CoastBoundary,                                      &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'HYBRID_MORPH_COAST_BOUND',                          &
+                     default      = ILB_,                                                &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+         if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR10'    
+         
+         if     (Me%HybridMorph%CoastBoundary == ILB_ .or. Me%HybridMorph%CoastBoundary == IUB_ ) then
+
+            Min1D = JLB
+            Max1D = JUB
+            
+            Me%HybridMorph%Min1D = Min1D+1
+            Me%HybridMorph%Max1D = Max1D-1
+            
+         elseif (Me%HybridMorph%CoastBoundary == JLB_ .or. Me%HybridMorph%CoastBoundary == JUB_ ) then            
+
+            Min1D = ILB
+            Max1D = IUB
+            
+            Me%HybridMorph%Min1D = Min1D+1
+            Me%HybridMorph%Max1D = Max1D-1
+            
+         endif
+         
+         call GetData(Me%HybridMorph%ClosureDepth,                                       &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'CLOSURE_DEPTH',                                     &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+         if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR20'    
+         
+         if (iflag == 0) then
+            write(*,*) 'Need to define the CLOSURE_DEPTH'
+            write(*,*) 'Offshore depth beyond which the depths do not change with time'
+            stop 'ConstructHybridMorph - ModuleSand - ERR30'
+         endif
+
+         call GetData(Me%HybridMorph%DintegLongShore,                                    &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'CELLS_INTEGRATION_ALONG_SHORE',                     &
+                     default      = 1,                                                   &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+         if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR40'    
+
+
+        !Allocate variables
+        !1D vectors
+        allocate(Me%HybridMorph%InShoreMapping        (Min1D:Max1D))
+        allocate(Me%HybridMorph%OffShoreMapping       (Min1D:Max1D)) 
+        allocate(Me%HybridMorph%AlongShoreFlux        (Min1D:Max1D)) 
+        allocate(Me%HybridMorph%ResidualAlongShoreFlux(Min1D:Max1D)) 
+        allocate(Me%HybridMorph%CrossShoreVel         (Min1D:Max1D)) 
+        allocate(Me%HybridMorph%ResidualCrossShoreVel (Min1D:Max1D)) 
+
+        Me%HybridMorph%InShoreMapping        (Min1D:Max1D) = FillValueInt
+        Me%HybridMorph%OffShoreMapping       (Min1D:Max1D) = FillValueInt
+        
+        Me%HybridMorph%AlongShoreFlux        (Min1D:Max1D) = 0.
+        Me%HybridMorph%ResidualAlongShoreFlux(Min1D:Max1D) = 0.
+        Me%HybridMorph%CrossShoreVel         (Min1D:Max1D) = 0.
+        Me%HybridMorph%ResidualCrossShoreVel (Min1D:Max1D) = 0.
+
+
+        allocate(Me%HybridMorph%BathymetryNext        (ILB:IUB, JLB:JUB))
+        allocate(Me%HybridMorph%BathymetryPrevious    (ILB:IUB, JLB:JUB))
+        allocate(Me%HybridMorph%DistanceToCoastRef    (ILB:IUB, JLB:JUB))
+        allocate(Me%HybridMorph%DistanceToCoastInst   (ILB:IUB, JLB:JUB))           
+        
+        Me%HybridMorph%BathymetryNext        (ILB:IUB, JLB:JUB) = FillValueReal
+        Me%HybridMorph%BathymetryPrevious    (ILB:IUB, JLB:JUB) = FillValueReal
+        Me%HybridMorph%DistanceToCoastRef    (ILB:IUB, JLB:JUB) = FillValueReal
+        Me%HybridMorph%DistanceToCoastInst   (ILB:IUB, JLB:JUB) = FillValueReal
+                     
+        allocate(Me%HybridMorph%DZ_Residual%Field2D(ILB:IUB, JLB:JUB))
+        
+        Me%HybridMorph%DZ_Residual%Field2D(ILB:IUB, JLB:JUB) = 0.
+
+        Me%HybridMorph%DZ_Residual%ID%Name  = 'DZ_Residual'
+        Me%HybridMorph%DZ_Residual%ID%Units = 'm'
+                        
+        if      (Me%HybridMorph%CoastBoundary == ILB_) then
+         
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB 
+
+                Me%HybridMorph%DistanceToCoastRef(Me%WorkSize%ILB,j) = 0.
+
+                do i = Me%WorkSize%ILB+1, Me%WorkSize%IUB 
+             
+                    Me%HybridMorph%DistanceToCoastRef(i,j) = Me%HybridMorph%DistanceToCoastRef(i-1,j) + Me%ExternalVar%DZY(i-1,j)
+                    
+                enddo
+            enddo
+                
+         elseif (Me%HybridMorph%CoastBoundary == IUB_ ) then
+
+
+            do j = Me%WorkSize%JLB,   Me%WorkSize%JUB 
+            
+                Me%HybridMorph%DistanceToCoastRef(Me%WorkSize%IUB,j) = 0.
+
+                do i = Me%WorkSize%IUB-1, Me%WorkSize%ILB
+             
+                    Me%HybridMorph%DistanceToCoastRef(i,j) = Me%HybridMorph%DistanceToCoastRef(i+1,j) + Me%ExternalVar%DZY(i  ,j)
+                    
+                enddo
+            enddo
+                            
+         elseif (Me%HybridMorph%CoastBoundary == JLB_) then
+
+            do i = Me%WorkSize%ILB,   Me%WorkSize%IUB 
+         
+                Me%HybridMorph%DistanceToCoastRef(i,Me%WorkSize%JLB) = 0.
+
+                do j = Me%WorkSize%JLB+1, Me%WorkSize%JUB 
+             
+                    Me%HybridMorph%DistanceToCoastRef(i,j) = Me%HybridMorph%DistanceToCoastRef(i,j-1) + Me%ExternalVar%DZX(i,j-1)
+                    
+                enddo
+            enddo
+                         
+         elseif (Me%HybridMorph%CoastBoundary == JUB_ ) then
+
+
+            do i = Me%WorkSize%ILB,   Me%WorkSize%IUB 
+
+                Me%HybridMorph%DistanceToCoastRef(i,Me%WorkSize%JUB) = 0.
+
+                do j = Me%WorkSize%JUB-1, Me%WorkSize%JLB
+            
+                    Me%HybridMorph%DistanceToCoastRef(i,j) = Me%HybridMorph%DistanceToCoastRef(i,j+1) + Me%ExternalVar%DZX(i  ,j)
+                    
+                enddo
+            enddo
+
+         endif        
+         
+        Me%HybridMorph%DistanceToCoastInst(:,:) = Me%HybridMorph%DistanceToCoastRef(:,:)
+        
+        call GetGridData2Dreference(Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR50' 
+        
+        Me%HybridMorph%BathymetryPrevious(:,:) = Me%ExternalVar%InitialBathym(:,:)
+            
+        
+        call UnGetGridData(Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR60'         
+
+    end subroutine ConstructHybridMorph
+            
     !--------------------------------------------------------------------------
     !If the user want's to use the values of a previous   
     ! run the read the sand properties values form the final      
@@ -2327,8 +2591,6 @@ ifMS:   if (MasterOrSlave) then
 
         allocate(Aux2D(ILW:IUW,JLW:JUW))
         
-        write(*,*) 'MPI 2', FieldName      
-                            
         call HDF5ReadWindow (HDF5ID         = Me%ObjHDF5In,                             &
                              GroupName      = "/Results",                               &
                              Name           = trim(FieldName),                          &
@@ -2337,16 +2599,10 @@ ifMS:   if (MasterOrSlave) then
         
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialField; ModuleSand - ERR50'
         
-        write(*,*) 'MPI 6', ILB,IUB, JLB,JUB,ILW,IUW,JLW,JUW
-            
         Field2D(ILB:IUB, JLB:JUB) = Aux2D(ILW:IUW, JLW:JUW)
-        
-        write(*,*) 'MPI 5', Me%ObjHDF5In                                  
-        
+       
         deallocate(Aux2D)                
 
-        write(*,*) 'MPI 4', Me%ObjHDF5In                                  
-            
         !----------------------------------------------------------------------
 
     end subroutine ReadInitialField
@@ -2690,6 +2946,10 @@ ifMS:   if (MasterOrSlave) then
                             stop 'ModifySand - ModuleSand - ERR10'
                         endif                        
 #endif _USE_MPI
+
+                        if (Me%HybridMorph%ON) then
+                            call ComputeHybridMorphEvolution
+                        endif
                         
 
                         call ComputeResidualEvolution
@@ -2840,6 +3100,7 @@ ifMS:   if (MasterOrSlave) then
         !Local-----------------------------------------------------------------
         integer             :: i, j
         real                :: SandThickness, Xaux, Yaux, XYMod, FluxX, FluxY, DT_Racio
+        real                :: Xcomp, Ycomp
         !----------------------------------------------------------------------
 
         SELECT CASE (Me%TransportMethod)
@@ -2864,9 +3125,6 @@ ifMS:   if (MasterOrSlave) then
         
         END SELECT 
 
-        Me%FluxX  (:, :) =  0.
-        Me%FluxY  (:, :) =  0.
-
         !Computes the sand fluxes (m3/s) in the middle of the cells
         
         if (Me%ResidualCurrent) then
@@ -2879,6 +3137,9 @@ ifMS:   if (MasterOrSlave) then
             endif
                             
         endif
+
+        Me%FluxX  (:, :) =  0.
+        Me%FluxY  (:, :) =  0.
 
 !Compute FluxX and FluxY
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -2915,9 +3176,21 @@ ifMS:   if (MasterOrSlave) then
                     
                     if (XYMod > 0.) then
                     
+                        Xcomp = Xaux / XYMod
+                        if (Xcomp < 1e-3) then
+                            Xcomp = 0.
+                            Ycomp = 1.    
+                        endif   
+
+                        Ycomp = Yaux / XYMod
+                        if (Ycomp < 1e-3) then
+                            Ycomp = 0.
+                            Xcomp = 1.    
+                        endif                        
+                    
                         ![m]      = [m]/[m]*[m]
-                        FluxX     = Xaux / XYMod * Me%ExternalVar%DVY(i, j) / (1. - Me%Porosity)
-                        FluxY     = Yaux / XYMod * Me%ExternalVar%DUX(i, j) / (1. - Me%Porosity)
+                        FluxX     = Xcomp * Me%ExternalVar%DVY(i, j) / (1. - Me%Porosity)
+                        FluxY     = Ycomp * Me%ExternalVar%DUX(i, j) / (1. - Me%Porosity)
                         
                         ![m^3/s]        = [m^2/s] * [m]
                         Me%FluxX (i, j) = Me%TransportCapacity(i, j) * FluxX  * Me%TransportFactor
@@ -4303,6 +4576,520 @@ ifMS:   if (MasterOrSlave) then
 
     end subroutine ComputeTauCritic
     !--------------------------------------------------------------------------
+        
+    subroutine ComputeHybridMorphEvolution
+
+
+        !Local-----------------------------------------------------------------
+        integer     :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+        
+        call GetGridData2Dreference(Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeHybridMorphEvolution - ModuleSand - ERR10' 
+        
+            
+        call ComputeAlongShoreFlow1D
+        
+        call ComputeProfileCrossShoreMovement
+        
+        call ComputeNewBathymetryFromNewProfiles
+        
+        !Update the bathym increment
+        call HybridMorphNewBathymIncrement 
+        
+        call UnGetGridData(Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeHybridMorphEvolution - ModuleSand - ERR20' 
+
+        
+    end subroutine ComputeHybridMorphEvolution
+    
+    
+    !--------------------------------------------------------------------------    
+
+    subroutine ComputeAlongShoreFlow1D
+
+        !Local-----------------------------------------------------------------
+        real                               :: RunPeriod
+        integer                            :: i, j
+        logical                            :: StartProfile, EndProfile
+        !----------------------------------------------------------------------
+        
+        Me%HybridMorph%AlongShoreFlux(:) = 0.
+        
+        
+        !ILB coast line 
+        if (Me%HybridMorph%CoastBoundary == ILB_) then
+        
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                StartProfile = .false. 
+                EndProfile   = .false.                
+
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                    !Defines the first cell of the beach profile
+                    if (Me%ExternalVar%WaterPoints2D(i, j)  == WaterPoint .and. .not. StartProfile) then
+                        StartProfile = .true.
+                        Me%HybridMorph%InShoreMapping(j) = i
+                    endif      
+                    
+                    !Found a land cell (e.g. detached breakwater) - the sand profile active area ends so the alongshore transport integration also ends
+                    if (StartProfile) then
+                        !If the closure depth is reached  - the sand profile active area ends so the alongshore transport integration also ends           
+                        if (Me%ExternalVar%InitialBathym(i,j) > Me%HybridMorph%ClosureDepth) then
+                            Me%HybridMorph%OffShoreMapping(j) = i-1
+                            EndProfile = .true.                            
+                            exit
+                        endif                            
+                    endif                    
+                    
+                    !Integrate in the "j direction" - from "ILB" line = coast line 
+                    Me%HybridMorph%AlongShoreFlux(j) = Me%HybridMorph%AlongShoreFlux(j) + Me%FluxXIntegral(i, j)
+                    
+                enddo
+                
+                if (.not. EndProfile) then
+                    Me%HybridMorph%OffShoreMapping(j) = Me%WorkSize%IUB
+                endif
+
+                if (Me%HybridMorph%InShoreMapping(j) == FillValueInt) then
+                    stop 'ComputeAlongShoreFlow1D - ModuleSand - ERR10'
+                endif
+                
+                if (Me%HybridMorph%OffShoreMapping(j) == FillValueInt) then                
+                    stop 'ComputeAlongShoreFlow1D - ModuleSand - ERR20'
+                endif
+                
+            enddo
+            
+        else if (Me%HybridMorph%CoastBoundary == IUB_) then
+        
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                StartProfile = .false. 
+                EndProfile   = .false.                
+
+                do i=Me%WorkSize%IUB, Me%WorkSize%ILB, -1
+            
+                    !Defines the first cell of the beach profile
+                    if (Me%ExternalVar%WaterPoints2D(i, j)  == WaterPoint .and. .not. StartProfile) then
+                        StartProfile = .true.
+                        !The first water point of the profile do not move never is fixed in time 
+                        Me%HybridMorph%InShoreMapping(j) = i
+                    endif      
+                    
+                    !Found a land cell (e.g. detached breakwater) - the sand profile active area ends so the alongshore transport integration also ends
+                    if (StartProfile) then
+                        !If the closure depth is reached  - the sand profile active area ends so the alongshore transport integration also ends                               
+                        if  (Me%ExternalVar%InitialBathym(i,j) > Me%HybridMorph%ClosureDepth) then
+                            Me%HybridMorph%OffShoreMapping(j) = i+1
+                            EndProfile = .true.                            
+                            exit
+                        endif                            
+                    endif        
+                    
+                    if (StartProfile) then
+                        !Integrate in the "j direction" - from "IUB" line = coast line 
+                        Me%HybridMorph%AlongShoreFlux(j) = Me%HybridMorph%AlongShoreFlux(j) + Me%FluxXIntegral(i, j)
+                    endif
+                enddo
+                
+                if (.not. EndProfile) then
+                    Me%HybridMorph%OffShoreMapping(j) = Me%WorkSize%ILB
+                endif              
+                
+                if (Me%HybridMorph%InShoreMapping(j) == FillValueInt) then
+                    stop 'ComputeAlongShoreFlow1D - ModuleSand - ERR30'
+                endif
+                
+                if (Me%HybridMorph%OffShoreMapping(j) == FillValueInt) then                
+                    stop 'ComputeAlongShoreFlow1D - ModuleSand - ERR40'
+                endif                
+                
+            enddo          
+            
+        else if (Me%HybridMorph%CoastBoundary == JLB_) then
+        
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                StartProfile = .false. 
+                EndProfile   = .false.
+
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                    !Defines the first cell of the beach profile
+                    if (Me%ExternalVar%WaterPoints2D(i, j)  == WaterPoint .and. .not. StartProfile) then
+                        StartProfile = .true.
+
+                        !The first water point of the profile do not move never is fixed in time 
+                        Me%HybridMorph%InShoreMapping(i) = j                       
+                        
+                    endif      
+                    
+                    !Found a land cell (e.g. detached breakwater) - the sand profile active area ends so the alongshore transport integration also ends
+                    if (StartProfile) then
+                        !If the closure depth is reached  - the sand profile active area ends so the alongshore transport integration also ends                               
+                        if (Me%ExternalVar%InitialBathym(i,j) > Me%HybridMorph%ClosureDepth) then
+                            Me%HybridMorph%OffShoreMapping(i) = j-1
+                            EndProfile = .true.
+                            exit
+                        endif                            
+                    endif                        
+
+                    if (StartProfile) then
+                        !Integrate in the "i direction" - from "JLB" column = coast line 
+                        Me%HybridMorph%AlongShoreFlux(i) = Me%HybridMorph%AlongShoreFlux(i) + Me%FluxYIntegral(i, j)
+                    endif
+                enddo
+                
+                if (.not. EndProfile) then
+                    Me%HybridMorph%OffShoreMapping(i) = Me%WorkSize%JUB
+                endif                                  
+                
+                if (Me%HybridMorph%InShoreMapping(i) == FillValueInt) then
+                    stop 'ComputeAlongShoreFlow1D - ModuleSand - ERR50'
+                endif
+                
+                if (Me%HybridMorph%OffShoreMapping(i) == FillValueInt) then                
+                    stop 'ComputeAlongShoreFlow1D - ModuleSand - ERR60'
+                endif
+                
+            enddo          
+            
+        else if (Me%HybridMorph%CoastBoundary == JUB_) then
+        
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                StartProfile = .false.
+                EndProfile   = .false.
+
+                do j = Me%WorkSize%JUB, Me%WorkSize%JLB, -1
+            
+                    !Defines the first cell of the beach profile
+                    if (Me%ExternalVar%WaterPoints2D(i, j)  == WaterPoint .and. .not. StartProfile) then
+                        StartProfile = .true.
+                        !The first water point of the profile do not move never is fixed in time 
+                        Me%HybridMorph%InShoreMapping(i) = j
+                    endif      
+                    
+                    !Found a land cell (e.g. detached breakwater) - the sand profile active area ends so the alongshore transport integration also ends
+                    if (StartProfile) then
+                        !If the closure depth is reached  - the sand profile active area ends so the alongshore transport integration also ends                               
+                        if (Me%ExternalVar%InitialBathym(i,j) > Me%HybridMorph%ClosureDepth) then
+                            Me%HybridMorph%OffShoreMapping(i) = j+1
+                            EndProfile = .true.                            
+                            exit
+                        endif                            
+                    endif                                           
+                    
+                    if (StartProfile) then
+                        !Integrate in the "i direction" - from "JUB" column = coast line 
+                        Me%HybridMorph%AlongShoreFlux(i) = Me%HybridMorph%AlongShoreFlux(i) + Me%FluxYIntegral(i, j)
+                    endif
+                enddo
+                
+                if (.not. EndProfile) then
+                    Me%HybridMorph%OffShoreMapping(i) = Me%WorkSize%JLB
+                endif              
+                
+                if (Me%HybridMorph%InShoreMapping(i) == FillValueInt) then
+                    stop 'ComputeAlongShoreFlow1D - ModuleSand - ERR70'
+                endif
+                
+                if (Me%HybridMorph%OffShoreMapping(i) == FillValueInt) then                
+                    stop 'ComputeAlongShoreFlow1D - ModuleSand - ERR80'
+                endif                
+                
+            enddo          
+            
+        endif
+        
+        call BoundaryCondition1D(Me%HybridMorph%AlongShoreFlux, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)        
+        
+        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+        
+
+        Me%HybridMorph%ResidualAlongShoreFlux(:) = ( Me%HybridMorph%ResidualAlongShoreFlux(:) * &
+                                                     (RunPeriod -  Me%Evolution%DZDT)         + &
+                                                    Me%HybridMorph%AlongShoreFlux(:) *          &
+                                                    Me%Evolution%DZDT) / RunPeriod
+
+    end subroutine ComputeAlongShoreFlow1D                                                    
+    
+            
+    !--------------------------------------------------------------------------    
+
+    subroutine ComputeProfileCrossShoreMovement
+
+        !Local-----------------------------------------------------------------
+        real(8),    pointer, dimension(:)  :: Aux1D
+        real                               :: DX1, DX2, DY1, DY2, Area1, Area2, RunPeriod, K, coef
+        integer                            :: i, j, ij, imin, imax, di
+        
+        !----------------------------------------------------------------------
+        
+        Me%HybridMorph%CrossShoreVel(:) = 0.
+
+        !ILB or IUB coast line 
+        if (Me%HybridMorph%CoastBoundary == ILB_ .or. Me%HybridMorph%CoastBoundary == IUB_) then
+        
+            if (Me%HybridMorph%CoastBoundary == ILB_) then
+                ij =  Me%WorkSize%ILB                    
+            endif                
+            if (Me%HybridMorph%CoastBoundary == IUB_) then        
+                ij =  Me%WorkSize%IUB
+            endif
+            
+            do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+
+                DX1   = Me%ExternalVar%DUX(ij, j-1)
+                Area1 = Me%HybridMorph%ClosureDepth * DX1
+
+                DX2   = Me%ExternalVar%DUX(ij, j  )
+                Area2 = Me%HybridMorph%ClosureDepth * DX2
+                
+                ! [m/s]                         = [m/s] + [m^3/s] / [m]^2
+                Me%HybridMorph%CrossShoreVel(j-1) = Me%HybridMorph%CrossShoreVel(j-1) - Me%HybridMorph%AlongShoreFlux(j) / Area1
+                Me%HybridMorph%CrossShoreVel(j  ) = Me%HybridMorph%CrossShoreVel(j  ) + Me%HybridMorph%AlongShoreFlux(j) / Area2
+            
+            enddo          
+            
+        else if (Me%HybridMorph%CoastBoundary == JLB_ .or. Me%HybridMorph%CoastBoundary == JUB_) then
+        
+            if (Me%HybridMorph%CoastBoundary == JLB_) then
+                ij = Me%WorkSize%JLB                    
+            endif                
+            if (Me%HybridMorph%CoastBoundary == JUB_) then        
+                ij = Me%WorkSize%JUB
+            endif
+            
+                
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                DY1   = Me%ExternalVar%DVY(i  , ij)
+                Area1 = Me%HybridMorph%ClosureDepth * DY1
+
+                DY2   = Me%ExternalVar%DVY(i+1, ij)
+                Area2 = Me%HybridMorph%ClosureDepth * DY2
+                
+                ! [m/s]                         = [m/s] + [m^3/s] / [m]^2
+                Me%HybridMorph%CrossShoreVel(i-1) = Me%HybridMorph%CrossShoreVel(i-1) - Me%HybridMorph%AlongShoreFlux(i) / Area1
+                Me%HybridMorph%CrossShoreVel(i  ) = Me%HybridMorph%CrossShoreVel(i  ) + Me%HybridMorph%AlongShoreFlux(i) / Area2
+                        
+            enddo          
+            
+        endif
+        
+        !Me%HybridMorph%CrossShoreVel(1:25)  = 0.
+        !Me%HybridMorph%CrossShoreVel(226:250)  = 0.        
+        
+        
+        !Me%HybridMorph%CrossShoreVel(123) = (Me%HybridMorph%CrossShoreVel(122)*2.+Me%HybridMorph%CrossShoreVel(125)*1.)/3.
+        !Me%HybridMorph%CrossShoreVel(124) = (Me%HybridMorph%CrossShoreVel(122)*1.+Me%HybridMorph%CrossShoreVel(125)*2.)/3.        
+        
+        allocate (Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D))
+        
+        Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = 0
+
+        !Biharmonic filter 
+        
+        K = 1./8.
+
+        do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
+           Aux1D(j) = (Me%HybridMorph%CrossShoreVel(j-1)- 2.* Me%HybridMorph%CrossShoreVel(j) + Me%HybridMorph%CrossShoreVel(j+1))
+        enddo            
+        
+        call BoundaryCondition1D(Aux1D, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)    
+        
+         do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
+            Me%HybridMorph%CrossShoreVel(j) =  Me%HybridMorph%CrossShoreVel(j) - K*(Aux1D(j-1)- 2. * Aux1D(j) + Aux1D(j+1))
+        enddo                        
+        
+        deallocate (Aux1D)
+        
+        call BoundaryCondition1D(Me%HybridMorph%CrossShoreVel, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)
+        
+        
+        if (Me%HybridMorph%DintegLongShore > 1) then
+
+            allocate (Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D))
+            
+            Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D)
+            
+            do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
+                imin=max(Me%HybridMorph%Min1D,j- Me%HybridMorph%DintegLongShore)
+                imax=min(Me%HybridMorph%Max1D,j+ Me%HybridMorph%DintegLongShore)            
+                Me%HybridMorph%CrossShoreVel(j) = 0.
+                di = imax-imin
+                do i = imin, imax
+                    Me%HybridMorph%CrossShoreVel(j) = Me%HybridMorph%CrossShoreVel(j) + Aux1D(i)/real(di)
+                enddo            
+            enddo            
+            
+            deallocate (Aux1D)
+            
+            call BoundaryCondition1D(Me%HybridMorph%CrossShoreVel, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)
+                        
+        endif
+        
+        !Newton relaxation
+!        Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D  ) = 0.
+!        Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D+1) = 0.
+!        Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Max1D  ) = 0.
+!        Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Max1D-1) = 0.
+!                
+!        do j = Me%HybridMorph%Min1D+2,Me%HybridMorph%Min1D+20 
+!            coef = real(Me%HybridMorph%Min1D+20 - j)
+!            Me%HybridMorph%CrossShoreVel(j) = Me%HybridMorph%CrossShoreVel(j)*exp(-coef)
+!        enddo              
+!        
+!        do j = Me%HybridMorph%Max1D-20,Me%HybridMorph%Max1D-2 
+!            coef = real(j - (Me%HybridMorph%Max1D-20))
+!            Me%HybridMorph%CrossShoreVel(j) = Me%HybridMorph%CrossShoreVel(j)*exp(-coef)
+!        enddo                 
+        
+        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+        
+
+        Me%HybridMorph%ResidualCrossShoreVel(:) = ( Me%HybridMorph%ResidualCrossShoreVel(:) * &
+                                                     (RunPeriod -  Me%Evolution%DZDT)         + &
+                                                    Me%HybridMorph%CrossShoreVel(:) *          &
+                                                    Me%Evolution%DZDT) / RunPeriod        
+
+    end subroutine ComputeProfileCrossShoreMovement
+    
+    !--------------------------------------------------------------------------
+
+
+    subroutine ComputeNewBathymetryFromNewProfiles
+
+        !Local-----------------------------------------------------------------
+        real(8), dimension(:)  , pointer   :: XX
+        real                               :: RunPeriod, dx1, dx2
+        integer                            :: i, j, ileft, iW1, iW2
+        !----------------------------------------------------------------------
+        
+        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime        
+            
+        !ILB coast line 
+        if (Me%HybridMorph%CoastBoundary == ILB_) then
+        
+        
+        !IUB coast line             
+        else if (Me%HybridMorph%CoastBoundary == IUB_) then
+            
+        !JLB coast line                         
+        else if (Me%HybridMorph%CoastBoundary == JLB_) then
+        
+            allocate(XX(Me%WorkSize%JLB:Me%WorkSize%JUB))
+
+            do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                !profile movement
+                do j= Me%HybridMorph%InShoreMapping(i), Me%HybridMorph%OffShoreMapping(i)
+                
+                    Me%HybridMorph%DistanceToCoastInst(i, j) = Me%HybridMorph%DistanceToCoastRef(i, j) + &
+                        Me%HybridMorph%ResidualCrossShoreVel(i) * RunPeriod
+                
+                enddo            
+
+                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                
+                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                    
+                        XX(Me%WorkSize%JLB:Me%WorkSize%JUB) = Me%HybridMorph%DistanceToCoastInst(i, Me%WorkSize%JLB:Me%WorkSize%JUB)
+                    
+                        call LocateCell1D (XX,                                          &
+                                           Me%HybridMorph%DistanceToCoastRef (i, j),    &
+                                           Me%WorkSize%JLB,                             &
+                                           Me%WorkSize%JUB,                             &
+                                           ileft)
+                                           
+                                                                  
+                        !linear interpolation
+                        iW1 = Me%ExternalVar%WaterPoints2D(i,  ileft  )
+                        iW2 = Me%ExternalVar%WaterPoints2D(i,  ileft+1)
+                        
+                        if (iW1+iW2      == 0) then
+                        
+                            Me%HybridMorph%BathymetryNext(i, j) = -99.
+                            
+                        else if (iW1     == 0) then
+                        
+                            Me%HybridMorph%BathymetryNext(i, j) = Me%ExternalVar%InitialBathym(i, ileft+1)
+                        
+                        else if (iW2     == 0) then
+                        
+                            Me%HybridMorph%BathymetryNext(i, j) = Me%ExternalVar%InitialBathym(i, ileft  )
+
+                        else if (iW1+iW2 == 2) then
+                        
+                            dx1 = Me%HybridMorph%DistanceToCoastRef (i, j      ) - Me%HybridMorph%DistanceToCoastInst(i, ileft)
+                            dx2 = Me%HybridMorph%DistanceToCoastInst(i, ileft+1) - Me%HybridMorph%DistanceToCoastRef (i, j    )  
+                            
+                            if (dx1 < 0.) then
+                                stop 'ComputeNewBathymetryFromNewProfiles - ModuleSand - ERR10'
+                            endif
+
+                            if (dx2 < 0.) then
+                                stop 'ComputeNewBathymetryFromNewProfiles - ModuleSand - ERR20'
+                            endif
+                        
+                            Me%HybridMorph%BathymetryNext(i, j) = (dx2 *  Me%ExternalVar%InitialBathym(i, ileft  ) +         &
+                                                                   dx1 *  Me%ExternalVar%InitialBathym(i, ileft+1)) /(dx1 + dx2)
+                                                                  
+                            
+                        endif
+                        
+
+                    endif
+                enddo            
+            enddo  
+            
+            deallocate(XX)
+        
+        !JUB coast line                         
+        else if (Me%HybridMorph%CoastBoundary == JUB_) then
+            
+        endif
+        
+
+        
+    end subroutine ComputeNewBathymetryFromNewProfiles
+    
+
+    !--------------------------------------------------------------------------
+
+    subroutine HybridMorphNewBathymIncrement
+
+        !Local-----------------------------------------------------------------
+        integer                            :: i, j
+        !----------------------------------------------------------------------
+        
+
+    
+        if (Me%ExternalVar%Now >= Me%Evolution%NextBatim) then
+
+            do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+
+                    Me%HybridMorph%DZ_Residual%Field2D(i, j) = Me%ExternalVar%InitialBathym     (i, j) - &
+                                                               Me%HybridMorph%BathymetryNext(i, j)
+                                                               
+                    Me%BatimIncrement%Field2D (i, j)         = Me%HybridMorph%BathymetryPrevious(i, j) - &
+                                                               Me%HybridMorph%BathymetryNext(i, j)
+                endif
+            enddo
+            enddo                                                
+
+            !Update the previous bathymetry
+            Me%HybridMorph%BathymetryPrevious(:,:) = Me%HybridMorph%BathymetryNext(:,:)
+            
+        endif    
+
+    end subroutine HybridMorphNewBathymIncrement
+
+    !--------------------------------------------------------------------------
 
     subroutine ComputeEvolution            
 
@@ -4862,6 +5649,36 @@ d1:         do dis = 1, DischargesNumber
     
     !--------------------------------------------------------------------------
 
+
+    subroutine BoundaryCondition1D(Field1D, ILB, IUB)
+        !Arguments-------------------------------------------------------------
+        real(8),   dimension(:  ), pointer    :: Field1D
+        integer                               :: ILB, IUB
+
+        !Begin-----------------------------------------------------------------
+
+        if      (Me%Boundary == NullGradient) then
+
+            Field1D(ILB) = Field1D(ILB+1)
+            Field1D(IUB) = Field1D(IUB-1)
+
+        else if (Me%Boundary == Cyclic      ) then
+
+            Field1D(ILB) = Field1D(IUB-1)
+            Field1D(IUB) = Field1D(ILB+1)
+            
+        else if (Me%Boundary == NullValue   ) then
+        
+            Field1D(ILB) = 0.
+            Field1D(IUB) = 0.            
+        
+        endif
+
+
+    end subroutine BoundaryCondition1D
+    
+    !--------------------------------------------------------------------------    
+
     subroutine ComputeResidualEvolution            
 
         !Local-----------------------------------------------------------------
@@ -4880,23 +5697,27 @@ d1:         do dis = 1, DischargesNumber
         enddo
         enddo    
 
-        if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
+        if (.not. Me%HybridMorph%ON) then
 
-            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
 
-                if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
-                
-                    Me%BatimIncrement%Field2D(i,j)  = Me%BatimIncrement%Field2D(i,j) + Me%DZ%Field2D(i, j)
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
 
-                endif
+                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+                    
+                        Me%BatimIncrement%Field2D(i,j)  = Me%BatimIncrement%Field2D(i,j) + Me%DZ%Field2D(i, j)
 
-            enddo
-            enddo    
+                    endif
+
+                enddo
+                enddo    
+
+            endif
 
         endif
-
-
+        
+        
     end subroutine ComputeResidualEvolution
     
     !--------------------------------------------------------------------------
@@ -4948,74 +5769,146 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                     AuxTime(4), AuxTime(5), AuxTime(6))
                 TimePtr => AuxTime
                 call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR10'
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",     &
                                      Array1D = TimePtr, OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR02'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR20'
 
                 !Writes OpenPoints
                 call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                  &
                                      WorkJUB, STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR03'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR30'
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints",         &
                                      "-", Array2D = Me%ExternalVar%OpenPoints2D,             &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR04'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR40'
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Bathymetry", "Bathymetry",        &
                                      "-", Array2D = Me%ExternalVar%Bathymetry,               &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR50'
        
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%DZ%ID%Name), trim(Me%DZ%ID%Name),  &
                                      trim(Me%DZ%ID%Units), Array2D = Me%DZ%Field2D,                           &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR06'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR60'
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%DZ_Residual%ID%Name), trim(Me%DZ_Residual%ID%Name),  &
                                      trim(Me%DZ_Residual%ID%Units), Array2D = Me%DZ_Residual%Field2D,   &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR07'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR70'
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Capacity", "Transport  Capacity",  &
                                      "m3/s/m", Array2D = Me%TransportCapacity,               &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR07'
-
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR80'
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Tau Critic", "Tau Critic",        &
                                      "N/m2", Array2D = Me%TauCritic,                         &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR07'
-                
-                call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Flux X", "Transport Flux X",        &
-                                     "m3/s", Array2D = Me%FluxX,                        &
-                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR80'
-
-                call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Flux Y", "Transport Flux Y",        &
-                                     "m3/s", Array2D = Me%FluxY,                        &
-                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR90'
                 
+
+                call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid,  &
+                                             VectorInX         = Me%FluxX,              &
+                                             VectorInY         = Me%FluxY,              &
+                                             VectorOutX        = Me%OutFluxX,           &
+                                             VectorOutY        = Me%OutFluxY,           &
+                                             WaterPoints2D     = Me%ExternalVar%WaterPoints2D,&
+                                             RotateX           = .true.,                &
+                                             RotateY           = .true.,                &
+                                             STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR100'
+
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Flux X", "Transport Flux X",&
+                                     "m3/s", Array2D = Me%OutFluxX,                     &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR110'
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Flux Y", "Transport Flux Y",&
+                                     "m3/s", Array2D = Me%OutFluxY,                     &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR120'
+                
+
+                call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid,  &
+                                             VectorInX         = Me%Residual%FluxX,     &
+                                             VectorInY         = Me%Residual%FluxY,     &
+                                             VectorOutX        = Me%Residual%OutFluxX,  &
+                                             VectorOutY        = Me%Residual%OutFluxY,  &
+                                             WaterPoints2D     = Me%ExternalVar%WaterPoints2D,&
+                                             RotateX           = .true.,                &
+                                             RotateY           = .true.,                &
+                                             STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR130'
+
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux X", &
                                      "Residual Transport Flux X",                      &
-                                     "m3/s", Array2D = Me%Residual%FluxX,              &
+                                     "m3/s", Array2D = Me%Residual%OutFluxX,           &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR80'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR140'
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux Y", &
                                      "Residual Transport Flux Y",                      &
-                                     "m3/s", Array2D = Me%Residual%FluxY,              &
+                                     "m3/s", Array2D = Me%Residual%OutFluxY,           &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR90'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR150'
+                
+                if (Me%HybridMorph%ON) then
+                    
+                    call HDF5WriteData  (Me%ObjHDF5,                                    &
+                                         "/Results/HybridMorph/"//trim(Me%HybridMorph%DZ_Residual%ID%Name), &
+                                         trim(Me%HybridMorph%DZ_Residual%ID%Name),         &
+                                         trim(Me%HybridMorph%DZ_Residual%ID%Units),        &
+                                         Array2D = Me%HybridMorph%DZ_Residual%Field2D,  &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR160'
+                    
+
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/HybridMorph/Distance to Coast", &
+                                         "Distance to Coast",                                &
+                                         "m", Array2D = Me%HybridMorph%DistanceToCoastInst,           &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR220'                         
+                        
+                    call HDF5SetLimits  (Me%ObjHDF5, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR170'
+
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/HybridMorph/Along Shore Flux", &
+                                         "Along Shore Flux",                                  &
+                                         "m3/s", Array1D = Me%HybridMorph%AlongShoreFlux,     &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR180'
+
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/HybridMorph/Residual Along Shore Flux", &
+                                         "Residual Along Shore Flux",                         &
+                                         "m3/s", Array1D = Me%HybridMorph%ResidualAlongShoreFlux,           &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR190'
+                    
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/HybridMorph/Cross Shore Velocity", &
+                                         "Cross Shore Velocity",                                   &
+                                         "m/s", Array1D = Me%HybridMorph%CrossShoreVel,     &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR200'
+
+                    call HDF5WriteData  (Me%ObjHDF5, "/Results/HybridMorph/Residual Cross Shore Velocity", &
+                                         "Residual Cross Shore Velocity",                                &
+                                         "m/s", Array1D = Me%HybridMorph%ResidualCrossShoreVel,           &
+                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR210'
+
+              
+
+                endif
                 
                 !Writes everything to disk
                 call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR08'
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR230'
 
                 Me%OutPut%NextOutPut = OutPutNumber + 1
 
@@ -5244,6 +6137,12 @@ if1:            if (Me%Classes%Number > 0) then
                 deallocate(Me%Residual%FluxX  )
                 deallocate(Me%Residual%FluxY  )
                 
+                deallocate(Me%OutFluxX  )
+                deallocate(Me%OutFluxY  )
+
+                deallocate(Me%Residual%OutFluxX  )
+                deallocate(Me%Residual%OutFluxY  )
+                
                 !if (Me%TransportMethod == VanRijn1) deallocate (Me%Dast)
                 
                 if   (associated(Me%Dast)) deallocate (Me%Dast)
@@ -5263,6 +6162,10 @@ if1:            if (Me%Classes%Number > 0) then
                     deallocate(Me%Boxes%Mass   )
                     nullify   (Me%Boxes%Mass   )
 
+                endif
+                
+                if (Me%HybridMorph%ON) then
+                    call KillHybridMorph
                 endif
 
 
@@ -5313,6 +6216,35 @@ if1:            if (Me%Classes%Number > 0) then
         
 
     !------------------------------------------------------------------------
+    
+    
+    !----------------------------------------------------------------------------
+    
+    subroutine KillHybridMorph
+
+        !Local-------------------------------------------------------------------
+
+        !------------------------------------------------------------------------
+        !Deallocate variables
+        !1D vectors
+        deallocate(Me%HybridMorph%InShoreMapping        )
+        deallocate(Me%HybridMorph%OffShoreMapping       ) 
+        deallocate(Me%HybridMorph%AlongShoreFlux        ) 
+        deallocate(Me%HybridMorph%ResidualAlongShoreFlux) 
+        deallocate(Me%HybridMorph%CrossShoreVel         ) 
+        deallocate(Me%HybridMorph%ResidualCrossShoreVel ) 
+
+
+        deallocate(Me%HybridMorph%BathymetryNext        )
+        deallocate(Me%HybridMorph%BathymetryPrevious    )
+        deallocate(Me%HybridMorph%DistanceToCoastRef    )
+        deallocate(Me%HybridMorph%DistanceToCoastInst   )           
+        
+        deallocate(Me%HybridMorph%DZ_Residual%Field2D)
+        
+    end subroutine KillHybridMorph
+            
+    !--------------------------------------------------------------------------    
     !--------------------------------------------------------------------------
     !   Write the final water properties results in HDF format  !
   
@@ -5337,69 +6269,81 @@ if1:            if (Me%Classes%Number > 0) then
         call Open_HDF5_OutPut_File(Me%Files%FinalSand)
 
        
-        call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,                               &
-                             WorkJLB, WorkJUB,                                           &
+        call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,                              &
+                             WorkJLB, WorkJUB,                                          &
                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'WriteFinalState - ModuleSand - ERR10'
 
         !Final concentration
-        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                     &
-                             trim(Me%DZ_Residual%ID%Name),                               &
-                             trim(Me%DZ_Residual%ID%Units),                              &
-                             Array2D = Me%DZ_Residual%Field2D,                           &
+        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                    &
+                             trim(Me%DZ_Residual%ID%Name),                              &
+                             trim(Me%DZ_Residual%ID%Units),                             &
+                             Array2D = Me%DZ_Residual%Field2D,                          &
                              STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'WriteFinalState - ModuleSand - ERR20'
 
-        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                     &
-                             "Bathymetry",                                               &
-                             "m",                                                        &
-                             Array2D = Me%ExternalVar%Bathymetry,                        &
+        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                    &
+                             "Bathymetry",                                              &
+                             "m",                                                       &
+                             Array2D = Me%ExternalVar%Bathymetry,                       &
                              STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'WriteFinalState - ModuleSand - ERR30'
-
-        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
-                             "Residual Transport Flux X",                           &
-                             "m3/s/m",                                              &
-                             Array2D = Me%Residual%FluxX,                           &
-                             STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                  &
+            
+        call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid,          &
+                                     VectorInX         = Me%Residual%FluxX,             &
+                                     VectorInY         = Me%Residual%FluxY,             &
+                                     VectorOutX        = Me%Residual%OutFluxX,          &
+                                     VectorOutY        = Me%Residual%OutFluxY,          &
+                                     WaterPoints2D     = Me%ExternalVar%WaterPoints2D,  &
+                                     RotateX           = .true.,                        &
+                                     RotateY           = .true.,                        &
+                                     STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'WriteFinalState - ModuleSand - ERR40'
 
-        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                &
-                             "Residual Transport Flux Y",                           &
-                             "m3/s/m",                                              &
-                             Array2D = Me%Residual%FluxY,                           &
+        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                    &
+                             "Residual Transport Flux X",                               &
+                             "m3/s/m",                                                  &
+                             Array2D = Me%Residual%OutFluxX,                            &
                              STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                  &
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'WriteFinalState - ModuleSand - ERR50'
 
-        call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                  &
+        call HDF5WriteData  (Me%ObjHDF5, "/Results",                                    &
+                             "Residual Transport Flux Y",                               &
+                             "m3/s/m",                                                  &
+                             Array2D = Me%Residual%OutFluxY,                            &
+                             STAT    = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'WriteFinalState - ModuleSand - ERR60'
 
+        call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'WriteFinalState - ModuleSand - ERR70'
+
         !Writes current time
-        call ExtractDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3), &
+        call ExtractDate   (Me%Residual%StartTime, AuxTime(1), AuxTime(2), AuxTime(3),  &
                             AuxTime(4), AuxTime(5), AuxTime(6))
         TimePtr => AuxTime
         call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR70'
-
-        call HDF5WriteData  (Me%ObjHDF5, "/Time",                                   &
-                             "Residual Start Time", "YYYY/MM/DD HH:MM:SS",          &
-                             Array1D = TimePtr, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR80'
+
+        call HDF5WriteData  (Me%ObjHDF5, "/Time",                                       &
+                             "Residual Start Time", "YYYY/MM/DD HH:MM:SS",              &
+                             Array1D = TimePtr, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalState - ModuleSand - ERR90'
                              
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSand - ERR90'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'WriteFinalState - ModuleSand - ERR100'
 
         call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'WriteFinalState - ModuleSand - ERR100'
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'WriteFinalState - ModuleSand - ERR110'
 
     end subroutine WriteFinalState
 

@@ -33,7 +33,8 @@ Module ModuleRunOff
     use ModuleGlobalData
     use ModuleTime
     use ModuleTimeSerie         ,only : StartTimeSerieInput, KillTimeSerie,              &
-                                        GetTimeSerieInitialData, GetTimeSerieValue
+                                        GetTimeSerieInitialData, GetTimeSerieValue,      &
+                                        StartTimeSerie, WriteTimeSerieLine
     use ModuleEnterData
     use ModuleHDF5
     use ModuleFunctions         ,only : TimeToString, SetMatrixValue, ChangeSuffix,      &
@@ -63,7 +64,8 @@ Module ModuleRunOff
                                         TryIgnoreDischarge, GetDischargeSpatialEmission, &
                                         CorrectsCellsDischarges, Kill_Discharges,        &
                                         GetByPassON, GetDischargeFlowDistribuiton,       &
-                                        UnGetDischarges, SetLocationCellsZ
+                                        UnGetDischarges, SetLocationCellsZ,              &
+                                        CorrectsBypassCellsDischarges
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif, &
                                        BoxDif, KillBoxDif                                                      
     use ModuleDrawing
@@ -189,6 +191,16 @@ Module ModuleRunOff
         character(Pathlength)                       :: FloodPeriodFile                = null_str
         real, dimension(:,:), pointer               :: FloodPeriod                    => null()        
         real                                        :: FloodWaterColumnLimit          = null_real 
+        
+        logical                                     :: TimeSerieDischON   = .false. 
+        integer                                     :: DischargesNumber   = null_int 
+        integer, dimension(:),   pointer            :: TimeSerieDischID   => null()     
+        real,    dimension(:,:), pointer            :: TimeSerieDischProp => null()
+        integer                                     :: TS_Numb_DischProp  = null_int 
+        type (T_Time)                               :: NextOutPutDisch    
+        real                                        :: OutPutDischDT
+        character(len=PathLength)                   :: TimeSerieLocationFile
+        
     end type T_OutPut
 
 
@@ -1163,13 +1175,58 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !Discharges
         call GetData(Me%Discharges,                                         &
-                     Me%ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                &  
                      keyword      = 'DISCHARGES',                           &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR370'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR370'     
+        
+        !Discharges output time series
+        if (Me%Discharges) then
+
+            call GetData(Me%Output%TimeSerieDischON,                        &
+                         Me%ObjEnterData, iflag,                            &
+                         keyword    = 'TIME_SERIE_DISCHARGES',              &
+                         Default    = .false.,                              &
+                         SearchType = FromFile,                             &
+                         ClientModule ='ModuleRunOff',                      &
+                         STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR375'
+
+            if (Me%Output%TimeSerieDischON) then
+            
+                call GetData(Me%Output%TimeSerieLocationFile,                   &
+                             Me%ObjEnterData,iflag,                             &
+                             SearchType   = FromFile,                           &
+                             keyword      = 'TIME_SERIE_LOCATION',              &
+                             ClientModule = 'ModuleHydrodynamic',               &
+                             Default      = Me%Files%DataFile,                  &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_)stop 'ReadDataFile - ModuleRunOff - ERR377'
+
+                Me%Output%NextOutPutDisch = Me%BeginTime
+
+                call GetData(Me%Output%OutPutDischDT,                           &
+                             Me%ObjEnterData, iflag,                            &
+                             keyword    = 'DT_OUTPUT_TIME',                     &
+                             Default    = FillValueReal,                        &
+                             SearchType = FromFile,                             &
+                             ClientModule ='ModuleRunOff',                      &
+                             STAT       = STAT_CALL)            
+                if (STAT_CALL/=SUCCESS_)stop 'ReadDataFile - ModuleRunOff - ERR378'
+
+                if (iflag == 0) then
+                    call GetComputeTimeStep(Me%ObjTime,                                         &
+                                            Me%Output%OutPutDischDT,                            &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_)stop 'ReadDataFile - ModuleRunOff - ERR379'
+
+                endif                
+
+            endif        
+        endif    
 
         !Discharges
         call GetData(Me%SimpleChannelInteraction,                           &
@@ -2858,11 +2915,90 @@ do4:            do di = -1, 1
             endif
 
         enddo
+        
+        if (Me%OutPut%TimeSerieDischON) then
+            call Construct_Time_Serie_Discharge
+        endif            
 
    
-    end subroutine
+    end subroutine ConstructDischarges
     
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine Construct_Time_Serie_Discharge
+
+        !Arguments-------------------------------------------------------------
+
+        !External--------------------------------------------------------------
+        character(len=StringLength), dimension(:), pointer  :: PropertyList
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: STAT_CALL
+        integer                                             :: iflag, dis, i, j
+        character(len=StringLength)                         :: Extension, DischargeName
+
+        !Begin-----------------------------------------------------------------
+
+
+        call GetDischargesNumber(Me%ObjDischarges, Me%OutPut%DischargesNumber, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_)stop 'Construct_Time_Serie_Discharge - ModuleRunOff - ERR10'
+
+        allocate(Me%OutPut%TimeSerieDischID(Me%OutPut%DischargesNumber))
+        
+        Me%OutPut%TimeSerieDischID(:) = 0
+        
+        Me%OutPut%TS_Numb_DischProp = 6 !1 - flow; 2 - velocity; 3 - Area, 4 - water level Upstream ; 
+                        !5 - water level Downstream; 6 - water flow without corrections
+        
+        allocate(Me%OutPut%TimeSerieDischProp(1:Me%OutPut%DischargesNumber,1:Me%OutPut%TS_Numb_DischProp))
+        
+        Me%OutPut%TimeSerieDischProp(:,:) = 0.
+
+        !Allocates PropertyList
+        allocate(PropertyList(Me%OutPut%TS_Numb_DischProp), STAT = STAT_CALL)
+
+        if (STAT_CALL/=SUCCESS_)stop 'Construct_Time_Serie_Discharge - ModuleRunOff - ERR20'
+
+        !Fills up PropertyList
+        PropertyList(1) = "water_flux"
+        PropertyList(2) = "velocity"
+        PropertyList(3) = "area"        
+        PropertyList(4) = "water_level_upstream"
+        PropertyList(5) = "water_level_downstream"
+        PropertyList(6) = "water_flow_no_correction"        
+
+        do i=1,Me%OutPut%TS_Numb_DischProp
+            do j=1,len_trim(PropertyList(i))
+                if (PropertyList(i)(j:j)==' ') PropertyList(i)(j:j)='_'
+            enddo
+        enddo
+  
+        Extension = 'fds'
+
+        do dis = 1, Me%OutPut%DischargesNumber
+        
+            call GetDischargesIDName (Me%ObjDischarges, dis, DischargeName, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_)stop 'Construct_Time_Serie_Discharge - ModuleRunOff - ERR60'
+        
+            call StartTimeSerie(TimeSerieID         = Me%OutPut%TimeSerieDischID(dis),  &
+                                ObjTime             = Me%ObjTime,                       &
+                                TimeSerieDataFile   = Me%Output%TimeSerieLocationFile,  &
+                                PropertyList        = PropertyList,                     &
+                                Extension           = Extension,                        &
+                                ResultFileName      = "hydro_"//trim(DischargeName),    &
+                                STAT                = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_)stop 'Construct_Time_Serie_Discharge - ModuleRunOff - ERR70'
+            
+        enddo
+        
+        !----------------------------------------------------------------------
+        
+        
+    end subroutine Construct_Time_Serie_Discharge
+
+    !--------------------------------------------------------------------------    
 
     subroutine AllocateVariables
 
@@ -4341,10 +4477,6 @@ doIter:         do while (iter <= Niter)
                     call SetMatrixValue(Me%FlowXOld,         Me%Size, Me%lFlowX)
                     call SetMatrixValue(Me%FlowYOld,         Me%Size, Me%lFlowY)
 
-                    !Inputs Water from discharges
-                    if (Me%Discharges) then
-                        call ModifyWaterDischarges  (Me%CV%CurrentDT)                
-                    endif
 
                     !Updates Geometry
                     call ModifyGeometryAndMapping
@@ -4379,7 +4511,11 @@ doIter:         do while (iter <= Niter)
 !                        call ImposeBoundaryValue    (Me%CV%CurrentDT)
 !                    endif
 
-                    
+                    !Inputs Water from discharges
+                    if (Me%Discharges) then
+                        call ModifyWaterDischarges  (Me%CV%CurrentDT)                
+                    endif
+
                     call CheckStability(Restart) 
                     
                     call ReadUnLockExternalVar (StaticOnly = .false.)
@@ -4531,36 +4667,84 @@ doIter:         do while (iter <= Niter)
         integer                                 :: iDis, nDischarges, nCells
         integer                                 :: i, j, k, ib, jb, n, FlowDistribution
         real                                    :: SurfaceElevation, SurfaceElevationByPass    
-        real                                    :: MaxFlow, DischargeFlow, AuxFlowIJ
+        real                                    :: MaxFlow, DischargeFlow, AuxFlowIJ, FlowArea
+        real                                    :: MinVolume
         integer                                 :: STAT_CALL
         logical                                 :: ByPassON
         integer, dimension(:    ), pointer      :: VectorI, VectorJ
         real,    dimension(:    ), pointer      :: DistributionCoef
+        real                                    :: AuxWaterColumn
+        real                                    :: CoordinateX, CoordinateY, XBypass, YBypass      
+        logical                                 :: CoordinatesON
+        real                                    :: ByPassFlowCriticCenterCell, FlowCriticCenterCell
+        real                                    :: variation, variation2, DV, StabilizeFactor, Vnew, Hold
+        real                                    :: AuxFlow
+       
+        !Begin------------------------------------------------------------------        
+        
 
         !Sets to 0
         call SetMatrixValue(Me%lFlowDischarge, Me%Size, 0.0)
+        
+        !The discharge flow is controled using two basic rules:
+        ! 1 - when the flow is negative can not remove more than the volume present in the cell;
+        ! 2 - the volume variation induce by the discharge can not be larger than a percentage of the volume present in the cell.
+        !     This percentage is equal to 100 * Me%CV%StabilizeFactor. By default Me%CV%StabilizeFactor = 0.1  this means that by default
+        !     this percentage is 1000 %. The Me%CV%StabilizeFactor is used for estimate changes in the time step to maintain the model stability  
+        
+        StabilizeFactor = Me%CV%StabilizeFactor * 100.
+
 
         !Gets the number of discharges
         call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
-        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR01'
+        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR10'
 
         do iDis = 1, nDischarges
+        
+        
+            if (Me%OutPut%TimeSerieDischON) then
+                Me%OutPut%TimeSerieDischProp(iDis,:) = 0.
+            endif    
 
             call GetDischargesGridLocalization(Me%ObjDischarges,                        &
                                                DischargeIDNumber = iDis,                &
-                                               Igrid = i,                               &
-                                               JGrid = j,                               &
-                                               KGrid = k,                               &
+                                               Igrid         = i,                       &
+                                               JGrid         = j,                       &
+                                               KGrid         = k,                       &
                                                IByPass       = ib,                      &
-                                               JByPass       = jb,                      &  
-                                               STAT = STAT_CALL)
-            if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR02'
+                                               JByPass       = jb,                      & 
+                                               CoordinateX   = CoordinateX,             &
+                                               CoordinateY   = CoordinateY,             & 
+                                               CoordinatesON = CoordinatesON,           &
+                                               XBypass       = XBypass,                 &
+                                               YBypass       = YBypass,                 &
+                                               STAT          = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR20'
             
             if (k == 0) then
 
                 !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
                 call GetByPassON(Me%ObjDischarges, iDis, ByPassON, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR03'
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR30'
+                
+                if (CoordinatesON) then
+                    call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, I, J, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ModuleHydrodynamic - ERR40'
+
+                    call CorrectsCellsDischarges(Me%ObjDischarges, iDis, I, J, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ModuleHydrodynamic - ERR50'                
+                    
+                    if (ByPassON) then
+
+                        call GetXYCellZ(Me%ObjHorizontalGrid, XBypass, YBypass, Ib, Jb, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ModuleHydrodynamic - ERR60'
+
+                        call CorrectsBypassCellsDischarges(Me%ObjDischarges, iDis, Ib, Jb, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModuleRunOff - ModuleHydrodynamic - ERR70'
+
+                    endif
+                    
+                endif                
 
                 if (ByPassON) then
                     SurfaceElevationByPass = Me%myWaterLevel(ib, jb)
@@ -4575,13 +4759,20 @@ doIter:         do while (iter <= Niter)
                                         SurfaceElevation,                               &
                                         DischargeFlow,                                  &
                                         SurfaceElevation2 = SurfaceElevationByPass,     &
+                                        FlowArea = FlowArea,                            &
                                         STAT = STAT_CALL)
-                if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR04'
+                if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR80'
 
                 
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, iDis, nCells, FlowDistribution, &
                                                   VectorI, VectorJ, STAT = STAT_CALL)             
-                if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR040'
+                if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR90'
+                
+                if (ByPassON) then
+                    if (nCells > 1) then
+                        stop 'ModuleRunOff - ModifyWaterDischarges - ERR100'
+                    endif                            
+                endif                
 
                 !Horizontal distribution
 i1:             if (nCells > 1) then
@@ -4592,7 +4783,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                     else i2
                     
-                        stop 'ModuleRunOff - ModifyWaterDischarges - ERR050'
+                        stop 'ModuleRunOff - ModifyWaterDischarges - ERR110'
 
                     endif i2
                 endif i1
@@ -4612,18 +4803,133 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                                                 AuxFlowIJ,                                      &
                                                 FlowDistribution  = DistributionCoef(n),        &
                                                 STAT = STAT_CALL)
-                        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR070'
+                        if (STAT_CALL/=SUCCESS_) stop 'ModuleRunOff - ModifyWaterDischarges - ERR120'
 
 
                     endif
                     
                     !each additional flow can remove all water column left
-                    if (AuxFlowIJ .lt. 0.0) then
-                        !m3/s = m3 /s
-                        MaxFlow = - Me%myWaterVolume(i, j) / LocalDT
-                  
-                        if (abs(AuxFlowIJ) .gt. abs(MaxFlow)) then
-                            AuxFlowIJ = MaxFlow 
+                    if (AuxFlowIJ < 0.0 .or. ByPassON) then
+                    
+                        if (ByPassON .and. AuxFlowIJ > 0.) then
+                            !m3 = m * m2
+                            MinVolume = Me%MinimumWaterColumn * Me%ExtVar%GridCellArea(ib, jb)
+                            
+                            !m3/s = m3 /s
+                            if (Me%myWaterVolume(ib, jb) > MinVolume) then
+                                MaxFlow = (Me%myWaterVolume(ib, jb) - MinVolume) / LocalDT
+                            else
+                                MaxFlow = 0.
+                            endif                                
+                                             
+                            if (abs(AuxFlowIJ) > abs(MaxFlow)) then
+                                if (AuxFlowIJ > 0.) then
+                                    AuxFlowIJ =   MaxFlow
+                                else
+                                    AuxFlowIJ = - MaxFlow
+                                endif                                    
+                            endif    
+                                
+                            !m3/s      = [m/s^2*m]^0.5*[m^2]^0.5 * [m] = [m/s] * [m] * [m]    
+                            !ByPassFlowCriticCenterCell = sqrt(Gravity * Me%myWaterColumn (ib, jb)) * sqrt(Me%ExtVar%GridCellArea(ib, jb)) * Me%myWaterColumn (ib, jb)   
+                            
+                            !ByPassFlowCriticCenterCell = Me%CV%MaxCourant / 2. * ByPassFlowCriticCenterCell
+                            
+                            !if (abs(AuxFlowIJ) > abs(ByPassFlowCriticCenterCell)) then
+                            !    AuxFlowIJ = - ByPassFlowCriticCenterCell 
+                            !endif                                                                            
+                       
+                        else
+
+                            !m3 = m * m2
+                            MinVolume = Me%MinimumWaterColumn * Me%ExtVar%GridCellArea(i, j)
+
+                            !m3/s = m3 /s
+                            if (Me%myWaterVolume(i, j) > MinVolume) then
+                                MaxFlow = (Me%myWaterVolume(i, j) - MinVolume) / LocalDT
+                            else
+                                MaxFlow = 0.
+                            endif                                       
+                            
+                            if (abs(AuxFlowIJ) > abs(MaxFlow)) then
+                                if (AuxFlowIJ > 0.) then
+                                    AuxFlowIJ =   MaxFlow
+                                else
+                                    AuxFlowIJ = - MaxFlow
+                                endif                                    
+                            endif                              
+                                    
+                            !m3/s      = [m/s^2*m]^0.5*[m^2]^0.5 * [m] = [m/s] * [m] * [m]    
+                            !FlowCriticCenterCell = sqrt(Gravity * Me%myWaterColumn (i, j)) * sqrt(Me%ExtVar%GridCellArea(i, j)) * Me%myWaterColumn (i, j)        
+                            
+                            !FlowCriticCenterCell = Me%CV%MaxCourant / 2. * FlowCriticCenterCell
+
+                            !if (abs(AuxFlowIJ) > abs(FlowCriticCenterCell)) then
+                            !!    AuxFlowIJ = - FlowCriticCenterCell 
+                            !endif                            
+
+                       endif                            
+                       
+                    endif
+                    
+                    Vnew = Me%myWaterVolume(i, j) + AuxFlowIJ * LocalDT
+                    Hold = Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j)
+                    
+                    if ((.not. Me%CV%CheckDecreaseOnly) .or. Me%myWaterVolumeOld(i, j) > Vnew) then
+                    
+                        if (Hold >= Me%CV%MinimumValueToStabilize) then
+                    
+                            DV =  Me%myWaterVolume(i, j)  - Me%myWaterVolumeOld(i, j)
+                            
+                            variation = abs(DV + AuxFlowIJ * LocalDT) / Me%myWaterVolumeOld(i, j)
+                            
+                            if (variation > StabilizeFactor) then
+                                AuxFlow = AuxFlowIJ
+                                variation2 = abs(DV) / Me%myWaterVolumeOld(i, j)                    
+                                if (variation2 > StabilizeFactor) then
+                                    AuxFlowIJ = 0.
+                                else
+                                    if (AuxFlowIJ > 0.) then
+                                        AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
+                                    else
+                                        AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
+                                    endif                                
+                                endif              
+                                write(*,*) 'Flow in cell',i,j,'was correct from ',AuxFlow,'to ',AuxFlowIJ
+                            endif
+                        endif                        
+                    endif                        
+
+                    if (ByPassON) then
+                    
+                        Vnew = Me%myWaterVolume   (ib, jb) - AuxFlowIJ * LocalDT                    
+                        Hold = Me%myWaterVolumeOld(ib, jb) / Me%ExtVar%GridCellArea(ib, jb)
+                    
+                        if ((.not. Me%CV%CheckDecreaseOnly) .or. Me%myWaterVolumeOld(ib, jb) > Vnew) then
+                        
+                            if (Hold >= Me%CV%MinimumValueToStabilize) then
+
+                                DV =  Me%myWaterVolume(ib, jb)  - Me%myWaterVolumeOld(ib, jb)
+                                
+                                variation = abs(DV - AuxFlowIJ * LocalDT) / Me%myWaterVolumeOld(ib, jb)
+                                
+                                if (variation > StabilizeFactor) then
+                                    
+                                    AuxFlow = AuxFlowIJ
+                                    
+                                    variation2 = abs(DV) / Me%myWaterVolumeOld(ib, jb)                    
+                                    if (variation2 > StabilizeFactor) then
+                                        AuxFlowIJ = 0.
+                                    else
+                                        if (AuxFlowIJ < 0.) then
+                                              AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
+                                        else
+                                              AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT                                                            
+                                        endif                                
+                                    endif  
+                                    write(*,*) 'Flow in cell',i,j,'was correct from ',AuxFlow,'to ',AuxFlowIJ                          
+                                endif
+                            endif                                
                         endif
                     endif
 
@@ -4637,21 +4943,64 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                     !Updates Water Level
                     Me%myWaterLevel (i, j)      = Me%myWaterColumn (i, j) + Me%ExtVar%Topography(i, j)
+                    
+                    if (ByPassON) then
+
+                        Me%lFlowDischarge(ib, jb)     = Me%lFlowDischarge(ib, jb) - AuxFlowIJ
+
+                        !Updates Water Volume
+                        Me%myWaterVolume(ib, jb)      = Me%myWaterVolume(ib, jb) - AuxFlowIJ * LocalDT
+
+                        !Updates Water Column
+                        Me%myWaterColumn  (ib, jb)    = Me%myWaterVolume (ib, jb) / Me%ExtVar%GridCellArea(ib, jb)
+
+                        !Updates Water Level
+                        Me%myWaterLevel (ib, jb)      = Me%myWaterColumn (ib, jb) + Me%ExtVar%Topography(ib, jb)
+                    endif
 
                     !if (Me%CheckMass) Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT                    
-                    
+
 
                 enddo dn
 
                 if (nCells > 1) deallocate(DistributionCoef)
+                
+                
+                if (Me%OutPut%TimeSerieDischON) then
+                    if (ByPassON) then
+                        !In the output is assumed the flow direction Cell i,j (upstream) -> Cell Bypass i,j (downstream) as positive 
+                        Me%OutPut%TimeSerieDischProp(iDis,1) = - AuxFlowIJ 
+                    else
+                        Me%OutPut%TimeSerieDischProp(iDis,1) =   AuxFlowIJ 
+                    endif
+                    if (FlowArea > 0.) then
+                        Me%OutPut%TimeSerieDischProp(iDis,2) = Me%OutPut%TimeSerieDischProp(iDis,1) / FlowArea
+                    else                            
+                        Me%OutPut%TimeSerieDischProp(iDis,2) = FillValueReal
+                    endif              
+
+                    Me%OutPut%TimeSerieDischProp(iDis,3) = FlowArea                                      
+
+                    Me%OutPut%TimeSerieDischProp(iDis,4) = SurfaceElevation
+
+                    Me%OutPut%TimeSerieDischProp(iDis,5) = SurfaceElevationByPass
+                    
+                    
+                    if (ByPassON) then
+                        !In the output is assumed the flow direction Cell i,j (upstream) -> Cell Bypass i,j (downstream) as positive 
+                        Me%OutPut%TimeSerieDischProp(iDis,6) = - DischargeFlow 
+                    else
+                        Me%OutPut%TimeSerieDischProp(iDis,6) =   DischargeFlow 
+                    endif                    
+                endif                  
 
                 call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)             
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'ModuleRunOff - ModifyWaterDischarges - ERR070'
+                    stop 'ModuleRunOff - ModifyWaterDischarges - ERR130'
 
                 call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)             
                 if (STAT_CALL/=SUCCESS_)                                                    &
-                    stop 'ModuleRunOff - ModifyWaterDischarges - ERR080'                               
+                    stop 'ModuleRunOff - ModifyWaterDischarges - ERR140'                               
  
             endif
            
@@ -8503,10 +8852,12 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
+        real,  dimension(:), pointer                :: AuxFlow
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
         real, dimension(6)  , target                :: AuxTime
-        real, dimension(:)  , pointer               :: TimePointer       
+        real, dimension(:)  , pointer               :: TimePointer
+        real                                        :: dis       
 
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "RunOffOutput")
 
@@ -8527,18 +8878,18 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             TimePointer => AuxTime
 
             call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
 
             call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time",                   &
                                  "YYYY/MM/DD HH:MM:SS",                         &
                                  Array1D      = TimePointer,                    &
                                  OutputNumber = Me%OutPut%NextOutPut,           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR20'
 
             !Sets limits for next write operations
             call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR30'
 
             !Writes Flow values
             !Writes the Water Column - should be on runoff
@@ -8547,7 +8898,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%MyWaterColumn,              &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR050'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR040'
 
        
             !Writes the Water Level
@@ -8556,7 +8907,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%MyWaterLevel,               &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR060'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR050'
             
 
 
@@ -8568,7 +8919,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%CenterFlowX,                    &
                                   OutputNumber = Me%OutPut%NextOutPut,              &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR09'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR60'
 
             
             !Writes Flow Y
@@ -8579,7 +8930,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%CenterFlowY,                    &
                                   OutputNumber = Me%OutPut%NextOutPut,              &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR70'
 
              !Writes Flow Modulus
             call HDF5WriteData   (Me%ObjHDF5,                                       &
@@ -8589,7 +8940,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%FlowModulus,                    &
                                   OutputNumber = Me%OutPut%NextOutPut,              &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR80'
 
              !Writes Velocity X 
             call HDF5WriteData   (Me%ObjHDF5,                                          &
@@ -8599,7 +8950,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%CenterVelocityX,                   &
                                   OutputNumber = Me%OutPut%NextOutPut,                 &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR90'
 
              !Writes Velocity Y 
             call HDF5WriteData   (Me%ObjHDF5,                                          &
@@ -8609,7 +8960,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%CenterVelocityY,                   &
                                   OutputNumber = Me%OutPut%NextOutPut,                 &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR100'
 
             !Writes Velocity Modulus
             call HDF5WriteData   (Me%ObjHDF5,                                                &
@@ -8619,7 +8970,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                   Array2D      = Me%VelocityModulus,                         &
                                   OutputNumber = Me%OutPut%NextOutPut,                       &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR110'
 
             !Writes Storm Water Volume of each Cell
             if (Me%StormWaterDrainage) then
@@ -8628,7 +8979,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%StormWaterVolume,              &
                                       OutputNumber = Me%OutPut%NextOutPut,             &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR080'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR120'
                 
                 
                 !Writes Flow X
@@ -8639,7 +8990,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%StormWaterCenterFlowX,          &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR09'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR130'
 
                 
                 !Writes SW Flow Y
@@ -8650,7 +9001,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%StormWaterCenterFlowY,          &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR140'
                 
 
                
@@ -8662,7 +9013,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%StormWaterCenterModulus,        &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR10'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR150'
                 
                 
             endif
@@ -8675,7 +9026,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%StormWaterModelFlow,            &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR160'
                 
                 !street gutter flow per gutter junction (at gutter location)
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/street gutter flow",       &
@@ -8683,7 +9034,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%StreetGutterFlow,               &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR170'
                 
                 !street gutter target flow per gutter junction (potential manhole inflow for SWMM)
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/sewer potential inflow",   &
@@ -8691,7 +9042,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%SewerInflow,                    &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'                
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR180'                
                 
                 !storm interaction effective inflows (at gutter location) and outflows (at manholes)
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water real flow",    &
@@ -8699,18 +9050,41 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       Array2D      = Me%StormInteractionFlow,           &
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR085'
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR190'
            
             endif
 
            
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR99'
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR200'
 
             Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
 
         endif
+        
+
+        if (Me%OutPut%TimeSerieDischON) then
+        
+            if (Me%ExtVar%Now >=  Me%OutPut%NextOutPutDisch) then
+            
+                do dis = 1, Me%OutPut%DischargesNumber
+       
+                    allocate(AuxFlow(Me%OutPut%TS_Numb_DischProp))
+                    
+                    AuxFlow(1:Me%OutPut%TS_Numb_DischProp) = Me%OutPut%TimeSerieDischProp(dis,1:Me%OutPut%TS_Numb_DischProp)
+                    
+                    call WriteTimeSerieLine(Me%OutPut%TimeSerieDischID(dis), AuxFlow, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR210'
+                    
+                    deallocate(AuxFlow)
+                    
+                enddo    
+
+                Me%OutPut%NextOutPutDisch = Me%OutPut%NextOutPutDisch + Me%Output%OutPutDischDT
+                
+            endif                
+        endif              
 
          if (MonitorPerformance) call StopWatch ("ModuleRunOff", "RunOffOutput")
         
@@ -9119,7 +9493,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                             :: ready_              
 
         !Local-------------------------------------------------------------------
-        integer                             :: STAT_, nUsers, STAT_CALL    
+        integer                             :: STAT_, nUsers, STAT_CALL, dis   
         character(len=StringLength)         :: MassErrorFile
         logical                             :: IsFinalFile
         !------------------------------------------------------------------------
@@ -9232,6 +9606,20 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Discharges) then
                     call Kill_Discharges(Me%ObjDischarges, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR100'
+                    
+                    if (Me%OutPut%TimeSerieDischON) then
+                        do dis = 1, Me%OutPut%DischargesNumber
+                            
+                            call KillTimeSerie(TimeSerieID         = Me%OutPut%TimeSerieDischID(dis), &
+                                                 STAT              = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR105'
+                            
+                        enddo                    
+                        
+                        deallocate(Me%OutPut%TimeSerieDischProp)
+                        deallocate(Me%OutPut%TimeSerieDischID)                    
+                        
+                    endif                     
                 endif
 
                 if (Me%ImposeBoundaryValue .and. Me%BoundaryImposedLevelInTime) then

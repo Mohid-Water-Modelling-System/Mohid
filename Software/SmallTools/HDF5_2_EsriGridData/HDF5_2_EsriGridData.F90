@@ -41,6 +41,7 @@ Program HDF5_2_EsriGridData
         integer                                             :: ClientNumber
         integer                                             :: ObjHDF5              = 0
         integer                                             :: ObjHorizontalGrid    = 0
+        integer                                             :: ObjHorizontalGridOut = 0        
         character(len=PathLength), dimension(:), pointer    :: FieldName
         character(len=PathLength), dimension(:), pointer    :: OutputESRI
         
@@ -48,6 +49,7 @@ Program HDF5_2_EsriGridData
         type(T_Time),              dimension(:), pointer    :: TimeESRI
         
         character(len=PathLength)                           :: GridFileName
+        character(len=PathLength)                           :: GridFileNameOut        
         character(len=PathLength)                           :: InPutFileName
         character(len=PathLength)                           :: OutPutFileName
 
@@ -58,6 +60,7 @@ Program HDF5_2_EsriGridData
         integer                                             :: Conversion          = FillValueInt
 
         type(T_Size2D)                                      :: WorkSize, Size
+        type(T_Size2D)                                      :: WorkSizeOut, SizeOut
         real                                                :: FillValue
         integer, dimension(4)                               :: Window
         logical                                             :: WindowON
@@ -65,7 +68,8 @@ Program HDF5_2_EsriGridData
         character(30)                                       :: DX
         character(30), dimension(2)                         :: Origin  
         logical                                             :: Dim2D      
-        logical                                             :: NoNegativeValues        
+        logical                                             :: NoNegativeValues    
+        logical                                             :: TransferToOutGrid    
     end type  T_HDF5_2_EsriGridData
 
     type(T_HDF5_2_EsriGridData), pointer              :: Me
@@ -134,6 +138,16 @@ Program HDF5_2_EsriGridData
 
         call GetHorizontalGridSize(Me%ObjHorizontalGrid, Me%Size, Me%WorkSize, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR20'
+        
+        if (Me%TransferToOutGrid) then
+            call ConstructHorizontalGrid(Me%ObjHorizontalGridOut, Me%GridFileNameOut, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR30'
+
+            call GetHorizontalGridSize(Me%ObjHorizontalGridOut, Me%SizeOut, Me%WorkSizeOut, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR40'
+
+        endif            
+        
 
     end subroutine ConstructHDF5_2_EsriGridData
  
@@ -284,6 +298,28 @@ d2:     do l= 1, Me%FieldNumber
         if (Me%Conversion /= HDF5_2_ESRI .and. Me%Conversion /= ESRI_2_HDF5)            &
                                    stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR60'
 
+
+        call GetData(Me%TransferToOutGrid,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'TRANSFER_TO_OUT_GRID',                             &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR70'
+
+        if (Me%TransferToOutGrid) then
+
+            call GetData(Me%GridFileNameOut,                                                &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'OUTPUT_GRID_FILENAME',                             &
+                         ClientModule = 'HDF5ToASCIIandBIN',                                &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR80'
+            if (iflag     == 0)        stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR90'
+ 
+        endif
  
     end subroutine ReadGlobalOptions
 
@@ -499,12 +535,14 @@ d2:     do l= 1, Me%InstantNumber
         !Arguments---------------------------------------------------------------
 
         !Local-------------------------------------------------------------------
-        real, dimension(:,:,:), pointer                 :: Aux3D                      
+        real, dimension(:,:,:), pointer                 :: Aux3D, Aux3DOut
         character(len=50000)                            :: Line
         character(len=PathLength)                       :: VGroup, Field, AuxChar
         integer                                         :: l, i, j, k, STAT_CALL, Unit
         integer                                         :: ILB, IUB, JLB, JUB, HDF5_READ, a, ba, bt
+        integer                                         :: ILBout, IUBout, JLBout, JUBout, iout, jout
         logical                                         :: Found2Blanks
+        real,  dimension(:,:), pointer                  :: CoordX, CoordY
         
         !------------------------------------------------------------------------
 
@@ -518,7 +556,7 @@ d2:     do l= 1, Me%InstantNumber
         if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR30'
 
         allocate(Aux3D     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,1: Me%KUB))  
-
+        
         call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,                &
                            Me%WorkSize%JLB,Me%WorkSize%JUB, 1, Me%KUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR40'
@@ -535,6 +573,24 @@ d2:     do l= 1, Me%InstantNumber
             JLB = Me%WorkSize%JLB; JUB = Me%WorkSize%JUB;                    
         
         endif
+        
+        if (Me%TransferToOutGrid) then
+            allocate(Aux3DOut(Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB,1: Me%KUB))
+            
+            ILBout = Me%WorkSizeOut%ILB
+            IUBout = Me%WorkSizeOut%IUB
+            JLBout = Me%WorkSizeOut%JLB
+            JUBout = Me%WorkSizeOut%JUB            
+
+            call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY)
+        else
+            Aux3DOut => Aux3D
+            ILBout = ILB
+            IUBout = IUB
+            JLBout = JLB
+            JUBout = JUB
+        endif            
+                
         
         k        = Me%Layer
 
@@ -576,12 +632,24 @@ d11:    do l = 1, Me%FieldNumber
                 write(Unit,'(A14,A30)')     'yllcorner     ', trim(adjustl(Me%Origin(2)))
                 write(Unit,'(A14,A30)')     'cellsize      ', trim(adjustl(Me%DX))
                 write(Unit,'(A14,f12.6)') 'nodata_value  ', Me%FillValue
-               
-                do i = IUB, ILB, -1
-                    do j = JLB, JUB
-                        if (abs(Aux3D(i,j,k)) > abs(Me%FillValue)) Aux3D(i,j,k) = Me%FillValue
+                
+                if (Me%TransferToOutGrid) then
+
+                    Aux3DOut(:,:,:) = Me%FillValue
+                    do i = ILB, IUB
+                        do j = JLB, JUB
+                            call GetXYCellZ(Me%ObjHorizontalGridOut, CoordX(i, j), CoordY(i, j), iout,jout)
+                            Aux3DOut(iout,jout,k) = Aux3D(i,j,k)
+                        enddo
                     enddo
-                    write(Line,'(4000(f12.6,1x))') Aux3D(i,JLB:JUB,k)
+               
+               endif
+               
+                do i = IUBout, ILBout, -1
+                    do j = JLBout, JUBout
+                        if (abs(Aux3DOut(i,j,k)) > abs(Me%FillValue)) Aux3DOut(i,j,k) = Me%FillValue
+                    enddo
+                    write(Line,'(4000(f12.6,1x))') Aux3Dout(i,JLB:JUB,k)
                     Line = adjustl(Line)
                     Found2Blanks = .true.
 
@@ -605,6 +673,11 @@ d11:    do l = 1, Me%FieldNumber
         
 
         deallocate(Aux3D)  
+
+        if (Me%TransferToOutGrid) then
+            deallocate(Aux3DOut)
+        endif            
+        
 
     end subroutine ModifyHDF5_2_EsriGridData
  
@@ -641,9 +714,6 @@ d11:    do l = 1, Me%FieldNumber
         !Opens HDF5 File
         call ConstructHDF5(Me%ObjHDF5, Me%OutPutFileName, HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR10'
-        
-        call GetGridOrigin(Me%ObjHorizontalGrid, Xorig, Yorig, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyEsriGridData_2_HDF5 - HDF5_2_EsriGridData - ERR20'        
         
 
         call WriteHorizontalGrid (Me%ObjHorizontalGrid, Me%ObjHDF5, STAT = STAT_CALL)
