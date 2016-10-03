@@ -25582,13 +25582,16 @@ g2:         do ig = 1, Me%NGroups
 
                     select case (Me%OutPut%OutPutConcType)
 
+                    ! If a particle volume is greater than the volume cell the particle mass and volume 
+                    ! is distributed in a uniform way by the adjacent cells in the follower order I,J,K
+                    
                     case (Maximum)
 
 
-                        !Metodo Max : Admite-se a concentracao igual ao valor maximo de entre 2 valores: 
-                        !          - massa total de tracadores presente na celula a dividir pelo volume da celula
-                        !          - concentracao media dos tracadores
-                               
+                        !"Maximum" method : In this case the maximum value between to option is assumed:
+                        !   - total particle mass inside a cell devided by the volume cell
+                        !   - total particle mass inside a cell devided by the total particle volume inside the cell 
+                        !          
                         Me%EulerModel(em)%Lag2Euler%MassVolCel(:, ig) = &
                             Me%EulerModel(em)%Lag2Euler%GridMass(i, j, k, :, ig) / &
                             Me%EulerModel(em)%VolumeZ(i, j, k)
@@ -25599,11 +25602,11 @@ g2:         do ig = 1, Me%NGroups
 
                     case (Mean)
 
-                        !Metodo 2 : Se o volume total de tracadores for menor
-                        !      que o volume da célula i,j,k, entao a concentracao nesta  e igual a uma media 
-                        !      entre a concentracao media dos tracadores e a concentracao ambiente
-                        !      caso contrario a concentracao na celula i,j,k e igual a concentracao media 
-                        !      dos tracadores
+                        !"Mean" method : In this case the concentration is assumed equal to the 
+                        !  total particle mass inside a cell devided by the volume cell in sum of the total particle volume
+                        !  is bigger than the cell volume. Otherwise the total particle mass is add to the ambient concentration 
+                        ! multiply by the volume cell not covered by the particle volumes. The final concentration is mass describe 
+                        ! before devide by the cell volume. 
 
                         if (Me%EulerModel(em)%VolumeZ(i, j, k) >=                       &
                             Me%EulerModel(em)%Lag2Euler%GridVolume(i, j, k, ig)) then 
