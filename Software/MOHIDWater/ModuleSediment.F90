@@ -5904,7 +5904,7 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
         
         MaximumSlope = Me%MaximumSlope
         
-        dzdt_max = Me%MaximumDZDT / Me%MorphologicalFactor
+        dzdt_max = Me%MaximumDZDT
         
         WILB = Me%SedimentWorkSize3D%ILB
         WIUB = Me%SedimentWorkSize3D%IUB
@@ -5943,20 +5943,20 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
                         dm = dz * factor
                 
                         if (dz .gt. 0.) then
-                            WW = Me%KTop(i, j+1)
-                            jj = j+1
-                        else
                             WW = Me%KTop(i, j)
                             jj = j
+                        else
+                            WW = Me%KTop(i, j+1)
+                            jj = j+1
                         endif
                     
                         if (Me%CohesiveClass%Run) then
             
                             if (Me%CohesiveClass%Mass(i,jj,WW) > 0.) then
 
-                                Me%CohesiveClass%DM(i,j) =  Me%CohesiveClass%DM(i,j) + Me%CohesiveClass%Field3D(i,jj,WW) * dm
+                                Me%CohesiveClass%DM(i,j) =  Me%CohesiveClass%DM(i,j) - Me%CohesiveClass%Field3D(i,jj,WW) * dm
                 
-                                Me%CohesiveClass%DM(i,j+1) =  Me%CohesiveClass%DM(i ,j+1) - Me%CohesiveClass%Field3D(i,jj,WW) * dm
+                                Me%CohesiveClass%DM(i,j+1) =  Me%CohesiveClass%DM(i ,j+1) + Me%CohesiveClass%Field3D(i,jj,WW) * dm
                 
                             endif          
                         endif
@@ -5966,9 +5966,9 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
                
                             if (SandClass%Mass(i,jj,WW) > 0.) then
             
-                                SandClass%DM(i,j) =  SandClass%DM(i,j) + SandClass%Field3D(i,jj,WW) * dm
+                                SandClass%DM(i,j) =  SandClass%DM(i,j) - SandClass%Field3D(i,jj,WW) * dm
                 
-                                SandClass%DM(i,j+1) = SandClass%DM(i,j+1) - SandClass%Field3D(i,jj,WW) * dm
+                                SandClass%DM(i,j+1) = SandClass%DM(i,j+1) + SandClass%Field3D(i,jj,WW) * dm
                             
                             endif                            
                         enddo            
@@ -5999,20 +5999,20 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
                         dm = dz * factor
                 
                         if (dz .gt. 0.) then
-                            WW = Me%KTop(i+1, j)
-                            ii = i+1
-                        else
                             WW = Me%KTop(i, j)
                             ii = i
+                        else
+                            WW = Me%KTop(i+1, j)
+                            ii = i+1
                         endif
                     
                         if (Me%CohesiveClass%Run) then
             
                             if (Me%CohesiveClass%Mass(ii,j,WW) > 0.) then
 
-                                Me%CohesiveClass%DM(i,j) =  Me%CohesiveClass%DM(i,j) + Me%CohesiveClass%Field3D(ii,j,WW) * dm
+                                Me%CohesiveClass%DM(i,j) =  Me%CohesiveClass%DM(i,j) - Me%CohesiveClass%Field3D(ii,j,WW) * dm
                 
-                                Me%CohesiveClass%DM(i+1,j) =  Me%CohesiveClass%DM(i+1,j) - Me%CohesiveClass%Field3D(ii,j,WW) * dm
+                                Me%CohesiveClass%DM(i+1,j) =  Me%CohesiveClass%DM(i+1,j) + Me%CohesiveClass%Field3D(ii,j,WW) * dm
                 
                             endif          
                         endif
@@ -6022,9 +6022,9 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
                
                             if (SandClass%Mass(ii,j,WW) > 0.) then
             
-                                SandClass%DM(i,j) =  SandClass%DM(i,j) + SandClass%Field3D(ii,j,WW) * dm
+                                SandClass%DM(i,j) =  SandClass%DM(i,j) - SandClass%Field3D(ii,j,WW) * dm
                 
-                                SandClass%DM(i+1,j) = SandClass%DM(i+1,j) - SandClass%Field3D(ii,j,WW) * dm
+                                SandClass%DM(i+1,j) = SandClass%DM(i+1,j) + SandClass%Field3D(ii,j,WW) * dm
                             
                             endif                            
                         enddo            
