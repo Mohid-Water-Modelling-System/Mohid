@@ -156,6 +156,7 @@ Module ModuleSediment
     private ::      ComputeMass
     private ::      ComputeErosionDryCells
     private ::          ComputeDMDryCells
+    private ::      AdjustSteepness
     private ::      ComputePercentage
     private ::          ComputePorosity
     private ::      ComputeTotalDZ
@@ -403,6 +404,9 @@ Module ModuleSediment
         real                                       :: ConsolidationRate2    = FillValueReal
         logical                                    :: ErosionDryCells       = .false.
         real                                       :: ErosionDryCellsFactor = FillValueReal
+        logical                                    :: AdjustSteepness       = .false.
+        real                                       :: MaximumSlope          = FillValueReal
+        real                                       :: MaximumDZDT           = FillValueReal
         real                                       :: MorphologicalFactor   = FillValueReal
         real                                       :: Density               = FillValueReal
         real                                       :: RelativeDensity       = FillValueReal
@@ -1091,6 +1095,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR240' 
+        
+
+        call GetData(Me%AdjustSteepness,                                                 &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'ADJUST_STEEPNESS',                                  &
+                     default      = .FALSE.,                                             &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR250'
+        
+        call GetData(Me%MaximumSlope,                                                    &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'MAXIMUM_SLOPE',                                      &
+                     default      = 0.1,                                                 &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR260'
+        
+        call GetData(Me%MaximumDZDT,                                                     &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'MAXIMUM_DZDT',                                       &
+                     default      = 0.001,                                               &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR270'
         
 
     end subroutine ConstructGlobalParameters
@@ -4327,7 +4359,11 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     if (Me%ErosionDryCells) then
                         call ComputeErosionDryCells
                     endif
-
+                    
+                    if (Me%AdjustSteepness) then
+                        call AdjustSteepness
+                    endif
+                    
                     call BoundaryCondition
                     
 #if _USE_MPI                    
@@ -5731,6 +5767,276 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
     end subroutine ComputeSedimentWaterFluxes
     
     !--------------------------------------------------------------------------
+    
+     
+    !--------------------------------------------------------------------------
+      
+    subroutine ComputeErosionDryCells 
+        
+        !Local-----------------------------------------------------------------
+        integer                 :: i, j, ii, jj, n    
+        integer                 :: WILB, WIUB, WJLB, WJUB, WKUB
+        class(T_Sand), pointer  :: SandClass   
+        integer                 :: STAT_CALL
+        !----------------------------------------------------------------------
+        
+        WILB = Me%SedimentWorkSize3D%ILB
+        WIUB = Me%SedimentWorkSize3D%IUB
+        WJLB = Me%SedimentWorkSize3D%JLB
+        WJUB = Me%SedimentWorkSize3D%JUB
+       
+        do j=WJLB, WJUB
+        do i=WILB, WIUB
+            
+            if (Me%OpenSediment(i,j) == OpenPoint .and. &
+                Me%ExternalVar%BoundaryPoints2D(i, j) /= Boundary) then
+                
+                !Erosion
+                if (Me%DM(i,j) .lt. 0.) then
+                    
+                    WKUB = Me%KTop(i, j)
+    
+                    if  (Me%ExternalVar%ComputeFacesU2D(i, j) == Not_Covered .and. &
+                         Me%ExternalVar%OpenPoints3D (i,j-1,Me%KTop(i, j-1)) == WaterPoint) then
+                        
+                        ii = i
+                        jj = j-1
+                        
+                        call ComputeDMDryCells(i,j,ii,jj)
+                        
+                    endif
+            
+                    if  (Me%ExternalVar%ComputeFacesU2D(i, j+1) == Not_Covered .and. &
+                         Me%ExternalVar%OpenPoints3D (i,j+1,Me%KTop(i, j+1)) == WaterPoint) then                        
+                                                
+                        ii = i
+                        jj = j+1
+                        
+                        call ComputeDMDryCells(i,j,ii,jj)
+ 
+                    endif
+        
+                    if  (Me%ExternalVar%ComputeFacesV2D(i, j) == Not_Covered .and. &
+                         Me%ExternalVar%OpenPoints3D (i-1,j,Me%KTop(i-1, j)) == WaterPoint) then                        
+                                                
+                        ii = i-1
+                        jj = j
+                        
+                        call ComputeDMDryCells(i,j,ii,jj)
+ 
+                    endif
+        
+                    if  (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Not_Covered .and. &
+                         Me%ExternalVar%OpenPoints3D (i+1,j,Me%KTop(i+1, j)) == WaterPoint) then
+                                                
+                        ii = i+1
+                        jj = j
+                        
+                        call ComputeDMDryCells(i,j,ii,jj)                        
+ 
+                    endif
+                endif
+            endif
+        enddo
+        enddo
+    
+    end subroutine ComputeErosionDryCells
+    
+    !--------------------------------------------------------------------------
+    
+       subroutine ComputeDMDryCells(i,j,ii,jj)
+        
+        !Argument--------------------------------------------------------------
+        integer                 :: i, j, ii, jj
+        !Local-----------------------------------------------------------------
+        integer                 :: n
+        class(T_Sand), pointer  :: SandClass      
+        integer                 :: WKUB, WKUB1
+        real(8)                 :: MassEroded, aux
+        !----------------------------------------------------------------------
+        
+        !Me%DM(i,j) is always negative
+        MassEroded = Me%ErosionDryCellsFactor * Me%DM(i,j)
+        
+        WKUB = Me%KTop(i, j)
+        WKUB1 = Me%KTop(ii, jj)
+                    
+        if (Me%CohesiveClass%Run) then
+            
+            if (Me%CohesiveClass%Mass(ii,jj,WKUB1) > 0.) then
+
+                Me%CohesiveClass%DM(ii,jj) =  Me%CohesiveClass%DM(ii,jj) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
+                
+                Me%CohesiveClass%DM(i ,j ) =  Me%CohesiveClass%DM(i ,j ) - Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
+                
+            endif          
+        endif
+                        
+        do n=1,Me%NumberOfClasses
+            SandClass => Me%SandClass(n)                            
+               
+            if (SandClass%Mass(ii,jj,WKUB1) > 0.) then
+            
+                SandClass%DM(ii,jj) =  SandClass%DM(ii,jj) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded
+                
+                SandClass%DM(i ,j ) =  SandClass%DM(i ,j ) - SandClass%Field3D(ii,jj,WKUB1) * MassEroded
+                            
+            endif                            
+        enddo
+    
+    end subroutine ComputeDMDryCells
+    !--------------------------------------------------------------------------
+       
+    !--------------------------------------------------------------------------
+    
+    subroutine AdjustSteepness
+        
+        !Argument--------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------
+        integer                 :: i, j, ii, jj
+        integer                 :: n
+        class(T_Sand), pointer  :: SandClass      
+        integer                 :: WILB, WIUB, WJLB, WJUB, WKUB, WW
+        real                    :: Area, factor, MaximumSlope, dzdt_max
+        real(8)                 :: dz, dm, dzdx, dzdy
+        !----------------------------------------------------------------------
+        
+        MaximumSlope = Me%MaximumSlope
+        
+        dzdt_max = Me%MaximumDZDT / Me%MorphologicalFactor
+        
+        WILB = Me%SedimentWorkSize3D%ILB
+        WIUB = Me%SedimentWorkSize3D%IUB
+        WJLB = Me%SedimentWorkSize3D%JLB
+        WJUB = Me%SedimentWorkSize3D%JUB
+       
+        do j=WJLB, WJUB
+        do i=WILB, WIUB
+            
+            WKUB = Me%KTop(i, j)
+
+            if (Me%ExternalVar%OpenPoints3D (i,j,WKUB) .and. &
+                Me%ExternalVar%BoundaryPoints2D(i, j) /= Boundary) then
+        
+                if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
+                                    
+                    dzdx = (Me%ExternalVar%Bathymetry(i, j+1) - Me%ExternalVar%Bathymetry(i, j)) /  &
+                            Me%ExternalVar%DZX(i,j)
+            
+                    if (abs(dzdx) .gt. MaximumSlope) then
+                
+                        if(dzdx .gt. 0.) then
+                    
+                            dz = min((abs(dzdx) - MaximumSlope) * Me%ExternalVar%DZX(i,j), dzdt_max)
+                        else
+                    
+                            dz = max(-(abs(dzdx) - MaximumSlope) * Me%ExternalVar%DZX(i,j), - dzdt_max)
+                    
+                        endif
+                    
+                        Area = Me%ExternalVar%DZX(i, j) * Me%ExternalVar%DVY(i, j)
+                
+                        !kg/m
+                        factor = Me%density*Area*(1-Me%Porosity (i,j,WKUB))
+                
+                        dm = dz * factor
+                
+                        if (dz .gt. 0.) then
+                            WW = Me%KTop(i, j+1)
+                            jj = j+1
+                        else
+                            WW = Me%KTop(i, j)
+                            jj = j
+                        endif
+                    
+                        if (Me%CohesiveClass%Run) then
+            
+                            if (Me%CohesiveClass%Mass(i,jj,WW) > 0.) then
+
+                                Me%CohesiveClass%DM(i,j) =  Me%CohesiveClass%DM(i,j) + Me%CohesiveClass%Field3D(i,jj,WW) * dm
+                
+                                Me%CohesiveClass%DM(i,j+1) =  Me%CohesiveClass%DM(i ,j+1) - Me%CohesiveClass%Field3D(i,jj,WW) * dm
+                
+                            endif          
+                        endif
+                        
+                        do n=1,Me%NumberOfClasses
+                            SandClass => Me%SandClass(n)                            
+               
+                            if (SandClass%Mass(i,jj,WW) > 0.) then
+            
+                                SandClass%DM(i,j) =  SandClass%DM(i,j) + SandClass%Field3D(i,jj,WW) * dm
+                
+                                SandClass%DM(i,j+1) = SandClass%DM(i,j+1) - SandClass%Field3D(i,jj,WW) * dm
+                            
+                            endif                            
+                        enddo            
+                    endif
+                endif                    
+        
+                if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
+                                    
+                    dzdy = (Me%ExternalVar%Bathymetry(i+1, j) - Me%ExternalVar%Bathymetry(i, j)) /  &
+                                Me%ExternalVar%DZY(i,j)
+                
+                    if (abs(dzdy) .gt. MaximumSlope) then
+                
+                        if(dzdy .gt. 0.) then
+                    
+                            dz = min((abs(dzdy) - MaximumSlope) * Me%ExternalVar%DZY(i,j), dzdt_max)
+                        else
+                    
+                            dz = max(-(abs(dzdy) - MaximumSlope) * Me%ExternalVar%DZY(i,j), - dzdt_max)
+                    
+                        endif
+                    
+                        Area = Me%ExternalVar%DUX(i, j) * Me%ExternalVar%DZY(i, j)
+                
+                        !kg/m
+                        factor = Me%density*Area*(1-Me%Porosity (i,j,WKUB))
+                
+                        dm = dz * factor
+                
+                        if (dz .gt. 0.) then
+                            WW = Me%KTop(i+1, j)
+                            ii = i+1
+                        else
+                            WW = Me%KTop(i, j)
+                            ii = i
+                        endif
+                    
+                        if (Me%CohesiveClass%Run) then
+            
+                            if (Me%CohesiveClass%Mass(ii,j,WW) > 0.) then
+
+                                Me%CohesiveClass%DM(i,j) =  Me%CohesiveClass%DM(i,j) + Me%CohesiveClass%Field3D(ii,j,WW) * dm
+                
+                                Me%CohesiveClass%DM(i+1,j) =  Me%CohesiveClass%DM(i+1,j) - Me%CohesiveClass%Field3D(ii,j,WW) * dm
+                
+                            endif          
+                        endif
+                        
+                        do n=1,Me%NumberOfClasses
+                            SandClass => Me%SandClass(n)                            
+               
+                            if (SandClass%Mass(ii,j,WW) > 0.) then
+            
+                                SandClass%DM(i,j) =  SandClass%DM(i,j) + SandClass%Field3D(ii,j,WW) * dm
+                
+                                SandClass%DM(i+1,j) = SandClass%DM(i+1,j) - SandClass%Field3D(ii,j,WW) * dm
+                            
+                            endif                            
+                        enddo            
+                    endif
+                endif
+            endif
+        enddo
+        enddo       
+
+    
+    end subroutine AdjustSteepness
+    !--------------------------------------------------------------------------
 
     subroutine BoundaryCondition
 
@@ -5944,126 +6250,7 @@ if5:                if (aux < SandClass%Mass_Min) then
        
     end subroutine ComputeMass
     
-    !--------------------------------------------------------------------------
-    
-    !--------------------------------------------------------------------------
-      
-    subroutine ComputeErosionDryCells 
-        
-        !Local-----------------------------------------------------------------
-        integer                 :: i, j, ii, jj, n    
-        integer                 :: WILB, WIUB, WJLB, WJUB, WKUB
-        class(T_Sand), pointer  :: SandClass   
-        integer                 :: STAT_CALL
-        !----------------------------------------------------------------------
-        
-        WILB = Me%SedimentWorkSize3D%ILB
-        WIUB = Me%SedimentWorkSize3D%IUB
-        WJLB = Me%SedimentWorkSize3D%JLB
-        WJUB = Me%SedimentWorkSize3D%JUB
-       
-        do j=WJLB, WJUB
-        do i=WILB, WIUB
-            
-            if (Me%OpenSediment(i,j) == OpenPoint .and. &
-                Me%ExternalVar%BoundaryPoints2D(i, j) /= Boundary) then
-                
-                !Erosion
-                if (Me%DM(i,j) .lt. 0.) then
-                    
-                    WKUB = Me%KTop(i, j)
-    
-                    if  (Me%ExternalVar%ComputeFacesU2D(i, j) == Not_Covered .and. &
-                         Me%ExternalVar%OpenPoints3D (i,j-1,Me%KTop(i, j-1)) == WaterPoint) then
-                        
-                        ii = i
-                        jj = j-1
-                        
-                        call ComputeDMDryCells(i,j,ii,jj)
-                        
-                    endif
-            
-                    if  (Me%ExternalVar%ComputeFacesU2D(i, j+1) == Not_Covered .and. &
-                         Me%ExternalVar%OpenPoints3D (i,j+1,Me%KTop(i, j+1)) == WaterPoint) then                        
-                                                
-                        ii = i
-                        jj = j+1
-                        
-                        call ComputeDMDryCells(i,j,ii,jj)
- 
-                    endif
-        
-                    if  (Me%ExternalVar%ComputeFacesV2D(i, j) == Not_Covered .and. &
-                         Me%ExternalVar%OpenPoints3D (i-1,j,Me%KTop(i-1, j)) == WaterPoint) then                        
-                                                
-                        ii = i-1
-                        jj = j
-                        
-                        call ComputeDMDryCells(i,j,ii,jj)
- 
-                    endif
-        
-                    if  (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Not_Covered .and. &
-                         Me%ExternalVar%OpenPoints3D (i+1,j,Me%KTop(i+1, j)) == WaterPoint) then
-                                                
-                        ii = i+1
-                        jj = j
-                        
-                        call ComputeDMDryCells(i,j,ii,jj)                        
- 
-                    endif
-                endif
-            endif
-        enddo
-        enddo
-    
-    end subroutine ComputeErosionDryCells
-    
-    !--------------------------------------------------------------------------
-    
-       subroutine ComputeDMDryCells(i,j,ii,jj)
-        
-        !Argument--------------------------------------------------------------
-        integer                 :: i, j, ii, jj
-        !Local-----------------------------------------------------------------
-        integer                 :: n
-        class(T_Sand), pointer  :: SandClass      
-        integer                 :: WKUB, WKUB1
-        real(8)                 :: MassEroded, aux
-        !----------------------------------------------------------------------
-        
-        !Me%DM(i,j) is always negative
-        MassEroded = Me%ErosionDryCellsFactor * Me%DM(i,j)
-        
-        WKUB = Me%KTop(i, j)
-        WKUB1 = Me%KTop(ii, jj)
-                    
-        if (Me%CohesiveClass%Run) then
-            
-            if (Me%CohesiveClass%Mass(ii,jj,WKUB1) > 0.) then
-
-                Me%CohesiveClass%DM(ii,jj) =  Me%CohesiveClass%DM(ii,jj) + Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
-                
-                Me%CohesiveClass%DM(i ,j ) =  Me%CohesiveClass%DM(i ,j ) - Me%CohesiveClass%Field3D(ii,jj,WKUB1) * MassEroded
-                
-            endif          
-        endif
-                        
-        do n=1,Me%NumberOfClasses
-            SandClass => Me%SandClass(n)                            
-               
-            if (SandClass%Mass(ii,jj,WKUB1) > 0.) then
-            
-                SandClass%DM(ii,jj) =  SandClass%DM(ii,jj) + SandClass%Field3D(ii,jj,WKUB1) * MassEroded
-                
-                SandClass%DM(i ,j ) =  SandClass%DM(i ,j ) - SandClass%Field3D(ii,jj,WKUB1) * MassEroded
-                            
-            endif                            
-        enddo
-    
-    end subroutine ComputeDMDryCells
-    !--------------------------------------------------------------------------
-    
+    !--------------------------------------------------------------------------    
     
     subroutine ComputePercentage
         !Local-----------------------------------------------------------------
