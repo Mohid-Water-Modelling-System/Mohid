@@ -83,6 +83,7 @@ Module ModuleHorizontalGrid
     public  :: WriteHorizontalGrid
     public  :: WriteHorizontalGrid_UV
     public  :: LocateCell
+    public  :: LocateCell1D    
     public  :: LocateCellPolygons
     public  :: RecenterHorizontalGrid    
     public  :: Add_MPI_ID_2_Filename
@@ -195,7 +196,11 @@ Module ModuleHorizontalGrid
         module procedure ConstructHorizontalGridV2
         module procedure ConstructHorizontalGridV3
     end interface  ConstructHorizontalGrid
-
+    
+    interface  LocateCell1D        
+        module procedure LocateCell1DR4
+        module procedure LocateCell1DR8
+    end interface LocateCell1D
 
 
     private :: UnGetHorizontalGrid1d
@@ -16587,6 +16592,118 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
 
 !------------------------------------------------------------------------------
+
+!------------------------------------------------------------------------------
+        
+    Subroutine LocateCell1DR4 (XX, XPos, JLB, JUB, Jlower)
+
+
+        !Arguments---------------------------------------------------------
+        real(4), dimension(:)  , pointer      :: XX
+        real(4)                , intent (IN ) :: XPos
+        integer                , intent (IN ) :: JLB, JUB
+        integer                , intent (OUT) :: Jlower
+
+        
+        !Local-------------------------------------------------------------
+        integer                              :: JMiddle, Dcd2, JUpper 
+
+        !Begin------------------------------------------------------------- 
+
+        Dcd2 = 2
+
+        Jlower = JLB
+        JUpper = JUB
+
+        if      (Xpos <= XX(JLB)) then
+        
+            Jlower = JLB
+
+        elseif  (Xpos >= XX(JUB)) then
+
+            Jlower = JUB
+
+        else
+
+            do while (Dcd2 > 1)
+                JMiddle = int((Jlower + JUpper)/2)
+                if (Xpos > XX(JMiddle)) then
+                    Jlower = JMiddle
+                else 
+                    JUpper = JMiddle
+                endif
+                Dcd2 = JUpper - Jlower
+            enddo
+
+        end if
+
+        if (.not. Dcd2>0) then
+
+            call SetError(FATAL_, INTERNAL_, 'LocateCell1DR4 - HorizontalGrid - ERR01')
+
+           
+        endif
+
+    end subroutine LocateCell1DR4
+
+
+!------------------------------------------------------------------------------
+
+    Subroutine LocateCell1DR8 (XX, XPos, JLB, JUB, Jlower)
+
+
+        !Arguments---------------------------------------------------------
+        real(8), dimension(:)  , pointer      :: XX
+        real(8)                , intent (IN ) :: XPos
+        integer                , intent (IN ) :: JLB, JUB
+        integer                , intent (OUT) :: Jlower
+
+        
+        !Local-------------------------------------------------------------
+        integer                              :: JMiddle, Dcd2, JUpper 
+
+        !Begin------------------------------------------------------------- 
+
+        Dcd2 = 2
+
+        Jlower = JLB
+        JUpper = JUB
+
+
+        if      (Xpos <= XX(JLB)) then
+        
+            Jlower = JLB
+
+        elseif  (Xpos >= XX(JUB)) then
+
+            Jlower = JUB
+
+        else
+
+            do while (Dcd2 > 1)
+                JMiddle = int((Jlower + JUpper)/2)
+                if (Xpos > XX(JMiddle)) then
+                    Jlower = JMiddle
+                else 
+                    JUpper = JMiddle
+                endif
+                Dcd2 = JUpper - Jlower
+            enddo
+
+        end if
+
+        if (.not. Dcd2>0) then
+
+            call SetError(FATAL_, INTERNAL_, 'LocateCell1DR8 - HorizontalGrid - ERR01')
+
+           
+        endif
+
+    end subroutine LocateCell1DR8
+
+
+!------------------------------------------------------------------------------
+
 
     real  function Bilinear (YYUpper, YYLower, YPos,                                     &
                             XXUpper, XXLower, XPos,                                      &  
