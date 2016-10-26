@@ -405,7 +405,8 @@ Module ModuleSediment
         logical                                    :: ErosionDryCells       = .false.
         real                                       :: ErosionDryCellsFactor = FillValueReal
         logical                                    :: AdjustSteepness       = .false.
-        real                                       :: MaximumSlope          = FillValueReal
+        real                                       :: MaximumSlopeWet       = FillValueReal
+        real                                       :: MaximumSlopeDry       = FillValueReal
         real                                       :: MaximumDZDT           = FillValueReal
         real                                       :: MorphologicalFactor   = FillValueReal
         real                                       :: Density               = FillValueReal
@@ -1106,11 +1107,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR250'
         
-        call GetData(Me%MaximumSlope,                                                    &
+        call GetData(Me%MaximumSlopeWet,                                                 &
                      Me%ObjEnterData,iflag,                                              &
                      SearchType   = FromFile,                                            &
-                     keyword      = 'MAXIMUM_SLOPE',                                      &
+                     keyword      = 'MAXIMUM_SLOPE_WET',                                 &
                      default      = 0.1,                                                 &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR260'
+        
+        call GetData(Me%MaximumSlopeDry,                                                 &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'MAXIMUM_SLOPE_DRY',                                 &
+                     default      = 0.3,                                                 &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR260'
@@ -5902,8 +5912,6 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
         real(8)                 :: dz, dm, dzdx, dzdy
         !----------------------------------------------------------------------
         
-        MaximumSlope = Me%MaximumSlope
-        
         dzdt_max = Me%MaximumDZDT
         
         WILB = Me%SedimentWorkSize3D%ILB
@@ -5916,13 +5924,19 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
             
             WKUB = Me%KTop(i, j)
 
-            if (Me%ExternalVar%OpenPoints3D (i,j,WKUB) .and. &
+            if (Me%ExternalVar%WaterPoints2D (i,j) .and. &
                 Me%ExternalVar%BoundaryPoints2D(i, j) /= Boundary) then
         
-                if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
+                if (Me%ExternalVar%WaterPoints2D (i,j+1)) then
                                     
                     dzdx = (Me%ExternalVar%Bathymetry(i, j+1) - Me%ExternalVar%Bathymetry(i, j)) /  &
                             Me%ExternalVar%DZX(i,j)
+                    
+                    if ((Me%ExternalVar%OpenPoints2D (i,j) + Me%ExternalVar%OpenPoints2D (i,j+1)) .ge. 1) then                        
+                        MaximumSlope = Me%MaximumSlopeWet
+                    else
+                        MaximumSlope = Me%MaximumSlopeDry
+                    endif
             
                     if (abs(dzdx) .gt. MaximumSlope) then
                 
@@ -5975,10 +5989,16 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
                     endif
                 endif                    
         
-                if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
+                if (Me%ExternalVar%WaterPoints2D (i+1,j)) then
                                     
                     dzdy = (Me%ExternalVar%Bathymetry(i+1, j) - Me%ExternalVar%Bathymetry(i, j)) /  &
                                 Me%ExternalVar%DZY(i,j)
+                    
+                    if ((Me%ExternalVar%OpenPoints2D (i,j) + Me%ExternalVar%OpenPoints2D (i+1,j)) .ge. 1) then                        
+                        MaximumSlope = Me%MaximumSlopeWet
+                    else
+                        MaximumSlope = Me%MaximumSlopeDry
+                    endif
                 
                     if (abs(dzdy) .gt. MaximumSlope) then
                 
