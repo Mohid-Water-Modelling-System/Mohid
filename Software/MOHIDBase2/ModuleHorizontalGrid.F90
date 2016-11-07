@@ -5111,7 +5111,9 @@ cd1:    if (Me%CornersXYInput .or. Me%CoordType == CIRCULAR_) then
         JUB = Me%WorkSize%JUB
 
         !OMEGA
-        OMEGA = 2. * PI / (24.016 * 3600.)
+        !OMEGA = 2. * PI / (24.016 * 3600.)
+        !rad/s
+        OMEGA = 7.2921e-5
 
         do j = JLB, JUB
         do i = ILB, IUB
@@ -16615,11 +16617,11 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         Jlower = JLB
         JUpper = JUB
 
-        if      (Xpos <= XX(JLB)) then
-        
+        if(Xpos <= XX(JLB)) then
+
             Jlower = JLB
 
-        elseif  (Xpos >= XX(JUB)) then
+        elseif (Xpos >= XX(JUB))then            
 
             Jlower = JUB
 
@@ -16669,12 +16671,11 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         Jlower = JLB
         JUpper = JUB
 
+        if(Xpos <= XX(JLB)) then
 
-        if      (Xpos <= XX(JLB)) then
-        
             Jlower = JLB
 
-        elseif  (Xpos >= XX(JUB)) then
+        elseif (Xpos >= XX(JUB))then            
 
             Jlower = JUB
 
