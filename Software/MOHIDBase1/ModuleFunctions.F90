@@ -258,8 +258,11 @@ Module ModuleFunctions
     !converts all small caps in large caps
     public  :: FromLower2UpperCase
 
-    !Ordering functions
+    !Sort functions
     private :: SortNumerically_3D
+    public  :: Insertion_Sort
+    
+    
 
     private ::  QuadraticInterpolation
     
@@ -6282,7 +6285,32 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
     
 
     end function PolIntProfile
+    
+    !--------------------------------------------------------------------------
+    
+    pure subroutine Insertion_Sort(a)
+    
+      !Arguments-----------------------------
+      real, intent(in out), dimension(:) :: a
+      
+      !Local---------------------------------
+      real    :: temp
+      integer :: i, j
+      
+      !Begin---------------------------------
 
+      do i = 2, size(a)
+         j = i - 1
+         temp = a(i)
+         do while (a(j)>temp)
+            a(j+1) = a(j)
+            j = j - 1
+            if (j<1) exit
+         enddo
+         a(j+1) = temp
+      enddo 
+    
+    end subroutine Insertion_Sort    
 
     !--------------------------------------------------------------------------
 
