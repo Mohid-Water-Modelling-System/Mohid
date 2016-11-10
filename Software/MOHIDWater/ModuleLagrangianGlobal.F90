@@ -1532,6 +1532,7 @@ Module ModuleLagrangianGlobal
         type (T_Origin), pointer                :: Next                     => null()
         logical                                 :: Beaching                 = OFF
         logical                                 :: CoastlineBeaching        = OFF
+        logical                                 :: AreaBeaching             = OFF
         logical                                 :: Filtration               = OFF
         logical                                 :: Default                  = OFF
         logical                                 :: OnlyOnceEmit             = OFF
@@ -1710,6 +1711,9 @@ Module ModuleLagrangianGlobal
         character(StringLength)                 :: CoastLineFile        = null_str
         logical                                 :: CoastLineON          = .false.
         logical                                 :: RedefineMapping      = .true.
+        logical                                 :: BeachAreaON          = .false. 
+        type (T_Polygon), pointer               :: BeachArea            => null()
+        character(StringLength)                 :: BeachAreaFile        = null_str
         
 
         type (T_Polygon), pointer               :: ThinWalls            => null()
@@ -4123,7 +4127,23 @@ d2:     do em =1, Me%EulerModelNumber
         else
             Me%ThinWallsON  = .true.
             call New(Me%ThinWalls, Me%ThinWallsFile, Me%GridsBounds)
-        endif                 
+        endif      
+        
+        call GetData(Me%BeachAreaFile,                                              &
+                     Me%ObjEnterData,                                               &
+                     flag,                                                          &
+                     SearchType   = FromFile,                                       &
+                     keyword      ='BEACH_AREA_FILE',                               &
+                     ClientModule ='ModuleLagrangianGlobal',                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR243'
+            
+        if (flag == 0) then
+            Me%BeachAreaON  = .false.
+        else
+            Me%BeachAreaON  = .true.
+            call New(Me%BeachArea, Me%BeachAreaFile, Me%GridsBounds)
+        endif                     
 
         call GetData(Aux2,                                                              &
                      Me%ObjEnterData,                                                   &
@@ -6875,6 +6895,30 @@ SP:             if (NewProperty%SedimentPartition%ON) then
         endif
         
 
+        call GetData(NewOrigin%AreaBeaching,                                            &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      ='AREA_BEACHING',                                     &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = OFF,                                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1633'
+
+        if(NewOrigin%AreaBeaching)then
+        
+            if (.not. Me%BeachAreaON) then
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1634'
+            endif
+            
+            if(NewOrigin%CoastlineBeaching)then
+                stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1635'
+            endif
+            
+        endif
+        
+
+
         if (Me%State%OutputTracerInfo) then
             call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
             NewOrigin%OutputTracerInfoFileName = trim(RootPath)//trim(NewOrigin%Name)//".tro"
@@ -8968,6 +9012,9 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
         real                                        :: auxX, auxY, auxZ, BoxThickness, DepthPartic
         integer, pointer, dimension(:,:,:)          :: Boxes
         integer                                     :: STAT_CALL, BoxCell, emBox
+        type (T_Position)                           :: PositionAux
+        type (T_PointF),                pointer     :: Point        
+        
 
         !Begin------------------------------------------------------------------
 
@@ -8987,6 +9034,9 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
         KLB = EulerModel%WorkSize%KLB
         KUB = EulerModel%WorkSize%KUB
 
+        if (Me%ThinWallsON) then
+            allocate(Point)
+        endif     
 
 
         !Get the boxes
@@ -9098,17 +9148,27 @@ BOX2D:          if (BoxCell == CurrentOrigin%BoxNumber) then
                 
                     do LP = 1, KPP
 
-                        call AllocateNewParticle (NewParticle, CurrentOrigin%nProperties, &
-                                                  CurrentOrigin%NextParticID)
-
                         call RANDOM_NUMBER(auxX)
                         call RANDOM_NUMBER(auxY)
 
-                        NewParticle%Position%CellJ = XI + DPPX * KPP * auxX
-                        NewParticle%Position%CellI = YI + DPPY * KPP * auxY
+                        PositionAux%CellJ = XI + DPPX * KPP * auxX
+                        PositionAux%CellI = YI + DPPY * KPP * auxY
 
-                        call Convert_CellIJ_XY(EulerModel, NewParticle%Position)
-
+                        call Convert_CellIJ_XY(EulerModel, PositionAux)
+                        
+                        if (Me%ThinWallsON) then
+                            Point%X = PositionAux%CoordX
+                            Point%Y = PositionAux%CoordY
+                            if (IsVisible(Me%ThinWalls, Point)) then
+                                cycle    
+                            endif
+                        endif                        
+                        
+                        call AllocateNewParticle (NewParticle, CurrentOrigin%nProperties, &
+                                                  CurrentOrigin%NextParticID)            
+                                                  
+                        NewParticle%Position = PositionAux
+                                                  
                         !Z position
                         NewParticle%Position%Z = DepthPartic
 
@@ -9189,16 +9249,26 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                 
                     do LP = 1, KPP
 
-                        call AllocateNewParticle (NewParticle, CurrentOrigin%nProperties, &
-                                                  CurrentOrigin%NextParticID)
-
                         call RANDOM_NUMBER(auxX)
                         call RANDOM_NUMBER(auxY)
 
-                        NewParticle%Position%CellJ = XI + DPPX * KPP * auxX
-                        NewParticle%Position%CellI = YI + DPPY * KPP * auxY
+                        PositionAux%CellJ = XI + DPPX * KPP * auxX
+                        PositionAux%CellI = YI + DPPY * KPP * auxY
 
-                        call Convert_CellIJ_XY(EulerModel, NewParticle%Position)
+                        call Convert_CellIJ_XY(EulerModel, PositionAux)
+                        
+                        if (Me%ThinWallsON) then
+                            Point%X = PositionAux%CoordX
+                            Point%Y = PositionAux%CoordY
+                            if (IsVisible(Me%ThinWalls, Point)) then
+                                cycle    
+                            endif
+                        endif                        
+                        
+                        call AllocateNewParticle (NewParticle, CurrentOrigin%nProperties, &
+                                                  CurrentOrigin%NextParticID)            
+                                                  
+                        NewParticle%Position = PositionAux                        
 
                         !Random Z position
                         call RANDOM_NUMBER(auxZ)
@@ -9244,6 +9314,10 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
 
         nullify(EulerModel)
 
+        if (Me%ThinWallsON) then
+            deallocate(Point)
+        endif     
+
 
     end subroutine EmissionBox
 
@@ -9260,8 +9334,6 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         real                                        :: ParticleVolume, random
         integer                                     :: STAT_CALL
         real                                        :: AreaTotal, AreaParticle
-        logical                                     :: DensityInAPI
-        real                                        :: Density
 
         !Begin-----------------------------------------------------------------
 
@@ -10759,7 +10831,7 @@ em1:    do em =1, Me%EulerModelNumber
         integer                                     :: count, i, STAT_CALL
         character(len = StringLength)               :: AuxFieldName, PolygonName, GroupName
         character(len=6)                            :: NumberName        
-        real(8), dimension(:), pointer              :: Matrix1DX, Matrix1DY, Aux1DX, Aux1DY
+        real(8), dimension(:), pointer              :: Matrix1DX, Matrix1DY
  
         !Begin-----------------------------------------------------------------
 
@@ -14560,8 +14632,9 @@ CurrPart:       do while (associated(CurrentPartic))
         logical                                     :: InsideDomain
         logical                                     :: FreshlyBeached = .False.
         real                                        :: SpecificHoldingCapacity
+        type (T_PointF),    pointer                 :: Point        
 
-
+        !Begin-----------------------------------------------------------------
 
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
@@ -14569,6 +14642,10 @@ CurrOr: do while (associated(CurrentOrigin))
            ig = CurrentOrigin%GroupID
 
 IfBeaching: if (CurrentOrigin%Beaching) then
+
+                if (CurrentOrigin%AreaBeaching) then
+                    allocate(Point)
+                endif
                     
                 CurrentPartic => CurrentOrigin%FirstPartic
 CurrPart:       do while (associated(CurrentPartic))
@@ -14615,7 +14692,24 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                                     FreshlyBeached = .true.
                                 endif
                              endif
+                             
+                        elseif (CurrentOrigin%AreaBeaching) then
 
+                            Point%X = CurrentPartic%Position%CoordX
+                            Point%Y = CurrentPartic%Position%CoordY
+
+                            if (IsVisible(Me%BeachArea, Point)) then
+
+                                call RANDOM_NUMBER(Rand1)
+                                
+                                if ((Me%EulerModel(emp)%BeachingProbability(i,j,k) .GT. Rand1) .OR.   &
+                                    (Me%EulerModel(emp)%BeachingProbability(i,j,k) .EQ. 1)) then  
+                                    CurrentPartic%Beached = ON
+                                    FreshlyBeached = .true.
+                                endif
+                                                                
+                            endif
+                            
                         else
                         
                             SpecificHoldingCapacity =  &
@@ -14712,6 +14806,11 @@ IfParticNotBeached: if (.NOT. CurrentPartic%Beached .and. InsideDomain) then
                 if(CurrentOrigin%VolTotOilBeached > CurrentOrigin%MaxVolTotOilBeached)then
                     CurrentOrigin%MaxVolTotOilBeached = CurrentOrigin%VolTotOilBeached
                 endif
+                
+               if (CurrentOrigin%AreaBeaching) then
+                    deallocate(Point)
+                endif
+                                    
 
             end if IfBeaching
             CurrentOrigin => CurrentOrigin%Next

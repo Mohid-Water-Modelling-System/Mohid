@@ -3177,17 +3177,17 @@ ifMS:   if (MasterOrSlave) then
                     if (XYMod > 0.) then
                     
                         Xcomp = Xaux / XYMod
-                        if (Xcomp < 1e-3) then
-                            Xcomp = 0.
-                            Ycomp = 1.    
-                        endif   
+!                        if (Xcomp < 1e-3) then
+!                            Xcomp = 0.
+!                            Ycomp = 1.    
+!                        endif   
 
                         Ycomp = Yaux / XYMod
-                        if (Ycomp < 1e-3) then
-                            Ycomp = 0.
-                            Xcomp = 1.    
-                        endif                        
-                    
+!                        if (Ycomp < 1e-3) then
+!                            Ycomp = 0.
+!                            Xcomp = 1.    
+!                        endif                        
+!                    
                         ![m]      = [m]/[m]*[m]
                         FluxX     = Xcomp * Me%ExternalVar%DVY(i, j) / (1. - Me%Porosity)
                         FluxY     = Ycomp * Me%ExternalVar%DUX(i, j) / (1. - Me%Porosity)
@@ -3654,7 +3654,11 @@ ifMS:   if (MasterOrSlave) then
         
         if (Me%WaveEffect) then
             ![]  = [m/s] / [m/s]
-            Beta = U / (U + Ubw)
+            if (U == 0) then
+                Beta = 0.
+            else                
+                Beta = U / (U + Ubw)
+            endif
             ![m/s] = []*[m/s] + []*[m/s]
             Ucr  = Beta * Ucrc + (1 - Beta) * Ucrw
         else
@@ -4824,7 +4828,8 @@ ifMS:   if (MasterOrSlave) then
         !Local-----------------------------------------------------------------
         real(8),    pointer, dimension(:)  :: Aux1D
         real                               :: DX1, DX2, DY1, DY2, Area1, Area2, RunPeriod, K, coef
-        integer                            :: i, j, ij, imin, imax, di
+        integer                            :: i, j, ij, imin, imax, di, iP50
+        real,   allocatable, dimension(:)  :: ArraySort
         
         !----------------------------------------------------------------------
         
@@ -4879,36 +4884,8 @@ ifMS:   if (MasterOrSlave) then
             enddo          
             
         endif
-        
-        !Me%HybridMorph%CrossShoreVel(1:25)  = 0.
-        !Me%HybridMorph%CrossShoreVel(226:250)  = 0.        
-        
-        
-        !Me%HybridMorph%CrossShoreVel(123) = (Me%HybridMorph%CrossShoreVel(122)*2.+Me%HybridMorph%CrossShoreVel(125)*1.)/3.
-        !Me%HybridMorph%CrossShoreVel(124) = (Me%HybridMorph%CrossShoreVel(122)*1.+Me%HybridMorph%CrossShoreVel(125)*2.)/3.        
-        
-        allocate (Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D))
-        
-        Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = 0
-
-        !Biharmonic filter 
-        
-        K = 1./8.
-
-        do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
-           Aux1D(j) = (Me%HybridMorph%CrossShoreVel(j-1)- 2.* Me%HybridMorph%CrossShoreVel(j) + Me%HybridMorph%CrossShoreVel(j+1))
-        enddo            
-        
-        call BoundaryCondition1D(Aux1D, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)    
-        
-         do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
-            Me%HybridMorph%CrossShoreVel(j) =  Me%HybridMorph%CrossShoreVel(j) - K*(Aux1D(j-1)- 2. * Aux1D(j) + Aux1D(j+1))
-        enddo                        
-        
-        deallocate (Aux1D)
-        
+                
         call BoundaryCondition1D(Me%HybridMorph%CrossShoreVel, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)
-        
         
         if (Me%HybridMorph%DintegLongShore > 1) then
 
@@ -4917,13 +4894,17 @@ ifMS:   if (MasterOrSlave) then
             Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D)
             
             do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
+            
                 imin=max(Me%HybridMorph%Min1D,j- Me%HybridMorph%DintegLongShore)
                 imax=min(Me%HybridMorph%Max1D,j+ Me%HybridMorph%DintegLongShore)            
+                
                 Me%HybridMorph%CrossShoreVel(j) = 0.
+                
                 di = imax-imin
                 do i = imin, imax
                     Me%HybridMorph%CrossShoreVel(j) = Me%HybridMorph%CrossShoreVel(j) + Aux1D(i)/real(di)
                 enddo            
+                
             enddo            
             
             deallocate (Aux1D)
@@ -4932,21 +4913,7 @@ ifMS:   if (MasterOrSlave) then
                         
         endif
         
-        !Newton relaxation
-!        Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D  ) = 0.
-!        Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D+1) = 0.
-!        Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Max1D  ) = 0.
-!        Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Max1D-1) = 0.
-!                
-!        do j = Me%HybridMorph%Min1D+2,Me%HybridMorph%Min1D+20 
-!            coef = real(Me%HybridMorph%Min1D+20 - j)
-!            Me%HybridMorph%CrossShoreVel(j) = Me%HybridMorph%CrossShoreVel(j)*exp(-coef)
-!        enddo              
-!        
-!        do j = Me%HybridMorph%Max1D-20,Me%HybridMorph%Max1D-2 
-!            coef = real(j - (Me%HybridMorph%Max1D-20))
-!            Me%HybridMorph%CrossShoreVel(j) = Me%HybridMorph%CrossShoreVel(j)*exp(-coef)
-!        enddo                 
+         
         
         RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
         
@@ -4955,6 +4922,47 @@ ifMS:   if (MasterOrSlave) then
                                                      (RunPeriod -  Me%Evolution%DZDT)         + &
                                                     Me%HybridMorph%CrossShoreVel(:) *          &
                                                     Me%Evolution%DZDT) / RunPeriod        
+
+        !Biharmonic filter 
+
+        allocate (Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D))
+        
+        Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = 0
+
+        K = 1./8.
+
+        do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
+           Aux1D(j) = (Me%HybridMorph%ResidualCrossShoreVel(j-1)- 2.* Me%HybridMorph%ResidualCrossShoreVel(j) + Me%HybridMorph%ResidualCrossShoreVel(j+1))
+        enddo            
+        
+        call BoundaryCondition1D(Aux1D, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)    
+        
+         do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
+            Me%HybridMorph%ResidualCrossShoreVel(j) =  Me%HybridMorph%ResidualCrossShoreVel(j) - K*(Aux1D(j-1)- 2. * Aux1D(j) + Aux1D(j+1))
+        enddo                        
+        
+        deallocate (Aux1D)
+        
+        call BoundaryCondition1D(Me%HybridMorph%ResidualCrossShoreVel, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)
+        
+        !Newton relaxation
+        Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Min1D  ) = 0.
+        Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Min1D+1) = 0.
+        Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Max1D  ) = 0.
+        Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Max1D-1) = 0.
+                
+        do j = Me%HybridMorph%Min1D+2,Me%HybridMorph%Min1D+20 
+            coef = real(Me%HybridMorph%Min1D+20 - j)
+            Me%HybridMorph%ResidualCrossShoreVel(j) = Me%HybridMorph%ResidualCrossShoreVel(j)*exp(-coef)
+        enddo              
+        
+        do j = Me%HybridMorph%Max1D-20,Me%HybridMorph%Max1D-2 
+            coef = real(j - (Me%HybridMorph%Max1D-20))
+            Me%HybridMorph%ResidualCrossShoreVel(j) = Me%HybridMorph%ResidualCrossShoreVel(j)*exp(-coef)
+        enddo                 
+                
+        
+
 
     end subroutine ComputeProfileCrossShoreMovement
     
