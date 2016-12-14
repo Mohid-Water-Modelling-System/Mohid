@@ -343,26 +343,26 @@ Module ModuleInterfaceWaterAir
         type(T_Time)                                :: LastCompute
         type(T_Time)                                :: NextCompute
     end type T_Evolution
-
+    
     private :: T_Property
     type       T_Property
-         type(T_PropertyID)                         :: ID
-         real, dimension(:,:), pointer              :: Field                => null()        
-        real, dimension(:,:),  pointer              :: FieldU               => null() !vectorial field rotated to grid cells - U comp.
-        real, dimension(:,:),  pointer              :: FieldV               => null() !vectorial field rotated to grid cells - V comp.
-        real, dimension(:,:),  pointer              :: FieldX               => null() !vectorial original field - X (zonal component)
-        real, dimension(:,:),  pointer              :: FieldY               => null() !vectorial original field - Y (meridional comp.)          
-         type(T_Evolution)                          :: Evolution
-         integer                                    :: SVPMethod            = 1
-         integer                                    :: C1                   = 1
-         integer                                    :: C2                   = 1
-         logical                                    :: TimeSerie            = .false.
-         logical                                    :: BoxTimeSerie         = .false.
-         logical                                    :: CEQUALW2             = .false.
-         logical                                    :: OutputHDF            = .false.
-         logical                                    :: Constant             = .false.
-         type(T_Property), pointer                  :: Next                 => null()
-         type(T_Property), pointer                  :: Prev                 => null()
+        type(T_PropertyID)                         :: ID
+        real, dimension(:,:), pointer              :: Field            => null()        
+        real, dimension(:,:),  pointer             :: FieldU           => null() !vectorial field rotated to grid cells - U comp.
+        real, dimension(:,:),  pointer             :: FieldV           => null() !vectorial field rotated to grid cells - V comp.
+        real, dimension(:,:),  pointer             :: FieldX           => null() !vectorial original field - X (zonal component)
+        real, dimension(:,:),  pointer             :: FieldY           => null() !vectorial original field - Y (meridional comp.)          
+        type(T_Evolution)                          :: Evolution
+        integer                                    :: SVPMethod        = 1
+        integer                                    :: C1               = 1
+        integer                                    :: C2               = 1
+        logical                                    :: TimeSerie        = .false.
+        logical                                    :: BoxTimeSerie     = .false.
+        logical                                    :: CEQUALW2         = .false.
+        logical                                    :: OutputHDF        = .false.
+        logical                                    :: Constant         = .false.
+        type(T_Property), pointer                  :: Next             => null()
+        type(T_Property), pointer                  :: Prev             => null()
     end type T_Property
 
     private :: T_Coupling
@@ -987,10 +987,8 @@ i2:     if (iflag == 1) then
             Me%Rugosity%Field(:,:) = Me%Rugosity%Scalar
             Me%Rugosity%Constant      = .true.
             Me%Rugosity%ON            = .true.
-            Me%Rugosity%WavesFunction = .false.
         
 ! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            ! Me%Rugosity%WavesFunction = .false.
             Me%Rugosity%WavesFunction = NoWave
 !!!!!!!!!!!!!
         else i2

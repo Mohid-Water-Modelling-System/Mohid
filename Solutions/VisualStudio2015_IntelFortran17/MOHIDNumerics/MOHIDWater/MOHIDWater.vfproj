@@ -341,17 +341,18 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceWaterAir.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleJet.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangian.F90">
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double Parallel|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double Phreeqc|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double Parallel|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double Phreeqc|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Phreeqc|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangianGlobal.F90">
