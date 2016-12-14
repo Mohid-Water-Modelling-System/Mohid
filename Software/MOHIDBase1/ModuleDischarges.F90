@@ -3369,13 +3369,13 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                     
                         if      (DischargeX%Valve%SectionType == circular_area) then
                         
-                            A    = Pi * (D/2.)**2
+                            A    = Pi * (D/2.)**2.
                             P    = Pi * D
                             
                         elseif (DischargeX%Valve%SectionType == rectangular_area) then
                         
                             A    = D * DischargeX%Valve%Width
-                            P    = 2 * (D + DischargeX%Valve%Width)
+                            P    = 2. * (D + DischargeX%Valve%Width)
 
                         endif                                     
 
@@ -3386,8 +3386,8 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                         
                         if      (DischargeX%Valve%SectionType == circular_area) then
                         
-                            Theta = 2* acos(1-2*Haux/D)
-                            A     = (Theta - sin(Theta))* D**2 / 8.
+                            Theta = 2.* acos(1.-2.*Haux/D)
+                            A     = (Theta - sin(Theta))* D**2. / 8.
                             P     = Theta * D
                             
                         elseif  (DischargeX%Valve%SectionType == rectangular_area) then
@@ -3418,13 +3418,15 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                         !based in BASIC HYDRAULIC PRINCIPLES OF OPEN-CHANNEL FLOW By Harvey E. Jobson and David C. Froehlich
                         !U.S. GEOLOGICAL SURVEY Open-File Report 88-707
 
-                        ![ ]     =  [m/s2] * [s/m^0.333]^2 * [m] / [m]^1.333] = [m] / [m^0.6667] * [m] / [m]^1.333 = [m]^(1 -0.6667 + 1 - 1.333] = [m]^0= [ ]
-                            PipeFriction = 2 * Gravity * C**2 * DischargeX%Valve%PipeManning ** 2 * DischargeX%Valve%PipeLength / Rh**1.3333
-                            H = H / (1 + PipeFriction)
+                        ![ ]     =  [m/s2] * [s/m^0.333]^2 * [m] / [m]^1.333] = [m] / [m^0.6667] * [m] / [m]^1.333 =
+                        !          [m]^(1 -0.6667 + 1 - 1.333] = [m]^0= [ ]
+                            PipeFriction = 2. * Gravity * C**2. * DischargeX%Valve%PipeManning ** 2. * &
+                                           DischargeX%Valve%PipeLength / Rh**1.3333
+                            H = H / (1. + PipeFriction)
                         endif                            
                     endif    
 
-                    Flow = sqrt(2* Gravity) * C * A * sqrt(H)
+                    Flow = sqrt(2.* Gravity) * C * A * sqrt(H)
                     
                     if (present(FlowArea)) FlowArea = A
 

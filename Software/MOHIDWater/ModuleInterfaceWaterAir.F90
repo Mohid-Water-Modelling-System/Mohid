@@ -81,7 +81,7 @@ Module ModuleInterfaceWaterAir
                                           SetTurbGOTMWaveSurfaceFluxTKE
     use ModuleAtmosphere,           only: GetAtmosphereProperty, AtmospherePropertyExists, UngetAtmosphere, &
                                           GetWindHeight, GetAirMeasurementHeight
-    use ModuleFillMatrix,           only: ConstructFillMatrix, ModifyFillMatrix,                &
+    use ModuleFillMatrix,           only: ConstructFillMatrix, ModifyFillMatrix, ModifyFillMatrixVectorial,  &
                                           GetDefaultValue, GetIfMatrixRemainsConstant, KillFillMatrix
 
 #ifndef _WAVES_
@@ -4947,7 +4947,7 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
         if (PropWindStress%ID%SolutionFromFile) then
 
-            call ModifyFillMatrix(FillMatrixID      = PropWindStress%ID%ObjFillMatrix,     &
+            call ModifyFillMatrixVectorial(FillMatrixID      = PropWindStress%ID%ObjFillMatrix,     &
                                   Matrix2DU         = PropWindStress%FieldU,               &
                                   Matrix2DV         = PropWindStress%FieldV,               &
                                   Matrix2DX         = PropWindStress%FieldX,               &

@@ -252,7 +252,7 @@ program MohidLand
         integer                                     :: ObjEnterData = 0
         integer                                     :: iflag
         character(PathLength)                       :: WatchFile, DTLogFile
-        real                                        :: auxFactor, ErrorAux, DTaux
+       ! real                                        :: auxFactor, ErrorAux, DTaux
 
         !!!!$ openmp_num_threads = omp_get_max_threads()
         

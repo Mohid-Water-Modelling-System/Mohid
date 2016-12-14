@@ -1354,7 +1354,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetData(WaveProperty3D%Freq,                                                      &
                          Me%ObjEnterData, iflag,                                                   &
                          keyword       = 'FREQUENCY_VALUES',                                       &
-                         Default       = 0.,                                                       &                                         
+                         Default       = 0.,                                                       &
                          SearchType    = FromBlock,                                                &
                          ClientModule  = 'ModuleWaves',                                            &
                          STAT          = STAT_CALL)
@@ -3469,7 +3469,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%RadiationStress%ON) then
                 if (.not. Me%RadiationStress%Constant) then
                     if (Me%RadiationStress%ID%SolutionFromFile) then
-                        call ModifyFillMatrix (FillMatrixID     = Me%RadiationStress%ID%ObjFillMatrix,  &
+                        call ModifyFillMatrixVectorial (FillMatrixID     = Me%RadiationStress%ID%ObjFillMatrix,  &
                                                Matrix2DU        = Me%RadiationStress%FieldU,            &
                                                Matrix2DV        = Me%RadiationStress%FieldV,            &
                                                Matrix2DX        = Me%RadiationStress%FieldX,            &
@@ -3770,9 +3770,7 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
 
         !Local-----------------------------------------------------------------
         real                                        :: OMEG
-        integer                                     :: STAT_, ready_
-        integer                                     :: i, j, ILB, IUB, JLB, JUB, STAT_CALL
-        logical                                     :: PrivateSub
+        integer                                     :: i, j, ILB, IUB, JLB, JUB
 
         !Begin-----------------------------------------------------------------
 

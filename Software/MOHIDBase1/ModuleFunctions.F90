@@ -11277,8 +11277,7 @@ D2:     do I=imax-1,2,-1
         real,                            intent(OUT) :: OriginX, OriginY, DXY, FillValue
         integer,                         intent(OUT) :: Imax, Jmax
         !Local-----------------------------------------------------------------
-        integer                                      :: STAT_CALL, i, j
-        character(len=:),            allocatable     :: Line
+        integer                                      :: STAT_CALL
         character(len=256), allocatable     :: AuxChar        
      
         !Begin-----------------------------------------------------------------   
@@ -11342,15 +11341,7 @@ D2:     do I=imax-1,2,-1
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR110'
         endif        
-!
-!        do i=Imax,1,-1
-!       
-!            read(UnitIn,*, IOSTAT = STAT_CALL) (Matrix2D(i, j),j=1,Jmax)
-!            if (STAT_CALL /= SUCCESS_) then
-!                stop 'ReadEsriGrid - ModuleFunctions - ERR120'
-!            endif                    
-!        
-!        enddo            
+      
    
         ReadEsriGrid = SUCCESS_
     
@@ -11366,9 +11357,7 @@ D2:     do I=imax-1,2,-1
         real,   dimension(:,:), pointer, intent(OUT) :: Matrix2D        
         !Local-----------------------------------------------------------------
         integer                                      :: STAT_CALL, i, j
-        character(len=:),            allocatable     :: Line
-        character(len=StringLength), allocatable     :: AuxChar        
-     
+      
         !Begin-----------------------------------------------------------------   
     
         do I=1,6

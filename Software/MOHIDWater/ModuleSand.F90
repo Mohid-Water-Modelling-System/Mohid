@@ -4823,7 +4823,7 @@ ifMS:   if (MasterOrSlave) then
 
         !Local-----------------------------------------------------------------
         real(8),    pointer, dimension(:)  :: Aux1D
-        real                               :: DX1, DX2, DY1, DY2, Area1, Area2, RunPeriod, K, coef
+        real                               :: DX1, DX2, DY1, DY2, Area1, Area2, RunPeriod, K
         integer                            :: i, j, ij, imin, imax, di
         
         !----------------------------------------------------------------------
@@ -4914,7 +4914,8 @@ ifMS:   if (MasterOrSlave) then
 
             allocate (Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D))
             
-            Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D)
+            Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = &
+                 Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D)
             
             do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
                 imin=max(Me%HybridMorph%Min1D,j- Me%HybridMorph%DintegLongShore)

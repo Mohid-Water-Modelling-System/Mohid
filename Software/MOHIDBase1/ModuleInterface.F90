@@ -1742,11 +1742,10 @@ cd1 :           if(STAT_CALL .EQ. KEYWORD_NOT_FOUND_ERR_) then
         real, pointer, optional                                 :: GasPhaseMapping(:,:,:)
         real, pointer, optional                                 :: SolidSolutionMapping(:,:,:)
         real, pointer, optional                                 :: KineticsMapping(:,:,:)
-#endif
 
         !External--------------------------------------------------------------
-        integer                                 :: STAT_CALL
-        integer                                 :: PropLB, PropUB
+        integer													:: STAT_CALL
+#endif
 
         !Begin-----------------------------------------------------------------
 
@@ -3480,7 +3479,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         real,              dimension(:,:,:), pointer    :: LocalConcentration
         real,              dimension(:,:), pointer      :: LocalConcInc        
         real,              dimension(:,:), pointer      :: LocalMass
+#ifdef _PHREEQC_
         logical                                         :: is_starting
+#endif
         
 !        !DEBUG purposes--------------------------------------------------------
 !        real :: old_value, new_value

@@ -2936,7 +2936,7 @@ do4:            do di = -1, 1
 
         !Local-----------------------------------------------------------------
         integer                                             :: STAT_CALL
-        integer                                             :: iflag, dis, i, j
+        integer                                             :: dis, i, j
         character(len=StringLength)                         :: Extension, DischargeName
 
         !Begin-----------------------------------------------------------------
@@ -4255,10 +4255,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_, STAT_CALL, ready_
         integer                                         :: i, j
-        integer                                         :: ILB, IUB, JLB, JUB
+        integer                                         :: ILB, IUB, JLB, JUB, CHUNK
 
         !----------------------------------------------------------------------
         STAT_ = UNKNOWN_
+
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         call Ready(ObjRunOffID, ready_)
 
@@ -4282,6 +4284,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                    STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SetBasinColumnToRunoff - ModuleRunOff - ERR020'
         
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
                 if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
@@ -4300,6 +4304,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 endif
             enddo
             enddo            
+            !$OMP END DO
+            !$OMP END PARALLEL
 
             call UnGetBasin (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SetBasinColumnToRunoff - ModuleRunOff - ERR030'
@@ -4673,10 +4679,9 @@ doIter:         do while (iter <= Niter)
         logical                                 :: ByPassON
         integer, dimension(:    ), pointer      :: VectorI, VectorJ
         real,    dimension(:    ), pointer      :: DistributionCoef
-        real                                    :: AuxWaterColumn
         real                                    :: CoordinateX, CoordinateY, XBypass, YBypass      
         logical                                 :: CoordinatesON
-        real                                    :: ByPassFlowCriticCenterCell, FlowCriticCenterCell
+!        real                                    :: ByPassFlowCriticCenterCell, FlowCriticCenterCell
         real                                    :: variation, variation2, DV, StabilizeFactor, Vnew, Hold
         real                                    :: AuxFlow
        
@@ -5449,7 +5454,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, dj, WetPerimeter)
 
         !X
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = JLB, JUB
         do i = ILB, IUB
             
@@ -5763,7 +5768,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !$OMP CriticalFlow, Margin1, Margin2, MaxBottom, WaterDepth, di, WetPerimeter)
 
         !Y
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = JLB, JUB
         do i = ILB, IUB
         
@@ -6106,9 +6111,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
         real                                        :: dVol
-        integer                                     :: CHUNK
 
-        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -6117,8 +6120,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
 
         !X
-        do j = JLB, JUB
+        !$OMP PARALLEL PRIVATE(I,J,dVol)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKI)
         do i = ILB, IUB
+        do j = JLB, JUB
             if (Me%ComputeFaceU(i, j) == BasinPoint) then
                 
                 !dVol
@@ -6139,8 +6144,12 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             endif
         enddo
         enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL        
 
         !Y
+        !$OMP PARALLEL PRIVATE(I,J,dVol)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = JLB, JUB
         do i = ILB, IUB
             if (Me%ComputeFaceV(i, j) == BasinPoint) then
@@ -6163,7 +6172,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             endif
         enddo
         enddo
-    
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        
     end subroutine UpdateWaterLevels 
 
     !--------------------------------------------------------------------------
@@ -8149,6 +8160,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         Restart = .false.
         
         !Verifies negative volumes
+        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
@@ -8158,15 +8171,22 @@ do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 !                    write(*,*) 'Negative Volume - Me%myWaterVolume (', i, ', ', j, ') =', Me%myWaterVolume (i, j)
 !                    write(*,*) '-----'
                     Restart = .true.                 
-                    exit do1
+                        !exit do1  //Commented this exit because don't know how it begave with OpenMP
                 else if (Me%myWaterVolume (i, j) < 0.0) then  
                     Me%myWaterVolume (i, j) = 0.0                 
                 endif
             endif
         enddo
         enddo do1
-        
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+
         if ((.not. Restart) .and. Me%CV%Stabilize) then
+
+            
+            !$OMP PARALLEL PRIVATE(I,J,variation)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(+ : n_restart)
 do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
@@ -8183,17 +8203,20 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                 
                                 n_restart = n_restart + 1
                                 
-                                if (n_restart > Me%CV%MinToRestart) then
-                                    Restart = .true.
-                                    exit do2
-                                endif                                 
                             endif
                         endif
                     endif
                 endif
             enddo
-            enddo do2              
-                        
+            enddo do2
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+
+
+            if (n_restart > Me%CV%MinToRestart) then
+                Restart = .true.
+            endif                                 
+
         endif
         
         if (Restart) then        
@@ -8857,7 +8880,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: ILB, IUB, JLB, JUB
         real, dimension(6)  , target                :: AuxTime
         real, dimension(:)  , pointer               :: TimePointer
-        real                                        :: dis       
+        integer                                     :: dis       
 
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "RunOffOutput")
 
@@ -9252,7 +9275,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
         !Locals----------------------------------------------------------------
         integer                                 :: ILB,IUB, JLB, JUB, i, j
-        integer                                 :: STAT_CALL
+
         !Begin-----------------------------------------------------------------        
         
 
