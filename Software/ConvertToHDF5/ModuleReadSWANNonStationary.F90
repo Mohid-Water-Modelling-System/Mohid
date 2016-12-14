@@ -343,7 +343,7 @@ Module ModuleReadSWANNonStationary
                      Me%ObjEnterData, iflag,                                  &
                      SearchType   = FromBlock,                                &
                      keyword      = 'REPLACEMENT_METHOD',                     &
-                     default      = 2,                                        &
+                     default      = 1,                                        &
                      ClientModule = 'SWAN',                                   &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_)                                            &
@@ -950,10 +950,18 @@ d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
     !Local----------------------------------------------------------------
     integer                                     :: i, j, n, STAT_CALL
     real                                        :: a1, a2, a3, a4, atotal
+    integer                                     :: ReplacementMethod
     !Begin-----------------------------------------------------------------
     
-     do n=1,Me%OutPut%TotalOutputs   
-    
+     do n=1,Me%OutPut%TotalOutputs
+         
+        if (trim(Me%PropsName(p)) == GetPropertyName(WaveStressX_) .or. &
+            trim(Me%PropsName(p)) == GetPropertyName(WaveStressY_)) then
+            ReplacementMethod = 2
+        else
+             ReplacementMethod = Me%ReplacementMethod
+        endif
+         
         do i=Me%WorkSize%ILB, Me%WorkSize%IUB
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB
             
@@ -961,10 +969,10 @@ d3:         do ii= Me%WorkSize%ILB,Me%WorkSize%IUB
                         
                 if (Me%WaterPoints2D(i, j) == 1) then
                                                 
-                    if (Me%ReplacementMethod == 1) then !NullValue
+                    if (ReplacementMethod == 1) then !NullValue
                         Me%Fields(n, i, j) = 0.
                             
-                    elseif (Me%ReplacementMethod == 2) then !NullGradient
+                    elseif (ReplacementMethod == 2) then !NullGradient
                             
                         a1 = 0; a2 = 0; a3 = 0; a4 = 0
                             

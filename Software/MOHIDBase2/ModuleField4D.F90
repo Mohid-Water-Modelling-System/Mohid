@@ -3036,7 +3036,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
                 if (Field(i,j) < NewPropField%MinValue) then
-                    Field(i,j) = 0.
+                    Field(i,j) = NewPropField%MinValue
                 endif
             enddo
             enddo
@@ -3046,7 +3046,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
                 if (Field(i,j) > NewPropField%MaxValue) then
-                    Field(i,j) = 0.
+                    Field(i,j) = NewPropField%MaxValue
                 endif
             enddo
             enddo
@@ -3215,7 +3215,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
             do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                 if (Field(i,j,k) < NewPropField%MinValue) then
-                    Field(i,j,k) = 0.
+                    Field(i,j,k) = NewPropField%MinValue
                 endif
             enddo
             enddo
@@ -3227,7 +3227,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
             do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                 if (Field(i,j,k) > NewPropField%MaxValue) then
-                    Field(i,j,k) = 0.
+                    Field(i,j,k) = NewPropField%MaxValue
                 endif
             enddo
             enddo
@@ -3543,7 +3543,7 @@ if1:    if (NewPropField%Harmonics%Extract) then
             do j = JLB, JUB
             do i = ILB, IUB
                 if (Field(i,j) < NewPropField%MinValue) then
-                    Field(i,j) = 0.
+                    Field(i,j) = NewPropField%MinValue
                 endif
             enddo
             enddo
@@ -3553,7 +3553,7 @@ if1:    if (NewPropField%Harmonics%Extract) then
             do j = JLB, JUB
             do i = ILB, IUB
                 if (Field(i,j) > NewPropField%MaxValue) then
-                    Field(i,j) = 0.
+                    Field(i,j) = NewPropField%MaxValue
                 endif
             enddo
             enddo
@@ -3917,7 +3917,7 @@ d2:     do N =1, NW
             do j = JLB, JUB
             do i = ILB, IUB
                 if (Field(i,j,k) < NewPropField%MinValue) then
-                    Field(i,j,k) = 0.
+                    Field(i,j,k) = NewPropField%MinValue
                 endif
             enddo
             enddo
@@ -3929,7 +3929,7 @@ d2:     do N =1, NW
             do j = JLB, JUB
             do i = ILB, IUB                
                 if (Field(i,j,k) > NewPropField%MaxValue) then
-                    Field(i,j,k) = 0.
+                    Field(i,j,k) = NewPropField%MaxValue
                 endif
             enddo
             enddo

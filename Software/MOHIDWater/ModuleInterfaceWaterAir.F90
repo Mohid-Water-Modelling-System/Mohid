@@ -1098,7 +1098,7 @@ i1:         if(BlockFound)then
     subroutine ConstructWaveFluxTKE
 
         !Local------------------------------------------------------------------
-        integer                        :: ClientNumber, ILB, IUB, JLB, JUB 
+        integer                        :: ILB, IUB, JLB, JUB 
         integer                        :: STAT_CALL, iflag
         
         !Begin------------------------------------------------------------------

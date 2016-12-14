@@ -28738,7 +28738,6 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
                                                XY_Component_L, XY_Component_E,  &
                                                XY_Component_Cart_E,             &
                                                YX_Component_Cart_E,             &
-                                               WaterFluxBoundary,               &
                                                LeavingVelocity
                                                
         real                                :: CellRotation, EnteringWaveDirection, WaveCellDir
@@ -29517,8 +29516,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
         
         real                                :: dx1, dx2, dx3
         
-        logical                             :: WaveEnteringON        
-        
+       
         !Begin----------------------------------------------------------------
 
 
@@ -35018,7 +35016,7 @@ dok1:           do k = Kbottom, KUB
         integer,                 pointer     :: IUB, ILB, JUB, JLB, KUB, KLB
         integer,                 pointer     :: WorkIUB, WorkILB, WorkJUB, WorkJLB, WorkKUB, WorkKLB 
         integer,                 pointer     :: NbFreq
-        integer                              :: i, j, k, i_freq, di, dj
+        integer                              :: i, j, k, i_freq
         real, dimension (:,:,:), allocatable :: U, V
         real, dimension (:    ), allocatable :: FACT 
         real, dimension (:,:,:), pointer     :: WAVN, SZZ
@@ -35204,14 +35202,12 @@ dok1:           do k = Kbottom, KUB
         !Local---------------------------------------------------------------------
         integer,                 pointer     :: WorkIUB, WorkILB, WorkJUB, WorkJLB, WorkKUB, WorkKLB 
 
-        integer                              :: i, j, k, di, dj, Aux, imin, imax, jmin, jmax
+        integer                              :: i, j, k, di, dj, imin, imax, jmin, jmax
 
         integer, dimension (:,:,:), pointer  :: ComputeFaces3D_U, ComputeFaces3D_V, & 
                                                 ImposedNormalFacesU, ImposedNormalFacesV
 
-        real                                 :: Vel_Left, Vel_Right, Coef
-
-        integer                              :: STAT_CALL
+        real                                 :: Vel_Left, Vel_Right
 
         !Begin--------------------------------------------------------------------- 
 
@@ -35363,14 +35359,12 @@ dok1:           do k = Kbottom, KUB
         !Local---------------------------------------------------------------------
         integer,                 pointer     :: WorkIUB, WorkILB, WorkJUB, WorkJLB, WorkKUB, WorkKLB 
 
-        integer                              :: i, j, k, di, dj, Aux, imin, imax, jmin, jmax
+        integer                              :: i, j, k, di, dj, Aux
 
         integer, dimension (:,:,:), pointer  :: ComputeFaces3D_U, ComputeFaces3D_V, & 
                                                 ImposedTangentialFacesU, ImposedTangentialFacesV
 
-        real                                 :: Vel_Left, Vel_Right, Coef
-
-        integer                              :: STAT_CALL
+        real                                 :: Coef
 
         !Begin--------------------------------------------------------------------- 
 
@@ -40529,8 +40523,6 @@ do3:            do K=kbottom, KUB
 
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
         
-        real                               :: a1, a2, a3, a4, atotal
-
         !Begin---------------------------------------------------------------------
 
         !Begin - Shorten variables name 
@@ -40821,7 +40813,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
         !Local----------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Volume_UV
-        real,    dimension(:,:,:), pointer :: Density, SZZ, DUZ_VZ, &
+        real,    dimension(:,:,:), pointer :: SZZ, DUZ_VZ, &
                                               Wave3DExplicit_FBreakingAccelUV, Wave3DExplicit_Acceleration
 
         real,    dimension(:,:  ), pointer :: DUX_VY, DYY_XX, DZX_ZY, Two_UV, Waterlevel, Hs
@@ -40832,13 +40824,13 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
         real,    dimension(:), allocatable :: SUZ_VZ
 
-        real                               :: Z0, SUZ0
+        real                               :: Z0
 
         real                               :: force_2D, Two_Face, WlevFace, Vprofile
     
-        integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest, INDEXZ0, iNorth, jEast
+        integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest, INDEXZ0
 
-        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB, imin, imax, jmin, jmax
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
         !Begin---------------------------------------------------------------------
 
@@ -44425,7 +44417,7 @@ dok:            do k = kbottom + 1, KUB
 
         real                                 :: VELZ
 
-        integer                              :: STAT_CALL, i, j, k, kbottom
+        integer                              :: i, j, k, kbottom
 
         integer, dimension(:,:,:),   pointer :: OpenPoints3D
 

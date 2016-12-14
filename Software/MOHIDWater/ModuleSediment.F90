@@ -468,6 +468,8 @@ Module ModuleSediment
         integer                                    :: BedloadMethod        = FillValueInt
         integer                                    :: RefConcMethod        = FillValueInt
         logical                                    :: BedSlopeEffects      = .false.
+        logical                                    :: SwashZoneTransport   = .false.
+        real                                       :: SwashFactor          = null_real
         logical                                    :: WavesOn              = .false.
         logical                                    :: ConsolidationOn      = .false.
         logical                                    :: DepositionIntertidalZones = .false.
@@ -914,8 +916,35 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .TRUE.,                                              &
                      ClientModule = 'ModuleSediment',                                    &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR80' 
-            
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR80'
+        
+        call GetData(Me%SwashZoneTransport,                                               &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'SWASH_ZONE_TRANSPORT',                              &
+                     default      = .FALSE.,                                             &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR85' 
+        
+        if (Me%SwashZoneTransport)  then        
+            if (Me%ObjWaves == 0) then
+                write(*,*) 'ModuleWaves must be activated to run SWASH_ZONE_TRANSPORT'
+                stop 'ConstructGlobalParameters - ModuleSediment - ERR86'
+             elseif (Me%BedloadMethod == 0) then
+                write(*,*) 'BEDLOAD_METHOD must be activated to run SWASH_ZONE_TRANSPORT'
+                stop 'ConstructGlobalParameters - ModuleSediment - ERR87'   
+            endif            
+        endif
+        
+        call GetData(Me%SwashFactor,                                                     &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'SWASH_FACTOR',                                      &
+                     default      = 1.0,                                                 &
+                     ClientModule = 'ModuleSediment',                                    &
+                     STAT         = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR88' 
 
         call GetData(Me%Evolution%Bathym,                                                &
                      Me%ObjEnterData,iflag,                                              &
@@ -4362,6 +4391,10 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                     
                         call ComputeBedload
                         
+                        if(Me%SwashZoneTransport) then
+                            call ComputeSwashZoneTransport
+                        endif
+                        
                         call ComputeFluxes
                         
                     endif
@@ -4654,9 +4687,9 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
         do j=WJLB, WJUB
         do i=WILB, WIUB
 
-            if (Me%OpenSediment(i,j) == OpenPoint) then
-                
-                 WKUB = Me%KTop(i, j)
+            WKUB = Me%KTop(i, j)
+            !if (Me%OpenSediment(i,j) == OpenPoint) then
+            if (Me%ExternalVar%OpenPoints3D (i,j,WKUB) == OpenPoint) then   
                 
                 if (Me%SandD50(i,j) > 0.) then               
                    
@@ -5370,9 +5403,9 @@ do1:    do n=1,Me%NumberOfClasses
             do i=WILB, WIUB
             do j=WJLB, WJUB               
 
-                if (Me%OpenSediment(i,j) == OpenPoint) then
-                    
-                    WKUB = Me%KTop(i, j)
+                WKUB = Me%KTop(i, j)
+                !if (Me%OpenSediment(i,j) == OpenPoint) then
+                if (Me%ExternalVar%OpenPoints3D (i,j,WKUB) == OpenPoint) then
                     
                     if(SandClass%BedLoad(i, j) > 0.) then                           
                         !kg/s
@@ -5403,7 +5436,7 @@ do1:    do n=1,Me%NumberOfClasses
         integer                 :: i, j, n
         real(8)                 :: Uaux, Vaux, AbsFlux, FluxU, FluxV
         class(T_Sand), pointer  :: SandClass
-        integer                 :: WILB, WIUB, WJLB, WJUB
+        integer                 :: WILB, WIUB, WJLB, WJUB, WKUB
         real(8), parameter      :: PI_DBLE = 3.1415926536 !PI
         real                    :: alfa_bs, alfa_bn, phi, dhdx, dhdy
         real                    :: dzds, dzdn, alfa_s, alfa_n
@@ -5427,7 +5460,9 @@ do1:    do n=1,Me%NumberOfClasses
             do i=WILB, WIUB
             do j=WJLB, WJUB               
 
-                if (Me%OpenSediment(i,j) == OpenPoint) then     
+                WKUB = Me%KTop(i, j)
+                !if (Me%OpenSediment(i,j) == OpenPoint) then
+                if (Me%ExternalVar%OpenPoints3D (i,j,WKUB) == OpenPoint) then   
                     
                     if (SandClass%Bedload(i, j)> 0.) then
                             
@@ -5440,13 +5475,15 @@ do1:    do n=1,Me%NumberOfClasses
                         dhdy = 0.
                             
                         if (SandClass%FluxU(i, j) < 0.) then                            
-                            if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
+                            !if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
+                            if (Me%ExternalVar%WaterPoints2D(i, j-1) == WaterPoint) then
                                     
                                 dhdx = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i, j-1)) /  &
                                         Me%ExternalVar%DZX(i,j-1)
                             endif
                         else
-                            if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
+                            !if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
+                            if (Me%ExternalVar%WaterPoints2D(i, j+1) == WaterPoint) then
                                     
                                 dhdx = (Me%ExternalVar%Bathymetry(i, j+1) - Me%ExternalVar%Bathymetry(i, j)) /  &
                                         Me%ExternalVar%DZX(i,j)
@@ -5454,13 +5491,15 @@ do1:    do n=1,Me%NumberOfClasses
                         endif
 
                         if (SandClass%FluxV(i, j) < 0.) then
-                            if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+                            !if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+                            if (Me%ExternalVar%WaterPoints2D(i-1, j) == WaterPoint) then
                             
-                                    dhdy = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i-1, j)) /  &
-                                            Me%ExternalVar%DZY(i-1,j)     
+                                dhdy = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i-1, j)) /  &
+                                        Me%ExternalVar%DZY(i-1,j)     
                             endif
                         else 
-                            if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
+                            !if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
+                            if (Me%ExternalVar%WaterPoints2D(i+1, j) == WaterPoint) then
                                     
                                 dhdy = (Me%ExternalVar%Bathymetry(i+1, j) - Me%ExternalVar%Bathymetry(i, j)) /  &
                                             Me%ExternalVar%DZY(i,j)        
@@ -5477,8 +5516,8 @@ do1:    do n=1,Me%NumberOfClasses
                         !Transverse bed slope                            
                         dzdn = -dhdx * Vaux + dhdy * Uaux
                         
-                        alfa_n = alfa_bn * (SandClass%CriticalShearStress(i,j) /    &
-                                Me%ExternalVar%ShearStress(i,j))**0.5 * dzdn
+                        alfa_n = alfa_bn * (SandClass%NDCriticalShearStress(i,j) /    &
+                               SandClass%NDShearStress(i,j))**0.5 * dzdn
                                 
                         !Adjustment of bedload transport for bed-slope effects
                         FluxU = alfa_s * (SandClass%FluxU(i, j) -   &
@@ -5500,6 +5539,183 @@ do1:    do n=1,Me%NumberOfClasses
     end subroutine ComputeBedSlopeEffects
       
    !--------------------------------------------------------------------------
+    
+    subroutine ComputeSwashZoneTransport 
+        
+        !Local-----------------------------------------------------------------
+        integer                 :: i, j, ii, jj, n    
+        integer                 :: WILB, WIUB, WJLB, WJUB, WKUB
+        real                    :: Wphi, Tw, dhdl, Uu, u0
+        real                    :: Z0_, CDR, CDR_, TAUM, A, n1, p, DeltaTau
+        real                    :: hs, NDBedload, aux
+        class(T_Sand), pointer  :: SandClass  
+        logical                 :: SwashZone, LongShoreDirectionU, LongShoreDirectionV
+        integer                 :: STAT_CALL
+        !----------------------------------------------------------------------
+        
+        WILB = Me%SedimentWorkSize3D%ILB
+        WIUB = Me%SedimentWorkSize3D%IUB
+        WJLB = Me%SedimentWorkSize3D%JLB
+        WJUB = Me%SedimentWorkSize3D%JUB
+       
+        do j=WJLB, WJUB
+        do i=WILB, WIUB
+            
+            if (Me%ExternalVar%OpenPoints2D(i, j) == WaterPoint .and. &
+                Me%ExternalVar%BoundaryPoints2D(i, j) /= Boundary) then
+                    
+                if  ((Me%ExternalVar%OpenPoints2D(i, j-1) + Me%ExternalVar%OpenPoints2D(i, j+1) &
+                   + Me%ExternalVar%OpenPoints2D(i-1, j) + Me%ExternalVar%OpenPoints2D(i+1, j)) < 4) then
+                    
+                    SwashZone = .false.
+                    LongShoreDirectionU = .false.
+                    LongShoreDirectionV = .false.
+                    
+                    if (Me%ExternalVar%WaveHeight(i,j) .gt. 0.2) then
+                        
+                        !Wave angle referenced to the grid in radians
+                        Wphi = Me%ExternalVar%Wavedirection(i,j) * pi/180.                            
+                
+                    
+                        if (Wphi > (7./4.*pi) .or. Wphi <= (pi/4.)) then
+                        
+                            if  (Me%ExternalVar%OpenPoints2D (i, j+1) .eq. 0 .and. &
+                                 Me%ExternalVar%WaterPoints2D(i, j+1) .eq. 1) then
+                            
+                                SwashZone = .true.
+                                LongShoreDirectionV =  .true.
+                            
+                                ii = i
+                                jj = j+1
+                            
+                            endif
+                    
+                        elseif (Wphi > (pi/4.) .and. Wphi <= (3./4.*pi)) then
+                            
+                            if  (Me%ExternalVar%OpenPoints2D (i+1, j) .eq. 0 .and. &
+                                 Me%ExternalVar%WaterPoints2D(i+1, j) .eq. 1) then
+                            
+                                SwashZone = .true.
+                                LongShoreDirectionU =  .true.
+                            
+                                ii = i+1
+                                jj = j
+                            
+                            endif
+                        
+                        elseif (Wphi > (3./4.*pi) .and. Wphi <= (5./4.*pi)) then
+                            
+                            if  (Me%ExternalVar%OpenPoints2D (i, j-1) .eq. 0 .and. &
+                                 Me%ExternalVar%WaterPoints2D(i, j-1) .eq. 1) then
+                            
+                                SwashZone = .true.
+                                LongShoreDirectionV =  .true.
+                            
+                                ii = i
+                                jj = j-1
+                            
+                            endif
+                            
+                        elseif (Wphi > (5./4*pi) .and. Wphi <= (7./4*pi)) then
+                        
+                            if  (Me%ExternalVar%OpenPoints2D (i-1, j) .eq. 0 .and. &
+                                 Me%ExternalVar%WaterPoints2D(i-1, j) .eq. 1) then
+                            
+                                SwashZone = .true.
+                                LongShoreDirectionU =  .true.
+                            
+                                ii = i-1
+                                jj = j
+                            
+                            endif            
+                        endif
+                    endif
+                    
+                    if (SwashZone) then
+                        
+                        WKUB = Me%KTop(ii, jj)
+
+                        if (Me%ExternalVar%OpenPoints3D (ii,jj,WKUB) == OpenPoint) then
+                            
+                            dhdl = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(ii, jj)) /  &
+                                        Me%ExternalVar%DZX(ii,jj)
+                            
+                            Tw = Me%ExternalVar%WavePeriod(i,j)
+                            
+                            !Initial bore velocity (m/s) - Jiang et al.(2010)
+                            u0 = 1./2*Tw*Gravity*sin(dhdl)
+                            u0 = min (u0, 5.0)
+                            
+                            if (u0 .gt. 0.01) then
+                                !Hughes (1995)
+                                !time-averaged flow velocity for the uprush (m/s)
+                                Uu = 0.39*u0
+                                !maximum swash depth at the mid swash position
+                                hs = 0.05*u0**2/(2*Gravity)
+                            
+                                !Skin friction coefficient
+                                Z0_ = Me%GrainRoughness(ii,jj)/30.
+                                CDR_=(0.40/(log(hs/Z0_)-1.))**2   
+                                
+                                !Shear Stress
+                                TAUM =Me%ExternalVar%WaterDensity*CDR_*Uu**2                            
+                    
+                                do n=1,Me%NumberOfClasses
+                    
+                                    SandClass => Me%SandClass(n)
+                                
+                                    if(SandClass%Field3D(ii,jj,WKUB) > 0.) then
+                                                                 
+                                        SandClass%NDShearStress(ii,jj) = TAUM /(Me%DeltaDensity*Gravity*SandClass%D50)
+                                    
+                                        A = SandClass%parameter_A
+                                        n1 = SandClass%parameter_n
+                                        p = SandClass%parameter_p
+
+
+                                        DeltaTau = SandClass%NDShearStress(ii, jj)-SandClass%NDCriticalShearStress(ii, jj)                  
+                    
+                                        if (DeltaTau.GT.0.) then
+                            
+                                            !Dimensionless bedload tranport rate
+                                            NDBedload = A*SandClass%NDShearStress(ii, jj)**n1*DeltaTau**p
+                            
+                                            aux = (gravity*(Me%RelativeDensity-1)*    &
+                                                SandClass%D50**3)**(1./2.)*Me%Density * SandClass%Field3D(ii,jj,WKUB)
+                            
+                            
+                                            !Bedload transport rate per unit width [kg/s/m]
+                                            SandClass%BedLoad(ii, jj) = NDBedload * aux
+                                            
+                                            if (LongShoreDirectionU) then
+                                                
+                                                SandClass%BedloadU(ii, jj) =  SandClass%BedLoad(ii, jj) * cos(Wphi) * Me%SwashFactor
+                                                SandClass%BedloadV(ii, jj) =  0.
+                                            
+                                            elseif(LongShoreDirectionV) then
+                            
+                                                SandClass%BedloadU(ii, jj) =  0.
+                                                SandClass%BedloadV(ii, jj) =  SandClass%BedLoad(ii, jj) * sin(Wphi) * Me%SwashFactor
+                                            
+                                            endif
+                                        
+                                            !Adjust bedload due to swash factor
+                                            SandClass%BedLoad(ii, jj) = (SandClass%BedloadU(ii, jj)**2 + SandClass%BedloadV(ii, jj)**2)**0.5
+                                        
+                                        endif 
+                                    endif
+                                enddo
+                            endif
+                        endif
+                    endif
+                endif
+            endif 
+        enddo
+        enddo
+    
+    end subroutine ComputeSwashZoneTransport
+    !--------------------------------------------------------------------------
+    
     
     subroutine FluxesCorrection
               
@@ -5528,9 +5744,9 @@ do1:    do n=1,Me%NumberOfClasses
             do i=WILB, WIUB
             do j=WJLB, WJUB               
 
-                if (Me%OpenSediment(i,j) == OpenPoint) then
-                    
-                    WKUB = Me%KTop(i, j)
+                WKUB = Me%KTop(i, j)
+                !if (Me%OpenSediment(i,j) == OpenPoint) then
+                if (Me%ExternalVar%OpenPoints3D (i,j,WKUB) == OpenPoint) then
                     
                     if(SandClass%Field3D(i,j,WKUB) > 0.) then                   
       
@@ -5636,7 +5852,8 @@ do1:    do n=1,Me%NumberOfClasses
                 do i=WILB, WIUB
                     
                     if (SandClass%FluxU(i, j) < 0.) then 
-                        if      (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
+                        !if  (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
+                         if (Me%ExternalVar%WaterPoints2D(i, j-1) == WaterPoint) then
                         
                             SandClass%DM(i, j-1) = SandClass%DM(i, j-1) - Me%Evolution%SedimentDT * SandClass%FluxU(i, j)
                             SandClass%DM(i, j  ) = SandClass%DM(i, j  ) + Me%Evolution%SedimentDT * SandClass%FluxU(i, j)
@@ -5646,9 +5863,10 @@ do1:    do n=1,Me%NumberOfClasses
                                 Me%Boxes%BedloadU(i,j) = Me%Boxes%BedloadU(i,j) + SandClass%BedloadU(i, j) * Me%Evolution%SedimentDT
                             endif
                         endif
-                    else 
+                    elseif (SandClass%FluxU(i, j) > 0.) then 
 
-                        if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
+                        !if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
+                        if (Me%ExternalVar%WaterPoints2D(i, j+1) == WaterPoint) then
                   
                             SandClass%DM(i, j+1) = SandClass%DM(i, j+1) + Me%Evolution%SedimentDT * SandClass%FluxU(i, j)  
                             SandClass%DM(i, j  ) = SandClass%DM(i, j  ) - Me%Evolution%SedimentDT * SandClass%FluxU(i, j) 
@@ -5661,7 +5879,8 @@ do1:    do n=1,Me%NumberOfClasses
                     endif
 
                     if (SandClass%FluxV(i, j) < 0.) then
-                        if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+                        !if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
+                        if (Me%ExternalVar%WaterPoints2D(i-1, j) == WaterPoint) then
                             
                             SandClass%DM(i-1, j) = SandClass%DM(i-1, j) - Me%Evolution%SedimentDT * SandClass%FluxV(i, j) 
                             SandClass%DM(i  , j) = SandClass%DM(i  , j) + Me%Evolution%SedimentDT * SandClass%FluxV(i, j) 
@@ -5670,8 +5889,9 @@ do1:    do n=1,Me%NumberOfClasses
                                 Me%Boxes%BedloadV(i,j) = Me%Boxes%BedloadV(i,j) + SandClass%BedloadV(i, j) * Me%Evolution%SedimentDT
                             endif
                         endif
-                    else 
-                        if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
+                    elseif (SandClass%FluxV(i, j) > 0.) then 
+                        !if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
+                        if (Me%ExternalVar%WaterPoints2D(i+1, j) == WaterPoint) then
 
                             SandClass%DM(i+1, j) = SandClass%DM(i+1, j) + Me%Evolution%SedimentDT * SandClass%FluxV(i, j)
                             SandClass%DM(i  , j) = SandClass%DM(i  , j) - Me%Evolution%SedimentDT * SandClass%FluxV(i, j) 

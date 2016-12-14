@@ -90,19 +90,28 @@ Module ModuleWaves
                                        GetGridCoordType,  GetLatitudeLongitude,                 &
                                        UnGetHorizontalGrid, GetXYCellZ, GetDDecompMPI_ID,       &
                                        GetDDecompON, WriteHorizontalGrid,                       &
-                                       GetGridOutBorderPolygon
-    use ModuleFillMatrix!,       only : ConstructFillMatrix, ModifyFillMatrix,                   &
-                        !               GetIfMatrixRemainsConstant, KillFillMatrix 
-    use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry,                     &
+                                       GetGridOutBorderPolygon, ConstructHorizontalGrid,        &
+                                       GetZCoordinates, RotateVectorFieldToGrid,                &
+                                       RotateAngleFieldToGrid, KillHorizontalGrid
+                                       
+    use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,                   &
+                                       GetIfMatrixRemainsConstant, KillFillMatrix 
+    use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry,                   &
                                        GetGeometryDistances, GetGeometrySize
     use ModuleHDF5,             only : ConstructHDF5, HDF5SetLimits, HDF5WriteData,             &
                                        HDF5FlushMemory, GetHDF5FileAccess, KillHDF5
-    use ModuleGridData,         only : GetGridData, UngetGridData, WriteGridData   
+    use ModuleGridData,         only : GetGridData, UngetGridData, WriteGridData,               &
+                                       ConstructGridData, GetGridDataEvolution,                 &
+                                       KillGridData
     use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,           &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,            &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,                 &
                                        GetTimeSerieName
-    use ModuleDrawing         
+    use ModuleDrawing       
+    
+#ifdef _SWAN_COUPLING_            
+    use iflport
+#endif _SWAN_COUPLING_                
 
     implicit none
 
@@ -228,6 +237,21 @@ Module ModuleWaves
          logical                                            :: FetchDepths          = .false.         
     end type T_OutPut                                   
                                                         
+    type       T_RunSwan                               
+        logical                                             :: ON                   = .false. 
+        real,    dimension(:,:,:),  pointer                 :: InputVector          => null()
+        integer                                             :: ObjBathymGrid        = 0
+        integer                                             :: ObjBathym            = 0     
+        type(T_Time)                                        :: NextRun           
+        real                                                :: DT   
+        type(T_Size2D)                                      :: Size, WorkSize
+        character(Len=PathLength)                           :: BathymetryFile       = null_str
+        character(Len=PathLength)                           :: BatchFile            = null_str
+        character(Len=PathLength)                           :: FileOutSwan          = null_str
+        
+    end type   T_RunSwan                              
+
+    
     type T_WaveProperty                                 
         type(T_PropertyID)                                  :: ID
         logical                                             :: ON                   = .false.
@@ -247,6 +271,11 @@ Module ModuleWaves
         real, dimension(:,:),  pointer                      :: FieldY               => null() 
         logical                                             :: OutputHDF            = .false.
         logical                                             :: TimeSerieOn          = .false.
+        
+        logical                                             :: FromSwan             = .false.
+        integer                                             :: SwanColumn           = null_int
+        integer                                             :: SwanColumnU          = null_int        
+        integer                                             :: SwanColumnV          = null_int                
     end type T_WaveProperty
     
 ! Modified by Matthias DELPEY - 27/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -351,9 +380,10 @@ Module ModuleWaves
         real                                                :: WaveHeightParameter     = 1.
         real                                                :: WavePeriodParameter     = 1.
         type (T_OutPut)                                     :: OutPut
-        type(T_Waves), pointer                              :: Next
-        type(T_PointF), pointer                             :: Point
-        type(T_Polygon), pointer                            :: LandArea
+        type (T_Waves  ), pointer                           :: Next
+        type (T_PointF ), pointer                           :: Point
+        type (T_Polygon), pointer                           :: LandArea
+        type (T_RunSwan)                                    :: RunSwan
     end type   T_Waves
     
     
@@ -428,6 +458,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructGlobalVariables
 
             call ConstructWaveParameters
+            
+#ifdef _SWAN_COUPLING_            
+            if (Me%RunSwan%ON) then
+                call RunSwanModel
+            endif
+#endif _SWAN_COUPLING_             
             
             if (Me%OutPut%HDF) call Open_HDF5_OutPut_File
             
@@ -1127,6 +1163,65 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%WaveLength_(:,:) =  FillValueReal
 
         endif
+        
+        call GetData(Me%RunSwan%ON,                                                     &
+             Me%ObjEnterData, iflag,                                                    &
+             Keyword    = 'RUN_SWAN',                                                   &
+             Default    = .false.,                                                      &
+             SearchType = FromFile,                                                     &
+             ClientModule ='ModuleWave',                                                &
+             STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ConstructWaveParameters - ModuleWaves - ERR120'
+        
+        if (Me%RunSwan%ON) then
+
+            call GetData(Me%RunSwan%DT,                                                 &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword    = 'SWAN_DT',                                        &
+                         SearchType = FromFile,                                         &
+                         ClientModule ='ModuleWave',                                    &
+                         STAT       = STAT_CALL)            
+
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR130'        
+                
+            if (iflag == 0)                                                             &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR140' 
+                
+            call GetData(Me%RunSwan%BathymetryFile,                                     &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'SWAN_BATHYM_FILE',                           &
+                         default        = 'Swan\BatimSwan.dat',                         &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   ='ModuleWave',                                  &
+                         STAT           = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR150' 
+                
+            call GetData(Me%RunSwan%BatchFile,                                          &
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'SWAN_BATCH_FILE',                            &
+                         default        = 'Swan\RunSwan.dat',                           &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   ='ModuleWave',                                  &
+                         STAT           = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR160'        
+                
+            call GetData(Me%RunSwan%FileOutSwan,                                        &                
+                         Me%ObjEnterData, iflag,                                        &
+                         Keyword        = 'SWAN_OUTPUT_FILE',                           &
+                         default        = 'Swan\FileOut.dat',                           &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   ='ModuleWave',                                  &
+                         STAT           = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR170'                               
+                
+            Me%RunSwan%NextRun = Me%BeginTime
+        endif
 
         call ConstructGlobalOutput
         
@@ -1135,12 +1230,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaveParameters - ModuleWaves - ERR0110'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaveParameters - ModuleWaves - ERR0200'
 
         !Ungets WaterPoints2D
         call UnGetHorizontalMap(Me%ObjHorizontalMap,  Me%ExternalVar%WaterPoints2D,     &
                                 STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaveParameters - ModuleWaves - ERR0120'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructWaveParameters - ModuleWaves - ERR0210'
 
 
     end subroutine ConstructWaveParameters
@@ -1154,6 +1249,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(LEN = *)                  :: BeginBlock, EndBlock
 
         !Local-----------------------------------------------------------------
+        integer, dimension(2)               :: Aux
         integer                             :: ClientNumber
         integer                             :: STAT_CALL, iflag
         logical                             :: BlockFound
@@ -1286,8 +1382,58 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT       = STAT_CALL)            
             if (STAT_CALL /= SUCCESS_)                                              &
                 stop 'ConstructWaveParameters - ModuleWaves - ERR40'
+            
 
             
+            call GetData(WaveProperty%FromSwan,                                     &
+                     Me%ObjEnterData, iflag,                                        &
+                     keyword    = 'FROM_SWAN',                                      &
+                     Default    = .false.,                                          &
+                     SearchType = FromBlock,                                        &
+                     ClientModule ='ModuleWave',                                    &
+                     STAT       = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_)                                              &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR50'
+            
+            if (WaveProperty%FromSwan) then
+            
+                if (WaveProperty%ID%IsVectorial) then
+
+                    call GetData(Aux,                                                   &
+                             Me%ObjEnterData, iflag,                                    &
+                             keyword    = 'SWAN_COLUMN',                                &
+                             SearchType = FromBlock,                                    &
+                             ClientModule ='ModuleWave',                                &
+                             STAT       = STAT_CALL)            
+                    if (STAT_CALL /= SUCCESS_)                                          &
+                        stop 'ConstructWaveParameters - ModuleWaves - ERR60'
+
+                    if (iflag/=2) then
+                        stop 'ConstructWaveParameters - ModuleWaves - ERR70'
+                    endif
+                    
+                    WaveProperty%SwanColumnU = Aux(1)
+                    WaveProperty%SwanColumnV = Aux(2)
+                    
+                else
+
+                    call GetData(WaveProperty%SwanColumn,                                   &
+                             Me%ObjEnterData, iflag,                                        &
+                             keyword    = 'SWAN_COLUMN',                                    &
+                             SearchType = FromBlock,                                        &
+                             ClientModule ='ModuleWave',                                    &
+                             STAT       = STAT_CALL)            
+                    if (STAT_CALL /= SUCCESS_)                                              &
+                        stop 'ConstructWaveParameters - ModuleWaves - ERR80'
+
+                    if (iflag/=1) then
+                        stop 'ConstructWaveParameters - ModuleWaves - ERR90'
+                    endif
+                
+                endif            
+
+            endif
+
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR50'
 
@@ -3333,12 +3479,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (ready_ .EQ. IDLE_ERR_) then
 
             call GetComputeCurrentTime(Me%ObjTime, Me%ActualTime, STAT = STAT_CALL)   
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR10'
+
+
+            
+#ifdef _SWAN_COUPLING_            
+            
+            if (Me%RunSwan%ON) then
+                if (Me%ActualTime >= Me%RunSwan%NextRun) then
+                    call RunSwanModel
+                endif
+            endif
+            
+#endif _SWAN_COUPLING_    
 
             !WaterPoints2D
             call GetWaterPoints2D(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,            &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR20'
           
             !Modifies Wave Height
             if (Me%WaveHeight%ON) then
@@ -3349,8 +3507,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                PointsToFill2D   = Me%ExternalVar%WaterPoints2D, &
                                                Generic_4D_Value = Me%ExternalVar%CurrentValue4D,&
                                                STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR20'
-                    else
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR40'
+
+                    elseif (.not. Me%RunSwan%ON) then
+                    
                      
                         if (Me%Wavegen_type.eq.Old) then   
                         
@@ -3381,7 +3541,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                Generic_4D_Value = Me%ExternalVar%CurrentValue4D, &
                                                STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR40'
-                    else
+                                               
+                    elseif (.not. Me%RunSwan%ON) then
                         
                         
                         if (Me%Wavegen_type.eq.Old) then   
@@ -3414,7 +3575,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                Generic_4D_Value = Me%ExternalVar%CurrentValue4D,    &
                                                STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR60'
-                    else
+                    
+                    elseif (.not. Me%RunSwan%ON) then
                         call ComputeWaveDirection
                     endif
                 endif
@@ -3431,7 +3593,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                Generic_4D_Value = Me%ExternalVar%CurrentValue4D,    &
                                                STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR65'
-                    else
+
+                     elseif (.not. Me%RunSwan%ON) then
                         if (Me%WaveHeight%ON .and. Me%WavePeriod%ON) then
                             call ComputeWaveLength
                         endif
@@ -3451,7 +3614,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR66'
                         
                         call ComputeAbw
-                    else
+
+                    elseif (.not. Me%RunSwan%ON) then
+                    
                          if (Me%ParametersON .and. (.not. Me%WaveHeight%Constant .or. .not. Me%WavePeriod%Constant)) then
                             call ComputeWaveParameters
                         endif
@@ -3479,6 +3644,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                !VectorialDummy_  = .true.,                              &
                                                STAT           = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR70'
+                        
                     else
                         !call ComputeRadiationStress
                     endif
@@ -3639,7 +3805,503 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     end subroutine ModifyWaves
 
-    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------      
+            
+#ifdef _SWAN_COUPLING_            
+        
+    subroutine RunSwanModel
+    
+       !Arguments-------------------------------------------------------------
+
+      
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        logical                                     :: VariableBathym
+        character (len = PathLength)                :: BathymetryFile, BatchFile, FileOutSwan
+
+        !Begin-----------------------------------------------------------------
+
+        BathymetryFile  = Me%RunSwan%BathymetryFile  
+        BatchFile       = Me%RunSwan%BatchFile     
+        FileOutSwan     = Me%RunSwan%FileOutSwan   
+        
+        !WaterPoints2D
+        call GetWaterPoints2D(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,        &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunSwanModel - ModuleWaves - ERR10'
+        
+                    
+        if (Me%RunSwan%ObjBathymGrid == 0) then
+        
+            call ConstructHorizontalGrid(HorizontalGridID = Me%RunSwan%ObjBathymGrid,   &
+                                         DataFile         = trim(BathymetryFile),       &
+                                         STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'RunSwanModel - ModuleWaves - ERR20'
+            
+            call GetHorizontalGridSize(HorizontalGridID = Me%RunSwan%ObjBathymGrid,   &
+                                       Size             = Me%RunSwan%Size,            &
+                                       WorkSize         = Me%RunSwan%WorkSize,        &
+                                       STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'RunSwanModel - ModuleWaves - ERR30' 
+            
+            call ConstructGridData      (GridDataID       = Me%RunSwan%ObjBathym,       &
+                                         HorizontalGridID = Me%RunSwan%ObjBathymGrid,   &
+                                         TimeID           = Me%ObjTime,                 &
+                                         FileName         = trim(BathymetryFile),       &
+                                         STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'RunSwanModel - ModuleModel - ERR40'
+        endif
+        
+              
+        call GetGridDataEvolution(GridDataID = Me%ObjGridData,                  &
+                                  Evolution  = VariableBathym,                  &
+                                  STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunSwanModel - ModuleWaves - ERR50'
+
+        if (VariableBathym) then           
+
+            call WriteBatimSwan(FileBatimSwan = 'Swan\FileBatimIn.dat')
+            
+        endif
+                            
+        call RunSwanStationary(BatchFile  ) 
+        
+        call ReadSwanOutput   (FileOutSwan)
+                
+        !WaterPoints2D
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%ExternalVar%WaterPoints2D,        &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'RunSwanModel - ModuleWaves - ERR60'
+        
+        Me%RunSwan%NextRun = Me%RunSwan%NextRun + Me%RunSwan%DT        
+            
+    end subroutine RunSwanModel       
+    
+    !--------------------------------------------------------------------------      
+    
+    subroutine WriteBatimSwan(FileBatimSwan)
+    
+       !Arguments-------------------------------------------------------------
+        character (len = *)                         :: FileBatimSwan
+      
+        !Local-----------------------------------------------------------------
+        real,    dimension(:,:), pointer            :: SwanBathym, CoordX, CoordY
+        !real,    dimension(:,:), pointer            :: SumBatim        
+        !integer, dimension(:,:), pointer            :: Mapping
+        integer                                     :: STAT_CALL, i, j, Iout, Jout, Unit
+
+        !Begin-----------------------------------------------------------------    
+        
+        !Gets a pointer to Bathymetry
+        call GetGridData(Me%ObjGridData, Me%ExternalVar%Bathymetry, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR010'      
+
+        call GetGridData(Me%RunSwan%ObjBathym, SwanBathym, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR020'   
+        
+        call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR030'   
+        
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            call GetXYCellZ(HorizontalGridID = Me%RunSwan%ObjBathymGrid,                &
+                            XPoint           = CoordX(i, j),                            &
+                            YPoint           = CoordY(i, j),                            &
+                            I                = Iout,                                    &
+                            J                = Jout,                                    &
+                            STAT             = STAT_CALL)     
+            if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR040'  
+            
+            if (Iout < 0 .or. Jout < 0) cycle 
+            
+            if (Me%ExternalVar%Bathymetry(i,j) > -55 .and. SwanBathym(Iout, Jout) > -55.) then
+                SwanBathym(Iout, Jout) = Me%ExternalVar%Bathymetry(i,j)
+            endif
+            
+        enddo
+        enddo
+        
+
+
+        call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleGridData - ERR50'
+
+        !Opens file
+        open (Unit, file = FileBatimSwan, status = 'replace', IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) then 
+            write(*,*) 'Was not possible to write to file ', FileBatimSwan
+            write(*,*) 'OPEN returned IOSTAT = ', STAT_CALL
+            stop 'WriteBatimSwan - ModuleGridData - ERR60'
+        end if
+        
+        do i = Me%RunSwan%WorkSize%IUB, Me%RunSwan%WorkSize%ILB, -1
+            write(Unit,'(1000(1x,f12.6))') (SwanBathym(i, j),j=Me%RunSwan%WorkSize%JLB, Me%RunSwan%WorkSize%JUB)
+        enddo        
+    
+        !Closes Files             
+        call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR70'        
+        
+        call UngetHorizontalGrid (Me%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR80'
+
+        call UngetHorizontalGrid (Me%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR90'
+        
+        !Ungets the Bathymetry
+        call UngetGridData (Me%ObjGridData, Me%ExternalVar%Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR100'
+        
+        call UngetGridData (Me%RunSwan%ObjBathym, SwanBathym, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR110'
+        
+        
+    end subroutine WriteBatimSwan    
+    
+
+    !--------------------------------------------------------------------------      
+
+    
+    subroutine RunSwanStationary(BatchFile)
+    
+       !Arguments-------------------------------------------------------------
+        character (len = *)                         :: BatchFile
+      
+        !Local-----------------------------------------------------------------
+        !integer                                     :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------    
+
+        if(.not. SYSTEMQQ(trim(BatchFile))) then
+            stop 'RunSwanStationary - ModuleWaves - ERR10'
+        endif            
+        
+    end subroutine RunSwanStationary    
+    
+
+    !--------------------------------------------------------------------------  
+    
+    
+    subroutine ReadSwanOutput(FileOutSwan)
+    
+       !Arguments-------------------------------------------------------------
+        character (len = *)                         :: FileOutSwan
+      
+        !Local-----------------------------------------------------------------
+        !real,    dimension(:,:), pointer            :: SumBatim        
+        !integer, dimension(:,:), pointer            :: Mapping
+        integer                                     :: STAT_CALL, i, j
+        integer                                     :: line, flag, NColumns
+        integer                                     :: ObjEnterData = 0
+        real, dimension(:), allocatable             :: Aux
+
+        !Begin-----------------------------------------------------------------    
+
+        !Opens File
+        call ConstructEnterData(ObjEnterData, FileOutSwan, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadSwanOutput - ModuleGridData - ERR10'
+        
+        line = 1
+
+        allocate  (Aux(100))
+
+        call GetData(Aux, ObjEnterData, flag, Buffer_Line  = Line, STAT = STAT_CALL)
+        
+        deallocate(Aux)
+        
+        NColumns = flag
+        
+        allocate(Aux(1:flag))
+        
+        if (.not.associated(Me%RunSwan%InputVector)) then
+            allocate(Me%RunSwan%InputVector(Me%RunSwan%WorkSize%ILB:Me%RunSwan%WorkSize%IUB,&
+                                            Me%RunSwan%WorkSize%JLB:Me%RunSwan%WorkSize%JUB,&
+                                            1:NColumns - 1))
+        endif
+        
+        do i = Me%RunSwan%WorkSize%ILB, Me%RunSwan%WorkSize%IUB
+        do j = Me%RunSwan%WorkSize%JLB, Me%RunSwan%WorkSize%JUB
+
+            call GetData(Aux, ObjEnterData, flag, Buffer_Line  = Line, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteBatimSwan - ModuleWaves - ERR050'
+            
+            Me%RunSwan%InputVector(i, j, 1:NColumns-1) = Aux(1:NColumns-1)
+            
+            Line = Line + 1
+            
+        enddo
+        enddo
+        
+        deallocate(aux)
+        
+        !Close File
+        call KillEnterData(ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadSwanOutput - ModuleGridData - ERR10'      
+        
+        if (Me%WavePeriod%FromSwan) then
+
+            call FromSwanToMohid(WaveProperty = Me%WavePeriod)
+
+        endif            
+
+        if (Me%WaveHeight%FromSwan) then
+
+             call FromSwanToMohid(WaveProperty = Me%WaveHeight)
+        
+        endif
+        
+        if (Me%WaveDirection%FromSwan) then
+
+            call FromSwanToMohid(WaveProperty = Me%WaveDirection, RotateScalar = .true.)
+
+        endif
+        
+        if (Me%WaveLength%FromSwan) then
+
+            call FromSwanToMohid(WaveProperty = Me%WaveLength)
+
+        endif
+
+        if (Me%Ubw%FromSwan) then
+
+            call FromSwanToMohid(WaveProperty = Me%Ubw)
+
+            call ComputeAbw                        
+
+        endif
+                
+        if (Me%RadiationStress%FromSwan) then
+
+            call FromSwanToMohid(WaveProperty = Me%RadiationStress, CorrectLandBound = .false.)          
+
+        endif
+        
+    end subroutine ReadSwanOutput    
+
+    !--------------------------------------------------------------------------      
+    
+    subroutine FromSwanToMohid(WaveProperty, RotateScalar, CorrectLandBound)
+    
+       !Arguments-------------------------------------------------------------
+        type (T_WaveProperty)                       :: WaveProperty
+        logical, optional                           :: RotateScalar
+        logical, optional                           :: CorrectLandBound
+      
+        !Local-----------------------------------------------------------------
+        real,    dimension(:,:), pointer            :: SwanBathym, CoordX, CoordY
+        !real,    dimension(:,:), pointer            :: SumBatim        
+        !integer, dimension(:,:), pointer            :: Mapping
+        integer                                     :: STAT_CALL, i, j, Iout, Jout
+        logical                                     :: RotateScalar_
+        integer                                     :: Referential    
+        type (T_PropertyID), pointer                :: PropertyID
+        logical                                     :: CorrectLandBound_, LandBoundCell
+        integer                                     :: iNew, jNew
+
+        !Begin-----------------------------------------------------------------    
+        
+        !Gets a pointer to Bathymetry
+        call GetGridData(Me%ObjGridData, Me%ExternalVar%Bathymetry, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR010'      
+
+        call GetGridData(Me%RunSwan%ObjBathym, SwanBathym, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR020'   
+        
+        call GetZCoordinates(Me%RunSwan%ObjBathymGrid, CoordX, CoordY, STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR030'  
+        
+        !Gets OpenPoints2D
+        call GetOpenPoints2D (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR040'  
+        
+        
+        if (present(RotateScalar)) then
+            RotateScalar_ = RotateScalar
+        else
+            RotateScalar_ = .false. 
+        endif             
+ 
+        if (present(CorrectLandBound)) then
+            CorrectLandBound_ = CorrectLandBound
+        else
+            CorrectLandBound_ = .false. 
+        endif             
+
+
+
+        
+        do i = Me%RunSwan%WorkSize%IUB, Me%RunSwan%WorkSize%ILB, -1
+        do j = Me%RunSwan%WorkSize%JLB, Me%RunSwan%WorkSize%JUB
+
+            call GetXYCellZ(HorizontalGridID = Me%ObjHorizontalGrid,                    &
+                            XPoint           = CoordX(i, j),                            &
+                            YPoint           = CoordY(i, j),                            &
+                            I                = Iout,                                    &
+                            J                = Jout,                                    &
+                            STAT             = STAT_CALL)     
+            if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR050'   
+            
+            if (Iout < 0 .or. Jout < 0) cycle
+            
+            if (Me%ExternalVar%Bathymetry(Iout,Jout) > -55. .and. SwanBathym(i, j) > -55.) then
+            
+
+                if (WaveProperty%ID%IsVectorial) then
+                
+                    WaveProperty%FieldX(Iout,Jout) = Me%RunSwan%InputVector(i, j, WaveProperty%SwanColumnU)
+                    WaveProperty%FieldY(Iout,Jout) = Me%RunSwan%InputVector(i, j, WaveProperty%SwanColumnV)
+                    
+                    if (WaveProperty%FieldX(Iout,Jout) == -9.0) WaveProperty%FieldX(Iout,Jout) = 0.
+                    if (WaveProperty%FieldY(Iout,Jout) == -9.0) WaveProperty%FieldY(Iout,Jout) = 0.  
+                    
+                else
+                
+                    if (Me%RunSwan%InputVector(i, j, WaveProperty%SwanColumn ) <= -9.) then
+                        Me%RunSwan%InputVector(i, j, WaveProperty%SwanColumn ) = 0.
+                    endif
+                
+                    if (RotateScalar_) then
+                        WaveProperty%FieldInputRef (Iout,Jout) = Me%RunSwan%InputVector(i, j, WaveProperty%SwanColumn )
+                    else
+                        WaveProperty%Field         (Iout,Jout) = Me%RunSwan%InputVector(i, j, WaveProperty%SwanColumn )
+                    endif                        
+                
+                endif
+                
+                
+            endif
+            
+        enddo
+        enddo        
+        
+        if (WaveProperty%ID%IsVectorial) then
+        
+            !!Need to rotate input field (Me%Matrix2DX and Me%Matrix2DY) to grid (Me%Matrix2DU and Me%Matrix2DV))            
+                                                                                                            
+            call RotateVectorFieldToGrid(HorizontalGridID   = Me%ObjHorizontalGrid,         &
+                                         VectorInX          = WaveProperty%FieldX,          &
+                                         VectorInY          = WaveProperty%FieldY,          &
+                                         VectorOutX         = WaveProperty%FieldU,          &
+                                         VectorOutY         = WaveProperty%FieldV,          & 
+                                         WaterPoints2D      = Me%ExternalVar%WaterPoints2D, &
+                                         RotateX            = .true.,                       &
+                                         RotateY            = .true.,                       &
+                                         STAT               = STAT_CALL)                    
+            if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR060'   
+
+        else
+        
+            if (RotateScalar_) then
+                
+                allocate(PropertyID)
+                
+                PropertyID = WaveProperty%ID
+
+                !angle referential
+                Referential = Get_Angle_Referential(PropertyID)                                    
+                
+                !!Need to rotate input field            
+                call RotateAngleFieldToGrid(HorizontalGridID      = Me%ObjHorizontalGrid,         &
+                                                AngleIn           = WaveProperty%FieldInputRef,   &
+                                                InReferential     = Referential,                  &
+                                                AngleOut          = WaveProperty%Field,           &
+                                                WaterPoints2D     = Me%ExternalVar%WaterPoints2D, &
+                                                Rotate            = .true.,                       &
+                                                STAT              = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR070'
+
+                deallocate(PropertyID)
+
+            endif                        
+        
+        endif
+
+        if (CorrectLandBound_) then
+        
+            do j = Me%WorkSize%JLB+1, Me%WorkSize%JUB-1
+            do i = Me%WorkSize%ILB+1, Me%WorkSize%IUB-1
+                
+                if (Me%ExternalVar%Bathymetry(i,j) > -55.) then
+
+                    LandBoundCell = .false. 
+
+                    if (Me%ExternalVar%OpenPoints2D(i  , j-1) /= 1) LandBoundCell = .true.
+                    if (Me%ExternalVar%OpenPoints2D(i  , j+1) /= 1) LandBoundCell = .true.
+                    if (Me%ExternalVar%OpenPoints2D(i-1, j  ) /= 1) LandBoundCell = .true.
+                    if (Me%ExternalVar%OpenPoints2D(i+1, j  ) /= 1) LandBoundCell = .true.
+                    
+                    if (LandBoundCell) then
+                    
+                        iNew = i
+                        jNew = j
+                    
+                        if (Me%ExternalVar%OpenPoints2D(i  , j+1) /= 1 .and. Me%ExternalVar%OpenPoints2D(i  , j-1) == 1) then
+                            iNew = i
+                            jNew = j-1
+                        endif                            
+                        if (Me%ExternalVar%OpenPoints2D(i  , j-1) /= 1 .and. Me%ExternalVar%OpenPoints2D(i  , j+1) == 1) then
+                            iNew = i
+                            jNew = j+1
+                        endif
+                        if (Me%ExternalVar%OpenPoints2D(i+1, j  ) /= 1 .and. Me%ExternalVar%OpenPoints2D(i-1, j  ) == 1) then
+                            iNew = i-1
+                            jNew = j
+                        endif
+                        if (Me%ExternalVar%OpenPoints2D(i-1, j  ) /= 1 .and. Me%ExternalVar%OpenPoints2D(i+1, j  ) == 1) then
+                            iNew = i+1
+                            jNew = j
+                        endif
+                        
+                        if (WaveProperty%ID%IsVectorial) then
+                        
+                            WaveProperty%FieldX(i, j) = WaveProperty%FieldX(iNew, jNew)
+                            WaveProperty%FieldY(i, j) = WaveProperty%FieldY(iNew, jNew)
+                            WaveProperty%FieldU(i, j) = WaveProperty%FieldU(iNew, jNew)
+                            WaveProperty%FieldV(i, j) = WaveProperty%FieldV(iNew, jNew)
+
+                        else
+
+                            WaveProperty%Field(i, j) = WaveProperty%Field(iNew, jNew)
+                        
+                            if (RotateScalar_) then
+                                WaveProperty%FieldInputRef(i, j) = WaveProperty%FieldInputRef(iNew, jNew)
+                            endif
+                            
+                        endif                            
+                    endif                                                
+                endif
+                
+            enddo
+            enddo
+        
+        endif
+                
+        
+        call UngetHorizontalGrid (Me%RunSwan%ObjBathymGrid, CoordX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR080'   
+
+        call UngetHorizontalGrid (Me%RunSwan%ObjBathymGrid, CoordY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR090'   
+        
+        !Ungets the Bathymetry
+        call UngetGridData (Me%ObjGridData, Me%ExternalVar%Bathymetry, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR100'   
+        
+        call UngetGridData (Me%RunSwan%ObjBathym, SwanBathym, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR110'   
+        
+        call UnGetHorizontalMap (Me%ObjHorizontalMap, Me%ExternalVar%OpenPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FromSwanToMohid - ModuleWaves - ERR120'          
+        
+    end subroutine FromSwanToMohid    
+
+
+            
+#endif _SWAN_COUPLING
+
+
+
+    !--------------------------------------------------------------------------   
   
     subroutine ComputeWaveParameters(WavesID, STAT)
 
@@ -5303,6 +5965,21 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR130'
                 endif
+                
+
+#ifdef _SWAN_COUPLING_            
+                if (Me%RunSwan%ON) then
+                    deallocate(Me%RunSwan%InputVector)
+                    
+                    call KillGridData      (GridDataID = Me%RunSwan%ObjBathym, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR150'
+                    
+                    call KillHorizontalGrid(HorizontalGridID = Me%RunSwan%ObjBathymGrid, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillWaves - ModuleWaves - ERR140'
+                                        
+                endif
+#endif _SWAN_COUPLING_             
+
 
                 !Deallocates Instance
                 call DeallocateInstance ()
