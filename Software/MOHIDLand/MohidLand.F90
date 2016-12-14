@@ -495,12 +495,14 @@ program MohidLand
             !after output times as it can occur with variable dt
             !The user needs to set the output times and restart times of modules as multiples of sync interval. this is not verified  
             
-            !In order to avoid increase DT that can go wrong and avoid the creation of small time steps that can make the model to slowdown until it recovers
+            !In order to avoid increase DT that can go wrong and avoid the creation of small time steps that can make the model
+            !to slowdown until it recovers
             !When a sync period is approahing if the next differece to synctime is higher then next DT, does nothing
             !if it is lower than next DT, split the difference to synctime in half
             !When it reaches less than a milisecond increase the next DT do synctime
-            !The split of difference to synctime in half makes that a lower next DT probably will make the model pass with no dt reduction from Modules
-            !(but even increase) and in subsquent DT's the synctime will be surpassed with a DT not very different from the original (or in the order of half)
+            !The split of difference to synctime in half makes that a lower next DT probably will make the model pass with no dt
+            !reduction from Modules (but even increase) and in subsquent DT's the synctime will be surpassed with a DT not very 
+            !different from the original (or in the order of half)
             if (SyncDT .and. DoOneTimeStep) then
                 
                 !if passed time to sync, cut dt to sync time

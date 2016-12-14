@@ -9093,8 +9093,8 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         
        
         !!Computation of TotalFlow - always
-        !$OMP PARALLEL PRIVATE(I,J,K, dH, dX, TotalArea, MinHead, FieldTheta, &
-        !$OMP& InfiltrationVolume, ChannelsVolume,MaxFlow)
+        !$OMP PARALLEL PRIVATE(I,J,K, dH, dX, TotalArea, MinHead, FieldTheta), &
+        !$OMP& PRIVATE(InfiltrationVolume, ChannelsVolume,MaxFlow)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9400,8 +9400,8 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
        
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
        
-        !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX, &
-        !$OMP& ChannelsVolume,InfiltrationVolume,MinHead,FieldTheta,MaxFlow)
+        !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX), &
+        !$OMP& PRIVATE(ChannelsVolume,InfiltrationVolume,MinHead,FieldTheta,MaxFlow)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9576,8 +9576,8 @@ if2:            if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
         
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
-        !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX, &
-        !$OMP& sumLayerArea,sumFlow,VerticalFluxVariation,LayerHeight,AccountBottomSurface,LayerArea,MaxFlow)
+        !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX), &
+        !$OMP& PRIVATE(sumLayerArea,sumFlow,VerticalFluxVariation,LayerHeight,AccountBottomSurface,LayerArea,MaxFlow)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9591,7 +9591,8 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 ChannelColumn = ChannelsWaterLevel(i,j) - ChannelsBottomLevel(i, j)
                 
                 !Flux only occurs if there is gradient or water                
-                if (((dH > 0.0) .and. ((Me%UGWaterLevel2D(i, j)-Me%ExtVar%BottomTopoG(i, j))>0.0)) .or. (dH < 0 .and. ChannelColumn > 0.)) then
+                if (((dH > 0.0) .and. ((Me%UGWaterLevel2D(i, j)-Me%ExtVar%BottomTopoG(i, j))>0.0)) .or. &
+                     (dH < 0 .and. ChannelColumn > 0.)) then
                 
                     !Maximum between the aquifer and river, limited by soil top
                     Toplevel    = min(max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)), Me%ExtVar%Topography(i, j))

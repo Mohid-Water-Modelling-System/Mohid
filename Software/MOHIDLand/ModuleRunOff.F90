@@ -4694,8 +4694,9 @@ doIter:         do while (iter <= Niter)
         !The discharge flow is controled using two basic rules:
         ! 1 - when the flow is negative can not remove more than the volume present in the cell;
         ! 2 - the volume variation induce by the discharge can not be larger than a percentage of the volume present in the cell.
-        !     This percentage is equal to 100 * Me%CV%StabilizeFactor. By default Me%CV%StabilizeFactor = 0.1  this means that by default
-        !     this percentage is 1000 %. The Me%CV%StabilizeFactor is used for estimate changes in the time step to maintain the model stability  
+        !     This percentage is equal to 100 * Me%CV%StabilizeFactor. By default Me%CV%StabilizeFactor = 0.1  this means that by 
+        !     default this percentage is 1000 %. The Me%CV%StabilizeFactor is used for estimate changes in the time step to 
+        !     maintain the model stability  
         
         StabilizeFactor = Me%CV%StabilizeFactor * 100.
 
@@ -4836,7 +4837,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             endif    
                                 
                             !m3/s      = [m/s^2*m]^0.5*[m^2]^0.5 * [m] = [m/s] * [m] * [m]    
-                            !ByPassFlowCriticCenterCell = sqrt(Gravity * Me%myWaterColumn (ib, jb)) * sqrt(Me%ExtVar%GridCellArea(ib, jb)) * Me%myWaterColumn (ib, jb)   
+                            !ByPassFlowCriticCenterCell = sqrt(Gravity * Me%myWaterColumn (ib, jb)) * sqrt(Me%ExtVar%GridCellArea(ib, jb)) * &
+                            !                             Me%myWaterColumn (ib, jb)   
                             
                             !ByPassFlowCriticCenterCell = Me%CV%MaxCourant / 2. * ByPassFlowCriticCenterCell
                             
@@ -4929,10 +4931,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                                         if (AuxFlowIJ < 0.) then
                                               AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
                                         else
-                                              AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT                                                            
+                                              AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
                                         endif                                
                                     endif  
-                                    write(*,*) 'Flow in cell',i,j,'was correct from ',AuxFlow,'to ',AuxFlowIJ                          
+                                    write(*,*) 'Flow in cell',i,j,'was correct from ',AuxFlow,'to ',AuxFlowIJ
                                 endif
                             endif                                
                         endif

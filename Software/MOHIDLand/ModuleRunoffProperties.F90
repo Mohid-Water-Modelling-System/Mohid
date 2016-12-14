@@ -7020,7 +7020,8 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                !Flux in routeD4 points 
                
               
-                !$OMP PARALLEL PRIVATE(i,j,it,jt,Prop,WaterVolumeOldDFour,WaterVolumeNewDFour,WaterVolumeOldLowNeighbour,WaterVolumeNewLowNeighbour,FlowMass)
+                !$OMP PARALLEL PRIVATE(i,j,it,jt,Prop,WaterVolumeOldDFour,WaterVolumeNewDFour,WaterVolumeOldLowNeighbour), &
+                !$OMP& PRIVATE(WaterVolumeNewLowNeighbour,FlowMass)
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -8008,7 +8009,8 @@ if1:        if (Property%Evolution%BottomFluxes   .and. Property%Evolution%Splas
                 Property%SplashRate       = 0.0
                 Me%RainKineticRate        = 0.0
                 
-                !$OMP PARALLEL PRIVATE(I,J,KE_Leaf_Drainage,KE_ThroughFall,SplashRate, CanopyDrain, DirectRain, DirectRainRate,SplashErodedMass, RainKineticEnergy, SplashConc,BottomArea,WaterVolume)
+                !$OMP PARALLEL PRIVATE(I,J,KE_Leaf_Drainage,KE_ThroughFall,SplashRate, CanopyDrain, DirectRain, DirectRainRate), &
+                !$OMP& PRIVATE(SplashErodedMass, RainKineticEnergy, SplashConc,BottomArea,WaterVolume)
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB

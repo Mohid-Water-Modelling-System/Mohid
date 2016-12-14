@@ -936,7 +936,8 @@ if2:            if (BlockFound) then
                         if (l > 1) then
                             if (NewReservoir%Management%OperationCurve(l, 1) <=     &
                                  NewReservoir%Management%OperationCurve(l - 1, 1)) then
-                                write(*,*) 'operation curve needs to be in ascending order of level or percentage volume (1st column)'
+                                write(*,*) 'operation curve needs to be in ascending order of level or '
+                                write(*,*) 'percentage volume (1st column)'
                                 write(*,*) 'in reservoir ID : ', NewReservoir%ID
                                 stop 'ConstructReservoir - ModuleReservoirs - ERR0112'  
                             endif

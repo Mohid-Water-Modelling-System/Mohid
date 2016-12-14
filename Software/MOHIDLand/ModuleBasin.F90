@@ -5232,7 +5232,9 @@ cd2 :           if (BlockFound) then
                         AtmConcentration = 0.0
                     endif                
                     
-                    !$OMP PARALLEL PRIVATE(I,J,OldVolumeOnLeafs,RainVolume,RainMassToVeg,VegetationNewVolume,VegetationNewMass,DrainageVolume,DrainageMassFromVeg)
+                   
+                    !$OMP PARALLEL PRIVATE(I,J,OldVolumeOnLeafs,RainVolume,RainMassToVeg,VegetationNewVolume), &
+                    !$OMP& PRIVATE(VegetationNewMass,DrainageVolume,DrainageMassFromVeg)
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)  REDUCTION(+:VegDrainedMass)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7705,8 +7707,8 @@ cd2 :           if (BlockFound) then
                         !deposition driven by complete infiltration of water column (WC totally infiltrated in time step) 
                         !if ((PropParticulate) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
                         !Now all recognized properties have bottom mass available
-!~                             if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
-!~                         if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
+!                           if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
+!                         if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
                         if (PropParticulate .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
                             MassToBottom(i,j) = PropertyMassOld
                         endif  
@@ -7866,7 +7868,8 @@ cd2 :           if (BlockFound) then
                         
                         else ! negative infiltration (exfiltration) - adding mass to WC or zero
                             
-                            MassInFlow(i,j) = PMPConcentration (i,j,WorkSize3D%KUB) * (-Infiltration(i,j) * Me%ExtVar%GridCellArea(i,j))
+                            MassInFlow(i,j) = PMPConcentration (i,j,WorkSize3D%KUB) * &
+                                              (-Infiltration(i,j) * Me%ExtVar%GridCellArea(i,j))
                             
                         endif
                         
@@ -9327,7 +9330,6 @@ cd2 :           if (BlockFound) then
         
         !Local-----------------------------------------------------------------
         integer :: i, j, index
-        logical :: LineStored 
         integer :: cells
         integer :: stat
         
@@ -9337,7 +9339,7 @@ cd2 :           if (BlockFound) then
         cells = 0
         Me%Integration%Buffer = 0.0
         
-		if (Me%Integration%IntegratePrecipitation) then
+        if (Me%Integration%IntegratePrecipitation) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
@@ -10092,13 +10094,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     endif
                     deallocate(Me%BWBBuffer)
                 endif
-				
-				if (Me%Integration%Integrate) then
-					if (Me%Integration%ObjTimeSeries > 0) then
-						call KillTimeSerie(Me%Integration%ObjTimeSeries, STAT = STAT_CALL)
-						if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR200b'
-					endif
-				endif
+                
+                if (Me%Integration%Integrate) then
+                    if (Me%Integration%ObjTimeSeries > 0) then
+                        call KillTimeSerie(Me%Integration%ObjTimeSeries, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR200b'
+                    endif
+                endif
                 
 #ifdef _ENABLE_CUDA                
                 !Kills ModuleCuda
