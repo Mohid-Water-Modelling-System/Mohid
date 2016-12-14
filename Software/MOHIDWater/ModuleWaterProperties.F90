@@ -6265,7 +6265,6 @@ cd12 :       if (BlockFound) then
                                             HorizontalGridID       = Me%ObjHorizontalGrid,       &
                                             MapID                  = Me%ObjMap,                  &
                                             GeometryID             = Me%ObjGeometry,             &
-                                            TurbulenceID           = Me%ObjTurbulence,           &
                                             TurbGOTMID             = Me%ObjTurbGOTM,             &
 #ifdef _ENABLE_CUDA
                                             ObjCudaID              = CudaID,                     &
