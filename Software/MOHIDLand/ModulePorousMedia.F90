@@ -7,7 +7,7 @@
 ! MODULE        : PorousMedia
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : May 2003
+! DATE          : May 2003/2016
 ! REVISION      : Frank Braunschweig - Complete Revision, 
 ! DESCRIPTION   : Simulates Water Flow in variable saturated soils
 !
