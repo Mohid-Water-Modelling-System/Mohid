@@ -1898,7 +1898,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                         :: status
         integer                                         :: index
         character(StringLength)                         :: item
-        integer                                         :: item_id
         type (T_Property), pointer                      :: property
         integer                                         :: iflag
         integer                                         :: first
@@ -1918,7 +1917,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (status /= SUCCESS_) &
             call CloseAllAndStop ('ReadChemLink - ModuleWaterProperties - ERR10') 
         
-        if (WaterPropertyID (item, item_id, property = property) /= SUCCESS_) &
+        if (WaterPropertyID (item, property = property) /= SUCCESS_) &
             call CloseAllAndStop ('ReadChemLink - ModuleWaterProperties - ERR20') 
         
         if (property%GFW <= 0.0) &
@@ -1956,7 +1955,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (status /= SUCCESS_) &
                 call CloseAllAndStop ('ReadChemLink - ModuleWaterProperties - ERR070')
 
-            if (WaterPropertyID (item, item_id, property = property) /= SUCCESS_) &
+            if (WaterPropertyID (item, property = property) /= SUCCESS_) &
                 call CloseAllAndStop ('ReadChemLink - ModuleWaterProperties - ERR80') 
         
             if (property%GFW <= 0.0) &
@@ -2691,7 +2690,7 @@ do1:        do while (associated(ObjCohort%Next))
 
         !Local-----------------------------------------------------------------
         type(T_Property), pointer           :: NewProperty
-        character(LEN = StringLength)       :: CohortPropName
+!        character(LEN = StringLength)       :: CohortPropName
         character(len=5)                    :: CohortIDStr
         
         !Begin-----------------------------------------------------------------
@@ -3218,7 +3217,7 @@ do6 :                       do K = WKLB, WKUB
 
         !Local-----------------------------------------------------------------
         type(T_Property), pointer           :: NewProperty, Property_L, Property_N
-        character(LEN = StringLength)       :: CohortPropName
+!        character(LEN = StringLength)       :: CohortPropName
         character(len=5)                    :: CohortIDStr
         integer                             :: STAT_CALL
         
@@ -6283,7 +6282,6 @@ cd12 :       if (BlockFound) then
                                             HorizontalGridID       = Me%ObjHorizontalGrid,       &
                                             MapID                  = Me%ObjMap,                  &
                                             GeometryID             = Me%ObjGeometry,             &
-                                            TurbulenceID           = Me%ObjTurbulence,           &
                                             TurbGOTMID             = Me%ObjTurbGOTM,             &
 #ifdef _ENABLE_CUDA
                                             ObjCudaID              = CudaID,                     &
@@ -15930,7 +15928,8 @@ cd5:                if (TotalVolume > 0.) then
                           Me%SeagrassesLeaves%LightFactor3D = WqRateX%Field
                           
                           call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
-                          if (STAT_CALL /= SUCCESS_)  call CloseAllAndStop ('SeagrassesLeaves_Processes - ModuleWaterProperties - ERR01')
+                          if (STAT_CALL /= SUCCESS_)  &
+                            call CloseAllAndStop ('SeagrassesLeaves_Processes - ModuleWaterProperties - ERR01')
         
                           
                                         do j = JLB, JUB
@@ -24370,11 +24369,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !----------------------------------------------------------------------
     
-    function WaterPropertyID (name, id, property) result (res)
+    function WaterPropertyID (name, property) result (res)
     
         !Arguments--------------------------------------------------------
         character (StringLength)                        :: name
-        integer                                         :: id
         type (T_Property), pointer, optional            :: property
         integer                                         :: res
     

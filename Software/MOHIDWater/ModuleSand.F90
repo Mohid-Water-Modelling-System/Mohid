@@ -4828,8 +4828,7 @@ ifMS:   if (MasterOrSlave) then
         !Local-----------------------------------------------------------------
         real(8),    pointer, dimension(:)  :: Aux1D
         real                               :: DX1, DX2, DY1, DY2, Area1, Area2, RunPeriod, K, coef
-        integer                            :: i, j, ij, imin, imax, di, iP50
-        real,   allocatable, dimension(:)  :: ArraySort
+        integer                            :: i, j, ij, imin, imax, di
         
         !----------------------------------------------------------------------
         
@@ -4891,7 +4890,8 @@ ifMS:   if (MasterOrSlave) then
 
             allocate (Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D))
             
-            Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D)
+            Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = &
+                Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D)
             
             do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
             
@@ -4932,13 +4932,15 @@ ifMS:   if (MasterOrSlave) then
         K = 1./8.
 
         do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
-           Aux1D(j) = (Me%HybridMorph%ResidualCrossShoreVel(j-1)- 2.* Me%HybridMorph%ResidualCrossShoreVel(j) + Me%HybridMorph%ResidualCrossShoreVel(j+1))
+           Aux1D(j) = (Me%HybridMorph%ResidualCrossShoreVel(j-1)- 2.* Me%HybridMorph%ResidualCrossShoreVel(j) + &
+                       Me%HybridMorph%ResidualCrossShoreVel(j+1))
         enddo            
         
         call BoundaryCondition1D(Aux1D, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)    
         
          do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
-            Me%HybridMorph%ResidualCrossShoreVel(j) =  Me%HybridMorph%ResidualCrossShoreVel(j) - K*(Aux1D(j-1)- 2. * Aux1D(j) + Aux1D(j+1))
+            Me%HybridMorph%ResidualCrossShoreVel(j) =  Me%HybridMorph%ResidualCrossShoreVel(j) - K*(Aux1D(j-1)- &
+                                                       2. * Aux1D(j) + Aux1D(j+1))
         enddo                        
         
         deallocate (Aux1D)

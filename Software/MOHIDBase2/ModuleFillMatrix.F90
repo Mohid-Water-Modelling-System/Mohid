@@ -73,6 +73,7 @@ Module ModuleFillMatrix
     use ModuleField4D,          only : ConstructField4D, GetField4DNumberOfInstants,    &
                                        GetField4DInstant, ModifyField4D,                &
                                        ModifyField4DXYZ, KillField4D
+    use ModuleStopWatch,        only : StartWatch, StopWatch
                                        
 
     implicit none
@@ -118,6 +119,7 @@ Module ModuleFillMatrix
     
     !Modifier
     public  :: ModifyFillMatrix
+    public  :: ModifyFillMatrixVectorial
     private ::      ModifySpaceTimeSerie
     private ::      ModifyHDFInput2D
     private ::          ModifyHDFInput2DTime
@@ -147,10 +149,10 @@ Module ModuleFillMatrix
         module procedure ConstructFillMatrix3DVectorial        
     end interface ConstructFillMatrix
     
-    interface ModifyFillMatrix
-        module procedure ModifyFillMatrix
-        module procedure ModifyFillMatrixVectorial       
-    end interface ModifyFillMatrix    
+    !interface ModifyFillMatrix
+    !    module procedure ModifyFillMatrix
+    !    module procedure ModifyFillMatrixVectorial       
+    !end interface ModifyFillMatrix    
 
     interface  UngetFillMatrix
         module procedure UngetFillMatrix2D
@@ -8335,6 +8337,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         type (T_PropertyID), pointer                    :: Prop
         !----------------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModuleFillMatrix", "ModifyFillMatrix")
+        
+        
         STAT_ = UNKNOWN_
 
         call Ready(FillMatrixID, ready_)
@@ -8504,6 +8509,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         if (present(STAT)) STAT = STAT_
 
+        if (MonitorPerformance) call StopWatch ("ModuleFillMatrix", "ModifyFillMatrix")
+        
+        
     end subroutine ModifyFillMatrix
 
     !--------------------------------------------------------------------------

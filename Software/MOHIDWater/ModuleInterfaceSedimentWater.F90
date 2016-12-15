@@ -3223,7 +3223,7 @@ do1 :   do while (associated(PropertyX))
                                                SandDiameter = D50,                                  & 
                                                RelativeDensity = RelativeDensity,                   &
                                                STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR4.8'                    
+                        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Sub_Modules - ModuleInterfaceSedimentWater - ERR4.8'
                     enddo                
                 endif
                 
@@ -5045,12 +5045,10 @@ do1 :       do while (associated(Property))
         integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
         integer                                 :: i, j, kbottom
         integer                                 :: CHUNK
-        real                                    :: CWphi,Cphi,Wphi,REW,REC,FWR,FWS
-        real                                    :: CDS,CDR,TAUMR,TAUMS,TAUWR,TAUWS,RECCR,REWCR,TAUM,TAUMAX
-        real                                    :: ar,T1,T2,T3,A1,A2,CDM,CDMAX,as,TAUMAXS,TAUW,TAUMAXR, Z0
-        real                                    :: DWZ, Z0_, Abw, Ubw, FW, CDM_, CDMAX_, FW_
-        real(8), dimension(:,:),  pointer       :: GrainRoughness
-        integer                                 :: STAT_CALL
+        real                                    :: CWphi,Cphi,Wphi
+        real                                    :: TAUM,TAUMAX
+        real                                    :: CDM,CDMAX, Z0
+        real                                    :: DWZ, Abw, Ubw, FW
 
         !Begin-----------------------------------------------------------------
 
@@ -5455,10 +5453,10 @@ do2:            do i = ILB, IUB
     
         !Local-----------------------------------------------------------------
         integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
-        integer                                 :: i, j, k, KTOP
+        integer                                 :: i, j, KTOP
         real                                    :: Z0, H, CDM, CDMAX, U, CWphi, FW
         real(8), dimension(:,:),  pointer       :: GrainRoughness
-        real                                    :: DWZ, Z0_, Abw, Ubw, CDM_, CDMAX_, FW_
+        real                                    ::  Z0_, Abw, Ubw, CDM_, CDMAX_, FW_
         real                                    :: fc, fc1, ks
         integer                                 :: STAT_CALL
         !Begin-----------------------------------------------------------------
@@ -5548,8 +5546,8 @@ do4:        do i = ILB, IUB
                         else                                              
                             H  = Me%ExtWater%WaterColumn(i,j)
                         
-                            fc = 0.24*(log10(12*H/ks))**-2
-                            fc1= 0.24*(log10(12*H/GrainRoughness(i,j)))**-2
+                            fc = 0.24*(log10(12*H/ks))**(-2.)
+                            fc1= 0.24*(log10(12*H/GrainRoughness(i,j)))**(-2.)
                         
                             Me%Shear_Stress%EfficiencyFactorCurrent(i,j) = fc1/fc
                         endif
@@ -5583,8 +5581,7 @@ do4:        do i = ILB, IUB
         real                                    :: Kscr_max, Kscmr_max, Kscd_max
         real                                    :: alfa, Td, ModelDT
         integer                                 :: IUB, JUB, ILB, JLB, KUB,KLB
-        integer                                 :: i, j, k
-        integer                                 :: CHUNK
+        integer                                 :: i, j
         integer                                 :: STAT_CALL
         
         !Begin-----------------------------------------------------------------
@@ -6690,7 +6687,8 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                                 end if
                                 
                                 if(Me%RunSedimentModule)then                                
-                                    CohesiveSediment%ErosionFlux(i,j) = CohesiveSediment%ErosionFlux(i,j) * Me%ExtSed%CohesiveContent(i,j,KUB)
+                                    CohesiveSediment%ErosionFlux(i,j) = CohesiveSediment%ErosionFlux(i,j) * &
+                                        Me%ExtSed%CohesiveContent(i,j,KUB)
                                 endif
 
                             else
@@ -7037,7 +7035,7 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
                         endif
                             
                         !kg/m2/s
-                        Me%Consolidation%Flux(i,j) = Me%Dewatering_Rate *    &                                                         
+                        Me%Consolidation%Flux(i,j) = Me%Dewatering_Rate *    &
                                                      Me%DepositionProbability(i,j)
                             
                         Max_Flux = (Initial_Mass_Available - CohesiveSediment%Mass_Min) /  &

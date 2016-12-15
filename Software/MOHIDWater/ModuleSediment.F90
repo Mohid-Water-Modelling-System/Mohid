@@ -424,13 +424,15 @@ Module ModuleSediment
         real, dimension(:, :, :), pointer          :: Porosity              => null ()
         real(8), dimension(:, :), pointer          :: D50                   => null () 
         real(8), dimension(:, :), pointer          :: SandD50               => null () 
-        real(8), dimension(:,:), pointer           :: FluxU                 => null () !vectorial field rotated to grid cells - U comp.
-        real(8), dimension(:,:), pointer           :: FluxV                 => null () !vectorial field rotated to grid cells - V comp.
+        real(8), dimension(:,:), pointer           :: FluxU                 => null () !vectorial field rotated to grid cells - U
+        real(8), dimension(:,:), pointer           :: FluxV                 => null () !vectorial field rotated to grid cells - V
         real(8), dimension(:,:), pointer           :: Bedload               => null ()
-        real(8), dimension(:,:), pointer           :: BedloadU              => null () !vectorial field rotated to grid cells - U comp.
-        real(8), dimension(:,:), pointer           :: BedloadV              => null () !vectorial field rotated to grid cells - V comp.
-        real(8), dimension(:,:), pointer           :: AuxBedloadX           => null () !vectorial field in cartesian referential - X (zonal comp.) - only for output
-        real(8), dimension(:,:), pointer           :: AuxBedloadY           => null () !vectorial field in cartesian referential - Y (meridional comp.) - only for output
+        real(8), dimension(:,:), pointer           :: BedloadU              => null () !vectorial field rotated to grid cells - U
+        real(8), dimension(:,:), pointer           :: BedloadV              => null () !vectorial field rotated to grid cells - V
+        !vectorial field in cartesian referential - X (zonal comp.) - only for output
+        real(8), dimension(:,:), pointer           :: AuxBedloadX           => null () 
+        !vectorial field in cartesian referential - Y (meridional comp.) - only for output
+        real(8), dimension(:,:), pointer           :: AuxBedloadY           => null () 
         real(8), dimension(:, :), pointer          :: Mass                  => null ()
         real(8), dimension(:, :), pointer          :: DM                    => null ()
         real(8), dimension(:, :), pointer          :: FluxToSediment        => null ()
@@ -568,7 +570,6 @@ Module ModuleSediment
 
         !Local-------------------------------------------------------------------
         integer                                         :: STAT_
-        integer                                         :: n
         real                                            :: dummyPrecision = FillValueReal
         !------------------------------------------------------------------------
 
@@ -1948,7 +1949,7 @@ cd2 :           if (BlockFound) then
                     endif
                     
                     !Non-dimensional particle diameter
-                    Me%SandClass(n)%Dast = Me%SandClass(n)%D50*((Me%RelativeDensity-1)*Gravity/WaterCinematicVisc**2)**(1./3.)                    
+                    Me%SandClass(n)%Dast = Me%SandClass(n)%D50*((Me%RelativeDensity-1)*Gravity/WaterCinematicVisc**2)**(1./3.)
                     Dast = Me%SandClass(n)%Dast
                     !critical Shields parameter modified by van Rijn (2003, 2007)                        
                     If (Dast.LE.4) then
@@ -4345,9 +4346,11 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, intent(OUT), optional              :: STAT 
 
         !Local-----------------------------------------------------------------
-        integer                                     :: n, STAT_, ready_, STAT_CALL
+        integer                                     :: STAT_, ready_, STAT_CALL
         logical                                     :: ChangeBathym
+#if _USE_MPI
         class(T_Sand), pointer                      :: SandClass
+#endif _USE_MPI    
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -4462,7 +4465,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
 
                             call ModifyGridData(Me%ObjBathym,Me%BatimIncrement, Add = .false.,  &
                                                 STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ModifySediment - ModuleSediment - ERR20.'                                               
+                            if (STAT_CALL /= SUCCESS_) stop 'ModifySediment - ModuleSediment - ERR20.'
                                                          
                             !Bathymetry
                             call GetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT_CALL)     
@@ -4624,12 +4627,13 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                         
                     if(SandClass%Field3D(i,j,WKUB) > 0.) then
                 
-                        SandClass%NDShearStress(i,j) = Me%ExternalVar%ShearStress(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50) &                       
+                        SandClass%NDShearStress(i,j) = Me%ExternalVar%ShearStress(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50) &
                                                        * Me%ExternalVar%EfficiencyFactorCurrent(i,j)
                 
                         if (Me%WavesOn) then
                     
-                            SandClass%NDShearStressMean(i,j) = Me%ExternalVar%ShearStressMean(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50) &
+                            SandClass%NDShearStressMean(i,j) = Me%ExternalVar%ShearStressMean(i,j)/&
+                                                              (Me%DeltaDensity*Gravity*SandClass%D50) &
                                                                * Me%ExternalVar%EfficiencyFactorMean(i,j)
                 
                             SandClass%NDShearStressWaves(i,j) = Me%ExternalVar%TauWave(i,j)/(Me%DeltaDensity*Gravity*SandClass%D50) &
@@ -4779,7 +4783,7 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                         if(SandClass%Field3D(i,j,WKUB) > 0.) then                
                             !Non dimensional critical shear stress
                             SandClass%NDCriticalShearStress(i, j)= SandClass%CriticalShearStress(i, j)/     &
-                                                                    (Me%DeltaDensity*Gravity*SandClass%D50)                            
+                                                                    (Me%DeltaDensity*Gravity*SandClass%D50)
                         endif
                     enddo    
                     
@@ -4883,8 +4887,10 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                                 
                             SandClass%ReferenceLevel(i,j) = 2*SandClass%D50
         
-                            SandClass%ConcRef(i,j) = 0.331 * (SandClass%NDShearStress(i,j) - SandClass%NDCriticalShearStress(i,j))**1.75 /        &
-                                                    (1 + 0.331/0.46 * (SandClass%NDShearStress(i,j) - SandClass%NDCriticalShearStress(i,j))**1.75)
+                            SandClass%ConcRef(i,j) = 0.331 * (SandClass%NDShearStress(i,j) - &
+                                                     SandClass%NDCriticalShearStress(i,j))**1.75 / &
+                                                    (1 + 0.331/0.46 * (SandClass%NDShearStress(i,j) - &
+                                                     SandClass%NDCriticalShearStress(i,j))**1.75)
                             
                             !The reference concentration upper limit is set to 0.2 (Amoudry, 2010)
                             SandClass%ConcRef(i,j) = min(SandClass%ConcRef(i,j), 0.2)
@@ -4976,7 +4982,8 @@ do1:            do while (Me%ExternalVar%Now >= Me%Evolution%NextSediment)
                                 !Reference level = Saltation Height (van Rijn, 1984a - eq. 10)
                                 SandClass%ReferenceLevel(i,j) = 0.3*SandClass%Dast**0.7*T**0.5*SandClass%D50
                                 
-                                SandClass%ReferenceLevel(i,j) = max(2*SandClass%D50, min(SandClass%ReferenceLevel(i,j), 10*SandClass%D50))
+                                SandClass%ReferenceLevel(i,j) = max(2*SandClass%D50, min(SandClass%ReferenceLevel(i,j), &
+                                                                                         10*SandClass%D50))
                                 
                                 !Particle velocity (van Rijn, 1984a - eq. 13)
                                 ParticleVelocity = (9+2.6*log10(SandClass%Dast)-8*(SandClass%NDCriticalShearStress(i,j)/ &
@@ -5164,8 +5171,10 @@ do1:    do n=1,Me%NumberOfClasses
                                 
                                 !Dimensionless bedload tranport rate normal to the current direction
                                 NDBedloadNormal = A*0.1907 * SandClass%NDShearStressWaves(i,j)**2 /        &
-                                                (SandClass%NDShearStressWaves(i,j)**1.5 + 1.5*SandClass%NDShearStressMean(i,j)**1.5) *    &
-                                                (SandClass%NDShearStressMean(i,j)*sin(2*CWphi) + 1.2*Asym_Factor*SandClass%NDShearStressWaves(i,j)*sin(CWphi)) 
+                                                (SandClass%NDShearStressWaves(i,j)**1.5 +                  &
+                                                 1.5*SandClass%NDShearStressMean(i,j)**1.5) *              &
+                                                (SandClass%NDShearStressMean(i,j)*sin(2*CWphi) +           &
+                                                 1.2*Asym_Factor*SandClass%NDShearStressWaves(i,j)*sin(CWphi)) 
                             else
                                 NDBedload2 = 0.
                                 NDBedloadNormal = 0.
@@ -5541,11 +5550,10 @@ do1:    do n=1,Me%NumberOfClasses
         integer                 :: i, j, ii, jj, n    
         integer                 :: WILB, WIUB, WJLB, WJUB, WKUB
         real                    :: Wphi, Tw, dhdl, Uu, u0
-        real                    :: Z0_, CDR, CDR_, TAUM, A, n1, p, DeltaTau
+        real                    :: Z0_, CDR_, TAUM, A, n1, p, DeltaTau
         real                    :: hs, NDBedload, aux
         class(T_Sand), pointer  :: SandClass  
         logical                 :: SwashZone, LongShoreDirectionU, LongShoreDirectionV
-        integer                 :: STAT_CALL
         !----------------------------------------------------------------------
         
         WILB = Me%SedimentWorkSize3D%ILB
@@ -5668,7 +5676,7 @@ do1:    do n=1,Me%NumberOfClasses
                                         p = SandClass%parameter_p
 
 
-                                        DeltaTau = SandClass%NDShearStress(ii, jj)-SandClass%NDCriticalShearStress(ii, jj)                  
+                                        DeltaTau = SandClass%NDShearStress(ii, jj)-SandClass%NDCriticalShearStress(ii, jj)
                     
                                         if (DeltaTau.GT.0.) then
                             
@@ -5695,7 +5703,8 @@ do1:    do n=1,Me%NumberOfClasses
                                             endif
                                         
                                             !Adjust bedload due to swash factor
-                                            SandClass%BedLoad(ii, jj) = (SandClass%BedloadU(ii, jj)**2 + SandClass%BedloadV(ii, jj)**2)**0.5
+                                            SandClass%BedLoad(ii, jj) = (SandClass%BedloadU(ii, jj)**2 + &
+                                                                         SandClass%BedloadV(ii, jj)**2)**0.5
                                         
                                         endif 
                                     endif
@@ -5807,7 +5816,7 @@ do1:    do n=1,Me%NumberOfClasses
         integer                 :: i, j, n
         class(T_Sand), pointer :: SandClass      
         integer                 :: WILB, WIUB, WJLB, WJUB
-        integer                 :: STAT_CALL
+!        integer                 :: STAT_CALL
         !----------------------------------------------------------------------
         
         WILB = Me%SedimentWorkSize3D%ILB
@@ -5867,7 +5876,8 @@ do1:    do n=1,Me%NumberOfClasses
                             SandClass%DM(i, j  ) = SandClass%DM(i, j  ) - Me%Evolution%SedimentDT * SandClass%FluxU(i, j) 
 
                             if (Me%Boxes%Yes) then
-                                Me%Boxes%BedloadU(i,j+1) = Me%Boxes%BedloadU(i,j+1) + SandClass%BedloadU(i, j) * Me%Evolution%SedimentDT
+                                Me%Boxes%BedloadU(i,j+1) = Me%Boxes%BedloadU(i,j+1) + SandClass%BedloadU(i, j) * &
+                                                           Me%Evolution%SedimentDT
                             endif
                         endif                    
                     endif
@@ -5891,7 +5901,8 @@ do1:    do n=1,Me%NumberOfClasses
                             SandClass%DM(i  , j) = SandClass%DM(i  , j) - Me%Evolution%SedimentDT * SandClass%FluxV(i, j) 
 
                             if (Me%Boxes%Yes) then
-                                Me%Boxes%BedloadV(i+1,j) = Me%Boxes%BedloadV(i+1,j) + SandClass%BedloadV(i, j) * Me%Evolution%SedimentDT
+                                Me%Boxes%BedloadV(i+1,j) = Me%Boxes%BedloadV(i+1,j) + SandClass%BedloadV(i, j) * &
+                                                           Me%Evolution%SedimentDT
                             endif
                         endif
                     endif
@@ -6004,10 +6015,8 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
     subroutine ComputeErosionDryCells 
         
         !Local-----------------------------------------------------------------
-        integer                 :: i, j, ii, jj, n    
+        integer                 :: i, j, ii, jj
         integer                 :: WILB, WIUB, WJLB, WJUB, WKUB
-        class(T_Sand), pointer  :: SandClass   
-        integer                 :: STAT_CALL
         !----------------------------------------------------------------------
         
         WILB = Me%SedimentWorkSize3D%ILB
@@ -6082,7 +6091,7 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
         integer                 :: n
         class(T_Sand), pointer  :: SandClass      
         integer                 :: WKUB, WKUB1
-        real(8)                 :: MassEroded, aux
+        real(8)                 :: MassEroded
         !----------------------------------------------------------------------
         
         !Me%DM(i,j) is always negative
@@ -6144,15 +6153,15 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
             
             WKUB = Me%KTop(i, j)
 
-            if (Me%ExternalVar%WaterPoints2D (i,j) .and. &
+            if (Me%ExternalVar%WaterPoints2D (i,j) == WaterPoint .and. &
                 Me%ExternalVar%BoundaryPoints2D(i, j) /= Boundary) then
         
-                if (Me%ExternalVar%WaterPoints2D (i,j+1)) then
+                if (Me%ExternalVar%WaterPoints2D (i,j+1)  == WaterPoint) then
                                     
                     dzdx = (Me%ExternalVar%Bathymetry(i, j+1) - Me%ExternalVar%Bathymetry(i, j)) /  &
                             Me%ExternalVar%DZX(i,j)
                     
-                    if ((Me%ExternalVar%OpenPoints2D (i,j) + Me%ExternalVar%OpenPoints2D (i,j+1)) .ge. 1) then                        
+                    if ((Me%ExternalVar%OpenPoints2D (i,j) + Me%ExternalVar%OpenPoints2D (i,j+1)) .ge. 1) then
                         MaximumSlope = Me%MaximumSlopeWet
                     else
                         MaximumSlope = Me%MaximumSlopeDry
@@ -6209,12 +6218,12 @@ if4:                    if (Me%WaterPointsorOpenPoints2D(i, j) == WaterPoint) th
                     endif
                 endif                    
         
-                if (Me%ExternalVar%WaterPoints2D (i+1,j)) then
+                if (Me%ExternalVar%WaterPoints2D (i+1,j)  == WaterPoint) then
                                     
                     dzdy = (Me%ExternalVar%Bathymetry(i+1, j) - Me%ExternalVar%Bathymetry(i, j)) /  &
                                 Me%ExternalVar%DZY(i,j)
                     
-                    if ((Me%ExternalVar%OpenPoints2D (i,j) + Me%ExternalVar%OpenPoints2D (i+1,j)) .ge. 1) then                        
+                    if ((Me%ExternalVar%OpenPoints2D (i,j) + Me%ExternalVar%OpenPoints2D (i+1,j)) .ge. 1) then
                         MaximumSlope = Me%MaximumSlopeWet
                     else
                         MaximumSlope = Me%MaximumSlopeDry
@@ -6327,8 +6336,10 @@ do1:    do n=1,Me%NumberOfClasses
                             !                 a3 * SandClass%DM(i, j-1) + a4 * SandClass%DM(i, j+1)) / atotal
                             
                             !!Correction needed to grids with variable resolution (DZ must be equal)
-                            !Area = (a1 * Me%ExternalVar%DUX(i-1, j)*Me%ExternalVar%DVY(i-1, j) + a2 * Me%ExternalVar%DUX(i+1, j)*Me%ExternalVar%DVY(i+1, j)  +     &
-                            !                 a3 * Me%ExternalVar%DUX(i, j-1)*Me%ExternalVar%DVY(i, j-1) + a4 * Me%ExternalVar%DUX(i, j+1)*Me%ExternalVar%DVY(i, j+1)) / atotal
+                            !Area = (a1 * Me%ExternalVar%DUX(i-1, j)*Me%ExternalVar%DVY(i-1, j) + &
+                            !        a2 * Me%ExternalVar%DUX(i+1, j)*Me%ExternalVar%DVY(i+1, j)  +     &
+                            !                 a3 * Me%ExternalVar%DUX(i, j-1)*Me%ExternalVar%DVY(i, j-1) + &
+                            !                 a4 * Me%ExternalVar%DUX(i, j+1)*Me%ExternalVar%DVY(i, j+1)) / atotal
                             !
                             !SandClass%DM(i, j) = SandClass%DM(i, j) * Me%ExternalVar%DUX(i, j)*Me%ExternalVar%DVY(i, j) / Area
                             
@@ -6338,19 +6349,23 @@ do1:    do n=1,Me%NumberOfClasses
                                 if (a1 == 1) then
                                     SandClass%DM(i-aux, j) = SandClass%DM(i-nb, j)
                                     Area = Me%ExternalVar%DUX(i-nb, j)*Me%ExternalVar%DVY(i-nb, j)
-                                    SandClass%DM(i-aux, j) = SandClass%DM(i-aux, j) * Me%ExternalVar%DUX(i-aux, j)*Me%ExternalVar%DVY(i-aux, j) / Area
+                                    SandClass%DM(i-aux, j) = SandClass%DM(i-aux, j) * Me%ExternalVar%DUX(i-aux, j) * &
+                                                             Me%ExternalVar%DVY(i-aux, j) / Area
                                 elseif (a2 == 1) then
                                     SandClass%DM(i+aux, j) = SandClass%DM(i+nb, j)
                                     Area = Me%ExternalVar%DUX(i+nb, j)*Me%ExternalVar%DVY(i+nb, j)
-                                    SandClass%DM(i+aux, j) = SandClass%DM(i+aux, j) * Me%ExternalVar%DUX(i+aux, j)*Me%ExternalVar%DVY(i+aux, j) / Area
+                                    SandClass%DM(i+aux, j) = SandClass%DM(i+aux, j) * Me%ExternalVar%DUX(i+aux, j) * &
+                                                             Me%ExternalVar%DVY(i+aux, j) / Area
                                 elseif (a3 == 1) then
                                     SandClass%DM(i, j-aux) = SandClass%DM(i, j-nb)
                                     Area = Me%ExternalVar%DUX(i, j-nb)*Me%ExternalVar%DVY(i, j-nb)
-                                    SandClass%DM(i, j-aux) = SandClass%DM(i, j-aux) * Me%ExternalVar%DUX(i, j-aux)*Me%ExternalVar%DVY(i, j-aux) / Area
+                                    SandClass%DM(i, j-aux) = SandClass%DM(i, j-aux) * Me%ExternalVar%DUX(i, j-aux) * &
+                                                             Me%ExternalVar%DVY(i, j-aux) / Area
                                 elseif (a4 == 1) then
                                     SandClass%DM(i, j+aux) = SandClass%DM(i, j+nb)
                                     Area = Me%ExternalVar%DUX(i, j+nb)*Me%ExternalVar%DVY(i, j+nb)
-                                    SandClass%DM(i, j+aux) = SandClass%DM(i, j+aux) * Me%ExternalVar%DUX(i, j+aux)*Me%ExternalVar%DVY(i, j+aux) / Area
+                                    SandClass%DM(i, j+aux) = SandClass%DM(i, j+aux) * Me%ExternalVar%DUX(i, j+aux) * &
+                                                             Me%ExternalVar%DVY(i, j+aux) / Area
                                 endif
                             enddo
 
@@ -7151,15 +7166,18 @@ if9:        if (Me%CohesiveClass%Run) then
                         
                         If(Me%CohesiveDryDensity%Field3D(i,j,k) < Me%CohesiveDryDensity%PES) then
                         
-                            ConsolidationRate = (Me%CohesiveDryDensity%PES- Me%CohesiveDryDensity%Field3D(i,j,k))/(Me%CohesiveDryDensity%PES- Me%CohesiveDryDensity%Min) * &
+                            ConsolidationRate = (Me%CohesiveDryDensity%PES- Me%CohesiveDryDensity%Field3D(i,j,k)) / &
+                                                (Me%CohesiveDryDensity%PES- Me%CohesiveDryDensity%Min) * &
                                 (Me%ConsolidationRate1 * (Me%CohesiveDryDensity%PES- Me%CohesiveDryDensity%Field3D(i,j,k)) - &
                                 Me%ConsolidationRate2 * (Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Field3D(i,j,k))) + &
                                 Me%ConsolidationRate2 * (Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Field3D(i,j,k))
                         else
-                            ConsolidationRate = Me%ConsolidationRate2 * (Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Field3D(i,j,k))
+                            ConsolidationRate = Me%ConsolidationRate2 * &
+                                 (Me%CohesiveDryDensity%MAX - Me%CohesiveDryDensity%Field3D(i,j,k))
                         endif
                         
-                        Me%CohesiveDryDensity%Field3D(i,j,k) = Me%CohesiveDryDensity%Field3D(i,j,k) + ConsolidationRate * Me%Evolution%SedimentDT
+                        Me%CohesiveDryDensity%Field3D(i,j,k) = Me%CohesiveDryDensity%Field3D(i,j,k) + & 
+                                                               ConsolidationRate * Me%Evolution%SedimentDT
                         
                         PorosityOld = Me%Porosity(i,j,k)
                         
