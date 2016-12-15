@@ -7,7 +7,7 @@
 ! MODULE        : PorousMedia
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : May 2003
+! DATE          : May 2003/2016
 ! REVISION      : Frank Braunschweig - Complete Revision, 
 ! DESCRIPTION   : Simulates Water Flow in variable saturated soils
 !
@@ -645,10 +645,10 @@ Module ModulePorousMedia
         type(T_PorousMedia), pointer                :: Next           => null()
         
         !Accumulated fluxes for Average flux computation (for Advection diffusion) 
-        real(8), dimension(:,:,:), pointer          :: FluxUAcc       => null()
-        real(8), dimension(:,:,:), pointer          :: FluxVAcc       => null()
-        real(8), dimension(:,:,:), pointer          :: FluxWAcc       => null()
-        real(8), dimension(:,:,:), pointer          :: FluxWAccFinal  => null()
+        real(8), dimension(:,:,:), allocatable          :: FluxUAcc      ! => null()
+        real(8), dimension(:,:,:), allocatable          :: FluxVAcc      ! => null()
+        real(8), dimension(:,:,:), allocatable          :: FluxWAcc      ! => null()
+        real(8), dimension(:,:,:), allocatable          :: FluxWAccFinal ! => null()
         
         logical                                     :: StopOnBathymetryChange = .true.
 
@@ -6264,6 +6264,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         
         !----------------------------------------------------------------------        
 
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "ComputeIntegration")
+        
+        
         !Bounds
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -6351,6 +6354,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             !endif
         endif        
     
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "ComputeIntegration")
+        
     end subroutine ComputeIntegration
     
     !--------------------------------------------------------------------------
@@ -6698,9 +6703,14 @@ dk:                 do k=kmin, kmax
         real    :: infiltration_flux
 
         !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "InsertInfiltrationOnFluxMatrix")
+        
         
         k = Me%WorkSize%KUB + 1
         
+        !$OMP PARALLEL PRIVATE(I,J,infiltration_flux)
+        !$OMP DO SCHEDULE    (DYNAMIC, CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB 
         
@@ -6713,6 +6723,10 @@ dk:                 do k=kmin, kmax
         
         enddo
         enddo           
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+       
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "InsertInfiltrationOnFluxMatrix")
         
         !----------------------------------------------------------------------
     
@@ -6729,9 +6743,15 @@ dk:                 do k=kmin, kmax
         integer :: i, j, k
 
         !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "CalculateMeanFlows")
+
+        
+        !$OMP PARALLEL PRIVATE(I,J,K)
+        !$OMP DO SCHEDULE    (DYNAMIC, CHUNKK)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB            
-        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         
             if (Me%ExtVar%ComputeFacesU3D(I,J,K) .EQ. Compute) then
                 
@@ -6755,9 +6775,11 @@ dk:                 do k=kmin, kmax
         enddo
         enddo
         enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
-!        Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) = Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) / iterations
-             
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "CalculateMeanFlows")
+            
     
     end subroutine CalculateMeanFlows
  
@@ -6769,10 +6791,15 @@ dk:                 do k=kmin, kmax
         integer :: i, j, k
 
         !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "AccumulateFlows")
         
+        
+        !$OMP PARALLEL PRIVATE(I,J,K)
+        !$OMP DO SCHEDULE    (DYNAMIC, CHUNKK)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB            
-        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         
             if (Me%ExtVar%ComputeFacesU3D(I,J,K) .EQ. Compute) then
                 
@@ -6796,24 +6823,15 @@ dk:                 do k=kmin, kmax
         enddo
         enddo
         enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
-        Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) = Me%FluxWAcc(i, j, Me%WorkSize%KUB+1) + Me%FluxW(i, j, Me%WorkSize%KUB+1)
-             
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "AccumulateFlows")
+        
         !----------------------------------------------------------------------
         
     end subroutine AccumulateFlows
     
-    !--------------------------------------------------------------------------
-
-    subroutine EffectiveVelocity
-
-        !Arguments-------------------------------------------------------------
-
-        !Local-----------------------------------------------------------------
-    
-    
-    end subroutine EffectiveVelocity
-
     !--------------------------------------------------------------------------
 
     subroutine ComputeNextDT(Niter)
@@ -6930,7 +6948,6 @@ dk:                 do k=kmin, kmax
         
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "SoilWaterVelocity")
 
-!        call FinalHead
 
         !$OMP PARALLEL PRIVATE(I,J,K)
 
@@ -7036,6 +7053,9 @@ dk:                 do k=kmin, kmax
         integer                                     :: KUB
         !Begin-----------------------------------------------------------------
         
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "ComputeFinalHead")
+        
+        
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
         KUB   = Me%WorkSize%KUB
@@ -7106,6 +7126,9 @@ dk:                 do k=kmin, kmax
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "ComputeFinalHead")
+
+        
     end subroutine ComputeFinalHead
 
     !----------------------------------------------------------------------------
@@ -7122,6 +7145,8 @@ dk:                 do k=kmin, kmax
         
         KUB = Me%WorkSize%KUB
         
+        !$OMP PARALLEL PRIVATE(I,J,hsup_aux, DeltaSup_aux, hinf_aux,Conductivity)
+        !$OMP DO SCHEDULE    (DYNAMIC, CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -7147,16 +7172,12 @@ dk:                 do k=kmin, kmax
                 endif
                 
                 Me%UnsatVelW(i, j, KUB+1) = BuckinghamDarcyEquation                             &
-!                                               (con      = Me%SatK (i, j, KUB),                 &
                                                 (con      = Conductivity,                       &
-!                                                hinf     = Me%FinalHead(i, j, KUB),            &
                                                 hinf     = hinf_aux,                            &
                                                 hsup     = hsup_aux,                            &
-!                                                delta    = Me%ExtVar%DWZ(i, j, KUB)/2.0)
                                                 delta    = DeltaSup_aux)
  
                 Me%UnsatVelWFinal(I,J,KUB+1) = Me%UnsatVelW(I,J,KUB+1)
-
                    
                 if (-1.0 * Me%UnsatVelW(i, j, KUB+1) > Me%WaterColumn(i, j) / Me%CV%CurrentDT) then  
                     
@@ -7168,10 +7189,11 @@ dk:                 do k=kmin, kmax
                 
 
             endif
-            
 
         enddo
         enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
     
     end subroutine InfiltrationVelocity
 
@@ -7243,6 +7265,9 @@ dk:                 do k=kmin, kmax
 
         !----------------------------------------------------------------------        
 
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "Condutivity_Face")
+
+    
         select case (Me%SoilOpt%CondutivityFace)
 
         case (Average )
@@ -7267,6 +7292,9 @@ dk:                 do k=kmin, kmax
             call CondutivityGeometricAverage
 
         end select
+        
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "Condutivity_Face")
+        
 
     end subroutine Condutivity_Face
 
@@ -7552,7 +7580,6 @@ dk:                 do k=kmin, kmax
         enddo
         enddo
         !$OMP END DO NOWAIT
-
         !$OMP END PARALLEL
 
     end subroutine CondutivityGeometricAverage
@@ -7572,9 +7599,15 @@ dk:                 do k=kmin, kmax
         real                                        :: TotalCol, HeadLimit
         !Begin-----------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "EvaporationFlux")
+        
+        
         !Set EvapFlux to zero
-        Me%EvaporationFlux(:,:) = 0.0
-
+        call SetMatrixValue ( Me%EvaporationFlux, Me%Size2D, 0.0)
+        
+        
+        !$OMP PARALLEL PRIVATE(I,J,K,WaterVolume,VelocityVolume,EvapoVolume, SoilVolume,NewTheta,TotalCol, HeadLimit)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
@@ -7638,6 +7671,10 @@ dk:                 do k=kmin, kmax
             
         enddo
         enddo            
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "EvaporationFlux")
 
 
     end subroutine EvaporationFlux
@@ -7647,12 +7684,11 @@ dk:                 do k=kmin, kmax
     subroutine CalculateNewTheta()
 
         !Arguments-------------------------------------------------------------  
-!        logical                             :: OverSaturation
+
         !Local-----------------------------------------------------------------        
-        integer                             :: CHUNK, I, J, K
+        integer                             :: I, J, K
         
         
-        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
         
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "CalculateNewTheta")
 
@@ -7661,7 +7697,7 @@ dk:                 do k=kmin, kmax
         !Horizontal Fluxes
         if (Me%SoilOpt%CalcHorizontal) then
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKK)
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7680,7 +7716,7 @@ dk:                 do k=kmin, kmax
             enddo
             !$OMP END DO
             
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKK)
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7701,7 +7737,7 @@ dk:                 do k=kmin, kmax
         endif
                
         !Flux W may be corrected in river points on the saturated zone to compensate exchange with river
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKK)
         do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7724,7 +7760,7 @@ dk:                 do k=kmin, kmax
         !Transpiration        
         if (Me%TranspirationExists) then
 
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKK)
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -7749,7 +7785,7 @@ dk:                 do k=kmin, kmax
             k = Me%WorkSize%KUB
 
             !Evaporation
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(I,J) == WaterPoint) then
@@ -7764,7 +7800,7 @@ dk:                 do k=kmin, kmax
         
         !Infiltration
         k = Me%WorkSize%KUB
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         
@@ -7786,7 +7822,7 @@ dk:                 do k=kmin, kmax
             if (Me%SoilOpt%DNLink == GWFlowToChanByCell_) then
             
                 !Exchange with River
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -7806,7 +7842,7 @@ dk:                 do k=kmin, kmax
             elseif (Me%SoilOpt%DNLink == GWFlowToChanByLayer_) then
 
                 !Exchange with River
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -7853,6 +7889,8 @@ dk:                 do k=kmin, kmax
 
         !Local-----------------------------------------------------------------        
 
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "IntegrateValuesInTime")
+        
         !Updates water column and infiltration
         call UpdateWaterColumnInfiltration
         
@@ -7868,6 +7906,9 @@ dk:                 do k=kmin, kmax
             call IntegrateDischargeFlow (SumDT)
         endif
 
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "IntegrateValuesInTime")
+        
+        
     end subroutine IntegrateValuesInTime
 
     !--------------------------------------------------------------------------
@@ -7967,20 +8008,18 @@ dk:                 do k=kmin, kmax
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k
-        integer                                     :: chunk
         real(8)                                     :: sum
      
         !Begin-----------------------------------------------------------------
         
-        CHUNK = ChunkK !CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)        )
-        sum = Me%AccTranspiration
+        sum = 0
         
         if (Me%TranspirationExists) then
             !$OMP PARALLEL PRIVATE(I,J,K) REDUCTION(+:sum)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do K = Me%WorkSize%KLB,     Me%WorkSize%KUB
-            do J = Me%WorkSize%JLB,     Me%WorkSize%JUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
+            do J = Me%WorkSize%JLB,     Me%WorkSize%JUB    !Loop inverted for OpenMP
             do I = Me%WorkSize%ILB,     Me%WorkSize%IUB
+            do K = Me%WorkSize%KLB,     Me%WorkSize%KUB
                                 
                 if (Me%ExtVar%Waterpoints3D (i,j,k) == 1) then
           
@@ -8003,11 +8042,11 @@ dk:                 do k=kmin, kmax
             
         endif
         
-        sum = Me%AccEvapFromSoil
+        sum = 0.0
         
         if (Me%EvaporationExists) then
             !$OMP PARALLEL PRIVATE(I,J,K) REDUCTION(+:sum)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do J = Me%WorkSize%JLB,     Me%WorkSize%JUB
             do I = Me%WorkSize%ILB,     Me%WorkSize%IUB
                                 
@@ -8088,15 +8127,11 @@ dk:                 do k=kmin, kmax
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k
-        integer                                     :: Chunk
-
-        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "SoilParameters")
                 
         !$OMP PARALLEL PRIVATE(I,J,K)
-
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -8140,7 +8175,7 @@ cd1 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
         !$OMP END DO
 
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -8163,12 +8198,10 @@ cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
 
                     Me%UnSatK(i, j, k) = UnsatK_ (Me%RC%ThetaF (i, j, k), Me%SoilID(i, j, k))
 
-
-
                 !Theta <= 0
                 else
 
-                    Me%Head(I,J,K) = null_real
+                    Me%Head(i, j, k) = null_real
 
                 endif
                 
@@ -8266,6 +8299,8 @@ cd2 :   if (Me%ExtVar%BasinPoints(i, j) == 1) then
         n_restart = 0
 
         !Verifies negative volumes
+        !$OMP PARALLEL PRIVATE(I,J,K)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
@@ -8275,7 +8310,7 @@ do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
                     if (Me%Theta(I,J,K) < -1.0 * AllmostZero) then
                         Restart = .true.
-                        exit do1
+                        !exit do1  //Commented this exit because don't know how it begave with OpenMP
                     elseif (Me%Theta(I,J,K) < 0.0) then
                         Me%Theta(I,J,K) = 0.0
                     endif
@@ -8286,10 +8321,16 @@ do1:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
         enddo
         enddo do1
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+
 
         if ((.not. Restart) .and. Me%CV%Stabilize) then
 
             !Tests variations
+            !$OMP PARALLEL PRIVATE(I,J,K,variation)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(+ : n_restart)
 do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         
@@ -8318,6 +8359,8 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 
             enddo
             enddo do2    
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
         
             if (n_restart > Me%CV%MinToRestart) then
                 Restart = .true.
@@ -8375,6 +8418,8 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: chunk
         real                                        :: ExcessVolume !, dh
 
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "VerticalContinuity")
+        
         
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
@@ -8443,6 +8488,9 @@ do2:        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "VerticalContinuity")
+        
+        
     end subroutine VerticalContinuity
 
     !--------------------------------------------------------------------------
@@ -9060,9 +9108,11 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         real,   dimension(:, :), pointer            :: ChannelsBottomWidth
         real,   dimension(:, :), pointer            :: ChannelsNodeLength
         integer,dimension(:, :), pointer            :: ChannelsOpenProcess
-        !logical                                     :: FoundUpperFlowCell, FoundLowerFlowCell
+
         !Begin----------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "ExchangeWithDrainageNet_1")
+        
         call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR01'
 
@@ -9080,6 +9130,9 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         
        
         !!Computation of TotalFlow - always
+        !$OMP PARALLEL PRIVATE(I,J,K, dH, dX, TotalArea, MinHead, FieldTheta), &
+        !$OMP& PRIVATE(InfiltrationVolume, ChannelsVolume,MaxFlow)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -9201,6 +9254,8 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             
         enddo do2
         enddo do1
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         
 !        !!Computation of Flow by layers - from total flow computed above.
@@ -9335,6 +9390,9 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR10'
 
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "ExchangeWithDrainageNet_1")
+        
+        
     end subroutine ExchangeWithDrainageNet_1
 
     !--------------------------------------------------------------------------
@@ -9360,6 +9418,9 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer,dimension(:, :), pointer            :: ChannelsOpenProcess
         !Begin----------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "ExchangeWithDrainageNet_2")
+        
+        
         call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR01'
 
@@ -9377,8 +9438,8 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
        
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
        
-        !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX, &
-        !$OMP& ChannelsVolume,InfiltrationVolume,MinHead,FieldTheta,MaxFlow,WaveHeight)
+        !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX), &
+        !$OMP& PRIVATE(ChannelsVolume,InfiltrationVolume,MinHead,FieldTheta,MaxFlow)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9495,6 +9556,9 @@ if2:            if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
         call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR10'
 
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "ExchangeWithDrainageNet_2")
+        
+        
     end subroutine ExchangeWithDrainageNet_2
 
     !--------------------------------------------------------------------------
@@ -9526,6 +9590,9 @@ if2:            if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
         integer,dimension(:, :), pointer            :: ChannelsOpenProcess
         !Begin----------------------------------------------------------------
 
+        if (MonitorPerformance) call StartWatch ("ModulePorousMedia", "ExchangeWithDrainageNet_3")
+        
+        
         call GetChannelsWaterLevel  (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR01'
 
@@ -9549,8 +9616,8 @@ if2:            if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
         
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
-        !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX, &
-        !$OMP& sumLayerArea,sumFlow,VerticalFluxVariation,LayerHeight,AccountBottomSurface,LayerArea,MaxFlow,WaveHeight)
+        !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX), &
+        !$OMP& PRIVATE(sumLayerArea,sumFlow,VerticalFluxVariation,LayerHeight,AccountBottomSurface,LayerArea,MaxFlow)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9565,7 +9632,8 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 WaveHeight =  max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)) - Me%ExtVar%BottomTopoG(i, j)
                 
                 !Flux only occurs if there is gradient or water                
-                if (((dH > 0.0) .and. ((Me%UGWaterLevel2D(i, j)-Me%ExtVar%BottomTopoG(i, j))>0.0)) .or. (dH < 0 .and. ChannelColumn > 0.)) then
+                if (((dH > 0.0) .and. ((Me%UGWaterLevel2D(i, j)-Me%ExtVar%BottomTopoG(i, j))>0.0)) .or. &
+                     (dH < 0 .and. ChannelColumn > 0.)) then
                 
                     !Maximum between the aquifer and river, limited by soil top
                     Toplevel    = min(max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)), Me%ExtVar%Topography(i, j))
@@ -9730,6 +9798,9 @@ do3:                do K = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsT
         call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsNodeLength, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ExchangeWithDrainageNetwork - ModulePorousMedia - ERR10'
 
+        if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "ExchangeWithDrainageNet_3")
+        
+        
     end subroutine ExchangeWithDrainageNet_3
 
     !--------------------------------------------------------------------------
@@ -10853,6 +10924,8 @@ do1:                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i,j), -1
         !Begin-----------------------------------------------------------------
 
         !Calculates real Infiltration Velocity
+        !$OMP PARALLEL PRIVATE(I,J)
+        !$OMP DO SCHEDULE    (DYNAMIC, CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(i, j) == 1) then
@@ -10860,6 +10933,8 @@ do1:                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i,j), -1
             endif
         enddo
         enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         !Theta
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
@@ -11085,23 +11160,29 @@ do1:                do k = Me%WorkSize%KUB, Me%ExtVar%KFloor(i,j), -1
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, k
+        real(8)                                     :: sum
         
-        Me%TotalStoredVolume = 0.0
+        sum= 0.0
 
+        !$OMP PARALLEL PRIVATE(I,J,K) REDUCTION(+:sum)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
             if (Me%ExtVar%WaterPoints3D(i, j, k) == 1) then
-
-                Me%TotalStoredVolume = Me%TotalStoredVolume + Me%Theta(i,j,k)             * &
-                                       Me%ExtVar%CellVolume(i,j,k)
+               sum = sum + Me%Theta(i,j,k) * Me%ExtVar%CellVolume(i,j,k)
             endif
 
         enddo
         enddo
         enddo
+        !$OMP END DO
+        !$OMP END PARALLEL             
+        
+        Me%TotalStoredVolume = sum
 
+        
         if (present(WriteOut)) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB

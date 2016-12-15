@@ -81,8 +81,8 @@ Module ModuleInterfaceWaterAir
                                           SetTurbGOTMWaveSurfaceFluxTKE
     use ModuleAtmosphere,           only: GetAtmosphereProperty, AtmospherePropertyExists, UngetAtmosphere, &
                                           GetWindHeight, GetAirMeasurementHeight
-    use ModuleFillMatrix,           only: ConstructFillMatrix, ModifyFillMatrix,                &
-                                          GetDefaultValue, GetIfMatrixRemainsConstant, KillFillMatrix, &
+    use ModuleFillMatrix,           only: ConstructFillMatrix, ModifyFillMatrix, ModifyFillMatrixVectorial, &
+                                          GetDefaultValue, GetIfMatrixRemainsConstant, KillFillMatrix,      &
                                           GetValuesProcessingOptions
 
 #ifndef _WAVES_
@@ -344,15 +344,15 @@ Module ModuleInterfaceWaterAir
         type(T_Time)                                :: LastCompute
         type(T_Time)                                :: NextCompute
     end type T_Evolution
-
+    
     private :: T_Property
     type       T_Property
          type(T_PropertyID)                         :: ID
          real, dimension(:,:), pointer              :: Field                => null()        
-        real, dimension(:,:),  pointer              :: FieldU               => null() !vectorial field rotated to grid cells - U comp.
-        real, dimension(:,:),  pointer              :: FieldV               => null() !vectorial field rotated to grid cells - V comp.
-        real, dimension(:,:),  pointer              :: FieldX               => null() !vectorial original field - X (zonal component)
-        real, dimension(:,:),  pointer              :: FieldY               => null() !vectorial original field - Y (meridional comp.)          
+         real, dimension(:,:),  pointer             :: FieldU               => null() !vectorial field rotated to grid cells - U comp.
+         real, dimension(:,:),  pointer             :: FieldV               => null() !vectorial field rotated to grid cells - V comp.
+         real, dimension(:,:),  pointer             :: FieldX               => null() !vectorial original field - X (zonal component)
+         real, dimension(:,:),  pointer             :: FieldY               => null() !vectorial original field - Y (meridional comp.)          
          type(T_Evolution)                          :: Evolution
          integer                                    :: SVPMethod            = 1
          integer                                    :: C1                   = 1
@@ -992,10 +992,8 @@ i2:     if (iflag == 1) then
             Me%Rugosity%Field(:,:) = Me%Rugosity%Scalar
             Me%Rugosity%Constant      = .true.
             Me%Rugosity%ON            = .true.
-            !Me%Rugosity%WavesFunction = .false.
         
 ! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            ! Me%Rugosity%WavesFunction = .false.
             Me%Rugosity%WavesFunction = NoWave
 !!!!!!!!!!!!!
         else i2
@@ -5069,13 +5067,12 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
         if (PropWindStress%ID%SolutionFromFile) then
 
-            call ModifyFillMatrix(FillMatrixID      = PropWindStress%ID%ObjFillMatrix,     &
+            call ModifyFillMatrixVectorial(FillMatrixID      = PropWindStress%ID%ObjFillMatrix,     &
                                   Matrix2DU         = PropWindStress%FieldU,               &
                                   Matrix2DV         = PropWindStress%FieldV,               &
                                   Matrix2DX         = PropWindStress%FieldX,               &
                                   Matrix2DY         = PropWindStress%FieldY,               & 
                                   PointsToFill2D    = Me%ExtWater%WaterPoints2D,           &
-                                  VectorialDummy_ = .true.,                                &
                                   STAT              = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_) stop 'ModifyWindStress - ModuleInterfaceWaterAir - ERR01'
 

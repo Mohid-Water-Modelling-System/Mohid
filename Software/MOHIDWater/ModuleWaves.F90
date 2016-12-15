@@ -95,6 +95,7 @@ Module ModuleWaves
                                        RotateAngleFieldToGrid, KillHorizontalGrid
                                        
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix,                   &
+                                       ModifyFillMatrixVectorial,                               &
                                        GetIfMatrixRemainsConstant, KillFillMatrix 
     use ModuleGeometry,         only : GetGeometryWaterColumn, UnGetGeometry,                   &
                                        GetGeometryDistances, GetGeometrySize
@@ -3634,14 +3635,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%RadiationStress%ON) then
                 if (.not. Me%RadiationStress%Constant) then
                     if (Me%RadiationStress%ID%SolutionFromFile) then
-                        call ModifyFillMatrix (FillMatrixID     = Me%RadiationStress%ID%ObjFillMatrix,  &
+                        call ModifyFillMatrixVectorial (FillMatrixID     = Me%RadiationStress%ID%ObjFillMatrix,  &
                                                Matrix2DU        = Me%RadiationStress%FieldU,            &
                                                Matrix2DV        = Me%RadiationStress%FieldV,            &
                                                Matrix2DX        = Me%RadiationStress%FieldX,            &
                                                Matrix2DY        = Me%RadiationStress%FieldY,            & 
                                                PointsToFill2D   = Me%ExternalVar%WaterPoints2D,         &
                                                Generic_4D_Value = Me%ExternalVar%CurrentValue4D,        &
-                                               VectorialDummy_  = .true.,                              &
                                                STAT           = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR70'
                         
