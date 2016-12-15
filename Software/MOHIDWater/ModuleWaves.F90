@@ -3641,7 +3641,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                Matrix2DY        = Me%RadiationStress%FieldY,            & 
                                                PointsToFill2D   = Me%ExternalVar%WaterPoints2D,         &
                                                Generic_4D_Value = Me%ExternalVar%CurrentValue4D,        &
-                                               !VectorialDummy_  = .true.,                              &
+                                               VectorialDummy_  = .true.,                              &
                                                STAT           = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaves - ModuleWaves - ERR70'
                         

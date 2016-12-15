@@ -8521,6 +8521,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                           PointsToFill2D,   &
                                           PointsToFill3D,   &
                                           Generic_4D_Value, &
+                                          VectorialDummy_,  &
                                           STAT)
                                 !PointsToFill3D, Generic_4D_Value, VectorialDummy_, STAT)
 
@@ -8538,7 +8539,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
         real,                    intent( IN), optional  :: Generic_4D_Value
-        !logical                                         :: VectorialDummy_  !dummy to create different signature 
+        logical                                         :: VectorialDummy_  !dummy to create different signature 
                                                                             !under same interface
         integer,                 intent(OUT), optional  :: STAT
 

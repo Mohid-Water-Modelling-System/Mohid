@@ -3010,7 +3010,7 @@ do2 :   do while (associated(PropertyX))
                                    Matrix2DX       = PropWindVelocity%FieldX,           &
                                    Matrix2DY       = PropWindVelocity%FieldY,           &              
                                    PointsToFill2D  = Me%ExternalVar%MappingPoints2D,    &
-                                   !VectorialDummy_ = .true.,                            &
+                                   VectorialDummy_ = .true.,                            &
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR01'
 

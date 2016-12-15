@@ -156,6 +156,10 @@ Module ModuleCEQUALW2
         integer                                     :: ASLim      
         integer                                     :: ALightLim     
         integer                                     :: AOverallLim
+        integer                                     :: AGR      
+        integer                                     :: AMR              
+        integer                                     :: AER      
+        integer                                     :: ARR            
         integer                                     :: ENLim      
         integer                                     :: EPLim      
         integer                                     :: ESLim      
@@ -891,6 +895,39 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
           stop 'RateIndexNumber - ModuleCEQUALW2 - ERR6'
         endif
 
+        
+        if (CheckPropertyName('AGR',       number = Me%rate%MohidIndex%AGR)) then
+          countrate = countrate +1
+          LocalMatch(countrate) = Me%Rate%MohidIndex%AGR
+          Me%Rate%CeQualIndex%AGR = countrate
+        else
+          stop 'RateIndexNumber - ModuleCEQUALW2 - ERR6.1'
+        endif        
+        
+        if (CheckPropertyName('AMR',       number = Me%rate%MohidIndex%AMR)) then
+          countrate = countrate +1
+          LocalMatch(countrate) = Me%Rate%MohidIndex%AMR
+          Me%Rate%CeQualIndex%AMR = countrate
+        else
+          stop 'RateIndexNumber - ModuleCEQUALW2 - ERR6.2'
+        endif       
+        
+        if (CheckPropertyName('AER',       number = Me%rate%MohidIndex%AER)) then
+          countrate = countrate +1
+          LocalMatch(countrate) = Me%Rate%MohidIndex%AER
+          Me%Rate%CeQualIndex%AER = countrate
+        else
+          stop 'RateIndexNumber - ModuleCEQUALW2 - ERR6.3'
+        endif       
+        
+                if (CheckPropertyName('ARR',       number = Me%rate%MohidIndex%ARR)) then
+          countrate = countrate +1
+          LocalMatch(countrate) = Me%Rate%MohidIndex%ARR
+          Me%Rate%CeQualIndex%ARR = countrate
+        else
+          stop 'RateIndexNumber - ModuleCEQUALW2 - ERR6.4'
+        endif       
+        
 
         if (CheckPropertyName( 'ENLIM',        number = Me%rate%MohidIndex%ENLim      )) then
           countrate = countrate +1
@@ -4383,10 +4420,14 @@ cd0:            if (CalcPoint) then
         real                                    :: NONZERO = 1.0E-20
         type(T_Algae),      pointer             :: Algae
         type(T_Epiphyton),  pointer             :: Epiphyton
+        real                                    :: AvrgLightLim, AvrgNLim, AvrgPLim, AvrgSLim, AvrgOverallLim
+        real                                    :: AvrgGR, AvrgMR, AvrgER, AvrgRR
+        integer                                 :: countElements
         !character (len = StringLength)          :: StrWarning
 
         !-----------------------------------------------------------------------
-
+            
+        
         O           = Me%PropIndex%Oxygen
         POMREF      = Me%PropIndex%POMREF    
         POMLAB      = Me%PropIndex%POMLAB    
@@ -4480,9 +4521,21 @@ cd0:            if (CalcPoint) then
 
   
         if (Me%Compute%Algae) then
-
+            
+            AvrgLightLim = 0.0
+            AvrgNLim = 0.0
+            AvrgPLim = 0.0
+            AvrgSLim = 0.0
+            AvrgOverallLim = 0.0
+            AvrgGR = 0.0
+            AvrgMR = 0.0
+            AvrgER = 0.0
+            AvrgRR = 0.0            
+            
+            
             Algae => Me%FirstAlgae
-
+            
+            countElements = 1
             do while(associated(Algae))
 
                 ASat   = Algae%Asat
@@ -4566,107 +4619,151 @@ cd0:            if (CalcPoint) then
                 Algae%AER =  MIN((1.0 - Lightlim)*AE * ATRM , Algae%AGR)
   
                                 
-                !corrigir mais tarde (so da rates da ultima alga)!!!pina
-                Me%Rate%Value(Me%Rate%CequalIndex%ANLim,        index)  = Algae%NLim(index)       
-                Me%Rate%Value(Me%Rate%CequalIndex%APLim,        index)  = Algae%PLim(index)       
-                Me%Rate%Value(Me%Rate%CequalIndex%ASLim,        index)  = Algae%SLim(index)       
-                Me%Rate%Value(Me%Rate%CequalIndex%ALightLim,    index)  = Algae%LightLim(index)   
-                Me%Rate%Value(Me%Rate%CequalIndex%AOverallLim,  index)  = Algae%OverallLim(index) 
-
+                !average for all algae
+                AvrgLightLim    = (AvrgLightLim   + Algae%LightLim(index))    / float(countElements)
+                AvrgNLim        = (AvrgNLim       + Algae%NLim(index))        / float(countElements)
+                AvrgPLim        = (AvrgPLim       + Algae%PLim(index))        / float(countElements)
+                AvrgSLim        = (AvrgSLim       + Algae%SLim(index))        / float(countElements)
+                AvrgOverallLim  = (AvrgOverallLim + Algae%OverallLim(index))  / float(countElements)
+                AvrgGR          = (AvrgGR         + Algae%AGR)                / float(countElements)
+                AvrgMR          = (AvrgMR         + Algae%AMR)                / float(countElements)
+                AvrgER          = (AvrgER         + Algae%AER)                / float(countElements)
+                AvrgRR          = (AvrgRR         + Algae%ARR)                / float(countElements)
+                countElements   = countElements + 1
                 
                 Algae => Algae%Next
             end do
+            
+
+            Me%Rate%Value(Me%Rate%CequalIndex%ANLim,        index)  = AvrgNLim       
+            Me%Rate%Value(Me%Rate%CequalIndex%APLim,        index)  = AvrgPLim       
+            Me%Rate%Value(Me%Rate%CequalIndex%ASLim,        index)  = AvrgSLim       
+            Me%Rate%Value(Me%Rate%CequalIndex%ALightLim,    index)  = AvrgLightLim  
+            Me%Rate%Value(Me%Rate%CequalIndex%AOverallLim,  index)  = AvrgOverallLim 
+                
+            Me%Rate%Value(Me%Rate%CequalIndex%AGR, index)         = AvrgGR   
+            Me%Rate%Value(Me%Rate%CequalIndex%AMR, index)         = AvrgMR    
+            Me%Rate%Value(Me%Rate%CequalIndex%AER, index)         = AvrgER     
+            Me%Rate%Value(Me%Rate%CequalIndex%ARR, index)         = AvrgRR              
+            
         endif
 
 
 
-!Epiphyton rates
-    if (Me%Compute%Epiphyton) then
+        !Epiphyton rates
+        if (Me%Compute%Epiphyton) then
 
-            
-        Epiphyton => Me%FirstEpiphyton
         
-        do while(associated(Epiphyton))
+            AvrgLightLim = 0.0
+            AvrgNLim = 0.0
+            AvrgPLim = 0.0
+            AvrgSLim = 0.0
+            AvrgOverallLim = 0.0
+            AvrgGR = 0.0
+            AvrgMR = 0.0
+            AvrgER = 0.0
+            AvrgRR = 0.0    
+        
+            
+            Epiphyton => Me%FirstEpiphyton
+        
+            countElements = 1
+            do while(associated(Epiphyton))
 
-            EpiphytonIndex = Epiphyton%PropIndex 
-            Epiphyton_     = Me%ExternalVar%Mass(EpiphytonIndex,index)
+                EpiphytonIndex = Epiphyton%PropIndex 
+                Epiphyton_     = Me%ExternalVar%Mass(EpiphytonIndex,index)
 
-            ESat   = Epiphyton%Esat
-            LTCoef = TopRadiation*Shade/ESat
+                ESat   = Epiphyton%Esat
+                LTCoef = TopRadiation*Shade/ESat
 
-            Lam1           = LTCoef
-            Lam2           = LTCoef*exp(-Gamma*Thickness)
+                Lam1           = LTCoef
+                Lam2           = LTCoef*exp(-Gamma*Thickness)
             
 
-            Epiphyton%lightlim(index) = 2.718282*(exp(-Lam2)-exp(-Lam1))/(Gamma*Thickness)
-            Epiphyton%Plim(index)     = 1.0
-            Epiphyton%Nlim(index)     = 1.0
-            Epiphyton%Slim(index)     = 1.0
+                Epiphyton%lightlim(index) = 2.718282*(exp(-Lam2)-exp(-Lam1))/(Gamma*Thickness)
+                Epiphyton%Plim(index)     = 1.0
+                Epiphyton%Nlim(index)     = 1.0
+                Epiphyton%Slim(index)     = 1.0
 
-            !Phosphorus Limitation
-            if (Epiphyton%EHSP  /= 0.0) &
-            Epiphyton%Plim(index) = Me%ExternalVar%Mass(PHOSP,index)/      &
-            (Me%ExternalVar%Mass(PHOSP,index)+Epiphyton%EHSP)                                
+                !Phosphorus Limitation
+                if (Epiphyton%EHSP  /= 0.0) &
+                Epiphyton%Plim(index) = Me%ExternalVar%Mass(PHOSP,index)/      &
+                (Me%ExternalVar%Mass(PHOSP,index)+Epiphyton%EHSP)                                
       
-            ! Nitrogen Limitation
-            if (Epiphyton%EHSN  /= 0.0) &
-            Epiphyton%Nlim(index) = (Me%ExternalVar%Mass(AMM,index)+Me%ExternalVar%Mass(NIT,index))/ &
-            (Me%ExternalVar%Mass(AMM,index)+Me%ExternalVar%Mass(NIT,index)+Epiphyton%EHSN)
+                ! Nitrogen Limitation
+                if (Epiphyton%EHSN  /= 0.0) &
+                Epiphyton%Nlim(index) = (Me%ExternalVar%Mass(AMM,index)+Me%ExternalVar%Mass(NIT,index))/ &
+                (Me%ExternalVar%Mass(AMM,index)+Me%ExternalVar%Mass(NIT,index)+Epiphyton%EHSN)
       
-            !Silica Limitattion
-            if (Epiphyton%EHSSI /= 0.0) &
-            Epiphyton%Slim(index) = Me%ExternalVar%Mass(SIDISS,index)/     &
-            (Me%ExternalVar%Mass(SIDISS,index)+Epiphyton%EHSSI)                                          
+                !Silica Limitattion
+                if (Epiphyton%EHSSI /= 0.0) &
+                Epiphyton%Slim(index) = Me%ExternalVar%Mass(SIDISS,index)/     &
+                (Me%ExternalVar%Mass(SIDISS,index)+Epiphyton%EHSSI)                                          
          
       
-            Epiphyton%OverallLim (index)   = min(Epiphyton%Plim(index),      &
-                                                 Epiphyton%Nlim(index),      &
-                                                 Epiphyton%Slim(index),      &
-                                                 Epiphyton%Lightlim(index))
+                Epiphyton%OverallLim (index)   = min(Epiphyton%Plim(index),      &
+                                                     Epiphyton%Nlim(index),      &
+                                                     Epiphyton%Slim(index),      &
+                                                     Epiphyton%Lightlim(index))
             
-            ETRM =  Epiphyton%ETRM
-            ETRMR =  Epiphyton%ETRMR
-            ETRMF =  Epiphyton%ETRMF
-            EG =  Epiphyton%EG
-            EP =  Epiphyton%EP
-            EN =  Epiphyton%EN
-            ER =  Epiphyton%ER
-            EM =  Epiphyton%EM
-            EE =  Epiphyton%EE
+                ETRM =  Epiphyton%ETRM
+                ETRMR =  Epiphyton%ETRMR
+                ETRMF =  Epiphyton%ETRMF
+                EG =  Epiphyton%EG
+                EP =  Epiphyton%EP
+                EN =  Epiphyton%EN
+                ER =  Epiphyton%ER
+                EM =  Epiphyton%EM
+                EE =  Epiphyton%EE
 
-            Phosphorus =  Me%ExternalVar%Mass(PHOSP,index)     
-            Nitrate =  Me%ExternalVar%Mass(NIT,index)
-            Ammonia =  Me%ExternalVar%Mass(AMM,index)
-            Lightlim =  Epiphyton%Lightlim(index)
+                Phosphorus =  Me%ExternalVar%Mass(PHOSP,index)     
+                Nitrate =  Me%ExternalVar%Mass(NIT,index)
+                Ammonia =  Me%ExternalVar%Mass(AMM,index)
+                Lightlim =  Epiphyton%Lightlim(index)
       
-            Epiphyton%EGR = min( ETRM * EG * Epiphyton%OverallLim(index),   &
-                                Phosphorus/(EP * Me%DTDay * Epiphyton_ + NONZERO),  &
-                                (Ammonia + Nitrate)/(EN * Me%DTDay * Epiphyton_ + NONZERO))
+                Epiphyton%EGR = min( ETRM * EG * Epiphyton%OverallLim(index),   &
+                                    Phosphorus/(EP * Me%DTDay * Epiphyton_ + NONZERO),  &
+                                    (Ammonia + Nitrate)/(EN * Me%DTDay * Epiphyton_ + NONZERO))
 
 
 
-            Epiphyton%ERR =  ETRM * ER * Me%DO3
+                Epiphyton%ERR =  ETRM * ER * Me%DO3
 
-            Epiphyton%EMR = (ETRMR + 1.0-ETRMF) * EM
+                Epiphyton%EMR = (ETRMR + 1.0-ETRMF) * EM
 
-            Epiphyton%EER =  MIN((1.0 - lightlim)*EE * ETRM , Epiphyton%EGR)
+                Epiphyton%EER =  MIN((1.0 - lightlim)*EE * ETRM , Epiphyton%EGR)
+            
+            
+                !average for all epiphyton
+                AvrgLightLim    = (AvrgLightLim   + Epiphyton%LightLim(index))    / float(countElements)
+                AvrgNLim        = (AvrgNLim       + Epiphyton%NLim(index))        / float(countElements)
+                AvrgPLim        = (AvrgPLim       + Epiphyton%PLim(index))        / float(countElements)
+                AvrgSLim        = (AvrgSLim       + Epiphyton%SLim(index))        / float(countElements)
+                AvrgOverallLim  = (AvrgOverallLim + Epiphyton%OverallLim(index))  / float(countElements)
+                AvrgGR          = (AvrgGR         + Epiphyton%EGR)                / float(countElements)
+                AvrgMR          = (AvrgMR         + Epiphyton%EMR)                / float(countElements)
+                AvrgER          = (AvrgER         + Epiphyton%EER)                / float(countElements)
+                AvrgRR          = (AvrgRR         + Epiphyton%ERR)                / float(countElements)
+                countElements   = countElements + 1            
+            
 
-            Me%Rate%Value(Me%Rate%CequalIndex%ENLim,        index)  = Epiphyton%NLim(index) 
-            Me%Rate%Value(Me%Rate%CequalIndex%EPLim,        index)  = Epiphyton%PLim(index)  
-            Me%Rate%Value(Me%Rate%CequalIndex%ESLim,        index)  = Epiphyton%SLim(index)  
-            Me%Rate%Value(Me%Rate%CequalIndex%ELightLim,    index)  = Epiphyton%LightLim(index) 
-            Me%Rate%Value(Me%Rate%CequalIndex%EOverallLim,  index)  = Epiphyton%OverallLiM(index) 
+                Epiphyton => Epiphyton%Next
+            end do
 
-            Epiphyton => Epiphyton%Next
-        end do
-
-         
+            Me%Rate%Value(Me%Rate%CequalIndex%ENLim,        index)  = AvrgNLim 
+            Me%Rate%Value(Me%Rate%CequalIndex%EPLim,        index)  = AvrgPLim  
+            Me%Rate%Value(Me%Rate%CequalIndex%ESLim,        index)  = AvrgSLim  
+            Me%Rate%Value(Me%Rate%CequalIndex%ELightLim,    index)  = AvrgLightLim 
+            Me%Rate%Value(Me%Rate%CequalIndex%EOverallLim,  index)  = AvrgOverallLim 
+        
+            !if want epiphyton rates go to global data and add the and add them here as in algae
+            !and in routine that verifies rates 
 
     
-    end if
+        end if
 
 
-        !----------------------------------------------------------------------
+    !----------------------------------------------------------------------
 
     end subroutine ComputeKineticRates
 
@@ -4835,11 +4932,16 @@ cd0:            if (CalcPoint) then
                 NH4PR = Ammonia * Nitrate /((ANPR + Ammonia)*(ANPR + Nitrate)) + &
                         Ammonia * ANPR /((Nitrate + Ammonia + NONZERO)*(ANPR+Nitrate))
             end if
-
-            if (AHSN > 0.0) then
+            
+            !this does not make sense since half saturation zero means that
+            !tere is no limitation (value is always 1.0)
+            !consumption needs to occur since algal growthwas computed based on
+            !no nitrogen limitation
+            !This is correctly used in phosphorus or even in nitrogen in epiphyton
+            !if (AHSN > 0.0) then
                 NH4AG = NH4AG + Algae%AGR * Algae_ * Algae%AN * NH4PR
                 NH4AR = NH4AR + Algae%ARR * Algae_ * Algae%AN
-            endif
+            !endif
 
             Algae => Algae%Next
         enddo
@@ -4954,9 +5056,14 @@ cd0:            if (CalcPoint) then
                             *(ANPR+Nitrate)))                                                                               
             end if                                                                                                              
 
-            if(AHSN.GT.0.0) then
+            !this does not make sense since half saturation zero means that
+            !tere is no limitation (value is always 1.0)
+            !consumption needs to occur since algal growthwas computed based on
+            !no nitrogen limitation
+            !This is correctly used in phosphorus or even in nitrogen in epiphyton            
+            !if(AHSN.GT.0.0) then
                 NO3AG = NO3AG + Algae%AGR * Algae_ * NO3PR * Algae%AN                              
-            endif
+            !endif
 
             Algae => Algae%Next
         enddo

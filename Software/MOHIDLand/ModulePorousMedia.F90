@@ -380,7 +380,8 @@ Module ModulePorousMedia
        
         real(8), dimension(:,:  ), pointer      :: InfiltrationColumn  => null()
         real, dimension(:,:,:), pointer         :: TranspirationFlux   => null()     
-        real, dimension(:,:  ), pointer         :: PotentialEvaporationFlux  => null()       
+        real, dimension(:,:  ), pointer         :: PotentialEvaporationFlux  => null()
+        real, dimension(:,:  ), pointer         :: ImposedInfiltration => null()
         logical                                 :: ConstructEvaporation      = .false.
         logical                                 :: ConstructTranspiration    = .false.
 
@@ -618,6 +619,7 @@ Module ModulePorousMedia
     
         logical                                     :: TranspirationExists            = .false.
         logical                                     :: EvaporationExists              = .false.
+        logical                                     :: ImposedInfiltration            = .false.
 
         type (T_Retention       )                   :: RC           !retention curve
         type (T_Converge        )                   :: CV           !Converge data 
@@ -6124,6 +6126,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                  InfiltrationColumn,                       &
                                  PotentialEvaporation,                     &
                                  ActualTranspiration,                      &
+                                 ImposedInfiltration,                      &
                                  STAT)
 
         !Arguments---------------------------------------------------------------
@@ -6131,6 +6134,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real(8), dimension(:,:  ), pointer                       :: InfiltrationColumn     !IN
         real,    dimension(:,:  ), pointer, optional             :: PotentialEvaporation   !IN
         real,    dimension(:,:,:), pointer, optional             :: ActualTranspiration    !IN  
+        real,    dimension(:,:  ), pointer                       :: ImposedInfiltration    !IN  
         integer, optional,                  intent(OUT)          :: STAT                   !OUT
 
         !Local-------------------------------------------------------------------
@@ -6192,6 +6196,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
             
             Me%ExtVar%InfiltrationColumn => InfiltrationColumn
+            
+            Me%ImposedInfiltration = .false.
+            if (associated(ImposedInfiltration)) then
+                Me%ImposedInfiltration = .true.
+                Me%ExtVar%ImposedInfiltration => ImposedInfiltration                
+            endif
        
             !Calculate flow in unsaturated part of soil
             call VariableSaturatedFlow (InfiltrationColumn)
@@ -6978,10 +6988,36 @@ dk:                 do k=kmin, kmax
         !$OMP END DO NOWAIT
 
         !$OMP END PARALLEL
+        
+        if (Me%ImposedInfiltration) then
+            
+            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+            
+            K = Me%WorkSize%KUB                        
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do I = Me%WorkSize%ILB, Me%WorkSize%IUB            
+        
+                if (Me%ExtVar%BasinPoints (I, J) == 1) then
+            
+                    Me%UnsatVelW(I,J,K + 1) = - Me%ExtVar%ImposedInfiltration(I,J)
+                    Me%UnsatVelWFinal(I,J,K + 1) = Me%UnsatVelW(I,J,K + 1)
+                else
 
-        call InfiltrationVelocity
+                    Me%UnsatVelW(I,J,K + 1) = 0.0
+                    Me%UnsatVelWFinal(I,J,K + 1) = Me%UnsatVelW(I,J,K + 1)
+                end if
+            end do
+            end do
+            !$OMP END DO         
+            !$OMP END PARALLEL
+        else
+            
+            call InfiltrationVelocity
 
-
+        endif
+        
         if (MonitorPerformance) call StopWatch ("ModulePorousMedia", "SoilWaterVelocity")
 
     end subroutine SoilWaterVelocity
@@ -9017,7 +9053,7 @@ doK:            do K = Me%ExtVar%KFloor(i, j), Me%WorkSize%KUB
         integer                                     :: i, j, k, STAT_CALL
         real                                        :: dH, dX, TotalArea !, LayerArea
         real                                        :: MinHead, FieldTheta !, TopHeightInCell
-        real                                        :: InfiltrationVolume, ChannelsVolume
+        real                                        :: InfiltrationVolume, ChannelsVolume, WaveHeight
         real                                        :: MaxFlow !, VerticalFluxVariation
         real,   dimension(:, :), pointer            :: ChannelsWaterLevel
         real,   dimension(:, :), pointer            :: ChannelsBottomLevel 
@@ -9078,7 +9114,8 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     !Computing height gradient dH [m]
                     !Negative dh -> Flux from channels to porous media
                     !Positive dh -> Flux from porous media to channels 
-                    dH    = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j)                
+                    dH    = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j)      
+                    WaveHeight =  max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)) - Me%ExtVar%BottomTopoG(i, j)
                 
                     !spatial step for Height Gradient (dH) [m]
                     dX    = max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
@@ -9099,7 +9136,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     !Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%UnSatK(i, j, Me%UGCell(i,j)) * Me%SoilOpt%HCondFactor
                     !Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%SatK(i, j, Me%UGCell(i,j))             &
                     !                             * Me%SoilOpt%FCHCondFactor !Me%SoilOpt%HCondFactor
-                    Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%SatK(i, j, k)                  &
+                    Me%lFlowToChannels(i, j) = (min(dH, WaveHeight) / dX ) * TotalArea * Me%SatK(i, j, k)                  &
                                                  * Me%SoilOpt%FCHCondFactor 
                 
                     !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
@@ -9313,7 +9350,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer                                     :: i, j, k, STAT_CALL, CHUNK
         real                                        :: dH, dX, TotalArea
         real                                        :: TotalHeight, Toplevel, BottomLevel, ChannelColumn
-        real                                        :: MinHead, FieldTheta
+        real                                        :: MinHead, FieldTheta, WaveHeight
         real                                        :: InfiltrationVolume, ChannelsVolume
         real                                        :: MaxFlow
         real,   dimension(:, :), pointer            :: ChannelsWaterLevel
@@ -9341,7 +9378,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
        
         !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX, &
-        !$OMP& ChannelsVolume,InfiltrationVolume,MinHead,FieldTheta,MaxFlow)
+        !$OMP& ChannelsVolume,InfiltrationVolume,MinHead,FieldTheta,MaxFlow,WaveHeight)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9353,11 +9390,13 @@ if1:        if (Me%ExtVar%RiverPoints(i, j) == OpenPoint) then
                 !Positive dh -> Flux from porous media to channels 
                 dH            = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j) 
                 ChannelColumn = ChannelsWaterLevel(i,j) - ChannelsBottomLevel(i, j)
+                WaveHeight =  max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)) - Me%ExtVar%BottomTopoG(i, j)
                 
                 !Flux only occurs if there is gradient or water
 if2:            if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
 
                     !Maximum between the aquifer and river, limited by soil top
+                    !Height inside soil
                     Toplevel    = min(max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)), Me%ExtVar%Topography(i, j))
                     !Maximum between the river bottom and porous media bottom
                     BottomLevel = max(ChannelsBottomLevel(i, j), Me%ExtVar%BottomTopoG(i, j)) 
@@ -9386,7 +9425,7 @@ if2:            if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
                     k = Me%UGCell(i,j)
                     
                     ![m3/s]                   = [m/m] * [m2] * [m/s] * [] 
-                    Me%lFlowToChannels(i, j) = (dH / dX ) * TotalArea * Me%SatK(i, j, k) * Me%SoilOpt%FCHCondFactor 
+                    Me%lFlowToChannels(i, j) = (min(dH, WaveHeight) / dX ) * TotalArea * Me%SatK(i, j, k) * Me%SoilOpt%FCHCondFactor 
                 
                     !If the channel looses water (infiltration), then set max flux so that volume in channel does not get 
                     !negative.   
@@ -9478,7 +9517,7 @@ if2:            if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
         real                                        :: dH, dX, TotalArea
         real                                        :: TotalHeight, Toplevel, BottomLevel, ChannelColumn
         real                                        :: LayerArea, LayerHeight, sumLayerArea
-        real                                        :: MaxFlow, sumFlow, VerticalFluxVariation
+        real                                        :: MaxFlow, sumFlow, VerticalFluxVariation, WaveHeight
         logical                                     :: AccountBottomSurface
         real,   dimension(:, :), pointer            :: ChannelsWaterLevel
         real,   dimension(:, :), pointer            :: ChannelsBottomLevel 
@@ -9511,7 +9550,7 @@ if2:            if ((dH > 0.0) .or. (dH < 0 .and. ChannelColumn > 0.)) then
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
         !$OMP PARALLEL PRIVATE(I,J,K,dH,ChannelColumn,Toplevel,BottomLevel,TotalHeight,TotalArea,dX, &
-        !$OMP& sumLayerArea,sumFlow,VerticalFluxVariation,LayerHeight,AccountBottomSurface,LayerArea,MaxFlow)
+        !$OMP& sumLayerArea,sumFlow,VerticalFluxVariation,LayerHeight,AccountBottomSurface,LayerArea,MaxFlow,WaveHeight)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)       
 do1:    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -9523,6 +9562,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !Positive dh -> Flux from porous media to channels 
                 dH            = Me%UGWaterLevel2D(i, j) - ChannelsWaterLevel(i, j) 
                 ChannelColumn = ChannelsWaterLevel(i,j) - ChannelsBottomLevel(i, j)
+                WaveHeight =  max(Me%UGWaterLevel2D(i, j), ChannelsWaterLevel(i, j)) - Me%ExtVar%BottomTopoG(i, j)
                 
                 !Flux only occurs if there is gradient or water                
                 if (((dH > 0.0) .and. ((Me%UGWaterLevel2D(i, j)-Me%ExtVar%BottomTopoG(i, j))>0.0)) .or. (dH < 0 .and. ChannelColumn > 0.)) then
@@ -9551,7 +9591,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     !spatial step for Height Gradient (dH) [m]
                     !review this!
                     dX    = max(ChannelsBottomWidth(i, j) / 2.0, 1.0)
-                
+                    
                     sumLayerArea          = 0.0
                     sumFlow               = 0.0
                     VerticalFluxVariation = 0.0
@@ -9618,7 +9658,7 @@ do3:                do K = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsT
                         !print *, Me%SoilOpt%FCHCondFactor
                         !print *, '========'
                         
-                        Me%lFlowToChannelsLayer(i, j, k)  = (dH / dX ) * TotalArea * (LayerArea/TotalArea) *     &
+                        Me%lFlowToChannelsLayer(i, j, k)  = (min(dH, WaveHeight) / dX ) * TotalArea * (LayerArea/TotalArea) *     &
                                                              Me%SatK(i, j, k) * Me%SoilOpt%FCHCondFactor 
                                                              
                         !limit flux
@@ -9665,7 +9705,7 @@ do3:                do K = Me%FlowToChannelsBottomLayer(i,j), Me%FlowToChannelsT
                         write(*,*)
                         stop 'ExchangeWithDrainageNet_3 - ModulePorousMedia - ERR01'
                     endif
-                        
+                    
                 endif
             
             endif

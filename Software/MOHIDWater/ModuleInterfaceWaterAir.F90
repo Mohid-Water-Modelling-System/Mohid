@@ -82,7 +82,8 @@ Module ModuleInterfaceWaterAir
     use ModuleAtmosphere,           only: GetAtmosphereProperty, AtmospherePropertyExists, UngetAtmosphere, &
                                           GetWindHeight, GetAirMeasurementHeight
     use ModuleFillMatrix,           only: ConstructFillMatrix, ModifyFillMatrix,                &
-                                          GetDefaultValue, GetIfMatrixRemainsConstant, KillFillMatrix
+                                          GetDefaultValue, GetIfMatrixRemainsConstant, KillFillMatrix, &
+                                          GetValuesProcessingOptions
 
 #ifndef _WAVES_
     use ModuleWaves,                only: SetWavesWind, GetWaves, UnGetWaves
@@ -361,6 +362,7 @@ Module ModuleInterfaceWaterAir
          logical                                    :: CEQUALW2             = .false.
          logical                                    :: OutputHDF            = .false.
          logical                                    :: Constant             = .false.
+         logical                                    :: FirstActualization   = .true.
          type(T_Property), pointer                  :: Next                 => null()
          type(T_Property), pointer                  :: Prev                 => null()
     end type T_Property
@@ -461,6 +463,9 @@ Module ModuleInterfaceWaterAir
         logical                                     :: Jump                     = .true.
         logical                                     :: Jwarm                    = .false.
         real                                        :: Jcool                    = 0.
+        
+        logical                                     :: EvapReqConv              = .false.
+        real                                        :: ConversionFactorEvap     = 1.0
 
         !Instance of ModuleBoxDif                   
         integer                                     :: ObjBoxDif                = 0
@@ -987,7 +992,7 @@ i2:     if (iflag == 1) then
             Me%Rugosity%Field(:,:) = Me%Rugosity%Scalar
             Me%Rugosity%Constant      = .true.
             Me%Rugosity%ON            = .true.
-            Me%Rugosity%WavesFunction = .false.
+            !Me%Rugosity%WavesFunction = .false.
         
 ! Modified by Matthias DELPEY - 15/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! Me%Rugosity%WavesFunction = .false.
@@ -3798,8 +3803,9 @@ do1 :   do while (associated(PropertyX))
         type(T_Property), pointer                   :: PropEvaporation
 
         !External--------------------------------------------------------------
-        integer                                     :: STAT_CALL
-
+        integer                                     :: i,j, STAT_CALL
+        logical                                     :: Accumulate, Interpolate, UseOriginal
+        integer                                     :: CHUNK
         !Begin-----------------------------------------------------------------
 
         if (PropEvaporation%ID%SolutionFromFile) then
@@ -3815,7 +3821,123 @@ do1 :   do while (associated(PropertyX))
             call ComputeEvaporation(PropEvaporation)
 
         endif
+        
+        !if not computed, let the user input it with mm (that is what monitoring stations have).
+        !using m3/s user needs to have knowledge of surface area that in reservoirs it changes a lot
+        !and also need to know model cells. it does not make sense to only allow input as m3/s
+        if (PropEvaporation%ID%SolutionFromFile .or. PropEvaporation%Constant) then
+            
+            call GetValuesProcessingOptions (PropEvaporation%ID%ObjFillMatrix,    &
+                                             Accumulate = Accumulate,               &
+                                             Interpolate = Interpolate,             &
+                                             UseOriginal = UseOriginal,             &
+                                             STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyEvaporation - ModuleInterfaceWaterAir - ERR010'             
+            
+            
+            if (PropEvaporation%FirstActualization) then
+        
+                if (Interpolate) then
+            
+                    write(*,*) "Evaporation can't be INTERPOLATED. Check evaporation property options."
+                    stop 'ModifyEvaporation - ModuleInterfaceWaterAir - ERR050'
+                
+                elseif (Accumulate) then
+            
+                    if (trim(PropEvaporation%ID%Units) /= 'mm') then
+                
+                        write(*,*)'Invalid Evaporation Units for accumulated values'
+                        write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
+                        write(*,*)'use a FLUX (ex. mm/hour) with USE_ORIGINAL_VALUES = 1'
+                        stop 'ModifyEvaporation - ModuleInterfaceWaterAir - ERR060'
+                    
+                    endif
+                
+                    if (PropEvaporation%Constant) then
+                
+                        write(*,*)'Invalid Evaporation Units for constant value'
+                        write(*,*)'Use a FLUX (ex. mm/hour) when using constant value for evaporation'
+                        stop 'ModifyEvaporation - ModuleInterfaceWaterAir - ERR070'                
+                
+                    endif
+                
+                else !use original
+                
+                    if (trim(PropEvaporation%ID%Units) == 'mm') then
+                
+                        write(*,*)'Invalid Evaporation Units for original values'
+                        write(*,*)'Use mm with ACCUMULATE_VALUES = 1 or '
+                        write(*,*)'use a FLUX (ex. mm/hour) with USE_ORIGINAL_VALUES = 1'
+                        stop 'ModifyEvaporation - ModuleInterfaceWaterAir - ERR080'
+                    
+                    endif                
+                
+                endif
 
+                if (trim(adjustl(PropEvaporation%ID%Units)) /= 'm3/s') then
+            
+                    Me%EvapReqConv = .true.
+
+                    select case (PropEvaporation%ID%Units)
+
+                    case ('mm/day')
+
+                        Me%ConversionFactorEvap = 1. / 86400000.        !In m/s
+
+                    case ('mm/hour')
+
+                        Me%ConversionFactorEvap = 1. / 3600000.         !In m/s
+                
+                    case ('mm')
+                
+                        if(.not. Accumulate) then
+                            write(*,*)'when using "mm" as units for evaporation'
+                            write(*,*)'you must use ACCUMULATE_VALUES = 1'
+                            stop 'ModifyEvaporation - ModuleInterfaceWaterAir - ERR090'
+                        endif
+                    
+                        Me%ConversionFactorEvap = 1. / 1000.            !In m/s => Fillmatrix converted from mm to mm/s
+
+                    case default
+
+                        write(*,*)'Invalid Evaporation Units'
+                        write(*,*)'Use mm, m3/s, mm/day or mm/hour'
+                        stop 'ModifyEvaporation - ModuleInterfaceWaterAir - ERR100'
+
+                    end select 
+                
+                else
+            
+                    Me%EvapReqConv = .false.
+                
+                endif       
+            endif
+
+            if (PropEvaporation%FirstActualization .or. .not. PropEvaporation%Constant) then
+
+                if (Me%EvapReqConv) then
+
+                    CHUNK = CHUNK_J(Me%WorkSize2D%JLB, Me%WorkSize2D%JUB)
+                    !$OMP PARALLEL PRIVATE(i,j)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+                    do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+
+                        if (Me%ExtWater%WaterPoints2D(i, j) == 1) then
+                            PropEvaporation%Field(i, j) = PropEvaporation%Field(i, j)      * &
+                                                            (Me%ExternalVar%GridCellArea(i, j) * &
+                                                            Me%ConversionFactorEvap)  !In m3/s                            
+                        endif
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL             
+
+                endif                  
+
+            endif            
+            
+        endif
     
     end subroutine ModifyEvaporation
 
@@ -4953,7 +5075,7 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
                                   Matrix2DX         = PropWindStress%FieldX,               &
                                   Matrix2DY         = PropWindStress%FieldY,               & 
                                   PointsToFill2D    = Me%ExtWater%WaterPoints2D,           &
-                                  !VectorialDummy_ = .true.,                                &
+                                  VectorialDummy_ = .true.,                                &
                                   STAT              = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_) stop 'ModifyWindStress - ModuleInterfaceWaterAir - ERR01'
 
