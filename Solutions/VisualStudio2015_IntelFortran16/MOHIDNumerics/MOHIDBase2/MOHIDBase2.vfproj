@@ -35,7 +35,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release Double" PreprocessorDefinitions="_NO_NETCDF;_INCREASE_MAXINSTANCES" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release Double;..\..\..\..\ExternalLibs\NetCDF\Include" PreprocessorDefinitions="_INCREASE_MAXINSTANCES" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -403,18 +403,17 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleMap.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleNETCDF.F90">
 			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double OpenMP PhreeqC|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double OpenMP PhreeqC|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double PhreeqC|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double Phreeqc|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double Phreeqc|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double PhreeqC|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double OpenMP PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Phreeqc|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double|Win32" ExcludedFromBuild="true"/></File>
