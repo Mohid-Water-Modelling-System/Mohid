@@ -3898,7 +3898,8 @@ do2:        do while(associated(Field))
 
             case('PBLH')
 
-                MohidName = "PBL height"
+                !MohidName = "PBL height"
+                MohidName = GetPropertyName(PBLHeight_)
 
             case('ALBEDO')
 

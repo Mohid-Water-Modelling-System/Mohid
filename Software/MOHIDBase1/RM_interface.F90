@@ -4519,7 +4519,7 @@ END FUNCTION RM_SetUnitsSurface
 !> @param id               The instance @a id returned from @ref RM_Create.
 !> @param species_conc     Array of aqueous species concentrations. Dimension of the array is (@a nxyz, @a nspecies),
 !> where @a nxyz is the number of user grid cells (@ref RM_GetGridCellCount), and @a nspecies is the number of aqueous species
-|> (@ref RM_GetSpeciesCount).
+!> (@ref RM_GetSpeciesCount).
 !> Concentrations are moles per liter.
 !> @retval IRM_RESULT      0 is success, negative is failure (See @ref RM_DecodeError).
 !> @see                    @ref RM_FindComponents, @ref RM_GetSpeciesConcentrations, @ref RM_GetSpeciesCount, 
