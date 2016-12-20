@@ -1327,7 +1327,7 @@ cd2 :                       if (BlockLayersFound) then
                                      SearchType     = FromBlock,                        &
                                      keyword        = 'MININITIALLAYERTHICKNESS',       &
                                      ClientModule   = 'ModuleGeometry',                 &
-                                     Default        = 0.05,                             &
+                                     Default        = 0.2,                              &
                                      STAT           = STATUS)
                         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR270"
 
