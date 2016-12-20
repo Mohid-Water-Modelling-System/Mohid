@@ -450,6 +450,7 @@ Module ModuleFillMatrix
         real,    dimension(:), pointer              :: Prop                 => null()
         logical, dimension(:), pointer              :: NoData               => null()  
         logical                                     :: Extrapolate          = .false.       
+        integer                                     :: ExtrapolateMethod    = null_int
         type (T_Field4D), pointer                   :: Next                 => null()
         type (T_Field4D), pointer                   :: Prev                 => null()         
     end type T_Field4D
@@ -5933,8 +5934,22 @@ i0:     if(Me%Dim == Dim2D)then
                              default      = .false.,                                        &
                              ClientModule = 'ModuleFillMatrix',                             &
                              STAT         = STAT_CALL)                                      
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR125'
-        
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR130'
+
+                !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
+                call GetData(CurrentHDF%ExtrapolateMethod,                              &
+                             Me%ObjEnterData , iflag,                                   &
+                             SearchType   = ExtractType,                                &
+                             keyword      = 'EXTRAPOLATE_METHOD',                       &
+                             default      = ExtrapolAverage_,                           &
+                             ClientModule = 'ModuleFillMatrix',                         &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR140'  
+                
+                if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.              &
+                    CurrentHDF%ExtrapolateMethod /= ExtrapolNearstCell_ ) then
+                    stop 'ConstructHDFInput - ModuleFillMatrix - ERR150'  
+                endif                    
             endif
         
             !The adding and multiplying functionalities are also available in ModuleField4D
@@ -6055,6 +6070,7 @@ ifMS:       if (MasterOrSlave) then
                                   LonReference      = LongDefault,                      & 
                                   WindowLimitsJI    = WindowLimitsJI,                   &
                                   Extrapolate       = .false.,                          &    
+                                  ExtrapolateMethod = ExtrapolAverage_,                 &
                                   PropertyID        = Me%PropertyID,                    &                                  
                                   ClientID          = ClientID,                         &
                                   STAT              = STAT_CALL)
@@ -6642,7 +6658,8 @@ d2:      do while(.not. FoundSecondInstant)
                               LatReference      = LatDefault,                           &
                               LonReference      = LongDefault,                          & 
                               WindowLimitsXY    = WindowLimitsXY,                       &
-                              Extrapolate       = .true.,                               &    
+                              Extrapolate       = .true.,                               &
+                              ExtrapolateMethod = CurrentHDF%ExtrapolateMethod,         &
                               PropertyID        = Me%PropertyID,                        &                                  
                               ClientID          = ClientID,                             &
                               STAT              = STAT_CALL)
