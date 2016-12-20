@@ -1735,6 +1735,9 @@ Module ModuleGlobalData
     !Transport Parameters
     integer, parameter :: velocityX = 1, velocityY = 2, velocityZ = 3, massProperty = 4
     integer, parameter :: NearestNeighbour = 1, centered = 2 !other interpolation methods here 
+    
+    !Extrapolation parameters
+    integer, parameter :: ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2, ExtrapolConstant_ = 3
 
     !Filter grid data 
     integer, parameter :: NoFilter = 0, ModifyLax = 1
