@@ -408,7 +408,7 @@
 ! !LOCAL VARIABLES:
    logical craig_banner,length_lim
 ! Modified by Matthias DELPEY - 17/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   logical ardhuin_etal_2010
+   logical :: ardhuin_etal_2010 = .false. 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
    logical qesmooth,flux_bdy
