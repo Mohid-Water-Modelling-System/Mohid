@@ -380,6 +380,7 @@ Module ModuleBasin
     end type T_SimpleInfiltration
     
     type T_SCSCNRunOffModel
+        type (T_PropertyB)                          :: InfRate
         type (T_PropertyB)                          :: CurveNumber
         real                                        :: IAFactor = 0.2 !Initial Abstraction Factor = 0.2 or 0.05
         logical                                     :: ConvertIAFactor = .false.
@@ -1774,15 +1775,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !            stop 'VerifyOptions - ModuleBasin - ERR02'
     !        endif
 
-            if (Me%Coupled%PorousMedia .and. Me%Coupled%SimpleInfiltration) then
-                write(*,*)'You can not use SimpleInfiltration and PorousMedia at the same time'
-                stop 'VerifyOptions - ModuleBasin - ERR03'
-            endif
+            !if (Me%Coupled%PorousMedia .and. Me%Coupled%SimpleInfiltration) then
+            !    write(*,*)'You can not use SimpleInfiltration and PorousMedia at the same time'
+            !    stop 'VerifyOptions - ModuleBasin - ERR03'
+            !endif
 
-            if (Me%Coupled%PorousMedia .and. Me%Coupled%SCSCNRunOffModel) then
-                write(*,*)'You can not use SCS CN RunOff model and PorousMedia at the same time'
-                stop 'VerifyOptions - ModuleBasin - ERR03.1'
-            endif
+            !if (Me%Coupled%PorousMedia .and. Me%Coupled%SCSCNRunOffModel) then
+            !    write(*,*)'You can not use SCS CN RunOff model and PorousMedia at the same time'
+            !    stop 'VerifyOptions - ModuleBasin - ERR03.1'
+            !endif
             
             if (Me%Coupled%SimpleInfiltration .and. Me%Coupled%SCSCNRunOffModel) then
                 write(*,*)'You can not use SCS CN RunOff model and SimpleInfiltration at the same time'
@@ -2049,6 +2050,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                       :: i, j
         
+        allocate(Me%SCSCNRunOffModel%InfRate%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%InfRate%Field = FillValueReal
         allocate(Me%SCSCNRunOffModel%VegGrowthStage%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         call ConstructOneProperty (Me%SCSCNRunOffModel%VegGrowthStage, "VegGrowthStage",  &
                                    "<BeginVegGrowthStage>", "<EndVegGrowthStage>")
@@ -2357,7 +2360,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             allocate(PropertyList(i))
             allocate(Me%Integration%Buffer(i))
             Me%Integration%Buffer = 0.0
-			
+
             i = 0
             if (Me%Integration%IntegratePrecipitation) then
                 i = i + 1
@@ -3983,6 +3986,42 @@ cd2 :           if (BlockFound) then
                 endif                
             endif
 
+            
+            !Simplified Infiltration / Evapotranspiration model
+            if (Me%Coupled%SimpleInfiltration) then
+                call SimpleInfiltration
+                
+                !only update if not going to use infiltration flux in porous media
+                !and it will be updated after porous media runs
+                if (.not. Me%Coupled%PorousMedia) then
+                    !Actualizes the WaterColumn
+                    call ActualizeWaterColumn  
+                endif
+                
+                !if porous media this will be updated later with porous media processes
+                if (.not. Me%Coupled%PorousMedia .and. Me%Coupled%RunoffProperties) then
+                    WarningString = 'SimpleInfiltration'
+                    call ActualizeWaterColumnConc(WarningString) 
+                endif                
+            endif
+            
+            if (Me%Coupled%SCSCNRunOffModel) then
+                call SCSCNRunOffModel
+
+                !only update if not going to use infiltration flux in porous media
+                !and it will be updated after porous media runs
+                if (.not. Me%Coupled%PorousMedia) then                
+                    !Actualizes the WaterColumn
+                    call ActualizeWaterColumn  
+                endif
+                
+                if (.not. Me%Coupled%PorousMedia .and. Me%Coupled%RunoffProperties) then
+                    WarningString = 'SimpleInfiltration'
+                    call ActualizeWaterColumnConc(WarningString) 
+                endif                
+            endif               
+            
+            
             !Porous Media
             if (Me%Coupled%PorousMedia) then
 
@@ -4024,30 +4063,7 @@ cd2 :           if (BlockFound) then
             endif
             
 
-            !Simplified Infiltration / Evapotranspiration model
-            if (Me%Coupled%SimpleInfiltration) then
-                call SimpleInfiltration
-
-                !Actualizes the WaterColumn
-                call ActualizeWaterColumn  
-                
-                if (Me%Coupled%RunoffProperties) then
-                    WarningString = 'SimpleInfiltration'
-                    call ActualizeWaterColumnConc(WarningString) 
-                endif                
-            endif
-            
-            if (Me%Coupled%SCSCNRunOffModel) then
-                call SCSCNRunOffModel
-
-                !Actualizes the WaterColumn
-                call ActualizeWaterColumn  
-                
-                if (Me%Coupled%RunoffProperties) then
-                    WarningString = 'SimpleInfiltration'
-                    call ActualizeWaterColumnConc(WarningString) 
-                endif                
-            endif            
+         
             
             !Overland Flow
             if (Me%Coupled%RunOff) then
@@ -4162,10 +4178,12 @@ cd2 :           if (BlockFound) then
         logical                                     :: IrrigationExists = .false.
         real, pointer                               :: AirTemperature(:,:)
         integer                                     :: i, j
+        
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "AtmosphereProcesses")
 
+        
         !Updates Rainfall
         call ModifyAtmosphere       (Me%ObjAtmosphere, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR010'
@@ -4175,11 +4193,15 @@ cd2 :           if (BlockFound) then
             call GetAtmosphereProperty  (Me%ObjAtmosphere, AirTemperature, ID = AirTemperature_, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR011'
         
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 Me%Integration%Temperature (i,j) = Me%Integration%Temperature (i,j) + AirTemperature (i,j) * Me%CurrentDT
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
             
             call UnGetAtmosphere (Me%ObjAtmosphere, AirTemperature, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'AtmosphereProcesses - ModuleBasin - ERR012'
@@ -4277,7 +4299,6 @@ cd2 :           if (BlockFound) then
     !--------------------------------------------------------------------------
 
     subroutine DividePrecipitation (PrecipitationFlux, IrrigationFlux)
-!    subroutine DividePrecipitation (PrecipitationFlux)
     
         !Arguments-------------------------------------------------------------
         real, dimension(:, :), pointer                       :: PrecipitationFlux
@@ -4285,10 +4306,7 @@ cd2 :           if (BlockFound) then
 
         !Local-----------------------------------------------------------------     
         integer                                     :: i, j!, STAT_CALL
-        !real, dimension(:,:), pointer               :: AirTemperature
         real                                        :: GrossPrecipitation
-        !real                                        :: SnowInput
-!        real                                        :: CanopyDrainage
         real                                        :: CurrentFlux, Rand, SecondsPassed
         real, dimension(6), target                  :: AuxTime
         integer, save                               :: LastHour = -99
@@ -4297,6 +4315,7 @@ cd2 :           if (BlockFound) then
         real                                        :: AreaFraction
         real, dimension(:, :), pointer              :: Irri
         logical                                     :: IsPresent       
+        
         !Begin-----------------------------------------------------------------
         
         NewVolumeOnLeafs = 0.0
@@ -4364,6 +4383,10 @@ cd2 :           if (BlockFound) then
         Me%MB%RainInVeg       = 0.0  !on covered area (leafs)
         Me%MB%DrainageFromVeg = 0.0  !leaf leak
         Me%MB%RainRunoff      = 0.0  !arriving to runoff (leaf drainage + direct)
+        
+        
+        !$OMP PARALLEL PRIVATE(I,J,CurrentFlux,GrossPrecipitation,NewVolumeOnLeafs, OldVolumeOnLeafs,AreaFraction)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if(Me%ExtVar%BasinPoints (i,j) == BasinPoint) then
@@ -4578,7 +4601,8 @@ cd2 :           if (BlockFound) then
             endif
         enddo
         enddo
-
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         !if (Me%Coupled%Snow) then
         !    !UnGets Air Temperature [ºC]
@@ -5192,6 +5216,7 @@ cd2 :           if (BlockFound) then
         real(8)                                     :: DrainageMassFromVeg, VegetationNewMass
         real(8)                                     :: VegetationNewVolume, RainVolume
         real(8)                                     :: DrainageVolume
+        real(8)                                     :: VegDrainedMass
         integer                                     :: STAT_CALL, i,j
         integer                                     :: NumberOfPesticides, Pest, PesticideIDNumber
         real, dimension(:,:), pointer               :: PesticideVegetation
@@ -5223,6 +5248,10 @@ cd2 :           if (BlockFound) then
                         AtmConcentration = 0.0
                     endif                
                     
+                   
+                    !$OMP PARALLEL PRIVATE(I,J,OldVolumeOnLeafs,RainVolume,RainMassToVeg,VegetationNewVolume), &
+                    !$OMP& PRIVATE(VegetationNewMass,DrainageVolume,DrainageMassFromVeg)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)  REDUCTION(+:VegDrainedMass)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -5265,7 +5294,8 @@ cd2 :           if (BlockFound) then
                             if (Me%VerifyGlobalMass) then
                                 !output for vegetation leafs
                                 !kg = kg + ((m*m2cell * g/m3 * 1e-3 kg/g) - Canopy drainage is height in cell area
-                                Property%MB%VegDrainedMass   = Property%MB%VegDrainedMass + DrainageMassFromVeg * 1e-3
+                                !Property%MB%VegDrainedMass   = Property%MB%VegDrainedMass + DrainageMassFromVeg * 1e-3
+                                VegDrainedMass = VegDrainedMass + DrainageMassFromVeg * 1e-3
                             endif
 
                             !m3
@@ -5287,7 +5317,14 @@ cd2 :           if (BlockFound) then
                         endif
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL     
 
+                    
+                    if (Me%VerifyGlobalMass) then
+                        Property%MB%VegDrainedMass = VegDrainedMass
+                    endif
+                        
                     if (AtmospherePropertyExists (Me%ObjAtmosphere, Property%ID%IDNumber)) then
                         call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'UpdateVegConcentration - ModuleBasin - ERR20' 
@@ -5311,6 +5348,8 @@ cd2 :           if (BlockFound) then
                 !only for runoff properties and exclude for instance evapotranspiration
                 if (Property%Inherited) then
 
+                    !$OMP PARALLEL PRIVATE(I,J,VegetationNewMass)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -5330,6 +5369,8 @@ cd2 :           if (BlockFound) then
                         endif
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL     
                     
                 endif
                 
@@ -5358,6 +5399,8 @@ cd2 :           if (BlockFound) then
                 call SearchProperty(Property, PropertyXIDNumber = PesticideIDNumber, STAT = STAT_CALL)
                 if (STAT_CALL == SUCCESS_) then
 
+                    !$OMP PARALLEL PRIVATE(I,J,MassAdded,VegetationNewMass)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
@@ -5384,6 +5427,9 @@ cd2 :           if (BlockFound) then
                     
                     enddo 
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL     
+                    
                 else
                     write(*,*)
                     write(*,*) 'Not found pesticide', GetPropertyName(PesticideIDNumber) 
@@ -5414,6 +5460,8 @@ cd2 :           if (BlockFound) then
                     
                     DT = Me%CurrentDT / 86400.
                     
+                    !$OMP PARALLEL PRIVATE(I,MassSink,VegetationNewMass)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -5441,6 +5489,9 @@ cd2 :           if (BlockFound) then
                         endif
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL     
+                    
                     
                 endif
                 
@@ -5463,6 +5514,7 @@ cd2 :           if (BlockFound) then
 
 
         Property => Me%FirstProperty
+        Property => Me%FirstProperty
         do while (associated(Property))
             
             !only for runoff properties, exclude evapotranspiration
@@ -5479,6 +5531,8 @@ cd2 :           if (BlockFound) then
                     AtmConcentration = 0.0
                 endif
 
+                !$OMP PARALLEL PRIVATE(I,J)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if(Me%ExtVar%BasinPoints (i,j) == BasinPoint) then                
@@ -5523,6 +5577,8 @@ cd2 :           if (BlockFound) then
                     endif
                 enddo
                 enddo
+                !$OMP END DO
+                !$OMP END PARALLEL                
                 
                 if (AtmospherePropertyExists (Me%ObjAtmosphere, Property%ID%IDNumber)) then
                     call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
@@ -5752,22 +5808,26 @@ cd2 :           if (BlockFound) then
                     
                 endif
                 
-                !m                            = m - m/s * s
-                Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%SI%InfRate%Field(i, j) * &
-                                                (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
+                !! do not update now if using porus media - it will be updated after porous media finished
+                !! from here we only want the infiltration flux
+                if (.not. Me%Coupled%PorousMedia) then
+                    !m                            = m - m/s * s
+                    Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%SI%InfRate%Field(i, j) * &
+                                                    (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
                 
-                !mm /hour
-                Me%InfiltrationRate (i, j)    = Me%SI%InfRate%Field(i, j) * 1000.0 * 3600.0
+                    !mm /hour
+                    Me%InfiltrationRate (i, j)    = Me%SI%InfRate%Field(i, j) * 1000.0 * 3600.0
                 
-                !mm /hour
-                Me%EVTPRate         (i, j)    = 0.0
+                    !mm /hour
+                    Me%EVTPRate         (i, j)    = 0.0
                 
-                !m - Accumulated Infiltration of the entite area
-                Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%SI%InfRate%Field(i, j) *     &
-                                                (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
+                    !m - Accumulated Infiltration of the entite area
+                    Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%SI%InfRate%Field(i, j) *     &
+                                                    (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
                 
-                !m
-                Me%AccEVTP          (i, j)    = 0.0
+                    !m
+                    Me%AccEVTP          (i, j)    = 0.0
+                endif
                 
             endif
             
@@ -5916,8 +5976,11 @@ cd2 :           if (BlockFound) then
                         qInTimeStep = (rain - Me%SCSCNRunOffModel%IAFactor * sInTimeStep)**2.0 / &
                                       (rain + (1.0-Me%SCSCNRunOffModel%IAFactor)*sInTimeStep)
                         
+                        !m/s = mm * 1E-3 m/mm / s
+                        Me%SCSCNRunOffModel%InfRate%Field(i,j) = ((rain - qInTimeStep) * 1E-3) / Me%CurrentDT
+                        
                         !mm/hour                   = mm / s  * s/hour
-                        Me%InfiltrationRate (i, j) = (rain - qInTimeStep) / Me%CurrentDT * 3600.0
+                        !Me%InfiltrationRate (i, j) = (rain - qInTimeStep) / Me%CurrentDT * 3600.0
                         
                         !mm /hour = (mm - (mm - []mm)**2 / (mm + []mm))/s * s/hour
 !                        Me%InfiltrationRate (i, j) = (rain -                                                                   &
@@ -5926,33 +5989,44 @@ cd2 :           if (BlockFound) then
                         
                     else
                         
+                        !m/s
+                        Me%SCSCNRunOffModel%InfRate%Field(i,j) = (rain * 1E-3) / Me%CurrentDT
+                        
                         !mm /hour
-                        Me%InfiltrationRate (i, j) = rain / Me%CurrentDT * 3600.0
+                        !Me%InfiltrationRate (i, j) = rain / Me%CurrentDT * 3600.0
                         
                     endif
                     
                     
                 else
+                    !m/s
+                    Me%SCSCNRunOffModel%InfRate%Field(i,j) = 0.0
                     
                     !mm /hour
-                    Me%InfiltrationRate (i, j) = 0.0
+                    !Me%InfiltrationRate (i, j) = 0.0
 
                 endif
-                     
-                !mm /hour
-                Me%EVTPRate         (i, j)    = 0.0
+                
+                !! do not update now if using porus media - it will be updated after porous media finished
+                !! from here we only want the infiltration flux
+                if (.not. Me%Coupled%PorousMedia) then                     
+                    !mm /hour
+                    Me%EVTPRate         (i, j)    = 0.0
 
-                !m
-                Me%AccEVTP          (i, j)    = 0.0                    
+                    !m
+                    Me%AccEVTP          (i, j)    = 0.0      
                 
-                !m - Accumulated Infiltration of the entite area
-                Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%InfiltrationRate(i, j) *     &
-                                                (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                    !Output mm/h = m/s * 1E3 mm/m * 3600 s/hour
+                    Me%InfiltrationRate (i, j)    =  Me%SCSCNRunOffModel%InfRate%Field(i,j) * 1E3 * 3600
                 
-                !m                            = m - mm/hour * s / s/hour / mm/m
-                Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%InfiltrationRate(i, j) * &
-                                                (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
-                    
+                    !m - Accumulated Infiltration of the entite area
+                    Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%InfiltrationRate(i, j) *     &
+                                                    (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                
+                    !m                            = m - mm/hour * s / s/hour / mm/m
+                    Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%InfiltrationRate(i, j) * &
+                                                    (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                endif
                 
             endif
             
@@ -6593,6 +6667,7 @@ cd2 :           if (BlockFound) then
         real(8), dimension(:, :), pointer           :: Infiltration 
         real(8), dimension(:, :), pointer           :: EfectiveEVTP
         real,    dimension(:,: ), pointer           :: PotentialEvaporation
+        real,    dimension(:,: ), pointer           :: ImposedInfiltration
         type (T_BasinProperty), pointer             :: RefEvapotrans
         !Begin-----------------------------------------------------------------
 
@@ -6600,6 +6675,15 @@ cd2 :           if (BlockFound) then
 
         !The column that infiltrates is already computed and now is water column (rain updated water column)
 
+        !use forced infiltration from simple infiltration (Green Ampt) or SCS CN?
+        if (Me%Coupled%SimpleInfiltration) then
+            ImposedInfiltration => Me%SI%InfRate%Field
+        else if (Me%Coupled%SCSCNRunoffModel) then
+            ImposedInfiltration => Me%SCSCNRunoffModel%InfRate%Field
+        else
+            ImposedInfiltration => null()
+        endif
+        
         if (Me%Coupled%Vegetation) then
 
             !if the user choosed to separate transpiration and evaporation,
@@ -6610,6 +6694,7 @@ cd2 :           if (BlockFound) then
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
                                         PotentialEvaporation = Me%PotentialEvaporation,            &
                                         ActualTranspiration  = Me%ExtVar%ActualTranspiration,      &
+                                        ImposedInfiltration  = ImposedInfiltration,                &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR01' 
             
@@ -6618,6 +6703,7 @@ cd2 :           if (BlockFound) then
                 call ModifyPorousMedia (ObjPorousMediaID     = Me%ObjPorousMedia,                  &
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
                                         ActualTranspiration  = Me%ExtVar%ActualTranspiration,      &
+                                        ImposedInfiltration  = ImposedInfiltration,                &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR02' 
 
@@ -6639,6 +6725,7 @@ cd2 :           if (BlockFound) then
 !                                        InfiltrationColumn   = Me%PotentialInfCol,                 &
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
                                         PotentialEvaporation = PotentialEvaporation,               &
+                                        ImposedInfiltration  = ImposedInfiltration,                &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR21' 
             
@@ -6647,6 +6734,7 @@ cd2 :           if (BlockFound) then
                 call ModifyPorousMedia (ObjPorousMediaID     = Me%ObjPorousMedia,                  &
 !                                        InfiltrationColumn   = Me%PotentialInfCol,                 &
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
+                                        ImposedInfiltration  = ImposedInfiltration,                &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR022' 
             
@@ -7596,17 +7684,19 @@ cd2 :           if (BlockFound) then
         character (Len = *), intent(in)             :: WarningString
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j, STAT_CALL
+        integer                                     :: i, j, STAT_CALL, CHUNK
         integer                                     :: nProperties, iProp 
         integer                                     :: PropID
         real,    dimension(:, :   ), pointer        :: RPConcentration, NewRPConcentration
         logical                                     :: PropAdvDiff, PropParticulate
         real(8)                                     :: PropertyMassOld, PropertyMassNew
         real(8), dimension(:,:), pointer            :: MassInFlow, MassToBottom
-        real(8)                                     :: DebugMass
+
         !Begin-----------------------------------------------------------------
         
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ActualizeWaterColumnConcentration")
+        
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
         
         
         call GetRPnProperties (Me%ObjRunoffProperties, nProperties, STAT = STAT_CALL)
@@ -7637,13 +7727,13 @@ cd2 :           if (BlockFound) then
             allocate(NewRPConcentration(Me%WorkSize%ILB:Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB))
             call SetMatrixValue (NewRPConcentration, Me%WorkSize, RPConcentration)
             
-            !the particulate properties cant enter in soil
-!~             PropParticulate = Check_Particulate_Property(PropID)
-            
+           
             !Compute mass flow matrix to update concentrations
             call ComputeMassInFlow (WarningString, RPConcentration, PropID, PropParticulate, MassInFlow)
 
             !Compute the new RP conc based on the new fluxes
+            !$OMP PARALLEL PRIVATE(I,J, PropertyMassOld, PropertyMassNew)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -7653,8 +7743,7 @@ cd2 :           if (BlockFound) then
                     
                     PropertyMassNew = PropertyMassOld + MassInFlow(i,j)
                     
-                    DebugMass = MassInFlow(i,j)
-                    
+                   
                     if (Me%ExtUpdate%Watercolumn(i,j) .gt. AlmostZero) then
                         !g/m3 = g / (m * m2)
                         NewRPConcentration(i,j) = PropertyMassNew / (Me%ExtUpdate%Watercolumn(i,j)        &
@@ -7666,8 +7755,8 @@ cd2 :           if (BlockFound) then
                         !deposition driven by complete infiltration of water column (WC totally infiltrated in time step) 
                         !if ((PropParticulate) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
                         !Now all recognized properties have bottom mass available
-!~                             if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
-!~                         if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
+!                           if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
+!                         if ((Check_Particulate_Property(PropID)) .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
                         if (PropParticulate .and. (Me%ExtUpdate%WatercolumnOld(i,j) .gt. AlmostZero)) then
                             MassToBottom(i,j) = PropertyMassOld
                         endif  
@@ -7684,6 +7773,8 @@ cd2 :           if (BlockFound) then
 
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
 
             call UngetRunoffProperties(Me%ObjRunoffProperties, RPConcentration, STAT_Call)
             if (STAT_CALL /= SUCCESS_) stop 'ActualizeWaterColumnConcentration - ModuleBasin - ERR40'
@@ -7716,17 +7807,17 @@ cd2 :           if (BlockFound) then
         real, dimension(:, :   ), pointer           :: RPConcentration
         real, dimension(:, : ,:), pointer           :: PMPConcentration
         real, dimension(:, :   ), pointer           :: AtmConcentration
-        integer                                     :: PropID,i,j, k, STAT_CALL
+        integer                                     :: PropID,i,j, STAT_CALL
         type (T_Size3D)                             :: WorkSize3D   
         logical                                     :: Particulate  
         real(8), dimension(:, :), pointer           :: Infiltration
-        real(8)                                     :: MassInRain, MassInDrainage
         type (T_BasinProperty), pointer             :: Property 
+        
         !Local-----------------------------------------------------------------
         
         MassInFlow = 0.0
         
-        if(WarningString == 'AtmosphereProcesses') then
+        if (WarningString == 'AtmosphereProcesses') then
         
             !!Precipitation flux
             if (Me%Coupled%Atmosphere) then
@@ -7744,26 +7835,21 @@ cd2 :           if (BlockFound) then
                     AtmConcentration = 0.0
                 endif
 
+                !Gets the property
+                call SearchProperty(Property, PropID, .true., STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR07.5'
+
+                
+                !$OMP PARALLEL PRIVATE(I,J)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then 
                         if (Me%Coupled%Vegetation) then
                             !mass of the property on rain in uncovered area + mass of property from leafs in covered area
-                            !g         =     (g/m3) * m *  m2uncov 
-                            MassInRain = AtmConcentration(i,j) * Me%RainUncovered(i, j) * (1 - Me%CoveredFraction(i,j))  &
-                                          * Me%ExtVar%GridCellArea(i, j)
-                            
-                            call SearchProperty(Property, PropID, .true., STAT = STAT_CALL) 
-                            if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR07.5'
-
-                            !g         
-                            MassInDrainage = Property%VegetationDrainage(i,j) 
-                             
-!                            !g         =     (g/m3) * m *  m2cell - - Canopy drainage is height in cell area 
-!                            MassInDrainage = Property%VegetationConc(i,j) * Me%CanopyDrainage(i, j)                     &
-!                                              * Me%ExtVar%GridCellArea(i, j) 
-                                          
-                            MassInFlow(i,j) = MassInRain +  MassInDrainage                 
+                            !g              =   (g/m3) * m *  m2uncov + g
+                            MassInFlow(i,j) = AtmConcentration(i,j) * Me%RainUncovered(i, j) * (1 - Me%CoveredFraction(i,j))  &
+                                              * Me%ExtVar%GridCellArea(i, j) +  Property%VegetationDrainage(i,j)
                         
                         else            
                             !mass of the property on rain
@@ -7774,6 +7860,8 @@ cd2 :           if (BlockFound) then
                     endif
                 enddo
                 enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
 
                 if (AtmospherePropertyExists (Me%ObjAtmosphere, PropID)) then
                     call UngetAtmosphere (Me%ObjAtmosphere, AtmConcentration, STAT_CALL)
@@ -7814,6 +7902,8 @@ cd2 :           if (BlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR05.5'
 
             
+                !$OMP PARALLEL PRIVATE(I,J)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
@@ -7826,13 +7916,16 @@ cd2 :           if (BlockFound) then
                         
                         else ! negative infiltration (exfiltration) - adding mass to WC or zero
                             
-                            k = WorkSize3D%KUB
-                            MassInFlow(i,j) = PMPConcentration (i,j,k) * (-Infiltration(i,j) * Me%ExtVar%GridCellArea(i,j))
+                            MassInFlow(i,j) = PMPConcentration (i,j,WorkSize3D%KUB) * &
+                                              (-Infiltration(i,j) * Me%ExtVar%GridCellArea(i,j))
+                            
                         endif
                         
                     endif
                 enddo
                 enddo          
+                !$OMP END DO
+                !$OMP END PARALLEL
                 
                 call UnGetPorousMedia     (Me%ObjPorousMedia, Infiltration, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ComputeMassInFlow - ModuleBasin - ERR05.7'
@@ -7865,6 +7958,8 @@ cd2 :           if (BlockFound) then
         elseif (WarningString == 'SimpleInfiltration') then
             
             !mass flux with "soil"
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then             
@@ -7875,6 +7970,8 @@ cd2 :           if (BlockFound) then
                 endif
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
 
         endif
            
@@ -8214,6 +8311,8 @@ cd2 :           if (BlockFound) then
             allocate(CropEvapotrans(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
 
             !Convert Units to mm/h
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
@@ -8222,6 +8321,8 @@ cd2 :           if (BlockFound) then
                 endif
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
             
             !Potential Crop Evapotranspiration
             call WriteTimeSerie (Me%ObjTimeSerie,                                   &
@@ -8246,6 +8347,8 @@ cd2 :           if (BlockFound) then
                 allocate(ActualEVAP(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
             
                 !Convert Units to mm/h
+                !$OMP PARALLEL PRIVATE(I,J)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
@@ -8281,7 +8384,10 @@ cd2 :           if (BlockFound) then
                     endif
                 enddo
                 enddo
-
+                !$OMP END DO
+                !$OMP END PARALLEL
+                
+                
                 call WriteTimeSerie (Me%ObjTimeSerie,                                   &
                                      Data2D = PotentialEvaporation,                     &
                                      STAT = STAT_CALL)
@@ -8343,6 +8449,8 @@ cd2 :           if (BlockFound) then
             allocate(PotentialEvapoTranspiration(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
 
             !Convert Units to mm/h
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
@@ -8351,6 +8459,8 @@ cd2 :           if (BlockFound) then
                 endif
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
 
             call WriteTimeSerie (Me%ObjTimeSerie,                                       &
                                  Data2D = PotentialEvapoTranspiration,                        &                             
@@ -9268,7 +9378,6 @@ cd2 :           if (BlockFound) then
         
         !Local-----------------------------------------------------------------
         integer :: i, j, index
-        logical :: LineStored 
         integer :: cells
         integer :: stat
         
@@ -9278,7 +9387,7 @@ cd2 :           if (BlockFound) then
         cells = 0
         Me%Integration%Buffer = 0.0
         
-		if (Me%Integration%IntegratePrecipitation) then
+        if (Me%Integration%IntegratePrecipitation) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
@@ -10033,13 +10142,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     endif
                     deallocate(Me%BWBBuffer)
                 endif
-				
-				if (Me%Integration%Integrate) then
-					if (Me%Integration%ObjTimeSeries > 0) then
-						call KillTimeSerie(Me%Integration%ObjTimeSeries, STAT = STAT_CALL)
-						if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR200b'
-					endif
-				endif
+                
+                if (Me%Integration%Integrate) then
+                    if (Me%Integration%ObjTimeSeries > 0) then
+                        call KillTimeSerie(Me%Integration%ObjTimeSeries, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillBasin - ModuleBasin - ERR200b'
+                    endif
+                endif
                 
 #ifdef _ENABLE_CUDA                
                 !Kills ModuleCuda

@@ -347,7 +347,7 @@ Module ModuleModel
         !character(StringLength), dimension(:), pointer :: AuxModelNames
 
 #ifndef _SEDIMENT_
-        character(PathLength)                               :: SedimentFile, SedGeometryFile
+        character(PathLength)                               :: SedGeometryFile
 #endif
         integer                                             :: ObjEnterData = 0
 #ifndef _AIR_

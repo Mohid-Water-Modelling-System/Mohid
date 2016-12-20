@@ -317,7 +317,7 @@ Module ModuleFreeVerticalMovement
     Subroutine Construct_FreeVerticalMovement(FreeVerticalMovementID,         &
                                               TimeID, HorizontalGridID,       &
                                               MapID, GeometryID,              &
-                                              TurbulenceID, TurbGOTMID,       &
+                                              TurbGOTMID,                     &
 #ifdef _ENABLE_CUDA
                                               ObjCudaID,                      &
 #endif    
@@ -329,7 +329,6 @@ Module ModuleFreeVerticalMovement
         integer                                     :: HorizontalGridID
         integer                                     :: MapID
         integer                                     :: GeometryID
-        integer                                     :: TurbulenceID
         integer                                     :: TurbGOTMID
 #ifdef _ENABLE_CUDA
         integer                                     :: ObjCudaID
@@ -340,7 +339,6 @@ Module ModuleFreeVerticalMovement
         integer                                     :: ready_, STAT_CALL                        
 
         !Local-----------------------------------------------------------------
-        logical                                     :: ModelGOTM, ContinuousGOTM
         integer                                     :: STAT_, flag
  
         !----------------------------------------------------------------------

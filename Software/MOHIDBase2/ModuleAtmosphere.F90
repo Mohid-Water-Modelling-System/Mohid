@@ -38,7 +38,7 @@ Module ModuleAtmosphere
     use ModuleFillMatrix,     only : ConstructFillMatrix, ModifyFillMatrix, KillFillMatrix,  &
                                      GetIfMatrixRemainsConstant, GetFillMatrixDTPrediction,  &
                                      GetNextValueForDTPred, GetValuesProcessingOptions,      &
-                                     UngetFillMatrix
+                                     UngetFillMatrix, ModifyFillMatrixVectorial
     use ModuleTimeSerie,      only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,     &
                                      GetTimeSerieLocation, CorrectsCellsTimeSerie,      &
                                      GetNumberOfTimeSeries, TryIgnoreTimeSerie, GetTimeSerieName
@@ -2559,6 +2559,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         integer                                     :: STAT_CALL
         !Begin------------------------------------------------------------------------
 
+        
+        if (MonitorPerformance) call StartWatch ("ModuleAtmosphere", "ModifyAtmosphere")
+
 
         STAT_ = UNKNOWN_
 
@@ -2661,7 +2664,9 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
 
         if (present(STAT)) STAT = STAT_
 
+        if (MonitorPerformance) call StopWatch ("ModuleAtmosphere", "ModifyAtmosphere")
 
+        
     end subroutine ModifyAtmosphere
 
     !----------------------------------------------------------------------
@@ -3004,13 +3009,12 @@ do2 :   do while (associated(PropertyX))
         
         if (PropWindVelocity%ID%SolutionFromFile) then
 
-            call ModifyFillMatrix (FillMatrixID   = PropWindVelocity%ID%ObjFillMatrix,  &
+            call ModifyFillMatrixVectorial (FillMatrixID   = PropWindVelocity%ID%ObjFillMatrix,  &
                                    Matrix2DU       = PropWindVelocity%FieldU,           &
                                    Matrix2DV       = PropWindVelocity%FieldV,           &
                                    Matrix2DX       = PropWindVelocity%FieldX,           &
                                    Matrix2DY       = PropWindVelocity%FieldY,           &              
                                    PointsToFill2D  = Me%ExternalVar%MappingPoints2D,    &
-                                   !VectorialDummy_ = .true.,                            &
                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR01'
 

@@ -14020,14 +14020,20 @@ d1:     do em = 1, Me%EulerModelNumber
             do j = JLB, JUB
             do i = ILB, IUB
                 do k = KLB, KUB
-                    if (Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) < Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(i, j, k)) then
-                        Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) = Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(i, j, k)
+                    if (Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) <           &
+                        Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(i, j, k)) then
+                        Me%EulerModel(em)%HNS(ig)%GridDissolvedMaxConc2D(i,j) =           &
+                            Me%EulerModel(em)%HNS(ig)%GridDissolvedConc3D(i, j, k)
                     endif
-                    if (Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) < Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i, j, k)) then
-                        Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) = Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i, j, k)
+                    if (Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) <            &
+                        Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i, j, k)) then
+                        Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) =            &
+                            Me%EulerModel(em)%HNS(ig)%GridDropletsConc3D(i, j, k)
                     endif
-                    if (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) < Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(i, j, k)) then
-                        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(i, j, k)
+                    if (Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) < &
+                        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(i, j, k)) then
+                        Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = &
+                            Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateConc3D(i, j, k)
                     endif
                 enddo
             enddo
@@ -14072,7 +14078,8 @@ d1:     do em = 1, Me%EulerModelNumber
             !            else
             !                 Me%EulerModel(em)%HNS(ig)%GridDropletsMaxConc2D(i,j) = 0.0
             !            endif
-            !            if (MaxSuspendedParticulateMassSumParticCell(i, j) > 0. .AND. Me%EulerModel(em)%VolumeZ(i,j,KMax_SuspendedParticulates(i,j)) > 0.0) then
+            !            if (MaxSuspendedParticulateMassSumParticCell(i, j) > 0. .AND. &
+            !                Me%EulerModel(em)%VolumeZ(i,j,KMax_SuspendedParticulates(i,j)) > 0.0) then
             !                 Me%EulerModel(em)%HNS(ig)%GridSuspendedParticulateMaxConc2D(i,j) = 1.E6 * &
             !                 MaxSuspendedParticulateMassSumParticCell(i, j) /           &
             !                 Me%EulerModel(em)%VolumeZ(i,j,KMax_SuspendedParticulates(i,j))  
@@ -27318,7 +27325,8 @@ endif IfParticNotBeached
                 do i = 2, NumberOfBoundaryNodes - 1
                     Write(CurrentOrigin%eroUnit,13, ADVANCE="NO") ",", Envelope1DY(i), Envelope1DX(i)
                 enddo
-                Write(CurrentOrigin%eroUnit,14) ",", Envelope1DY(NumberOfBoundaryNodes), Envelope1DX(NumberOfBoundaryNodes)                    
+                Write(CurrentOrigin%eroUnit,14) ",", Envelope1DY(NumberOfBoundaryNodes), &
+                                                Envelope1DX(NumberOfBoundaryNodes)                    
             endif
                 
             CurrentOrigin => CurrentOrigin%Next

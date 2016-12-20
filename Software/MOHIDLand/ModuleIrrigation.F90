@@ -641,7 +641,6 @@ cd0:    if (ready_ == OFF_ERR_) then
         !Arguments---------------------------------------------------------------
         !Local-------------------------------------------------------------------
         integer                             :: i
-        type(T_IrriSchedule), pointer       :: schedule       
         integer                             :: ILB,IUB
         integer                             :: JLB,JUB
         integer                             :: KLB,KUB
@@ -743,8 +742,8 @@ cd0:    if (ready_ == OFF_ERR_) then
         !External----------------------------------------------------------------
         integer                             :: stat_call
         integer                             :: iflag
-        real, dimension(3), target          :: schedule_array
-        real, dimension(:), pointer         :: aux
+!        real, dimension(3), target          :: schedule_array
+!        real, dimension(:), pointer         :: aux
 
         !Begin-------------------------------------------------------------------
         
@@ -1591,7 +1590,7 @@ cd1 :       if (block_found) then
 
         !Local-------------------------------------------------------------------
         integer                             :: stat_, ready_
-        integer, save                       :: schedule_
+!        integer, save                       :: schedule_
         
         !------------------------------------------------------------------------
         
@@ -1920,10 +1919,12 @@ do1:        do schedule_ = 1, Me%NumberOfSchedules
 
         !Local-------------------------------------------------------------------
         integer                             :: stat_, ready_
-        integer                             :: i, j, k
         
         !------------------------------------------------------------------------
-      
+
+        !Frank - To remove compiler warnings
+        mapping => mapping
+        
         stat_ = UNKNOWN_        
 
         ready_ = Ready (id) 
@@ -2264,6 +2265,8 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
       
         !Begin-------------------------------------------------------------------
         
+        !Frank - To remove compiler warning
+        schedule => schedule
     
     end subroutine ComputeContinuousIrrigation
     
@@ -2279,7 +2282,7 @@ do1:            do k = Me%WorkSize%KUB, Me%WorkSize%KLB, -1
         
         !Local-------------------------------------------------------------------
         type(T_DailySchedule), pointer      :: sch_day
-        integer                             :: i, j, index
+        integer                             :: i, j
         
         !Begin-------------------------------------------------------------------        
         
@@ -2655,7 +2658,6 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
         logical                             :: finished
         real                                :: rest
         type(T_DailySchedule), pointer      :: new_day
-        type(T_Time)                        :: time_aux
         type(T_Time)                        :: start_instant
         type(T_STime)                       :: sstart_instant
         real                                :: duration
@@ -2857,7 +2859,6 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
         !Local-------------------------------------------------------------------
         type (T_IrriProperty), pointer      :: property_x
         integer                             :: stat_call
-        real                                :: year, month, day, hour, minute, second
       
         !Begin-------------------------------------------------------------------
         
@@ -2929,7 +2930,7 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
         !Arguments---------------------------------------------------------------
         
         !Local-------------------------------------------------------------------
-        integer                                     :: stat_call
+!        integer                                     :: stat_call
 
         !------------------------------------------------------------------------
         !Unget Basin Points
@@ -3310,7 +3311,7 @@ do1:        do k = Me%WorkSize%KUB, schedule%RootsKLB(i,j), -1
         !Local-------------------------------------------------------------------
         integer                             :: ready_              
         integer                             :: stat_, nUsers
-        integer                             :: i, p
+        integer                             :: i
         integer                             :: STAT_CALL
         type(T_IrriProperty), pointer       :: property
 

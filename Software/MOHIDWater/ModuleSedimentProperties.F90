@@ -150,7 +150,6 @@ Module ModuleSedimentProperties
     private ::                  Read_Bioturbation_Parameters
     private ::                  Read_Partition_Parameters
     private ::                  Construct_Property_Diffusivity
-    private ::              Construct_PropertyState
     private ::              Construct_PropertyOutPut
     private ::          Add_Property
     private ::      Construct_SedimentRateList
@@ -2052,8 +2051,6 @@ do1:    do while(associated(Property))
 
         call ConstructPropertyID            (NewProperty%ID, Me%ObjEnterData, FromBlock)
 
-        call Construct_PropertyState        (NewProperty)
-
         call Construct_PropertyValues       (NewProperty)
 
         call Construct_PropertyEvolution    (NewProperty, ClientNumber)
@@ -2815,37 +2812,6 @@ do1:    do while(associated(Property))
     end subroutine Read_Partition_Parameters
     
     !------------------------------------------------------------------------------
-
-    subroutine Construct_PropertyState(NewProperty)
-
-        !Arguments-------------------------------------------------------------
-        type(T_property), pointer       :: NewProperty
-
-        !External--------------------------------------------------------------
-        integer                         :: STAT_CALL, iflag
-
-        !----------------------------------------------------------------------
-        
-!~         call GetData(NewProperty%ID%IsParticulate,                                  &
-!~                      Me%ObjEnterData,  iflag,                                       &
-!~                      SearchType   = FromBlock,                                      &
-!~                      keyword      = 'PARTICULATE',                                  &
-!~                      ClientModule = 'ModuleSedimentProperties',                     &
-!~                      STAT         = STAT_CALL)
-!~         if(STAT_CALL .NE. SUCCESS_) stop 'Construct_PropertyState - ModuleSedimentProperties - ERR01'
-!~         if(iflag == 0)              stop 'Construct_PropertyState - ModuleSedimentProperties - ERR02'
-
-!~         if (NewProperty%ID%IsParticulate)then
-!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
-!~                 write(*,*) 'Property '//trim(NewProperty%ID%Name)// 'is not'
-!~                 write(*,*) 'recognised as PARTICULATE'
-!~                 stop 'Construct_PropertyState - ModuleSedimentProperties - ERR03'
-!~             end if
-!~         endif
-
-    end subroutine Construct_PropertyState
-
-    !--------------------------------------------------------------------------
 
     subroutine Construct_PropertyOutPut(NewProperty)
 

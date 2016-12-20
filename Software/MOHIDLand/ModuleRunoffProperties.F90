@@ -4455,6 +4455,8 @@ cd0:    if (Exist) then
                 call GetRunoffWaterColumn     (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL) 
                 if (STAT_CALL /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR20'
             
+                !$OMP PARALLEL PRIVATE(I,J, WaterVolume)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB                    
                     if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
@@ -4475,7 +4477,9 @@ cd0:    if (Exist) then
                     endif
                 enddo
                 enddo            
-
+                !$OMP END DO
+                !$OMP END PARALLEL
+                
                 call UnGetRunoff           (Me%ObjRunoff, Me%ExtVar%WaterColumn, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR040'
         
@@ -5374,6 +5378,8 @@ cd0:    if (Exist) then
             call Search_Property(Property, PON_, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'VegetationInterfaceFluxes - ModuleRunoffProperties - ERR01'
                 
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -5389,10 +5395,14 @@ cd0:    if (Exist) then
                 endif
             enddo
             enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
      
             call Search_Property(Property, POP_, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'VegetationInterfaceFluxes - ModuleRunoffProperties - ERR01'
                 
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -5408,6 +5418,8 @@ cd0:    if (Exist) then
                 endif
             enddo
             enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL            
         endif
         
         if (Me%ExtVar%Pesticide) then
@@ -5418,26 +5430,26 @@ cd0:    if (Exist) then
                 
                 if (Property%Pesticide) then
                 
-                    !if (Property%Evolution%AdvectionDiffusion) then
-
-                        do J = Me%WorkSize%JLB, Me%WorkSize%JUB
-                        do I = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    !$OMP PARALLEL PRIVATE(I,J,CellWaterVolume)
+                    !$OMP DO SCHEDULE(DYNAMIC)
+                    do J = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                             
-                            if (Me%ExtVar%BasinPoints(i,j) == BasinPoint .and. Me%ExtVar%WaterColumnOld(i,j) .gt. AlmostZero) then
+                        if (Me%ExtVar%BasinPoints(i,j) == BasinPoint .and. Me%ExtVar%WaterColumnOld(i,j) .gt. AlmostZero) then
                             
-                                !m3             = m  * m2
-                                CellWaterVolume = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j) 
-                                !g/m3                          = g/m3  + (kg/ha * dt/vegdt * 1E3g/kg * (m2) * 1ha/10000m2) / m3 
-                                Property%ConcentrationOld(i,j) = Property%ConcentrationOld(i,j) + (Property%PesticideFlux(i,j) &
-                                                                    * ModelDT / VegDT * 1e3 * Me%ExtVar%Area(i,j) / 10000.)        &
-                                                                     / CellWaterVolume
+                            !m3             = m  * m2
+                            CellWaterVolume = Me%ExtVar%WaterColumnOld(i,j) * Me%ExtVar%Area(i,j) 
+                            !g/m3                          = g/m3  + (kg/ha * dt/vegdt * 1E3g/kg * (m2) * 1ha/10000m2) / m3 
+                            Property%ConcentrationOld(i,j) = Property%ConcentrationOld(i,j) + (Property%PesticideFlux(i,j) &
+                                                                * ModelDT / VegDT * 1e3 * Me%ExtVar%Area(i,j) / 10000.)        &
+                                                                    / CellWaterVolume
                                                                 
-                            endif
-                        enddo
-                        enddo
-    !                    else
-                      
-    !                    endif         
+                        endif
+                    enddo
+                    enddo
+                    !$OMP END DO NOWAIT
+                    !$OMP END PARALLEL            
+
                 endif
             
                 Property => Property%Next
@@ -5853,7 +5865,7 @@ cd0:    if (Exist) then
         !Argument-----------------------------------------------------------------
         character(len=StringLength)         :: Direction
         !Local--------------------------------------------------------------------
-        integer                             :: i,j, CHUNK                             
+        integer                             :: i,j
        
         !begin-------------------------------------------------------------------- 
 
@@ -5875,39 +5887,33 @@ cd0:    if (Exist) then
             call SetMatrixValue (Me%COEF3_HorAdvYY%F_flux, Me%Size, 0.0)                
 
             
-            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+
             !$OMP PARALLEL PRIVATE(i,j) 
-     
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 do2 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 if (Me%ExtVar%BasinPoints(i, j) == 1) then
                     
                     !x direction
-!                    if (Me%ExtVar%ComputeFaces2D(i,j) == 1) then
                         if (Me%ExtVar%FluxU(i,j) .gt. 0.0) then
                             Me%COEF3_HorAdvXX%D_flux(i,j) = Me%ExtVar%FluxU(i,j)
                         else
                             Me%COEF3_HorAdvXX%E_flux(i,j) = Me%ExtVar%FluxU(i,j)
                         endif    
-!                    endif
                     
                     !y direction
-!                    if (Me%ExtVar%ComputeFaces2D(i,j) == 1) then                
                         if (Me%ExtVar%FluxV(i,j) .gt. 0.0) then
                             Me%COEF3_HorAdvYY%D_flux(i,j) = Me%ExtVar%FluxV(i,j)
                         else
                             Me%COEF3_HorAdvYY%E_flux(i,j) = Me%ExtVar%FluxV(i,j)
                         endif   
- !                   endif                 
                     
                 endif
 
             end do do1
             end do do2
             !$OMP END DO
-                
             !$OMP END PARALLEL
             
         
@@ -5929,7 +5935,7 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         character(len=StringLength)         :: Direction
         
         !Local--------------------------------------------------------------------
-        integer                             :: i,j, CHUNK   
+        integer                             :: i,j
         real                                :: Aux1, Aux2
         real, dimension(:,:  ), pointer     :: DUX, DVY
         !begin-------------------------------------------------------------------- 
@@ -5956,38 +5962,30 @@ do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             DUX => Me%ExtVar%DUX
             DVY => Me%ExtVar%DVY
             
-            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
             !$OMP PARALLEL PRIVATE(i,j, Aux1, Aux2) 
-     
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 do2 :       do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :       do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 if (Me%ExtVar%BasinPoints(i, j) == 1) then
                     
                     !x direction
- !                   if (Me%ExtVar%ComputeFaces2D(i,j) == 1) then
-                        Aux1 = DUX(i,j  )/(DUX(i,j) + DUX(i,j-1))
-                        Aux2 = DUX(i,j-1)/(DUX(i,j) + DUX(i,j-1))
-                        Me%COEF3_HorAdvXX%D_flux(i,j) = Me%ExtVar%FluxU(i,j) * Aux1
-                        Me%COEF3_HorAdvXX%E_flux(i,j) = Me%ExtVar%FluxU(i,j) * Aux2
- !                   endif
+                    Aux1 = DUX(i,j  )/(DUX(i,j) + DUX(i,j-1))
+                    Aux2 = DUX(i,j-1)/(DUX(i,j) + DUX(i,j-1))
+                    Me%COEF3_HorAdvXX%D_flux(i,j) = Me%ExtVar%FluxU(i,j) * Aux1
+                    Me%COEF3_HorAdvXX%E_flux(i,j) = Me%ExtVar%FluxU(i,j) * Aux2
                     
                     !y direction
- !                   if (Me%ExtVar%ComputeFaces2D(i,j) == 1) then                
-                        Aux1 = DVY(i  ,j)/(DVY(i,j) + DVY(i-1,j))
-                        Aux2 = DVY(i-1,j)/(DVY(i,j) + DVY(i-1,j))
-                        Me%COEF3_HorAdvYY%D_flux(i,j) = Me%ExtVar%FluxV(i,j) * Aux1
-                        Me%COEF3_HorAdvYY%E_flux(i,j) = Me%ExtVar%FluxV(i,j) * Aux2
- !                   endif                 
-                    
+                    Aux1 = DVY(i  ,j)/(DVY(i,j) + DVY(i-1,j))
+                    Aux2 = DVY(i-1,j)/(DVY(i,j) + DVY(i-1,j))
+                    Me%COEF3_HorAdvYY%D_flux(i,j) = Me%ExtVar%FluxV(i,j) * Aux1
+                    Me%COEF3_HorAdvYY%E_flux(i,j) = Me%ExtVar%FluxV(i,j) * Aux2
                     
                 endif
 
             end do do1
             end do do2
             !$OMP END DO
-                
             !$OMP END PARALLEL
         
         else
@@ -6171,7 +6169,6 @@ cd5 :   if (Me%Output%Boxes_ON) then
         real(8)                                     :: DTPropDouble 
         real(8)                                     :: AuxJ, AreaU
         integer                                     :: i, j
-        integer                                     :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -6180,12 +6177,10 @@ cd5 :   if (Me%Output%Boxes_ON) then
 
         DTPropDouble = dble(Me%ExtVar%DT) 
 
-        CHUNK = ChunkI !CHUNK_I(Me%WorkSize%ILB,Me%WorkSize%IUB)
         !$OMP PARALLEL PRIVATE(i,j,AuxJ,AreaU) 
- 
-do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKI)
 do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             
             !Only if there will be water at the end of the time step it can have diffusion
             if ((Me%WaterVolume(i, j) .gt. AlmostZero) .and. (Me%WaterVolume(i, j-1) .gt. AlmostZero)) then
@@ -6205,13 +6200,11 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                       Me%WaterVolume(i, j  ) *                       &
                                      (CurrProp%Concentration(i,j) - CurrProp%Concentration(i,j-1))
 
-
             endif
 
+        end do do2
         end do do1
         !$OMP END DO
-        end do do2
-            
         !$OMP END PARALLEL
 
         if (Me%Output%Boxes_ON) call CalcHorizontalDifFluxXX(CurrProp)
@@ -6230,7 +6223,6 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real(8)                                     :: DTPropDouble 
         real(8)                                     :: AuxI, AreaV
         integer                                     :: i, j
-        integer                                     :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -6239,10 +6231,8 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         DTPropDouble = dble(Me%ExtVar%DT) 
 
-        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
         !$OMP PARALLEL PRIVATE(i,j,AuxI,AreaV) 
-
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 do2 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
@@ -6267,7 +6257,6 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         end do do1
         end do do2
         !$OMP END DO
-
         !$OMP END PARALLEL
 
         if (Me%Output%Boxes_ON) call CalcHorizontalDifFluxYY(CurrProp)
@@ -6334,7 +6323,6 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         integer :: i,     j                             
         integer :: ILB, IUB, JLB, JUB
-        integer :: CHUNK
         !----------------------------------------------------------------------
 
 
@@ -6379,12 +6367,10 @@ i1:         do i = ILB, IUB
 
 cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
 
-            CHUNK = ChunkI !CHUNK_I(ILB, IUB)
             !$OMP PARALLEL PRIVATE(i,j,AdvFluxX)
-
-doj3 :      do j = JLB, JUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKI)
 doi3 :      do i = ILB, IUB
+doj3 :      do j = JLB, JUB
             
             !computation needs volumes
             if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i, j-1) .gt. AlmostZero) then
@@ -6403,19 +6389,18 @@ doi3 :      do i = ILB, IUB
 
             endif
 
+            end do doj3
             end do doi3
             !$OMP END DO
-            end do doj3
             !$OMP END PARALLEL
 
         else if (ImpExp_AdvXX == ImplicitScheme) then cd6 !ImplicitScheme = 1
 
-            CHUNK = ChunkI !CHUNK_I(ILB, IUB)
+            
             !$OMP PARALLEL PRIVATE(i,j, DT2, DT1)
-
-doj4 :      do j = JLB, JUB
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKI)
 doi4 :      do i = ILB, IUB
+doj4 :      do j = JLB, JUB
 
             !computation needs volumes
             if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i, j-1) .gt. AlmostZero) then
@@ -6433,9 +6418,9 @@ doi4 :      do i = ILB, IUB
             endif
 
 
+            end do doj4
             end do doi4
             !$OMP END DO
-            end do doj4
             !$OMP END PARALLEL
 
         else cd6
@@ -6465,7 +6450,6 @@ doi4 :      do i = ILB, IUB
         real(8)                             :: AdvFluxY, DT1, DT2
         integer                             :: i,     j                       
         integer                             :: ILB, IUB, JLB, JUB
-        integer                             :: CHUNK
 
         !----------------------------------------------------------------------
 
@@ -6511,11 +6495,9 @@ j1:         do j = JLB, JUB
 
 cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
             
-            CHUNK = ChunkJ !CHUNK_J(JLB, JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,AdvFluxY)
-
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 doj3 :      do j = JLB, JUB
 doi3 :      do i = ILB, IUB
 
@@ -6543,11 +6525,9 @@ doi3 :      do i = ILB, IUB
 
         else if (ImpExp_AdvYY == ImplicitScheme) then cd6 !ImplicitScheme = 1
 
-            CHUNK = ChunkJ !CHUNK_J(JLB, JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,DT2,DT1)
-
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 doj4 :      do j = JLB, JUB
 doi4 :      do i = ILB, IUB
 
@@ -6595,37 +6575,34 @@ doi4 :      do i = ILB, IUB
         !Local-----------------------------------------------------------------
 
         integer :: i,     j
-        integer :: CHUNK
 
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "CalcHorizontalAdvFluxXX")
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-        !$OMP PARALLEL PRIVATE(i,j)
 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-        if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i, j - 1) .gt. AlmostZero) then
+            if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i, j - 1) .gt. AlmostZero) then
 
-            Me%Fluxes%AdvFluxX(i, j) =                                               &
-                          Me%Fluxes%AdvFluxX(i, j)                                   &
-                        + Weigth                                                     &
-                        * (Me%COEF3_HorAdvXX%C_flux(i,   j)                          &
-                        *  CurrProp%Concentration  (i, j-2)                          &
-                        +  Me%COEF3_HorAdvXX%D_flux(i,   j)                          &
-                        *  CurrProp%Concentration  (i, j-1)                          &
-                        +  Me%COEF3_HorAdvXX%E_flux(i,   j)                          &
-                        *  CurrProp%Concentration  (i,   j)                          &
-                        +  Me%COEF3_HorAdvXX%F_flux(i,   j)                          &
-                        *  CurrProp%Concentration  (i, j+1))
+                Me%Fluxes%AdvFluxX(i, j) =                                               &
+                              Me%Fluxes%AdvFluxX(i, j)                                   &
+                            + Weigth                                                     &
+                            * (Me%COEF3_HorAdvXX%C_flux(i,   j)                          &
+                            *  CurrProp%Concentration  (i, j-2)                          &
+                            +  Me%COEF3_HorAdvXX%D_flux(i,   j)                          &
+                            *  CurrProp%Concentration  (i, j-1)                          &
+                            +  Me%COEF3_HorAdvXX%E_flux(i,   j)                          &
+                            *  CurrProp%Concentration  (i,   j)                          &
+                            +  Me%COEF3_HorAdvXX%F_flux(i,   j)                          &
+                            *  CurrProp%Concentration  (i, j+1))
 
-        endif
+            endif
         end do doi1
         end do doj1
         !$OMP END DO NOWAIT
-
         !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "CalcHorizontalAdvFluxXX")
@@ -6693,18 +6670,14 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j  
-        integer                                     :: CHUNK
         real                                        :: AreaU
         
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "CalcHorizontalDifFluxXX")
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-        
         !$OMP PARALLEL PRIVATE(i,j,AreaU)
-        
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i, j-1) .gt. AlmostZero) then                           
@@ -6723,7 +6696,6 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         end do doi1
         end do doj1
         !$OMP END DO NOWAIT
-
         !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "CalcHorizontalDifFluxXX")
@@ -6740,18 +6712,15 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j 
-        integer                                     :: CHUNK
         real                                        :: AreaV
 
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "CalcHorizontalDifFluxYY")
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(i,j,AreaV)
-
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
 doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (Me%WaterVolume(i, j) .gt. AlmostZero .and. Me%WaterVolume(i-1, j) .gt. AlmostZero) then
@@ -6769,7 +6738,6 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         end do doi1
         end do doj1
         !$OMP END DO
-        
         !$OMP END PARALLEL
         
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "CalcHorizontalDifFluxYY")
@@ -6858,32 +6826,27 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrProperty
-        integer                                     :: i, j, CHUNK !, STAT_CALL
+        integer                                     :: i, j
         real(8)                                     :: Prop, WaterVolumeOld, WaterVolumeNew
-        real(8)                                     :: FlowMass !, WaterColumnNew
-        !real(8), dimension(:,:), pointer            :: WaterColumnFinal
-        character (Len = 5)                         :: str_i, str_j
-        character (Len = 15)                        :: str_conc
-        character (len = StringLength)              :: string_to_be_written        
+        real(8)                                     :: FlowMass
+!        character (Len = 5)                         :: str_i, str_j
+!        character (Len = 15)                        :: str_conc
+!       character (len = StringLength)              :: string_to_be_written        
+
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkInterface")
    
-!        call GetRunoffWaterColumn (Me%ObjRunoff, WaterColumnFinal, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_) stop 'ModifyDrainageNetworkInterface - ModuleRunoffProperties - ERR10'
-
         CurrProperty => Me%FirstProperty
         
         do while (associated(CurrProperty))
 
             if (CurrProperty%Evolution%AdvectionDiffusion) then        
-               !Flux between river and runoff 
                
-                CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                 !Flux between river and runoff 
               
-                !!$OMP PARALLEL PRIVATE(i,j,Prop, WaterVolumeOld, WaterVolumeNew, FlowMass)
-                
-                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !$OMP PARALLEL PRIVATE(i,j,Prop, WaterVolumeOld, WaterVolumeNew, FlowMass)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
@@ -6896,31 +6859,31 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             !this is conc after transport, the same as used in Drainage network
                             Prop =  CurrProperty%Concentration(i,j)
 
-                            if (CurrProperty%Concentration(i,j) < 0.0) then
-                                write(str_i, '(i3)') i 
-                                write(str_j, '(i3)') j
-                                write(str_conc, '(ES10.3)') CurrProperty%Concentration(i,j)                               
-                                string_to_be_written = trim(CurrProperty%ID%Name) //' in RP is < 0 going from runoff to river' &
-                                                       //' in cell (i,j) with conc: '   &
-                                                      //str_i//','//str_j//' '//str_conc
-                                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
-                            endif     
+                            !if (CurrProperty%Concentration(i,j) < 0.0) then
+                            !    write(str_i, '(i3)') i 
+                            !    write(str_j, '(i3)') j
+                            !    write(str_conc, '(ES10.3)') CurrProperty%Concentration(i,j)                               
+                            !    string_to_be_written = trim(CurrProperty%ID%Name) //' in RP is < 0 going from runoff to river' &
+                            !                           //' in cell (i,j) with conc: '   &
+                            !                          //str_i//','//str_j//' '//str_conc
+                            !    call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+                            !endif     
                        
                         !mass coming from channel -> conc from DN
                         elseif (Me%ExtVar%FlowToChannels(i,j) .lt. 0.0) then
                             
                             Prop = CurrProperty%ConcentrationDN(i,j)
 
-                            if (CurrProperty%ConcentrationDN(i,j) < 0.0) then
-                                write(str_i, '(i3)') i 
-                                write(str_j, '(i3)') j
-                                write(str_conc, '(ES10.3)') CurrProperty%ConcentrationDN(i,j)                               
-                                string_to_be_written = trim(CurrProperty%ID%Name) //' in RP is < 0 going from river to runoff' &
-                                                       //' in cell (i,j) with conc: '   &
-                                                      //str_i//','//str_j//' '//str_conc
-                                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
-
-                            endif
+                            !if (CurrProperty%ConcentrationDN(i,j) < 0.0) then
+                            !    write(str_i, '(i3)') i 
+                            !    write(str_j, '(i3)') j
+                            !    write(str_conc, '(ES10.3)') CurrProperty%ConcentrationDN(i,j)                               
+                            !    string_to_be_written = trim(CurrProperty%ID%Name) //' in RP is < 0 going from river to runoff' &
+                            !                           //' in cell (i,j) with conc: '   &
+                            !                          //str_i//','//str_j//' '//str_conc
+                            !    call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+                            !
+                            !endif
                             
                         endif
 
@@ -6956,9 +6919,8 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                 enddo
                 enddo
-                !!$OMP END DO
-                
-                !!$OMP END PARALLEL
+                !$OMP END DO
+                !$OMP END PARALLEL
 
             endif
             
@@ -6966,9 +6928,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         enddo
         
-!        call UngetRunoff (Me%ObjRunoff, WaterColumnFinal, STAT_CALL)  
-!        if (STAT_CALL /= SUCCESS_)  stop 'ModifyDrainageNetworkInterface - ModuleRunoffProperties - ERR020'     
-                           
+                          
         if (MonitorPerformance) call StopWatch ("ModuleRunoffProperties", "ModifyDrainageNetworkInterface")
 
    
@@ -7043,12 +7003,12 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrProperty
-        integer                                     :: i, j, it, jt, CHUNK !, STAT_CALL
+        integer                                     :: i, j, it, jt
         real(8)                                     :: Prop, WaterVolumeOldDFour, WaterVolumeNewDFour
         real(8)                                     :: WaterVolumeOldLowNeighbour, WaterVolumeNewLowNeighbour
-        real(8)                                     :: FlowMass !, WaterColumnNew
-        !real(8), dimension(:,:), pointer            :: WaterColumnFinal      
-        !Begin-----------------------------------------------------------------
+        real(8)                                     :: FlowMass
+        
+        !Begin-------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyRouteDFourInterface")
         
@@ -7059,11 +7019,10 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (CurrProperty%Evolution%AdvectionDiffusion) then        
                !Flux in routeD4 points 
                
-                CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
               
-                !!$OMP PARALLEL PRIVATE(i,j,Prop, WaterVolumeOld, WaterVolumeNew, FlowMass)
-                
-                !!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                !$OMP PARALLEL PRIVATE(i,j,it,jt,Prop,WaterVolumeOldDFour,WaterVolumeNewDFour,WaterVolumeOldLowNeighbour), &
+                !$OMP& PRIVATE(WaterVolumeNewLowNeighbour,FlowMass)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
@@ -7128,9 +7087,8 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
                 enddo
                 enddo
-                !!$OMP END DO
-                
-                !!$OMP END PARALLEL
+                !$OMP END DO
+                !$OMP END PARALLEL
 
             endif
             
@@ -7253,7 +7211,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrProperty
-        integer                                     :: i, j, CHUNK, di, dj
+        integer                                     :: i, j, di, dj
         integer                                     :: IJmin, IJmax, JImin, JImax
         real(8)                                     :: coefB, CoefInterfDN
         real(8)                                     :: CoefInterfBoundary        
@@ -7266,11 +7224,9 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         if (Me%ComputeOptions%AdvDiff_Explicit) then
 
-            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN,CoefInterfBoundary, coefB)
-               
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)              
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)              
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then   
@@ -7310,11 +7266,9 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
            
         else !implicit
             
-            CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
           
             !$OMP PARALLEL PRIVATE(i,j,CoefInterfDN,CoefInterfBoundary, coefB)
-               
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)                          
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then           
@@ -7382,11 +7336,9 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !Update total conc
             if (CurrProperty%Evolution%BottomFluxes) then
             
-                CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
               
                 !$OMP PARALLEL PRIVATE(i,j)
-                   
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)                          
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)                          
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then           
@@ -7711,23 +7663,21 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !    !---------------------------------------------------------------------------
     
     subroutine ModifyDiffusivity_New(CurrProperty)
+    
         !Arguments-------------------------------------------------------------
         type (T_Property), pointer                  :: CurrProperty
         !Local-----------------------------------------------------------------
-        integer                                     :: I,J, CHUNK
+        integer                                     :: I,J
         real                                        :: DiffCoef, velU, VelV        
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleRunoffProperties", "ModifyDiffusivity_New")
 
-        
-        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-        
-        !$OMP PARALLEL PRIVATE(I,J,DiffCoef,VelU,VelV)
-
         DiffCoef  = CurrProperty%Evolution%AdvDiff%Molecular_Diff_Coef
         
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        
+        !$OMP PARALLEL PRIVATE(I,J,VelU,VelV)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do J = Me%WorkSize%JLB, Me%WorkSize%JUB
         do I = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExtVar%BasinPoints(I,J) == BasinPoint) then
@@ -7969,8 +7919,8 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
        !Local-----------------------------------------------------------------
         type (T_Property) , pointer                 :: Property
         real(8), dimension(:,:), pointer            :: WaterColumn
-        real, dimension(:,:), pointer               :: BottomSedimentConc, SedimentGenerationRate      
-        real                                        :: EnrichmentRatio, GenerationConc
+        real, dimension(:,:), pointer               :: SedimentGenerationRate      
+        real                                        :: GenerationConc
         real                                        :: BottomArea,WaterVolume
         integer                                     :: STAT_CALL, i ,j 
         !---------------------------------------------------------------------
@@ -7980,55 +7930,38 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             call SearchProperty(Property, PropertyXIDNumber = Cohesive_Sediment_)
         endif
         
-        !BottomSedimentConc => Property%BottomConcentration        
         SedimentGenerationRate => Me%SedimentGenerationRate%Field
         WaterColumn        => Me%ExtVar%WaterColumn
         
-        !Only add sediment and not properties
-        !nullify (Property)
-        !Property => Me%FirstProperty                                                    
-        !do while (associated (Property)) 
- 
-!if1:        if (Property%Evolution%BottomFluxes   &
-!                .AND. Property%ID%IDNumber /= VSS_ .AND. Property%ID%IDNumber /= TSS_) then
-                        
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        !$OMP PARALLEL PRIVATE(I,J,GenerationConc,BottomArea,WaterVolume)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then   
+if2:        if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then   
                             
-                            !generates new sediment with same property ratio as the one present (below soil is similar to top soil)
-                            !if (BottomSedimentConc (i,j) > AllmostZero) then                               
-                            !    EnrichmentRatio = Property%BottomConcentration (i,j) / BottomSedimentConc (i,j)
-                            !else
-                            !    EnrichmentRatio = 1.0
-                            !endif
-                            
-                            ![kg.m-2] = [kg.m-2.s-1] * [s]
-                            GenerationConc = SedimentGenerationRate(i,j) * Me%ExtVar%DT  !* EnrichmentRatio
+                    ![kg.m-2] = [kg.m-2.s-1] * [s]
+                    GenerationConc = SedimentGenerationRate(i,j) * Me%ExtVar%DT  !* EnrichmentRatio
                            
-                            Property%BottomConcentration (i,j) = Property%BottomConcentration (i,j)       &
-                                                                 + GenerationConc                        
+                    Property%BottomConcentration (i,j) = Property%BottomConcentration (i,j)       &
+                                                            + GenerationConc                        
 
-                            BottomArea = Me%ExtVar%Area(i,j)                            
+                    BottomArea = Me%ExtVar%Area(i,j)                            
                                                                
-                            ![m3] = [m] * [m2]
-                            WaterVolume = WaterColumn(i,j) * BottomArea                             
+                    ![m3] = [m] * [m2]
+                    WaterVolume = WaterColumn(i,j) * BottomArea                             
 
-                            ![kg/m2] = [g/m3]* [m3] * [1E-3kg/g] /[m2] + [kg/m2]
-                            Property%TotalConcentration (i,j) = Property%Concentration (i,j) * 1E-3 * WaterVolume / BottomArea &
-                                                                + Property%BottomConcentration (i,j)            
+                    ![kg/m2] = [g/m3]* [m3] * [1E-3kg/g] /[m2] + [kg/m2]
+                    Property%TotalConcentration (i,j) = Property%Concentration (i,j) * 1E-3 * WaterVolume / BottomArea &
+                                                        + Property%BottomConcentration (i,j)            
                                                                 
+            end if if2
  
-                    end if if2
- 
-                enddo
-                enddo
-            
-            !endif if1
- 
-            !Property => Property%Next
-        !enddo        
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
                 
     
     end subroutine ModifySedimentGeneration   
@@ -8068,7 +8001,6 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 if1:        if (Property%Evolution%BottomFluxes   .and. Property%Evolution%SplashErosion  &
                 .AND. Property%ID%IDNumber /= VSS_ .AND. Property%ID%IDNumber /= TSS_) then
          
-                KE_Leaf_Drainage = 0.0
                 KE_ThroughFall   = 0.0
                 SplashErodedMass = 0.0
                 SplashRate       = 0.0
@@ -8077,6 +8009,9 @@ if1:        if (Property%Evolution%BottomFluxes   .and. Property%Evolution%Splas
                 Property%SplashRate       = 0.0
                 Me%RainKineticRate        = 0.0
                 
+                !$OMP PARALLEL PRIVATE(I,J,KE_Leaf_Drainage,KE_ThroughFall,SplashRate, CanopyDrain, DirectRain, DirectRainRate), &
+                !$OMP& PRIVATE(SplashErodedMass, RainKineticEnergy, SplashConc,BottomArea,WaterVolume)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 
@@ -8190,6 +8125,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
  
                 enddo
                 enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
             
             endif if1
  
@@ -8239,6 +8176,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
             
             Me%ShearStress(:,:) = 0.0
                       
+            !$OMP PARALLEL PRIVATE(I,J,Chezy, CenterVelocity, FinalManning)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -8275,6 +8214,8 @@ if2:                if (Me%ExtVar%BasinPoints(i,j) == BasinPoint) then
 
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
 
 
             call UnGetRunoff (Me%ObjRunoff, Manning, STAT_CALL)  
@@ -8330,6 +8271,8 @@ if1:        if (Property%Evolution%BottomFluxes  .and. Property%Evolution%Erosio
 
                 Property%ErosionRate = 0.0
 
+                !$OMP PARALLEL PRIVATE(I,J,ErosionRate, WaterVolume,ErodedConc, ErodedMass,BottomArea, Aux)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -8390,6 +8333,8 @@ if3:                    if (Me%ShearStress (i,j) > Me%ErosionCriticalShear%Field
 
                 enddo
                 enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
             
             endif if1
 
@@ -8397,6 +8342,7 @@ if3:                    if (Me%ShearStress (i,j) > Me%ErosionCriticalShear%Field
         enddo
 
     end subroutine ComputeErosionFluxes
+    
     !---------------------------------------------------------------------------
     
     subroutine ComputeDepositionFluxes
@@ -8431,6 +8377,8 @@ if1:        if (Property%Evolution%BottomFluxes   .and.   Property%Evolution%Dep
                 
                 Property%DepositionRate = 0.0
                 
+                !$OMP PARALLEL PRIVATE(I,J, WaterVolume, BottomArea,DepositionRate, DepositedMass,Mass, SPMConc,aux, MinimumMass)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -8509,7 +8457,10 @@ if3:                    if (Me%ShearStress (i,j) < Me%DepositionCriticalShear%Fi
                     end if if2                    
                 
                 end do    
-                end do            
+                end do 
+                !$OMP END DO
+                !$OMP END PARALLEL
+                
             end if if1
             Property => Property%Next
         end do
@@ -8595,6 +8546,8 @@ do1 :   do while (associated(Property))
                     
                 if(Me%ExtVar%Now .GE. Property%Evolution%NextCompute) then            
             
+                    !$OMP PARALLEL PRIVATE(I,J,WaterVolume,OldMass,NewMass,MassSink)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                     do J = Me%WorkSize%JLB, Me%WorkSize%JUB       
                     do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                     
@@ -8619,6 +8572,8 @@ do1 :   do while (associated(Property))
                     
                     enddo
                     enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL                  
                 
                 endif
                 
@@ -8639,15 +8594,11 @@ do1 :   do while (associated(Property))
         !Local----------------------------------------------------------------- 
         type (T_Property), pointer              :: PartPropX
         type (T_Property), pointer              :: PropertyX
-!        type (T_Property), pointer              :: Salinity
         type (T_Property), pointer              :: CohesiveSediment 
         real                                    :: DT, MassTransfer
         real                                    :: DissolvedFraction
         real                                    :: ParticulateFraction
         real                                    :: TransferRate
-!        real                                    :: ReferencePartitionCoef
-!        real                                    :: PartitionCoef
-!        real                                    :: b, SalinityConcentration
         real                                    :: RefSedFactor
         integer                                 :: STAT_CALL
         integer                                 :: ILB, IUB, JLB, JUB
@@ -8703,6 +8654,8 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
     !                endif
                     
 
+                    !$OMP PARALLEL PRIVATE(I,J,DissolvedFraction,ParticulateFraction,TransferRate,RefSedFactor,MassTransfer)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
     do1:            do j = JLB, JUB
     do2:            do i = ILB, IUB
         
@@ -8782,6 +8735,9 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
                         endif cd2
                     enddo do2
                     enddo do1
+                    !$OMP END DO
+                    !$OMP END PARALLEL                  
+    
                 endif cd1
             endif cd0
 
@@ -8801,10 +8757,9 @@ cd1:            if(Me%ExtVar%Now .GE. PropertyX%Evolution%NextCompute) then
 
     !--------------------------------------------------------------------------
     subroutine SetLimitsConcentration
-!    subroutine SetLimitsConcentration (Message)
 
         !Arguments-------------------------------------------------------------
-!        character(len=*)                            :: Message
+
         !External--------------------------------------------------------------
         type (T_Property), pointer                  :: Property
         integer                                     :: ILB, IUB, JLB, JUB
@@ -8828,6 +8783,9 @@ do1 :   do while (associated(Property))
 cd1 :       if (Property%Evolution%MinConcentration) then
                 
 
+
+                !$OMP PARALLEL PRIVATE(I,J)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                 do j=Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i=Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -8857,6 +8815,8 @@ cd1 :       if (Property%Evolution%MinConcentration) then
 
                 enddo
                 enddo
+                !$OMP END DO
+                !$OMP END PARALLEL                  
                 
                 
             endif cd1
@@ -9705,7 +9665,7 @@ do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, STAT_CALL
         type (T_Property), pointer                  :: CurrProperty
-        real                                        :: BottomMass
+        real                                        :: BottomMass, TotalStoredMass
         !Begin-----------------------------------------------------------------
         
         call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
@@ -9723,7 +9683,8 @@ do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         
         do while (associated(CurrProperty)) 
             
-            !This cycle is not paralelizable because it changes the same address in memory
+            !$OMP PARALLEL PRIVATE(I,J,BottomMass)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)  REDUCTION(+:TotalStoredMass)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         
@@ -9734,7 +9695,7 @@ do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                         BottomMass = CurrProperty%BottomConcentration(i,j) * Me%ExtVar%Area(i,j)
                     endif
                     !kg = kg + kg + [m * m2] * [g/m3] * [1E-3 kg/g])
-                    CurrProperty%MB%TotalStoredMass = CurrProperty%MB%TotalStoredMass  + Bottommass           &
+                    TotalStoredMass = TotalStoredMass  + Bottommass           &
                                                       + (Me%ExtVar%WaterColumn(i,j)* Me%ExtVar%Area(i,j)      &
                                                        * CurrProperty%Concentration(i,j) * 1E-3    )
                         
@@ -9742,6 +9703,11 @@ do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
             enddo
             enddo
+            !$OMP END DO
+            !$OMP END PARALLEL                  
+            
+            
+            CurrProperty%MB%TotalStoredMass = TotalStoredMass
             
             CurrProperty => CurrProperty%Next
         end do 

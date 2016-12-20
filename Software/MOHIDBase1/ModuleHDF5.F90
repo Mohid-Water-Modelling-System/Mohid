@@ -1231,15 +1231,10 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_REAL 
 
             Rank    = 1
-#ifndef _STACK_LIMITS_
-            !Minimum = minval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
-            !Maximum = maxval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+
             Minimum = minival(Array1D,Me%Limits1D)
             Maximum = maxival(Array1D,Me%Limits1D)
-#else
-            Minimum = FillValueReal
-            Maximum = FillValueReal
-#endif
+
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
 
             !Creates the dataset with default properties
@@ -1340,17 +1335,9 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_REAL 
 
             Rank    = 2
-#ifndef _STACK_LIMITS_            
-            !Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-            !                         Me%Limits%JLB:Me%Limits%JUB))
-            !Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-            !                         Me%Limits%JLB:Me%Limits%JUB))
+
             Minimum = minival(Array2D,Me%Limits2D)
             Maximum = maxival(Array2D,Me%Limits2D)
-#else
-            Minimum = FillValueReal
-            Maximum = FillValueReal
-#endif
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
@@ -1453,19 +1440,9 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_REAL 
 
             Rank    = 3
-#ifndef _STACK_LIMITS_
-!            Minimum = minval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB,          &
-!                                     Me%Limits%KLB:Me%Limits%KUB))
-!            Maximum = maxval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB,          &
-!                                     Me%Limits%KLB:Me%Limits%KUB))
+
             Minimum = minival(Array3D,Me%Limits3D)
             Maximum = maxival(Array3D,Me%Limits3D)
-#else
-            Minimum = FillValueReal
-            Maximum = FillValueReal
-#endif
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
@@ -1577,15 +1554,10 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_DOUBLE 
 
             Rank    = 1
-#ifndef _STACK_LIMITS_
-!            Minimum = minval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
-!            Maximum = maxval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+
             Minimum = minival(Array1D,Me%Limits1D)
             Maximum = maxival(Array1D,Me%Limits1D)
-#else
-            Minimum = FillValueReal
-            Maximum = FillValueReal
-#endif
+
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
 
             !Creates the dataset with default properties
@@ -1692,17 +1664,10 @@ Module ModuleHDF5
 
             Rank    = 2
 
-#ifndef _STACK_LIMITS_
-!            Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB))
-!            Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB))
+
             Minimum = minival(Array2D,Me%Limits2D)
             Maximum = maxival(Array2D,Me%Limits2D)
-#else
-            Minimum = FillValueReal
-            Maximum = FillValueReal
-#endif
+
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
@@ -1804,19 +1769,10 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_DOUBLE 
 
             Rank    = 3
-#ifndef _STACK_LIMITS_
-!            Minimum = minval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB,          &
-!                                     Me%Limits%KLB:Me%Limits%KUB))
-!            Maximum = maxval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB,          &
-!                                     Me%Limits%KLB:Me%Limits%KUB))
+
             Minimum = minival(Array3D,Me%Limits3D)
             Maximum = maxival(Array3D,Me%Limits3D)
-#else
-            Minimum = FillValueReal
-            Maximum = FillValueReal
-#endif
+
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
@@ -1924,15 +1880,9 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_INTEGER 
 
             Rank    = 1
-#ifndef _STACK_LIMITS_
-!            Minimum = minval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
-!            Maximum = maxval(Array1D(Me%Limits%ILB:Me%Limits%IUB))
+
             Minimum = minival(Array1D,Me%Limits1D)
             Maximum = maxival(Array1D,Me%Limits1D)
-#else
-            Minimum = FillValueReal
-            Maximum = FillValueReal
-#endif
 
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
 
@@ -2032,17 +1982,10 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_INTEGER 
 
             Rank    = 2
-#ifndef _STACK_LIMITS_
-!            Minimum = minval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB))
-!            Maximum = maxval(Array2D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB))
+
             Minimum = minival(Array2D,Me%Limits2D)
             Maximum = maxival(Array2D,Me%Limits2D)
-#else
-            Minimum = FillValueReal
-            Maximum = FillValueReal
-#endif
+
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
 
@@ -2144,19 +2087,9 @@ Module ModuleHDF5
             NumType = H5T_NATIVE_INTEGER 
 
             Rank    = 3
-#ifndef _STACK_LIMITS_
-!            Minimum = minval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB,          &
-!                                     Me%Limits%KLB:Me%Limits%KUB))
-!            Maximum = maxval(Array3D(Me%Limits%ILB:Me%Limits%IUB,          &
-!                                     Me%Limits%JLB:Me%Limits%JUB,          &
-!                                     Me%Limits%KLB:Me%Limits%KUB))
+
             Minimum = minival(Array3D,Me%Limits3D)
             Maximum = maxival(Array3D,Me%Limits3D)
-#else
-            Minimum = FillValueReal
-            Maximum = FillValueReal
-#endif
            
             dims(1) = Me%Limits%IUB - Me%Limits%ILB + 1
             dims(2) = Me%Limits%JUB - Me%Limits%JLB + 1
