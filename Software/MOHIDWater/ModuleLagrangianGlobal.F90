@@ -10832,7 +10832,9 @@ em1:    do em =1, Me%EulerModelNumber
         character(len = StringLength)               :: AuxFieldName, PolygonName, GroupName
         character(len=6)                            :: NumberName        
         real(8), dimension(:), pointer              :: Matrix1DX, Matrix1DY
- 
+#ifdef _GOOGLEMAPS          
+        real(8), dimension(:), pointer              :: Aux1DX, Aux1DY                
+#endif       
         !Begin-----------------------------------------------------------------
 
         ! Write each polygon

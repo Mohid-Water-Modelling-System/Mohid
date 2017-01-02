@@ -26,7 +26,7 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug Double|Win32">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug Double;..\MOHIDBase2\Debug Double" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
-				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug Double;..\MOHIDBase2\Debug Double;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\lib" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="999999999" LargeAddressAware="addrAwareNoLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib netcdf.lib netcdf90.lib"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug Double;..\MOHIDBase2\Debug Double;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="999999999" LargeAddressAware="addrAwareNoLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -36,7 +36,7 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double|Win32">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release Double;..\MOHIDBase2\Release Double" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
-				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Release Double;..\MOHIDBase2\Release Double;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\lib" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib netcdf.lib netcdf90.lib"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Release Double;..\MOHIDBase2\Release Double;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -76,7 +76,7 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug Double PhreeqC|Win32">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug Double PhreeqC;..\MOHIDBase2\Debug Double PhreeqC" PreprocessorDefinitions="_PHREEQC_;_LONG_LINE_LENGTH" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
-				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug Double PhreeqC;..\MOHIDBase2\Debug Double PhreeqC;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\PhreeqC\Debug Double" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib PhreeqC.lib"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug Double PhreeqC;..\MOHIDBase2\Debug Double PhreeqC;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Phreeqc\x86" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib PhreeqC.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -323,6 +323,26 @@
 				<Tool Name="VFPreLinkEventTool"/>
 				<Tool Name="VFPreBuildEventTool"/>
 				<Tool Name="VFPostBuildEventTool" CommandLine="copy &quot;$(OutDir)\$(ProjectName).exe&quot; &quot;$(OutDir)\$(ProjectName)_release_double_phreeqc_x64.exe&quot;"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug Double OpenMP PhreeqC|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug Double Openmp Phreeqc;..\MOHIDBase2\Debug Double Openmp Phreeqc" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug Double Openmp Phreeqc;..\MOHIDBase2\Debug Double Openmp Phreeqc;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Phreeqc\x86" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool" CommandLine="copy &quot;$(OutDir)\$(ProjectName).exe&quot; &quot;$(OutDir)\$(ProjectName)_debug_double_openmp_phreeqc_x86.exe&quot;"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug Double OpenMP PhreeqC|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="64" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\x64\Debug Double OpenMP;..\MOHIDBase2\x64\Debug Double OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" LocalSavedScalarsSNaN="true" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true" RuntimeChecks="rtChecksAll" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\x64\Debug Double OpenMP;..\MOHIDBase2\x64\Debug Double OpenMP;..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib" IgnoreDefaultLibraryNames="msvcrt.lib; libcmt.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
 	<Files>
 		<Filter Name="Header Files" Filter="fi;fd"/>

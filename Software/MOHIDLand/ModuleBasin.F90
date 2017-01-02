@@ -380,6 +380,7 @@ Module ModuleBasin
     end type T_SimpleInfiltration
     
     type T_SCSCNRunOffModel
+        type (T_PropertyB)                          :: InfRate
         type (T_PropertyB)                          :: CurveNumber
         real                                        :: IAFactor = 0.2 !Initial Abstraction Factor = 0.2 or 0.05
         logical                                     :: ConvertIAFactor = .false.
@@ -1774,15 +1775,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !            stop 'VerifyOptions - ModuleBasin - ERR02'
     !        endif
 
-            if (Me%Coupled%PorousMedia .and. Me%Coupled%SimpleInfiltration) then
-                write(*,*)'You can not use SimpleInfiltration and PorousMedia at the same time'
-                stop 'VerifyOptions - ModuleBasin - ERR03'
-            endif
+            !if (Me%Coupled%PorousMedia .and. Me%Coupled%SimpleInfiltration) then
+            !    write(*,*)'You can not use SimpleInfiltration and PorousMedia at the same time'
+            !    stop 'VerifyOptions - ModuleBasin - ERR03'
+            !endif
 
-            if (Me%Coupled%PorousMedia .and. Me%Coupled%SCSCNRunOffModel) then
-                write(*,*)'You can not use SCS CN RunOff model and PorousMedia at the same time'
-                stop 'VerifyOptions - ModuleBasin - ERR03.1'
-            endif
+            !if (Me%Coupled%PorousMedia .and. Me%Coupled%SCSCNRunOffModel) then
+            !    write(*,*)'You can not use SCS CN RunOff model and PorousMedia at the same time'
+            !    stop 'VerifyOptions - ModuleBasin - ERR03.1'
+            !endif
             
             if (Me%Coupled%SimpleInfiltration .and. Me%Coupled%SCSCNRunOffModel) then
                 write(*,*)'You can not use SCS CN RunOff model and SimpleInfiltration at the same time'
@@ -2049,6 +2050,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Local-----------------------------------------------------------------
         integer                                       :: i, j
         
+        allocate(Me%SCSCNRunOffModel%InfRate%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%InfRate%Field = FillValueReal
         allocate(Me%SCSCNRunOffModel%VegGrowthStage%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         call ConstructOneProperty (Me%SCSCNRunOffModel%VegGrowthStage, "VegGrowthStage",  &
                                    "<BeginVegGrowthStage>", "<EndVegGrowthStage>")
@@ -3983,6 +3986,42 @@ cd2 :           if (BlockFound) then
                 endif                
             endif
 
+            
+            !Simplified Infiltration / Evapotranspiration model
+            if (Me%Coupled%SimpleInfiltration) then
+                call SimpleInfiltration
+                
+                !only update if not going to use infiltration flux in porous media
+                !and it will be updated after porous media runs
+                if (.not. Me%Coupled%PorousMedia) then
+                    !Actualizes the WaterColumn
+                    call ActualizeWaterColumn  
+                endif
+                
+                !if porous media this will be updated later with porous media processes
+                if (.not. Me%Coupled%PorousMedia .and. Me%Coupled%RunoffProperties) then
+                    WarningString = 'SimpleInfiltration'
+                    call ActualizeWaterColumnConc(WarningString) 
+                endif                
+            endif
+            
+            if (Me%Coupled%SCSCNRunOffModel) then
+                call SCSCNRunOffModel
+
+                !only update if not going to use infiltration flux in porous media
+                !and it will be updated after porous media runs
+                if (.not. Me%Coupled%PorousMedia) then                
+                    !Actualizes the WaterColumn
+                    call ActualizeWaterColumn  
+                endif
+                
+                if (.not. Me%Coupled%PorousMedia .and. Me%Coupled%RunoffProperties) then
+                    WarningString = 'SimpleInfiltration'
+                    call ActualizeWaterColumnConc(WarningString) 
+                endif                
+            endif               
+            
+            
             !Porous Media
             if (Me%Coupled%PorousMedia) then
 
@@ -4024,30 +4063,7 @@ cd2 :           if (BlockFound) then
             endif
             
 
-            !Simplified Infiltration / Evapotranspiration model
-            if (Me%Coupled%SimpleInfiltration) then
-                call SimpleInfiltration
-
-                !Actualizes the WaterColumn
-                call ActualizeWaterColumn  
-                
-                if (Me%Coupled%RunoffProperties) then
-                    WarningString = 'SimpleInfiltration'
-                    call ActualizeWaterColumnConc(WarningString) 
-                endif                
-            endif
-            
-            if (Me%Coupled%SCSCNRunOffModel) then
-                call SCSCNRunOffModel
-
-                !Actualizes the WaterColumn
-                call ActualizeWaterColumn  
-                
-                if (Me%Coupled%RunoffProperties) then
-                    WarningString = 'SimpleInfiltration'
-                    call ActualizeWaterColumnConc(WarningString) 
-                endif                
-            endif            
+         
             
             !Overland Flow
             if (Me%Coupled%RunOff) then
@@ -5792,22 +5808,26 @@ cd2 :           if (BlockFound) then
                     
                 endif
                 
-                !m                            = m - m/s * s
-                Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%SI%InfRate%Field(i, j) * &
-                                                (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
+                !! do not update now if using porus media - it will be updated after porous media finished
+                !! from here we only want the infiltration flux
+                if (.not. Me%Coupled%PorousMedia) then
+                    !m                            = m - m/s * s
+                    Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%SI%InfRate%Field(i, j) * &
+                                                    (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
                 
-                !mm /hour
-                Me%InfiltrationRate (i, j)    = Me%SI%InfRate%Field(i, j) * 1000.0 * 3600.0
+                    !mm /hour
+                    Me%InfiltrationRate (i, j)    = Me%SI%InfRate%Field(i, j) * 1000.0 * 3600.0
                 
-                !mm /hour
-                Me%EVTPRate         (i, j)    = 0.0
+                    !mm /hour
+                    Me%EVTPRate         (i, j)    = 0.0
                 
-                !m - Accumulated Infiltration of the entite area
-                Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%SI%InfRate%Field(i, j) *     &
-                                                (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
+                    !m - Accumulated Infiltration of the entite area
+                    Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%SI%InfRate%Field(i, j) *     &
+                                                    (1.0- Me%SI%ImpFrac%Field(i, j)) * Me%CurrentDT
                 
-                !m
-                Me%AccEVTP          (i, j)    = 0.0
+                    !m
+                    Me%AccEVTP          (i, j)    = 0.0
+                endif
                 
             endif
             
@@ -5956,8 +5976,11 @@ cd2 :           if (BlockFound) then
                         qInTimeStep = (rain - Me%SCSCNRunOffModel%IAFactor * sInTimeStep)**2.0 / &
                                       (rain + (1.0-Me%SCSCNRunOffModel%IAFactor)*sInTimeStep)
                         
+                        !m/s = mm * 1E-3 m/mm / s
+                        Me%SCSCNRunOffModel%InfRate%Field(i,j) = ((rain - qInTimeStep) * 1E-3) / Me%CurrentDT
+                        
                         !mm/hour                   = mm / s  * s/hour
-                        Me%InfiltrationRate (i, j) = (rain - qInTimeStep) / Me%CurrentDT * 3600.0
+                        !Me%InfiltrationRate (i, j) = (rain - qInTimeStep) / Me%CurrentDT * 3600.0
                         
                         !mm /hour = (mm - (mm - []mm)**2 / (mm + []mm))/s * s/hour
 !                        Me%InfiltrationRate (i, j) = (rain -                                                                   &
@@ -5966,33 +5989,44 @@ cd2 :           if (BlockFound) then
                         
                     else
                         
+                        !m/s
+                        Me%SCSCNRunOffModel%InfRate%Field(i,j) = (rain * 1E-3) / Me%CurrentDT
+                        
                         !mm /hour
-                        Me%InfiltrationRate (i, j) = rain / Me%CurrentDT * 3600.0
+                        !Me%InfiltrationRate (i, j) = rain / Me%CurrentDT * 3600.0
                         
                     endif
                     
                     
                 else
+                    !m/s
+                    Me%SCSCNRunOffModel%InfRate%Field(i,j) = 0.0
                     
                     !mm /hour
-                    Me%InfiltrationRate (i, j) = 0.0
+                    !Me%InfiltrationRate (i, j) = 0.0
 
                 endif
-                     
-                !mm /hour
-                Me%EVTPRate         (i, j)    = 0.0
+                
+                !! do not update now if using porus media - it will be updated after porous media finished
+                !! from here we only want the infiltration flux
+                if (.not. Me%Coupled%PorousMedia) then                     
+                    !mm /hour
+                    Me%EVTPRate         (i, j)    = 0.0
 
-                !m
-                Me%AccEVTP          (i, j)    = 0.0                    
+                    !m
+                    Me%AccEVTP          (i, j)    = 0.0      
                 
-                !m - Accumulated Infiltration of the entite area
-                Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%InfiltrationRate(i, j) *     &
-                                                (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                    !Output mm/h = m/s * 1E3 mm/m * 3600 s/hour
+                    Me%InfiltrationRate (i, j)    =  Me%SCSCNRunOffModel%InfRate%Field(i,j) * 1E3 * 3600
                 
-                !m                            = m - mm/hour * s / s/hour / mm/m
-                Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%InfiltrationRate(i, j) * &
-                                                (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
-                    
+                    !m - Accumulated Infiltration of the entite area
+                    Me%AccInfiltration  (i, j)    = Me%AccInfiltration  (i, j) + Me%InfiltrationRate(i, j) *     &
+                                                    (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                
+                    !m                            = m - mm/hour * s / s/hour / mm/m
+                    Me%ExtUpdate%WaterLevel(i, j) = Me%ExtUpdate%WaterLevel (i, j) - Me%InfiltrationRate(i, j) * &
+                                                    (1.0 - Me%SCSCNRunOffModel%ImpFrac%Field(i, j)) * Me%CurrentDT / 3600 / 1000.0
+                endif
                 
             endif
             
@@ -6633,6 +6667,7 @@ cd2 :           if (BlockFound) then
         real(8), dimension(:, :), pointer           :: Infiltration 
         real(8), dimension(:, :), pointer           :: EfectiveEVTP
         real,    dimension(:,: ), pointer           :: PotentialEvaporation
+        real,    dimension(:,: ), pointer           :: ImposedInfiltration
         type (T_BasinProperty), pointer             :: RefEvapotrans
         !Begin-----------------------------------------------------------------
 
@@ -6640,6 +6675,15 @@ cd2 :           if (BlockFound) then
 
         !The column that infiltrates is already computed and now is water column (rain updated water column)
 
+        !use forced infiltration from simple infiltration (Green Ampt) or SCS CN?
+        if (Me%Coupled%SimpleInfiltration) then
+            ImposedInfiltration => Me%SI%InfRate%Field
+        else if (Me%Coupled%SCSCNRunoffModel) then
+            ImposedInfiltration => Me%SCSCNRunoffModel%InfRate%Field
+        else
+            ImposedInfiltration => null()
+        endif
+        
         if (Me%Coupled%Vegetation) then
 
             !if the user choosed to separate transpiration and evaporation,
@@ -6650,6 +6694,7 @@ cd2 :           if (BlockFound) then
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
                                         PotentialEvaporation = Me%PotentialEvaporation,            &
                                         ActualTranspiration  = Me%ExtVar%ActualTranspiration,      &
+                                        ImposedInfiltration  = ImposedInfiltration,                &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR01' 
             
@@ -6658,6 +6703,7 @@ cd2 :           if (BlockFound) then
                 call ModifyPorousMedia (ObjPorousMediaID     = Me%ObjPorousMedia,                  &
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
                                         ActualTranspiration  = Me%ExtVar%ActualTranspiration,      &
+                                        ImposedInfiltration  = ImposedInfiltration,                &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR02' 
 
@@ -6679,6 +6725,7 @@ cd2 :           if (BlockFound) then
 !                                        InfiltrationColumn   = Me%PotentialInfCol,                 &
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
                                         PotentialEvaporation = PotentialEvaporation,               &
+                                        ImposedInfiltration  = ImposedInfiltration,                &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR21' 
             
@@ -6687,6 +6734,7 @@ cd2 :           if (BlockFound) then
                 call ModifyPorousMedia (ObjPorousMediaID     = Me%ObjPorousMedia,                  &
 !                                        InfiltrationColumn   = Me%PotentialInfCol,                 &
                                         InfiltrationColumn   = Me%ExtUpdate%Watercolumn,           &
+                                        ImposedInfiltration  = ImposedInfiltration,                &
                                         STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PorousMediaProcesses - ModuleBasin - ERR022' 
             

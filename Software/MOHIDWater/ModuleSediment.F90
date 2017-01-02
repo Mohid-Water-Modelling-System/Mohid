@@ -4350,6 +4350,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         logical                                     :: ChangeBathym
 #if _USE_MPI
         class(T_Sand), pointer                      :: SandClass
+        integer                                     :: n
 #endif _USE_MPI    
         !----------------------------------------------------------------------
 

@@ -589,7 +589,11 @@ Module ModuleGlobalData
     integer, parameter :: ASLim_                           = 2103
     integer, parameter :: ALightLim_                       = 2104
     integer, parameter :: AOverallLim_                     = 2106
-                                                
+    
+    integer, parameter :: AGR_                             = 2051
+    integer, parameter :: AMR_                             = 2052
+    integer, parameter :: AER_                             = 2053
+    integer, parameter :: ARR_                             = 2054 
     
     
     !Epiphyte Growth Limitations                         
@@ -1346,6 +1350,11 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_ASLim               = 'ASLIM'
     character(StringLength), private, parameter :: Char_ALightLim           = 'ALIGHTLIM'
     character(StringLength), private, parameter :: Char_AOverallLim         = 'AOVERALLLIM'
+    
+    character(StringLength), private, parameter :: Char_AGR                 = 'AGR'
+    character(StringLength), private, parameter :: Char_AMR                 = 'AMR'
+    character(StringLength), private, parameter :: Char_AER                 = 'AER'
+    character(StringLength), private, parameter :: Char_ARR                 = 'ARR'    
 
     !Epiphyte Growth Limitations                         
     character(StringLength), private, parameter :: Char_ENLim               = 'ENLIM'
@@ -1726,6 +1735,9 @@ Module ModuleGlobalData
     !Transport Parameters
     integer, parameter :: velocityX = 1, velocityY = 2, velocityZ = 3, massProperty = 4
     integer, parameter :: NearestNeighbour = 1, centered = 2 !other interpolation methods here 
+    
+    !Extrapolation parameters
+    integer, parameter :: ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2, ExtrapolConstant_ = 3
 
     !Filter grid data 
     integer, parameter :: NoFilter = 0, ModifyLax = 1
@@ -2947,6 +2959,10 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (ASLim_,                   Char_ASLim,                      ListNumber)       
             call AddPropList (ALightLim_,               Char_ALightLim,                  ListNumber)   
             call AddPropList (AOverallLim_,             Char_AOverallLim,                ListNumber) 
+            call AddPropList (AGR_,                     Char_AGR,                        ListNumber)       
+            call AddPropList (AMR_,                     Char_AMR,                        ListNumber)       
+            call AddPropList (AER_,                     Char_AER,                        ListNumber)       
+            call AddPropList (ARR_,                     Char_ARR,                        ListNumber)               
             call AddPropList (ENLim_,                   Char_ENLim,                      ListNumber)               
             call AddPropList (EPLim_,                   Char_EPLim,                      ListNumber)   
             call AddPropList (ESLim_,                   Char_ESLim,                      ListNumber)      

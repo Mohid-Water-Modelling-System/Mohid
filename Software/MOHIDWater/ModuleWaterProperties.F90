@@ -1486,6 +1486,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Constructs if the user wants to assimilate altimetry ! guillaume nogueira
             call ConstructBooleanAltimAssim   
+                  
             
             !Construct the Sub-Modules
 #ifdef _ENABLE_CUDA
@@ -1497,7 +1498,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             FreeVerticalMovementID = Me%ObjFreeVerticalMovement
 
-            call CheckAditionalOutputs
+            !moved to inside Construct_Sub_Modules so that timeseries modules could output
+            !additional fields
+            !call CheckAditionalOutputs 
             
             !Message to user
             call ConstructLog
@@ -4154,7 +4157,10 @@ i1:     if (OutputOk) then
             PropertyX=>PropertyX%Next
         enddo
 
-
+        !light extinction
+        if (Me%OutPut%Radiation) then
+            nProperties = nProperties + 2
+        endif
 
         if (nProperties > 0) then
 
@@ -4182,7 +4188,13 @@ i1:     if (OutputOk) then
                 PropertyX=>PropertyX%Next
             enddo
 
-
+            if (Me%OutPut%Radiation) then            
+                nProperties = nProperties + 1
+                PropertyList(nProperties) = "ShortWave Solar Radiation Average [W/m2]"
+                nProperties = nProperties + 1
+                PropertyList(nProperties) = "ShortWave Solar Radiation Extinction [1/m]"           
+            endif 
+            
             call GetData(TimeSerieLocationFile,                                         &
                          Me%ObjEnterData,iflag,                                         &
                          SearchType   = FromFile,                                       &
@@ -4894,6 +4906,11 @@ do1 :   do while (associated(PropertyX))
             call ConstructHybridWeights
 
         endif
+        
+        
+        !check outputs that can be used by timeseries, profile, hdf, etc
+        call CheckAditionalOutputs        
+        
 
         if(Me%Coupled%TimeSerie%Yes)then
 
@@ -22565,6 +22582,13 @@ i2:     if (Me%OutPut%Radiation) then
             PropertyX=>PropertyX%Next
 
         enddo
+        
+        if (Me%OutPut%AditionalFields) then
+
+            call Ouput_Timeseries_AditionalResults()            
+        
+        endif
+        
 
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "OutPut_TimeSeries")
 
@@ -22573,6 +22597,42 @@ i2:     if (Me%OutPut%Radiation) then
 
     !--------------------------------------------------------------------------
 
+    subroutine Ouput_Timeseries_AditionalResults()    
+
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        real,   dimension(:,:,:), pointer       :: ShortWaveExtinctionField
+    
+    
+i2:     if (Me%OutPut%Radiation) then 
+            
+
+            call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_TimeSeries - ModuleWaterProperties - ERR80')
+
+            call WriteTimeSerie(Me%ObjTimeSerie,                                     &
+                                Data3D = Me%SolarRadiation%ShortWaveAverage, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                               &
+                call CloseAllAndStop ('OutPut_TimeSeries - ModuleWaterProperties - ERR90')
+
+ 
+            call WriteTimeSerie(Me%ObjTimeSerie,                                     &
+                                Data3D = ShortWaveExtinctionField, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                               &
+                call CloseAllAndStop ('OutPut_TimeSeries - ModuleWaterProperties - ERR100')
+
+            call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_TimeSeries - ModuleWaterProperties - ER110')
+
+        endif i2                         
+        
+    end subroutine Ouput_Timeseries_AditionalResults        
+    
+    !-------------------------------------------------------------------------
+        
+        
     subroutine OutPut_Profile
 
         !External--------------------------------------------------------------

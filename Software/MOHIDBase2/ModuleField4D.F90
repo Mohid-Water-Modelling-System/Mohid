@@ -41,8 +41,8 @@ Module ModuleField4D
     use ModuleFunctions,        only : InterpolateMatrix2DInTime,                       &
                                        InterpolateMatrix3DInTime,                       &
                                        SetMatrixValue, ConstructPropertyID,             &
-                                       FillMatrix2DNearestCell, LinearInterpolation,    &
-                                       FillMatrix3DNearestCell, InterpolateProfileR8,   &
+                                       FillMatrix2D, LinearInterpolation,               &
+                                       FillMatrix3D, InterpolateProfileR8,              &
                                        CheckAlternativeTidalCompNames
     use ModuleDrawing,          only : ArrayPolygonWindow           
     use ModuleHorizontalGrid,   only : GetHorizontalGridSize, ConstructHorizontalGrid,  &
@@ -268,6 +268,7 @@ Module ModuleField4D
         
         logical                                     :: ChangeInTime         = .false.
         logical                                     :: Extrapolate          = .false.
+        integer                                     :: ExtrapolateMethod    = null_int
        
         integer                                     :: ValuesType           = null_int
         real                                        :: Next4DValue          = null_real
@@ -328,6 +329,7 @@ Module ModuleField4D
         logical                                     :: BuildMap             = .false.
         
         logical                                     :: Extrapolate          = .false. 
+        integer                                     :: ExtrapolateMethod    = null_int        
 
         integer                                     :: MaskDim              = Dim3D
         real                                        :: LatReference         = null_real
@@ -363,7 +365,8 @@ Module ModuleField4D
                                 MaskDim, HorizontalGridID, BathymetryID,                &
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
-                                Extrapolate, PropertyID, ClientID, FileNameList, FieldName, STAT)
+                                Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
+                                FileNameList, FieldName, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                        intent(INOUT) :: Field4DID
@@ -382,6 +385,7 @@ Module ModuleField4D
         real,    dimension(1:2,1:2),          optional, intent(IN )   :: WindowLimitsXY
         type (T_Size2D)            ,          optional, intent(IN )   :: WindowLimitsJI
         logical,                              optional, intent(IN )   :: Extrapolate
+        integer,                              optional, intent(IN )   :: ExtrapolateMethod
         type (T_PropertyID),                  optional, intent(IN )   :: PropertyID
         integer,                              optional, intent(IN )   :: ClientID
         character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList             
@@ -467,6 +471,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 Me%Extrapolate = .true. 
             endif
+            
+            if (present(ExtrapolateMethod)) then
+                Me%ExtrapolateMethod = ExtrapolateMethod
+            else
+                Me%ExtrapolateMethod = ExtrapolAverage_
+            endif            
+            
+            
             
             if (present(HorizontalGridID)) then
                 Me%ObjHorizontalGrid        = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
@@ -1773,7 +1785,16 @@ wwd1:       if (Me%WindowWithData) then
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'
-        
+
+        !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
+        call GetData(PropField%ExtrapolateMethod,                                       &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'EXTRAPOLATE_METHOD',                               &
+                     default      = Me%ExtrapolateMethod,                               &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'        
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
@@ -4695,12 +4716,13 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         if (STAT_CALL/=SUCCESS_) stop 'Interpolate2DCloud - ModuleField4D - ERR10' 
         
         if (PropField%Extrapolate) then        
-            call FillMatrix2DNearestCell(Me%WorkSize2D%ILB,                             &
-                                         Me%WorkSize2D%IUB,                             &
-                                         Me%WorkSize2D%JLB,                             &
-                                         Me%WorkSize2D%JUB,                             &
-                                         Me%ExternalVar%Waterpoints2D,                  &
-                                         Me%Matrix2D)                    
+            call FillMatrix2D(Me%WorkSize2D%ILB,                             &
+                              Me%WorkSize2D%IUB,                             &
+                              Me%WorkSize2D%JLB,                             &
+                              Me%WorkSize2D%JUB,                             &
+                              Me%ExternalVar%Waterpoints2D,                  &
+                              Me%Matrix2D,                                   &
+                              FillGridMethod = PropField%ExtrapolateMethod)
         endif
         
 dnP:    do nP = 1,nPoints      
@@ -4879,12 +4901,13 @@ dnP:    do nP = 1,nPoints
         Me%Matrix2D(:,:) =  Me%ExternalVar%Bathymetry(:,:)         
 
         if (Me%Extrapolate) then        
-            call FillMatrix2DNearestCell(Me%WorkSize2D%ILB,                             &
-                                         Me%WorkSize2D%IUB,                             &
-                                         Me%WorkSize2D%JLB,                             &
-                                         Me%WorkSize2D%JUB,                             &
-                                         Me%ExternalVar%Waterpoints2D,                  &
-                                         Me%Matrix2D)                    
+            call FillMatrix2D(Me%WorkSize2D%ILB,                             &
+                              Me%WorkSize2D%IUB,                             &
+                              Me%WorkSize2D%JLB,                             &
+                              Me%WorkSize2D%JUB,                             &
+                              Me%ExternalVar%Waterpoints2D,                  &
+                              Me%Matrix2D,                                   &
+                              FillGridMethod = Me%ExtrapolateMethod)
         endif
         
 dnP:    do nP = 1,nPoints      
@@ -5006,14 +5029,15 @@ dnP:    do nP = 1,nPoints
         if (STAT_CALL/=SUCCESS_) stop 'Interpolate3DCloud - ModuleField4D - ERR10' 
 
         if (PropField%Extrapolate) then        
-            call FillMatrix3DNearestCell(Me%WorkSize3D%ILB,                             &
-                                         Me%WorkSize3D%IUB,                             &
-                                         Me%WorkSize3D%JLB,                             &
-                                         Me%WorkSize3D%JUB,                             &
-                                         Me%WorkSize3D%KLB,                             &
-                                         Me%WorkSize3D%KUB,                             &
-                                         Me%ExternalVar%Waterpoints3D,                  &
-                                         Me%Matrix3D)                    
+            call FillMatrix3D(Me%WorkSize3D%ILB,                             &
+                              Me%WorkSize3D%IUB,                             &
+                              Me%WorkSize3D%JLB,                             &
+                              Me%WorkSize3D%JUB,                             &
+                              Me%WorkSize3D%KLB,                             &
+                              Me%WorkSize3D%KUB,                             &
+                              Me%ExternalVar%Waterpoints3D,                  &
+                              Me%Matrix3D,                                   &
+                              FillGridMethod = PropField%ExtrapolateMethod)
         endif                                     
         call GetGeometryDistances(  GeometryID      = Me%ObjGeometry,                   &
                                             SZZ     = SZZ,                              &
@@ -5038,14 +5062,15 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
         if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR30'
 
         if (PropField%Extrapolate) then        
-            call FillMatrix3DNearestCell(Me%WorkSize3D%ILB,                             &
-                                         Me%WorkSize3D%IUB,                             &
-                                         Me%WorkSize3D%JLB,                             &
-                                         Me%WorkSize3D%JUB,                             &
-                                         Me%WorkSize3D%KLB,                             &
-                                         Me%WorkSize3D%KUB,                             &
-                                         Me%ExternalVar%Waterpoints3D,                  &
-                                         Me%Depth3D)                    
+            call FillMatrix3D(Me%WorkSize3D%ILB,                             &
+                              Me%WorkSize3D%IUB,                             &
+                              Me%WorkSize3D%JLB,                             &
+                              Me%WorkSize3D%JUB,                             &
+                              Me%WorkSize3D%KLB,                             &
+                              Me%WorkSize3D%KUB,                             &
+                              Me%ExternalVar%Waterpoints3D,                  &
+                              Me%Depth3D,                                    &
+                              FillGridMethod = PropField%ExtrapolateMethod)
         endif
         
         call Interpolater3D(Matrix3D            =  Me%Matrix3D,                         &
