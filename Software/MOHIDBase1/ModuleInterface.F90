@@ -32,8 +32,7 @@ Module ModuleInterface
 
     use ModuleGlobalData
     use ModuleTime
-    !griflet
-    use ModuleFunctions, only: CHUNK_I, SetMatrixValue
+    use ModuleFunctions, only: SetMatrixValue
     use ModuleStopWatch, only: StartWatch, StopWatch
     use ModuleWaterQuality
     use ModuleSedimentQuality
@@ -208,16 +207,13 @@ Module ModuleInterface
         type(T_Size1D)                          :: Prop
         type(T_External)                        :: ExternalVar
         
-        !griflet: Optimizing interface
-        !griflet: start
-        integer, pointer, dimension(:,:,:)      :: IJK2Index                => null()
-        integer, pointer, dimension(:,:  )      :: IJ2Index                 => null()
-        integer, pointer, dimension(:    )      :: I2Index                  => null()
+        integer, allocatable, dimension(:,:,:)  :: IJK2Index                
+        integer, allocatable, dimension(:,:  )  :: IJ2Index                 
+        integer, allocatable, dimension(:    )  :: I2Index                  
         
-        integer, pointer, dimension(:    )      :: Index2I                  => null()
-        integer, pointer, dimension(:    )      :: Index2J                  => null()
-        integer, pointer, dimension(:    )      :: Index2K                  => null()
-        !griflet: end
+        integer, allocatable, dimension(:    )  :: Index2I                  
+        integer, allocatable, dimension(:    )  :: Index2J                  
+        integer, allocatable, dimension(:    )  :: Index2K                  
         
         real,    pointer, dimension(:,:  )      :: Mass                     => null()
         real,    pointer, dimension(:,:  )      :: ConcentrationIncrement   => null()
@@ -2940,13 +2936,8 @@ cd14 :          if (Phosphorus) then
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_
         integer                                         :: nFirstProp, nSecondProp          
-!        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                         :: NLB, NUB
         integer                                         :: Index
-        integer                                         :: i, j, k
         real,    dimension(:), pointer                  :: RateFlux
-        !$ integer                                      :: CHUNK
-        real,               dimension(:),       pointer :: LocalRateFlux
 
         !----------------------------------------------------------------------
 
@@ -2954,13 +2945,6 @@ cd14 :          if (Phosphorus) then
 
         call Ready(InterfaceID, ready_)   
          
-!        ILB     = Me%Size3D%ILB     
-!        IUB     = Me%Size3D%IUB     
-!        JLB     = Me%Size3D%JLB    
-!        JUB     = Me%Size3D%JUB    
-!        KLB     = Me%Size3D%KLB   
-!        KUB     = Me%Size3D%KUB   
-
         nullify (RateFlux)
 
 cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
@@ -3037,39 +3021,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             endif
 
             
-!            !Number indexed to 3D cell in the vector 
-!            Index = 0 
-!
-!            do k = KLB, KUB
-!            do j = JLB, JUB
-!            do i = ILB, IUB
-!
-!                if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-!
-!                    Index = Index + 1
-!                    RateFlux3D(i, j, k) = RateFlux (Index)
-!
-!                end if
-!            end do
-!            end do
-!            end do
+
             
-            !griflet: start
-            NLB = Me%Array%ILB
-            NUB = Me%Array%IUB
-            !$ CHUNK = CHUNK_I(NLB, NUB)
-            !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalRateFlux)
-            LocalRateFlux => RateFlux
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do Index = NLB, NUB
-                i = Me%Index2I(Index)
-                j = Me%Index2J(Index)
-                k = Me%Index2K(Index)
-                RateFlux3D(i, j, k) = LocalRateFlux (Index)
+            !$OMP PARALLEL PRIVATE(Index)
+            !$OMP DO SCHEDULE(STATIC)
+            do Index = Me%Array%ILB, Me%Array%IUB
+                RateFlux3D(Me%Index2I(Index), Me%Index2J(Index), Me%Index2K(Index)) = RateFlux (Index)
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-            !griflet: stop
 
             select case (Me%SinksSourcesModel)
 
@@ -3145,13 +3105,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_
         integer                                         :: nFirstProp, nSecondProp          
-!        integer                                         :: ILB, IUB, JLB, JUB
-        integer                                         :: NLB, NUB
         integer                                         :: Index
-        integer                                         :: i, j, STAT_CALL
+        integer                                         :: STAT_CALL
         real,    dimension(:), pointer                  :: RateFlux
-        !$ integer                                      :: CHUNK
-        real,    dimension(:), pointer                  :: LocalRateFlux
 
         !----------------------------------------------------------------------
 
@@ -3161,13 +3117,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
 cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
-!            ILB     = Me%Size2D%ILB     
-!            IUB     = Me%Size2D%IUB     
-!            JLB     = Me%Size2D%JLB    
-!            JUB     = Me%Size2D%JUB    
 
             nullify (RateFlux  )
-           ! nullify (RateFlux2D)
+
             RateFlux2D=0.
 
             !Number indexed to each property 
@@ -3196,36 +3148,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                 
             end select
 
-!           !Number indexed to 2D cell in the vector 
-!           Index = 0 
-!
-!           do j = JLB, JUB
-!           do i = ILB, IUB
-!
-!                if (Me%ExternalVar%WaterPoints2D(i, j) == 1) then
-!
-!                    Index = Index + 1
-!                    RateFlux2D(i, j) = RateFlux (Index)
-!
-!                end if
-!            end do
-!            end do
 
-            !griflet: start
-            NLB = Me%Array%ILB
-            NUB = Me%Array%IUB
-            !$ CHUNK = CHUNK_I(NLB, NUB)
-            !$OMP PARALLEL PRIVATE(Index,i,j,LocalRateFlux)
-            LocalRateFlux => RateFlux
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do Index = NLB, NUB
-                i = Me%Index2I(Index)
-                j = Me%Index2J(Index)
-                RateFlux2D(i, j) = LocalRateFlux (Index)
+            !$OMP PARALLEL PRIVATE(Index)
+            !$OMP DO SCHEDULE(STATIC)
+            do Index = Me%Array%ILB, Me%Array%IUB
+                RateFlux2D(Me%Index2I(Index), Me%Index2J(Index)) = RateFlux (Index)
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-            !griflet: stop
 
             select case (Me%SinksSourcesModel)
 
@@ -3280,12 +3210,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_
         integer                                         :: nFirstProp, nSecondProp          
-        integer                                         :: NLB, NUB
         integer                                         :: Index
-        integer                                         :: i, STAT_CALL
+        integer                                         :: STAT_CALL
         real,    dimension(:), pointer                  :: RateFlux
-        !$ integer                                      :: CHUNK
-        real,    dimension(:), pointer                  :: LocalRateFlux
 
         !----------------------------------------------------------------------
 
@@ -3338,15 +3265,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             endif
 
-            NLB = Me%Array%ILB
-            NUB = Me%Array%IUB
-            !$ CHUNK = CHUNK_I(NLB, NUB)
-            !$OMP PARALLEL PRIVATE(Index,i,LocalRateFlux)
-            LocalRateFlux => RateFlux
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do Index = NLB, NUB
-                i = Me%Index2I(Index)
-                RateFlux1D(i) = LocalRateFlux (Index)
+            !$OMP PARALLEL PRIVATE(Index)
+            !$OMP DO SCHEDULE(STATIC)
+            do Index = Me%Array%ILB, Me%Array%IUB
+                RateFlux1D(Me%Index2I(Index)) = RateFlux (Index)
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
@@ -3468,17 +3390,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         integer                                         :: Index 
         integer                                         :: i, j, k
         integer                                         :: prop, JulDay
-        integer                                         :: NLB, NUB
-!        integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB     
         integer                                         :: PropLB, PropUB, ArrayLB, ArrayUB 
         real                                            :: DTProp_
         logical                                         :: Increment
         type(T_Size2D)                                  :: PropArraySize
-        !$ integer                                      :: CHUNK
-        integer                                         :: LocalnProperty
-        real,              dimension(:,:,:), pointer    :: LocalConcentration
-        real,              dimension(:,:), pointer      :: LocalConcInc        
-        real,              dimension(:,:), pointer      :: LocalMass
 #ifdef _PHREEQC_
         logical                                         :: is_starting
 #endif
@@ -3510,14 +3425,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-!            ILB     = Me%Size3D%ILB
-!            IUB     = Me%Size3D%IUB
-!            JLB     = Me%Size3D%JLB
-!            JUB     = Me%Size3D%JUB
-!            KLB     = Me%Size3D%KLB
-!            KUB     = Me%Size3D%KUB
-
-!            !$ CHUNK = CHUNK_J(JLB,JUB)
             
             PropLB  = Me%Prop%ILB
             PropUB  = Me%Prop%IUB
@@ -3883,26 +3790,11 @@ cd4 :           if (ReadyToCompute) then
 
                     if (is_starting) then
 
-                        !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
-                    
-                        !if (Me%PropOut%IUB > 0) then
-                        !    LocalMass => Me%OutputMass
-                        !    LocalConcInc => Me%OutputConcentrationIncrement
-                        !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                        !    do prop  = Me%PropOut%ILB,  Me%PropOut%IUB
-                        !    do index = ArrayLB, ArrayUB
-                        !        LocalConcInc(prop, index) = LocalMass(prop, index)
-                        !    end do
-                        !    end do
-                        !    !$OMP END DO
-                        !endif
-                        
-                        LocalMass => Me%Mass
-                        LocalConcInc => Me%ConcentrationIncrement
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        !$OMP PARALLEL PRIVATE(prop,index)
+                        !$OMP DO SCHEDULE(STATIC)
                         do prop  = PropLB,  PropUB
                         do index = ArrayLB, ArrayUB
-                            LocalConcInc(prop, index) = LocalMass(prop, index)
+                            Me%ConcentrationIncrement(prop, index) = Me%Mass(prop, index)
                         end do
                         end do
                         !$OMP END DO
@@ -3910,29 +3802,12 @@ cd4 :           if (ReadyToCompute) then
                         !$OMP END PARALLEL
                     else
 
-                        !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
-    
-                        !if (Me%PropOut%IUB > 0) then
-                        !    LocalMass => Me%OutputMass
-                        !    LocalConcInc => Me%OutputConcentrationIncrement
-                        !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                        !    do prop  = Me%PropOut%ILB,  Me%PropOut%IUB
-                        !    do index = ArrayLB, ArrayUB
-                        !        !LocalConcInc(prop, index) = LocalMass(prop, index) - &
-                        !        !                            LocalConcInc(prop, index)
-                        !        LocalConcInc(prop, index) = LocalMass(prop, index)                              
-                        !    end do
-                        !    end do
-                        !    !$OMP END DO                                               
-                        !endif
-                        
-                        LocalMass => Me%Mass
-                        LocalConcInc => Me%ConcentrationIncrement                        
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        !$OMP PARALLEL PRIVATE(prop,index)
+                        !$OMP DO SCHEDULE(STATIC)
                         do prop  = PropLB,  PropUB
                         do index = ArrayLB, ArrayUB
-                            LocalConcInc(prop, index) = LocalMass(prop, index) - &
-                                                        LocalConcInc(prop, index)
+                            Me%ConcentrationIncrement(prop, index) = Me%Mass(prop, index) - &
+                                                                     Me%ConcentrationIncrement(prop, index)
                         end do
                         end do
                         !$OMP END DO
@@ -3943,16 +3818,11 @@ cd4 :           if (ReadyToCompute) then
 
 #else
                         
-                    !griflet
-                    !$ CHUNK = CHUNK_I(PropLB, PropUB)
-                    !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
-                    LocalMass => Me%Mass
-                    LocalConcInc => Me%ConcentrationIncrement
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    !$OMP PARALLEL PRIVATE(prop,index)
+                    !$OMP DO SCHEDULE(STATIC)
 do7 :               do prop  = PropLB,  PropUB
 do6 :               do index = ArrayLB, ArrayUB
-                        LocalConcInc(prop, index) = LocalMass(prop, index) - &
-                                                                 LocalConcInc(prop, index)
+                        Me%ConcentrationIncrement(prop, index) = Me%Mass(prop, index) - Me%ConcentrationIncrement(prop, index)
                     end do do6
                     end do do7
                     !$OMP END DO NOWAIT
@@ -3974,57 +3844,22 @@ do6 :               do index = ArrayLB, ArrayUB
                 NLB = Me%Array%ILB
                 NUB = Me%Array%IUB
                 
-                !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcInc,LocalConcentration)
-                
-                !if (is_output) then
-                !
-                !    LocalnProperty = nProperty
-                !    LocalConcInc => Me%OutputConcentrationIncrement
-                !    LocalConcentration => Concentration
-                !
-                !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                !    do Index = NLB, NUB
-                !    
-                !        i = Me%Index2I(Index)
-                !        j = Me%Index2J(Index)
-                !        k = Me%Index2K(Index)
-                !    
-                !        !if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-                !    
-                !            LocalConcentration(i, j, k) = LocalConcInc(LocalnProperty, Index)
-                !                        
-                !            if(abs(LocalConcentration(i, j, k)) .le. AlmostZero)then
-                !                LocalConcentration(i,j,k) = 0.0
-                !            end if
-                !
-                !        !end if
-                !    
-                !    enddo
-                !    !$OMP END DO
-                !
-                !else
+                !$OMP PARALLEL PRIVATE(Index,i,j,k)
+                !$OMP DO SCHEDULE(STATIC)
+                do Index = NLB, NUB
                     
-                    LocalnProperty = nProperty
-                    LocalConcInc => Me%ConcentrationIncrement
-                    LocalConcentration => Concentration
-                
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                    do Index = NLB, NUB
+                    i = Me%Index2I(Index)
+                    j = Me%Index2J(Index)
+                    k = Me%Index2K(Index)
                     
-                        i = Me%Index2I(Index)
-                        j = Me%Index2J(Index)
-                        k = Me%Index2K(Index)
-                    
-                        LocalConcentration(i, j, k) = LocalConcInc(LocalnProperty, Index)
+                    Concentration(i, j, k) = Me%ConcentrationIncrement(nProperty, Index)
                                         
-                        if(abs(LocalConcentration(i, j, k)) .le. AlmostZero)then
-                            LocalConcentration(i,j,k) = 0.0
-                        end if
+                    if(abs(Concentration(i, j, k)) .le. AlmostZero)then
+                        Concentration(i,j,k) = 0.0
+                    end if
                     
-                    enddo
-                    !$OMP END DO NOWAIT
-                    
-                !endif
+                enddo
+                !$OMP END DO NOWAIT
                 !$OMP END PARALLEL   
     
 #endif
@@ -4043,62 +3878,43 @@ do6 :               do index = ArrayLB, ArrayUB
                 
                     case (BivalveModel)
                     
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$ CHUNK = CHUNK_I(NLB, NUB)
-                        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcInc,LocalConcentration)
-                        LocalnProperty = nProperty
-                        LocalConcInc => Me%ConcentrationIncrement
-                        LocalConcentration => Concentration
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-
-                        do Index = NLB, NUB
+                        !$OMP PARALLEL PRIVATE(Index, i, j, k)
+                        !$OMP DO SCHEDULE(STATIC)
+                        do Index = Me%Array%ILB, Me%Array%IUB
                             i = Me%Index2I(Index)
                             j = Me%Index2J(Index)
                             k = Me%Index2K(Index)
-
-                                LocalConcentration(i, j, k) = LocalConcentration( i, j, k)      + &
-                                                        LocalConcInc(LocalnProperty, Index) * DTProp / DT 
+                                Concentration(i, j, k) = Concentration( i, j, k)      + &
+                                                        Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
                                                         
-                                if(abs(LocalConcentration(i, j, k)) .le. AlmostZero)then
-                                    LocalConcentration(i,j,k) = 0.0
+                                if(abs(Concentration(i, j, k)) .le. AlmostZero)then
+                                    Concentration(i,j,k) = 0.0
                                 end if                       
 
                         enddo
                         !$OMP END DO NOWAIT
                         !$OMP END PARALLEL
-                        !griflet: stop
                     
                     case default
-                    
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$ CHUNK = CHUNK_I(NLB, NUB)
-                        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcInc,LocalConcentration)
-                        LocalnProperty = nProperty
-                        LocalConcInc => Me%ConcentrationIncrement
-                        LocalConcentration => Concentration
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 
-                        do Index = NLB, NUB
+                        !$OMP PARALLEL PRIVATE(Index,i,j,k)
+                        !$OMP DO SCHEDULE(STATIC)
+                        do Index = Me%Array%ILB, Me%Array%IUB
                             i = Me%Index2I(Index)
                             j = Me%Index2J(Index)
                             k = Me%Index2K(Index)
                             if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
-                                LocalConcentration(i, j, k) = LocalConcentration( i, j, k)      + &
-                                        LocalConcInc(LocalnProperty, Index) * DTProp / DT 
+                                Concentration(i, j, k) = Concentration( i, j, k)      + &
+                                         Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
                                         
-                                if(abs(LocalConcentration(i, j, k)) .le. AlmostZero)then
-                                    LocalConcentration(i,j,k) = 0.0
+                                if(abs(Concentration(i, j, k)) .le. AlmostZero)then
+                                    Concentration(i,j,k) = 0.0
                                 end if
 
                             end if
                         enddo
                         !$OMP END DO NOWAIT
                         !$OMP END PARALLEL
-                        !griflet: stop
 
                 end select
                        
@@ -4164,12 +3980,6 @@ do6 :               do index = ArrayLB, ArrayUB
         integer                                         :: PropLB, PropUB, ArrayLB, ArrayUB 
         real                                            :: DTProp_, DT
         logical                                         :: Increment
-        
-        !$ integer                                      :: CHUNK
-        integer                                         :: LocalnProperty
-        real,              dimension(:,:), pointer      :: LocalConcentration
-        real,              dimension(:,:), pointer      :: LocalConcInc        
-        real,              dimension(:,:), pointer      :: LocalMass
 
         !----------------------------------------------------------------------
 
@@ -4272,7 +4082,6 @@ cd5 :       if (.not. Increment) then
 
 cd4 :           if (ReadyToCompute) then
 
-                    !$ CHUNK = CHUNK_I(PropLB, PropUB)
 
                     call UnfoldMatrix(Me%ExternalVar%OpenPoints2D, Me%OpenPoints)
 
@@ -4358,7 +4167,7 @@ cd4 :           if (ReadyToCompute) then
 
 
                             !$OMP PARALLEL PRIVATE(prop, index)
-                            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                            !$OMP DO SCHEDULE(STATIC)
                             do prop  = PropLB,  PropUB
                             do index = ArrayLB, ArrayUB
                                 Me%WaterMassInKgIncrement(prop, index) = Me%MassInKgFromWater(prop, index) - &
@@ -4370,14 +4179,12 @@ cd4 :           if (ReadyToCompute) then
 
                     end select
 
-                    !$OMP PARALLEL PRIVATE(prop,index,LocalMass,LocalConcInc)
-                    LocalMass => Me%Mass
-                    LocalConcInc => Me%ConcentrationIncrement
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    !$OMP PARALLEL PRIVATE(prop,index)
+                    !$OMP DO SCHEDULE(STATIC)
 do7 :               do prop  = PropLB,  PropUB
 do6 :               do index = ArrayLB, ArrayUB
-                        LocalConcInc(prop, index) = LocalMass(prop, index) - &
-                                                                 LocalConcInc(prop, index)
+                        Me%ConcentrationIncrement(prop, index) = Me%Mass(prop, index) - &
+                                                                 Me%ConcentrationIncrement(prop, index)
                     end do do6
                     end do do7
                     !$OMP END DO NOWAIT
@@ -4396,25 +4203,7 @@ do6 :               do index = ArrayLB, ArrayUB
 
                 DT = InterfaceDT()
 
-!                !griflet
-!                !$OMP PARALLEL PRIVATE(j,i,Index)            
-!                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-!                do j = JLB, JUB
-!                do i = ILB, IUB
-!                    if (Me%ExternalVar%WaterPoints2D(i, j) == 1) then
-!                        Index = Index + 1
-!                        
-!                        if (Me%ExternalVar%OpenPoints2D(i, j) == 1) then
-!                            Concentration(i, j) = Concentration(i, j)      + &
-!                            Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                        end if
-!
-!                    end if
-!                end do
-!                end do
-!                !$OMP END DO NOWAIT
-!                !$OMP END PARALLEL
-                
+               
                if(Me%SinksSourcesModel==BenthicEcologyModel)then
                  
                         NLB = Me%Array%ILB
@@ -4432,26 +4221,18 @@ do6 :               do index = ArrayLB, ArrayUB
              
              
              
-                !griflet: start
-                NLB = Me%Array%ILB
-                NUB = Me%Array%IUB
-                !$ CHUNK = CHUNK_I(NLB, NUB)
-                !$OMP PARALLEL PRIVATE(Index,i,j,LocalnProperty,LocalConcInc,LocalConcentration)
-                LocalnProperty = nProperty
-                LocalConcInc => Me%ConcentrationIncrement
-                LocalConcentration => Concentration
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do Index = NLB, NUB
+                !$OMP PARALLEL PRIVATE(Index,i,j)
+                !$OMP DO SCHEDULE(STATIC)
+                do Index = Me%Array%ILB, Me%Array%IUB
                     i = Me%Index2I(Index)
                     j = Me%Index2J(Index)
                     if (Me%ExternalVar%OpenPoints2D(i, j) == 1) then
-                        LocalConcentration(i, j) = LocalConcentration( i, j)      + &
-                                LocalConcInc(LocalnProperty, Index) * DTProp / DT 
+                        Concentration(i, j) = Concentration( i, j)      + &
+                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
                     end if
                 enddo
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
-                !griflet: stop
                         
             end if cd5
 
@@ -4515,15 +4296,9 @@ do6 :               do index = ArrayLB, ArrayUB
         integer                                         :: Index 
         integer                                         :: i
         integer                                         :: prop, JulDay
-        !integer                                         :: ILB, IUB
-        integer                                         :: NLB, NUB
         integer                                         :: PropLB, PropUB, ArrayLB, ArrayUB 
         real                                            :: DTProp_
         logical                                         :: Increment
-        !$ integer                                      :: CHUNK
-        integer                                         :: LocalnProperty
-        real,              dimension(:), pointer        :: LocalConcentration
-        real,              dimension(:,:), pointer      :: LocalConcInc
 
         !----------------------------------------------------------------------
 
@@ -4770,38 +4545,19 @@ do6 :               do index = ArrayLB, ArrayUB
 
                 DT = InterfaceDT()
 
-!do3 :          do i = ILB, IUB
-!cd2 :              if (Me%ExternalVar%RiverPoints1D(i) == 1) then
-!                                Index = Index + 1
-!                                !Concentrations are only actualized in OpenPoints because of instability
-!                                !in waterpoints that are not openpoints
-!                                if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-!                                    Concentration(i) = Concentration( i)      + &
-!                                    Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
-!                                end if
-!                   end if cd2
-!               end do do3
-                        !griflet: start
-                        NLB = Me%Array%ILB
-                        NUB = Me%Array%IUB
-                        !$ CHUNK = CHUNK_I(NLB,NUB)
-                        !$OMP PARALLEL PRIVATE(Index,i,LocalConcentration,LocalConcInc,LocalnProperty)
-                        LocalConcentration => Concentration
-                        LocalConcInc => Me%ConcentrationIncrement
-                        LocalnProperty = nProperty
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                        do Index = NLB, NUB
-                            i = Me%Index2I(Index)
-                            !Concentrations are only actualized in OpenPoints because of instability
-                            !in waterpoints that are not openpoints
-                            if (Me%ExternalVar%OpenPoints1D(i) == 1) then
-                                LocalConcentration(i) = LocalConcentration( i)      + &
-                                LocalConcInc(LocalnProperty, Index) * DTProp / DT 
-                            end if
-                        enddo
-                        !$OMP END DO NOWAIT
-                        !$OMP END PARALLEL
-                        !griflet: stop
+                !$OMP PARALLEL PRIVATE(Index,i)
+                !$OMP DO SCHEDULE(STATIC)
+                do Index = Me%Array%ILB, Me%Array%IUB
+                    i = Me%Index2I(Index)
+                    !Concentrations are only actualized in OpenPoints because of instability
+                    !in waterpoints that are not openpoints
+                    if (Me%ExternalVar%OpenPoints1D(i) == 1) then
+                        Concentration(i) = Concentration( i)      + &
+                                                Me%ConcentrationIncrement(nProperty, Index) * DTProp / DT 
+                    end if
+                enddo
+                !$OMP END DO NOWAIT
+                !$OMP END PARALLEL
 
             end if cd5
 
@@ -7165,28 +6921,13 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
-        integer                                 :: i, j, k
-        real, dimension(:,:,:), pointer         :: LocalConcentration
-        integer                                 :: LocalnProperty 
-        !$ integer                              :: CHUNK
-        integer                                 :: NLB, NUB
 
         !----------------------------------------------------------------------
-        !print *, ubound(Me%Mass, 1)
-        !print *, ubound(Me%Mass, 2)
-        !print *, nProperty
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB, NUB)
-        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalnProperty,LocalConcentration)
-        LocalnProperty = nProperty
-        LocalConcentration => Concentration
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            j = Me%Index2J(Index)
-            k = Me%Index2K(Index)
-            Me%Mass(LocalnProperty,Index) = LocalConcentration(i,j,k)
+        
+        !$OMP PARALLEL PRIVATE(Index)
+        !$OMP DO SCHEDULE(STATIC)
+        do Index = Me%Array%ILB, Me%Array%IUB
+            Me%Mass(nProperty,Index) = Concentration(Me%Index2I(Index),Me%Index2J(Index),Me%Index2K(Index))
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -7205,53 +6946,16 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
-        integer                                 :: LocalnProperty
-        real, dimension(:,:), pointer           :: LocalConcentration
-        integer                                 :: i, j
-        !integer                                 :: ILB, IUB      
-        !integer                                 :: JLB, JUB  
-        integer                                 :: NLB, NUB   
-        !$ integer                              :: CHUNK
 
         !----------------------------------------------------------------------
 
-        !ILB = Me%Size2D%ILB     
-        !IUB = Me%Size2D%IUB     
-
-        !JLB = Me%Size2D%JLB    
-        !JUB = Me%Size2D%JUB    
-        
-        !!Number indexed to 3D cell in the vector 
-        !Index = 0
-
-        !do j = JLB, JUB
-        !do i = ILB, IUB
-        !    if (Me%ExternalVar%WaterPoints2D(i,j)==1) then
-        !        Index = Index + 1
-        !        Me%Mass(nProperty,Index) = Concentration(i,j)
-        !    endif
-        !enddo
-        !enddo
-
-        !if ((Index)> Me%Array%IUB) stop 'InputData2D - ModuleInterface - ERR01'
-
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB, NUB)
-        !$OMP PARALLEL PRIVATE(Index,i,j,LocalnProperty,LocalConcentration)
-        LocalnProperty = nProperty
-        LocalConcentration => Concentration
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            j = Me%Index2J(Index)
-            Me%Mass(LocalnProperty,Index) = LocalConcentration(i,j)
+        !$OMP PARALLEL PRIVATE(Index)
+        !$OMP DO SCHEDULE(STATIC)
+        do Index = Me%Array%ILB, Me%Array%IUB
+            Me%Mass(nProperty,Index) = Concentration(Me%Index2I(Index),Me%Index2J(Index))
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        !griflet: stop
 
     !----------------------------------------------------------------------
 
@@ -7267,44 +6971,16 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
-        integer                                 :: i        
-        !integer                                 :: ILB, IUB   
-        
-        integer                                 :: NLB, NUB      
-        !$ integer                              :: CHUNK
-        real, dimension(:), pointer             :: LocalConcentration        
+
         !----------------------------------------------------------------------
 
-        !ILB = Me%Size1D%ILB     
-        !IUB = Me%Size1D%IUB
-        
-        !!Number indexed to 1D cell in the vector 
-        !Index = 0
-
-        !do i = ILB, IUB
-        !    if (Me%ExternalVar%RiverPoints1D(i) == WaterPoint) then
-        !        Index = Index + 1
-        !        Me%Mass(nProperty,Index) = Concentration(i)
-        !    endif
-        !enddo
-
-        !if ((Index)> Me%Array%IUB) stop 'InputData1D - ModuleInterface - ERR01'
-
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB,NUB)
-        !$OMP PARALLEL PRIVATE(Index,i,LocalConcentration)
-        LocalConcentration => Concentration
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            Me%Mass(nProperty,Index) = LocalConcentration(i)
+        !$OMP PARALLEL PRIVATE(Index)
+        !$OMP DO SCHEDULE(STATIC)
+        do Index = Me%Array%ILB, Me%Array%IUB
+            Me%Mass(nProperty,Index) = Concentration(Me%Index2I(Index))
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        !griflet: stop
 
         !----------------------------------------------------------------------
 
@@ -7319,16 +6995,12 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
-        integer                             :: NLB, NUB
-        !$ integer                          :: CHUNK
+
         !----------------------------------------------------------------------
 
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB, NUB)
         !$OMP PARALLEL PRIVATE(Index)
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do Index = NLB, NUB
+        !$OMP DO SCHEDULE(STATIC)
+        do Index = Me%Array%ILB, Me%Array%IUB
             Points(Index)%I = Me%Index2I(Index)
             Points(Index)%J = Me%Index2J(Index)
             Points(Index)%K = Me%Index2K(Index)
@@ -7345,81 +7017,36 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     subroutine UnfoldMatrix3D_R (Matrix3D, Vector, factor)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:,:,:), pointer     :: Matrix3D
-        real(4), dimension(:    ), pointer     :: Vector
-        real(4), optional                      :: Factor
+        real(4), dimension(:,:,:), pointer      :: Matrix3D
+        real(4), dimension(:    ), pointer      :: Vector
+        real(4), optional                       :: Factor
 
         !Local-----------------------------------------------------------------
-        integer                             :: Index
-        integer                             :: i, j, k
-        integer                             :: NLB, NUB
-        !$ integer                          :: CHUNK
-        real(4), dimension(:,:,:), pointer     :: LocalMatrix3D
-        real(4)                             :: factor_
-!        integer                             :: ILB, IUB      
-!        integer                             :: JLB, JUB     
-!        integer                             :: KLB, KUB    
-!
-!        !----------------------------------------------------------------------
-!
-!        ILB = Me%Size3D%ILB     
-!        IUB = Me%Size3D%IUB     
-!
-!        JLB = Me%Size3D%JLB    
-!        JUB = Me%Size3D%JUB    
-!
-!        KLB = Me%Size3D%KLB   
-!        KUB = Me%Size3D%KUB   
-!        
-!        !Number indexed to 3D cell in the vector 
-!        Index = 0
-!
-!        do k = KLB, KUB
-!        do j = JLB, JUB
-!        do i = ILB, IUB
-!            if (Me%ExternalVar%WaterPoints3D(i,j,k)==1) then
-!                Index         = Index + 1
-!                Vector(Index) = Matrix3D(i,j,k)
-!            endif    
-!        enddo
-!        enddo
-!        enddo
-!
-!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix3D_R - ModuleInterface - ERR01'
-        
-        if (present(factor)) then
-            factor_ = factor
-        else
-            factor_ = 1.0
-        endif
-        
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB, NUB)
-        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalMatrix3D)
-        LocalMatrix3D => Matrix3D
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            j = Me%Index2J(Index)
-            k = Me%Index2K(Index)
-            Vector(Index) = LocalMatrix3D(i,j,k) * factor_
-        enddo
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
-        !griflet: stop
-            
-        !----------------------------------------------------------------------
+        integer                                 :: Index
 
+        
+        !$OMP PARALLEL PRIVATE(Index)
+        if (present(factor)) then
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix3D(Me%Index2I(Index),Me%Index2J(Index),Me%Index2K(Index)) * factor
+            enddo
+            !$OMP END DO NOWAIT
+        else
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix3D(Me%Index2I(Index),Me%Index2J(Index),Me%Index2K(Index))
+            enddo
+            !$OMP END DO NOWAIT
+        endif
+        !$OMP END PARALLEL
+
+        
     end subroutine UnfoldMatrix3D_R
 
     !--------------------------------------------------------------------------
-    
-        !--------------------------------------------------------------------------
 
-    subroutine UnfoldMatrix3D_R8 (Matrix3D, Vector, factor)
+    subroutine UnfoldMatrix3D_R8 (Matrix3D, Vector, Factor)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:,:), pointer  :: Matrix3D
@@ -7428,66 +7055,25 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
-        integer                             :: i, j, k
-        integer                             :: NLB, NUB
-        !$ integer                          :: CHUNK
-        real(8), dimension(:,:,:), pointer  :: LocalMatrix3D
-        real(4)                             :: factor_
-!        integer                             :: ILB, IUB      
-!        integer                             :: JLB, JUB     
-!        integer                             :: KLB, KUB    
-!
-!        !----------------------------------------------------------------------
-!
-!        ILB = Me%Size3D%ILB     
-!        IUB = Me%Size3D%IUB     
-!
-!        JLB = Me%Size3D%JLB    
-!        JUB = Me%Size3D%JUB    
-!
-!        KLB = Me%Size3D%KLB   
-!        KUB = Me%Size3D%KUB   
-!        
-!        !Number indexed to 3D cell in the vector 
-!        Index = 0
-!
-!        do k = KLB, KUB
-!        do j = JLB, JUB
-!        do i = ILB, IUB
-!            if (Me%ExternalVar%WaterPoints3D(i,j,k)==1) then
-!                Index         = Index + 1
-!                Vector(Index) = Matrix3D(i,j,k)
-!            endif    
-!        enddo
-!        enddo
-!        enddo
-!
-!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix3D_R - ModuleInterface - ERR01'
-        
+
+        !----------------------------------------------------------------------
+
+        !$OMP PARALLEL PRIVATE(Index)
         if (present(factor)) then
-            factor_ = factor
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix3D(Me%Index2I(Index),Me%Index2J(Index),Me%Index2K(Index)) * factor
+            enddo
+            !$OMP END DO NOWAIT
         else
-            factor_ = 1.0
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix3D(Me%Index2I(Index),Me%Index2J(Index),Me%Index2K(Index))
+            enddo
+            !$OMP END DO NOWAIT
         endif
-        
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB, NUB)
-        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalMatrix3D)
-        LocalMatrix3D => Matrix3D
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            j = Me%Index2J(Index)
-            k = Me%Index2K(Index)
-            Vector(Index) = LocalMatrix3D(i,j,k) * factor_
-        enddo
-        !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        !griflet: stop
-            
+        
         !----------------------------------------------------------------------
 
     end subroutine UnfoldMatrix3D_R8
@@ -7503,74 +7089,25 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
-        integer                                 :: i, j, k
-        integer                                 :: NLB, NUB
-        !$ integer                              :: CHUNK
-        integer, dimension(:,:,:), pointer      :: LocalMatrix3D
-        integer                                 :: factor_
-        
-!        integer                                 :: ILB, IUB      
-!        integer                                 :: JLB, JUB     
-!        integer                                 :: KLB, KUB
-!        logical                                 :: Vertical1D_Aux
-!
-!        !----------------------------------------------------------------------
-!
-!        ILB = Me%Size3D%ILB     
-!        IUB = Me%Size3D%IUB     
-!
-!        JLB = Me%Size3D%JLB    
-!        JUB = Me%Size3D%JUB    
-!
-!        KLB = Me%Size3D%KLB   
-!        KUB = Me%Size3D%KUB   
-!
-!        if (present(Vertical1D)) then
-!            Vertical1D_Aux = Vertical1D
-!        else
-!            Vertical1D_Aux = .false.
-!        endif
-!        
-!        !Number indexed to 3D cell in the vector 
-!        Index = 0
-!
-!        do k = KLB, KUB
-!        do j = JLB, JUB
-!        do i = ILB, IUB
-!            if (Me%ExternalVar%WaterPoints3D(i,j,k)==1) then
-!                Index         = Index + 1
-!                Vector(Index) = Matrix3D(i,j,k)
-!                if (Vertical1D_Aux .and. .not.(i==2 .and. j==2)) Vector(Index) = 0
-!            endif    
-!        enddo
-!        enddo
-!        enddo
-!
-!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix3D_I - ModuleInterface - ERR01'
-            
-        if (present(factor)) then
-            factor_ = factor
-        else
-            factor_ = 1.0
-        endif
+        !----------------------------------------------------------------------
 
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB, NUB)
-        !$OMP PARALLEL PRIVATE(Index,i,j,k,LocalMatrix3D)
-        LocalMatrix3D => Matrix3D
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            j = Me%Index2J(Index)
-            k = Me%Index2K(Index)
-            Vector(Index) = LocalMatrix3D(i,j,k) * factor_
-        enddo
-        !$OMP END DO NOWAIT
+        !$OMP PARALLEL PRIVATE(Index)
+        if (present(factor)) then
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix3D(Me%Index2I(Index),Me%Index2J(Index),Me%Index2K(Index)) * factor
+            enddo
+            !$OMP END DO NOWAIT
+        else
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix3D(Me%Index2I(Index),Me%Index2J(Index),Me%Index2K(Index))
+            enddo
+            !$OMP END DO NOWAIT
+        endif
         !$OMP END PARALLEL
-        !griflet: stop
+        
+        !----------------------------------------------------------------------
         
     end subroutine UnfoldMatrix3D_I
 
@@ -7579,152 +7116,58 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
     subroutine UnfoldMatrix2D_R (Matrix2D, Vector, factor)
 
         !Arguments-------------------------------------------------------------
-        real(4), dimension(:,:), pointer       :: Matrix2D
-        real(4), dimension(:  ), pointer       :: Vector
+        real(4), dimension(:,:), pointer        :: Matrix2D
+        real(4), dimension(:  ), pointer        :: Vector
         real(4), optional                       :: factor
 
         !Local-----------------------------------------------------------------
-        integer                             :: Index
-        integer                             :: i, j
-        integer                             :: NLB, NUB
-        !$ integer                          :: CHUNK
-        real(4), dimension(:,:), pointer       :: LocalMatrix2D
-        real(4)                             :: factor_
-!        integer                             :: ILB, IUB      
-!        integer                             :: JLB, JUB     
-!          
-!           
-!        !----------------------------------------------------------------------
-!
-!        ILB = Me%Size2D%ILB     
-!        IUB = Me%Size2D%IUB     
-!
-!        JLB = Me%Size2D%JLB    
-!        JUB = Me%Size2D%JUB    
-!
-!          
-!        
-!        !Number indexed to 3D cell in the vector 
-!        Index = 0
-!
-!        do j = JLB, JUB
-!        do i = ILB, IUB
-!            if (Me%ExternalVar%WaterPoints2D(i,j)==1) then
-!
-!                    Index         = Index + 1
-!                    
-!             if (Me%ExternalVar%OpenPoints2D(i,j)==1) then
-!                
-!                Vector(Index) = Matrix2D(i,j)
-!             
-!             endif
-!                    
-!                    
-!            endif    
-!        enddo
-!        enddo
-!
-!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix2D_R - ModuleInterface - ERR01'
-            
+        integer                                 :: Index
+
+        !$OMP PARALLEL PRIVATE(Index)
         if (present(factor)) then
-            factor_ = factor
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix2D(Me%Index2I(Index),Me%Index2J(Index)) * factor
+            enddo
+            !$OMP END DO NOWAIT
         else
-            factor_ = 1.0
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix2D(Me%Index2I(Index),Me%Index2J(Index))
+            enddo
+            !$OMP END DO NOWAIT
         endif
-
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB, NUB)
-        !$OMP PARALLEL PRIVATE(Index,i,j,LocalMatrix2D)
-        LocalMatrix2D => Matrix2D
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            j = Me%Index2J(Index)
-            Vector(Index) = LocalMatrix2D(i,j) * factor_
-        enddo
-        !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        !griflet: stop
 
-        
     end subroutine UnfoldMatrix2D_R
    !----------------------------------------------------------------------
 
     subroutine UnfoldMatrix2D_R8 (Matrix2D, Vector, factor)
 
         !Arguments-------------------------------------------------------------
-        real(8), dimension(:,:), pointer    :: Matrix2D
-        real(8), dimension(:  ), pointer    :: Vector
-        real(8), optional                   :: factor
+        real(8), dimension(:,:), pointer        :: Matrix2D
+        real(8), dimension(:  ), pointer        :: Vector
+        real(8), optional                       :: factor
 
         !Local-----------------------------------------------------------------
-        integer                             :: Index
-        integer                             :: i, j
-        integer                             :: NLB, NUB
-        !$ integer                          :: CHUNK
-        real(8), dimension(:,:), pointer    :: LocalMatrix2D
-        real(8)                             :: factor_
-!        integer                             :: ILB, IUB      
-!        integer                             :: JLB, JUB     
-!          
-!           
-!        !----------------------------------------------------------------------
-!
-!        ILB = Me%Size2D%ILB     
-!        IUB = Me%Size2D%IUB     
-!
-!        JLB = Me%Size2D%JLB    
-!        JUB = Me%Size2D%JUB    
-!
-!          
-!        
-!        !Number indexed to 3D cell in the vector 
-!        Index = 0
-!
-!        do j = JLB, JUB
-!        do i = ILB, IUB
-!            if (Me%ExternalVar%WaterPoints2D(i,j)==1) then
-!
-!                    Index         = Index + 1
-!                    
-!             if (Me%ExternalVar%OpenPoints2D(i,j)==1) then
-!                
-!                Vector(Index) = Matrix2D(i,j)
-!             
-!             endif
-!                    
-!                    
-!            endif    
-!        enddo
-!        enddo
-!
-!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix2D_R - ModuleInterface - ERR01'
-            
-        if (present(factor)) then
-            factor_ = factor
-        else
-            factor_ = 1.0
-        endif
+        integer                                 :: Index
 
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB, NUB)
-        !$OMP PARALLEL PRIVATE(Index,i,j,LocalMatrix2D)
-        LocalMatrix2D => Matrix2D
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            j = Me%Index2J(Index)
-            Vector(Index) = LocalMatrix2D(i,j) * factor_
-        enddo
-        !$OMP END DO NOWAIT
+        !$OMP PARALLEL PRIVATE(Index)
+        if (present(factor)) then
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix2D(Me%Index2I(Index),Me%Index2J(Index)) * factor
+            enddo
+            !$OMP END DO NOWAIT
+        else
+            !$OMP DO SCHEDULE(STATIC)
+            do Index =  Me%Array%ILB, Me%Array%IUB
+                Vector(Index) = Matrix2D(Me%Index2I(Index),Me%Index2J(Index))
+            enddo
+            !$OMP END DO NOWAIT
+        endif
         !$OMP END PARALLEL
-        !griflet: stop
+
        
     end subroutine UnfoldMatrix2D_R8
             
@@ -7738,56 +7181,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
-        integer                                 :: i, j
-        integer                                 :: NLB, NUB
-        !$ integer                              :: CHUNK
-        integer, dimension(:,:), pointer        :: LocalMatrix2D
-!        integer                                 :: ILB, IUB      
-!        integer                                 :: JLB, JUB     
-!
-!        !----------------------------------------------------------------------
-!
-!        ILB = Me%Size2D%ILB     
-!        IUB = Me%Size2D%IUB     
-!
-!        JLB = Me%Size2D%JLB    
-!        JUB = Me%Size2D%JUB    
-!        
-!        !Number indexed to 3D cell in the vector 
-!        Index = 0
-!
-!        do j = JLB, JUB
-!        do i = ILB, IUB
-!            if (Me%ExternalVar%WaterPoints2D(i,j)==1) then
-!             Index         = Index + 1
-!             if (Me%ExternalVar%OpenPoints2D(i,j)==1) then
-!                
-!                Vector(Index) = Matrix2D(i,j)
-!             
-!             endif
-!            endif    
-!        enddo
-!        enddo
-!
-!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix2D_I - ModuleInterface - ERR01'
-!            
 
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$ CHUNK = CHUNK_I(NLB, NUB)
-        !$OMP PARALLEL PRIVATE(Index,i,j,LocalMatrix2D)
-        LocalMatrix2D => Matrix2D
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            j = Me%Index2J(Index)
-            Vector(Index) = LocalMatrix2D(i,j)
+        !$OMP PARALLEL PRIVATE(Index)
+        !$OMP DO SCHEDULE(STATIC)
+        do Index =  Me%Array%ILB, Me%Array%IUB
+            Vector(Index) = Matrix2D(Me%Index2I(Index),Me%Index2J(Index))
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        !griflet: stop
+
         
    end subroutine UnfoldMatrix2D_I
 
@@ -7801,51 +7203,15 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                             :: Index
-        integer                             :: i
-        integer                             :: NLB, NUB
-        !$ integer                          :: CHUNK
-        real, dimension(:  ), pointer       :: LocalMatrix1D        
-!        integer                             :: ILB, IUB      
-!           
-!        !----------------------------------------------------------------------
-!
-!        ILB = Me%Size1D%ILB     
-!        IUB = Me%Size1D%IUB     
-!
-!        !Number indexed to 1D cell in the vector 
-!        Index = 0
-!
-!        do i = ILB, IUB
-!            if (Me%ExternalVar%RiverPoints1D(i)==1) then
-!
-!                    Index         = Index + 1
-!                    
-!             if (Me%ExternalVar%OpenPoints1D(i)==1) then
-!                
-!                Vector(Index) = Matrix1D(i)
-!             
-!             endif
-!                    
-!                    
-!            endif    
-!        enddo
-!
-!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix1D_R - ModuleInterface - ERR01'
-            
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i,LocalMatrix1D)
-        LocalMatrix1D => Matrix1D
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            Vector(Index) = LocalMatrix1D(i)
+      
+        
+        !$OMP PARALLEL PRIVATE(Index)
+        !$OMP DO SCHEDULE(STATIC)
+        do Index = Me%Array%ILB, Me%Array%IUB
+            Vector(Index) = Matrix1D(Me%Index2I(Index))
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        !griflet: stop
 
     end subroutine UnfoldMatrix1D_R
         
@@ -7859,46 +7225,16 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: Index
-        integer                                 :: i
-        integer                                 :: NLB, NUB
-        !$ integer                              :: CHUNK
-        integer, dimension(:  ), pointer           :: LocalMatrix1D        
-!        integer                                 :: ILB, IUB      
-!        !----------------------------------------------------------------------
-!
-!        ILB = Me%Size1D%ILB     
-!        IUB = Me%Size1D%IUB     
-!
-!        !Number indexed to 3D cell in the vector 
-!        Index = 0
-!
-!        do i = ILB, IUB
-!            if (Me%ExternalVar%RiverPoints1D(i)==1) then
-!             Index         = Index + 1
-!             if (Me%ExternalVar%OpenPoints1D(i)==1) then
-!                
-!                Vector(Index) = Matrix1D(i)
-!             
-!             endif
-!            endif    
-!        enddo
-!
-!        if ((Index) > Me%Array%IUB) stop 'UnfoldMatrix1D_I - ModuleInterface - ERR01'
-!            
-        !griflet: new way
-        !griflet: start
-        NLB = Me%Array%ILB
-        NUB = Me%Array%IUB
-        !$OMP PARALLEL PRIVATE(Index,i,LocalMatrix1D)
-        LocalMatrix1D => Matrix1D
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do Index = NLB, NUB
-            i = Me%Index2I(Index)
-            Vector(Index) = LocalMatrix1D(i)
+
+        !----------------------------------------------------------------------
+
+        !$OMP PARALLEL PRIVATE(Index)
+        !$OMP DO SCHEDULE(STATIC)
+        do Index = Me%Array%ILB, Me%Array%IUB
+            Vector(Index) = Matrix1D(Me%Index2I(Index))
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        !griflet: stop
 
     end subroutine UnfoldMatrix1D_I
 
@@ -8974,9 +8310,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 !griflet: optimization performance
                 !griflet: start
-                if (associated(Me%I2Index))     deallocate(Me%I2Index)
-                if (associated(Me%IJ2Index))    deallocate(Me%IJ2Index)
-                if (associated(Me%IJK2Index))   deallocate(Me%IJK2Index)
+                if (allocated(Me%I2Index))     deallocate(Me%I2Index)
+                if (allocated(Me%IJ2Index))    deallocate(Me%IJ2Index)
+                if (allocated(Me%IJK2Index))   deallocate(Me%IJK2Index)
                 deallocate(Me%Index2I)
                 deallocate(Me%Index2J)
                 deallocate(Me%Index2K)
