@@ -123,6 +123,7 @@ Module ModuleGlobalData
                                                 
     real   , parameter  :: FillValueReal        = -9.9e15
     integer, parameter  :: FillValueInt         = -9999999
+    real   , parameter  :: HalfFillValueReal    = -9.9e15/2.0
                                                 
     real,    parameter  :: AllmostZeroFraction  = 1.e-5
     real,    parameter  :: AllmostZero          = 1.e-15

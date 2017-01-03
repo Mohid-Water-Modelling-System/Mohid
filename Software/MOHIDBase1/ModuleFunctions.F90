@@ -10525,303 +10525,421 @@ D2:     do I=imax-1,2,-1
     end function ChangeSuffix
     
     !--------------------------------------------------------------------------
-    !griflet: adding minval and maxval ersatz functions in order to lift
-    !stacksize and heapsize limitations
+    !OPENMP Function for min and  max with mapping from fill values
     
     function minival1D_R4(array, size1D)
             
+        !Arguments-------------------------------------------------------------
         real(4), dimension(:), pointer     :: array
         type(T_size1D)                  :: size1D
+
+        !Local-----------------------------------------------------------------
         integer                         :: i
         real(4)                           :: minival1D_R4
         
         minival1D_R4 = 1e15
+        !$OMP PARALLEL PRIVATE(i)
+        !$OMP DO SCHEDULE(STATIC) REDUCTION(MIN:minival1D_R4)
         do i = size1D%ILB,size1D%IUB
-            if ( array(i) .ne. FillValueReal .and. minival1D_R4 > array(i) ) then
+            if (array(i) .gt. HalfFillValueReal .and. minival1D_R4 > array(i) ) then
                 minival1D_R4 = array(i)
             end if
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival1D_R4
 
     function minival2D_R4(array, size2D)
             
+        !Arguments-------------------------------------------------------------
         real(4), dimension(:,:), pointer    :: array
         type(T_size2D)                      :: size2D
+
+        !Local-----------------------------------------------------------------
         integer                             :: i,j
         real(4)                             :: minival2D_R4
         
         minival2D_R4 = 1e15
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MIN:minival2D_R4)
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if (array(i,j) .ne. FillValueReal .and. minival2D_R4 > array(i,j)) then
+            if (array(i,j) .gt. HalfFillValueReal .and. minival2D_R4 > array(i,j)) then
                 minival2D_R4 = array(i,j)
             end if
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival2D_R4
 
     function minival3D_R4(array, size3D)
             
-        real(4), dimension(:,:,:), pointer :: array
-        type(T_size3D)                  :: size3D
-        integer                         :: i,j,k
-        real(4)                            :: minival3D_R4
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:,:,:), pointer  :: array
+        type(T_size3D)                      :: size3D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i,j,k
+        real(4)                             :: minival3D_R4
         
         minival3D_R4 = 1e15
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MIN:minival3D_R4)
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( array(i,j,k) .ne. FillValueReal .and. minival3D_R4 > array(i,j,k) ) then
+            if ( array(i,j,k) .gt. HalfFillValueReal .and. minival3D_R4 > array(i,j,k) ) then
                 minival3D_R4 = array(i,j,k)
             end if
         end do
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival3D_R4
 
     function maxival1D_R4(array, size1D)
             
-        real(4), dimension(:), pointer     :: array
-        type(T_size1D)                  :: size1D
-        integer                         :: i
-        real(4)                            :: maxival1D_R4
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:), pointer      :: array
+        type(T_size1D)                      :: size1D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i
+        real(4)                             :: maxival1D_R4
         
         maxival1D_R4 = -1e15
+        !$OMP PARALLEL PRIVATE(i)
+        !$OMP DO SCHEDULE(STATIC) REDUCTION(MAX:maxival1D_R4)
         do i = size1D%ILB,size1D%IUB
-            if ( array(i) .ne. FillValueReal .and. maxival1D_R4 < array(i) ) then
+            if ( array(i) .gt. HalfFillValueReal .and. maxival1D_R4 < array(i) ) then
                 maxival1D_R4 = array(i)
             end if
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival1D_R4
 
     function maxival2D_R4(array, size2D)
             
+        !Arguments-------------------------------------------------------------
         real(4), dimension(:,:), pointer   :: array
         type(T_size2D)                  :: size2D
+
+        !Local-----------------------------------------------------------------
         integer                         :: i,j
         real(4)                            :: maxival2D_R4
         
         maxival2D_R4 = -1e15
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MAX:maxival2D_R4)
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( array(i,j) .ne. FillValueReal .and. maxival2D_R4 < array(i,j) ) then
+            if ( array(i,j) .gt. HalfFillValueReal .and. maxival2D_R4 < array(i,j) ) then
                 maxival2D_R4 = array(i,j)
             end if
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival2D_R4
 
     function maxival3D_R4(array, size3D)
             
-        real(4), dimension(:,:,:), pointer :: array
-        type(T_size3D)                  :: size3D
-        integer                         :: i,j,k
-        real(4)                            :: maxival3D_R4
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:,:,:), pointer  :: array
+        type(T_size3D)                      :: size3D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i,j,k
+        real(4)                             :: maxival3D_R4
         
         maxival3D_R4 = -1e15
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MAX:maxival3D_R4)
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( array(i,j,k) .ne. FillValueReal .and. maxival3D_R4 < array(i,j,k) ) then
+            if ( array(i,j,k) .gt. HalfFillValueReal .and. maxival3D_R4 < array(i,j,k) ) then
                 maxival3D_R4 = array(i,j,k)
             end if
         end do
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival3D_R4
 
     function minival1D_R8(array, size1D)
             
-        real(8), dimension(:), pointer     :: array
-        type(T_size1D)                  :: size1D
-        integer                         :: i
-        real(8)                            :: minival1D_R8
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:), pointer      :: array
+        type(T_size1D)                      :: size1D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i
+        real(8)                             :: minival1D_R8
         
         minival1D_R8 = 1e15
+        !$OMP PARALLEL PRIVATE(i)
+        !$OMP DO SCHEDULE(STATIC) REDUCTION(MIN:minival1D_R8)
         do i = size1D%ILB,size1D%IUB
-            if ( array(i) .ne. FillValueReal .and. minival1D_R8 > array(i) ) then
+            if ( array(i) .gt. HalfFillValueReal .and. minival1D_R8 > array(i) ) then
                 minival1D_R8 = array(i)
             end if
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival1D_R8
 
     function minival2D_R8(array, size2D)
             
-        real(8), dimension(:,:), pointer   :: array
-        type(T_size2D)                  :: size2D
-        integer                         :: i,j
-        real(8)                         :: minival2D_R8
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:,:), pointer    :: array
+        type(T_size2D)                      :: size2D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i,j
+        real(8)                             :: minival2D_R8
         
         minival2D_R8 = 1e15
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MIN:minival2D_R8)
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( array(i,j) .ne. FillValueReal .and. minival2D_R8 > array(i,j) ) then
+            if ( array(i,j) .gt. HalfFillValueReal .and. minival2D_R8 > array(i,j) ) then
                 minival2D_R8 = array(i,j)
             end if
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival2D_R8
 
     function minival3D_R8(array, size3D)
             
-        real(8), dimension(:,:,:), pointer :: array
-        type(T_size3D)                  :: size3D
-        integer                         :: i,j,k
-        real(8)                         :: minival3D_R8
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:,:,:), pointer  :: array
+        type(T_size3D)                      :: size3D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i,j,k
+        real(8)                             :: minival3D_R8
         
         minival3D_R8 = 1e15
+
+        !$OMP PARALLEL PRIVATE(i, j, k)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MIN:minival3D_R8)
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( array(i,j,k) .ne. FillValueReal .and. minival3D_R8 > array(i,j,k) ) then
+            if (array(i,j,k) .gt. HalfFillValueReal .and. array(i,j,k) < minival3D_R8) then
                 minival3D_R8 = array(i,j,k)
             end if
         end do
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+        
         
     end function minival3D_R8
 
     function maxival1D_R8(array, size1D)
             
-        real(8), dimension(:), pointer  :: array
-        type(T_size1D)                  :: size1D
-        integer                         :: i
-        real(8)                         :: maxival1D_R8
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:), pointer      :: array
+        type(T_size1D)                      :: size1D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i
+        real(8)                             :: maxival1D_R8
         
         maxival1D_R8 = -1e15
+        !$OMP PARALLEL PRIVATE(i)
+        !$OMP DO SCHEDULE(STATIC) REDUCTION(MAX:maxival1D_R8)
         do i = size1D%ILB,size1D%IUB
-            if ( array(i) .ne. FillValueReal .and. maxival1D_R8 < array(i) ) then
+            if (array(i) .gt. HalfFillValueReal .and. array(i) > maxival1D_R8) then
                 maxival1D_R8 = array(i)
             end if
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival1D_R8
 
     function maxival2D_R8(array, size2D)
             
-        real(8), dimension(:,:), pointer   :: array
-        type(T_size2D)                  :: size2D
-        integer                         :: i,j
-        real(8)                         :: maxival2D_R8
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:,:), pointer    :: array
+        type(T_size2D)                      :: size2D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i,j
+        real(8)                             :: maxival2D_R8
         
         maxival2D_R8 = -1e15
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MAX:maxival2D_R8)
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( array(i,j) .ne. FillValueReal .and. maxival2D_R8 < array(i,j) ) then
+            if (array(i,j) .gt. HalfFillValueReal .and.  array(i,j) > maxival2D_R8) then
                 maxival2D_R8 = array(i,j)
             end if
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival2D_R8
 
     function maxival3D_R8(array, size3D)
             
+        !Arguments-------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: array
         type(T_size3D)                  :: size3D
+
+        !Local-----------------------------------------------------------------
         integer                         :: i,j,k
         real(8)                         :: maxival3D_R8
         
         maxival3D_R8 = -1e15
+        !$OMP PARALLEL PRIVATE(i, j, k)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MAX:maxival3D_R8)
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( array(i,j,k) .ne. FillValueReal .and. maxival3D_R8 < array(i,j,k) ) then
+            if (array(i,j,k) .gt. HalfFillValueReal .and. array(i,j,k) > maxival3D_R8) then
                 maxival3D_R8 = array(i,j,k)
             end if
         end do
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival3D_R8
 
     function minival1D_I4(array, size1D)
             
+        !Arguments-------------------------------------------------------------
         integer, dimension(:), pointer     :: array
         type(T_size1D)                  :: size1D
+
+        !Local-----------------------------------------------------------------
         integer                         :: i
         integer                            :: minival1D_I4
         
         minival1D_I4 = 1e9
+        !$OMP PARALLEL PRIVATE(i)
+        !$OMP DO SCHEDULE(STATIC) REDUCTION(MIN:minival1D_I4)
         do i = size1D%ILB,size1D%IUB
             if ( array(i) .ne. FillValueInt .and. minival1D_I4 > array(i) ) then
                 minival1D_I4 = array(i)
             end if
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival1D_I4
 
     function minival2D_I4(array, size2D)
             
+        !Arguments-------------------------------------------------------------
         integer, dimension(:,:), pointer   :: array
         type(T_size2D)                     :: size2D
+
+        !Local-----------------------------------------------------------------
         integer                            :: i,j
         integer                            :: minival2D_I4
         
         minival2D_I4 = 1e9
+        !$OMP PARALLEL PRIVATE(i, j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MIN:minival2D_I4)
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
-            if ( array(i,j) .ne. FillValueInt .and. minival2D_I4 > array(i,j) ) then
+            if (array(i,j) .ne. FillValueInt .and. minival2D_I4 > array(i,j) ) then
                 minival2D_I4 = array(i,j)
             end if
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival2D_I4
 
     function minival3D_I4(array, size3D)
 
-        integer, dimension(:,:,:), pointer :: array
-        type(T_size3D)                  :: size3D
-        integer                         :: i,j,k
-        integer                            :: minival3D_I4
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:,:,:), pointer  :: array
+        type(T_size3D)                      :: size3D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i,j,k
+        integer                             :: minival3D_I4
 
         minival3D_I4 = 1e9
+        !$OMP PARALLEL PRIVATE(i, j, k)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MIN:minival3D_I4)
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
-            if ( array(i,j,k) .ne. FillValueInt .and. minival3D_I4 > array(i,j,k) ) then
+            if ( array(i,j,k) .ne. FillValueInt  .and. minival3D_I4 > array(i,j,k) ) then
                 minival3D_I4 = array(i,j,k)
             end if
         end do
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
     end function minival3D_I4
 
     function maxival1D_I4(array, size1D)
 
+        !Arguments-------------------------------------------------------------
         integer, dimension(:), pointer  :: array
         type(T_size1D)                  :: size1D
+
+        !Local-----------------------------------------------------------------
         integer                         :: i
         integer                         :: maxival1D_I4
         
         maxival1D_I4 = -1e9
+        !$OMP PARALLEL PRIVATE(i)
+        !$OMP DO SCHEDULE(STATIC) REDUCTION(MAX:maxival1D_I4)
         do i = size1D%ILB,size1D%IUB
             if ( array(i) .ne. FillValueInt .and. maxival1D_I4 < array(i) ) then
                 maxival1D_I4 = array(i)
             end if
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival1D_I4
 
     function maxival2D_I4(array, size2D)
             
-        integer, dimension(:,:), pointer   :: array
-        type(T_size2D)                  :: size2D
-        integer                         :: i,j
-        integer                            :: maxival2D_I4
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:,:), pointer    :: array
+        type(T_size2D)                      :: size2D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i,j
+        integer                             :: maxival2D_I4
         
         maxival2D_I4 = -1e9
+        !$OMP PARALLEL PRIVATE(i, j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MAX:maxival2D_I4)
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
             if ( array(i,j) .ne. FillValueInt .and. maxival2D_I4 < array(i,j) ) then
@@ -10829,17 +10947,24 @@ D2:     do I=imax-1,2,-1
             end if
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival2D_I4
 
     function maxival3D_I4(array, size3D)
             
-        integer, dimension(:,:,:), pointer :: array
-        type(T_size3D)                  :: size3D
-        integer                         :: i,j,k
-        integer                         :: maxival3D_I4
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:,:,:), pointer  :: array
+        type(T_size3D)                      :: size3D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i,j,k
+        integer                             :: maxival3D_I4
         
         maxival3D_I4 = -1e9
+        !$OMP PARALLEL PRIVATE(i, j, k)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MAX:maxival3D_I4)
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
@@ -10849,33 +10974,47 @@ D2:     do I=imax-1,2,-1
         end do
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival3D_I4
 
     function minival1D_I8(array, size1D)
             
+        !Arguments-------------------------------------------------------------
         integer(8), dimension(:), pointer     :: array
         type(T_size1D)                  :: size1D
+
+        !Local-----------------------------------------------------------------
         integer                         :: i
         integer(8)                            :: minival1D_I8
         
         minival1D_I8 = 1e15
+        !$OMP PARALLEL PRIVATE(i)
+        !$OMP DO SCHEDULE(STATIC) REDUCTION(MIN:minival1D_I8)
         do i = size1D%ILB,size1D%IUB
             if ( array(i) .ne. FillValueInt .and. minival1D_I8 > array(i) ) then
                 minival1D_I8 = array(i)
             end if
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival1D_I8
 
     function minival2D_I8(array, size2D)
             
-        integer(8), dimension(:,:), pointer   :: array
-        type(T_size2D)                  :: size2D
-        integer                         :: i,j
-        integer(8)                         :: minival2D_I8
+        !Arguments-------------------------------------------------------------
+        integer(8), dimension(:,:), pointer     :: array
+        type(T_size2D)                          :: size2D
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: i,j
+        integer(8)                          :: minival2D_I8
         
         minival2D_I8 = 1e15
+        !$OMP PARALLEL PRIVATE(i, j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MIN:minival2D_I8)
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
             if ( array(i,j) .ne. FillValueInt .and. minival2D_I8 > array(i,j) ) then
@@ -10883,17 +11022,24 @@ D2:     do I=imax-1,2,-1
             end if
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival2D_I8
 
     function minival3D_I8(array, size3D)
             
-        integer(8), dimension(:,:,:), pointer :: array
-        type(T_size3D)                  :: size3D
-        integer                         :: i,j,k
-        integer(8)                         :: minival3D_I8
+        !Arguments-------------------------------------------------------------
+        integer(8), dimension(:,:,:), pointer   :: array
+        type(T_size3D)                          :: size3D
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: i,j,k
+        integer(8)                          :: minival3D_I8
         
         minival3D_I8 = 1e15
+        !$OMP PARALLEL PRIVATE(i, j, k)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MIN:minival3D_I8)
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
@@ -10903,33 +11049,47 @@ D2:     do I=imax-1,2,-1
         end do
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function minival3D_I8
 
     function maxival1D_I8(array, size1D)
             
-        integer(8), dimension(:), pointer  :: array
-        type(T_size1D)                  :: size1D
-        integer                         :: i
-        integer(8)                         :: maxival1D_I8
+        !Arguments-------------------------------------------------------------
+        integer(8), dimension(:), pointer   :: array
+        type(T_size1D)                      :: size1D
+
+        !Local-----------------------------------------------------------------
+        integer                             :: i
+        integer(8)                          :: maxival1D_I8
         
         maxival1D_I8 = -1e15
+        !$OMP PARALLEL PRIVATE(i)
+        !$OMP DO SCHEDULE(STATIC) REDUCTION(MAX:maxival1D_I8)
         do i = size1D%ILB,size1D%IUB
             if ( array(i) .ne. FillValueInt .and. maxival1D_I8 < array(i) ) then
                 maxival1D_I8 = array(i)
             end if
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival1D_I8
 
     function maxival2D_I8(array, size2D)
             
+        !Arguments-------------------------------------------------------------
         integer(8), dimension(:,:), pointer   :: array
         type(T_size2D)                  :: size2D
+
+        !Local-----------------------------------------------------------------
         integer                         :: i,j
         integer(8)                         :: maxival2D_I8
         
         maxival2D_I8 = -1e15
+        !$OMP PARALLEL PRIVATE(i, j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MAX:maxival2D_I8)
         do j = size2D%JLB,size2D%JUB
         do i = size2D%ILB,size2D%IUB
             if ( array(i,j) .ne. FillValueInt .and. maxival2D_I8 < array(i,j) ) then
@@ -10937,17 +11097,24 @@ D2:     do I=imax-1,2,-1
             end if
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival2D_I8
 
     function maxival3D_I8(array, size3D)
             
+        !Arguments-------------------------------------------------------------
         integer(8), dimension(:,:,:), pointer :: array
         type(T_size3D)                  :: size3D
+
+        !Local-----------------------------------------------------------------
         integer                         :: i,j,k
         integer(8)                         :: maxival3D_I8
         
         maxival3D_I8 = -1e15
+        !$OMP PARALLEL PRIVATE(i, j, k)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MAX:maxival3D_I8)
         do k = size3D%KLB,size3D%KUB
         do j = size3D%JLB,size3D%JUB
         do i = size3D%ILB,size3D%IUB
@@ -10957,6 +11124,8 @@ D2:     do I=imax-1,2,-1
         end do
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
     end function maxival3D_I8
 

@@ -47432,7 +47432,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
             Me%Coef%D2%Ti(i, j) = Me%Coef%D2%Ti(i, j) + Me%Coef%D2%Tiaux(i, j)
 
         enddo
-    enddo
+        enddo
         !$OMP END DO
         !$OMP END PARALLEL
         

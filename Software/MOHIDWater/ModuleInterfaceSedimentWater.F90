@@ -6446,7 +6446,6 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         type(T_Property), pointer               :: PropertyX
 
         !Local-----------------------------------------------------------------
-        integer                                 :: IUB, JUB, ILB, JLB
         integer                                 :: i, j
         real                                    :: ShearStress
         real                                    :: PotentialNewMass, ReallyErodedMass
@@ -6455,80 +6454,81 @@ cd7:                if(WaveHeight .GT. 0.05 .and. Abw > LimitMin)then
         
         if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "ModifyErosionFluxes")
 
-        IUB = Me%WaterWorkSize3D%IUB
-        JUB = Me%WaterWorkSize3D%JUB
-        ILB = Me%WaterWorkSize3D%ILB
-        JLB = Me%WaterWorkSize3D%JLB
                     
-            do j = JLB, JUB
-            do i = ILB, IUB
+        !$OMP PARALLEL PRIVATE(i,j,ShearStress,PotentialNewMass, ReallyErodedMass)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
+        do j = Me%WaterWorkSize3D%JLB, Me%WaterWorkSize3D%JUB
+        do i = Me%WaterWorkSize3D%ILB, Me%WaterWorkSize3D%IUB
                     
-                if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
+            if(Me%ExtWater%OpenPoints2D(i,j) == OpenPoint)then
 
-                    !Limit shear stress values in small depths
-                    if(Me%Shear_Stress%Limitation)then
+                !Limit shear stress values in small depths
+                if(Me%Shear_Stress%Limitation)then
 
-                        ShearStress = ShearStressLimitation(Me%ExtWater%WaterColumn(i,j),&
-                                                            Me%Shear_Stress%Tension(i,j))
-                    else
+                    ShearStress = ShearStressLimitation(Me%ExtWater%WaterColumn(i,j),&
+                                                        Me%Shear_Stress%Tension(i,j))
+                else
 
-                        ShearStress = Me%Shear_Stress%Tension(i,j)
-
-                    end if
-
-                    if(PropertyX%Mass_Limitation)then
-
-    
-                        ![kg/m2s]
-                        PropertyX%ErosionFlux(i,j) =                                                 &
-                            ErosionFlux(CriticalShearErosion = Me%Critical_Shear_Erosion%Field(i,j), &
-                                        ShearStress          = ShearStress,                          &
-                                        ErosionRate          = PropertyX%ErosionCoefficient(i,j),    &
-                                        Mass_Available       = PropertyX%Mass_Available(i,j),        &
-                                        MinimumMass          = PropertyX%Mass_Min)
-
-
-                        ![kg/m2] = [kg/m2] - [kg/m2/s * s]
-                        PotentialNewMass                     = PropertyX%Mass_Available(i,j)       - &
-                                                                PropertyX%ErosionFlux(i,j)          * &
-                                                                PropertyX%Evolution%DTInterval
-                                
-                        !if erosion flux will erode more than it exists
-                        if(PotentialNewMass <= PropertyX%Mass_Min)then
-                                    
-                            !erosion will happen until mass minimum
-                            ReallyErodedMass                = PropertyX%Mass_Available(i,j) - PropertyX%Mass_Min
-                                    
-                            !Re-compute real erosion flux
-                            PropertyX%ErosionFlux(i,j)      = ReallyErodedMass / PropertyX%Evolution%DTInterval
-
-                            PropertyX%Mass_Available(i,j)   = PropertyX%Mass_Min
-
-                        else
-
-                            PropertyX%Mass_Available(i,j)   = PotentialNewMass
-
-                        end if
-
-                    else
-
-                        ![kg/m2s]
-                        PropertyX%ErosionFlux(i,j) =                                                 &
-                            ErosionFlux(CriticalShearErosion = Me%Critical_Shear_Erosion%Field(i,j), &
-                                        ShearStress          = ShearStress,                          &
-                                        ErosionRate          = PropertyX%ErosionCoefficient(i,j))
-                    end if
-
-
-                    !Sum erosion flux to the flux to water
-                    PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j) + PropertyX%ErosionFlux(i,j)
+                    ShearStress = Me%Shear_Stress%Tension(i,j)
 
                 end if
 
-            enddo
-            enddo
+                if(PropertyX%Mass_Limitation)then
 
-    if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyErosionFluxes")
+    
+                    ![kg/m2s]
+                    PropertyX%ErosionFlux(i,j) =                                                 &
+                        ErosionFlux(CriticalShearErosion = Me%Critical_Shear_Erosion%Field(i,j), &
+                                    ShearStress          = ShearStress,                          &
+                                    ErosionRate          = PropertyX%ErosionCoefficient(i,j),    &
+                                    Mass_Available       = PropertyX%Mass_Available(i,j),        &
+                                    MinimumMass          = PropertyX%Mass_Min)
+
+
+                    ![kg/m2] = [kg/m2] - [kg/m2/s * s]
+                    PotentialNewMass                     = PropertyX%Mass_Available(i,j)       - &
+                                                            PropertyX%ErosionFlux(i,j)          * &
+                                                            PropertyX%Evolution%DTInterval
+                                
+                    !if erosion flux will erode more than it exists
+                    if(PotentialNewMass <= PropertyX%Mass_Min)then
+                                    
+                        !erosion will happen until mass minimum
+                        ReallyErodedMass                = PropertyX%Mass_Available(i,j) - PropertyX%Mass_Min
+                                    
+                        !Re-compute real erosion flux
+                        PropertyX%ErosionFlux(i,j)      = ReallyErodedMass / PropertyX%Evolution%DTInterval
+
+                        PropertyX%Mass_Available(i,j)   = PropertyX%Mass_Min
+
+                    else
+
+                        PropertyX%Mass_Available(i,j)   = PotentialNewMass
+
+                    end if
+
+                else
+
+                    ![kg/m2s]
+                    PropertyX%ErosionFlux(i,j) =                                                 &
+                        ErosionFlux(CriticalShearErosion = Me%Critical_Shear_Erosion%Field(i,j), &
+                                    ShearStress          = ShearStress,                          &
+                                    ErosionRate          = PropertyX%ErosionCoefficient(i,j))
+                end if
+
+
+                !Sum erosion flux to the flux to water
+                PropertyX%FluxToWater(i,j) = PropertyX%FluxToWater(i,j) + PropertyX%ErosionFlux(i,j)
+
+            end if
+
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+            
+        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "ModifyErosionFluxes")
 
     end subroutine ModifyErosionFluxes
 
