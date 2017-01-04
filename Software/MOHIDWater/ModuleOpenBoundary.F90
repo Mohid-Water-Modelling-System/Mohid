@@ -36,7 +36,7 @@ Module ModuleOpenBoundary
     use ModuleHorizontalMap,    only : GetBoundaryFaces, UnGetHorizontalMap,            &
                                        GetBoundaries, GetWaterPoints2D
     use ModuleGauge
-    use ModuleFunctions,        only : RodaXY, CHUNK_J
+    use ModuleFunctions,        only : RodaXY, CHUNK_J, SetMatrixValue
     use ModuleStopWatch,        only : StartWatch, StopWatch
     
     implicit none
@@ -891,7 +891,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                                AuxMetricX  , AuxMetricY,                 &
                                                AuxVelocityU, AuxVelocityV 
         logical                             :: FoundBound 
-        !$ integer                             :: CHUNK  
 
         !----------------------------------------------------------------------                         
 
@@ -901,11 +900,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-            !$ CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-                    
-            Me%OldImposedElevation = Me%ImposedElevation
-            
-            Me%ImposedElevation(:,:) = 0.
+            call SetMatrixValue(Me%OldImposedElevation, Me%Size, Me%ImposedElevation)
+            call SetMatrixValue(Me%ImposedElevation,    Me%Size, 0.0)
 
             !Gets BoundaryPoints from the HorizontalMap
             call GetBoundaries(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
@@ -915,8 +911,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                                         BoundaryFacesV = BoundaryFacesV2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR01'
 
-            if (MonitorPerformance)                                     &
-                call StartWatch ("ModuleOpenBoundary", "Modify_OpenBoundary")
+            if (MonitorPerformance) call StartWatch ("ModuleOpenBoundary", "Modify_OpenBoundary")
 
 cd2:        if (Me%Compute_Tide) then
 
@@ -953,7 +948,7 @@ cd2:        if (Me%Compute_Tide) then
 cd3:            if (NGauges < 3) then
                     
                     !$OMP PARALLEL PRIVATE(i,j)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -961,7 +956,6 @@ cd3:            if (NGauges < 3) then
                              BoundaryFacesU2D(i  , j+1) == Boundary .or. &
                              BoundaryFacesV2D(i  , j  ) == Boundary .or. &
                              BoundaryFacesV2D(i+1, j  ) == Boundary) then
-
 
                             Me%ImposedElevation(i, j) =                     &
                                 Me%Station%Elevation(1)      *  Coef +      &
@@ -972,7 +966,6 @@ cd3:            if (NGauges < 3) then
 
                             Me%VelocityV(i, j) =                            &
                                 Me%Station%VelocityV(1)      *  Coef 
-
 
                         else
 
@@ -992,11 +985,9 @@ cd3:            if (NGauges < 3) then
                 
 cd4:                if (.not. Me%TriangGaugesON) then
                 
-                        call GetIJWaterLevel(Me%ObjGauge, Me%ImposedElevation, Coef,    &
-                                             STAT = STAT_CALL)
+                        call GetIJWaterLevel(Me%ObjGauge, Me%ImposedElevation, Coef, STAT = STAT_CALL)
 
-                        call GetIJReferenceLevel(Me%ObjGauge, Me%ImposedElevation,      &
-                                                 STAT = STAT_CALL)
+                        call GetIJReferenceLevel(Me%ObjGauge, Me%ImposedElevation, STAT = STAT_CALL)
 
                     else cd4
                 
@@ -1059,8 +1050,8 @@ cd6:                    if (NOpen < NGauges) then
                                         
                         !Interpolates Elevation at the boundary points
 
-                        !$OMP PARALLEL PRIVATE( i,j,FoundBound,PX,PY,WaterLevel,STAT_CALL)
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        !$OMP PARALLEL PRIVATE(i,j,FoundBound,PX,PY,WaterLevel,STAT_CALL)
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
                         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -1078,7 +1069,6 @@ cd7:                        if (FoundBound) then
                                 PX = CoordX(i,j)
                                 PY = CoordY(i,j)    
                                     
-                            
                                 WaterLevel = InterPolation_ThreadSafe(Me%ObjTriangulation,  &
                                                            PX, PY, FillOutsidePoints=.true., &
                                                            STAT = STAT_CALL)
@@ -1105,8 +1095,7 @@ cd7:                        if (FoundBound) then
                         if (STAT_CALL /= SUCCESS_) stop 'Modify_OpenBoundary - ModuleOpenBoundary - ERR14'
 
                         !$OMP PARALLEL PRIVATE(i,j,FoundBound,PX,PY,RefLevel,STAT_CALL)
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                            
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
                         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -1161,8 +1150,8 @@ cd7:                        if (FoundBound) then
             Counter = 0.
             SumX    = 0.
 
-            !$OMP PARALLEL PRIVATE(i,j,FoundBound)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK) REDUCTION(+:Counter)
+            !!!$OMP PARALLEL PRIVATE(i,j,FoundBound)
+            !!!$OMP DO SCHEDULE(DYNAMIC,CHUNKJ) REDUCTION(+:Counter,SumX)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -1179,32 +1168,22 @@ cd7:                        if (FoundBound) then
                 endif
 
                 if (FoundBound) then
-
-                    !$OMP CRITICAL (MOP_RED01)
                     SumX    = SumX + Me%ImposedElevation(i, j)
-                    !$OMP END CRITICAL (MOP_RED01)
                     Counter = Counter + 1.
-
                 endif
-                    
                 
             enddo
             enddo
-            !$OMP END DO
-            !$OMP END PARALLEL   
+            !!!!$OMP END DO
+            !!!!$OMP END PARALLEL   
 
-            if (MonitorPerformance)                                     &
-                call StopWatch ("ModuleOpenBoundary", "Modify_OpenBoundary")
+            if (MonitorPerformance) call StopWatch ("ModuleOpenBoundary", "Modify_OpenBoundary")
 
 
             if (Counter == 0) then
-            
                 Me%AverageImposedElevation = 0.
-
             else
-
                 Me%AverageImposedElevation = SumX/Counter
-
             endif
             
             if (Me%InvertBarometer .and. associated(AtmosphericPressure))               &
@@ -1235,7 +1214,6 @@ cd7:                        if (FoundBound) then
         !----------------------------------------------------------------------
 
     end subroutine Modify_OpenBoundary
-
 
    !----------------------------------------------------------------------
 
@@ -1366,7 +1344,6 @@ cd3:            if (NGauges < 3) then
         
         integer                                 :: i, j, STAT_CALL
         
-        !$ integer                              :: CHUNK
 
         !----------------------------------------------------------------------                         
 
@@ -1374,11 +1351,9 @@ cd3:            if (NGauges < 3) then
                                                    BoundaryFacesV = BoundaryFacesV2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ImposeInvertBarometer - ModuleOpenBoundary - ERR10'
 
-        !$ CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
         !$OMP PARALLEL PRIVATE(i,j)
-
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -1400,7 +1375,6 @@ cd3:            if (NGauges < 3) then
         enddo
         enddo
         !$OMP END DO
-
         !$OMP END PARALLEL
 
         call UnGetHorizontalMap(Me%ObjHorizontalMap, BoundaryFacesU2D, STAT = STAT_CALL)
