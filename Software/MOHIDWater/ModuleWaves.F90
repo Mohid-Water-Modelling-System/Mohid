@@ -1204,7 +1204,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetData(Me%RunSwan%BatchFile,                                          &
                          Me%ObjEnterData, iflag,                                        &
                          Keyword        = 'SWAN_BATCH_FILE',                            &
-                         default        = 'Swan\RunSwan.dat',                           &
+                         default        = 'Swan\RunSwan.bat',                           &
                          SearchType     = FromFile,                                     &
                          ClientModule   ='ModuleWave',                                  &
                          STAT           = STAT_CALL)            
