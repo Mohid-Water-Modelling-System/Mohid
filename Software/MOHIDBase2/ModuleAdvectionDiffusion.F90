@@ -102,7 +102,8 @@ Module ModuleAdvectionDiffusion
     private ::                  CalcHorizontalAdvFluxXX                                         
     private ::              HorizontalAdvectionYY                                      
     private ::                  CalcHorizontalAdvFluxYY                                         
-
+    private ::          HorizontalAdvectionUpwindExplict
+    
     private ::          VerticalDiffusion                                                 
     private ::              CalcVerticalDifFlux                                              
     private ::          VerticalAdvection      
@@ -1510,7 +1511,16 @@ cd2 :   if (Me%State%HorAdv) then
             call HorizontalDiffusion()
 
             ! Calculo dos fluxos advectivos da propriedade 
-            call HorizontalAdvection(ImpExp_AdvXX, ImpExp_AdvYY)
+            !if (Me%ExternalVar%AdvMethodH == UpwindOrder1       .and.                   &
+            !    ImpExp_AdvXX == ExplicitScheme .and. ImpExp_AdvYY == ExplicitScheme) then
+                
+            !    call HorizontalAdvectionUpwindExplict          
+                      
+            !else
+            
+                call HorizontalAdvection(ImpExp_AdvXX, ImpExp_AdvYY)
+                
+            !endif                
 
         endif
 
@@ -3414,6 +3424,108 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
     end subroutine HorizontalAdvection
 
     !--------------------------------------------------------------------------
+    
+
+    !--------------------------------------------------------------------------
+
+    subroutine HorizontalAdvectionUpwindExplict
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real(8)                             :: AdvFluxX, AdvFluxY
+        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                             :: i, j, k
+
+        !----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionUpwindExplict")
+
+        ILB   = Me%WorkSize%ILB
+        IUB   = Me%WorkSize%IUB
+                   
+        JLB   = Me%WorkSize%JLB 
+        JUB   = Me%WorkSize%JUB
+                   
+        KLB   = Me%WorkSize%KLB
+        KUB   = Me%WorkSize%KUB
+        
+iHA:    if (Me%State%HorAdv) then
+
+            !$OMP PARALLEL PRIVATE(i,j,k)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+dok1 :      do k = KLB, KUB    
+doj1 :      do j = JLB, JUB
+doi1 :      do i = ILB, IUB
+    
+                Me%COEF3_HorAdvXX%D_flux(i,   j, k) = 0.  
+                Me%COEF3_HorAdvXX%E_flux(i,   j, k) = 0.
+    
+                if (Me%ExternalVar%ComputeFacesU3D(i, j, k) == 1) then
+                
+                    
+                    if (Me%ExternalVar%Wflux_X(i, j, k) > 0.) then
+                        Me%COEF3_HorAdvXX%D_flux(i,   j, k) =   Me%ExternalVar%Wflux_X(i, j, k)
+                    else
+                        Me%COEF3_HorAdvXX%E_flux(i,   j, k) = - Me%ExternalVar%Wflux_X(i, j, k)
+                    endif
+
+                endif
+                
+                Me%COEF3_HorAdvYY%D_flux(i,   j, k) = 0.
+                Me%COEF3_HorAdvYY%E_flux(i,   j, k) = 0.
+
+                if (Me%ExternalVar%ComputeFacesV3D(i, j, k) == 1) then
+
+                    if (Me%ExternalVar%Wflux_Y(i, j, k) > 0.) then
+                        Me%COEF3_HorAdvYY%D_flux(i,   j, k) =   Me%ExternalVar%Wflux_Y(i, j, k)
+                    else
+                        Me%COEF3_HorAdvYY%E_flux(i,   j, k) = - Me%ExternalVar%Wflux_Y(i, j, k)
+                    endif
+
+                endif                
+
+            end do doi1
+            end do doj1
+            end do dok1
+            !$OMP END DO NOWAIT 
+
+        endif iHA                
+
+        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX, AdvFluxY)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+dok2 :  do k = KLB, KUB
+doj2 :  do j = JLB, JUB
+doi2 :  do i = ILB, IUB
+
+            AdvFluxX =     Me%COEF3_HorAdvXX%D_flux(i,   j, k)                          &
+                        *  Me%ExternalVar%PROP     (i, j-1, k)                          &
+                        +  Me%COEF3_HorAdvXX%E_flux(i,   j, k)                          &
+                        *  Me%ExternalVar%PROP     (i,   j, k)
+
+            Me%TICOEF3(i,j  ,k) = Me%TICOEF3(i,j  ,k) + AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
+            Me%TICOEF3(i,j-1,k) = Me%TICOEF3(i,j-1,k) - AdvFluxX * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
+            
+            AdvFluxY =     Me%COEF3_HorAdvYY%D_flux(i,   j, k)                          &
+                        *  Me%ExternalVar%PROP     (i-1, j, k)                          &
+                        +  Me%COEF3_HorAdvYY%E_flux(i,   j, k)                          &
+                        *  Me%ExternalVar%PROP     (i,   j, k)
+
+            Me%TICOEF3(i,j  ,k) = Me%TICOEF3(i,j  ,k) + AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(  i,j  ,k)
+            Me%TICOEF3(i-1,j,k) = Me%TICOEF3(i-1,j,k) - AdvFluxY * Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i-1,j  ,k)
+            
+        end do doi2
+        end do doj2
+        end do dok2        
+        !$OMP END DO NOWAIT 
+        
+        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionUpwindExplict")
+
+        !----------------------------------------------------------------------
+
+    end subroutine HorizontalAdvectionUpwindExplict
+
+    !--------------------------------------------------------------------------    
 
     subroutine HorizontalAdvectionXX(ImpExp_AdvXX)
 
