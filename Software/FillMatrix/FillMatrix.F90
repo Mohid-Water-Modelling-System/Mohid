@@ -22,6 +22,9 @@
 !   START                   : YYYY MM DD HH MM SS           !If variable in time, states begin time
 !   END                     : YYYY MM DD HH MM SS           !If variable in time, states end time
 !   MAX_TIME_SPAN           : real             [-]          !Maximum span for a time serie value to be considered valid
+!   TIME_SERIES_TYPE        : integer          [-]          !Type of time series: 1 - returns the next value; 
+                                                            !                     2 - converts vallue to values 
+                                                            !                     3 - linear interpolation
 !   OUTPUT_TIME             : sec. sec. sec.    -           !Output Time
 !   TIME_INSTANT            : YYYY MM DD HH MM SS           !If NOT variable in time, states time instant in which to 
 !                                                           !extract from time serie
@@ -152,7 +155,8 @@ program FillMatrix
         logical                                 :: HasTypes             = .false.
         integer                                 :: InterpolationMethod
         real                                    :: MaxDistance
-        real                                    :: IWDn      
+        real                                    :: IWDn     
+        integer                                 :: TimeSeriesType
         type(T_XYZPoints),             pointer  :: XYZPoints
         type(T_Station), pointer                :: FirstStation
     end type T_FillMatrix
@@ -160,10 +164,15 @@ program FillMatrix
     type(T_FillMatrix)                          :: Me
 
     !Parameters---------------------------------------------------------
-    character(len=StringLength), parameter      :: DataFile             = 'FillMatrix.dat'
+    character(len=StringLength), parameter      :: DataFile              = 'FillMatrix.dat'
 
-    character(len=9 ),           parameter      :: FromTimeSerie        = 'TIMESERIE' 
-    character(len=12),           parameter      :: SingleValue          = 'SINGLE_VALUE'
+    character(len=9 ),           parameter      :: FromTimeSerie         = 'TIMESERIE' 
+    character(len=12),           parameter      :: SingleValue           = 'SINGLE_VALUE'
+    
+    integer,                     parameter      :: UseOriginalNextValue_ = 1
+    integer,                     parameter      :: AccumulateValues_     = 2
+    integer,                     parameter      :: LinearInterpol_       = 3
+    
     
     !Begin--------------------------------------------------------------
 
@@ -405,7 +414,7 @@ if2 :           if (BlockFound) then
                          keyword      = 'START',                                    &
                          ClientModule = 'FillMatrix',                               &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR80'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR60'
 
             call GetData(Me%Time%EndTime,                                           &
                          Me%ObjEnterData, iflag,                                    &
@@ -413,7 +422,7 @@ if2 :           if (BlockFound) then
                          keyword      = 'END',                                      &
                          ClientModule = 'FillMatrix',                               &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR70'
 
             call GetData(Me%Time%MaxTimeSpan,                                       &
                          Me%ObjEnterData, iflag,                                    &
@@ -421,11 +430,11 @@ if2 :           if (BlockFound) then
                          keyword      = 'MAX_TIME_SPAN',                            &
                          ClientModule = 'FillMatrix',                               &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR91'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR80'
             if (iflag == 0) then
                 write(*,*)'Time Span not given'
                 write(*,*)'Use Keyword MAX_TIME_SPAN'
-                stop 'ReadGlobalOptions - FillMatrix - ERR91'
+                stop 'ReadGlobalOptions - FillMatrix - ERR90'
             endif
             
             call GetData(Me%SkipNullValues,                                         &
@@ -435,8 +444,22 @@ if2 :           if (BlockFound) then
                          Default      = .false.,                                    &
                          ClientModule = 'FillMatrix',                               &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR91'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR100'
+
+            call GetData(Me%TimeSeriesType,                                         &
+                         Me%ObjEnterData, iflag,                                    &
+                         SearchType   = FromFile,                                   &
+                         keyword      = 'TIME_SERIES_TYPE',                         &
+                         Default      = LinearInterpol_,                            &
+                         ClientModule = 'FillMatrix',                               &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR110'     
             
+            if (Me%TimeSeriesType /= UseOriginalNextValue_      .and.               & ! Return next value
+                Me%TimeSeriesType /= AccumulateValues_          .and.               & !For Rain (from mm to mm/s)
+                Me%TimeSeriesType /= LinearInterpol_) then                      
+                stop 'ReadGlobalOptions - FillMatrix - ERR120'
+            endif                
 
             nullify(Me%Time%OutTime)
 
@@ -448,8 +471,8 @@ if2 :           if (BlockFound) then
                                OutPutsTime = Me%Time%OutTime,                       &
                                OutPutsOn   = FoundOutputTime,                       &
                                STAT        = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR60'
-            if(.not. FoundOutputTime)  stop 'ReadGlobalOptions - FillMatrix - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR130'
+            if(.not. FoundOutputTime)  stop 'ReadGlobalOptions - FillMatrix - ERR140'
 
 
             DT = Me%Time%OutTime(2)-Me%Time%OutTime(1)
@@ -460,7 +483,7 @@ if2 :           if (BlockFound) then
                                   Me%Time%EndTime,                                  &
                                   DT,                                               &
                                   .false., STAT = STAT_CALL)   
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR92'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR150'
 
 
 
@@ -474,7 +497,7 @@ if2 :           if (BlockFound) then
                          keyword      = 'TIME_INSTANT',                             &
                          ClientModule = 'FillMatrix',                               &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR160'
 
             if(iflag .ne. 0) Me%HasOneTimeInstant = .true.
 
@@ -487,27 +510,27 @@ if2 :           if (BlockFound) then
                      keyword      = 'GRID_DATA_FILE',                               &
                      ClientModule = 'FillMatrix',                                   &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR110'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR170'
         if (iflag == 0)then
             write(*,*)'Must specify type of file to convert'
-            stop 'ReadGlobalOptions - FillMatrix - ERR120'
+            stop 'ReadGlobalOptions - FillMatrix - ERR180'
         end if
 
         call ConstructHorizontalGrid(Me%ObjHorizontalGrid, trim(Me%Grid%FileName), STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR130'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR190'
 
         call ConstructGridData (GridDataID       = Me%ObjGridData,                  &
                                 HorizontalGridID = Me%ObjHorizontalGrid,            &
                                 FileName         = Me%Grid%FileName,                &
                                 STAT             = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR140'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR200'
 
         call ConstructHorizontalMap (HorizontalMapID  = Me%ObjHorizontalMap,        &
                                      GridDataID       = Me%ObjGridData,             &
                                      HorizontalGridID = Me%ObjHorizontalGrid,       &
                                      ActualTime       = Me%Time%OneInstant,         & 
                                      STAT             = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR160'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR210'
 
         
 
@@ -516,12 +539,12 @@ if2 :           if (BlockFound) then
                       keyword      ='INTERPOLATION_METHOD',                         &
                       ClientModule ='DigitalTerrainCreator',                        &
                       STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR172'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR220'
         if (iflag == 0) then
             write(*,*)'Interpolation Method not given'
             write(*,*)'Use Keyword INTERPOLATION_METHOD [0 - No interpolation / '   
             write(*,*)' 1 - Triangulation / 2 - IWD]'
-            stop 'ReadGlobalOptions - FillMatrix - ERR173'
+            stop 'ReadGlobalOptions - FillMatrix - ERR230'
         endif
 
 
@@ -536,7 +559,7 @@ if2 :           if (BlockFound) then
                          ClientModule = 'FillMatrix',                                   &
                          default      = .false.,                                        &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR170'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR240'
 
 
             call GetData (Me%OutputTriangles, Me%ObjEnterData, iflag,                   &
@@ -545,14 +568,14 @@ if2 :           if (BlockFound) then
                           default      = .false.,                                       &
                           ClientModule ='DigitalTerrainCreator',                        &
                           STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR171'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR250'
 
             call GetData (Me%Triangles%FileName, Me%ObjEnterData, iflag,                &
                           SearchType   = FromFile_,                                     &
                           keyword      ='TRIANGLES_FILE',                               &
                           ClientModule ='DigitalTerrainCreator',                        &
                           STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR172'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR260'
 
         case (InverseWeight_)
 
@@ -562,11 +585,11 @@ if2 :           if (BlockFound) then
                          keyword      = 'MAX_DISTANCE',                                 &
                          ClientModule = 'FillMatrix',                                   &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR173'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR270'
             if (iflag == 0) then
                 write(*,*)'Max Distance not given'
                 write(*,*)'Use Keyword MAX_DISTANCE'
-                stop 'ReadGlobalOptions - FillMatrix - ERR174'
+                stop 'ReadGlobalOptions - FillMatrix - ERR280'
             endif
             
             call GetData(Me%IWDn,                                                       &
@@ -576,7 +599,7 @@ if2 :           if (BlockFound) then
                          default      = 2.0,                                            &
                          ClientModule = 'FillMatrix',                                   &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR175'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR290'
         
         case (NoInterpolation_)
             
@@ -589,10 +612,10 @@ if2 :           if (BlockFound) then
                          keyword      = 'FILL_ID_FILE',                                 &
                          ClientModule = 'FillMatrix',                                   &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR176'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR300'
             if (iflag == 0)then
                 write(*,*)'Must specify grid with fill ID'
-                stop 'ReadGlobalOptions - FillMatrix - ERR42'
+                stop 'ReadGlobalOptions - FillMatrix - ERR310'
             end if
 
             !Gets Fill IDs 
@@ -601,16 +624,16 @@ if2 :           if (BlockFound) then
                                      HorizontalGridID = Me%ObjHorizontalGrid,         &
                                      FileName         = Me%FillIDFile,                &
                                      STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR177'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR320'
         
             call GetGridData (ObjGD, Me%FillIDGrid, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR162'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR330'
 
         case default
             write(*,*)'Invalid Interpolation Method'
             write(*,*)'Use Keyword INTERPOLATION_METHOD [0 - No Interpolation / '
             write(*,*)'1 - Triangulation / 2 - IWD]'
-            stop 'ReadGlobalOptions - FillMatrix - ERR174'
+            stop 'ReadGlobalOptions - FillMatrix - ERR340'
         end select
 
         if (Me%InterpolationMethod /= NoInterpolation_) then
@@ -620,7 +643,7 @@ if2 :           if (BlockFound) then
                          keyword      = 'XYZ_FILE',                                     &
                          ClientModule = 'FillMatrix',                                   &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR180'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR350'
         
 
             if (iflag .ne. 0) then
@@ -1556,11 +1579,12 @@ DoStations:     do while(associated(Station))
         logical                                     :: TimeCycle
         type (T_Time)                               :: Time1, Time2, InitialDate
         real                                        :: Value1, Value2
-        real                                        :: dt1, dt2
+        real                                        :: DT_Values
         integer                                     :: STAT_CALL
 
         !Begin-----------------------------------------------------------------
         
+        Station%TimeSerieHasData = .false.        
         
         select case(trim(Station%ValueType))
             
@@ -1591,16 +1615,31 @@ DoStations:     do while(associated(Station))
                         Station%TimeSerieHasData = .true.
                     else
 
-                        dt1 = CurrentTime - Time1
-                        dt2 = Time2 - CurrentTime
-
-                        if (dt1 <= Me%Time%MaxTimeSpan .and. dt2 <= Me%Time%MaxTimeSpan) then
+                        DT_Values = Time2 - Time1
+                        
+                        if (DT_Values <= Me%Time%MaxTimeSpan) then
 
                             Station%TimeSerieHasData = .true.
+                            
 
-                            !Interpolates Value for current instant
-                            call InterpolateValueInTime(CurrentTime, Time1, Value1, Time2, Value2, Station%Value)
+                            if (Me%TimeSeriesType == UseOriginalNextValue_) then ! Retturn next value
+                    
+                                Station%Value = Value2
                         
+                            elseif (Me%TimeSeriesType ==  AccumulateValues_) then       !For Rain (from mm to mm/s)
+                    
+                                if (DT_Values > 0.) then
+                                    Station%Value = Value2 / DT_Values 
+                                else
+                                    Station%TimeSerieHasData = .false.
+                                endif                                    
+
+                            elseif (Me%TimeSeriesType == LinearInterpol_) then                            
+
+                                !Interpolates Value for current instant
+                                call InterpolateValueInTime(CurrentTime, Time1, Value1, Time2, Value2, Station%Value)
+                        
+                            endif
                         else
 
                             Station%TimeSerieHasData = .false.
