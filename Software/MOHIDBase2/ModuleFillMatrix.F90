@@ -213,8 +213,9 @@ Module ModuleFillMatrix
     integer, parameter                              :: OriginalValues     = 3
     
     !type of values 
-    integer, parameter                              :: sponge_exp_        = 1
-    integer, parameter                              :: sponge_linear_     = 2
+    integer, parameter                              :: sponge_exp_                = 1
+    integer, parameter                              :: sponge_linear_             = 2
+    integer, parameter                              :: sponge_wave_stress_dump_   = 3
     
     !wave types
     integer, parameter                              :: SineWaveSeaLevel_          = 1
@@ -4136,7 +4137,9 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR40'
 
-        if      (Me%Sponge%Evolution /= sponge_exp_ .and. Me%Sponge%Evolution /= sponge_linear_) then        
+        if      (Me%Sponge%Evolution /= sponge_exp_             .and.                   &
+                 Me%Sponge%Evolution /= sponge_linear_          .and.                   &
+                 Me%Sponge%Evolution /= sponge_wave_stress_dump_) then        
 
             write(*,*) 'Sponge evolution can only be linear or exponential'
             stop       'ConstructSponge - ModuleFillMatrix - ERR50'
@@ -4183,6 +4186,16 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                            default    * real(sp - 1)               /real(Me%Sponge%Cells - 1)
                      
             enddo
+
+        elseif (Me%Sponge%Evolution == sponge_wave_stress_dump_) then       
+        
+                AuxT(Me%Sponge%Cells) = 1.
+        
+                do sp = Me%Sponge%Cells,2,-1
+
+                    AuxT(sp-1) = max(1e-10,AuxT(sp) * 0.5)
+                    
+                enddo
 
         endif        
         
