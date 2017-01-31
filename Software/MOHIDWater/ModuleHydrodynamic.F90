@@ -253,6 +253,7 @@ Module ModuleHydrodynamic
     private ::          Construct_HydrodynamicTime
     private ::          Read_Hydrodynamic_Files_Name
     private ::          Construct_Numerical_Options
+    private ::              InicWaveStressOptions    
     private ::          Verify_Numerical_Options
     private ::          Actualize_HydrodynamicTimeStep
     private ::          InitialHydrodynamicField
@@ -326,6 +327,7 @@ Module ModuleHydrodynamic
     private ::                  ModifyTidePotential
     private ::                  ModifyRelaxAceleration
     private ::                  ModifyAltimAceleration
+    private ::                  DumpingWaveStress    
     private ::              VerticalMomentum
     private ::              NonHydroStaticCorrection
     private ::                  NonHydroOpenBoundary
@@ -730,6 +732,11 @@ Module ModuleHydrodynamic
 
     integer, parameter        :: TauSurface           = 1
     integer, parameter        :: TauWalstra           = 2
+    
+    !Wave stress relaxation coefficients
+    character(LEN = StringLength), parameter :: relax_wave_stress_begin = '<begin_relax_wave_stress>'
+    character(LEN = StringLength), parameter :: relax_wave_stress_end   = '<end_relax_wave_stress>'
+    
 
     !Types---------------------------------------------------------------------
 
@@ -952,6 +959,14 @@ Module ModuleHydrodynamic
         
     end type T_StokesVel
     
+    private :: T_WaveStress
+    type T_WaveStress
+        logical                               :: ON
+        logical                               :: Dumping
+        real,    dimension (:,:),     pointer :: DumpCoef
+    end type T_WaveStress
+
+
     private :: T_HorAdvection
     type T_HorAdvection
 
@@ -1696,9 +1711,11 @@ Module ModuleHydrodynamic
         logical                             :: RefBoundWaterLevel   = .false.
         logical                             :: Force                = .false.
         logical                             :: Geometry             = .false.
+        logical                             :: WaveStress           = .false. 
         integer                             :: ReferenceVelocity    = TotalVel_
-        real,   dimension(:,:,:), pointer   :: DecayTimeGeo => null()       
+        real,   dimension(:,:,:), pointer   :: DecayTimeGeo         => null()       
         logical                             :: BrFroceOnlyAssimil   = .false.
+        real,   dimension(:,:  ), pointer   :: CoefWaveStress       => null()
     endtype      
 
     private :: T_SubModel
@@ -1844,6 +1861,8 @@ Module ModuleHydrodynamic
         type(T_WaveRad3D     ) :: WaveRad3D
         type(T_StokesVel     ) :: StokesVel
         type(T_WaterFluxes   ) :: StokesWaterFluxes
+        
+        type(T_WaveStress    ) :: WaveStress
                 
         logical                :: FirstIteration = .true.
 #ifdef _USE_SEQASSIMILATION
@@ -7143,31 +7162,33 @@ cd21:   if (Baroclinic) then
             !Search Type      : From File
         !<EndKeyword>
 
-        call GetData(Me%ComputeOptions%WaveStress,                             & 
-                     Me%ObjEnterData, iflag,                                   & 
-                     Keyword    = 'WAVE_STRESS',                               &
-                     Default    = .false.,                                     &
-                     SearchType = FromFile,                                    &
-                     ClientModule ='ModuleHydrodynamic',                       &
+        call GetData(Me%WaveStress%ON,                                                  & 
+                     Me%ObjEnterData, iflag,                                            &  
+                     Keyword    = 'WAVE_STRESS',                                        &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = STAT_CALL)            
 
-        if (STAT_CALL /= SUCCESS_)                                             &
+        if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR940')
+        
+        if (Me%WaveStress%ON) call InicWaveStressOptions            
         
 ! Modified by Matthias DELPEY - 27/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 27/07/2011 - 24/11/2011
-        call GetData(Me%ComputeOptions%WaveForcing3D,                          & 
-                     Me%ObjEnterData, iflag,                                   & 
-                     Keyword    = 'WAVE_FORCING_3D',                           &
-                     Default    = NoWave3D,                                    &
-                     SearchType = FromFile,                                    &
-                     ClientModule ='ModuleHydrodynamic',                       &
+        call GetData(Me%ComputeOptions%WaveForcing3D,                                   & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'WAVE_FORCING_3D',                                    &
+                     Default    = NoWave3D,                                             &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = STAT_CALL)            
 
-        if (STAT_CALL /= SUCCESS_)                                             &
+        if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR940a')
         
-        if (Me%ComputeOptions%WaveStress .and.  Me%ComputeOptions%WaveForcing3D /= NoWave3D) then
+        if (Me%WaveStress%ON .and.  Me%ComputeOptions%WaveForcing3D /= NoWave3D) then
             stop 'Construct_Numerical_Options - Hydrodynamic - ERR942'
         endif
 
@@ -7646,6 +7667,96 @@ cd21:   if (Baroclinic) then
     End Subroutine Construct_Numerical_Options
 
     !End-----------------------------------------------------------------------
+    
+
+    !--------------------------------------------------------------------------
+
+    subroutine InicWaveStressOptions
+
+        !Local-----------------------------------------------------------------
+        integer, dimension(:,:), pointer    :: WaterPoints2D
+        real                                :: maxvalue, minvalue
+        integer                             :: ClientNumber, iflag, FromFile
+        logical                             :: BlockFound
+        type(T_PropertyID)                  :: ID
+        integer                             :: STAT_CALL
+
+        !----------------------------------------------------------------------
+        
+        call GetExtractType(FromFile = FromFile)        
+        
+        call GetData(Me%WaveStress%Dumping,                                             &
+                      Me%ObjEnterData, iflag,                                           &
+                      keyword      = 'WAVE_STRESS_DUMPING',                             &
+                      default      = .false.,                                           &
+                      SearchType   = FromFile,                                          &
+                      ClientModule = 'ModuleHydrodynamic',                              &
+                      STAT         = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop "InicWaveStressOptions - Hydrodynamic - ERR10"
+
+        
+dump:   if (Me%WaveStress%Dumping) then
+        
+            allocate (Me%WaveStress%DumpCoef(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+ 
+            Me%WaveStress%DumpCoef(:,:) = FillValueReal
+            
+
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                      &
+                                        relax_wave_stress_begin, relax_wave_stress_end,     &
+                                        BlockFound, STAT = STAT_CALL)
+            if (STAT_CALL  /= SUCCESS_) stop "InicWaveStressOptions - Hydrodynamic - ERR20"
+
+found:      if(BlockFound) then
+
+                !Gets WaterPoints2D
+                call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InicWaveStressOptions - Hydrodynamic - ERR30' 
+
+                call ConstructFillMatrix  (PropertyID           = ID,                               &
+                                           EnterDataID          = Me%ObjEnterData,                  &
+                                           TimeID               = Me%ObjTime,                       &
+                                           HorizontalGridID     = Me%ObjHorizontalGrid,             &
+                                           ExtractType          = FromBlock,                        &
+                                           PointsToFill2D       = WaterPoints2D,                    &
+                                           Matrix2D             = Me%WaveStress%DumpCoef,           &
+                                           TypeZUV              = TypeZ_,                           &
+                                           STAT                 = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) stop "InicWaveStressOptions - Hydrodynamic - ERR40"
+                
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                if (STAT_CALL  /= SUCCESS_) stop "InicWaveStressOptions - Hydrodynamic - ERR50"
+
+                call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) stop "InicWaveStressOptions - Hydrodynamic - ERR60"
+
+                call KillFillMatrix(ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) stop "InicWaveStressOptions - Hydrodynamic - ERR70"
+                
+                maxvalue = maxival(array = Me%WaveStress%DumpCoef, size2D = Me%WorkSize2D)
+                if (maxvalue > 1.) stop "InicWaveStressOptions - Hydrodynamic - ERR80"
+                
+                minvalue = minival(array = Me%WaveStress%DumpCoef, size2D = Me%WorkSize2D)            
+                if (minvalue < 0.) stop "InicWaveStressOptions - Hydrodynamic - ERR90"
+                
+                !UnGets WaterPoints2D
+                call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'InicWaveStressOptions - Hydrodynamic - ERR100' 
+                
+            else
+            
+                write(*,*) 'Need to define the block <begin_relax_wave_stress> / <end_relax_wave_stress>'
+                stop 'InicWaveStressOptions - Hydrodynamic - ERR110'
+
+            endif found
+            
+        endif dump            
+
+    end subroutine InicWaveStressOptions
+
+    !End-----------------------------------------------------------------------
+    
 
     Subroutine Construct_RadiaBaroclinic
     
@@ -12082,13 +12193,13 @@ cd2 :           if (IC3D(i,j,k)>0) then
 
 
         endif 
-
-
+        
 
     end subroutine ConstructRelaxation
 
     !----------------------------------------------------------------------------
-
+        
+   !--------------------------------------------------------------------------
 
     !----------------------------------------------------------------------------
 
@@ -12895,15 +13006,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
         call Ready(HydrodynamicID, ready_) 
         
-cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
 ! Modified by Matthias DELPEY - 01/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 27/07/2011
 ! WaveStressON is also set at .true. when using WAVE_STRESS : 0 and WAVE_FORCING_3D : 1 or 2
-            ! WavesStressON = Me%ComputeOptions%WaveStress
-            WavesStressON = (Me%ComputeOptions%WaveStress                            .or.   &
-                             (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) .or.   &
+            ! WavesStressON = Me%WaveStress%ON
+            WavesStressON =  (Me%WaveStress%ON                                      .or.&
+                             (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress).or.&
                              (Me%ComputeOptions%WaveForcing3D == GLM)                       )
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             STAT_ = SUCCESS_
@@ -12912,7 +13023,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         end if cd1
 
 
-        if (present(STAT))                                                               &
+        if (present(STAT))                                                              &
             STAT = STAT_
 
         !----------------------------------------------------------------------
@@ -24518,7 +24629,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
 
          !Waves
-         if (Me%ComputeOptions%WaveStress) then
+         if (Me%WaveStress%ON) then
             Me%External_Var%TauWaves_UV => Me%External_Var%TauWavesV
          endif
          
@@ -24756,7 +24867,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         
         !Waves
-        if (Me%ComputeOptions%WaveStress) then
+        if (Me%WaveStress%ON) then
             Me%External_Var%TauWaves_UV => Me%External_Var%TauWavesU
         endif
         
@@ -24897,7 +25008,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
 
          !Waves
-         if (Me%ComputeOptions%WaveStress) then
+         if (Me%WaveStress%ON) then
             nullify(Me%External_Var%TauWaves_UV)
         endif
 
@@ -25038,7 +25149,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         endif
 
-        if (Me%ComputeOptions%WaveStress) then
+        if (Me%WaveStress%ON) then
 
             call Velocity_WaveStress
 
@@ -33912,7 +34023,7 @@ cd3:                   if (Manning) then
                             elseif (Me%External_Var%ShearStressMethod == 2) then
                                 
 
-                                if (Me%ComputeOptions%WaveStress                          .or. & 
+                                if (Me%WaveStress%ON                                      .or. & 
                                     Me%ComputeOptions%WaveForcing3D == ExpRadiationStress .or. & 
                                     Me%ComputeOptions%WaveForcing3D == GLM                     ) then
                                     
@@ -33944,7 +34055,7 @@ cd3:                   if (Manning) then
                 ChezyVelUV(i, j) = Chezy  * DT_Z * VelMod_UV
 
 
-!                if (Me%ComputeOptions%WaveStress) then
+!                if (Me%WaveStress%ON) then
 
 !                    ChezyWave = Face_Interpolation(Me%External_Var%WaveChezyVel(i, j), &
 !                                                   Me%External_Var%WaveChezyVel(iSouth, jWest), &
@@ -39735,6 +39846,38 @@ do4:            do K=kbottom+1, KUB
 
 
     End Subroutine ModifyRelaxAcelerationVert
+
+    !End------------------------------------------------------------------------------
+
+    Subroutine DumpingWaveStress(AuxTauWaves_UV)
+
+
+        !Arguments------------------------------------------------------------
+        real,    dimension(:,:), pointer   :: AuxTauWaves_UV
+
+
+        !Local---------------------------------------------------------------------
+        integer                            :: i, j
+        !$ integer                         :: CHUNK
+
+        !Begin---------------------------------------------------------------------
+
+        !$OMP PARALLEL PRIVATE(I,J,)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do1:    do  j = Me%WorkSize%JLB, Me%WorkSize%JUB
+do2:    do  i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+cd1:        if (Me%External_Var%OpenPoints3D(i, j, Me%WorkSize%KUB) == Covered ) then 
+                AuxTauWaves_UV(i,j) = AuxTauWaves_UV(i, j) * Me%WaveStress%DumpCoef(i,j)
+            endif cd1
+                 
+        enddo do2
+        enddo do1
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+
+    End Subroutine DumpingWaveStress
 
     !End------------------------------------------------------------------------------
 
@@ -45594,6 +45737,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
         real                               :: DT_Velocity
 
+        real,    dimension(:,:  ), pointer :: AuxTauWaves_UV
         real                               :: Aux_2D, TauFace, FaceDensity
         
         real                               :: SmoothCoef, RunPeriod
@@ -45636,8 +45780,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         WaterColumnUV        => Me%External_Var%WaterColumnUV
 
         !End - Shorten variables name 
-
-
+        
         SmoothCoef = 1.
         
         if (Me%ComputeOptions%AtmosphereRAMP) then
@@ -45652,7 +45795,18 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
         endif
 
-  
+        if (Me%WaveStress%Dumping) then
+            
+            allocate(AuxTauWaves_UV(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+            
+            AuxTauWaves_UV(:,:) = TauWaves_UV(:,:)        
+            
+            call DumpingWaveStress(AuxTauWaves_UV)
+            
+        else
+            AuxTauWaves_UV => TauWaves_UV
+        endif
+
     doi: do j=JLB, JUB
     doj: do i=ILB, IUB
 
@@ -45660,23 +45814,21 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
             jWest  = j-dj
 
     cd1:    if (ComputeFaces3D_UV(i, j, KUB)==Covered) then 
-        
+    
                 Kbottom          = KFloor_UV(i, j)
 
-                TauFace  = Face_Interpolation(TauWaves_UV(I,J), TauWaves_UV(iSouth, jWest), &
+                TauFace          = Face_Interpolation(AuxTauWaves_UV(I,J), AuxTauWaves_UV(iSouth, jWest), &
                                               DUX_VY(I, J), DUX_VY(iSouth, jWest))        
-
-                TauFace  = SmoothCoef * TauFace
-                                                      
-                ![M*m/s]   [s] * [m] * [m] * [M*m/s^2/m^2] 
-                Aux_2D   = DT_Velocity * DZX_ZY(iSouth, jWest) * DYY_XX(I, J) * TauFace 
-
+    
+                ![M*m/s]   [] * [s] * [m] * [m] * [M*m/s^2/m^2] 
+                Aux_2D  =  SmoothCoef * DT_Velocity * DZX_ZY(iSouth, jWest) * DYY_XX(I, J) * TauFace
+        
     dok1:       do k = Kbottom, KUB
 
                     if (Me%ComputeOptions%LocalDensity) then
 
-                        FaceDensity  = Face_Interpolation(Density(I, J, k),                  &
-                                                          Density(iSouth, jWest, k),       &
+                        FaceDensity  = Face_Interpolation(Density(I, J, k),             &
+                                                          Density(iSouth, jWest, k),    &
                                                           DUX_VY(I, J), DUX_VY(iSouth, jWest))
                     else
 
@@ -45694,6 +45846,16 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
         enddo doj
         enddo doi
+
+
+        if (Me%WaveStress%Dumping) then
+            
+            deallocate(AuxTauWaves_UV)
+            
+        endif        
+
+        nullify(AuxTauWaves_UV)
+        
 
         !Nullify auxiliar pointers 
         nullify(TiCoef_3D)  
@@ -47055,7 +47217,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
        
                 AuxExplicit  = 0.
 
-                if (Me%ComputeOptions%WaveStress) then 
+                if (Me%WaveStress%ON) then 
 
                     TauFace  = Face_Interpolation(Me%External_Var%TauWaves_UV(I,J),                                         &
                                                   Me%External_Var%TauWaves_UV(iSouth, jWest),                               &
@@ -47139,7 +47301,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                   Gravity / FaceDensity
 
 
-                    if (Me%ComputeOptions%WaveStress) then 
+                    if (Me%WaveStress%ON) then 
 
                         ![m^3/s]           = [m^3/s] +  [m^2]        * [M * m/s] / [M/m^3] / [m^3] * [m] / [m]
                         AuxExplicit = AuxExplicit +  Me%External_Var%Area_UV  (I, J, K) * Aux_2D / FaceDensity  / &
@@ -54103,7 +54265,15 @@ cd1:    if (Me%ComputeOptions%Residual) then
 
         endif
 
+        if (Me%WaveStress%Dumping) then
+            
+            deallocate (Me%WaveStress%DumpCoef, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR18f.' 
 
+            nullify (Me%WaveStress%DumpCoef) 
+
+        endif        
              
         !Coefficients
         deallocate (Me%Coef%D2%D, STAT = STAT_CALL) 
@@ -55079,7 +55249,7 @@ cd1:    if (HydrodynamicID > 0) then
 
         !Begin------------------------------------------------------------------
         
-        if (Me%ComputeOptions%WaveStress)then
+        if (Me%WaveStress%ON)then
             call SetGeneric4DValues(Me%ObjWaves, Me%Generic4D%CurrentValue, STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                      &
@@ -55204,7 +55374,7 @@ cd1:    if (HydrodynamicID > 0) then
 
         !----------------------------------------------------------------------
 
-        if (Me%ComputeOptions%WaveStress) then
+        if (Me%WaveStress%ON) then
             call UnGetWaves(Me%ObjWaves,                                                     &
                                  Me%External_Var%TauWavesU, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                       &
