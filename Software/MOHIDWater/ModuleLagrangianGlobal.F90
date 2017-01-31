@@ -12956,7 +12956,7 @@ d1:     do while (associated(CurrentOrigin))
             !During the passage of Tropical Cyclone Olivia on 10 April 1996, 
             !an automatic weather station on Barrow Island, Australia, registered a maximum wind gust of 113 m/s
             !Source : wikipedia
-            if (PropValue /= FillValueReal .and. abs(PropValue)>150 ) PropValue = 0
+            if (PropValue > HalfFillValueReal .and. abs(PropValue)>150 ) PropValue = 0
 
             CurrentPartic%WindX      = PropValue
             CurrentPartic%SolutionWX = Solution
@@ -12966,7 +12966,7 @@ d1:     do while (associated(CurrentOrigin))
             !During the passage of Tropical Cyclone Olivia on 10 April 1996, 
             !an automatic weather station on Barrow Island, Australia, registered a maximum wind gust of 113 m/s
             !Source : wikipedia
-            if (PropValue /= FillValueReal .and. abs(PropValue)>150 ) PropValue = 0
+            if (PropValue > HalfFillValueReal .and. abs(PropValue)>150 ) PropValue = 0
             
             CurrentPartic%WindY      = PropValue
             CurrentPartic%SolutionWY = Solution
@@ -15641,12 +15641,12 @@ BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. Curr
                 BALY  = CellI - int(CellI)
                 BALZ  = CellK - int(CellK)
                 
-                if (CurrentPartic%CurrentX == FillValueReal) then
+                if (CurrentPartic%CurrentX < HalfFillValueReal) then
                     !Linear Interpolation to obtain the velocity of the Water
                     CurrentPartic%CurrentX = LinearInterpolation(Velocity_U(i,  j  ,k), Velocity_U(i,  j+1,k), Balx)
                 endif
 
-                if (CurrentPartic%CurrentY == FillValueReal) then
+                if (CurrentPartic%CurrentY < HalfFillValueReal) then
                     !Linear Interpolation to obtain the velocity of the Water
                     CurrentPartic%CurrentY = LinearInterpolation(Velocity_V(i,  j  ,k), Velocity_V(i+1,j  ,k), Baly)
                 endif
@@ -15671,7 +15671,7 @@ MF:             if (CurrentPartic%Position%Surface) then
                     UINT = U                        
                     VINT = V   
                     
-                    if (CurrentPartic%WindX == FillValueReal) then
+                    if (CurrentPartic%WindX < HalfFillValueReal) then
                         !Velocity due wind  
                         if (CurrentOrigin%Movement%WindOriginON) then
                             CurrentPartic%WindX = CurrentOrigin%Movement%WindX
@@ -15690,7 +15690,7 @@ MF:             if (CurrentPartic%Position%Surface) then
 
                     endif
 
-                    if (CurrentPartic%WindY == FillValueReal) then
+                    if (CurrentPartic%WindY < HalfFillValueReal) then
                         !Velocity due wind  
                         if (CurrentOrigin%Movement%WindOriginON) then
                             CurrentPartic%WindY = CurrentOrigin%Movement%WindY
@@ -15877,7 +15877,7 @@ if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == Long
                         elseif  (SpreadingMethod == Fay              ) then
 
                             call RANDOM_NUMBER(R1)
-                            if (CurrentPartic%Position%SpreadingAngle == null_real) then
+                            if (CurrentPartic%Position%SpreadingAngle < HalfFillValueReal) then
                                 call RANDOM_NUMBER(R2)
                                 R2 = 2.0*Pi*R2
                                 VelOil  = Me%ExternalVar%DiffVelocity
@@ -15951,7 +15951,7 @@ if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == Long
                     UHNS  = 0.0
                     VHNS  = 0.0
                         
-                    if (CurrentPartic%CurrentX == FillValueReal .or. CurrentPartic%CurrentY == FillValueReal) then
+                    if (CurrentPartic%CurrentX < HalfFillValueReal .or. CurrentPartic%CurrentY < HalfFillValueReal) then
                         InterpolVel3D = .true.
                     else
                         InterpolVel3D = .false.                                            
@@ -18101,7 +18101,7 @@ DB:                     if (.not. CurrentPartic%Deposited .and.                 
 
         !Local-----------------------------------------------------------------
         
-        if (Partic%AmbientConc(iP) == FillValueReal) then
+        if (Partic%AmbientConc(iP) < HalfFillValueReal) then
              call GetAmbientConcCell (Property, ModelID, Partic%Position, Partic%AmbientConc(iP))
         endif
         
@@ -19995,7 +19995,7 @@ i1:         if (CurrentOrigin%nParticle > 0)  then
 !                    endif
                    
 
-                   if (CurrentPartic%WindX == FillValueReal) then
+                   if (CurrentPartic%WindX < HalfFillValueReal) then
                             if (associated(Me%EulerModel(emp)%WindX)) then
                                 CurrentPartic%WindX = Me%EulerModel(emp)%WindX(i,j)
                             else
@@ -20003,7 +20003,7 @@ i1:         if (CurrentOrigin%nParticle > 0)  then
                             end if
                     endif
 
-                   if (CurrentPartic%WindY == FillValueReal) then
+                   if (CurrentPartic%WindY < HalfFillValueReal) then
                             if (associated(Me%EulerModel(emp)%WindY)) then
                                 CurrentPartic%WindY = Me%EulerModel(emp)%WindY(i,j)
                             else
@@ -20028,13 +20028,13 @@ i1:         if (CurrentOrigin%nParticle > 0)  then
 
                     AtmPressure         = Me%EulerModel(emp)%AtmPressure(i, j)
 
-                    if (CurrentPartic%WaveHeight == FillValueReal) then
+                    if (CurrentPartic%WaveHeight < HalfFillValueReal) then
                         CurrentPartic%WaveHeight = Me%EulerModel(emp)%WaveHeight2D (i, j)  
                     endif
                     
                     WaveHeight = CurrentOrigin%FirstPartic%WaveHeight
 
-                    if (CurrentPartic%WavePeriod == FillValueReal) then
+                    if (CurrentPartic%WavePeriod < HalfFillValueReal) then
                         CurrentPartic%WavePeriod = Me%EulerModel(emp)%WavePeriod2D (i, j)  
                     endif
                     
@@ -20335,7 +20335,7 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                     SPM = FillValueReal
                 end if                 
 
-               if (CurrentOrigin%FirstPartic%WindX == FillValueReal) then
+               if (CurrentOrigin%FirstPartic%WindX < HalfFillValueReal) then
                         if (associated(Me%EulerModel(emp)%WindX)) then
                             CurrentOrigin%FirstPartic%WindX = Me%EulerModel(emp)%WindX(i,j)
                         else
@@ -20343,7 +20343,7 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                         end if
                 endif
 
-               if (CurrentOrigin%FirstPartic%WindY == FillValueReal) then
+               if (CurrentOrigin%FirstPartic%WindY < HalfFillValueReal) then
                         if (associated(Me%EulerModel(emp)%WindY)) then
                             CurrentOrigin%FirstPartic%WindY = Me%EulerModel(emp)%WindY(i,j)
                         else
@@ -20361,13 +20361,13 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                 
                 AtmPressure         = Me%EulerModel(emp)%AtmPressure(i, j)
                 
-                if (CurrentOrigin%FirstPartic%WaveHeight == FillValueReal) then
+                if (CurrentOrigin%FirstPartic%WaveHeight < HalfFillValueReal) then
                     CurrentOrigin%FirstPartic%WaveHeight = Me%EulerModel(emp)%WaveHeight2D (i, j)  
                 endif
                 
                 WaveHeight = CurrentOrigin%FirstPartic%WaveHeight
 
-                if (CurrentOrigin%FirstPartic%WavePeriod == FillValueReal) then
+                if (CurrentOrigin%FirstPartic%WavePeriod < HalfFillValueReal) then
                     CurrentOrigin%FirstPartic%WavePeriod = Me%EulerModel(emp)%WavePeriod2D (i, j)  
                 endif
                 
@@ -20385,11 +20385,11 @@ i1:         if (CurrentOrigin%State%Oil .and. CurrentOrigin%nParticle > 0 .and. 
                     CurrentOrigin%AreaTotal = -1.
                 endif
                 
-                if (CurrentOrigin%VolTotBeached == null_real) then
+                if (CurrentOrigin%VolTotBeached < HalfFillValueReal) then
                     CurrentOrigin%VolTotBeached     = 0.
                 endif
                 
-                if (CurrentOrigin%VolTotOilBeached == null_real) then
+                if (CurrentOrigin%VolTotOilBeached < HalfFillValueReal) then
                     CurrentOrigin%VolTotOilBeached  = 0.
                 endif
 
@@ -22846,7 +22846,7 @@ i1:             if (nP>0) then
                             Aux1DX(:) = FillValueReal
                             Aux1DY(:) = FillValueReal
 
-                            if (.not. (nP == 1 .and. Matrix1DX(1) == FillValueReal)) then
+                            if (.not. (nP == 1 .and. Matrix1DX(1) < HalfFillValueReal)) then
     
                                 call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, CurrentOrigin%nParticle, Aux1DX, Aux1DY)
                                 
@@ -23690,7 +23690,7 @@ iTP:                    if (TotParticle(ig) == 0) then
                         Aux1DX(:) = FillValueReal
                         Aux1DY(:) = FillValueReal
                         
-                        if (.not. (nP == 1 .and. Matrix1DX(1) == FillValueReal)) then
+                        if (.not. (nP == 1 .and. Matrix1DX(1) < HalfFillValueReal)) then
 
                             call WGS84toGoogleMaps (Matrix1DX, Matrix1DY, TotParticle(ig), Aux1DX, Aux1DY)
                             
