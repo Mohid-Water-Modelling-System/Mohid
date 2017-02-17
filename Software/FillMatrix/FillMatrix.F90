@@ -477,12 +477,13 @@ if2 :           if (BlockFound) then
 
             DT = Me%Time%OutTime(2)-Me%Time%OutTime(1)
 
-            call StartComputeTime(Me%ObjTime,                                       &
-                                  Me%Time%BeginTime,                                &
-                                  Me%Time%BeginTime,                                &
-                                  Me%Time%EndTime,                                  &
-                                  DT,                                               &
-                                  .false., STAT = STAT_CALL)   
+            call StartComputeTime(TimeID            = Me%ObjTime,                       &
+                                  InitialSystemTime = Me%Time%BeginTime,                &
+                                  BeginTime         = Me%Time%BeginTime,                &
+                                  EndTime           = Me%Time%EndTime,                  &
+                                  DT                = DT,                               &
+                                  VariableDT        = .false.,                          &
+                                  STAT              = STAT_CALL)   
             if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR150'
 
 
@@ -1617,7 +1618,7 @@ DoStations:     do while(associated(Station))
 
                         DT_Values = Time2 - Time1
                         
-                        if (DT_Values <= Me%Time%MaxTimeSpan) then
+                        if (CurrentTime >= Time1 .and. CurrentTime <= Time2 .and. DT_Values <= Me%Time%MaxTimeSpan) then
 
                             Station%TimeSerieHasData = .true.
                             
