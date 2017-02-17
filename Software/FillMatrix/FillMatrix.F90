@@ -157,6 +157,7 @@ program FillMatrix
         real                                    :: MaxDistance
         real                                    :: IWDn     
         integer                                 :: TimeSeriesType
+        logical                                 :: StopLastValue        = .false. 
         type(T_XYZPoints),             pointer  :: XYZPoints
         type(T_Station), pointer                :: FirstStation
     end type T_FillMatrix
@@ -660,6 +661,15 @@ if2 :           if (BlockFound) then
         write(*,*)
         
 
+        call GetData(Me%StopLastValue,                                          &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType   = FromFile,                                   &
+                     keyword      = 'STOP_LAST_VALUE',                          &
+                     Default      = .false.,                                    &
+                     ClientModule = 'FillMatrix',                               &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - FillMatrix - ERR360'     
+
 
     end subroutine ReadGlobalOptions
 
@@ -737,6 +747,7 @@ if2 :           if (BlockFound) then
         character(5)                                :: AuxChar
         real                                        :: Nominator, Denominator, dist
         logical                                     :: WriteThisInstant, WritePrevInstant, PrevInstantWritten
+        logical                                     :: ExitDG 
         
         
         !Begin-----------------------------------------------------------------
@@ -756,7 +767,9 @@ if2 :           if (BlockFound) then
         endif
 
 
-        do Instant = 1, size(Me%Time%OutTime)
+        ExitDG = .false. 
+
+dg:     do Instant = 1, size(Me%Time%OutTime)
 
             Me%Time%Next = Instant
 
@@ -784,7 +797,11 @@ if2 :           if (BlockFound) then
                 if (Me%NumberOfStations < 3) then
                     write (*,*)'Insufficient data avaliable'
                     write (*,*)'Increase MAX_TIME_SPAN or get more data ;-)'
-                    stop 'ConvertStationsToHDF5 - FillMatrix - ERR01'
+                    if (Me%StopLastValue .and. Instant >=2) then         
+                        exit
+                    else       
+                        stop 'ConvertStationsToHDF5 - FillMatrix - ERR10'
+                    endif                        
                 endif
                 
                 !Allocates Variables for Triangulation
@@ -812,11 +829,11 @@ if2 :           if (BlockFound) then
                                              Me%Nodes%Y,             &
                                              Me%OutputTriangles,     &
                                              STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR02'
+                if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR20'
 
                 !Sets Height Values
                 call SetHeightValues(Me%ObjTriangulation, Me%Nodes%Z, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR03'
+                if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR30'
 
                 !Interpolates Values
                 do j = Me%ExtVar%WorkSize%JLB, Me%ExtVar%WorkSize%JUB
@@ -830,7 +847,7 @@ if2 :           if (BlockFound) then
                                                     Me%FillOutsidePoints,         &
                                                     Default = null_real,          &
                                                     STAT    = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR04'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR40'
 
                     else
 
@@ -847,7 +864,7 @@ if2 :           if (BlockFound) then
 
                 !Kills Triangulation
                 call KillTriangulation (Me%ObjTriangulation, STAT    = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR50'
 
                 !Deallocates Matrixes 
                 deallocate(Me%Nodes%X)
@@ -886,10 +903,12 @@ DoStations:             do while(associated(Station))
                         enddo DoStations
 
                         if (Denominator .lt. AllMostZero) then
-                            write (*,*)'Insufficient data avaliable'
-                            write (*,*)'Increase MAX_TIME_SPAN, MAX_DISTANCE or get more data ;-)'
-                            write (*,*)'Point [i, j]', i, j
-                            stop 'ConvertStationsToHDF5 - FillMatrix - ERR01'
+                            if (Me%StopLastValue .and. Instant >=2) then         
+                                ExitDG = .true. 
+                            else       
+                                stop 'ConvertStationsToHDF5 - FillMatrix - ERR50'
+                            endif                        
+                            
                         endif
                         Field(i, j) = Nominator / Denominator
 
@@ -901,7 +920,13 @@ DoStations:             do while(associated(Station))
 
                 enddo
                 enddo
-
+                
+                if (ExitDG) then
+                    write (*,*)'Insufficient data avaliable'
+                    write (*,*)'Increase MAX_TIME_SPAN, MAX_DISTANCE or get more data ;-)'
+                    write (*,*)'Point [i, j]', i, j                
+                    exit
+                endif
 
             end select
 
@@ -965,11 +990,11 @@ doj:                do j = Me%ExtVar%WorkSize%JLB, Me%ExtVar%WorkSize%JUB
                 PrevTime            = CurrentTime
             endif
 
-        end do
+        end do dg
 
 
         call KillHDF5(Me%ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ConvertStationsToHDF5 - FillMatrix - ERR60'
 
         write(*,*)
         write(*,*)'Finished...'
