@@ -125,10 +125,11 @@ Module ModuleInterpolateGrids
     end type  T_Grid
 
     type       T_InterpolateGrids
-        integer                                             :: ObjEnterData         = 0
-        integer                                             :: ObjTime              = 0
-        integer                                             :: ObjInterpolation     = 0
-        integer                                             :: ObjTriangulation     = 0
+        integer                                             :: ObjEnterData              = 0
+        integer                                             :: ObjTime                   = 0
+        integer                                             :: ObjInterpolation          = 0
+        integer                                             :: ObjTriangulation          = 0
+        integer                                             :: ObjHorizontalGridReplaced = 0
         logical                                             :: Interpolation3D, InterpolateGrid3D, NewInterpolation
         integer                                             :: TypeOfInterpolation
         type(T_Grid )                                       :: Father
@@ -2186,7 +2187,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         call GetHorizontalGridSize(Me%Father%ObjHorizontalGrid,                         &
                                    WorkSize = Me%Father%WorkSize2D,                     &
                                    Size     = Me%Father%Size2D,                         &
-                                   STAT = STAT_CALL)
+                                   STAT     = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR60'
 
         Me%Father%Size3D%ILB = Me%Father%Size2D%ILB
@@ -2435,62 +2436,140 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         type (T_Grid)                               :: NewGrid
 
         !Local-----------------------------------------------------------------
+        real,   dimension(:  ),   pointer           :: AuxX, AuxY
+        real                                        :: AuxXorig, AuxYorig
         logical                                     :: Distorted
         integer                                     :: STAT_CALL, CoordType, CoordTypeSon
+        integer                                     :: ReadCartCorners, ProjType
         integer                                     :: UTM, MIL_PORT, GEOG, SIMPLE_GEOG
         integer                                     :: GRID_COORD, NLRD
+        integer                                     :: ObjHorizontalGrid
+        real                                        :: NewGridLat, NewGridLong
+        real                                        :: FatherGridLat, FatherGridLong
+        
         !Begin-----------------------------------------------------------------
 
         write(*,*)'Constructing communication between grids...'
+        
+        call GetCoordTypeList (GEOG = GEOG, UTM = UTM, MIL_PORT = MIL_PORT,             &
+                               SIMPLE_GEOG = SIMPLE_GEOG, GRID_COORD = GRID_COORD,      &
+                               NLRD = NLRD)
+                               
+        !Gets Coordinates in use
+        call GetGridCoordType(Me%Father%ObjHorizontalGrid, CoordType, ReadCartCorners, ProjType, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR10'
+
+        call GetGridCoordType(NewGrid%ObjHorizontalGrid, CoordTypeSon, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR20'
+
+        if (CoordType /= CoordTypeSon) then
+            Write (*,*) 'Fathergrid coordinate type is different than son grid coordinate type'
+            stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR30'
+        endif
+                                       
+                                       
 
         call GetCheckDistortion(Me%Father%ObjHorizontalGrid, Distorted, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR40'
 
         if (Distorted .and. Me%TypeOfInterpolation == Bilinear) then
             write(*,*) 'Cannot use Bilinear interpolation in distorted grids.'
             write(*,*) 'Change to Triangulation => TYPE_OF_INTERPOLATION : 3'
-            stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR11'
+            stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR50'
         endif
 
-        if(.not. Distorted)then
+        if (.not. Distorted) then
+        
+            call GetLatitudeLongitude(HorizontalGridID = NewGrid%ObjHorizontalGrid,     &
+                                      Latitude         = NewGridLat,                    &
+                                      Longitude        = NewGridLong,                   &
+                                      STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR60'
+            
+            call GetLatitudeLongitude(HorizontalGridID = Me%Father%ObjHorizontalGrid,   &
+                                      Latitude         = FatherGridLat,                 &
+                                      Longitude        = FatherGridLong,                &
+                                      STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR70'
+            
+            if (CoordType == SIMPLE_GEOG_ .and. .not. ReadCartCorners .and. ProjType == PAULO_PROJECTION_) then
+            
+                if (NewGridLat /= FatherGridLat .or. NewGridLong /= FatherGridLong) then
 
+                    
+                    call GetHorizontalGrid(HorizontalGridID = Me%Father%ObjHorizontalGrid, &
+                                           XX               = AuxX,                     &
+                                           YY               = AuxY,                     & 
+                                           STAT             = STAT_CALL)                    
+                    if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR80'
+                    
+                    call GetGridOrigin(HorizontalGridID = Me%Father%ObjHorizontalGrid,  &
+                                       Xorig            = AuxXorig,                     &
+                                       Yorig            = AuxYorig,                     &
+                                       STAT             = STAT_CALL)                    
+                    if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR80'
+
+
+                    
+                    ObjHorizontalGrid = 0
+                                                                    
+                    call ConstructHorizontalGrid(HorizontalGridID   = ObjHorizontalGrid,            &
+                                                 XX                 = AuxX,                         &
+                                                 YY                 = AuxY,                         &
+                                                 Xorig              = AuxXorig,                     &    
+                                                 Yorig              = AuxYorig,                     &                                                     
+                                                 Latitude           = NewGridLat,                   &
+                                                 Longitude          = NewGridLong,                  &
+                                                 ILB                = Me%Father%WorkSize2D%ILB,     &
+                                                 IUB                = Me%Father%WorkSize2D%IUB,     &
+                                                 JLB                = Me%Father%WorkSize2D%JLB,     &
+                                                 JUB                = Me%Father%WorkSize2D%JUB,     &
+                                                 STAT               = STAT_CALL)                    
+                    if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR120'           
+                    
+                    
+                    call UngetHorizontalGrid(Me%Father%ObjHorizontalGrid,               &
+                                             AuxX,                                      &
+                                             STAT  = STAT_CALL)
+                    if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR90'
+
+
+                    call UngetHorizontalGrid(Me%Father%ObjHorizontalGrid,               &
+                                             AuxY,                                      &
+                                             STAT  = STAT_CALL)
+                    if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR100'                             
+                    
+                    
+                    Me%ObjHorizontalGridReplaced = Me%Father%ObjHorizontalGrid
+                    Me%Father%ObjHorizontalGrid  = ObjHorizontalGrid
+
+                endif
+                
+            endif                
+            
             call ConstructFatherGridLocation(NewGrid%ObjHorizontalGrid, Me%Father%ObjHorizontalGrid, &
                                              OkCross = .false., OkZ = .true., OkU = .false., OkV = .false., &
                                              STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR130'
 
         end if
 
-        call GetCoordTypeList (GEOG = GEOG, UTM = UTM, MIL_PORT = MIL_PORT,             &
-                               SIMPLE_GEOG = SIMPLE_GEOG, GRID_COORD = GRID_COORD,      &
-                               NLRD = NLRD)
 
-        !Gets Coordinates in use
-        call GetGridCoordType(Me%Father%ObjHorizontalGrid, CoordType, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR30'
-
-        call GetGridCoordType(NewGrid%ObjHorizontalGrid, CoordTypeSon, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR40'
-
-        if (CoordType /= CoordTypeSon) then
-            Write (*,*) 'Fathergrid coordinate type is different than son grid coordinate type'
-            stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR50'
-        endif
 
         if(CoordType == UTM .or. CoordType == MIL_PORT .or.                             &
            CoordType == GRID_COORD .or. CoordType == NLRD)then
 
-            call GetHorizontalGrid(Me%Father%ObjHorizontalGrid,                        & 
+            call GetHorizontalGrid(Me%Father%ObjHorizontalGrid,                         & 
                                    XX_IE = Me%Father%ConnectionX,                       &
                                    YY_IE = Me%Father%ConnectionY,                       &
                                    STAT = STAT_CALL)
-            if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR60'
+            if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR140'
 
             call GetHorizontalGrid(NewGrid%ObjHorizontalGrid,                           &
                                    XX_IE = NewGrid%ConnectionX,                         &
                                    YY_IE = NewGrid%ConnectionY,                         &
                                    STAT = STAT_CALL)
-            if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR70'
+            if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR150'
 
         else
 
@@ -2498,13 +2577,13 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                           GridLatitudeConn  = Me%Father%ConnectionY,    &
                                           GridLongitudeConn = Me%Father%ConnectionX,    &
                                           STAT  = STAT_CALL)
-            if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR80'
+            if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR160'
 
             call GetGridLatitudeLongitude(NewGrid%ObjHorizontalGrid,                  &
                                           GridLatitudeConn  = NewGrid%ConnectionY,    &
                                           GridLongitudeConn = NewGrid%ConnectionX,    &
                                           STAT  = STAT_CALL)
-            if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR90'
+            if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR170'
 
         end if
 
@@ -3326,6 +3405,11 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
         call KillHorizontalGrid(Me%Father%ObjHorizontalGrid, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'KillFatherGrid - ModuleInterpolateGrids - ERR80'
+        
+        if (Me%ObjHorizontalGridReplaced /= 0) then
+            call KillHorizontalGrid(Me%ObjHorizontalGridReplaced, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'KillFatherGrid - ModuleInterpolateGrids - ERR90'
+        endif
 
 
     end subroutine KillFatherGrid

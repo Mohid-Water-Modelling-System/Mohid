@@ -22,6 +22,7 @@ Program HDF5_2_EsriGridData
     use ModuleHDF5
     use ModuleEnterData
     use ModuleHorizontalGrid
+    use ModuleGridData
 
     implicit none
 
@@ -69,7 +70,8 @@ Program HDF5_2_EsriGridData
         character(30), dimension(2)                         :: Origin  
         logical                                             :: Dim2D      
         logical                                             :: NoNegativeValues    
-        logical                                             :: TransferToOutGrid    
+        logical                                             :: TransferToOutGrid
+        logical                                             :: ExportXYZ    
     end type  T_HDF5_2_EsriGridData
 
     type(T_HDF5_2_EsriGridData), pointer              :: Me
@@ -320,6 +322,15 @@ d2:     do l= 1, Me%FieldNumber
             if (iflag     == 0)        stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR90'
  
         endif
+        
+        call GetData(Me%ExportXYZ,                                                      &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'EXPORT_XYZ',                                       &
+                     ClientModule = 'HDF5ToASCIIandBIN',                                &
+                     default      = .false.,                                            &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadGlobalOptions - HDF5_2_EsriGridData - ERR70'
  
     end subroutine ReadGlobalOptions
 
@@ -536,6 +547,7 @@ d2:     do l= 1, Me%InstantNumber
 
         !Local-------------------------------------------------------------------
         real, dimension(:,:,:), pointer                 :: Aux3D, Aux3DOut
+        real, dimension(:,:), pointer                   :: Aux2DOut
         character(len=50000)                            :: Line
         character(len=PathLength)                       :: VGroup, Field, AuxChar
         integer                                         :: l, i, j, k, STAT_CALL, Unit
@@ -576,6 +588,7 @@ d2:     do l= 1, Me%InstantNumber
         
         if (Me%TransferToOutGrid) then
             allocate(Aux3DOut(Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB,1: Me%KUB))
+            allocate(Aux2DOut(Me%SizeOut%ILB:Me%SizeOut%IUB, Me%SizeOut%JLB:Me%SizeOut%JUB))
             
             ILBout = Me%WorkSizeOut%ILB
             IUBout = Me%WorkSizeOut%IUB
@@ -634,17 +647,29 @@ d11:    do l = 1, Me%FieldNumber
                 write(Unit,'(A14,f12.6)') 'nodata_value  ', Me%FillValue
                 
                 if (Me%TransferToOutGrid) then
-
+                
+                    Aux2DOut(:,:) = Me%FillValue
                     Aux3DOut(:,:,:) = Me%FillValue
+     
                     do i = ILB, IUB
                         do j = JLB, JUB
                             call GetXYCellZ(Me%ObjHorizontalGridOut, CoordX(i, j), CoordY(i, j), iout,jout)
+                            Aux2DOut(iout,jout)   = Aux3D(i,j,k)
                             Aux3DOut(iout,jout,k) = Aux3D(i,j,k)
                         enddo
                     enddo
+                    
+                    call WriteHDF5_To_GridData(Aux2DOut, Me%OutputESRI(l))
                
-               endif
-               
+                endif
+                
+                
+                if (Me%ExportXYZ) then
+                
+                    call Export_To_XYZ(Aux3D, k, ILB, IUB, JLB, JUB, Me%OutputESRI(l))
+                
+                endif 
+                
                 do i = IUBout, ILBout, -1
                     do j = JLBout, JUBout
                         if (abs(Aux3DOut(i,j,k)) > abs(Me%FillValue)) Aux3DOut(i,j,k) = Me%FillValue
@@ -667,7 +692,7 @@ d11:    do l = 1, Me%FieldNumber
                 enddo
                 
                 call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'OutputMohidBin - ModuleTecnoceanAscii - ERR10'
+                if (STAT_CALL /= SUCCESS_) stop 'OutputMohidBin - ModuleTecnoceanAscii - ERR50'
 
         enddo d11
         
@@ -676,6 +701,7 @@ d11:    do l = 1, Me%FieldNumber
 
         if (Me%TransferToOutGrid) then
             deallocate(Aux3DOut)
+            deallocate(Aux2DOut)
         endif            
         
 
@@ -990,4 +1016,76 @@ do2:    do l  = 1, Me%PropNumber
     end subroutine ModifyEsriGridData_2_HDF5
  
     !--------------------------------------------------------------------------
+
+    subroutine Export_To_XYZ(Aux3D, k, ILB, IUB, JLB, JUB, Filename)
+
+        !Arguments---------------------------------------------------------------
+
+        !Local-------------------------------------------------------------------
+        real, dimension(:,:,:), pointer                 :: Aux3D
+        integer                                         :: i, j, STAT_CALL, Unit, SplitByExtension
+        integer                                         :: k, ILB, IUB, JLB, JUB
+        real,  dimension(:,:), pointer                  :: CoordX, CoordY
+        character(len=PathLength)                       :: Filename
+        
+        !------------------------------------------------------------------------
+
+        write(*,*)"Writing MOHID .xyz file..."
+
+        call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY)
+              
+        SplitByExtension = scan(trim(Filename),'.',Back = .true.)
+                    
+        open(Unit   = Unit,                                                 &
+         File   = trim(Filename(1:SplitByExtension-1)//'.xyz'),             &
+         Form   = 'FORMATTED',                                              &
+         STATUS = 'UNKNOWN',                                                &
+         Action = 'WRITE',                                                  &
+         IOSTAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - HDF5_2_EsriGridData - ERR10'
+                    
+        write(Unit,*)'<begin_xyz>'
+        
+        do i = ILB, IUB
+            do j = JLB, JUB
+                write(Unit,*)CoordX(i, j), CoordY(i, j), Aux3D(i,j,k)
+            enddo
+        enddo
+        
+        write(Unit,*)'<end_xyz>'
+                        
+        call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'Export_To_XYZ - HDF5_2_EsriGridData - ERR20'
+        
+    end subroutine Export_To_XYZ
+ 
+    !--------------------------------------------------------------------------
+    
+    subroutine WriteHDF5_To_GridData (Aux2DOut, Filename)
+        
+        !External--------------------------------------------------------------
+        real, dimension(:,:), pointer                   :: Aux2DOut
+        integer                                         :: STAT_CALL, SplitByExtension
+        character(len=PathLength)                       :: Filename
+        
+        !Begin-----------------------------------------------------------------
+
+        SplitByExtension = scan(trim(Filename),'.',Back = .true.)
+        
+        write(*,*)"Writing griddata file..."
+        
+        call WriteGridData(FileName         = trim(Filename(1:SplitByExtension-1)//'.dat'),        &
+               COMENT1          = 'File generated by',                                             &
+               COMENT2          = 'HDF5_2_EsriGridData',                                           &
+               HorizontalGridID = Me%ObjHorizontalGridOut,                                         &
+               FillValue        = Me%FillValue,                                                    &
+               Overwrite        = .true.,                                                          &
+               GridData2D_Real  = Aux2DOut,                                                        &
+               STAT             = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'WriteHDF5_To_GridData - HDF5_2_EsriGridData - ERR10'
+        
+    end subroutine WriteHDF5_To_GridData
+    
+    
+    !--------------------------------------------------------------------------   
     End Program HDF5_2_EsriGridData
