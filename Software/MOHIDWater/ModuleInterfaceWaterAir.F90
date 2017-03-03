@@ -5187,17 +5187,21 @@ cd1:    if(Me%CDWINDmethod == Constant)then
                     VM = sqrt(UWIND(i,j)**2. + VWIND(i,j)**2.)  
                     
                     !Compute the wind drag coefficient based on Large & Pond, 1981 
-                    if (VM < 4.)then
+                    !included the modifications for low wind speeds considered in Trenberth et al. (1990) Francisco
 
-                        !The Large & Pond, 1981 formulation is not valid for wind lower than 4 m/s
-                        !A constant value is assumed   
-                        CDWIND = 0.0012 
+                    if (VM <= 1.)then
+
+                        CDWIND = 0.00218
+                        
+                    elseif (VM >  1.  .and. VM <  3.)then
+
+                        CDWIND = (0.00062 + 0.00156 * VM)                         
                     
-                    elseif (VM >=  4  .and. VM <  11.)then
+                    elseif (VM >=  3.  .and. VM <  10.)then
 
-                        CDWIND = 0.0012
+                        CDWIND = 0.00114
 
-                    elseif (VM >= 11. .and. VM <= 26.)then
+                    elseif (VM >= 10. .and. VM <= 26.)then
 
                         CDWIND = (0.00049 + 0.000065 * VM)                   
 
