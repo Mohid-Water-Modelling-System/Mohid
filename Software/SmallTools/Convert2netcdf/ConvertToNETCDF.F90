@@ -133,6 +133,12 @@ program Convert2netcdf
         integer                                             :: nGroupsToConvert
         character(len=StringLength), dimension(:), pointer  :: GroupsToConvert => null()
 
+        real,   dimension(:,:,:), pointer                   :: Depth3DIN        => null()   
+        real,   dimension(:), pointer                       :: DepthVector      => null()
+        integer                                             :: DepthLayers      =  FillValueInt
+        logical                                             :: DepthLayersON    = .false. 
+        
+
     end type T_Conv2netcdf
 
     type(T_Conv2netcdf)                     :: Me
@@ -162,6 +168,7 @@ program Convert2netcdf
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, iflag
         logical                                     :: exist, Exist2
+        real, dimension(:), allocatable             :: Aux1D
         
         !Begin-----------------------------------------------------------------
 
@@ -452,6 +459,40 @@ program Convert2netcdf
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR330'
         
+        iflag = 0
+        
+        allocate(Aux1D(1:100))
+        
+        call GetData(Aux1D,                                                             &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'DEPTH_LAYERS',                                     &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        
+        if (iflag > 0) then
+        
+            allocate(Me%DepthVector(1:iflag))
+            
+            Me%DepthVector(1:iflag) = Aux1D(1:iflag)
+            
+            deallocate(Aux1D)
+            
+!            call GetData(Me%DepthVector,                                                &
+!                         Me%ObjEnterData,iflag,                                         &
+!                         SearchType   = FromFile,                                       &
+!                         keyword      = 'DEPTH_LAYERS',                                 &
+!                         ClientModule = 'Convert2netcdf',                               &
+!                         STAT         = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR340'              
+            
+            Me%DepthLayers          = iflag    
+            Me%DepthLayersON        = .true.            
+            
+        else
+            Me%DepthLayersON        = .false.
+        endif            
+        
         if(.not. Me%ConvertEverything)then
 
              call ReadVGroupsToConvert
@@ -683,7 +724,11 @@ program Convert2netcdf
 
         if (Me%HDFFile%Size%KUB .gt. 0 .and. .not. Me%HDFFile%OutputIs2D) then
             if ( .not. Me%HDFFile%ResultsAre2D ) then
-                call ReadWriteVertical
+                if (Me%DepthLayersON) then
+                    call WriteDepthLayers
+                else
+                    call ReadWriteVertical
+                endif                                        
             else
                 call WriteVerticalNullDepth
             endif
@@ -713,7 +758,7 @@ program Convert2netcdf
         write(*,*)"Reading sizes..."
 
         call h5gopen_f(Me%HDFFile%FileID, Me%HDFFile%SizeGroup, gr_id, STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR01'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR10'
 
         !Opens data set
         call h5dopen_f(gr_id, trim(adjustl(Me%HDFFile%SizeDataSet)), dset_id, STAT_CALL)
@@ -734,9 +779,16 @@ program Convert2netcdf
         allocate(Me%Float3DIn (1:dims(1), 1:dims(2), 1:dims(3)))
         
         allocate(Me%Int2DOut  (1:dims(2), 1:dims(1)))
-        allocate(Me%Int3DOut  (1:dims(2), 1:dims(1), 1:dims(3)))
         allocate(Me%Float2DOut(1:dims(2), 1:dims(1)))
-        allocate(Me%Float3DOut(1:dims(2), 1:dims(1), 1:dims(3)))        
+        
+        if (Me%DepthLayersON) then        
+            allocate(Me%Float3DOut(1:dims(2), 1:dims(1), 1:Me%DepthLayers))        
+            allocate(Me%Int3DOut  (1:dims(2), 1:dims(1), 1:Me%DepthLayers))
+            allocate(Me%Depth3DIN (1:dims(1), 1:dims(2), 1:dims(3)))                    
+        else
+            allocate(Me%Float3DOut(1:dims(2), 1:dims(1), 1:dims(3)))        
+            allocate(Me%Int3DOut  (1:dims(2), 1:dims(1), 1:dims(3)))            
+        endif            
 
         Me%Int2DIn    = null_int
         Me%Int3DIn    = null_int  
@@ -756,10 +808,15 @@ program Convert2netcdf
         Me%HDFFile%Size%IUB = dims(1)
         Me%HDFFile%Size%JUB = dims(2)
         Me%HDFFile%Size%KUB = dims(3)
-
-        call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(dims(1),4), int(dims(2),4), int(dims(3),4), STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR02'
-
+        
+        if (Me%DepthLayersON) then
+            call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(dims(1),4), int(dims(2),4), int(Me%DepthLayers,4), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR20'
+        else
+            call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(dims(1),4), int(dims(2),4), int(dims(3),4), STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR30'
+        endif
+        
         write(*,*)
         write(*,*)"IUB", Me%HDFFile%Size%IUB
         write(*,*)"JUB", Me%HDFFile%Size%JUB
@@ -878,6 +935,150 @@ program Convert2netcdf
         write(*,*)
 
     end subroutine ReadWriteLatLon
+    
+    
+
+    !--------------------------------------------------------------------------
+
+    subroutine ReadDepthIn3D(OutputNumber)
+    
+        !Arguments-------------------------------------------------------------    
+        integer                             :: OutputNumber
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_CALL, i, j, k, KUBin
+        real,    dimension(:,:,:), pointer  :: Vert3D
+        integer, dimension(:,:,:), pointer  :: WaterPoints3D
+        character(len=StringLength)         :: PointsVar
+
+        !Begin-----------------------------------------------------------------
+
+        write(*,*)"Reading and writing Vertical Coordinate..."
+        
+        KUBin   =  Me%HDFFile%Size%KUB
+
+        !Same as SZZ
+        allocate(Vert3D      (1:Me%HDFFile%Size%IUB, &
+                              1:Me%HDFFile%Size%JUB, &
+                              1:KUBin+1))
+
+        allocate(WaterPoints3D (1:Me%HDFFile%Size%IUB, &
+                                1:Me%HDFFile%Size%JUB, &
+                                1:KUBin))
+                                
+            !Read VerticalZ code
+        call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB, &
+                                               JLB = 1, JUB = Me%HDFFile%Size%JUB, &
+                                               KLB = 1, KUB = KUBin+1,             &
+                                               STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDepthIn3D - Convert2netcdf - ERR10'
+
+        !The first time instant is considered only.
+        call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                          GroupName    = "/Grid",                       &
+                          Name         = trim(Me%HDFFile%VertVar),      &
+                          Array3D      = Vert3D,                        &
+                          OutputNumber = OutputNumber,                  &
+                          STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDepthIn3D - Convert2netcdf - ERR20'
+                
+        !Read Waterpoints code
+        call HDF5SetLimits(Me%HDFFile%ObjHDF5, ILB = 1, IUB = Me%HDFFile%Size%IUB, &
+                                               JLB = 1, JUB = Me%HDFFile%Size%JUB, &
+                                               KLB = 1, KUB = KUBin,               &
+                                               STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDepthIn3D - Convert2netcdf - ERR30'
+
+        PointsVar = "WaterPoints3D"
+
+        !Get the land mask
+        call HDF5ReadData(HDF5ID       = Me%HDFFile%ObjHDF5,            &
+                          GroupName    = "/Grid",                       &
+                          Name         = trim(PointsVar),               &
+                          Array3D      = WaterPoints3D,                 &
+                          STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDepthIn3D - Convert2netcdf - ERR40'
+
+
+            !Returns the mean depth of the cell's top and down faces in a cartesian referential
+
+        do k = 1, KUBin
+
+            do j = 1, Me%HDFFile%Size%JUB
+            do i = 1, Me%HDFFile%Size%IUB
+            
+                Me%Depth3DIN(i,j,k) = FillValueReal
+                
+                if(WaterPoints3D(i, j, k) == Waterpoint)then
+                    if(Vert3D(i, j, k) > FillValueReal/2. .and. Vert3D(i,j,k+1) > FillValueReal/2.)then
+                        Me%Depth3DIN(i,j,k) = (Vert3D(i, j, k) + Vert3D(i, j, k+1)) / 2.
+                    endif
+                endif
+                
+            enddo
+            enddo
+        
+        enddo            
+
+        deallocate(WaterPoints3D)
+        nullify   (WaterPoints3D)
+
+        deallocate(Vert3D)
+        nullify   (Vert3D)
+
+
+        write(*,*)"Done!"
+        write(*,*)
+
+    end subroutine ReadDepthIn3D
+
+    !--------------------------------------------------------------------------
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine WriteDepthLayers
+
+        !Local-----------------------------------------------------------------
+        integer                             :: STAT_CALL, i, j, k, KUBout
+        real, dimension(:  ), pointer       :: Vert1DStag
+
+
+        !Begin-----------------------------------------------------------------
+
+        write(*,*)"writing Vertical Coordinate..."
+        
+        KUBout  =  Me%DepthLayers
+        
+        allocate(Vert1DStag  (1:KUBout+1))        
+
+            
+        Vert1DStag(1:KUBout) = Me%DepthVector(1:KUBout)
+        Vert1DStag(KUBout+1) = 0.
+        
+
+        call NETCDFWriteVert(NCDFID           = Me%NCDF_File%ObjNETCDF,                 &
+                             Vert             = Me%DepthVector,                         &
+                             VertCoordinate   = .false.,                                &
+                             OffSet           = Me%DepthAddOffSet,                      &                             
+                             STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteDepthLayers - Convert2netcdf - ERR10'
+        
+        call NETCDFWriteVertStag(NCDFID         = Me%NCDF_File%ObjNETCDF,               &
+                                 VertStag       = Vert1DStag,                           &
+                                 STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteDepthLayers - Convert2netcdf - ERR20'                
+
+        deallocate(Vert1DStag)
+        nullify   (Vert1DStag)
+        
+        write(*,*)"Done!"
+        write(*,*)
+
+    end subroutine WriteDepthLayers
+
+    !--------------------------------------------------------------------------
+
 
     !--------------------------------------------------------------------------
 
@@ -1038,6 +1239,9 @@ program Convert2netcdf
 
         deallocate(Vert1D)
         nullify   (Vert1D)
+        
+        deallocate(Vert1DStag)
+        nullify   (Vert1DStag)        
 
         write(*,*)"Done!"
         write(*,*)
@@ -1152,11 +1356,13 @@ program Convert2netcdf
         !Local-----------------------------------------------------------------
         character(len=StringLength)         :: NCDFName, LongName, StandardName, Units
         real                                :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
-        integer                             :: STAT_CALL, i, j, k
+        integer                             :: STAT_CALL, i, j, k, KUB, kfloor
 
         !Begin-----------------------------------------------------------------
 
         write(*,*)"Reading and writing mask..."
+        
+        KUB = Me%HDFFile%Size%KUB
 
         if ( Me%HDFFile%ImposeMask ) then
         
@@ -1206,14 +1412,44 @@ program Convert2netcdf
                     
                 else
                 
-                    do i=1,Me%HDFFile%Size%IUB
-                    do j=1,Me%HDFFile%Size%JUB
-                    do k=1,Me%HDFFile%Size%KUB                
-                        Me%Int3DOut(j,i,k) = Me%Int3DIn(i,j,k)
-                    enddo
-                    enddo                
-                    enddo
-            
+                    if (Me%DepthLayersON) then
+                    
+                        call ReadDepthIn3D(1)
+                    
+                        do i=1,Me%HDFFile%Size%IUB
+                        do j=1,Me%HDFFile%Size%JUB
+
+                            kfloor = FillValueInt
+                            do k=1,Me%HDFFile%Size%KUB                                        
+                                if (Me%Depth3DIN(i,j,k) > HalfFillValueReal) then
+                                    kfloor = k
+                                    exit
+                                endif                                    
+                            enddo                                    
+                            
+                            Me%Int3DOut(j,i,:)=0
+                            
+                            if (kfloor > FillValueInt) then
+                            
+                                do k=1,Me%DepthLayers
+                                    if (Me%DepthVector(k) < Me%Depth3DIN(i,j,kfloor)) then
+                                        Me%Int3DOut(j,i,k) = 1
+                                    endif                                        
+                                enddo
+                            endif                                
+                        enddo                
+                        enddo
+                        
+                    else                        
+                        do i=1,Me%HDFFile%Size%IUB
+                        do j=1,Me%HDFFile%Size%JUB
+                        do k=1,Me%HDFFile%Size%KUB                
+                            Me%Int3DOut(j,i,k) = Me%Int3DIn(i,j,k)
+                        enddo
+                        enddo                
+                        enddo                    
+                    endif
+                    
                     call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
                                          LongName, StandardName,                                &
                                          Units, ValidMin, ValidMax,                             &
@@ -2045,8 +2281,14 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         character(len=StringLength)                 :: Name, NCDFName, LongName, StandardName, Units
         real                                        :: MinValue, MaxValue, ValidMin, ValidMax, MissingValue
-        integer                                     :: i, j, k
-        real                                        :: DecimalPlaces
+        integer                                     :: i, j, k, KUBout, kfloor
+        real                                        :: DecimalPlaces, Z
+        real(8),    dimension(:), pointer           :: Depth1D, Matrix1D
+        
+        
+        
+        
+        
 
         !Begin-----------------------------------------------------------------
         
@@ -2240,25 +2482,60 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                         if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR07'
                     end if
                     
-                else                    
-
-                    if (Me%DecimalPlaces > FillValueInt) then
+                else                 
+                
+                    if (Me%DepthLayersON) then
+                        KUBout = Me%DepthLayers   
+                    else
+                        KUBout = Me%HDFFile%Size%KUB
+                    endif                     
                     
-                        DecimalPlaces = 10.**Me%DecimalPlaces
+
+                    if (Me%DepthLayersON) then                       
+                    
+                        call ReadDepthIn3D(item)
                         
+                        allocate(Depth1D (Me%HDFFile%Size%KLB:Me%HDFFile%Size%KUB))
+                        allocate(Matrix1D(Me%HDFFile%Size%KLB:Me%HDFFile%Size%KUB))
+                                            
                         do i=1,Me%HDFFile%Size%IUB
                         do j=1,Me%HDFFile%Size%JUB
-                        do k=1,Me%HDFFile%Size%KUB  
-                            if (Me%Float3DIn(i, j, k) /= FillValueReal) then                                      
-                                Me%Float3DOut(j,i,k) = int(Me%Float3DIn(i, j, k) * DecimalPlaces) / DecimalPlaces
-                            else                       
-                                Me%Float3DOut(j,i,k) = FillValueReal         
-                            endif                                
-                        enddo
-                        enddo
-                        enddo
 
-                    else
+                            kfloor = FillValueInt
+                            
+                            do k=1,Me%HDFFile%Size%KUB                                        
+                                if (Me%Depth3DIN(i,j,k) > HalfFillValueReal) then
+                                    kfloor = k
+                                    exit
+                                endif                                    
+                            enddo                                    
+                            
+                            Me%Float3DOut(j,i,:) = FillValueReal
+                            
+                            if (kfloor > FillValueInt) then
+                                
+                                Depth1D (kfloor:Me%HDFFile%Size%KUB) = Me%Depth3DIN(i,j,kfloor:Me%HDFFile%Size%KUB)
+                                Matrix1D(kfloor:Me%HDFFile%Size%KUB) = Me%Float3DIn(i,j,kfloor:Me%HDFFile%Size%KUB)
+                                
+                                do k=1,Me%DepthLayers
+                                    Z = Me%DepthVector(k)
+                                    if (Z < Me%Depth3DIN(i,j,kfloor)) then
+                                        Me%Float3DOut(j,i,k) = ValueAtDepthZ(Z       = Z,            &
+                                                                             KLB     = kfloor,       &
+                                                                             KUB     = Me%HDFFile%Size%KUB, &
+                                                                             Depth1D = Depth1D,      &
+                                                                             Matrix1D= Matrix1D)
+                                    endif                                        
+                                enddo
+                            endif                                
+                        enddo                
+                        enddo
+                        
+                        deallocate(Depth1D )
+                        deallocate(Matrix1D)
+                        
+
+                    else                    
 
                         do i=1,Me%HDFFile%Size%IUB
                         do j=1,Me%HDFFile%Size%JUB
@@ -2271,8 +2548,26 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                         enddo
                         enddo
                         enddo
+
+                    endif
+
+                    if (Me%DecimalPlaces > FillValueInt) then
+                    
+                        DecimalPlaces = 10.**Me%DecimalPlaces
                         
-                    endif                    
+                        do i=1,Me%HDFFile%Size%IUB
+                        do j=1,Me%HDFFile%Size%JUB
+                        do k=1,KUBout  
+                            if (Me%Float3DOut(j,i,k) /= FillValueReal) then                                      
+                                Me%Float3DOut(j,i,k) = int(Me%Float3DOut(j,i,k) * DecimalPlaces) / DecimalPlaces
+                            else                       
+                                Me%Float3DOut(j,i,k) = FillValueReal         
+                            endif                                
+                        enddo
+                        enddo
+                        enddo
+
+                    endif
 
                     call BuildAttributes(Name, NCDFName, LongName, StandardName, &
                                                Units, ValidMin, ValidMax,        &
@@ -2321,6 +2616,32 @@ if1:   if(present(Int2D) .or. present(Int3D))then
     end subroutine ReadDataSet
 
     !--------------------------------------------------------------------------
+    
+    real(8) function ValueAtDepthZ(Z, KLB, KUB, Depth1D, Matrix1D)
+    
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:), pointer :: Depth1D, Matrix1D
+        real                           :: Z
+        integer                        :: KLB, KUB
+
+        !Local-----------------------------------------------------------------        
+        integer     ::kb, Ndepths, k
+
+        !Begin-----------------------------------------------------------------            
+
+        do k = KUB,KLB+1,-1
+            if (Depth1D (k-1)<Depth1D (k)) exit
+        enddo
+        
+        kb = k
+        
+        Ndepths       = KUB - kb + 1
+
+        ValueAtDepthZ = InterpolateProfileR8(dble(Z), Ndepths, Depth1D (kb:KUB), Matrix1D(kb:KUB))
+        
+    end function ValueAtDepthZ
+
+    !--------------------------------------------------------------------------        
     
     subroutine CheckAndCorrectVarName(obj_name, Name)
 
