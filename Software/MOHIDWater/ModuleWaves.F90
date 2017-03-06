@@ -103,7 +103,7 @@ Module ModuleWaves
                                        HDF5FlushMemory, GetHDF5FileAccess, KillHDF5
     use ModuleGridData,         only : GetGridData, UngetGridData, WriteGridData,               &
                                        ConstructGridData, GetGridDataEvolution,                 &
-                                       KillGridData
+                                       GetGridDataFileName, KillGridData
     use ModuleTimeSerie,        only : StartTimeSerie, WriteTimeSerie, KillTimeSerie,           &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,            &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,                 &
@@ -157,7 +157,7 @@ Module ModuleWaves
     
     public  :: SetWavesWind
     public  :: SetGeneric4DValues
-                    
+    public  :: SetWavesSeaLevelVel2DSwan                    
     
     !Modifier
     public  :: ModifyWaves
@@ -241,6 +241,11 @@ Module ModuleWaves
     type       T_RunSwan                               
         logical                                             :: ON                   = .false. 
         real,    dimension(:,:,:),  pointer                 :: InputVector          => null()
+        real,    dimension(:,:  ),  pointer                 :: OutSeaLevel          => null()        
+        real,    dimension(:,:  ),  pointer                 :: OutVelX              => null()                
+        real,    dimension(:,:  ),  pointer                 :: OutVelY              => null()
+        real,    dimension(:,:  ),  pointer                 :: OutGridX             => null()
+        real,    dimension(:,:  ),  pointer                 :: OutGridY             => null()        
         integer                                             :: ObjBathymGrid        = 0
         integer                                             :: ObjBathym            = 0     
         type(T_Time)                                        :: NextRun           
@@ -601,6 +606,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                             :: STAT_CALL, iflag
         integer                             :: aux
         logical                             :: auxX, auxY
+        character (len = PathLength)        :: DefaultBathymFile
         !Begin-----------------------------------------------------------------
         
         
@@ -1191,10 +1197,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (iflag == 0)                                                             &
                 stop 'ConstructWaveParameters - ModuleWaves - ERR140' 
                 
+            !Gets a pointer to Bathymetry
+            call GetGridDataFileName(GridDataID = Me%ObjGridData,                       &
+                                     FileName   = DefaultBathymFile,                    &
+                                     STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ConstructWaveParameters - ModuleWaves - ERR145' 
+                
             call GetData(Me%RunSwan%BathymetryFile,                                     &
                          Me%ObjEnterData, iflag,                                        &
                          Keyword        = 'SWAN_BATHYM_FILE',                           &
-                         default        = 'Swan\BatimSwan.dat',                         &
+                         default        = trim(DefaultBathymFile),                      &
                          SearchType     = FromFile,                                     &
                          ClientModule   ='ModuleWave',                                  &
                          STAT           = STAT_CALL)            
@@ -3450,6 +3463,41 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
+    subroutine SetWavesSeaLevelVel2DSwan(WavesID, WindU, WindV, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: WavesID
+        real, pointer, dimension(:,:)               :: WindU, WindV
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(WavesID, ready_) 
+        
+        if (ready_ .EQ. IDLE_ERR_)then
+
+            if (associated(WindU))         Me%ExternalVar%WindVelocityU => WindU
+            if (associated(WindV))         Me%ExternalVar%WindVelocityV => WindV
+            
+            STAT_ = SUCCESS_  
+
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine SetWavesSeaLevelVel2DSwan
+
+    !--------------------------------------------------------------------------
+
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -4379,7 +4427,6 @@ cd2:                if (Me%WaveHeight%Field       (i,j) .lt. 0.1 .or.           
                         Me%WaveLength_(i, j)      = Celerity   * Me%WavePeriod%Field(i,j)
                         OMEG                     = 2.  * PI   / Me%WavePeriod%Field(i,j)
                         WAVN                     = 2.  * PI   / Me%WaveLength_(i, j)
-
 
                         !To avoid sinh results larger then 1e100
                         !if (WAVN * Me%ExternalVar%WaterColumn(i,j) .gt. 230) then
