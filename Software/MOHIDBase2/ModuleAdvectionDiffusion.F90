@@ -3436,6 +3436,7 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
         real(8)                             :: AdvFluxX, AdvFluxY
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                             :: i, j, k
+        integer                             :: CHUNK        
 
         !----------------------------------------------------------------------
 
@@ -3450,11 +3451,13 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
         KLB   = Me%WorkSize%KLB
         KUB   = Me%WorkSize%KUB
         
+        CHUNK = ChunkJ        
+
+        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX, AdvFluxY)
 iHA:    if (Me%State%HorAdv) then
 
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-dok1 :      do k = KLB, KUB    
+dok1 :      do k = KLB, KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)    
 doj1 :      do j = JLB, JUB
 doi1 :      do i = ILB, IUB
     
@@ -3487,14 +3490,13 @@ doi1 :      do i = ILB, IUB
 
             end do doi1
             end do doj1
+            !$OMP END DO NOWAIT             
             end do dok1
-            !$OMP END DO NOWAIT 
 
         endif iHA                
 
-        !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX, AdvFluxY)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 dok2 :  do k = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj2 :  do j = JLB, JUB
 doi2 :  do i = ILB, IUB
 
@@ -3516,8 +3518,10 @@ doi2 :  do i = ILB, IUB
             
         end do doi2
         end do doj2
+        !$OMP END DO NOWAIT         
         end do dok2        
-        !$OMP END DO NOWAIT 
+
+        !$OMP END PARALLEL
         
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionUpwindExplict")
 

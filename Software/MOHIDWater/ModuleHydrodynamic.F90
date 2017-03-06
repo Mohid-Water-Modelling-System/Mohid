@@ -39862,7 +39862,7 @@ do4:            do K=kbottom+1, KUB
 
         !Begin---------------------------------------------------------------------
 
-        !$OMP PARALLEL PRIVATE(I,J,)
+        !$OMP PARALLEL PRIVATE(I,J)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do  j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do  i = Me%WorkSize%ILB, Me%WorkSize%IUB
