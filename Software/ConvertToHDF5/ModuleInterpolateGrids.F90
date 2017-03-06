@@ -2144,7 +2144,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, HDF5_READ
-        logical                                     :: exist
+        logical                                     :: exist, NotRegularGrid
         real, dimension(:, :), pointer              :: SurfaceElevation, Bathym
 
         !Begin-----------------------------------------------------------------
@@ -2180,7 +2180,28 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
             endif
             
             call ConstructHorizontalGrid(Me%Father%ObjHorizontalGrid, Me%Father%GridFileName, STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR50'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR50'
+            
+            if (Me%TypeOfInterpolation == Bilinear) then
+                
+                NotRegularGrid = .false. 
+                
+                call GetCheckDistortion(HorizontalGridID  = Me%Father%ObjHorizontalGrid,&
+                                        Distortion        = NotRegularGrid,             &
+                                        STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR60'                                        
+
+                if (NotRegularGrid) then
+                
+                    Me%TypeOfInterpolation = Triangulation
+                    
+                    write(*,*)
+                    write(*,*)'Not regular grid'
+                    write(*,*)'Type of interpolation change to Triangulation'
+                    write(*,*)                    
+                    
+                endif                    
+            endif
             
         endif
 
@@ -2188,7 +2209,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                    WorkSize = Me%Father%WorkSize2D,                     &
                                    Size     = Me%Father%Size2D,                         &
                                    STAT     = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR60'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR70'
 
         Me%Father%Size3D%ILB = Me%Father%Size2D%ILB
         Me%Father%Size3D%JLB = Me%Father%Size2D%JLB
@@ -2215,7 +2236,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                       DataSetName   = "/Grid/Bathymetry",               &
                                       Exist         = Exist,                            &
                                       STAT          = STAT_CALL)       
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR80'
             
             if (Exist) then
             
@@ -2225,7 +2246,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                     JLB     = Me%Father%WorkSize2D%JLB,                 &
                                     JUB     = Me%Father%WorkSize2D%JUB,                 &
                                     STAT    = STAT_CALL)       
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR80'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR90'
                                             
                 call HDF5ReadData(HDF5ID        = Me%Father%ObjHDF5,                    &
                                   GroupName     = "/Grid",                              &
@@ -2243,7 +2264,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                    HorizontalGridID = Me%Father%ObjHorizontalGrid,      &
                                    InMatrix2D       = Bathym,                           &
                                    STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR100'
             
             deallocate(Bathym)
 
@@ -2253,7 +2274,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                          HorizontalGridID = Me%Father%ObjHorizontalGrid,    &
                                          FileName         = Me%Father%GridFileName,         &
                                          STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR110'
 
         endif
 
@@ -2262,7 +2283,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                      HorizontalGridID = Me%Father%ObjHorizontalGrid,    &
                                      ActualTime       = Me%BeginTime,                   & 
                                      STAT             = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR110'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR120'
 
 
         if(Me%Interpolation3D) then
@@ -2274,37 +2295,37 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                          ActualTime       = Me%BeginTime,                   &
                                          NewDomain        = Me%Father%GeometryFileName,     &
                                          STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR130'
 
             call GetGeometrySize(GeometryID     = Me%Father%ObjGeometry,                &
                                  Size           = Me%Father%Size3D,                     &
                                  WorkSize       = Me%Father%WorkSize3D,                 &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR130'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR140'
 
             call ConstructMap ( Map_ID          = Me%Father%ObjMap,                 &
                                 GeometryID      = Me%Father%ObjGeometry,            &
                                 HorizontalMapID = Me%Father%ObjHorizontalMap,       &
                                 TimeID          = Me%ObjTime,                       &
                                 STAT            = STAT_CALL)  
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR140'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR150'
 
             allocate(SurfaceElevation (Me%Father%Size3D%ILB:Me%Father%Size3D%IUB,   &
                                        Me%Father%Size3D%JLB:Me%Father%Size3D%JUB))
             SurfaceElevation(:,:) = 0.
 
             call GetWaterPoints3D(Me%Father%ObjMap, Me%Father%WaterPoints3D, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR150'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR160'
 
             call ComputeInitialGeometry(GeometryID      = Me%Father%ObjGeometry,    &
                                         WaterPoints3D   = Me%Father%WaterPoints3D,  &
                                         SurfaceElevation= SurfaceElevation,         &
                                         ActualTime      = Me%BeginTime,             &
                                         STAT            = STAT_CALL )
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR160'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR170'
 
             call UnGetMap(Me%Father%ObjMap, Me%Father%WaterPoints3D, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR170'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR180'
 
             deallocate(SurfaceElevation)
 

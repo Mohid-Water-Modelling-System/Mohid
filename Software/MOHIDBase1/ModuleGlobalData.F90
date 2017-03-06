@@ -677,6 +677,7 @@ Module ModuleGlobalData
     integer, parameter ::  BedRock_                        = 3006
     integer, parameter ::  SandTauCritic_                  = 3007
     integer, parameter ::  Sand_                           = 3008
+    integer, parameter ::  MappDZ_                         = 3009    
 
     integer, parameter ::  TransportCapacity_              = 3101 
     integer, parameter ::  TransportCapacityX_             = 3102 
@@ -1528,6 +1529,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_Newbathymetry            = "new bathymetry"
     character(StringLength), private, parameter :: Char_Sand                     = "sand"
     character(StringLength), private, parameter :: Char_bathymetry               = "bathymetry"    
+    character(StringLength), private, parameter :: Char_MappDZ                   = "mapping DZ"
 
     !wave dynamics
     character(StringLength), private, parameter :: Char_WaveStressX              = 'wave stress X'
@@ -3018,6 +3020,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (BedRock_,                 Char_BedRock,                    ListNumber)
             call AddPropList (SandTauCritic_,           Char_SandTauCritic,              ListNumber)
             call AddPropList (Sand_,                    Char_Sand,                       ListNumber)
+            call AddPropList (MappDZ_,                  Char_MappDZ,                     ListNumber)            
 
             call AddPropList (TransportCapacity_,       Char_TransportCapacity,          ListNumber)
             call AddPropList (TransportCapacityX_,      Char_TransportCapacityX,         ListNumber)

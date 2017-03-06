@@ -164,7 +164,8 @@ Module ModuleSand
     character(LEN = StringLength), parameter    :: U_Average_block_end   = '<endUaverage>'
     character(LEN = StringLength), parameter    :: V_Average_block_begin = '<beginVaverage>'
     character(LEN = StringLength), parameter    :: V_Average_block_end   = '<endVaverage>'
-    
+    character(LEN = StringLength), parameter    :: Mapp_DZ_block_begin   = '<beginMappDZ>'
+    character(LEN = StringLength), parameter    :: Mapp_DZ_block_end     = '<endMappDZ>'    
 
     integer, parameter :: NoTransport = 0, Ackers = 1, MeyerPeter = 2, VanRijn1 = 3, & 
                           VanRijn2 = 4, Bailard = 5, Dibajnia = 6, Bijker = 7, VanRijn2007 = 8
@@ -369,7 +370,8 @@ Module ModuleSand
         type (T_Aceleration)                       :: Aceleration
         type (T_Property)                          :: D35, D50, D90
         type (T_Property)                          :: Uaverage, Vaverage
-        logical                                    :: AverageON       
+        type (T_Property)                          :: MappDZ
+        logical                                    :: AverageON, MappDZON       
         logical                                    :: ResidualCurrent
         real                                       :: SandMin               = FillValueReal
         real                                       :: Porosity              = FillValueReal
@@ -531,6 +533,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructGlobalParameters
             
             call ConstructAverageCurrent            
+            
+            call ConstructMappDZ
 
             call StartOutputBoxFluxes
 
@@ -1190,6 +1194,15 @@ cd0:        if (EXIST) then
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSand - ERR120'
             
          endif  
+         
+        if (Me%MappDZON) then
+
+            call HDF5WriteData   (Me%ObjHDF5, "/SandCaracteristics", trim(Me%MappDZ%ID%Name),&
+                                   trim(Me%MappDZ%ID%Units), Array2D = Me%MappDZ%Field2D,   &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSand - ERR130'
+
+         endif           
 
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
@@ -1486,7 +1499,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                         :: STAT_CALL
 
         !Local-----------------------------------------------------------------
-
+        
         call ConstructPropertyID(NewProperty%ID, Me%ObjEnterData, ExtractType)
 
         
@@ -1741,17 +1754,15 @@ cd2 :               if (BlockFound) then
 
         if (BlockFound) then
             call ConstructSandProperty(Me%Vaverage, FromBlock)
-
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-
-            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-            if (STAT_CALL  /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR50'
-
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR60'
         else
             Me%AverageON = .false. 
         endif
- 
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR50'
+        
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR60' 
     
         !<BeginKeyword>
             !Keyword          : RESIDUAL_CURRENT
@@ -1772,14 +1783,55 @@ cd2 :               if (BlockFound) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR70' 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR80' 
         
 
         if (Me%AverageON .and. Me%ResidualCurrent) then
-            stop 'ConstructAverageCurrent - ModuleSand - ERR80' 
+            stop 'ConstructAverageCurrent - ModuleSand - ERR90' 
         endif
 
     end subroutine ConstructAverageCurrent
+
+
+    !----------------------------------------------------------------------------
+    
+    subroutine ConstructMappDZ
+    
+        !External----------------------------------------------------------------
+        integer                             :: ClientNumber
+        integer                             :: STAT_CALL
+        logical                             :: BlockFound
+
+        !Local-------------------------------------------------------------------
+
+        !------------------------------------------------------------------------    
+        
+        Me%MappDZON = .true. 
+    
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                                 &
+                                    ClientNumber    = ClientNumber,                  &
+                                    block_begin     = Mapp_DZ_block_begin,           &
+                                    block_end       = Mapp_DZ_block_end,             &
+                                    BlockFound      = BlockFound,                    &
+                                    STAT            = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSand - ERR10'
+
+        if (BlockFound) then
+            call ConstructSandProperty(Me%MappDZ, FromBlock)
+
+        else
+            Me%MappDZON = .false. 
+        endif
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMappDZ - ModuleSand - ERR20'
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructMappDZ - ModuleSand - ERR30'
+
+
+    end subroutine ConstructMappDZ
 
     !--------------------------------------------------------------------------
     subroutine ConstructGlobalParameters
@@ -2970,6 +3022,12 @@ ifMS:   if (MasterOrSlave) then
                         !Boundary Condition
                         call BoundaryCondition(Me%DZ%Field2D)
                         
+                        !Mapp effect
+                        if (Me%MappDZON) then
+                            call ModifyMappDZ
+                        endif
+                        
+                        
 #if _USE_MPI                    
                         !MPI and Domain Decomposition is ON exchanges data along domain interfaces
                         call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
@@ -3072,6 +3130,35 @@ ifMS:   if (MasterOrSlave) then
 
     end subroutine ModifySand
 
+    !--------------------------------------------------------------------------
+
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine ModifyMappDZ 
+
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                            :: i, j
+        !----------------------------------------------------------------------
+      
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint .and. Me%MappDZ%Field2D(i,j) < 0.5) then
+
+                Me%DZ%Field2D(i, j) = 0. 
+
+            endif
+                                   
+        enddo
+        enddo
+
+    end subroutine ModifyMappDZ
+    
     !--------------------------------------------------------------------------
 
 
@@ -6399,6 +6486,10 @@ if1:            if (Me%Classes%Number > 0) then
                     deallocate(Me%Uaverage%Field2D)
                     deallocate(Me%Vaverage%Field2D)                
                 endif
+                
+                if (Me%MappDZON) then
+                    deallocate(Me%MappDZ%Field2D)
+                endif                
 
                 deallocate(Me%BedRock%Field2D)
                 deallocate(Me%TauCritic)
