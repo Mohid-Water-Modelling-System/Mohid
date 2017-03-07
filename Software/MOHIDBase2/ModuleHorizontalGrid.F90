@@ -705,19 +705,23 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
  
     !--------------------------------------------------------------------------
     subroutine ConstructHorizontalGridV2(HorizontalGridID, LatitudeConn, LongitudeConn, &
-                                         XX, YY, Latitude, Longitude, ILB, IUB, JLB, JUB, STAT)
+                                         XX, YY, Xorig, Yorig, Latitude, Longitude,     &
+                                         ILB, IUB, JLB, JUB, STAT)
 
 
         !Arguments-------------------------------------------------------------
-        integer                                 :: HorizontalGridID
-        real, dimension(:, :), pointer          :: LatitudeConn, LongitudeConn
-        real, dimension(:   ), pointer          :: XX, YY
-        real                                    :: Latitude, Longitude
-        integer                                 :: ILB, IUB, JLB, JUB
-        integer, optional,  intent(OUT)         :: STAT    
+        integer                                     :: HorizontalGridID
+        real, dimension(:, :), pointer, optional    :: LatitudeConn, LongitudeConn
+        real, dimension(:   ), pointer              :: XX, YY
+        real                          , optional    :: Xorig, Yorig              
+        real                                        :: Latitude, Longitude
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer, optional,  intent(OUT)             :: STAT    
 
         !Local-----------------------------------------------------------------
-        integer                             :: STAT_, ready_
+        real, dimension(:, :), pointer              :: LatitudeConn_, LongitudeConn_
+        real                                        :: Xorig_, Yorig_
+        integer                                     :: STAT_, ready_
 
         !----------------------------------------------------------------------
 
@@ -737,9 +741,34 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             
             nullify (Me%FirstFatherGrid)
             nullify (Me%LastFatherGrid )
+            
+            if (present(LongitudeConn)) then
+                LongitudeConn_ => LongitudeConn
+            else
+                nullify(LongitudeConn_)
+            endif
 
-            call ConstructGlobalVariablesV1(LatitudeConn, LongitudeConn, XX, YY,          &
-                                          Latitude, Longitude, ILB, IUB, JLB, JUB)
+            if (present(LatitudeConn)) then
+                LatitudeConn_ => LatitudeConn
+            else
+                nullify(LatitudeConn_)
+            endif
+
+            if (present(Xorig)) then
+                Xorig_ = Xorig
+            else
+                Xorig_ = 0.
+            endif
+
+            if (present(Yorig)) then
+                Yorig_ = Yorig
+            else
+                Yorig_ = 0.
+            endif
+
+            call ConstructGlobalVariablesV1(LatitudeConn_, LongitudeConn_, XX, YY,      &
+                                            Xorig_, Yorig_, Latitude, Longitude,        &
+                                            ILB, IUB, JLB, JUB)
 
             call GenerateGrid
 
@@ -2140,7 +2169,7 @@ do8:       do i = ILBwork, IUBwork
 
         !----------------------------------------------------------------------
 
-        if (.not. Me%CornersXYInput) stop 'ConstructNewFatherGrid2D - ModuleHoriuzontalGrid - ERR01'
+        if (.not. Me%CornersXYInput) stop 'ConstructNewFatherGrid2D - ModuleHorizontalGrid - ERR01'
 
         ILB = Me%Size%ILB
         IUB = Me%Size%IUB
@@ -3203,11 +3232,13 @@ BF1:    if (Me%ReadCartCorners) then
     
 
     subroutine ConstructGlobalVariablesV1(LatitudeConn, LongitudeConn, XX, YY,          &
-                                          Latitude, Longitude, ILB, IUB, JLB, JUB)
+                                          Xorig, Yorig, Latitude, Longitude,            &
+                                          ILB, IUB, JLB, JUB)
 
         !Arguments-------------------------------------------------------------
         real, dimension(:, :), pointer          :: LatitudeConn, LongitudeConn
         real, dimension(:   ), pointer          :: XX, YY
+        real                                    :: Xorig, Yorig
         real                                    :: Latitude, Longitude
         integer                                 :: ILB, IUB, JLB, JUB
 
@@ -3274,8 +3305,8 @@ BF1:    if (Me%ReadCartCorners) then
         
         Me%ProjType = PAULO_PROJECTION_
         
-        Me%Xorig = 0
-        Me%Yorig = 0
+        Me%Xorig = Xorig
+        Me%Yorig = Yorig
 
         Me%Grid_Angle = 0
         
@@ -8104,7 +8135,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     end subroutine No_BoxMap_HaloArea     
     
-    !--------------------------------------------------------------------------    
+    
+    !--------------------------------------------------------------------------
+ 
     
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -8508,11 +8541,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetGridCoordType(HorizontalGridID, CoordType, STAT)
+    subroutine GetGridCoordType(HorizontalGridID, CoordType, ReadCartCorners, ProjType, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         integer,           intent(OUT)              :: CoordType
+        integer, optional, intent(OUT)              :: ReadCartCorners, ProjType
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -8526,6 +8560,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             CoordType = Me%CoordType
+
+            if (present(ReadCartCorners)) then
+                ReadCartCorners = Me%ReadCartCorners
+            endif
+
+            if (present(ProjType)) then
+                ProjType = Me%ProjType
+            endif
 
             STAT_ = SUCCESS_
         else 

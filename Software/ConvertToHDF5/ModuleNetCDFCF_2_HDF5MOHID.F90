@@ -1284,7 +1284,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         DperR=180/pi
                         !CartesianDir_
                         !Dir = atan2(y,x)*DperR                        
-                        Me%Field(iP)%Value2DOut(i,j) = atan2(Me%Field(iP)%Value2DOut(i,j),Field_UV%Value2DOut(i,j))*DperR                        
+                        Me%Field(iP)%Value2DOut(i,j) = atan2(Field_UV%Value2DOut(i,j),Me%Field(iP)%Value2DOut(i,j))*DperR
                         
                         if          (Me%Field(iP)%DirectionReferential == NauticalWind_   ) then
                             Me%Field(iP)%Value2DOut(i,j) = 270. - Me%Field(iP)%Value2DOut(i,j)

@@ -193,7 +193,7 @@ Module ModuleHydrodynamic
     use ModuleHDF5       
 #ifndef _WAVES_
     use ModuleWaves,            only : GetWavesStress, GetWaves, SetGeneric4DValues, UnGetWaves, &
-                                       GetWavesForcing3D, UnGetWaves3D
+                                       SetWavesSeaLevelVel2DSwan, GetWavesForcing3D, UnGetWaves3D
 #endif
     use ModuleFillMatrix,       only : ConstructFillMatrix, ModifyFillMatrix, KillFillMatrix
     use ModuleDrawing
@@ -39862,7 +39862,7 @@ do4:            do K=kbottom+1, KUB
 
         !Begin---------------------------------------------------------------------
 
-        !$OMP PARALLEL PRIVATE(I,J,)
+        !$OMP PARALLEL PRIVATE(I,J)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do  j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do  i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -49544,6 +49544,8 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR170'
         endif
+
+
 
         !Do statistics analysis
         if (.not. present(iW)) then

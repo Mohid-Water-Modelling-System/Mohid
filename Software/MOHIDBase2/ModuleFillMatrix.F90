@@ -4126,6 +4126,13 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR30'
         
+        if (Me%Sponge%Cells > IUB - ILB + 1) then
+            stop 'ConstructSponge - ModuleFillMatrix - ERR35'
+        endif            
+
+        if (Me%Sponge%Cells > JUB - JLB + 1) then
+            stop 'ConstructSponge - ModuleFillMatrix - ERR36'
+        endif        
 
         !Gets the nsponge evolution
         call GetData(Me%Sponge%Evolution,                                               &

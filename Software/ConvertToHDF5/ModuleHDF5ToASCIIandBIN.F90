@@ -132,6 +132,7 @@ Module ModuleHDF5ToASCIIandBIN
         character(len=StringLength)             :: JoinVectorialPropVName = null_str
         
         type(T_Size2D)                          :: WorkSize, Size
+        type (T_Time)                           :: StartTime, EndTime
     end type  T_HDF5ToASCIIandBIN
 
     type(T_HDF5ToASCIIandBIN), pointer              :: Me
@@ -244,11 +245,21 @@ d13:            do l = 1, Me%TotalDates
 
                         call SetDate(NowTime, AuxTime(1), AuxTime(2), AuxTime(3), AuxTime(4), AuxTime(5), AuxTime(6))
                         
-i13:                    if (NowTime.EQ.Me%OutPut%OutTime(1)) then
+i13:                    if (NowTime.EQ.Me%StartTime) then
                             FirstInstant = l 
-                            Me%TotalDates = Me%OutPut%Number                       
-                            exit
+!                            Me%TotalDates = Me%OutPut%Number                       
+!                            exit
+                        else
+                        
+                            FirstInstant = 1
+                        
                         endif i13
+                        
+i14:                    if (NowTime.EQ.Me%EndTime) then
+!                            FirstInstant = l 
+                            Me%TotalDates = l                       
+                            exit
+                        endif i14
                     
                 enddo d13
                 
@@ -399,7 +410,7 @@ d11:        do l = FirstInstant, Me%TotalDates
     subroutine ConstructGlobalOutput 
 
         !Local-----------------------------------------------------------------
-        type (T_Time)                               :: StartTime, EndTime
+!        type (T_Time)                               :: StartTime, EndTime
         integer                                     :: STAT_CALL, iflag
 
         !Begin-----------------------------------------------------------------
@@ -407,7 +418,7 @@ d11:        do l = FirstInstant, Me%TotalDates
 
         nullify(Me%OutPut%OutTime)
 
-        call GetData(StartTime,                                                         &
+        call GetData(Me%StartTime,                                                         &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'START',                                            &
@@ -415,7 +426,7 @@ d11:        do l = FirstInstant, Me%TotalDates
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalOutput - ModuleCowamaAsciiWind - ERR10'
 
-        call GetData(EndTime,                                                           &
+        call GetData(Me%EndTime,                                                           &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
                      keyword      = 'END',                                              &
@@ -425,8 +436,8 @@ d11:        do l = FirstInstant, Me%TotalDates
 
 
         call GetOutPutTime(Me%ObjEnterData,                                             &
-                           CurrentTime      = StartTime,                                &
-                           EndTime          = EndTime,                                  &
+                           CurrentTime      = Me%StartTime,                                &
+                           EndTime          = Me%EndTime,                                  &
                            keyword          = 'OUTPUT_TIME',                            &
                            SearchType       = FromBlock,                                &
                            OutPutsTime      = Me%OutPut%OutTime,                        &
