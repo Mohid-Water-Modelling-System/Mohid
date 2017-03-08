@@ -1376,7 +1376,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             SumFractionSedimentedDT = (MEvaporatedDT + MEntrainedDT + MDissolvedDT + MSedimentedDT) /InitialMass
             MinimumProbability = min(SumFractionEvaporatedDT, SumFractionEntrainedDT, SumFractionDissolvedDT, &
                                      SumFractionSedimentedDT)
-            SampleSize = nint(1./ MinimumProbability)
+            !SampleSize = nint(1./ MinimumProbability)
             
             
             if      (RAND < SumFractionEvaporatedDT) then
