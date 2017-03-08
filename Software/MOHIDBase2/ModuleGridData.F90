@@ -1920,17 +1920,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyGridData2DIncrement(GridDataID, Increment2D, Add, STAT)     
+    subroutine ModifyGridData2DIncrement(GridDataID, Increment2D, Add, ResidualIncrement, STAT)     
 
         !Arguments---------------------------------------------------------------
         integer                                     :: GridDataID
         real, pointer, dimension(:,:)               :: Increment2D
         logical,    intent(IN)                      :: Add
+        logical, optional, intent(IN)               :: ResidualIncrement        
         integer, optional, intent(OUT)              :: STAT
         !Local-----------------------------------------------------------------
         integer                                     :: ready_        
         integer                                     :: i, j, STAT_
         integer                                     :: CHUNK
+        logical                                     :: ResidualIncrement_
 
         !----------------------------------------------------------------------
 
@@ -1945,28 +1947,58 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 if (MonitorPerformance) then
                     call StartWatch ("ModuleGridData", "ModifyGridData2DIncrement")
                 endif
+                
+                if (present(ResidualIncrement)) then
+                    ResidualIncrement_ = ResidualIncrement
+                else
+                    ResidualIncrement_ = .false. 
+                endif
 
                 CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
                 if (Add) then
-                    !$OMP PARALLEL PRIVATE(i,j)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                    do j=Me%WorkSize%JLB,Me%WorkSize%JUB
-                    do i=Me%WorkSize%ILB,Me%WorkSize%IUB
-                        Me%GridData2D(i, j) =  Me%GridData2D(i, j) + Increment2D(i, j)
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
+                    if (ResidualIncrement_) then
+                        !$OMP PARALLEL PRIVATE(i,j)
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j=Me%WorkSize%JLB,Me%WorkSize%JUB
+                        do i=Me%WorkSize%ILB,Me%WorkSize%IUB
+                            Me%GridData2D(i, j) =  Me%GridData2DReference(i, j) + Increment2D(i, j)
+                        enddo
+                        enddo
+                        !$OMP END DO
+                        !$OMP END PARALLEL
+                    else                    
+                        !$OMP PARALLEL PRIVATE(i,j)
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j=Me%WorkSize%JLB,Me%WorkSize%JUB
+                        do i=Me%WorkSize%ILB,Me%WorkSize%IUB
+                            Me%GridData2D(i, j) =  Me%GridData2D(i, j) + Increment2D(i, j)
+                        enddo
+                        enddo
+                        !$OMP END DO
+                        !$OMP END PARALLEL
+                    endif                        
                 else
-                    !$OMP PARALLEL PRIVATE(i,j)
-                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                    do j=Me%WorkSize%JLB,Me%WorkSize%JUB
-                    do i=Me%WorkSize%ILB,Me%WorkSize%IUB
-                        Me%GridData2D(i, j) =  Me%GridData2D(i, j) - Increment2D(i, j)
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
+                    if (ResidualIncrement_) then
+                        !$OMP PARALLEL PRIVATE(i,j)
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j=Me%WorkSize%JLB,Me%WorkSize%JUB
+                        do i=Me%WorkSize%ILB,Me%WorkSize%IUB
+                            Me%GridData2D(i, j) =  Me%GridData2DReference(i, j) - Increment2D(i, j)
+                        enddo
+                        enddo
+                        !$OMP END DO
+                        !$OMP END PARALLEL
+                    else                    
+                        !$OMP PARALLEL PRIVATE(i,j)
+                        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                        do j=Me%WorkSize%JLB,Me%WorkSize%JUB
+                        do i=Me%WorkSize%ILB,Me%WorkSize%IUB
+                            Me%GridData2D(i, j) =  Me%GridData2D(i, j) - Increment2D(i, j)
+                        enddo
+                        enddo
+                        !$OMP END DO
+                        !$OMP END PARALLEL
+                    endif
                 endif
 
                 if (MonitorPerformance) then

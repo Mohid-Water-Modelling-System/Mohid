@@ -1687,9 +1687,10 @@ diV1:   do iV = 1, Me%TableValues
                     enddo  
                     enddo                  
 
-                    call FillMatrix3DNearestCell (imin, imax, jmin, jmax, kmin_prev-1, KUB,     &
-                                                  Me%VerticalZ%Mapping,                     &
-                                                  Me%VerticalZ%InterpolTime%PrevValues3D)
+                    call FillMatrix3D (imin, imax, jmin, jmax, kmin_prev-1, KUB,        &
+                                       Me%VerticalZ%Mapping,                            &
+                                       Me%VerticalZ%InterpolTime%PrevValues3D,          &
+                                       FillGridMethod = ExtrapolAverage_)
                    
 
                     call HDF5ReadData(HDF5ID      = Me%HDF5Files(iH)%ObjHDF5,               &
@@ -1722,9 +1723,10 @@ diV1:   do iV = 1, Me%TableValues
                     enddo
                     enddo                    
                     
-                    call FillMatrix3DNearestCell (imin, imax, jmin, jmax, kmin_next-1, KUB, &
-                                                  Me%VerticalZ%Mapping,                 &
-                                                  Me%VerticalZ%InterpolTime%NextValues3D)                        
+                    call FillMatrix3D (imin, imax, jmin, jmax, kmin_next-1, KUB,        &
+                                       Me%VerticalZ%Mapping,                            &
+                                       Me%VerticalZ%InterpolTime%NextValues3D,
+                                       FillGridMethod = ExtrapolAverage_)                        
                 
                 
                 endif
@@ -1787,9 +1789,10 @@ i12:                if (NewFields) then
                                           STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_ )stop 'ReadHDF5Values3D - ModuleValida4D - ERR90'          
                         
-                        call FillMatrix3DNearestCell (imin, imax, jmin, jmax, kmin_prev, KUB,&
-                                                      Me%External_Var%Waterpoints3D,     &
-                                                      Me%Properties(iP)%InterpolTime%PrevValues3D)
+                        call FillMatrix3D(imin, imax, jmin, jmax, kmin_prev, KUB,       &
+                                          Me%External_Var%Waterpoints3D,                &
+                                          Me%Properties(iP)%InterpolTime%PrevValues3D,  &
+                                          FillGridMethod = ExtrapolAverage_)
                                   
 
                         call HDF5ReadData(HDF5ID      = Me%HDF5Files(iH)%ObjHDF5,               &
@@ -1800,9 +1803,10 @@ i12:                if (NewFields) then
                                           STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_ )stop 'ReadHDF5Values3D - ModuleValida4D - ERR100'                    
                         
-                        call FillMatrix3DNearestCell (imin, imax, jmin, jmax, kmin_next, KUB,&
-                                                      Me%External_Var%Waterpoints3D,     &
-                                                      Me%Properties(iP)%InterpolTime%NextValues3D)                        
+                        call FillMatrix3D(imin, imax, jmin, jmax, kmin_next, KUB,       &
+                                          Me%External_Var%Waterpoints3D,                &
+                                          Me%Properties(iP)%InterpolTime%NextValues3D,  &
+                                          FillGridMethod = ExtrapolAverage_)                        
                     
                     
                     endif i12
@@ -1936,9 +1940,10 @@ iN2:                if (NewFields) then
                         if (STAT_CALL /= SUCCESS_ )stop 'ReadHDF5Values3D - ModuleValida4D - ERR140'
                         
                         
-                        call FillMatrix2DNearestCell (imin, imax, jmin, jmax,               &
+                        call FillMatrix2D            (imin, imax, jmin, jmax,               &
                                                       Me%External_Var%Waterpoints2D,    &
-                                                      Me%Properties(iP)%InterpolTime%PrevValues2D)
+                                                      Me%Properties(iP)%InterpolTime%PrevValues2D
+                                                      FillGridMethod = ExtrapolAverage_)
 
                         call HDF5ReadData(HDF5ID      = Me%HDF5Files(iH)%ObjHDF5,               &
                                           GroupName   = "/Results/"//trim(Me%Properties(iP)%ID%Name),&
@@ -1949,9 +1954,10 @@ iN2:                if (NewFields) then
                                           
                         if (STAT_CALL /= SUCCESS_ )stop 'ReadHDF5Values3D - ModuleValida4D - ERR150'                    
 
-                        call FillMatrix2DNearestCell(imin, imax, jmin, jmax,                &
+                        call FillMatrix2D           (imin, imax, jmin, jmax,            &
                                                      Me%External_Var%Waterpoints2D,     &
-                                                     Me%Properties(iP)%InterpolTime%NextValues2D)                    
+                                                     Me%Properties(iP)%InterpolTime%NextValues2D,&
+                                                     FillGridMethod = ExtrapolAverage_)
                     
                     endif iN2
                     

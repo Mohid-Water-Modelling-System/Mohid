@@ -111,6 +111,7 @@ Module ModuleSand
     private ::          ComputeAlongShoreFlow1D
     private ::          ComputeProfileCrossShoreMovement
     private ::          ComputeNewBathymetryFromNewProfiles
+    private ::              InterpolateNewBathymProfile
     !Update the bathym increment using the HybridMoprh methodology 
     private ::          HybridMorphNewBathymIncrement 
     private ::      ComputeResidualEvolution
@@ -163,7 +164,8 @@ Module ModuleSand
     character(LEN = StringLength), parameter    :: U_Average_block_end   = '<endUaverage>'
     character(LEN = StringLength), parameter    :: V_Average_block_begin = '<beginVaverage>'
     character(LEN = StringLength), parameter    :: V_Average_block_end   = '<endVaverage>'
-    
+    character(LEN = StringLength), parameter    :: Mapp_DZ_block_begin   = '<beginMappDZ>'
+    character(LEN = StringLength), parameter    :: Mapp_DZ_block_end     = '<endMappDZ>'    
 
     integer, parameter :: NoTransport = 0, Ackers = 1, MeyerPeter = 2, VanRijn1 = 3, & 
                           VanRijn2 = 4, Bailard = 5, Dibajnia = 6, Bijker = 7, VanRijn2007 = 8
@@ -353,7 +355,7 @@ Module ModuleSand
         
         integer                                 :: Min1D                    = FillValueInt                 
         integer                                 :: Max1D                    = FillValueInt
-              
+        integer                                 :: NoTransportBufferCells   = FillValueInt              
     end type T_HybridMorph
 
     private :: T_Sand
@@ -368,7 +370,8 @@ Module ModuleSand
         type (T_Aceleration)                       :: Aceleration
         type (T_Property)                          :: D35, D50, D90
         type (T_Property)                          :: Uaverage, Vaverage
-        logical                                    :: AverageON       
+        type (T_Property)                          :: MappDZ
+        logical                                    :: AverageON, MappDZON       
         logical                                    :: ResidualCurrent
         real                                       :: SandMin               = FillValueReal
         real                                       :: Porosity              = FillValueReal
@@ -387,6 +390,8 @@ Module ModuleSand
         type (T_Boxes     )                        :: Boxes
         type (T_Residual  )                        :: Residual
         type (T_HybridMorph)                       :: HybridMorph
+        logical                                    :: BiHarmonicFilter      = .false.
+        real                                       :: BiHarmonicFilterCoef  = FillValueReal
         
         real, dimension(:,:), pointer              :: FluxX                 => null ()
         real, dimension(:,:), pointer              :: FluxY                 => null ()
@@ -528,6 +533,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructGlobalParameters
             
             call ConstructAverageCurrent            
+            
+            call ConstructMappDZ
 
             call StartOutputBoxFluxes
 
@@ -1187,6 +1194,15 @@ cd0:        if (EXIST) then
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSand - ERR120'
             
          endif  
+         
+        if (Me%MappDZON) then
+
+            call HDF5WriteData   (Me%ObjHDF5, "/SandCaracteristics", trim(Me%MappDZ%ID%Name),&
+                                   trim(Me%MappDZ%ID%Units), Array2D = Me%MappDZ%Field2D,   &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleSand - ERR130'
+
+         endif           
 
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
@@ -1483,7 +1499,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         integer                         :: STAT_CALL
 
         !Local-----------------------------------------------------------------
-
+        
         call ConstructPropertyID(NewProperty%ID, Me%ObjEnterData, ExtractType)
 
         
@@ -1738,17 +1754,15 @@ cd2 :               if (BlockFound) then
 
         if (BlockFound) then
             call ConstructSandProperty(Me%Vaverage, FromBlock)
-
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
-
-            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-            if (STAT_CALL  /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR50'
-
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR60'
         else
             Me%AverageON = .false. 
         endif
- 
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR50'
+        
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR60' 
     
         !<BeginKeyword>
             !Keyword          : RESIDUAL_CURRENT
@@ -1769,14 +1783,55 @@ cd2 :               if (BlockFound) then
                      default      = .false.,                                             &
                      ClientModule = 'ModuleSand',                                        &
                      STAT         = STAT_CALL)              
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR70' 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR80' 
         
 
         if (Me%AverageON .and. Me%ResidualCurrent) then
-            stop 'ConstructGlobalParameters - ModuleSand - ERR80' 
+            stop 'ConstructAverageCurrent - ModuleSand - ERR90' 
         endif
 
     end subroutine ConstructAverageCurrent
+
+
+    !----------------------------------------------------------------------------
+    
+    subroutine ConstructMappDZ
+    
+        !External----------------------------------------------------------------
+        integer                             :: ClientNumber
+        integer                             :: STAT_CALL
+        logical                             :: BlockFound
+
+        !Local-------------------------------------------------------------------
+
+        !------------------------------------------------------------------------    
+        
+        Me%MappDZON = .true. 
+    
+        call ExtractBlockFromBuffer(Me%ObjEnterData,                                 &
+                                    ClientNumber    = ClientNumber,                  &
+                                    block_begin     = Mapp_DZ_block_begin,           &
+                                    block_end       = Mapp_DZ_block_end,             &
+                                    BlockFound      = BlockFound,                    &
+                                    STAT            = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSand - ERR10'
+
+        if (BlockFound) then
+            call ConstructSandProperty(Me%MappDZ, FromBlock)
+
+        else
+            Me%MappDZON = .false. 
+        endif
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructMappDZ - ModuleSand - ERR20'
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
+        if (STAT_CALL  /= SUCCESS_) stop 'ConstructMappDZ - ModuleSand - ERR30'
+
+
+    end subroutine ConstructMappDZ
 
     !--------------------------------------------------------------------------
     subroutine ConstructGlobalParameters
@@ -1943,19 +1998,19 @@ cd2 :               if (BlockFound) then
         
         Me%DZ%Field2D(:,:) = 0.
 
-        if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
-
-            allocate(Me%BatimIncrement%Field2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-
-            Me%BatimIncrement%ID%Name  = 'Batim Increment'
-            Me%BatimIncrement%ID%Units = 'm'
-        
-            Me%BatimIncrement%Field2D(:,:) = 0.
-        else
-
-            Me%BatimIncrement%Field2D => Me%DZ%Field2D
-
-        endif
+!        if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
+!
+!            allocate(Me%BatimIncrement%Field2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+!
+!            Me%BatimIncrement%ID%Name  = 'Batim Increment'
+!            Me%BatimIncrement%ID%Units = 'm'
+!        
+!            Me%BatimIncrement%Field2D(:,:) = 0.
+!        else
+!
+!            Me%BatimIncrement%Field2D => Me%DZ%Field2D
+!
+!        endif
 
 
         allocate(Me%DZ_Residual%Field2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
@@ -2344,6 +2399,24 @@ cd2 :               if (BlockFound) then
 !            Me%Evolution%Bathym = .true.
 !         endif         
 
+         call GetData(Me%BiHarmonicFilter,                                              &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'BIHARMONIC_FILTER',                                &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleSand',                                       &
+                     STAT         = STAT_CALL)              
+         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR440'
+
+
+         call GetData(Me%BiHarmonicFilterCoef,                                          &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'BIHARMONIC_FILTER_COEF',                           &
+                     default      = 0.01,                                               &
+                     ClientModule = 'ModuleSand',                                       &
+                     STAT         = STAT_CALL)              
+         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR450'
 
     end subroutine ConstructGlobalParameters
 
@@ -2413,6 +2486,18 @@ cd2 :               if (BlockFound) then
                      STAT         = STAT_CALL)              
          if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR40'    
 
+         call GetData(Me%HybridMorph%NoTransportBufferCells,                             &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'NO_TRANSPORT_BUFFER_CELLS',                         &
+                     default      = FillValueInt,                                        &
+                     ClientModule = 'ModuleSand',                                        &
+                     STAT         = STAT_CALL)              
+         if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR50'    
+
+        if (2 * Me%HybridMorph%NoTransportBufferCells >= Me%HybridMorph%Max1D - Me%HybridMorph%Min1D) then
+            stop 'ConstructHybridMorph - ModuleSand - ERR60'
+        endif         
 
         !Allocate variables
         !1D vectors
@@ -2469,7 +2554,7 @@ cd2 :               if (BlockFound) then
             
                 Me%HybridMorph%DistanceToCoastRef(Me%WorkSize%IUB,j) = 0.
 
-                do i = Me%WorkSize%IUB-1, Me%WorkSize%ILB
+                do i = Me%WorkSize%IUB-1, Me%WorkSize%ILB, -1
              
                     Me%HybridMorph%DistanceToCoastRef(i,j) = Me%HybridMorph%DistanceToCoastRef(i+1,j) + Me%ExternalVar%DZY(i  ,j)
                     
@@ -2496,7 +2581,7 @@ cd2 :               if (BlockFound) then
 
                 Me%HybridMorph%DistanceToCoastRef(i,Me%WorkSize%JUB) = 0.
 
-                do j = Me%WorkSize%JUB-1, Me%WorkSize%JLB
+                do j = Me%WorkSize%JUB-1, Me%WorkSize%JLB, -1
             
                     Me%HybridMorph%DistanceToCoastRef(i,j) = Me%HybridMorph%DistanceToCoastRef(i,j+1) + Me%ExternalVar%DZX(i  ,j)
                     
@@ -2508,13 +2593,13 @@ cd2 :               if (BlockFound) then
         Me%HybridMorph%DistanceToCoastInst(:,:) = Me%HybridMorph%DistanceToCoastRef(:,:)
         
         call GetGridData2Dreference(Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR50' 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR70' 
         
         Me%HybridMorph%BathymetryPrevious(:,:) = Me%ExternalVar%InitialBathym(:,:)
             
         
         call UnGetGridData(Me%ObjBathym, Me%ExternalVar%InitialBathym, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR60'         
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHybridMorph - ModuleSand - ERR80'         
 
     end subroutine ConstructHybridMorph
             
@@ -2937,6 +3022,12 @@ ifMS:   if (MasterOrSlave) then
                         !Boundary Condition
                         call BoundaryCondition(Me%DZ%Field2D)
                         
+                        !Mapp effect
+                        if (Me%MappDZON) then
+                            call ModifyMappDZ
+                        endif
+                        
+                        
 #if _USE_MPI                    
                         !MPI and Domain Decomposition is ON exchanges data along domain interfaces
                         call ReceiveSendProperitiesMPI(HorizontalGridID = Me%ObjHorizontalGrid, & 
@@ -2990,16 +3081,25 @@ ifMS:   if (MasterOrSlave) then
                             !Bathymetry 
                             call UnGetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT_CALL)     
                             if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR20'
-
-                            call ModifyGridData(Me%ObjBathym, Me%BatimIncrement%Field2D, Add = .false.,  &
-                                                STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR30.'
+                            
+                            if (Me%HybridMorph%ON) then                            
+                                call ModifyGridData(Me%ObjBathym, Me%HybridMorph%DZ_Residual%Field2D, &
+                                                    Add = .false., ResidualIncrement = .true., &
+                                                    STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR25.'
+                            else                                
+    !                            call ModifyGridData(Me%ObjBathym, Me%BatimIncrement%Field2D, Add = .false.,  &
+                                call ModifyGridData(Me%ObjBathym, Me%DZ_Residual%Field2D, Add = .false.,  &
+                                                    ResidualIncrement = .true., STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR30.'
+                                
+                            endif                                
 
                             !Bathymetry
                             call GetGridData(Me%ObjBathym, Me%ExternalVar%Bathymetry, STAT_CALL)     
                             if (STAT_CALL /= SUCCESS_) stop 'ModifySand - ModuleSand - ERR40'
 
-                            Me%BatimIncrement%Field2D(:,:) = 0.
+                            !Me%BatimIncrement%Field2D(:,:) = 0.
 
                             if    (Me%Evolution%BathymType == Time_) then
                     
@@ -3030,6 +3130,35 @@ ifMS:   if (MasterOrSlave) then
 
     end subroutine ModifySand
 
+    !--------------------------------------------------------------------------
+
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine ModifyMappDZ 
+
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                            :: i, j
+        !----------------------------------------------------------------------
+      
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+            if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint .and. Me%MappDZ%Field2D(i,j) < 0.5) then
+
+                Me%DZ%Field2D(i, j) = 0. 
+
+            endif
+                                   
+        enddo
+        enddo
+
+    end subroutine ModifyMappDZ
+    
     !--------------------------------------------------------------------------
 
 
@@ -3064,14 +3193,16 @@ ifMS:   if (MasterOrSlave) then
                         iw >= Me%WorkSize%ILB .and. iw <= Me%WorkSize%IUB) then
                         if(Me%ExternalVar%WaterPoints2D(iw, jw) == WaterPoint) then
                             Counter = Counter + 1
-                            AuxSum  = AuxSum + Me%BatimIncrement%Field2D(iw, jw)
+                            !AuxSum  = AuxSum + Me%BatimIncrement%Field2D(iw, jw)
+                            AuxSum  = AuxSum + Me%DZ_Residual%Field2D(iw, jw)                            
                         end if
                     endif
 
                 enddo
                 enddo
 
-                Me%Filter%Field2D(i, j) = Beta * (AuxSum / real(Counter) - Me%BatimIncrement%Field2D(i,j))
+                !Me%Filter%Field2D(i, j) = Beta * (AuxSum / real(Counter) - Me%BatimIncrement%Field2D(i,j))
+                Me%Filter%Field2D(i, j) = Beta * (AuxSum / real(Counter) - Me%DZ_Residual%Field2D(i,j))
 
             endif
                                    
@@ -3083,8 +3214,9 @@ ifMS:   if (MasterOrSlave) then
 
             if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
 
-                Me%BatimIncrement%Field2D(i,j) = Me%BatimIncrement%Field2D(i,j) + Me%Filter%Field2D(i,j)
-
+                !Me%BatimIncrement%Field2D(i,j) = Me%BatimIncrement%Field2D(i,j) + Me%Filter%Field2D(i,j)
+                Me%DZ_Residual%Field2D(i,j) = Me%DZ_Residual%Field2D(i,j) + Me%Filter%Field2D(i,j)
+                
             endif
                                    
         enddo
@@ -3324,6 +3456,103 @@ ifMS:   if (MasterOrSlave) then
     end subroutine ComputeBedSlopeEffects
       
    !--------------------------------------------------------------------------    
+   
+   !--------------------------------------------------------------------------
+
+    subroutine ComputeBiHamonicFilter2D(Prop2D, Coef)
+    
+        !Argument--------------------------------------------------------------
+        real,   pointer, dimension(:,:)     :: Prop2D    
+        real                                :: Coef
+      
+        !Local-----------------------------------------------------------------                
+        real,   pointer, dimension(:,:)     :: Aux2D_X, Aux2D_Y
+        integer                             :: i, j
+
+        !----------------------------------------------------------------------   
+
+        !Biharmonic filter 
+
+        allocate (Aux2D_X(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate (Aux2D_Y(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))        
+
+        Aux2D_X(:,:) = 0.
+        Aux2D_Y(:,:) = 0.        
+         
+        !Biharmonic flux X         
+        
+        !X direction   
+        do i=Me%WorkSize%ILB+1, Me%WorkSize%IUB-1
+        do j=Me%WorkSize%JLB+1, Me%WorkSize%JUB-1
+
+            if (Me%ExternalVar%OpenPoints2D(i, j-1) == OpenPoint .and.                  &
+                Me%ExternalVar%OpenPoints2D(i, j  ) == OpenPoint .and.                  &
+                Me%ExternalVar%OpenPoints2D(i, j+1) == OpenPoint) then
+
+               Aux2D_X(i,j) = Prop2D(i, j-1)- 2.* Prop2D(i, j) + Prop2D(i, j+1)
+
+            endif
+            
+        enddo
+        enddo                       
+        
+        call BoundaryCondition(Aux2D_X)
+        
+        !Y direction           
+        
+        do i=Me%WorkSize%ILB+1, Me%WorkSize%IUB-1
+        do j=Me%WorkSize%JLB+1, Me%WorkSize%JUB-1
+
+            if (Me%ExternalVar%OpenPoints2D(i-1, j) == OpenPoint .and.                  &
+                Me%ExternalVar%OpenPoints2D(i,   j) == OpenPoint .and.                  &
+                Me%ExternalVar%OpenPoints2D(i+1, j) == OpenPoint) then
+
+               Aux2D_Y(i,j) = Prop2D(i-1, j)- 2.* Prop2D(i, j) + Prop2D(i+1, j)
+
+            endif
+            
+        enddo
+        enddo                       
+        
+        call BoundaryCondition(Aux2D_Y)
+        
+        !X direction           
+        do i=Me%WorkSize%ILB+1, Me%WorkSize%IUB-1
+        do j=Me%WorkSize%JLB+1, Me%WorkSize%JUB-1
+
+            if (Me%ExternalVar%OpenPoints2D(i, j-1) == OpenPoint .and.                  &
+                Me%ExternalVar%OpenPoints2D(i, j  ) == OpenPoint .and.                  &
+                Me%ExternalVar%OpenPoints2D(i, j+1) == OpenPoint) then
+
+                Prop2D(i,j) = Prop2D(i,j) - Coef*(Aux2D_X(i, j-1)- 2. * Aux2D_X(i, j) + Aux2D_X(i, j+1))
+
+            endif
+        enddo
+        enddo           
+
+        !Y direction           
+        do i=Me%WorkSize%ILB+1, Me%WorkSize%IUB-1
+        do j=Me%WorkSize%JLB+1, Me%WorkSize%JUB-1
+
+            if (Me%ExternalVar%OpenPoints2D(i-1, j) == OpenPoint .and.                  &
+                Me%ExternalVar%OpenPoints2D(i, j  ) == OpenPoint .and.                  &
+                Me%ExternalVar%OpenPoints2D(i+1, j) == OpenPoint) then
+
+                Prop2D(i,j) =  Prop2D(i,j) - Coef*(Aux2D_Y(i-1, j)- 2. * Aux2D_Y(i, j) + Aux2D_Y(i+1, j))
+
+            endif
+        enddo
+        enddo                       
+        
+        call BoundaryCondition(Prop2D)        
+   
+        deallocate (Aux2D_X)
+        deallocate (Aux2D_Y)
+   
+
+    end subroutine ComputeBiHamonicFilter2D
+      
+   !--------------------------------------------------------------------------      
 
     subroutine MeyerPeterTransport
         !Local-----------------------------------------------------------------
@@ -4827,8 +5056,8 @@ ifMS:   if (MasterOrSlave) then
 
         !Local-----------------------------------------------------------------
         real(8),    pointer, dimension(:)  :: Aux1D
-        real                               :: DX1, DX2, DY1, DY2, Area1, Area2, RunPeriod, K, coef
-        integer                            :: i, j, ij, imin, imax, di
+        real                               :: DX1, DX2, DY1, DY2, Area1, Area2, RunPeriod, K
+        integer                            :: i, j, ij, imin, imax, di, iaux
         
         !----------------------------------------------------------------------
         
@@ -4923,7 +5152,7 @@ ifMS:   if (MasterOrSlave) then
                                                     Me%HybridMorph%CrossShoreVel(:) *          &
                                                     Me%Evolution%DZDT) / RunPeriod        
 
-        !Biharmonic filter 
+!        !Biharmonic filter 
 
         allocate (Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D))
         
@@ -4946,25 +5175,13 @@ ifMS:   if (MasterOrSlave) then
         deallocate (Aux1D)
         
         call BoundaryCondition1D(Me%HybridMorph%ResidualCrossShoreVel, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)
-        
-        !Newton relaxation
-        Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Min1D  ) = 0.
-        Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Min1D+1) = 0.
-        Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Max1D  ) = 0.
-        Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Max1D-1) = 0.
-                
-        do j = Me%HybridMorph%Min1D+2,Me%HybridMorph%Min1D+20 
-            coef = real(Me%HybridMorph%Min1D+20 - j)
-            Me%HybridMorph%ResidualCrossShoreVel(j) = Me%HybridMorph%ResidualCrossShoreVel(j)*exp(-coef)
-        enddo              
-        
-        do j = Me%HybridMorph%Max1D-20,Me%HybridMorph%Max1D-2 
-            coef = real(j - (Me%HybridMorph%Max1D-20))
-            Me%HybridMorph%ResidualCrossShoreVel(j) = Me%HybridMorph%ResidualCrossShoreVel(j)*exp(-coef)
-        enddo                 
-                
-        
 
+        !Buffer area adjacent to open boundary with no transport
+        if (Me%HybridMorph%NoTransportBufferCells > 0) then
+            iaux = Me%HybridMorph%NoTransportBufferCells
+            Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Min1D     : Me%HybridMorph%Min1D+iaux) = 0.
+            Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Max1D-iaux: Me%HybridMorph%Max1D    ) = 0.        
+        endif
 
     end subroutine ComputeProfileCrossShoreMovement
     
@@ -4974,25 +5191,117 @@ ifMS:   if (MasterOrSlave) then
     subroutine ComputeNewBathymetryFromNewProfiles
 
         !Local-----------------------------------------------------------------
-        real(8), dimension(:)  , pointer   :: XX
-        real                               :: RunPeriod, dx1, dx2
-        integer                            :: i, j, ileft, iW1, iW2
+        real(8), dimension(:)  , pointer   :: XXref, XXinst, InitProfile, NextProfile
+        integer, dimension(:)  , pointer   :: WaterPoints1D
+        real                               :: RunPeriod
+        integer                            :: i, j
+        integer                            :: ILB, IUB, JLB, JUB
         !----------------------------------------------------------------------
         
-        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime        
+        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime     
+        
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
             
-        !ILB coast line 
+        !ILB coast Me%WorkSize%ILB:Me%WorkSize%IUB 
         if (Me%HybridMorph%CoastBoundary == ILB_) then
+
+            allocate(XXref        (Me%Size%ILB:Me%Size%IUB))
+            allocate(XXinst       (Me%Size%ILB:Me%Size%IUB))
+            allocate(InitProfile  (Me%Size%ILB:Me%Size%IUB))
+            allocate(NextProfile  (Me%Size%ILB:Me%Size%IUB))
+            allocate(WaterPoints1D(Me%Size%ILB:Me%Size%IUB))            
+            
+            WaterPoints1D(:) = 0                
+            
+            do j= JLB, JUB
+                !profile movement
+                do i= Me%HybridMorph%InShoreMapping(j), Me%HybridMorph%OffShoreMapping(j)
+                
+                    Me%HybridMorph%DistanceToCoastInst(i, j) = Me%HybridMorph%DistanceToCoastRef(i, j) + &
+                        Me%HybridMorph%ResidualCrossShoreVel(j) * RunPeriod
+                
+                enddo            
+                
+                do i = ILB, IUB
+                    XXref        (i)  = Me%HybridMorph%DistanceToCoastRef (i, j)
+                    XXinst       (i)  = Me%HybridMorph%DistanceToCoastInst(i, j)
+                    InitProfile  (i)  = Me%ExternalVar%InitialBathym      (i, j)
+                    NextProfile  (i)  = Me%HybridMorph%BathymetryNext     (i, j)
+                    WaterPoints1D(i)  = Me%ExternalVar%WaterPoints2D      (i, j)
+                enddo                    
+
+
+                call InterpolateNewBathymProfile(LB             = ILB          ,        &
+                                                 UB             = IUB          ,        &
+                                                 XXref          = XXref        ,        & 
+                                                 XXinst         = XXinst       ,        & 
+                                                 InitProfile    = InitProfile  ,        & 
+                                                 NextProfile    = NextProfile  ,        & 
+                                                 WaterPoints1D  = WaterPoints1D)
+
+                do i = ILB, IUB                                                                                 
+                    Me%HybridMorph%BathymetryNext(i,j) = NextProfile(i)
+                enddo                        
+
+            enddo  
+            
         
-        
-        !IUB coast line             
+        !IUB coast line                         
         else if (Me%HybridMorph%CoastBoundary == IUB_) then
+
+            allocate(XXref        (Me%Size%ILB:Me%Size%IUB))
+            allocate(XXinst       (Me%Size%ILB:Me%Size%IUB))
+            allocate(InitProfile  (Me%Size%ILB:Me%Size%IUB))
+            allocate(NextProfile  (Me%Size%ILB:Me%Size%IUB))
+            allocate(WaterPoints1D(Me%Size%ILB:Me%Size%IUB))     
+            
+            WaterPoints1D(:) = 0
+
+            do j= JLB, JUB
+                !profile movement
+                do i= Me%HybridMorph%InShoreMapping(j), Me%HybridMorph%OffShoreMapping(j),-1
+                
+                    Me%HybridMorph%DistanceToCoastInst(i, j) = Me%HybridMorph%DistanceToCoastRef(i, j) + &
+                        Me%HybridMorph%ResidualCrossShoreVel(j) * RunPeriod
+                
+                enddo            
+                
+                do i = ILB, IUB
+                    XXref        (IUB + ILB -i)  = Me%HybridMorph%DistanceToCoastRef (i, j)
+                    XXinst       (IUB + ILB -i)  = Me%HybridMorph%DistanceToCoastInst(i, j)
+                    InitProfile  (IUB + ILB -i)  = Me%ExternalVar%InitialBathym      (i, j)
+                    NextProfile  (IUB + ILB -i)  = Me%HybridMorph%BathymetryNext     (i, j)
+                    WaterPoints1D(IUB + ILB -i)  = Me%ExternalVar%WaterPoints2D      (i, j)
+                enddo                    
+
+
+                call InterpolateNewBathymProfile(LB             = ILB          ,        &
+                                                 UB             = IUB          ,        &
+                                                 XXref          = XXref        ,        & 
+                                                 XXinst         = XXinst       ,        & 
+                                                 InitProfile    = InitProfile  ,        & 
+                                                 NextProfile    = NextProfile  ,        & 
+                                                 WaterPoints1D  = WaterPoints1D)
+
+                do i= ILB, IUB
+                    Me%HybridMorph%BathymetryNext(i,j) = NextProfile(IUB+ILB-i)
+                enddo    
+            enddo  
             
         !JLB coast line                         
         else if (Me%HybridMorph%CoastBoundary == JLB_) then
-        
-            allocate(XX(Me%WorkSize%JLB:Me%WorkSize%JUB))
 
+            allocate(XXref        (Me%Size%JLB:Me%Size%JUB))
+            allocate(XXinst       (Me%Size%JLB:Me%Size%JUB))
+            allocate(InitProfile  (Me%Size%JLB:Me%Size%JUB))
+            allocate(NextProfile  (Me%Size%JLB:Me%Size%JUB))
+            allocate(WaterPoints1D(Me%Size%JLB:Me%Size%JUB)) 
+            
+            WaterPoints1D(:) = 0            
+        
             do i= Me%WorkSize%ILB, Me%WorkSize%IUB
                 !profile movement
                 do j= Me%HybridMorph%InShoreMapping(i), Me%HybridMorph%OffShoreMapping(i)
@@ -5000,73 +5309,124 @@ ifMS:   if (MasterOrSlave) then
                     Me%HybridMorph%DistanceToCoastInst(i, j) = Me%HybridMorph%DistanceToCoastRef(i, j) + &
                         Me%HybridMorph%ResidualCrossShoreVel(i) * RunPeriod
                 
-                enddo            
-
-                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                enddo           
                 
-                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
-                    
-                        XX(Me%WorkSize%JLB:Me%WorkSize%JUB) = Me%HybridMorph%DistanceToCoastInst(i, Me%WorkSize%JLB:Me%WorkSize%JUB)
-                    
-                        call LocateCell1D (XX,                                          &
-                                           Me%HybridMorph%DistanceToCoastRef (i, j),    &
-                                           Me%WorkSize%JLB,                             &
-                                           Me%WorkSize%JUB,                             &
-                                           ileft)
-                                           
-                                                                  
-                        !linear interpolation
-                        iW1 = Me%ExternalVar%WaterPoints2D(i,  ileft  )
-                        iW2 = Me%ExternalVar%WaterPoints2D(i,  ileft+1)
-                        
-                        if (iW1+iW2      == 0) then
-                        
-                            Me%HybridMorph%BathymetryNext(i, j) = -99.
-                            
-                        else if (iW1     == 0) then
-                        
-                            Me%HybridMorph%BathymetryNext(i, j) = Me%ExternalVar%InitialBathym(i, ileft+1)
-                        
-                        else if (iW2     == 0) then
-                        
-                            Me%HybridMorph%BathymetryNext(i, j) = Me%ExternalVar%InitialBathym(i, ileft  )
+                do j = JLB, JUB
+                    XXref        (j)  = Me%HybridMorph%DistanceToCoastRef (i, j)
+                    XXinst       (j)  = Me%HybridMorph%DistanceToCoastInst(i, j)
+                    InitProfile  (j)  = Me%ExternalVar%InitialBathym      (i, j)
+                    NextProfile  (j)  = Me%HybridMorph%BathymetryNext     (i, j)
+                    WaterPoints1D(j)  = Me%ExternalVar%WaterPoints2D      (i, j)
+                enddo                        
+                
+                call InterpolateNewBathymProfile(LB             = JLB,          &
+                                                 UB             = JUB,          & 
+                                                 XXref          = XXref        ,& 
+                                                 XXinst         = XXinst       ,& 
+                                                 InitProfile    = InitProfile  ,& 
+                                                 NextProfile    = NextProfile  ,& 
+                                                 WaterPoints1D  = WaterPoints1D)
 
-                        else if (iW1+iW2 == 2) then
-                        
-                            dx1 = Me%HybridMorph%DistanceToCoastRef (i, j      ) - Me%HybridMorph%DistanceToCoastInst(i, ileft)
-                            dx2 = Me%HybridMorph%DistanceToCoastInst(i, ileft+1) - Me%HybridMorph%DistanceToCoastRef (i, j    )  
-                            
-                            if (dx1 < 0.) then
-                                stop 'ComputeNewBathymetryFromNewProfiles - ModuleSand - ERR10'
-                            endif
-
-                            if (dx2 < 0.) then
-                                stop 'ComputeNewBathymetryFromNewProfiles - ModuleSand - ERR20'
-                            endif
-                        
-                            Me%HybridMorph%BathymetryNext(i, j) = (dx2 *  Me%ExternalVar%InitialBathym(i, ileft  ) +         &
-                                                                   dx1 *  Me%ExternalVar%InitialBathym(i, ileft+1)) /(dx1 + dx2)
-                                                                  
-                            
-                        endif
-                        
-
-                    endif
-                enddo            
+                do j = JLB, JUB
+                    Me%HybridMorph%BathymetryNext(i,j) = NextProfile(j)
+                enddo 
+                           
             enddo  
-            
-            deallocate(XX)
+
         
         !JUB coast line                         
         else if (Me%HybridMorph%CoastBoundary == JUB_) then
+        
+            allocate(XXref        (Me%Size%JLB:Me%Size%JUB))
+            allocate(XXinst       (Me%Size%JLB:Me%Size%JUB))
+            allocate(InitProfile  (Me%Size%JLB:Me%Size%JUB))
+            allocate(NextProfile  (Me%Size%JLB:Me%Size%JUB))
+            allocate(WaterPoints1D(Me%Size%JLB:Me%Size%JUB)) 
+            
+            WaterPoints1D(:) = 0            
+            
+            do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                !profile movement
+                do j= Me%HybridMorph%InShoreMapping(i), Me%HybridMorph%OffShoreMapping(i),-1
+                
+                    Me%HybridMorph%DistanceToCoastInst(i, j) = Me%HybridMorph%DistanceToCoastRef(i, j) + &
+                        Me%HybridMorph%ResidualCrossShoreVel(i) * RunPeriod
+                
+                enddo     
+                       
+                do j = JLB, JUB
+                    XXref        (JUB + JLB -j)  = Me%HybridMorph%DistanceToCoastRef (i, j)
+                    XXinst       (JUB + JLB -j)  = Me%HybridMorph%DistanceToCoastInst(i, j)
+                    InitProfile  (JUB + JLB -j)  = Me%ExternalVar%InitialBathym      (i, j)
+                    NextProfile  (JUB + JLB -j)  = Me%HybridMorph%BathymetryNext     (i, j)
+                    WaterPoints1D(JUB + JLB -j)  = Me%ExternalVar%WaterPoints2D      (i, j)
+                enddo                    
+
+                call InterpolateNewBathymProfile(LB             = JLB,          &
+                                                 UB             = JUB,          &
+                                                 XXref          = XXref        ,& 
+                                                 XXinst         = XXinst       ,& 
+                                                 InitProfile    = InitProfile  ,& 
+                                                 NextProfile    = NextProfile  ,& 
+                                                 WaterPoints1D  = WaterPoints1D)
+
+                do j= JLB, JUB
+                    Me%HybridMorph%BathymetryNext(i,j) = NextProfile(JUB+JLB-j)
+                enddo    
+            enddo  
             
         endif
         
-
+        deallocate(XXref, XXinst, InitProfile, NextProfile, WaterPoints1D)
         
     end subroutine ComputeNewBathymetryFromNewProfiles
     
+    !--------------------------------------------------------------------------
+    
+    subroutine InterpolateNewBathymProfile(LB, UB, XXref, XXinst, InitProfile, NextProfile, WaterPoints1D)
 
+        !Arguments-------------------------------------------------------------
+        real(8), dimension(:)  , pointer   :: XXref, XXinst, InitProfile, NextProfile
+        integer, dimension(:)  , pointer   :: WaterPoints1D
+        integer                            :: LB, UB
+
+        !Local-----------------------------------------------------------------
+        real(8)                            :: dx1, dx2
+        integer                            :: ij, iSouth, iW1, iW2        
+        !----------------------------------------------------------------------
+        
+        NextProfile(:) = InitProfile(:)
+        
+        do ij = LB, UB
+    
+            call LocateCell1D (XXinst, XXref(ij), LB, UB, iSouth)
+                               
+                                                      
+            !linear interpolation
+            iW1 = WaterPoints1D(iSouth)
+            iW2 = WaterPoints1D(iSouth+1)
+                                    
+            if (iW1+iW2 == 2) then
+            
+                dx1 = XXref (ij      ) - XXinst(iSouth)
+                dx2 = XXinst(iSouth+1) - XXref (ij    )  
+                
+                if (dx1 < 0.) then
+                    stop 'InterpolateNewBathymProfile - ModuleSand - ERR10'
+                endif
+
+                if (dx2 < 0.) then
+                    stop 'InterpolateNewBathymProfile - ModuleSand - ERR20'
+                endif
+            
+                NextProfile(ij)= (dx2 *  InitProfile(iSouth) + dx1 *  InitProfile(iSouth+1)) /(dx1 + dx2)
+                                                      
+            endif    
+    
+        enddo
+        
+    end subroutine InterpolateNewBathymProfile
+    
     !--------------------------------------------------------------------------
 
     subroutine HybridMorphNewBathymIncrement
@@ -5086,8 +5446,8 @@ ifMS:   if (MasterOrSlave) then
                     Me%HybridMorph%DZ_Residual%Field2D(i, j) = Me%ExternalVar%InitialBathym     (i, j) - &
                                                                Me%HybridMorph%BathymetryNext(i, j)
                                                                
-                    Me%BatimIncrement%Field2D (i, j)         = Me%HybridMorph%BathymetryPrevious(i, j) - &
-                                                               Me%HybridMorph%BathymetryNext(i, j)
+!                    Me%BatimIncrement%Field2D (i, j)         = Me%HybridMorph%BathymetryPrevious(i, j) - &
+!                                                               Me%HybridMorph%BathymetryNext(i, j)
                 endif
             enddo
             enddo                                                
@@ -5194,6 +5554,7 @@ ifMS:   if (MasterOrSlave) then
             
         enddo
         enddo
+        
 
         call ComputeDischarges
         
@@ -5706,26 +6067,30 @@ d1:         do dis = 1, DischargesNumber
 
         enddo
         enddo    
-
-        if (.not. Me%HybridMorph%ON) then
-
-            if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
-
-                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-
-                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
-                    
-                        Me%BatimIncrement%Field2D(i,j)  = Me%BatimIncrement%Field2D(i,j) + Me%DZ%Field2D(i, j)
-
-                    endif
-
-                enddo
-                enddo    
-
-            endif
-
+        
+        if (Me%BiHarmonicFilter) then
+            call ComputeBiHamonicFilter2D(Prop2D = Me%DZ_Residual%Field2D, Coef = Me%BiHarmonicFilterCoef)                
         endif
+
+!        if (.not. Me%HybridMorph%ON) then
+!
+!            if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
+!
+!                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+!                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+!
+!                    if (Me%ExternalVar%WaterPoints2D(i, j) == WaterPoint) then
+!                    
+!                        !Me%BatimIncrement%Field2D(i,j)  = Me%BatimIncrement%Field2D(i,j) + Me%DZ%Field2D(i, j)
+!
+!                    endif
+!
+!                enddo
+!                enddo    
+!
+!            endif
+!
+!        endif
         
         
     end subroutine ComputeResidualEvolution
@@ -6121,17 +6486,21 @@ if1:            if (Me%Classes%Number > 0) then
                     deallocate(Me%Uaverage%Field2D)
                     deallocate(Me%Vaverage%Field2D)                
                 endif
+                
+                if (Me%MappDZON) then
+                    deallocate(Me%MappDZ%Field2D)
+                endif                
 
                 deallocate(Me%BedRock%Field2D)
                 deallocate(Me%TauCritic)
 
                 deallocate(Me%DZ%Field2D)
                 
-                if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
-                
-                    deallocate(Me%BatimIncrement%Field2D)
-
-                endif
+!                if (Me%Evolution%BathymDT > Me%Evolution%DZDT) then
+!                
+!                    deallocate(Me%BatimIncrement%Field2D)
+!
+!                endif
 
                 deallocate(Me%DZ_Residual%Field2D)
 

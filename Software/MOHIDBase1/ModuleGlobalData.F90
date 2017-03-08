@@ -123,6 +123,7 @@ Module ModuleGlobalData
                                                 
     real   , parameter  :: FillValueReal        = -9.9e15
     integer, parameter  :: FillValueInt         = -9999999
+    real   , parameter  :: HalfFillValueReal    = -9.9e15/2.0
                                                 
     real,    parameter  :: AllmostZeroFraction  = 1.e-5
     real,    parameter  :: AllmostZero          = 1.e-15
@@ -676,6 +677,7 @@ Module ModuleGlobalData
     integer, parameter ::  BedRock_                        = 3006
     integer, parameter ::  SandTauCritic_                  = 3007
     integer, parameter ::  Sand_                           = 3008
+    integer, parameter ::  MappDZ_                         = 3009    
 
     integer, parameter ::  TransportCapacity_              = 3101 
     integer, parameter ::  TransportCapacityX_             = 3102 
@@ -1527,6 +1529,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_Newbathymetry            = "new bathymetry"
     character(StringLength), private, parameter :: Char_Sand                     = "sand"
     character(StringLength), private, parameter :: Char_bathymetry               = "bathymetry"    
+    character(StringLength), private, parameter :: Char_MappDZ                   = "mapping DZ"
 
     !wave dynamics
     character(StringLength), private, parameter :: Char_WaveStressX              = 'wave stress X'
@@ -1735,6 +1738,9 @@ Module ModuleGlobalData
     !Transport Parameters
     integer, parameter :: velocityX = 1, velocityY = 2, velocityZ = 3, massProperty = 4
     integer, parameter :: NearestNeighbour = 1, centered = 2 !other interpolation methods here 
+    
+    !Extrapolation parameters
+    integer, parameter :: ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2, ExtrapolConstant_ = 3
 
     !Filter grid data 
     integer, parameter :: NoFilter = 0, ModifyLax = 1
@@ -3014,6 +3020,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (BedRock_,                 Char_BedRock,                    ListNumber)
             call AddPropList (SandTauCritic_,           Char_SandTauCritic,              ListNumber)
             call AddPropList (Sand_,                    Char_Sand,                       ListNumber)
+            call AddPropList (MappDZ_,                  Char_MappDZ,                     ListNumber)            
 
             call AddPropList (TransportCapacity_,       Char_TransportCapacity,          ListNumber)
             call AddPropList (TransportCapacityX_,      Char_TransportCapacityX,         ListNumber)

@@ -2361,6 +2361,7 @@ i6:                         if (DirectionX.ne.0.) then
 
     end function PerpProduct2D
 
+    !-----------------------------------------------------------------------------------
 
     logical function EqualPoint(PointA, PointB) 
         
@@ -2385,8 +2386,7 @@ i6:                         if (DirectionX.ne.0.) then
 
     end function LessPoint
 
-
-
+    !-----------------------------------------------------------------------------------
 
     logical function CellInterSectCell (Cell1, Cell2)
     !Arguments---------------------------------------
@@ -2408,6 +2408,8 @@ i6:                         if (DirectionX.ne.0.) then
 
 
     end function CellInterSectCell
+    
+    !-----------------------------------------------------------------------------------    
 
     logical function PointInsideCell (X, Y, Cell)
     !Arguments---------------------------------------
@@ -2432,6 +2434,7 @@ i6:                         if (DirectionX.ne.0.) then
 
     end function PointInsideCell
 
+    !-----------------------------------------------------------------------------------
 
     subroutine SliceCellIn4 (Xo, Yo, Face, Cells4)
 
@@ -2476,6 +2479,8 @@ i6:                         if (DirectionX.ne.0.) then
         
 
     end subroutine SliceCellIn4
+    
+    !-----------------------------------------------------------------------------------    
 
     !This subroutine returns the indexes (WOut) of the smallest sub-domain of a curvilinear grid (XX, YY) 
     !that comprehends a cartesian window (WIn). 
@@ -2601,7 +2606,7 @@ i6:                         if (DirectionX.ne.0.) then
                     !Window  contains the entire grid
                     !Window contains part of the grid
                 
-                !the first option is true if the boundary segments of the window do mnot intersect the grid domain
+                !the first option is true if the boundary segments of the window do not intersect the grid domain
                 Intersect = .false. 
 
                 WindowInAux(:,1:4) = WindowIn(:,:)
@@ -2724,6 +2729,8 @@ i6:                         if (DirectionX.ne.0.) then
         endif  i1     
 
     end subroutine ArrayPolygonWindow
+    
+    !-----------------------------------------------------------------------------------    
 
     !Locates in a grid (XX, YY) the cell (IZ, JZ) where a point is (Point)
     !There is a similar subroutine in ModuleHorizontalGrid
@@ -2876,6 +2883,8 @@ i6:                         if (DirectionX.ne.0.) then
 
 
     end subroutine LocateCellPolygonsV2
+    
+    !-----------------------------------------------------------------------------------    
 
     !Returns a polygon (PolygonDomain) that corresponds to the boundary of a grid (XX, YY)
     subroutine CreateDomainPolygon(XX, YY, ILB, IUB, JLB, JUB, PolygonDomain)
@@ -2946,10 +2955,9 @@ i6:                         if (DirectionX.ne.0.) then
 
     end subroutine CreateDomainPolygon
     
- 
- 
- 
-!Checks if a segment (x3, y3, x4, y4) interscts or not (Intersect) the boundary of a grid (XX, YY)
+    !----------------------------------------------------------------------------------- 
+  
+!Checks if a segment (x3, y3, x4, y4) intersects or not (Intersect) the boundary of a grid (XX, YY)
 !If intersects returns the boundary cell where the intersection happens (iOut, jOut)
     subroutine IntersectionBoundCell(XX,YY,x3, y3, x4, y4,                             &
                                      ILB, IUB, JLB, JUB, Intersect, iOut,jOut)   
@@ -2962,20 +2970,21 @@ i6:                         if (DirectionX.ne.0.) then
 
 
         !Local----------------------------------------
-        real                        :: x1,y1,x2,y2
-        integer                     :: i, j
+        real                                    :: Ox1,Oy1,Ox2,Oy2
+        real                                    :: x1,y1,x2,y2        
+        integer                                 :: i, j
 
         !Begin----------------------------------------
         Intersect = .false.
 
         
         !West Boundary
-        x1 = XX(ILB,JLB)
-        y1 = YY(ILB,JLB)
-        x2 = XX(IUB,JLB)
-        y2 = YY(IUB,JLB)
+        Ox1 = XX(ILB,JLB)
+        Oy1 = YY(ILB,JLB)
+        Ox2 = XX(IUB,JLB)
+        Oy2 = YY(IUB,JLB)
         
-        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+        if (SegIntersectSeg(Ox1,Oy1,Ox2,Oy2, x3, y3, x4, y4)) then
             do i=ILB,IUB-1        
                 x1 = XX(i,JLB)
                 y1 = YY(i,JLB)
@@ -2989,17 +2998,26 @@ i6:                         if (DirectionX.ne.0.) then
                 endif                      
             enddo
             
-            if (.not. Intersect) stop "IntersectionBoundCell - ERR10"
-            
+            if (.not. Intersect) then
+                write(*,*) "West boundary segment - Ox1,Oy1,Ox2,Oy2"
+                write(*,*)  Ox1,Oy1,Ox2,Oy2
+                write(*,*) "North cell segment - x1,y1,x2,y2"
+                write(*,*)  x1,y1,x2,y2
+                write(*,*) "Input segment - y3, x4, y4"
+                write(*,*)  x3, y3, x4, y4
+                write(*,*) "If you are using MPI try to run the model in double precision"
+                stop       "IntersectionBoundCell - ERR10"            
+            endif
+                        
         endif
 
         !North Boundary
-        x1 = XX(IUB,JLB)
-        y1 = YY(IUB,JLB)
-        x2 = XX(IUB,JUB)
-        y2 = YY(IUB,JUB)
+        Ox1 = XX(IUB,JLB)
+        Oy1 = YY(IUB,JLB)
+        Ox2 = XX(IUB,JUB)
+        Oy2 = YY(IUB,JUB)
         
-        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+        if (SegIntersectSeg(Ox1,Oy1,Ox2,Oy2, x3, y3, x4, y4)) then
             do j=JLB,JUB-1        
                 x1 = XX(IUB,j  )
                 y1 = YY(IUB,j  )
@@ -3014,20 +3032,25 @@ i6:                         if (DirectionX.ne.0.) then
             enddo
             
             if (.not. Intersect) then
-                write(*,*) "x1,y1,x2,y2, x3, y3, x4, y4"
-                write(*,*)  x1,y1,x2,y2, x3, y3, x4, y4
-                stop "IntersectionBoundCell - ERR20"
+                write(*,*) "North boundary segment - Ox1,Oy1,Ox2,Oy2"
+                write(*,*)  Ox1,Oy1,Ox2,Oy2
+                write(*,*) "North cell segment - x1,y1,x2,y2"
+                write(*,*)  x1,y1,x2,y2
+                write(*,*) "Input segment - y3, x4, y4"
+                write(*,*)  x3, y3, x4, y4
+                write(*,*) "If you are using MPI try to run the model in double precision"
+                stop       "IntersectionBoundCell - ERR20"
             endif                
             
         endif
 
         !East Boundary
-        x1 = XX(ILB,JUB)
-        y1 = YY(ILB,JUB)
-        x2 = XX(IUB,JUB)
-        y2 = YY(IUB,JUB)
+        Ox1 = XX(ILB,JUB)
+        Oy1 = YY(ILB,JUB)
+        Ox2 = XX(IUB,JUB)
+        Oy2 = YY(IUB,JUB)
         
-        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+        if (SegIntersectSeg(Ox1,Oy1,Ox2,Oy2, x3, y3, x4, y4)) then
             do i=ILB,IUB-1        
                 x1 = XX(i,JUB)
                 y1 = YY(i,JUB)
@@ -3041,17 +3064,27 @@ i6:                         if (DirectionX.ne.0.) then
                 endif                      
             enddo
             
-            if (.not. Intersect) write(*,*) "IntersectionBoundCell - ERR30"
+            if (.not. Intersect) then
+                write(*,*) "East boundary segment - Ox1,Oy1,Ox2,Oy2"
+                write(*,*)  Ox1,Oy1,Ox2,Oy2
+                write(*,*) "North cell segment - x1,y1,x2,y2"
+                write(*,*)  x1,y1,x2,y2
+                write(*,*) "Input segment - y3, x4, y4"
+                write(*,*)  x3, y3, x4, y4
+                write(*,*) "If you are using MPI try to run the model in double precision"
+                stop       "IntersectionBoundCell - ERR30"
+            endif
+
             
         endif
 
         !South Boundary
-        x1 = XX(ILB,JLB)
-        y1 = YY(ILB,JLB)
-        x2 = XX(ILB,JUB)
-        y2 = YY(ILB,JUB)
+        Ox1 = XX(ILB,JLB)
+        Oy1 = YY(ILB,JLB)
+        Ox2 = XX(ILB,JUB)
+        Oy2 = YY(ILB,JUB)
         
-        if (SegIntersectSeg(x1,y1,x2,y2, x3, y3, x4, y4)) then
+        if (SegIntersectSeg(Ox1,Oy1,Ox2,Oy2, x3, y3, x4, y4)) then
             do j=JLB,JUB-1        
                 x1 = XX(ILB,j  )
                 y1 = YY(ILB,j  )
@@ -3065,13 +3098,23 @@ i6:                         if (DirectionX.ne.0.) then
                 endif                      
             enddo
             
-            if (.not. Intersect) stop "IntersectionBoundCell - ERR40"
+            if (.not. Intersect) then
+                write(*,*) "West boundary segment - Ox1,Oy1,Ox2,Oy2"
+                write(*,*)  Ox1,Oy1,Ox2,Oy2
+                write(*,*) "North cell segment - x1,y1,x2,y2"
+                write(*,*)  x1,y1,x2,y2
+                write(*,*) "Input segment - y3, x4, y4"
+                write(*,*)  x3, y3, x4, y4
+                write(*,*) "If you are using MPI try to run the model in double precision"
+                stop       "IntersectionBoundCell - ERR40"
+            endif
+
             
         endif
     
     end subroutine IntersectionBoundCell   
 
-
+    !-----------------------------------------------------------------------------------
 
     subroutine IntersectionBoundCellV2(XX,YY, WindowInAux, ILB, IUB, JLB, JUB, &
                                        Intersect, WindowInIndex, GridCornerInside, Count)
@@ -3213,6 +3256,8 @@ i6:                         if (DirectionX.ne.0.) then
         
     end subroutine IntersectionBoundCellV2   
 
+    !-----------------------------------------------------------------------------------
+
  !Checks if a segment (x1,y1,x2,y2) intersect a line 
     logical function SegIntersectLine(x1,y1,x2,y2, LineX, LineAng)
         !Arguments--------------------------------------------------
@@ -3283,6 +3328,8 @@ i6:                         if (DirectionX.ne.0.) then
         
 
     end function SegIntersectLine
+    
+    !-----------------------------------------------------------------------------------    
 
  !Checks if a segment (x1,y1,x2,y2) intersect a Polygon 
     logical function SegIntersectPolygon(x1,y1,x2,y2, PolygonX, LineAng, AreaOfInterest)
@@ -3400,49 +3447,30 @@ i6:                         if (DirectionX.ne.0.) then
 
     end function SegIntersectPolygon
 
+    !-----------------------------------------------------------------------------------
 
- !Checks if a segment (x1,y1,x2,y2) intersect another segment (x3, y3, x4, y4)
+    !Checks if a segment (x1,y1,x2,y2) intersect another segment (x3, y3, x4, y4)
     logical function SegIntersectSegR4(x1,y1,x2,y2, x3, y3, x4, y4)
         !Arguments--------------------------------------------------
         real(4)                      :: x1,y1,x2,y2, x3, y3, x4, y4
         !Local------------------------------------------------------
-        real(4)                      :: xi, yi, d
+        real(8)                      :: dx1, dy1, dx2, dy2, dx3, dy3, dx4, dy4
         !Begin------------------------------------------------------
 
-        SegIntersectSegR4 = .true.
-
-        d = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
-        if (d == 0) SegIntersectSegR4 = .false.
+        dx1 = x1 
+        dy1 = y1
+        dx2 = x2
+        dy2 = y2
+        dx3 = x3
+        dy3 = y3
+        dx4 = x4
+        dy4 = y4
         
-        if (SegIntersectSegR4) then
-        
-            xi = ((x3-x4)*(x1*y2-y1*x2)-(x1-x2)*(x3*y4-y3*x4))/d
-            
-            if      (abs(x1-x2)>0) then
-                yi = y2 + (y1-y2)/(x1-x2) * (xi-x2)
-            else if (abs(x3-x4)>0) then
-                yi = y4 + (y3-y4)/(x3-x4) * (xi-x4)
-            else
-                SegIntersectSegR4 = .false.
-            endif
-            
-            if (SegIntersectSegR4) then
-            
-                if (abs(x1-x2) > abs(y1-y2)) then
-                    if (xi < min(x1,x2) .or. xi > max(x1,x2)) SegIntersectSegR4 = .false.
-                else
-                    if (yi < min(y1,y2) .or. yi > max(y1,y2)) SegIntersectSegR4 = .false.
-                endif 
+        SegIntersectSegR4 = SegIntersectSegR8(dx1, dy1,dx2,dy2,dx3,dy3,dx4,dy4)
 
-                if (abs(x3-x4) > abs(y3-y4)) then
-                    if (xi < min(x3,x4) .or. xi > max(x3,x4)) SegIntersectSegR4 = .false.        
-                else
-                    if (yi < min(y3,y4) .or. yi > max(y3,y4)) SegIntersectSegR4 = .false.
-                endif
-            endif
-        endif
-    
     end function SegIntersectSegR4    
+    
+    !-----------------------------------------------------------------------------------    
 
     !Checks if a segment (x1,y1,x2,y2) intersect another segment (x3, y3, x4, y4)
     logical function SegIntersectSegR8(x1,y1,x2,y2, x3, y3, x4, y4)

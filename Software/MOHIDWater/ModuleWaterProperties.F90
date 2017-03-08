@@ -18468,6 +18468,8 @@ case1 :     select case(Property%ID%IDNumber)
 
                     if (Me%DoSatType.eq.Apha) then
 
+                        !$OMP PARALLEL PRIVATE(i,j,DOSAT,Aux1,Aux2,Aux3)
+                        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                         do j=JLB, JUB
                         do i=ILB, IUB
 
@@ -18489,7 +18491,7 @@ case1 :     select case(Property%ID%IDNumber)
                                 
                                
                                 !New Concentration - implicit computation to avoid instability problems
-                                Property%Concentration(i, j, KUB) = (Property%Concentration(i, j, KUB) + Aux3) / (1 + Aux2)
+                                Property%Concentration(i, j, KUB) = (Property%Concentration(i, j, KUB) + Aux3) / (1.0 + Aux2)
                                 
                                 
                                 Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j) * &
@@ -18499,9 +18501,14 @@ case1 :     select case(Property%ID%IDNumber)
                             endif
                         enddo
                         enddo
+                        !$OMP END DO NOWAIT
+                        !$OMP END PARALLEL
+                        
                         
                     else if (Me%DoSatType.eq.Henry) then
                     
+                        !$OMP PARALLEL PRIVATE(i,j,DOSAT,Aux1,Aux2,Aux3)
+                        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                         do j=JLB, JUB
                         do i=ILB, IUB
 
@@ -18523,7 +18530,7 @@ case1 :     select case(Property%ID%IDNumber)
                                 
                                
                                 !New Concentration - implicit computation to avoid instability problems
-                                Property%Concentration(i, j, KUB) = (Property%Concentration(i, j, KUB) + Aux3) / (1 + Aux2)
+                                Property%Concentration(i, j, KUB) = (Property%Concentration(i, j, KUB) + Aux3) / (1.0 + Aux2)
                                 
                                 
                                 Property%SurfaceFlux(i, j) = Me%ExtSurface%OxygenFlux(i, j) * &
@@ -18531,6 +18538,8 @@ case1 :     select case(Property%ID%IDNumber)
                             endif
                         enddo
                         enddo
+                        !$OMP END DO NOWAIT
+                        !$OMP END PARALLEL
 
                     else if (Me%DoSatType.eq.Mortimer) then
                     
@@ -18538,6 +18547,8 @@ case1 :     select case(Property%ID%IDNumber)
                         
                         Palt =(1-((Me%Altitude)/1000)/44.3)**5.25
 
+                        !$OMP PARALLEL PRIVATE(i,j,DOSAT,Aux1,Aux2,Aux3)
+                        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                         do j=JLB, JUB
                         do i=ILB, IUB
 
@@ -18569,6 +18580,8 @@ case1 :     select case(Property%ID%IDNumber)
                             endif
                         enddo
                         enddo
+                        !$OMP END DO NOWAIT
+                        !$OMP END PARALLEL
 
                     endif
 
@@ -18592,6 +18605,8 @@ case1 :     select case(Property%ID%IDNumber)
 
                     Pressure = 0.01
 
+                    !$OMP PARALLEL PRIVATE(i,j,CO2PP)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                     do j=JLB, JUB
                     do i=ILB, IUB
                     
@@ -18629,9 +18644,13 @@ case1 :     select case(Property%ID%IDNumber)
                                         
                     enddo
                     enddo
+                    !$OMP END DO NOWAIT
+                    !$OMP END PARALLEL
                     
                 case (Ammonia_)
                 
+                    !$OMP PARALLEL PRIVATE(i,j)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                     do j=JLB, JUB
                     do i=ILB, IUB
                         if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
@@ -18648,8 +18667,13 @@ case1 :     select case(Property%ID%IDNumber)
                     
                     enddo
                     enddo 
+                    !$OMP END DO NOWAIT
+                    !$OMP END PARALLEL
                      
                 case (Nitrate_)
+
+                    !$OMP PARALLEL PRIVATE(i,j)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
                     do j=JLB, JUB
                     do i=ILB, IUB
                         if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint) then
@@ -18666,6 +18690,8 @@ case1 :     select case(Property%ID%IDNumber)
                     
                     enddo
                     enddo 
+                    !$OMP END DO NOWAIT
+                    !$OMP END PARALLEL
                    
                 case default
 

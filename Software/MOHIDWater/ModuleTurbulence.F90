@@ -5587,10 +5587,6 @@ do2 :   do I = ILB, IUB
         Index        = Me%OutPut%NextOutPut
         TotalSeconds = Me%ExternalVar%Now - Me%OutPut%OutTime(1)
 
-        !Sets the attributes of the instant after HW
-!        HouresAfterHW  = Me%OutPut%TimeAfterHW(Index)/3600.
-!        MinutesAfterHW = (Me%OutPut%TimeAfterHW(Index) - (HouresAfterHW * 3600.0)) / 60.0
-
         !Writes current time
         call ExtractDate   (Me%ExternalVar%Now, AuxTime(1), AuxTime(2), AuxTime(3), &
                             AuxTime(4), AuxTime(5), AuxTime(6))
@@ -5601,8 +5597,6 @@ do2 :   do I = ILB, IUB
         call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",&
                              Array1D = TimePtr, OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleTurbulence - ERR02'
-
-
 
         !Writes SZZ
         call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,           &
@@ -5639,28 +5633,21 @@ do2 :   do I = ILB, IUB
         !Viscosity. We have to interpolate it to the center of the cells because of the interface
         call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
 
-
+        !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j=JLB,JUB
         do i=ILB,IUB
-     
            if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
               Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
               do k=Kbottom,WorkKUB
-
-                 Me%OutPut%Aux3D (i,j,k) = (Me%Viscosity%Vertical(i,j,k)   &
-                                           +Me%Viscosity%Vertical(i,j,k+1))/2.
-
+                 Me%OutPut%Aux3D (i,j,k) = log10(abs((Me%Viscosity%Vertical(i,j,k)  +                                       &
+                                                      Me%Viscosity%Vertical(i,j,k+1))/2.)+1.e-14)
               end do
-            
            end if
-           
         end do
         end do
-
-
-        Me%OutPut%Aux3D(:,:,:) = log10(abs(Me%OutPut%Aux3D(:,:,:))+1.e-14)
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         call HDF5WriteData  (Me%ObjHDF5, "/Results/ViscosityZ",                 &
                              "ViscosityZ", "log10(m2/s)",                       &
@@ -5673,26 +5660,21 @@ do2 :   do I = ILB, IUB
         call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
 
 
+        !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j=JLB,JUB
         do i=ILB,IUB
-     
            if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
               Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
               do k=Kbottom,WorkKUB
-
-                 Me%OutPut%Aux3D (i,j,k) = (Me%Diffusivity%Vertical(i,j,k)   &
-                                           +Me%Diffusivity%Vertical(i,j,k+1))/2.
-
+                 Me%OutPut%Aux3D (i,j,k) = log10(abs((Me%Diffusivity%Vertical(i,j,k)  +                                       &
+                                                      Me%Diffusivity%Vertical(i,j,k+1))/2.)+1.e-14)
               end do
-            
            end if
-           
         end do
         end do
-
-        Me%OutPut%Aux3D(:,:,:) = log10(abs(Me%OutPut%Aux3D(:,:,:))+1.e-14)
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         call HDF5WriteData  (Me%ObjHDF5, "/Results/Diffusivity",                        &
                              "Diffusivity", "log10(m2/s)", Array3D = Me%OutPut%Aux3D,   &
@@ -5702,26 +5684,22 @@ do2 :   do I = ILB, IUB
         !NN
         call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
 
+        !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j=JLB,JUB
         do i=ILB,IUB
-     
            if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
               Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
               do k=Kbottom,WorkKUB
-
                  Me%OutPut%Aux3D(i,j,k) = (Me%TurbVar%FBruntv(i,j,k)        &
                                           +Me%TurbVar%FBruntv(i,j,k+1))/2.
-
               end do
-            
            end if
-           
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
-!        Aux = log10(abs(Aux)+1.e-14)
         call HDF5WriteData  (Me%ObjHDF5, "/Results/NN",                         &
                              "NN", "s-2", Array3D = Me%OutPut%Aux3D,            &
                              OutputNumber = Index, STAT = STAT_CALL)
@@ -5730,26 +5708,22 @@ do2 :   do I = ILB, IUB
         !SS
         call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
 
+        !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j=JLB,JUB
         do i=ILB,IUB
-     
            if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
               Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
               do k=Kbottom,WorkKUB
-
                  Me%OutPut%Aux3D (i,j,k) = (Me%TurbVar%FPrandtl(i,j,k)   &
                                            +Me%TurbVar%FPrandtl(i,j,k+1))/2.
-
               end do
-            
            end if
-           
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
-!        Aux = log10(abs(Aux)+1.e-14)
         call HDF5WriteData  (Me%ObjHDF5, "/Results/SS",                         &
                              "SS", "s-2", Array3D = Me%OutPut%Aux3D,            &
                              OutputNumber = Index, STAT = STAT_CALL)
@@ -5758,24 +5732,21 @@ do2 :   do I = ILB, IUB
         !Richarson
         call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
 
+        !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j=JLB,JUB
         do i=ILB,IUB
-     
            if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
               Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
               do k=Kbottom,WorkKUB
-
                  Me%OutPut%Aux3D(i,j,k) = (Me%TurbVar%Richardson(i,j,k)        &
                                           +Me%TurbVar%Richardson(i,j,k+1))/2.
-
               end do
-            
            end if
-           
         end do
         end do
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
 
         call HDF5WriteData  (Me%ObjHDF5, "/Results/Richardson",                         &
                              "Richardson", "-", Array3D = Me%OutPut%Aux3D,              &
@@ -5788,26 +5759,22 @@ ifTKE:  if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
             !TKE
             call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
 
+            !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do j=JLB,JUB
             do i=ILB,IUB
-     
                if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
                   Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
                   do k=Kbottom,WorkKUB
-
-                     Me%OutPut%Aux3D (i,j,k) = (Me%TurbVar%TKE(i,j,k)   &
-                                               +Me%TurbVar%TKE(i,j,k+1))/2.
-
+                     Me%OutPut%Aux3D (i,j,k) = log10(abs((Me%TurbVar%TKE(i,j,k)  +                                       &
+                                                          Me%TurbVar%TKE(i,j,k+1))/2.)+1.e-14)
                   end do
-            
                end if
-           
             end do
             end do
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
 
-            Me%OutPut%Aux3D(:,:,:) = log10(abs(Me%OutPut%Aux3D(:,:,:))+1.e-14)
             call HDF5WriteData  (Me%ObjHDF5, "/Results/TKE",                        &
                                  "TKE", "log10(m2/s2)", Array3D = Me%OutPut%Aux3D,  &
                                  OutputNumber = Index, STAT = STAT_CALL)
@@ -5816,26 +5783,22 @@ ifTKE:  if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
             !eps
             call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
             
+            !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do j=JLB,JUB
             do i=ILB,IUB
-     
                if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
                   Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
                   do k=Kbottom,WorkKUB
-
-                     Me%OutPut%Aux3D (i,j,k) = (Me%TurbVar%eps(i,j,k)   &
-                                                +Me%TurbVar%eps(i,j,k+1))/2.
-
+                     Me%OutPut%Aux3D (i,j,k) = log10(abs((Me%TurbVar%eps(i,j,k)  +                                       &
+                                                          Me%TurbVar%eps(i,j,k+1))/2.)+1.e-14)
                   end do
-            
                end if
-           
             end do
             end do
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
 
-            Me%OutPut%Aux3D(:,:,:) = log10(abs(Me%OutPut%Aux3D)+1.e-14)
             call HDF5WriteData  (Me%ObjHDF5, "/Results/eps",                      &
                                  "eps", "log10(m2/s3)", Array3D = Me%OutPut%Aux3D,&
                                  OutputNumber = Index, STAT = STAT_CALL)
@@ -5844,26 +5807,23 @@ ifTKE:  if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
             !L
             call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
             
+            !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do j=JLB,JUB
             do i=ILB,IUB
-     
                if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
                   Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
                   do k=Kbottom,WorkKUB
-
-                     Me%OutPut%Aux3D (i,j,k) = (Me%TurbVar%L(i,j,k)   &
-                                                +Me%TurbVar%L(i,j,k+1))/2.
+                     Me%OutPut%Aux3D (i,j,k) = log10(abs((Me%TurbVar%L(i,j,k)  +                                       &
+                                                          Me%TurbVar%L(i,j,k+1))/2.)+1.e-14)
 
                   end do
-            
                end if
-           
             end do
             end do
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
 
-            Me%OutPut%Aux3D(:,:,:) = log10(abs(Me%OutPut%Aux3D(:,:,:))+1.e-14)
             call HDF5WriteData  (Me%ObjHDF5, "/Results/L",                          &
                                  "L", "log10(m)", Array3D = Me%OutPut%Aux3D,        &
                                  OutputNumber = Index, STAT = STAT_CALL)
@@ -5872,26 +5832,22 @@ ifTKE:  if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
             !P
             call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
             
+            !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do j=JLB,JUB
             do i=ILB,IUB
-     
                if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
                   Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
                   do k=Kbottom,WorkKUB
-
                      Me%OutPut%Aux3D (i,j,k) = (Me%TurbVar%P(i,j,k)   &
                                                 +Me%TurbVar%P(i,j,k+1))/2.
-
                   end do
-            
                end if
-           
             end do
             end do
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
 
-    !        Aux = log10(abs(Aux)+1.e-14)
             call HDF5WriteData  (Me%ObjHDF5, "/Results/P",                        &
                                  "P", "m2/s3", Array3D = Me%OutPut%Aux3D,         &
                                  OutputNumber = Index, STAT = STAT_CALL)
@@ -5900,44 +5856,48 @@ ifTKE:  if (Me%TurbOptions%MODTURB .EQ. TurbulenceEquation_ ) then
             !B
             call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, FillValueReal)
 
+            !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
             do j=JLB,JUB
             do i=ILB,IUB
-     
                if (Me%ExternalVar%WaterPoints3D(i, j, WorkKUB)   == WaterPoint) then
-           
                   Kbottom = Me%ExternalVar%KFloorZ (i,j)
-
                   do k=Kbottom,WorkKUB
-
                      Me%OutPut%Aux3D (i,j,k) = (Me%TurbVar%B(i,j,k)   &
                                                 +Me%TurbVar%B(i,j,k+1))/2.
-
                   end do
-            
                end if
-           
             end do
             end do
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
 
-    !        Aux = log10(abs(Aux)+1.e-14)
             call HDF5WriteData  (Me%ObjHDF5, "/Results/B",                        &
                                  "B", "m2/s3", Array3D = Me%OutPut%Aux3D,         &
                                  OutputNumber = Index, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleTurbulence - ERR16'
             
-! Modified by Matthias DELPEY - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             if (Me%TurbOptions%WaveSurfTKE) then
 
                 call SetMatrixValue(Me%OutPut%Aux3D, Me%Size, null_real)
 
-                Me%OutPut%Aux3D(:,:,WorkKUB) =  Me%TurbVar%FOC(:,:)
-
+                !$OMP PARALLEL PRIVATE(i, j, k, Kbottom)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
+                do j=JLB,JUB
+                do i=ILB,IUB
+                Me%OutPut%Aux3D(i,j,WorkKUB) =  Me%TurbVar%FOC(i,j)
+                end do
+                end do
+                !$OMP END DO NOWAIT
+                !$OMP END PARALLEL
+                
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/FOC",                         &
                                      "FOC", "...", Array3D = Me%OutPut%Aux3D,            &
                                      OutputNumber = Index, STAT = STAT_CALL)
             endif
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleTurbulence - ERR16a'
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            
+            
         endif ifTKE
                   
 ifMLD:  if(Me%TurbOptions%MLD_Calc) then

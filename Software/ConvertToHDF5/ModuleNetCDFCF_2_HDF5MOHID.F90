@@ -1284,7 +1284,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         DperR=180/pi
                         !CartesianDir_
                         !Dir = atan2(y,x)*DperR                        
-                        Me%Field(iP)%Value2DOut(i,j) = atan2(Me%Field(iP)%Value2DOut(i,j),Field_UV%Value2DOut(i,j))*DperR                        
+                        Me%Field(iP)%Value2DOut(i,j) = atan2(Field_UV%Value2DOut(i,j),Me%Field(iP)%Value2DOut(i,j))*DperR
                         
                         if          (Me%Field(iP)%DirectionReferential == NauticalWind_   ) then
                             Me%Field(iP)%Value2DOut(i,j) = 270. - Me%Field(iP)%Value2DOut(i,j)
@@ -4882,7 +4882,11 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             Y4 = GetNetCDFValue(Me%LongLat%LatIn,  Dim1 = j+1, Dim2 = i+1)
             
             Me%LongLat%LongOut(i, j) = (X1 + X2 + X3 + X4) / 4.
-            Me%LongLat%LatOut (i, j) = (Y1 + Y2 + Y3 + Y4) / 4.
+            if (Me%ReadInvertLat) then
+                Me%LongLat%LatOut (Me%WorkSize%IUB+1+Me%WorkSize%ILB-i, j) = (Y1 + Y2 + Y3 + Y4) / 4.
+            else
+                Me%LongLat%LatOut (i, j) = (Y1 + Y2 + Y3 + Y4) / 4.
+            endif                
             
         enddo
         enddo

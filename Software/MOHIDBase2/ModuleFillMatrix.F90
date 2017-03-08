@@ -213,8 +213,9 @@ Module ModuleFillMatrix
     integer, parameter                              :: OriginalValues     = 3
     
     !type of values 
-    integer, parameter                              :: sponge_exp_        = 1
-    integer, parameter                              :: sponge_linear_     = 2
+    integer, parameter                              :: sponge_exp_                = 1
+    integer, parameter                              :: sponge_linear_             = 2
+    integer, parameter                              :: sponge_wave_stress_dump_   = 3
     
     !wave types
     integer, parameter                              :: SineWaveSeaLevel_          = 1
@@ -450,6 +451,7 @@ Module ModuleFillMatrix
         real,    dimension(:), pointer              :: Prop                 => null()
         logical, dimension(:), pointer              :: NoData               => null()  
         logical                                     :: Extrapolate          = .false.       
+        integer                                     :: ExtrapolateMethod    = null_int
         type (T_Field4D), pointer                   :: Next                 => null()
         type (T_Field4D), pointer                   :: Prev                 => null()         
     end type T_Field4D
@@ -4124,6 +4126,13 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR30'
         
+        if (Me%Sponge%Cells > IUB - ILB + 1) then
+            stop 'ConstructSponge - ModuleFillMatrix - ERR35'
+        endif            
+
+        if (Me%Sponge%Cells > JUB - JLB + 1) then
+            stop 'ConstructSponge - ModuleFillMatrix - ERR36'
+        endif        
 
         !Gets the nsponge evolution
         call GetData(Me%Sponge%Evolution,                                               &
@@ -4135,7 +4144,9 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR40'
 
-        if      (Me%Sponge%Evolution /= sponge_exp_ .and. Me%Sponge%Evolution /= sponge_linear_) then        
+        if      (Me%Sponge%Evolution /= sponge_exp_             .and.                   &
+                 Me%Sponge%Evolution /= sponge_linear_          .and.                   &
+                 Me%Sponge%Evolution /= sponge_wave_stress_dump_) then        
 
             write(*,*) 'Sponge evolution can only be linear or exponential'
             stop       'ConstructSponge - ModuleFillMatrix - ERR50'
@@ -4182,6 +4193,16 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                            default    * real(sp - 1)               /real(Me%Sponge%Cells - 1)
                      
             enddo
+
+        elseif (Me%Sponge%Evolution == sponge_wave_stress_dump_) then       
+        
+                AuxT(Me%Sponge%Cells) = 1.
+        
+                do sp = Me%Sponge%Cells,2,-1
+
+                    AuxT(sp-1) = max(1e-10,AuxT(sp) * 0.5)
+                    
+                enddo
 
         endif        
         
@@ -5933,8 +5954,22 @@ i0:     if(Me%Dim == Dim2D)then
                              default      = .false.,                                        &
                              ClientModule = 'ModuleFillMatrix',                             &
                              STAT         = STAT_CALL)                                      
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR125'
-        
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR130'
+
+                !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
+                call GetData(CurrentHDF%ExtrapolateMethod,                              &
+                             Me%ObjEnterData , iflag,                                   &
+                             SearchType   = ExtractType,                                &
+                             keyword      = 'EXTRAPOLATE_METHOD',                       &
+                             default      = ExtrapolAverage_,                           &
+                             ClientModule = 'ModuleFillMatrix',                         &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR140'  
+                
+                if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.              &
+                    CurrentHDF%ExtrapolateMethod /= ExtrapolNearstCell_ ) then
+                    stop 'ConstructHDFInput - ModuleFillMatrix - ERR150'  
+                endif                    
             endif
         
             !The adding and multiplying functionalities are also available in ModuleField4D
@@ -6055,6 +6090,7 @@ ifMS:       if (MasterOrSlave) then
                                   LonReference      = LongDefault,                      & 
                                   WindowLimitsJI    = WindowLimitsJI,                   &
                                   Extrapolate       = .false.,                          &    
+                                  ExtrapolateMethod = ExtrapolAverage_,                 &
                                   PropertyID        = Me%PropertyID,                    &                                  
                                   ClientID          = ClientID,                         &
                                   STAT              = STAT_CALL)
@@ -6642,7 +6678,8 @@ d2:      do while(.not. FoundSecondInstant)
                               LatReference      = LatDefault,                           &
                               LonReference      = LongDefault,                          & 
                               WindowLimitsXY    = WindowLimitsXY,                       &
-                              Extrapolate       = .true.,                               &    
+                              Extrapolate       = .true.,                               &
+                              ExtrapolateMethod = CurrentHDF%ExtrapolateMethod,         &
                               PropertyID        = Me%PropertyID,                        &                                  
                               ClientID          = ClientID,                             &
                               STAT              = STAT_CALL)
