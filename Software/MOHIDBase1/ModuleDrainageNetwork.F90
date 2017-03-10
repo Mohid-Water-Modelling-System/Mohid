@@ -220,6 +220,7 @@ Module ModuleDrainageNetwork
     private ::      ConstructSubModules
     private ::          CoupleLightExtinction
     private ::          CoupleWaterQuality
+    private ::          CoupleCEQUALW2
     private ::          CoupleBenthos
 
     private ::      ConstructOutput
@@ -316,6 +317,7 @@ Module ModuleDrainageNetwork
     private ::          ModifyToxicity
     private ::              ComputeToxicityForEachEffluent
     private ::          ModifyWaterQuality
+    private ::          ModifyCEQUALW2
     private ::          ModifyBenthos
     private ::          ComputeBottomFluxes
     private ::              ModifyShearStress
@@ -5474,7 +5476,10 @@ cd2 :           if (BlockFound) then
 
         allocate(NewWQRate%Field(1:Me%TotalNodes), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)stop 'Construct_WqRateValues - ModuleDrainageNetwork - ERR01'
-        NewWQRate%Field(:) = FillValueReal
+        
+        !first value is outputed in construct - make zero and not fillvaluereal
+        !NewWQRate%Field(:) = FillValueReal
+        NewWQRate%Field(:) = 0.0
 
 
     end subroutine Construct_WQRateValues
@@ -6391,6 +6396,10 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         if (Me%ComputeOptions%WaterQuality) then
             call CoupleWaterQuality
         endif
+        
+        if (Me%ComputeOptions%CeQualW2) then
+            call CoupleCEQUALW2
+        endif
 
         if (Me%ComputeOptions%Benthos) then
             call CoupleBenthos
@@ -6575,6 +6584,65 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
     end subroutine CoupleWaterQuality
     
     !---------------------------------------------------------------------------
+    
+    subroutine CoupleCEQUALW2
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX
+        integer, pointer, dimension(:)                      :: CEQUALW2PropertyList
+        integer                                             :: STAT_CALL
+        real                                                :: CEQUALW2DT
+        integer                                             :: nProp = 0 
+        type (T_Size1D)                                     :: Size1D
+
+        !Begin------------------------------------------------------------------
+
+        !Counts the number of Properties which has CEQUALW2 option set to true
+        PropertyX => Me%FirstProperty
+        do while (associated(PropertyX))
+            if (PropertyX%ComputeOptions%CeQualW2) then
+                nProp = nProp + 1
+            endif
+            PropertyX => PropertyX%Next
+        enddo
+
+        !Allocates Array wto hold IDs
+        allocate (CEQUALW2PropertyList(1:nProp))
+
+        !Fills Array
+        PropertyX => Me%FirstProperty
+        nProp = 0
+        do while (associated(PropertyX))
+            if (PropertyX%ComputeOptions%CeQualW2) then
+                nProp = nProp + 1
+                CEQUALW2PropertyList(nProp) = PropertyX%ID%IDNumber
+            endif
+            PropertyX => PropertyX%Next
+        enddo
+
+        !Start Interface
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes
+        call ConstructInterface(InterfaceID         = Me%ObjInterface,               &
+                                TimeID              = Me%ObjTime,                    &
+                                SinksSourcesModel   = CEQUALW2Model,                 &
+                                DT                  = CEQUALW2DT,                    &
+                                PropertiesList      = CEQUALW2PropertyList,          &
+                                RiverPoints1D       = Me%RiverPoints,                &
+                                Size1D              = Size1D,                        &
+                                STAT = STAT_CALL)
+
+        deallocate (CEQUALW2PropertyList)
+
+        Me%Coupled%CEQUALW2%DT_Compute  = CEQUALW2DT 
+        Me%Coupled%CEQUALW2%NextCompute = Me%CurrentTime
+
+    end subroutine CoupleCEQUALW2
+    
+    !---------------------------------------------------------------------------    
     
     subroutine CoupleBenthos
 
@@ -9705,6 +9773,9 @@ do2 :   do while (associated(PropertyX))
         !WaterQuality
         if (Me%ComputeOptions%WaterQuality      ) call ModifyWaterQuality       ()
 
+        !CEQUALW2
+        if (Me%ComputeOptions%CeQualW2          ) call ModifyCEQUALW2           ()        
+        
         !Benthos
         if (Me%ComputeOptions%Benthos           ) call ModifyBenthos            ()
 
@@ -13316,6 +13387,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
         real                                        :: Flow, Vel, Slope
         real,    dimension(:), pointer              :: ShortWaveExtinctionField
         real                                        :: LongWaveExtinctionCoef
+        real                                        :: VelSlopeAux
         
 
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ComputeSurfaceFluxes")
@@ -13483,6 +13555,10 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                             Vel   = Me%Reaches(CurrNode%DownstreamReaches(1))%Velocity
                             Slope = Me%Reaches(CurrNode%DownstreamReaches(1))%Slope
 
+                            !upslope conditions or different sign also dissipate energy and rearate
+                            !and can not be negative in power
+                            VelSlopeAux = abs(Vel * Slope)
+                            
                             select case (Me%AerationEquation)
 
                             case (PoolAndRifle_)
@@ -13490,9 +13566,9 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                                 !Ka [1/day]
                                 if (Flow > AllmostZero) then
                                     if (Flow <= 0.556) then
-                                        Ka = 517. * (Vel * Slope) ** 0.524 * Flow ** (-0.242)
+                                        Ka = 517. * (VelSlopeAux) ** 0.524 * Flow ** (-0.242)
                                     else
-                                        Ka = 596. * (Vel * Slope) ** 0.528 * Flow ** (-0.136)
+                                        Ka = 596. * (VelSlopeAux) ** 0.528 * Flow ** (-0.136)
                                     endif
                                 else
                                     Ka = 0.0  !So it will be set to the minimum value
@@ -13503,9 +13579,9 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                                 !Ka [1/day]
                                 if (Flow > AllmostZero) then
                                     if (Flow <= 0.556) then
-                                        Ka = 88.0 * (Vel * Slope) ** 0.313 * CurrNode%WaterDepth ** (-0.353)
+                                        Ka = 88.0 * (VelSlopeAux) ** 0.313 * CurrNode%WaterDepth ** (-0.353)
                                     else
-                                        Ka = 142. * (Vel * Slope) ** 0.333 * CurrNode%WaterDepth ** (-0.660) * &
+                                        Ka = 142. * (VelSlopeAux) ** 0.333 * CurrNode%WaterDepth ** (-0.660) * &
                                              CurrNode%SurfaceArea ** (-0.243)
                                     endif
                                 else
@@ -14050,6 +14126,154 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
     end subroutine ModifyWaterQuality
 
     !---------------------------------------------------------------------------
+    
+    subroutine ModifyCEQUALW2
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        real, dimension(:), pointer                 :: ShortWaveExtinctionField
+        integer                                     :: STAT_CALL, NodePos
+        real(8)                                     :: PoolVolume, PoolDepth
+        real                                        :: DT
+        type(T_WQRate  ), pointer                   :: WQRateX  
+        real(8),dimension(:), pointer               :: WaterVolume     
+        type (T_Node), pointer                      :: CurrNode
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyCEQUALW2")
+
+        call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyCEQUALW2 - ModuleDrainageNetwork - ERR01'
+
+        !Updates Me%NodesDWZ
+        do NodePos = 1, Me%TotalNodes
+
+            PoolVolume = Me%Nodes(NodePos)%CrossSection%PoolDepth * Me%Nodes(NodePos)%Length * &
+                         Me%Nodes(NodePos)%CrossSection%BottomWidth
+            if (Me%Nodes(NodePos)%VolumeNew > PoolVolume) then
+                PoolDepth = Me%Nodes(NodePos)%CrossSection%PoolDepth
+            else
+                PoolDepth = Me%Nodes(NodePos)%VolumeNew / (Me%Nodes(NodePos)%Length * Me%Nodes(NodePos)%CrossSection%BottomWidth)
+            endif
+
+            Me%NodesDWZ(NodePos) = Me%Nodes(NodePos)%WaterDepth + PoolDepth
+        enddo
+        
+        !cycle to call water quality models to compute new rates (every WQDT) in openpoints
+        if (Me%CurrentTime .GE. Me%Coupled%CEQUALW2%NextCompute) then
+
+            PropertyX => Me%FirstProperty
+            do while(associated(PropertyX))
+
+                call Modify_Interface(InterfaceID       = Me%ObjInterface,              &
+                                      PropertyID        = PropertyX%ID%IDNumber,        &
+                                      Concentration     = PropertyX%Concentration,      &
+                                      RiverPoints1D     = Me%RiverPoints,               &
+                                      OpenPoints1D      = Me%OpenPointsProcess,         &
+                                      ShortWaveTop      = Me%ShortWaveField,            &
+                                      LightExtCoefField = ShortWaveExtinctionField,     &
+                                      DWZ               = Me%NodesDWZ,                  &
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'ModifyCEQUALW2 - ModuleDrainageNetwork - ERR02'
+
+                PropertyX => PropertyX%Next
+
+            end do            
+            
+            Me%Coupled%CEQUALW2%NextCompute = Me%Coupled%CEQUALW2%NextCompute + Me%Coupled%CEQUALW2%DT_Compute
+            
+        end if 
+
+        PropertyX => Me%FirstProperty
+        
+        !cycle to update properties (using the rates above computed) in openpoints
+        do while (associated(PropertyX))
+
+            if (PropertyX%ComputeOptions%CeQualW2) then
+                
+                !if DTInterval, only update at given time
+                if (PropertyX%ComputeOptions%DTIntervalAssociated) then
+                    DT = PropertyX%DTInterval
+                else !update every time
+                    PropertyX%NextCompute = Me%CurrentTime
+                    DT = Me%ExtVar%DT
+                endif
+                    
+                if (Me%CurrentTime .GE. PropertyX%NextCompute) then
+
+                   call Modify_Interface(InterfaceID   = Me%ObjInterface,               &
+                                         PropertyID    = PropertyX%ID%IDNumber,         &
+                                         Concentration = PropertyX%Concentration,       &
+                                         DTProp        = DT,                            &
+                                         RiverPoints1D = Me%RiverPoints,                &
+                                         OpenPoints1D  = Me%OpenPointsProcess,          &
+                                         STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
+                        stop 'ModifyCEQUALW2 - ModuleDrainageNetwork - ERR03'
+                endif
+                
+            endif
+            
+            PropertyX=>PropertyX%Next
+
+        enddo
+
+        nullify(PropertyX)
+    
+        !to compute rates. ModuleWaterQuality rates do not change in between computations but since
+        !some need volume to be multiplied, internally they can change in between computations
+        if (Me%Output%Rates) then
+
+            !allocate(WaterVolume(1:Me%TotalNodes))
+            !do NodePos = 1, Me%TotalNodes
+            !    CurrNode => Me%Nodes (NodePos)
+            !    WaterVolume(NodePos) = CurrNode%VolumeNew
+            !enddo
+                       
+            !Get rate fluxes
+            WqRateX => Me%FirstWQRate
+
+            do while (associated(WQRateX))
+
+                if(WQRateX%Model == CeQualW2Model)then
+                    
+                    call GetRateFlux(InterfaceID    = Me%ObjInterface,                          &
+                                     RateIndex      = WQRateX%CeQualID,                         &
+                                     RateFlux1D     = WQRateX%Field,                            &
+                                     RiverPoints1D  = Me%RiverPoints,                           &
+                                     STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'ModifyCEQUALW2 - ModuleDrainageNetwork - ERR04'                
+                  
+                   
+                end if
+
+                WQRateX=>WQRateX%Next
+
+            enddo   
+            
+            !deallocate(WaterVolume)
+            nullify(WQRateX)
+        
+        endif
+
+        !Set MinimumConcentration of Properties - This will create Mass
+        if (Me%ComputeOptions%MinConcentration)     call SetLimitsConcentration 
+        if (Me%ComputeOptions%WarnOnNegativeValues) call WarnOnNegativeValues   ('After CEQUALW2')
+
+
+        call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyCEQUALW2 - ModuleWaterProperties - ERR06'
+        
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyCEQUALW2")
+
+
+    end subroutine ModifyCEQUALW2
+
+    !---------------------------------------------------------------------------    
 
     subroutine ModifyBenthos
 
