@@ -1,0 +1,35 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: Basin
+!Please complete and comment/uncomment for your specific needs
+!
+!
+!
+!Compute Options
+ATMOSPHERE                : 0
+EVAPOTRANSPIRATION        : 0
+POROUS_MEDIA              : 1
+RUN_OFF                   : 1
+DRAINAGE_NET              : 1
+VEGETATION                : 0
+
+!Start / Continuous Computation
+CONTINUOUS                : 0
+
+!Output Options
+OUTPUT_TIME               : 0 3600
+TIME_SERIE_LOCATION       : ../GeneralData/TimeSeriesLocation.dat
+
+!Evapotranspiration property block
+!<beginproperty>
+!NAME                         : reference evapotranspiration
+!UNITS                        : m/s
+!DESCRIPTION                  : fao evapotranspiration
+!DEFAULTVALUE                 : 0.0
+!REMAIN_CONSTANT              : 0
+!<endproperty>
+
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2010. Action Modulers. http://www.actionmodulers.com
+!

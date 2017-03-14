@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<NamedGeometryCollection xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <NamedGeometries>
+    <NamedGeometry>
+      <ID>0</ID>
+      <Name>RuralArea</Name>
+      <GeometryWKT>POINT(3850 2550)</GeometryWKT>
+    </NamedGeometry>
+    <NamedGeometry>
+      <ID>1</ID>
+      <Name>ImpermeableArea</Name>
+      <GeometryWKT>POINT(4950 3250)</GeometryWKT>
+    </NamedGeometry>
+    <NamedGeometry>
+      <ID>2</ID>
+      <Name>UrbanArea</Name>
+      <GeometryWKT>POINT(4950 2550)</GeometryWKT>
+    </NamedGeometry>
+  </NamedGeometries>
+</NamedGeometryCollection>

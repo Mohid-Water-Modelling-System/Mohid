@@ -1,0 +1,22 @@
+ADV_METHOD_H             : 4
+TVD_LIMIT_H              : 4
+
+BAROCLINIC                    : 0
+CONTINUOUS                    : 0
+SUBMODEL                      : 0
+TIDE                          : 0
+WATER_DISCHARGES              : 0
+ENERGY                        : 0
+
+EVOLUTION                     : No_hydrodynamic
+
+TIME_SERIE                    : 0
+RESIDUAL                      : 0
+
+TIDEPOTENTIAL                 : 0
+WIND                          : 0
+ATM_PRESSURE                  : 0
+SURFACEWATERFLUX              : 0
+DATA_ASSIMILATION             : 0
+
+OUTPUT_TIME                   : 0   3600.

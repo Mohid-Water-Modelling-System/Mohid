@@ -1,0 +1,30 @@
+!Time Series Locations for C:\Users\frank\Documents\MOHID Studio\Projects\MOHID Land Unit Tests\SchematicWatershed\General Data\Digital Terrain\Drainage Network_HighDensity.dnt
+DT_OUTPUT_TIME            : 60
+MAX_BUFFER_SIZE           : 10000
+
+Point Coordinates - Ignored by MOHID Land
+
+1                         : POINT(1950 2950)
+7                         : POINT(2050 2950)
+5                         : POINT(2050 2750)
+6                         : POINT(2050 2850)
+17                        : POINT(2150 2850)
+18                        : POINT(2150 2950)
+19                        : POINT(2150 3050)
+26                        : POINT(2250 2950)
+8                         : POINT(2050 3050)
+9                         : POINT(2050 3150)
+
+<BeginNodeTimeSerie>
+1
+7
+5
+6
+17
+18
+19
+26
+8
+9
+<EndNodeTimeSerie>
+
