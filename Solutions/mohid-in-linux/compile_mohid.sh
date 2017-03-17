@@ -289,6 +289,9 @@ NOK=${RED}NOK${NC}
 ERROR=${RED}ERROR${NC}
 WARNING=${RED}warning${NC}
 
+mkdir -p bin
+
+
 #### FUNCTIONS ####
 ## remove all pre-compile files ##
 CLEAN(){
@@ -650,9 +653,9 @@ MOHID_TOOLS(){
       exit 1
   fi
   modules_Mohid_Tools=( \
-    #BasinDelimiter \
-    #ConvertGridDataToHDF5 \
-    #ConvertHDF5ToGridData \
+    BasinDelimiter \
+    ConvertGridDataToHDF5 \
+    ConvertHDF5ToGridData \
     ConvertToHDF5 \
     ConvertToXYZ
     DigitalTerrainCreator \

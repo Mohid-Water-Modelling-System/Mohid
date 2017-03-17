@@ -13,17 +13,21 @@ HELP(){
            echo " Convert encoding of given files.F90 to utf-8"
            echo
            echo " Usage: $0 [-h] [-d <directory>]"
-           echo "    -d|dir                   : Directory"
+           echo "    -d|dir                   : Directory to convert"
            echo "    -h|-help|--help          : Show this help"
            echo
 }
+if [ $# -lt 1 ] ;then
+  HELP
+  exit 0
+fi
 
-if [ $1 == '-h' ] || [ $1 == '-help' ] || [ $1 == '--help' ]; then
+if [[ $1 == '-h' || $1 == '-help' || $1 == '--help' ]]; then
     HELP
     exit 0
 fi
 
-if [ $1 == '-d' ] && [ ! -z $2 ]; then
+if [[ $1 == '-d' && ! -z $2 ]]; then
     dir=$2
 else
     dir="."
