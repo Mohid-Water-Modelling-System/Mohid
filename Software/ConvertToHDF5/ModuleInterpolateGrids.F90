@@ -132,6 +132,7 @@ Module ModuleInterpolateGrids
         integer                                             :: ObjHorizontalGridReplaced = 0
         logical                                             :: Interpolation3D, InterpolateGrid3D, NewInterpolation
         integer                                             :: TypeOfInterpolation
+        logical                                             :: InterpolationWindowAuto
         type(T_Grid )                                       :: Father
         type(T_Grid )                                       :: New
         type(T_Grid )                                       :: Aux
@@ -400,7 +401,7 @@ Module ModuleInterpolateGrids
             write(*,*) 'Unknown type of interpolation'
             stop       'ReadOptions - ModuleInterpolateGrids - ERR110' 
         end if
-
+        
 
         !Aux4(1) =  FillValueReal
         !Aux4(2) =  FillValueReal
@@ -467,7 +468,7 @@ Module ModuleInterpolateGrids
                      ClientModule = 'ConvertToHDF5',                    &
                      Default      = .false.,                            &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR155'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR160'
         
         
         call GetData(Me%NewInterpolation,                               &
@@ -477,8 +478,17 @@ Module ModuleInterpolateGrids
                      ClientModule = 'ConvertToHDF5',                    &
                      Default      = .false.,                            &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR150'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR170'
 
+
+        call GetData(Me%InterpolationWindowAuto,                        &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromBlock,                          &
+                     keyword      = 'INTERPOLATION_WINDOW_AUTO',        &
+                     Default      = .true.,                             &
+                     ClientModule = 'ConvertToHDF5',                    &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR180'        
         
 
 
@@ -2058,6 +2068,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         logical                                     :: exist
         integer, dimension(:, :, :), pointer        :: WaterPoints3D
         real, dimension(:, :), pointer              :: SurfaceElevation
+        real                                        :: West, East, South, North
 
         !Begin-----------------------------------------------------------------
 
@@ -2092,7 +2103,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                      ActualTime       = Me%BeginTime,                & 
                                      STAT             = STAT_CALL)  
         if(STAT_CALL .ne. SUCCESS_) stop 'ConstructNewGrid -  ModuleInterpolateGrids - ERR05'
-
+        
         if(Me%Interpolation3D) then
 
             call ConstructGeometry      (GeometryID       = Me%New%ObjGeometry,         &
@@ -2122,19 +2133,35 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
             SurfaceElevation(:,:) = 0
 
             call GetWaterPoints3D(Me%New%ObjMap, WaterPoints3D, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR02'
+            if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR09'
 
             call ComputeInitialGeometry(GeometryID      = Me%New%ObjGeometry,           &
                                         WaterPoints3D   = WaterPoints3D,                &
                                         SurfaceElevation= SurfaceElevation,             &
                                         ActualTime      = Me%BeginTime,                 &
                                         STAT            = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructNewGrid -  ModuleInterpolateGrids - ERR06'
+            if(STAT_CALL .ne. SUCCESS_) stop 'ConstructNewGrid -  ModuleInterpolateGrids - ERR10'
 
             deallocate(SurfaceElevation)
 
         endif
         
+        if (Me%InterpolationWindowAuto) then
+            
+            call GetGridBorderLimits(Me%New%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructNewGrid -  ModuleInterpolateGrids - ERR11'
+        
+!            call GetSonWindow(Me%New%ObjHorizontalGrid, Me%Father%ObjHorizontalGrid, Me%Window, STAT = STAT_CALL)
+!            if (STAT_CALL /= SUCCESS_) stop 'ConstructNewGrid -  ModuleInterpolateGrids - ERR12'
+            
+            Me%InterpolWindow%Xmin = West
+            Me%InterpolWindow%Ymin = South
+            Me%InterpolWindow%Xmax = East
+            Me%InterpolWindow%Ymax = North
+
+        endif        
+
+
     end subroutine ConstructNewGrid
 
     !------------------------------------------------------------------------
@@ -2189,7 +2216,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                 call GetCheckDistortion(HorizontalGridID  = Me%Father%ObjHorizontalGrid,&
                                         Distortion        = NotRegularGrid,             &
                                         STAT              = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR60'                                        
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructFatherGrid - ModuleInterpolateGrids - ERR60'
 
                 if (NotRegularGrid) then
                 
@@ -2461,7 +2488,8 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         real                                        :: AuxXorig, AuxYorig
         logical                                     :: Distorted
         integer                                     :: STAT_CALL, CoordType, CoordTypeSon
-        integer                                     :: ReadCartCorners, ProjType
+        integer                                     :: ProjType
+        logical                                     :: ReadCartCorners
         integer                                     :: UTM, MIL_PORT, GEOG, SIMPLE_GEOG
         integer                                     :: GRID_COORD, NLRD
         integer                                     :: ObjHorizontalGrid
@@ -2538,7 +2566,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                                  XX                 = AuxX,                         &
                                                  YY                 = AuxY,                         &
                                                  Xorig              = AuxXorig,                     &    
-                                                 Yorig              = AuxYorig,                     &                                                     
+                                                 Yorig              = AuxYorig,                     &
                                                  Latitude           = NewGridLat,                   &
                                                  Longitude          = NewGridLong,                  &
                                                  ILB                = Me%Father%WorkSize2D%ILB,     &
@@ -2558,7 +2586,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                     call UngetHorizontalGrid(Me%Father%ObjHorizontalGrid,               &
                                              AuxY,                                      &
                                              STAT  = STAT_CALL)
-                    if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR100'                             
+                    if(STAT_CALL /= SUCCESS_) stop 'FatherSonCommunication - ModuleInterpolateGrids - ERR100'
                     
                     
                     Me%ObjHorizontalGridReplaced = Me%Father%ObjHorizontalGrid
@@ -3526,10 +3554,12 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         !Local-----------------------------------------------------------------
         real,    dimension(:), pointer              :: NodeX, NodeY, NodeZ
         real                                        :: AuxX, AuxY
+        real                                        :: AuxXmin, AuxYmin
+        real                                        :: AuxXmax, AuxYmax        
         integer                                     :: STAT_CALL
         integer                                     :: NumberOfNodes, Count, i, j
+        integer                                     :: ii, jj, di, dj, daux
         logical                                     :: FillOutsidePoints   = .false.
-        !integer,    dimension(:,:  ), pointer       :: WaterPoints2D
         
         !Begin-----------------------------------------------------------------
 
@@ -3545,31 +3575,74 @@ iN:     if (NumberOfNodes >= 3) then
 
         Count = 0
 
-        do j = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB
-        do i = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB
-
-            AuxX = ((Me%Father%ConnectionX(i, j  ) + Me%Father%ConnectionX(i+1, j  ))/2. + &
-                               (Me%Father%ConnectionX(i, j+1) + Me%Father%ConnectionX(i+1, j+1))/2.)/2.
-    
-            AuxY = ((Me%Father%ConnectionY(i, j  ) + Me%Father%ConnectionY(i+1, j  ))/2. + &
-                               (Me%Father%ConnectionY(i, j+1) + Me%Father%ConnectionY(i+1, j+1))/2.)/2.
-
-            if (Me%Father%WaterPoints2D(i, j) == WaterPoint .and.                   &
-                AuxX > Me%InterpolWindow%Xmin .and. AuxX < Me%InterpolWindow%Xmax .and.&
-                AuxY > Me%InterpolWindow%Ymin .and. AuxY < Me%InterpolWindow%Ymax) then
-
-                Count           = Count + 1
-
-                NodeX(Count) = AuxX
-        
-                NodeY(Count) = AuxY
-
-                NodeZ(Count) = FatherField%Values2D(i, j)
-                
+d1:     do jj = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB,3
+            
+            daux = Me%Father%WorkSize2D%JUB - jj
+            
+            if (daux < 0) then
+                stop 'Triangulator - ModuleInterpolateGrids - ERR10'
             endif
 
-        enddo
-        enddo
+            if (daux < 2) then
+                dj = daux
+            else
+                dj = 2
+            endif                
+
+d2:         do ii = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB,3
+            
+                daux = Me%Father%WorkSize2D%IUB - ii
+
+                if (daux < 0) then
+                    stop 'Triangulator - ModuleInterpolateGrids - ERR20'
+                endif
+                
+                if (daux < 2) then
+                    di = daux
+                else
+                    di = 2
+                endif                
+
+                AuxXmax = maxval(Me%Father%ConnectionX(ii:ii+di+1,jj:jj+dj+1))
+                AuxXmin = minval(Me%Father%ConnectionX(ii:ii+di+1,jj:jj+dj+1))
+        
+                AuxYmax = maxval(Me%Father%ConnectionY(ii:ii+di+1,jj:jj+dj+1))
+                AuxYmin = minval(Me%Father%ConnectionY(ii:ii+di+1,jj:jj+dj+1))
+
+                
+i1:             if (AuxXmax >= Me%InterpolWindow%Xmin .and. AuxXmin <= Me%InterpolWindow%Xmax .and.&
+                    AuxYmax >= Me%InterpolWindow%Ymin .and. AuxYmin <= Me%InterpolWindow%Ymax) then
+
+
+d3:                 do j = jj, jj+dj
+d4:                 do i = ii, ii+di
+
+                        if (Me%Father%WaterPoints2D(i, j) /= WaterPoint) cycle
+                
+
+                        AuxX = ((Me%Father%ConnectionX(i, j  ) + Me%Father%ConnectionX(i+1, j  ))/2. + &
+                                           (Me%Father%ConnectionX(i, j+1) + Me%Father%ConnectionX(i+1, j+1))/2.)/2.
+                
+                        AuxY = ((Me%Father%ConnectionY(i, j  ) + Me%Father%ConnectionY(i+1, j  ))/2. + &
+                                           (Me%Father%ConnectionY(i, j+1) + Me%Father%ConnectionY(i+1, j+1))/2.)/2.
+                                   
+                                       
+                        
+                        Count           = Count + 1
+
+                        NodeX(Count) = AuxX
+                
+                        NodeY(Count) = AuxY
+
+                        NodeZ(Count) = FatherField%Values2D(i, j)
+                        
+                    enddo d4
+                    enddo d3
+                    
+                endif i1
+
+            enddo d2
+        enddo d1
 
         NumberOfNodes = Count
 

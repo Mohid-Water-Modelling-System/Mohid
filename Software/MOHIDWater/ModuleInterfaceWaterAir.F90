@@ -348,11 +348,15 @@ Module ModuleInterfaceWaterAir
     private :: T_Property
     type       T_Property
          type(T_PropertyID)                         :: ID
-         real, dimension(:,:), pointer              :: Field                => null()        
-         real, dimension(:,:),  pointer             :: FieldU               => null() !vectorial field rotated to grid cells - U comp.
-         real, dimension(:,:),  pointer             :: FieldV               => null() !vectorial field rotated to grid cells - V comp.
-         real, dimension(:,:),  pointer             :: FieldX               => null() !vectorial original field - X (zonal component)
-         real, dimension(:,:),  pointer             :: FieldY               => null() !vectorial original field - Y (meridional comp.)          
+         real, dimension(:,:), pointer              :: Field                => null() 
+        !vectorial field rotated to grid cells - U comp.                
+         real, dimension(:,:),  pointer             :: FieldU               => null() 
+        !vectorial field rotated to grid cells - V comp.         
+         real, dimension(:,:),  pointer             :: FieldV               => null() 
+        !vectorial original field - X (zonal component)         
+         real, dimension(:,:),  pointer             :: FieldX               => null() 
+        !vectorial original field - Y (meridional comp.)                   
+         real, dimension(:,:),  pointer             :: FieldY               => null() 
          type(T_Evolution)                          :: Evolution
          integer                                    :: SVPMethod            = 1
          integer                                    :: C1                   = 1
