@@ -1,0 +1,28 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: Discharges
+!Please complete and comment/uncomment for your specific needs
+!
+! 50. 48
+!
+
+!Sample Discharge Block
+<begindischarge>
+NAME                      : Sample Discharge
+DESCRIPTION               : Mean June Value
+NODE_ID                   : 60
+DEFAULT_FLOW_VALUE        : 1.0
+<enddischarge>
+
+<begindischarge>
+NAME                      : Sample Discharge
+DESCRIPTION               : Mean June Value
+NODE_ID                   : 54
+DEFAULT_FLOW_VALUE        : 1.0
+<enddischarge>
+
+
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2010. Action Modulers. http://www.actionmodulers.com
+!

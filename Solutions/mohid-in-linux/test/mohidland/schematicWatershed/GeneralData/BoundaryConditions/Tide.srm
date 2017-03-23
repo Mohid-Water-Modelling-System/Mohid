@@ -1,0 +1,17 @@
+NAME                      : Sample Water Level
+SERIE_INITIAL_DATA        : 2000 1 1 0 0 0
+TIME_UNITS                : HOURS
+
+Hours   Waterlevel
+<BeginTimeSerie>
+0.00 -1.00
+1.0  -1.50
+2.0  -0.50
+3.0  -1.50
+4.0  -0.50
+5.0  -1.0
+6.0  -1.0
+12.0 -1.0
+48.  -1.0
+<EndTimeSerie>
+

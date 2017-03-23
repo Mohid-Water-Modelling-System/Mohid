@@ -503,7 +503,7 @@ program MohidLand
             !The split of difference to synctime in half makes that a lower next DT probably will make the model pass with no dt
             !reduction from Modules (but even increase) and in subsquent DT's the synctime will be surpassed with a DT not very 
             !different from the original (or in the order of half)
-            if (SyncDT .and. DoOneTimeStep) then
+            if (SyncDT) then
                 
                 !if passed time to sync, cut dt to sync time
                 if (CurrentTime + DT >= NextSyncTime) then

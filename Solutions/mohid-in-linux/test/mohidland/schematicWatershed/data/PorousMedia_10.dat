@@ -1,0 +1,75 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: Porous Media
+!Please complete and comment/uncomment for your specific needs
+!
+!
+!
+!Compute Options
+THETA_HYDRO_COEF          : 0.98
+CUT_OFF_THETA_HIGH        : 1e-15
+BOTTOM_FILE               : ../GeneralData/DigitalTerrain/BottomTopography_.new
+
+STABILIZE                 : 1
+STABILIZE_FACTOR          : 0.05
+
+!Soil Type Block
+<beginsoiltype>
+ID                        : 1
+THETA_S                   : 0.40
+THETA_R                   : 0.10
+N_FIT                     : 1.5
+SAT_K                     : 2.7777e-6
+ALPHA                     : 0.84
+L_FIT                     : 0.50
+<endsoiltype>
+
+
+!Horizon Block
+<beginhorizon>
+KLB                       : 1
+KUB                       : 12
+
+<beginproperty>
+NAME                      : SoilID
+INITIALIZATION_METHOD     : CONSTANT
+DEFAULTVALUE              : 1
+<endproperty>
+
+<beginproperty>
+NAME                      : Theta
+INITIALIZATION_METHOD     : CONSTANT
+DEFAULTVALUE              : 0.35
+<endproperty>
+<endhorizon>
+
+!Ground Water Initialization
+<beginwaterlevel>
+NAME                      : waterlevel
+INITIALIZATION_METHOD     : ASCII_FILE
+DEFAULTVALUE              : 0
+REMAIN_CONSTANT           : 0
+FILENAME                  : ../GeneralData/DigitalTerrain/InitialWaterLevel0.dat
+<endwaterlevel>
+
+!Impermeable Fraction
+<beginimpermeablefraction>
+NAME                      : impermeablefraction
+INITIALIZATION_METHOD     : ASCII_FILE
+DEFAULTVALUE              : 0
+REMAIN_CONSTANT           : 1
+FILENAME                  : ../GeneralData/DigitalTerrain/ImpermeableFraction_Total.dat
+<endimpermeablefraction>
+
+
+!Output Options
+OUTPUT_TIME               : 0 3600
+TIME_SERIE                : 1
+TIME_SERIE_LOCATION       : ../GeneralData/TimeSeriesLocation.dat
+
+
+
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2010. Action Modulers. http://www.actionmodulers.com
+!

@@ -1,0 +1,7 @@
+TOPOGRAPHIC_FILE          : D:\MohidProjects\Studio\04_MOHID Land Unit Tests\SchematicWatershed\General Data\Digital Terrain\DTM_SampleCatchment2.dat
+TRESHOLD_AREA             : 100000
+DELINEATE_BASIN           : 1
+OUTLET_I                  : 11
+OUTLET_J                  : 2
+WRITE_DELINEATION         : 1
+DELINEATION_FILE          : D:\MohidProjects\Studio\04_MOHID Land Unit Tests\SchematicWatershed\General Data\Digital Terrain\Delineation.xy

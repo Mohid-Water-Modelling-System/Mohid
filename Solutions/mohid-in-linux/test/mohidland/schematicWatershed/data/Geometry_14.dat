@@ -1,0 +1,23 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: Geometry
+!Please complete and comment/uncomment for your specific needs
+!
+!
+!
+!Global Options
+MINIMUMDEPTH                   : 0.1000
+FACESOPTION                    : 2
+
+!Cartesian Top - MOHID Land
+<begindomain>
+ID                      : 1
+TYPE                    : CARTESIANTOP
+LAYERS                  : 10
+LAYERTHICKNESS          : 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3 0.3
+<enddomain>
+
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2013. Action Modulers, http://www.actionmodulers.com
+!

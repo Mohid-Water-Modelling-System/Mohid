@@ -1,0 +1,7 @@
+TOPOGRAPHIC_FILE          : C:\Users\frank\Documents\MOHID Studio\Projects\MOHID Land Unit Tests\SchematicWatershed\General Data\Digital Terrain\DTM_SampleCatchment2.dat
+TRESHOLD_AREA             : 50000
+DELINEATE_BASIN           : 1
+OUTLET_I                  : 11
+OUTLET_J                  : 2
+WRITE_REACHES             : 1
+REACHES_FILE              : C:\Users\frank\Documents\MOHID Studio\Projects\MOHID Land Unit Tests\SchematicWatershed\General Data\Digital Terrain\Drainage Network_HighDensity.dnt

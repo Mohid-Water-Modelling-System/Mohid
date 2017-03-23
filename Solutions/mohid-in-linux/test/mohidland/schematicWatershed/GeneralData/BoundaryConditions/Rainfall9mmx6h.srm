@@ -1,0 +1,17 @@
+TIME_UNITS                : HOURS
+SERIE_INITIAL_DATA        : 2000 1 1 0 0 0
+
+HOURS Rainfall
+<BeginTimeSerie>
+0.0   0.0
+1.0   9.0
+2.0   0.0
+3.0   0.0
+4.0   0.0
+5.0   0.0
+6.0   0.0
+7.0   0.0
+48    0.0
+<EndTimeSerie>
+
+
