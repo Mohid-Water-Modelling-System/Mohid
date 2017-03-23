@@ -272,3 +272,7 @@ Solutions/Linux/Nix.mk
 Solutions/Linux/Config.mk
 Solutions/Linux/MohidLand/MohidLand
 Solutions/Linux/MohidWater/MohidWater
+*.manifest
+*.opendb
+/Solutions/VisualStudio2015_IntelFortran16/MOHIDNumerics/MOHIDNumerics.VC.VC.opendb
+*.db

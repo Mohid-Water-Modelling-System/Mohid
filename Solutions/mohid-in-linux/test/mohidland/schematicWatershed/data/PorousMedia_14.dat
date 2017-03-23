@@ -1,0 +1,93 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: Porous Media
+!Please complete and comment/uncomment for your specific needs
+!
+!
+!
+
+!Compute Options
+THETA_HYDRO_COEF          : 0.98    !fraction of saturation to start computing hydrostatic pressure
+CUT_OFF_THETA_HIGH        : 1e-15   !limit to thetaS to consider saturation value
+CUT_OFF_THETA_LOW         : 1e-15   !limit to thetaR to consider residual value
+BOTTOM_FILE               : ../GeneralData/DigitalTerrain/DTM_Bottom.dat
+
+IGNORE_WATER_COLUMN_ON_EVAP :  1
+LIMIT_EVAP_WATER_VEL      : 1       !connect/disconnect limitation of evaporation to conductivity
+LIMIT_EVAP_HEAD           : 0       !connect/disconnect limitation of evaporation to head
+HEAD_LIMIT                : -150    !head limit to evaporation (if LIMIT_EVAP_HEAD : 1)
+
+HORIZONTAL_K_FACTOR       : 10.0    !horizontal conductivity multiplying factor 
+
+!Stability Options
+STABILIZE                 : 1       !connect/disconnect stability criteria
+STABILIZE_FACTOR          : 0.05    !fraction of cell volume allowed for volume variation in one time step (if STABILIZE : 1)
+MIN_ITERATIONS            : 2       !minimum number of internal iteration to start asking for a lower global dt 
+MAX_ITERATIONS            : 1000    !maximum number of internal iterations allowed for the module
+DT_FACTOR                 : 1.5     !factor for next internal dt prediction (increase dt by the factor if stable, reduce otherwise)
+
+
+!Horizon Block
+<beginhorizon>
+KLB                       : 1
+KUB                       : 8
+
+<beginproperty>
+NAME                      : SoilID
+!INITIALIZATION_METHOD     : ASCII_FILE
+!FILENAME                  : ../GeneralData/Other\PorousMedia\SoilID.dat
+DEFAULTVALUE              : 1
+INITIALIZATION_METHOD     : CONSTANT
+REMAIN_CONSTANT           : 1
+<endproperty>
+
+<beginproperty>
+NAME                      : Theta
+INITIALIZATION_METHOD     : CONSTANT
+DEFAULTVALUE              : 0.35
+<endproperty>
+<endhorizon>
+
+!Ground Water Aquifer Initialization
+<beginwaterlevel>
+NAME                      : waterlevel
+INITIALIZATION_METHOD     : ASCII_FILE
+FILENAME                  : ../GeneralData/DigitalTerrain/DTM_Bottom.dat
+DEFAULTVALUE              : 0
+REMAIN_CONSTANT           : 1
+<endwaterlevel>
+
+!Impermeable Fraction
+<beginimpermeablefraction>
+NAME                      : impermeablefraction
+!INITIALIZATION_METHOD     : ASCII_FILE
+!FILENAME                  : ../GeneralData/Other\PorousMedia\Impermeability.dat
+DEFAULTVALUE              : 0
+INITIALIZATION_METHOD     : CONSTANT
+REMAIN_CONSTANT           : 1
+<endimpermeablefraction>
+
+
+!Output Options
+SURFACE_OUTPUT_TIME       : 0 7200
+TIME_SERIE                : 1
+TIME_SERIE_LOCATION       : ../GeneralData/TimeSeries\TimeSeriesLocation.dat
+
+
+!Soil Type Block
+<beginsoiltype>
+ID                        : 1
+THETA_S                   : 0.3859
+THETA_R                   : 0.0476
+N_FIT                     : 1.39
+SAT_K                     : 3.5556e-6
+ALPHA                     : 2.75
+L_FIT                     : 0.50
+THETA_CV_MIN              : 0.2844
+THETA_CV_MAX              : 0.3791
+<endsoiltype>
+
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2013. Action Modulers, http://www.actionmodulers.com
+!

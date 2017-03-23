@@ -1,0 +1,31 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: Atmosphere
+!Please complete and comment/uncomment for your specific needs
+!
+!
+!
+!Output Options
+OUTPUT_TIME               : 0 3600
+TIME_SERIE                : 1
+TIME_SERIE_LOCATION       : ../GeneralData/TimeSeriesLocation.dat
+
+
+!A property block
+!<beginproperty>
+!NAME                               : air temperature
+!UNITS                              : ºC
+!DESCRIPTION                        : air temperature description
+!FILE_IN_TIME                       : TIMESERIE
+!FILENAME                           : ../GeneralData/BoundaryConditions/Meteo.srm
+!DATA_COLUMN                        : 4
+!DEFAULTVALUE                       : 18.5
+!REMAIN_CONSTANT                    : 0
+!TIME_SERIE                         : 1
+!OUTPUT_HDF                         : 1
+!<endproperty>
+
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2010. Action Modulers. http://www.actionmodulers.com
+!
