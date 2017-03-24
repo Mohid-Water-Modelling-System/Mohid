@@ -130,7 +130,7 @@ Module ModulePorousMedia
     private ::      AllocateVariables
     private ::      ReadSoilTypes
     private ::      InitialFields
-    private ::      ReadInitialFile
+    !private ::      ReadInitialFile
     private ::      ConstructHDF5Output    
     private ::      ConstructTimeSerie
 
@@ -202,7 +202,7 @@ Module ModulePorousMedia
     !Destructor
     public  ::  KillPorousMedia                                                     
     private ::      DeAllocateInstance
-    private ::      WriteFinalFile
+    !private ::      WriteFinalFile
 
     !Management
     private ::      Ready
@@ -270,6 +270,10 @@ Module ModulePorousMedia
     !GW Flow by Cell - Area method
     integer, parameter :: GWFlowAreaWetPerimeter_            = 1
     integer, parameter :: GWFlowAreaWetPerimeterAndAquifer_  = 2
+    
+    !Restart fiels format
+    integer, parameter                              :: BIN_                 = 1
+    integer, parameter                              :: HDF_                 = 2        
         
     !Types---------------------------------------------------------------------
     type T_OutPut
@@ -286,6 +290,7 @@ Module ModulePorousMedia
         logical                                 :: BoxFluxes            = .false.
         integer                                 :: NextRestartOutput    = 1
         integer                                 :: NextSurfaceOutput    = 1
+        integer                                 :: RestartFormat        = BIN_
     end type T_OutPut
 
     type T_IntegrationByHorizon
@@ -812,7 +817,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             if (Me%SoilOpt%Continuous)  then
-                call ReadInitialFile
+                if (Me%OutPut%RestartFormat == BIN_) then
+                    call ReadInitialFile_Bin
+                else if (Me%OutPut%RestartFormat == HDF_) then
+                    call ReadInitialFile_Hdf
+                endif
             endif
             
             !Calculates initial Theta
@@ -1225,8 +1234,23 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
                            OutPutsTime  = Me%OutPut%RestartOutTime,                     &
                            OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
                            STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR170'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR170'
 
+        call GetData(Me%OutPut%RestartFormat,                                           &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESTART_FILE_FORMAT',                              &
+                     Default      = BIN_,                                               &
+                     ClientModule = 'ModulePorousMedia',                                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModulePorousMedia - ERR172'        
+        if (Me%OutPut%RestartFormat /= BIN_ .and. Me%OutPut%RestartFormat /= HDF_) then
+            write (*,*)
+            write (*,*) 'RESTART_FILE_FORMAT options are: 1 - Binary or 2 - HDF'
+            stop 'ReadDataFile - ModulePorousMedia - ERR175'            
+        endif        
+        
         call GetData(Me%OutPut%RestartOverwrite,                                        &
                      Me%ObjEnterData,                                                   &
                      iflag,                                                             &
@@ -1952,7 +1976,7 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
     
     !-------------------------------------------------------------------------
     
-    subroutine ReadInitialFile
+    subroutine ReadInitialFile_Bin
 
         !Arguments-------------------------------------------------------------
 
@@ -2001,9 +2025,133 @@ do2:    do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFileOld - ModulePorousMedia - ERR05'
         
 
-    end subroutine ReadInitialFile
+    end subroutine ReadInitialFile_Bin
 
     !--------------------------------------------------------------------------
+    
+    subroutine ReadInitialFile_Hdf()
+
+
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: EXIST
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: WorkILB, WorkIUB
+        integer                                     :: WorkJLB, WorkJUB
+        integer                                     :: WorkKLB, WorkKUB
+        integer                                     :: ObjHDF5
+        integer                                     :: HDF5_READ
+        type (T_Time)                               :: BeginTime, EndTimeFile, EndTime
+        real, dimension(:), pointer                 :: TimePointer
+        real                                        :: DT_error  
+
+        !----------------------------------------------------------------------
+
+        ILB = Me%Size%ILB 
+        IUB = Me%Size%IUB 
+        JLB = Me%Size%JLB 
+        JUB = Me%Size%JUB 
+
+        WorkILB = Me%WorkSize%ILB 
+        WorkIUB = Me%WorkSize%IUB 
+        WorkJLB = Me%WorkSize%JLB 
+        WorkJUB = Me%WorkSize%JUB 
+        WorkKLB = Me%WorkSize%KLB 
+        WorkKUB = Me%WorkSize%KUB         
+
+        !----------------------------------------------------------------------
+
+        inquire (FILE=trim(Me%Files%InitialFile), EXIST = Exist)
+
+cd0:    if (Exist) then
+
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+
+            ObjHDF5 = 0
+
+            !Opens HDF5 File
+            call ConstructHDF5 (ObjHDF5,                                                 &
+                                trim(Me%Files%InitialFile),                              &
+                                HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModulePorousMedia - ERR01'
+
+
+            !Get Time
+            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModulePorousMedia - ERR010'             
+            
+            allocate(TimePointer(1:6))
+            call HDF5ReadData   (ObjHDF5, "/Time",                                       &
+                                    "Time",                                              &
+                                    Array1D = TimePointer,                               &
+                                    STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModulePorousMedia - ERR020'             
+            
+            
+            call SetDate(EndTimeFile, TimePointer(1), TimePointer(2),    &
+                                      TimePointer(3), TimePointer(4),    &
+                                      TimePointer(5), TimePointer(6))
+            
+            
+            call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, EndTime = EndTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModulePorousMedia - ERR030'
+        
+            DT_error = EndTimeFile - BeginTime
+
+            !Avoid rounding erros - Frank 08-2001
+            !All runs are limited to second definition - David 10-2015
+            !if (abs(DT_error) >= 0.01) then
+            if (abs(DT_error) >= 1) then
+            
+                write(*,*) 'The end time of the previous run is different from the start time of this run'
+                write(*,*) 'Date in the file'
+                write(*,*) TimePointer(1), TimePointer(2), TimePointer(3), TimePointer(4), TimePointer(5), TimePointer(6)
+                write(*,*) 'DT_error', DT_error
+                if (Me%SoilOpt%StopOnWrongDate) stop 'ReadInitialFile - ModulePorousMedia - ERR040'   
+
+            endif               
+            deallocate(TimePointer)
+            
+            ! Reads from HDF file the Property concentration and open boundary values
+            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                              &
+                                 WorkJLB, WorkJUB,                                       &
+                                 WorkKLB, WorkKUB,                                       &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModulePorousMedia - ERR050'
+
+            call HDF5ReadData   (ObjHDF5, "/Results/water content",                       &
+                                 "water content",                                         &
+                                 Array3D = GetPointer(Me%Theta),                          &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                    &
+                stop 'ReadInitialFile - ModulePorousMedia - ERR060'
+            
+ 
+            
+            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModulePorousMedia - ERR070'
+            
+ 
+
+        else
+            
+            write(*,*)
+            stop 'ReadInitialFile - ModulePorousMedia - ERR080'
+
+        end if cd0
+
+    end subroutine ReadInitialFile_Hdf
+
+    !--------------------------------------------------------------------------        
 
     subroutine ConstructBottomTopography        
 
@@ -6226,7 +6374,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
                 if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
                     IsFinalFile = .false.
-                    call WriteFinalFile(IsFinalFile)
+                    if (Me%OutPut%RestartFormat == BIN_) then
+                        call WriteFinalFile_Bin(IsFinalFile)
+                    else if (Me%OutPut%RestartFormat == HDF_) then
+                        call WriteFinalFile_Hdf(IsFinalFile)
+                    endif
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
@@ -11235,7 +11387,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 !Write Output for continuous computation
                 IsFinalFile = .true.
-                call WriteFinalFile(IsFinalFile)
+                if (Me%OutPut%RestartFormat == BIN_) then
+                    call WriteFinalFile_Bin(IsFinalFile)
+                else if (Me%OutPut%RestartFormat == HDF_) then
+                    call WriteFinalFile_Hdf(IsFinalFile)
+                endif
 
                 !Kills the TimeSerie
                 if (Me%ObjTimeSerie /= 0) then
@@ -11334,7 +11490,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
     
-    subroutine WriteFinalFile(IsFinalFile)
+    subroutine WriteFinalFile_Bin(IsFinalFile)
 
         !Arguments-------------------------------------------------------------
         logical                                     :: IsFinalFile
@@ -11372,9 +11528,190 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFileOld - ModulePorousMedia - ERR03'
         
 
-    end subroutine WriteFinalFile
+    end subroutine WriteFinalFile_Bin
 
-    !------------------------------------------------------------------------    
+    !------------------------------------------------------------------------   
+    
+    subroutine WriteFinalFile_Hdf(IsFinalFile)
+        
+        !Arguments-------------------------------------------------------------
+        logical                                     :: IsFinalFile
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        !integer                                     :: OutPutNumber
+        integer                                     :: HDF5_CREATE
+        character(LEN = PathLength)                 :: FileName
+        integer                                     :: ObjHDF5
+        real, dimension(6), target                  :: AuxTime
+        real, dimension(:), pointer                 :: TimePtr
+        type (T_Time)                               :: Actual           
+        !Begin----------------------------------------------------------------
+
+        !Gets a pointer to Topography
+        call GetGridData        (Me%ObjTopography, Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR00'
+
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR01'
+        
+        call GetGeometryDistances (Me%ObjGeometry,                                      &
+                                  SZZ         = Me%ExtVar%SZZ,                          &
+                                  STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR02'
+
+        !OpenPoints3D
+        call GetOpenPoints3D    (Me%ObjMap, Me%ExtVar%OpenPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR03'   
+        
+        call GetWaterPoints3D   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR04'         
+
+          !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Checks if it's at the end of the run 
+        !or !if it's supposed to overwrite the final HDF file
+        !if ((Me%ExtVar%Now == Me%ExtVar%EndTime) .or. Me%Output%RestartOverwrite) then
+        if (IsFinalFile .or. Me%Output%RestartOverwrite) then
+
+            filename = trim(Me%Files%FinalFile)
+
+        else
+
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%ExtVar%Now))//".fin")
+
+        endif
+
+
+        ObjHDF5 = 0
+        !Opens HDF5 File
+        call ConstructHDF5 (ObjHDF5,                                                     &
+                            trim(filename),                                              &
+                            HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'WriteFinalFile - ModuleRunoff - ERR10'
+
+        Actual   = Me%ExtVar%Now
+         
+        call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
+                                    AuxTime(4), AuxTime(5), AuxTime(6))
+        !Writes Time
+        TimePtr => AuxTime
+        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR11'
+
+        call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",      &
+                             Array1D = TimePtr, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR12'
+
+        
+        !Limits 
+        call HDF5SetLimits   (ObjHDF5,        &
+                              Me%WorkSize%ILB,   &
+                              Me%WorkSize%IUB,   &
+                              Me%WorkSize%JLB,   &
+                              Me%WorkSize%JUB,   &
+                              Me%WorkSize%KLB-1, &
+                              Me%WorkSize%KUB,   &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR20'
+
+        !Vertical 
+        call HDF5WriteData  ( ObjHDF5,  "/Grid/VerticalZ", & 
+                             "Vertical",   "m",               & 
+                              Array3D      = Me%ExtVar%SZZ,   &
+                              STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR30'    
+        
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5,                                &
+                              Me%WorkSize%ILB,                           &
+                              Me%WorkSize%IUB,                           &
+                              Me%WorkSize%JLB,                           &
+                              Me%WorkSize%JUB,                           &            
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR40'
+
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR50'
+
+        !Writes the Grid
+        call HDF5WriteData   (ObjHDF5, "/Grid", "Topography", "m",           &
+                              Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR60'
+
+        !WriteBasinPoints
+        call HDF5WriteData   (ObjHDF5, "/Grid", "BasinPoints", "-",          &
+                              Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR70'
+
+
+
+        call HDF5SetLimits   (ObjHDF5,                                &
+                                Me%WorkSize%ILB,                           &
+                                Me%WorkSize%IUB,                           &
+                                Me%WorkSize%JLB,                           &
+                                Me%WorkSize%JUB,                           &
+                                Me%WorkSize%KLB,                           &
+                                Me%WorkSize%KUB,                           &            
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR80'
+        
+        
+        !Writes the Open Points
+        call HDF5WriteData   (ObjHDF5, "/Grid/OpenPoints",              &
+                              "OpenPoints", "-",                            &
+                              Array3D = Me%ExtVar%OpenPoints3D,             &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR85'        
+        
+        
+        call HDF5WriteData   (ObjHDF5,  "/Grid", "WaterPoints3D", "-",                  &
+                                Array3D = Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR86'        
+        
+
+        call HDF5WriteData   (ObjHDF5,                                    &
+                                "/Results/water content",                 &
+                                "water content",                          &
+                                "-",                                      &
+                                Array3D = GetPointer(Me%Theta),           &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR90'
+              
+        
+
+        !Writes everything to disk
+        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR0100'
+        
+        
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR102'        
+        
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%OpenPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR110'
+        
+        call UnGetGeometry              (Me%ObjGeometry, Me%ExtVar%SZZ,  STAT = STAT_CALL )        
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR120'        
+
+        !Unget
+        call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR130'  
+
+        !UnGets Topography
+        call UnGetGridData      (Me%ObjTopography, Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR140'
+            
+        call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMedia - ERR0150'            
+
+    end subroutine WriteFinalFile_Hdf
+
+    !----------------------------------------------------------------------------     
     
     subroutine DeallocateInstance ()
 

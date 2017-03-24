@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "MainSoftware", "MainSoftware", "{10AECD7E-48C8-4C1E-A0C8-ACD15EEB544A}"
 EndProject
@@ -382,7 +382,8 @@ Global
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double PhreeqC|x64.ActiveCfg = Debug Double PhreeqC|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double|Win32.ActiveCfg = Debug Double|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double|Win32.Build.0 = Debug Double|Win32
-		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double|x64.ActiveCfg = Debug Double Openmp|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double|x64.ActiveCfg = Debug Double|x64
+		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug Double|x64.Build.0 = Debug Double|x64
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|Win32.ActiveCfg = Debug|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|Win32.Build.0 = Debug|Win32
 		{79B53A56-7C7D-45A2-A951-2106626FDABB}.Debug|x64.ActiveCfg = Debug|x64

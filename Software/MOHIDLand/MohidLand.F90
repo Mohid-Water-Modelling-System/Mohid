@@ -230,7 +230,7 @@ program MohidLand
         !Update Current Time
         CurrentTime  = BeginTime
         
-        if(SyncDT) NextSyncTime = BeginTime + SyncDTInterval
+        if(VariableDT .and. SyncDT) NextSyncTime = BeginTime + SyncDTInterval
         
         !Constructs Basin
         call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, &

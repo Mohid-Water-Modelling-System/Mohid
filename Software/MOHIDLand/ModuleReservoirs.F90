@@ -85,6 +85,7 @@ Module ModuleReservoirs
     integer,    parameter                             :: Operation_Level_PercInflow_     = 2
     integer,    parameter                             :: Operation_PercVol_Outflow_      = 3    
     integer,    parameter                             :: Operation_PercVol_PercInflow_   = 4
+    integer,    parameter                             :: Operation_PercVol_PercMaxOutflow_   = 5
     
     !Initial Conditions
     integer,    parameter                             :: StartPercentageFull_            = 1
@@ -895,7 +896,8 @@ if2:            if (BlockFound) then
             if (NewReservoir%Management%OperationType /= Operation_Level_Outflow_ .and.  &
                 NewReservoir%Management%OperationType /= Operation_Level_PercInflow_ .and.  &
                 NewReservoir%Management%OperationType /= Operation_PercVol_Outflow_ .and.  &
-                NewReservoir%Management%OperationType /= Operation_PercVol_PercInflow_) then
+                NewReservoir%Management%OperationType /= Operation_PercVol_PercInflow_ .and. &
+                NewReservoir%Management%OperationType /= Operation_PercVol_PercMaxOutflow_) then
                 write(*,*) 'Unknown OPERATION_TYPE'
                 write(*,*) 'in reservoir ID : ', NewReservoir%ID
                 stop 'ConstructReservoir - ModuleReservoirs - ERR0110a'                     
@@ -1112,6 +1114,15 @@ if2:            if (BlockFound) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR130'         
         
+        !In case that is forcing with operation pec max outflow this property is mandatory and not dummy
+        if (NewReservoir%Management%OperationType == Operation_PercVol_PercMaxOutflow_) then
+            if (NewReservoir%Management%MaxOutflow .gt. -null_real / 2.0) then
+                write(*,*) 'Using operation curve of type percentage max outflow and'
+                write(*,*) 'MAX_OUTFLOW is not defined '
+                write(*,*) 'in reservoir ID : ', NewReservoir%ID                
+                stop 'ConstructReservoir - ModuleReservoirs - ERR0140'                  
+            endif
+        endif
 
 
     end subroutine ConstructReservoir
@@ -4255,8 +4266,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         !Local-----------------------------------------------------------------
         integer                                 :: i
         real                                    :: Outflow, ReservoirPercentageVolume
-        real                                    :: PreviousCurvePercentageVolume, PreviousCurveOutflow
-        real                                    :: NextCurvePercentageVolume, NextCurveOutflow
+        real                                    :: PreviousCurvePercentageVolume, PreviousCurveOutflow, PreviousCurvePercMaxOutflow
+        real                                    :: NextCurvePercentageVolume, NextCurveOutflow, NextCurvePercMaxOutflow
         real                                    :: ReservoirLevel, PercentInflow
         real                                    :: PreviousCurvePercInflow, NextCurvePercInflow
         real                                    :: PreviousCurveLevel, NextCurveLevel
@@ -4310,6 +4321,54 @@ do1:             do i = 2, CurrentReservoir%Management%OperationCurvePoints
                 enddo do1
                 
             endif
+            
+        else if (CurrentReservoir%Management%OperationType == Operation_PercVol_PercMaxOutflow_) then
+            
+            ReservoirPercentageVolume     = CurrentReservoir%VolumeNew / CurrentReservoir%MaxVolume
+            PreviousCurvePercentageVolume = CurrentReservoir%Management%OperationCurve(1, 1)
+            PreviousCurvePercMaxOutflow   = CurrentReservoir%Management%OperationCurve(1, 2)
+            
+            !reservoir empty. avoid all kinds of interpolations
+            if (CurrentReservoir%VolumeNew < AllmostZero) then
+                
+                Outflow = 0.0
+                
+            !reservoir lower than first point
+            else if (ReservoirPercentageVolume < PreviousCurvePercentageVolume) then
+                
+                !set environmental flow (if not defined is zero)
+                Outflow = CurrentReservoir%Management%MinOutflow 
+                    
+            !reservoir higherthan last point
+            else if (ReservoirPercentageVolume >     &
+               CurrentReservoir%Management%OperationCurve(CurrentReservoir%Management%OperationCurvePoints, 1)) then
+                
+                !set last ouflow
+                Outflow = CurrentReservoir%Management%OperationCurve(CurrentReservoir%Management%OperationCurvePoints, 2)
+                
+            else
+                
+                !go trough all points to find where belongs
+do12:           do i = 2, CurrentReservoir%Management%OperationCurvePoints
+                
+                    NextCurvePercentageVolume = CurrentReservoir%Management%OperationCurve(i, 1)
+                    NextCurvePercMaxOutflow   = CurrentReservoir%Management%OperationCurve(i, 2)
+                
+                    if (ReservoirPercentageVolume >= PreviousCurvePercentageVolume &
+                        .and. ReservoirPercentageVolume <= NextCurvePercentageVolume) then
+                    
+                        Outflow = LinearInterpolation(PreviousCurvePercentageVolume, PreviousCurvePercMaxOutflow,       &
+                                         NextCurvePercentageVolume, NextCurvePercMaxOutflow, ReservoirPercentageVolume)  &
+                                    * CurrentReservoir%Management%MaxOutflow
+                        exit do12
+                        
+                    endif
+                
+                    PreviousCurvePercentageVolume = NextCurvePercentageVolume
+                    PreviousCurvePercMaxOutflow   = NextCurvePercMaxOutflow
+                enddo do12
+                
+            endif            
                     
         elseif (CurrentReservoir%Management%OperationType == Operation_PercVol_PercInflow_) then
             
