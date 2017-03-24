@@ -1,0 +1,34 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: Drainage Network
+!Please complete and comment/uncomment for your specific needs
+!
+!
+!
+!Compute Options
+NETWORK_FILE              : ../GeneralData/DigitalTerrain/Drainage Network.dnt
+GLOBAL_MANNING            : 0.15
+MIN_WATER_DEPTH           : 0.0001
+DISCHARGES                : 1
+HYDRODYNAMIC_APROX        : 3     !1 - KinematicWave. 2 - DiffusionWave. 3 - DynamicWave
+DOWNSTREAM_BOUNDARY       : 3     !0 - Dam. 1 - ZeroDepthGradient. 2 - CriticalDepth. 3 - ImposedWaterLevel. 4 - ImposedVelocity
+DEFAULT_VALUE             : -50.0 !Imposed downstream value
+
+STABILIZE                 : 1
+STABILIZE_FACTOR          : 0.01
+LIMIT_DT_COURANT          : 0
+MAX_COURANT               : 0.5
+
+!Start / Continuous Computation
+INITIAL_WATER_DEPTH       : 0.0
+CONTINUOUS                : 0
+
+!Output Options
+TIME_SERIE_LOCATION       : ../GeneralData/NodeTimeSeriesLocation.dat
+OUTPUT_TIME               : 0 3600
+
+
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2010. Action Modulers. http://www.actionmodulers.com
+!

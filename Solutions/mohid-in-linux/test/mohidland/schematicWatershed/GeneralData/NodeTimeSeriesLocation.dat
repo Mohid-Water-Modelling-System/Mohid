@@ -1,0 +1,25 @@
+Time Series Locations for : ..\General Data\Digital Terrain\Drainage Network.dnt
+DT_OUTPUT_TIME            : 100
+MAX_BUFFER_SIZE           : 10000
+
+Point Coordinates - Ignored by MOHID Land
+
+30                        : POINT(4250 2950)
+57                        : POINT(6650 2950)
+2                         : POINT(2050 2950)
+
+
+<BeginNodeTimeSerie>
+NODE_ID                   : 2
+NAME                      : Downstream
+<EndNodeTimeSerie>
+
+<BeginNodeTimeSerie>
+NODE_ID                   : 30
+NAME                      : Middle
+<EndNodeTimeSerie>
+
+<BeginNodeTimeSerie>
+NODE_ID                   : 57
+NAME                      : Upstream
+<EndNodeTimeSerie>

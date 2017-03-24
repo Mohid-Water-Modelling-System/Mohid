@@ -1,0 +1,16 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: Basin Geometry
+!Please complete and comment/uncomment for your specific needs
+!
+!
+!
+!Compute Options
+TRESHOLD_AREA             : 100000
+DELINEATE_BASIN           : 1
+OUTLET_I                  : 11
+OUTLET_J                  : 2
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2010. Action Modulers. http://www.actionmodulers.com
+!

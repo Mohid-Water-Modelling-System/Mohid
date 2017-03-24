@@ -1,0 +1,32 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: Atmosphere
+!Please complete and comment/uncomment for your specific needs
+!
+!
+!
+!Output Options
+OUTPUT_TIME               : 0 3600
+TIME_SERIE                : 1
+TIME_SERIE_LOCATION       : ../GeneralData/TimeSeriesLocation.dat
+
+<beginproperty>
+NAME                      : precipitation
+UNITS                     : mm
+DESCRIPTION               : precipitation
+DEFAULTVALUE              : 0.0
+FILE_IN_TIME              : TIMESERIE
+FILENAME                  : ../GeneralData/BoundaryConditions/Rainfall9mmx6h.srm
+DATA_COLUMN               : 2
+REMAIN_CONSTANT           : 0
+TIME_SERIE                : 1
+OUTPUT_HDF                : 0
+ACCUMULATE_VALUES         : 1
+<endproperty>
+
+
+
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2010. Action Modulers. http://www.actionmodulers.com
+!
