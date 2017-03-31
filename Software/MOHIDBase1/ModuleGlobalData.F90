@@ -377,6 +377,11 @@ Module ModuleGlobalData
     integer, parameter :: DiaNLim_                          = 807
     integer, parameter :: DiaPLim_                          = 808
     integer, parameter :: DiaSiLim_                         = 809
+    integer, parameter :: Excretion_                        = 810
+    integer, parameter :: Respiration_                      = 811
+    integer, parameter :: NaturalMort_                      = 812
+    integer, parameter :: Grazing_                          = 813
+    integer, parameter :: MACondition_                      = 814
 
     !Drifting macroalgae
     integer, parameter :: DriftingMacroAlgae_               = 850
@@ -794,6 +799,11 @@ Module ModuleGlobalData
     integer, parameter :: MA_SLimFact_                      = 5
     integer, parameter :: MA_NLimFact_                      = 6
     integer, parameter :: MA_PLimFact_                      = 7
+    integer, parameter :: MA_Excretion_                     = 8
+    integer, parameter :: MA_Respiration_                   = 9
+    integer, parameter :: MA_NaturalMort_                   = 10
+    integer, parameter :: MA_Grazing_                       = 11
+    integer, parameter :: MA_Condition_                     = 12
 
 
     integer, parameter :: ConsolidationFlux_                = 9000
@@ -1191,7 +1201,12 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_TemperatureLim       = 'temperaturelim'
     character(StringLength), private, parameter :: Char_SalinityLim          = 'salinitylim' 
     character(StringLength), private, parameter :: Char_NetProd              = 'netprod'
-
+    character(StringLength), private, parameter :: Char_Excretion            = 'excretion'
+    character(StringLength), private, parameter :: Char_Respiration          = 'respiration'
+    character(StringLength), private, parameter :: Char_NaturalMort          = 'naturalmort'
+    character(StringLength), private, parameter :: Char_Grazing              = 'grazing'
+    character(StringLength), private, parameter :: Char_MACondition          = 'macondition'
+    
     character(StringLength), private, parameter :: Char_DiaGrossProd         = 'diagrossprod'      
     character(StringLength), private, parameter :: Char_DiaNutrientLim       = 'dianutrientlim'    
     character(StringLength), private, parameter :: Char_DiaLightLim          = 'dialightlim'       
@@ -2771,6 +2786,11 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (GenericProperty_,         Char_GenericProperty,           ListNumber)
             call AddPropList (GrossProd_,               Char_GrossProd,                 ListNumber)
             call AddPropList (NetProd_,                 Char_NetProd,                   ListNumber)
+            call AddPropList (Excretion_,               Char_Excretion,                 ListNumber)
+            call AddPropList (Respiration_,             Char_Respiration,               ListNumber)
+            call AddPropList (NaturalMort_,             Char_NaturalMort,               ListNumber)
+            call AddPropList (Grazing_,                 Char_Grazing,                   ListNumber)
+            call AddPropList (MACondition_,             Char_MACondition,               ListNumber)
             call AddPropList (NutrientLim_,             Char_NutrientLim,               ListNumber)
             call AddPropList (NLim_,                    Char_NLim,                      ListNumber)
             call AddPropList (PLim_,                    Char_PLim,                      ListNumber)

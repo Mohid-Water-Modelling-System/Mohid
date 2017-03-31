@@ -158,6 +158,10 @@ Module ModuleRunOff
     integer, parameter                              :: Celerity_          = 1
     integer, parameter                              :: Manning_           = 2    
     
+    !Restart fiels format
+    integer, parameter                              :: BIN_                 = 1
+    integer, parameter                              :: HDF_                 = 2        
+    
     !Types---------------------------------------------------------------------
     type T_OutPut
          type (T_Time), pointer, dimension(:)       :: OutTime              => null()
@@ -167,6 +171,8 @@ Module ModuleRunOff
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
         integer                                     :: NextRestartOutput    = 1 
+        integer                                     :: RestartFormat         = BIN_
+        
         logical                                     :: BoxFluxes            = .false.
         logical                                     :: OutputFloodRisk      = .false.
         real                                        :: FloodRiskVelCoef     = null_real
@@ -546,7 +552,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Reads conditions from previous run
             if (Me%Continuous) then
-                call ReadInitialFile
+                if (Me%OutPut%RestartFormat == BIN_) then
+                    call ReadInitialFile_Bin
+                else if (Me%OutPut%RestartFormat == HDF_) then
+                    call ReadInitialFile_Hdf
+                endif
             endif
             
             if (Me%OutPut%Yes) then
@@ -1369,8 +1379,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoff - ERR450'
 
+        call GetData(Me%OutPut%RestartFormat,                                           &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESTART_FILE_FORMAT',                              &
+                     Default      = BIN_,                                               &
+                     ClientModule = 'ModuleRunoff',                                     &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunoff - ERR452'        
+        if (Me%OutPut%RestartFormat /= BIN_ .and. Me%OutPut%RestartFormat /= HDF_) then
+            write (*,*)
+            write (*,*) 'RESTART_FILE_FORMAT options are: 1 - Binary or 2 - HDF'
+            stop 'ReadDataFile - ModuleRunoff - ERR455'            
+        endif        
+        
         call GetData(Me%OutPut%RestartOverwrite,                                        &
-                     Me%ObjEnterData,                                                      &
+                     Me%ObjEnterData,                                                   &
                      iflag,                                                             &
                      SearchType   = FromFile,                                           &
                      keyword      = 'RESTART_FILE_OVERWRITE',                           &
@@ -3434,7 +3459,7 @@ do4:            do di = -1, 1
 
     !--------------------------------------------------------------------------
     
-    subroutine ReadInitialFile
+    subroutine ReadInitialFile_Bin
 
         !Arguments-------------------------------------------------------------
 
@@ -3501,7 +3526,154 @@ do4:            do di = -1, 1
         enddo
         enddo      
       
-    end subroutine ReadInitialFile
+    end subroutine ReadInitialFile_Bin
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ReadInitialFile_Hdf()
+
+
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: EXIST
+        integer                                     :: ILB, IUB, JLB, JUB
+        integer                                     :: WorkILB, WorkIUB
+        integer                                     :: WorkJLB, WorkJUB
+        integer                                     :: ObjHDF5
+        integer                                     :: HDF5_READ
+        integer                                     :: i, j
+        type (T_Time)                               :: BeginTime, EndTimeFile, EndTime
+        real, dimension(:), pointer                 :: TimePointer
+        real                                        :: DT_error        
+
+        !----------------------------------------------------------------------
+
+        ILB = Me%Size%ILB 
+        IUB = Me%Size%IUB 
+        JLB = Me%Size%JLB 
+        JUB = Me%Size%JUB 
+
+        WorkILB = Me%WorkSize%ILB 
+        WorkIUB = Me%WorkSize%IUB 
+        WorkJLB = Me%WorkSize%JLB 
+        WorkJUB = Me%WorkSize%JUB 
+
+        !----------------------------------------------------------------------
+
+        inquire (FILE=trim(Me%Files%InitialFile), EXIST = Exist)
+
+cd0:    if (Exist) then
+
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+
+            ObjHDF5 = 0
+
+            !Opens HDF5 File
+            call ConstructHDF5 (ObjHDF5,                                                 &
+                                trim(Me%Files%InitialFile),                              &
+                                HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleRunoff - ERR01'
+
+            
+            !Get Time
+            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleRunoff - ERR010'             
+            
+            allocate(TimePointer(1:6))
+            call HDF5ReadData   (ObjHDF5, "/Time",                                       &
+                                    "Time",                                              &
+                                    Array1D = TimePointer,                               &
+                                    STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleRunoff - ERR020'             
+            
+            
+            call SetDate(EndTimeFile, TimePointer(1), TimePointer(2),    &
+                                      TimePointer(3), TimePointer(4),    &
+                                      TimePointer(5), TimePointer(6))
+            
+            
+            call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, EndTime = EndTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleRunoff - ERR030'
+        
+            DT_error = EndTimeFile - BeginTime
+
+            !Avoid rounding erros - Frank 08-2001
+            !All runs are limited to second definition - David 10-2015
+            !if (abs(DT_error) >= 0.01) then
+            if (abs(DT_error) >= 1) then
+            
+                write(*,*) 'The end time of the previous run is different from the start time of this run'
+                write(*,*) 'Date in the file'
+                write(*,*) TimePointer(1), TimePointer(2), TimePointer(3), TimePointer(4), TimePointer(5), TimePointer(6)
+                write(*,*) 'DT_error', DT_error
+                if (Me%StopOnWrongDate) stop 'ReadInitialFile - ModuleRunoff - ERR040'   
+
+            endif                  
+            deallocate(TimePointer)
+            
+
+            ! Reads from HDF file the Property concentration and open boundary values
+            call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                              &
+                                 WorkJLB, WorkJUB,                                       &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleRunoff - ERR050'
+
+            call HDF5ReadData   (ObjHDF5, "/Results/water column",                       &
+                                 "water column",                                         &
+                                 Array2D = Me%myWaterColumn,                             &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleRunoff - ERR060'
+            
+ 
+            if (Me%StormWaterDrainage) then
+                call HDF5ReadData   (ObjHDF5, "/Results/storm water volume",            &
+                                     "storm water volume",                              &
+                                     Array2D = Me%StormWaterVolume,                     &
+                                     STAT    = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'ReadInitialFile - ModuleRunoff - ERR070'            
+            endif
+            
+            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleRunoff - ERR080'
+            
+            
+            
+            !Updates Volume & Level from Column        
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    
+                if (Me%ExtVar%BasinPoints(i, j) == 1) then
+            
+                    Me%myWaterLevel(i, j)   = Me%myWaterColumn(i, j) + Me%ExtVar%Topography(i, j)
+                    Me%myWaterVolume(i, j)  = Me%myWaterColumn(i, j) * Me%ExtVar%GridCellArea(i, j)
+                
+                endif
+
+            enddo
+            enddo               
+            
+
+        else
+            
+            write(*,*)
+            stop 'ReadInitialFile - ModuleRunoff - ERR090'
+
+        end if cd0
+
+    end subroutine ReadInitialFile_Hdf
+
+    !--------------------------------------------------------------------------    
  
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4643,7 +4815,11 @@ doIter:         do while (iter <= Niter)
             if (Me%Output%WriteRestartFile .and. .not. (Me%ExtVar%Now == Me%EndTime)) then
                 if(Me%ExtVar%Now >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
                     IsFinalFile = .false.
-                    call WriteFinalFile(IsFinalFile)
+                    if (Me%OutPut%RestartFormat == BIN_) then
+                        call WriteFinalFile_Bin(IsFinalFile)
+                    else if (Me%OutPut%RestartFormat == HDF_) then
+                        call WriteFinalFile_Hdf(IsFinalFile)
+                    endif
                     Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                 endif
             endif
@@ -9449,7 +9625,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
     !--------------------------------------------------------------------------
     
-    subroutine WriteFinalFile(IsFinalFile)
+    subroutine WriteFinalFile_Bin(IsFinalFile)
         
         !Arguments-------------------------------------------------------------
         logical                                     :: IsFinalFile
@@ -9495,9 +9671,143 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         call UnitsManager(FinalFile, CLOSE_FILE, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFileOld - ModuleRunoff - ERR03'
 
-    end subroutine WriteFinalFile
+    end subroutine WriteFinalFile_Bin
 
     !------------------------------------------------------------------------
+    
+    subroutine WriteFinalFile_Hdf(IsFinalFile)
+        
+        !Arguments-------------------------------------------------------------
+        logical                                     :: IsFinalFile
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        !integer                                     :: OutPutNumber
+        integer                                     :: HDF5_CREATE
+        character(LEN = PathLength)                 :: FileName
+        integer                                     :: ObjHDF5
+        real, dimension(6), target                  :: AuxTime
+        real, dimension(:), pointer                 :: TimePtr
+        type (T_Time)                               :: Actual           
+        !Begin----------------------------------------------------------------
+
+        !Gets a pointer to Topography
+        call GetGridData        (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR00'
+
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR01'
+
+          !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Checks if it's at the end of the run 
+        !or !if it's supposed to overwrite the final HDF file
+        !if ((Me%ExtVar%Now == Me%ExtVar%EndTime) .or. Me%Output%RestartOverwrite) then
+        if (IsFinalFile .or. Me%Output%RestartOverwrite) then
+
+            filename = trim(Me%Files%FinalFile)
+
+        else
+
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%ExtVar%Now))//".fin")
+
+        endif
+
+
+        ObjHDF5 = 0
+        !Opens HDF5 File
+        call ConstructHDF5 (ObjHDF5,                                                     &
+                            trim(filename),                                              &
+                            HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'WriteFinalFile - ModuleRunoff - ERR10'
+
+        Actual   = Me%ExtVar%Now
+         
+        call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
+                                    AuxTime(4), AuxTime(5), AuxTime(6))
+        !Writes Time
+        TimePtr => AuxTime
+        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR11'
+
+        call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",      &
+                             Array1D = TimePtr, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR12'
+
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5,                                &
+                              Me%WorkSize%ILB,                           &
+                              Me%WorkSize%IUB,                           &
+                              Me%WorkSize%JLB,                           &
+                              Me%WorkSize%JUB,                           &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR02'
+
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR25'
+
+        !Writes the Grid
+        call HDF5WriteData   (ObjHDF5, "/Grid", "Topography", "m",           &
+                              Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR05'
+
+        !WriteBasinPoints
+        call HDF5WriteData   (ObjHDF5, "/Grid", "BasinPoints", "-",          &
+                              Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR07'
+
+
+
+        call HDF5SetLimits   (ObjHDF5,                                &
+                                Me%WorkSize%ILB,                           &
+                                Me%WorkSize%IUB,                           &
+                                Me%WorkSize%JLB,                           &
+                                Me%WorkSize%JUB,                           &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR10'
+
+        call HDF5WriteData   (ObjHDF5,                                    &
+                                "/Results/water column",                  &
+                                "water column",                           &
+                                "m",                                      &
+                                Array2D = Me%myWaterColumn,               &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR14'
+                
+        
+        if (Me%StormWaterDrainage) then
+            call HDF5WriteData   (ObjHDF5,                                    &
+                                    "/Results/storm water volume",            &
+                                    "storm water volume",                     &
+                                    "m3",                                     &
+                                    Array2D = Me%StormWaterVolume,            &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR20'
+        endif        
+        
+
+        !Writes everything to disk
+        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR030'
+
+        !Unget
+        call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR90'  
+
+        !UnGets Topography
+        call UnGetGridData      (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR100'
+            
+        call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoff - ERR0190'            
+
+    end subroutine WriteFinalFile_Hdf
+
+    !----------------------------------------------------------------------------    
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -9536,7 +9846,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 !Writes file with final condition
                 IsFinalFile = .true.
-                call WriteFinalFile(IsFinalFile)
+                if (Me%OutPut%RestartFormat == BIN_) then
+                    call WriteFinalFile_Bin(IsFinalFile)
+                else if (Me%OutPut%RestartFormat == HDF_) then
+                    call WriteFinalFile_Hdf(IsFinalFile)
+                endif
 
                 !Writes Mass Error
                 call ReadFileName("ROOT_SRT", MassErrorFile, STAT = STAT_CALL)

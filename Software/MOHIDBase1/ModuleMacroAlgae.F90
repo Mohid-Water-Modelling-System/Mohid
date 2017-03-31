@@ -206,6 +206,8 @@ Module ModuleMacroAlgae
     type     T_ComputeOptions
         logical                                     :: Nitrogen             = .false.
         logical                                     :: Phosphorus           = .false.
+        logical                                     :: OxygenReleaseInorganicAssimilation = .true.
+        logical                                     :: OxygenEscapeAtSurface = .false.
     end type T_ComputeOptions
 
     type       T_MacroAlgae
@@ -492,6 +494,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleMacroAlgae',                                 &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR04'
+        
+        !If the plant is not submeged (occupation = 1) do not put oxygen in water
+        !it will be lost to atmosphere
+        call GetData(Me%ComputeOptions%OxygenEscapeAtSurface,                           &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OXYGEN_ESCAPE_SURFACE',                            &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleMacroAlgae',                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR05'        
+        
+        !Compute oxygen production related to inorganic elements assimilation (nitrate and phosphate)
+        !this does not show up in other models so leave as option
+        call GetData(Me%ComputeOptions%OxygenReleaseInorganicAssimilation,              &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OXYGEN_RELEASE_INORGANIC_ASSIMILATION',            &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleMacroAlgae',                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR06'          
 
     end subroutine ConstructGlobalVariables
     
@@ -941,7 +965,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Salinity    limiting factor for each macro algae type    : +1
         !Nitrogen    limiting factor for each macro algae type    : +1
         !Phosphorus  limiting factor for each macro algae type    : +1
-        nParameters = 7
+        !respiration
+        !excretion
+        !natural mortality
+        !grazing
+        !zone
+        nParameters = 12
 
         !Allocates with 2nd dimension size = 2
         !if J = 1 Attached Macroalgae
@@ -1195,6 +1224,26 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 case(GrossProd_)
 
                     RateFlux => Me%Parameters(:, SecondProp, MA_GrossFact_  )
+                    
+                case(Excretion_)
+
+                    RateFlux => Me%Parameters(:, SecondProp, MA_Excretion_  )
+                    
+                case(Respiration_)
+
+                    RateFlux => Me%Parameters(:, SecondProp, MA_Respiration_  )
+                    
+                case(NaturalMort_)
+
+                    RateFlux => Me%Parameters(:, SecondProp, MA_NaturalMort_  )
+                    
+                case(Grazing_)
+
+                    RateFlux => Me%Parameters(:, SecondProp, MA_Grazing_  )           
+                    
+                case(MACondition_)
+
+                    RateFlux => Me%Parameters(:, SecondProp, MA_Condition_  )                      
 
                 case(TemperatureLim_)
                     
@@ -1509,6 +1558,9 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             end if
 
         end if
+        
+        !Save Zone
+        Me%Parameters(Index, MA, MA_Condition_) = Zone * 1.0
 
         select case(Zone)
 
@@ -1735,6 +1787,20 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 !Compute gross production
                 Me%Parameters(Index, MA, MA_GrossFact_  ) = MacAlgGrossGrowRate     * &
                                                             MacroAlgaeMassOld       * Me%DT
+                
+                !other algal rates
+                Me%Parameters(Index, MA, MA_Excretion_  ) = MacAlgExcretionRate     * &
+                                                            MacroAlgaeMassOld       * Me%DT 
+
+                Me%Parameters(Index, MA, MA_Respiration_) = MacAlgRespirationRate   * &
+                                                            MacroAlgaeMassOld       * Me%DT 
+                
+                Me%Parameters(Index, MA, MA_NaturalMort_) = MacAlgNonGrazingMortalityRate     * &
+                                                            MacroAlgaeMassOld                 * Me%DT 
+                
+                Me%Parameters(Index, MA, MA_Grazing_  )   = Parameters%GrazCons     * &
+                                                            MacroAlgaeMassOld       * Me%DT                 
+                
                 !Compute limiting factors                                            
                 Me%Parameters(Index, MA, MA_TLimFact_   ) = TempLimitingFactor      * Me%DT
                 Me%Parameters(Index, MA, MA_NLimFact_   ) = NitrogenLimitFactor     * Me%DT
@@ -1853,10 +1919,24 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 !what passes from oxygen to macroalgae
                 Me%Matrix(Index, O2, MA)            = OxygenRespRate * MacroAlgaeMassOld * Me%DTDay
 
-
+                
                 !what passes from macroalgae to oxygen
-                Me%Matrix(Index, MA, O2)            = (PhotoOxygenProduction + IPOxygen + NitrateOxygen) * &
-                                                       MacroAlgaeMassOld * Me%DTDay
+                !if plant is not submerged (occupation 1) then the macroalgae production will be lost
+                !to atmosphere (in case this option is connected)
+                if (Me%ExternalVar%Occupation(index) >= 1.0 .and. Me%ComputeOptions%OxygenEscapeAtSurface) then
+                    Me%Matrix(Index, MA, O2)            = 0.0
+                else
+                    !This nitrate and phophorus release to atmosphere by assimilation is not used in
+                    !WaterQuality and CEQUAL models. is it correct? they will not transform oxygen in OH-?
+                    if (Me%ComputeOptions%OxygenReleaseInorganicAssimilation) then
+                        Me%Matrix(Index, MA, O2)            = (PhotoOxygenProduction + IPOxygen + NitrateOxygen) * &
+                                                               MacroAlgaeMassOld * Me%DTDay
+                    else
+                        Me%Matrix(Index, MA, O2)            = (PhotoOxygenProduction) * &
+                                                               MacroAlgaeMassOld * Me%DTDay            
+                    endif
+                endif
+                
                 !oxygen mass balance
                 Me%ExternalVar%Mass(O2,Index)       = Me%ExternalVar%Mass(O2, Index)        + &
                                                       Me%Matrix(Index, MA, O2)              - &

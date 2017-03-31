@@ -9570,12 +9570,12 @@ do4 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR25'
 
         !Writes the Grid
-        call HDF5WriteData   (ObjHDF5, "//Grid/Topography", "Topography", "m",           &
+        call HDF5WriteData   (ObjHDF5, "/Grid", "Topography", "m",           &
                               Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR05'
 
         !WriteBasinPoints
-        call HDF5WriteData   (ObjHDF5, "//Grid/BasinPoints", "BasinPoints", "-",          &
+        call HDF5WriteData   (ObjHDF5, "/Grid", "BasinPoints", "-",          &
                               Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleRunoffProperties - ERR07'
 
