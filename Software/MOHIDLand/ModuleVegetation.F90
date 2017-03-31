@@ -147,6 +147,12 @@
 ! GRAZING_DAYS                      : 10        !Days of grazing (continuous)
 ! MINIMUM_BIOMASS_FOR_GRAZING       : 10.       !minimum biomass (kg/ha) for grazing
 ! GRAZING_BIOMASS                   : 70.       !grazed biomass (kh/ha.day)
+! GRAZING_FRACTION_TO_MANURE        : 0.0       !fraction of grazed biomass that goes to manure in same cell and day (0-1)
+! GRAZING_MANURE_NFRACTION          : -99       !fraction of manure biomass that is N (0-1). If not > 0 will be the
+!                                                plant N fraction (animal digestion did not changed ratio)
+! GRAZING_MANURE_NUREAFRACTION      : 0.0       !fraction of manure N that is Urea (0-1). The remainder will be organic N
+! GRAZING_MANURE_PFRACTION          : -99       !fraction of manure biomass that is P (0-1). If not > 0 will be the
+!                                                plant P fraction (animal digestion did not changed ratio)
 ! TRAMPLING_BIOMASS                 : 30.       !biomass not eaten but removed from plant and moved to soil, 
 !                                                related to grazing efficiency (kg/ha.day)
 ! <endgrazeparameters>
@@ -596,6 +602,10 @@ Module ModuleVegetation
         real                                            :: GrazingMinimumBiomass = null_real
         real                                            :: GrazingBiomass       = null_real
         real                                            :: TramplingBiomass     = null_real
+        real                                            :: GrazingFractionToManure = null_real
+        real                                            :: GrazingManureNFraction = null_real
+        real                                            :: GrazingManurePFraction = null_real
+        real                                            :: GrazingManureNUreaFraction = null_real
     end type T_GrazingDatabase
 
     type T_HarvestKillDatabase
@@ -825,9 +835,10 @@ Module ModuleVegetation
     end type T_VegetationType
 
     type T_FluxesToSoil
-        real, dimension(:,:), pointer                   :: GrazingBiomassToSoil       => null()
-        real, dimension(:,:), pointer                   :: GrazingNitrogenToSoil      => null()
-        real, dimension(:,:), pointer                   :: GrazingPhosphorusToSoil    => null()
+        real, dimension(:,:), pointer                   :: GrazingBiomassToSoil       => null() 
+        real, dimension(:,:), pointer                   :: GrazingOrganicNToSoil      => null()
+        real, dimension(:,:), pointer                   :: GrazingAmmoniaToSoil      => null()
+        real, dimension(:,:), pointer                   :: GrazingOrganicPToSoil    => null()
         real, dimension(:,:), pointer                   :: HarvestKillBiomassToSoil   => null()
         real, dimension(:,:), pointer                   :: HarvestKillNitrogenToSoil  => null()
         real, dimension(:,:), pointer                   :: HarvestKillPhosphorusToSoil => null()
@@ -3811,16 +3822,20 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                     allocate(Me%Fluxes%NitrogenGrazed (ILB:IUB,JLB:JUB))  
                     Me%Fluxes%NitrogenGrazed (:,:) = 0.0
                     
-                    allocate(Me%Fluxes%ToSoil%GrazingNitrogenToSoil (ILB:IUB,JLB:JUB)) 
-                    Me%Fluxes%ToSoil%GrazingNitrogenToSoil (:,:) = 0.0
+                    allocate(Me%Fluxes%ToSoil%GrazingOrganicNToSoil (ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%ToSoil%GrazingOrganicNToSoil (:,:) = 0.0
+                    
+                    allocate(Me%Fluxes%ToSoil%GrazingAmmoniaToSoil (ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%ToSoil%GrazingAmmoniaToSoil (:,:) = 0.0                    
+                    
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     allocate(Me%Fluxes%PhosphorusGrazed (ILB:IUB,JLB:JUB)) 
                     Me%Fluxes%PhosphorusGrazed (:,:) = 0.0
                     
-                    allocate(Me%Fluxes%ToSoil%GrazingPhosphorusToSoil (ILB:IUB,JLB:JUB)) 
-                    Me%Fluxes%ToSoil%GrazingPhosphorusToSoil (:,:) = 0.0
+                    allocate(Me%Fluxes%ToSoil%GrazingOrganicPToSoil (ILB:IUB,JLB:JUB)) 
+                    Me%Fluxes%ToSoil%GrazingOrganicPToSoil (:,:) = 0.0
                 endif
 
             endif
@@ -6347,7 +6362,45 @@ HF:     if (STAT_CALL == SUCCESS_ .and. DatabaseFound) then
                          ClientModule   = 'ModuleVegetation',                                                         &
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR80'
-
+            
+            !grazing biomass fraction that is converted to manure. this will be placed in same cell grazed and in same cell
+            !If this case does not suit needs can use fertilization events to implement manure
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%GrazingFractionToManure, ParameterObjEnterData,  iflag,    &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = 0.,                                                                         &
+                         keyword        = 'GRAZING_FRACTION_TO_MANURE',                                               &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR81'   
+            
+            !Fraction of manure biomass that is N - organism changes fraction. if <0 will be used plant fraction (no change in fraction)
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%GrazingManureNFraction, ParameterObjEnterData,  iflag,    &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = -99.,                                                                       &
+                         keyword        = 'GRAZING_MANURE_NFRACTION',                                                 &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR82'     
+            
+            !Fraction of manure N that is urea (put in ammonia pool in soil)
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%GrazingManureNUreaFraction, ParameterObjEnterData,  iflag,    &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = 0.,                                                                         &
+                         keyword        = 'GRAZING_MANURE_NUREAFRACTION',                                             &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR83'             
+            
+            !Fraction of manure biomass that is P - organism changes fraction. if <0 will be used plant fraction (no change in fraction)
+            call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%GrazingManurePFraction, ParameterObjEnterData,  iflag,    &
+                         SearchType     = FromBlockInBlock,                                                           &
+                         Default        = -99.,                                                                       &
+                         keyword        = 'GRAZING_MANURE_PFRACTION',                                                 &
+                         ClientModule   = 'ModuleVegetation',                                                         &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadGrazingDatabase - ModuleVegetation - ERR84'             
+            
+            !leftover in soil that is not eaten (related to grazing efficiency) but taken from plant
             call GetData(Me%VegetationTypes(ivt)%GrazingDatabase%TramplingBiomass, ParameterObjEnterData,  iflag,  &
                          SearchType     = FromBlockInBlock,                                                           &
                          Default        = 0.,                                                                         &
@@ -8212,6 +8265,7 @@ cd0:    if (Exist) then
                                        GrazingBiomass,                           &
                                        GrazingNitrogen,                          &
                                        GrazingPhosphorus,                        &
+                                       GrazingAmmonia,                           &
                                        HarvestKillAerialBiomass,                 &
                                        HarvestKillNitrogen,                      &
                                        HarvestKillPhosphorus,                    &
@@ -8242,6 +8296,7 @@ cd0:    if (Exist) then
         integer                                     :: VegetationID
         logical, dimension(:,:), pointer, optional  :: SoilFluxesActive
         real, dimension(:,:), pointer, optional     :: GrazingBiomass
+        real, dimension(:,:), pointer, optional     :: GrazingAmmonia
         real, dimension(:,:), pointer, optional     :: GrazingNitrogen
         real, dimension(:,:), pointer, optional     :: GrazingPhosphorus
         real, dimension(:,:), pointer, optional     :: HarvestKillAerialBiomass
@@ -8289,8 +8344,9 @@ cd0:    if (Exist) then
             
             if (present(SoilFluxesActive         )) SoilFluxesActive         => Me%SoilFluxesActive
             if (present(GrazingBiomass           )) GrazingBiomass           => Me%Fluxes%ToSoil%GrazingBiomassToSoil
-            if (present(GrazingNitrogen          )) GrazingNitrogen          => Me%Fluxes%ToSoil%GrazingNitrogenToSoil
-            if (present(GrazingPhosphorus        )) GrazingPhosphorus        => Me%Fluxes%ToSoil%GrazingPhosphorusToSoil
+            if (present(GrazingNitrogen          )) GrazingNitrogen          => Me%Fluxes%ToSoil%GrazingOrganicNToSoil
+            if (present(GrazingAmmonia           )) GrazingAmmonia           => Me%Fluxes%ToSoil%GrazingAmmoniaToSoil
+            if (present(GrazingPhosphorus        )) GrazingPhosphorus        => Me%Fluxes%ToSoil%GrazingOrganicPToSoil
             if (present(HarvestKillAerialBiomass )) HarvestKillAerialBiomass => Me%Fluxes%ToSoil%HarvestKillBiomassToSoil 
             if (present(HarvestKillNitrogen      )) HarvestKillNitrogen      => Me%Fluxes%ToSoil%HarvestKillNitrogenToSoil
             if (present(HarvestKillPhosphorus    )) HarvestKillPhosphorus    => Me%Fluxes%ToSoil%HarvestKillPhosphorusToSoil
@@ -8499,6 +8555,7 @@ cd0:    if (Exist) then
     subroutine UngetVegetationSoilFluxes(VegetationID,                             &
                                          SoilFluxesActive,                         &
                                          GrazingBiomass,                           &
+                                         GrazingAmmonia,                           &
                                          GrazingNitrogen,                          &
                                          GrazingPhosphorus,                        &
                                          HarvestKillAerialBiomass,                 &
@@ -8529,6 +8586,7 @@ cd0:    if (Exist) then
         integer                                     :: VegetationID
         logical, dimension(:,:), pointer, optional  :: SoilFluxesActive
         real, dimension(:,:), pointer, optional     :: GrazingBiomass
+        real, dimension(:,:), pointer, optional     :: GrazingAmmonia
         real, dimension(:,:), pointer, optional     :: GrazingNitrogen
         real, dimension(:,:), pointer, optional     :: GrazingPhosphorus
         real, dimension(:,:), pointer, optional     :: HarvestKillAerialBiomass
@@ -8571,6 +8629,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             if (present(SoilFluxesActive        )) nullify(SoilFluxesActive)
             if (present(GrazingBiomass          )) nullify(GrazingBiomass)
             if (present(GrazingNitrogen         )) nullify(GrazingNitrogen)
+            if (present(GrazingAmmonia          )) nullify(GrazingAmmonia)            
             if (present(GrazingPhosphorus       )) nullify(GrazingPhosphorus)
             if (present(HarvestKillAerialBiomass)) nullify(HarvestKillAerialBiomass)
             if (present(HarvestKillNitrogen     )) nullify(HarvestKillNitrogen)
@@ -9049,11 +9108,12 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             Me%Fluxes%ToSoil%GrazingBiomassToSoil                         (:,:) = 0.0 
             if (Me%ComputeOptions%ModelNitrogen) then
                 Me%Fluxes%NitrogenGrazed                                  (:,:) = 0.0
-                Me%Fluxes%ToSoil%GrazingNitrogenToSoil                    (:,:) = 0.0 
+                Me%Fluxes%ToSoil%GrazingOrganicNToSoil                    (:,:) = 0.0 
+                Me%Fluxes%ToSoil%GrazingAmmoniaToSoil                     (:,:) = 0.0 
             endif                                                   
             if (Me%ComputeOptions%ModelPhosphorus) then             
                 Me%Fluxes%PhosphorusGrazed                                (:,:) = 0.0 
-                Me%Fluxes%ToSoil%GrazingPhosphorusToSoil                  (:,:) = 0.0 
+                Me%Fluxes%ToSoil%GrazingOrganicPToSoil                  (:,:) = 0.0 
             endif                                                   
 
         endif
@@ -12991,6 +13051,11 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         real                                      :: PhosphorusRemovedInDormancy, PhosphorusRemovedInHarvest
         real                                      :: GrazingMinimumBiomass
         real                                      :: GrazingBiomass
+        real                                      :: ManureBiomass, ManureNitrogen, ManureAmmonia, ManureOrganicN
+        real                                      :: ManurePhosphorus, ManureOrganicP
+        real                                      :: GrazingManureFraction, GrazingManureNFraction
+        real                                      :: GrazingManureNUreaFraction
+        real                                      :: GrazingManurePFraction
         real                                      :: TramplingBiomass
         real                                      :: BiomassGrazed
         real                                      :: NitrogenGrazed
@@ -13038,14 +13103,17 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         endif
                     endif
                     PredictedBiomass = TotalPlantBiomass - BiomassRemovedInDormancy - BiomassRemovedInHarvest
-                 
+                    ManureBiomass = 0.0
+                    
                     !! graze only if adequate biomass in HRU
                     if (PredictedBiomass .gt. GrazingMinimumBiomass) then
 
                         !Kg/ha
                         GrazingBiomass        = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingBiomass
                         TramplingBiomass      = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%TramplingBiomass
-            
+                        
+                        GrazingManureFraction = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingFractionToManure
+                        
                         !! biomass grazing flux
                         BiomassGrazed = GrazingBiomass
 
@@ -13062,20 +13130,28 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                         if ((PredictedBiomass - BiomassGrazed - TramplingBiomass) &
                             .lt. GrazingMinimumBiomass) then
                             BiomassTrampled = PredictedBiomass - BiomassGrazed - GrazingMinimumBiomass
-                        endif
+                            endif
 
+                        !Manure
+                        if (GrazingManureFraction > 0.0) then
+                            ManureBiomass = BiomassGrazed * GrazingManureFraction
+                        endif
 
                         !!Fill fluxes
                         !!Plant point of view - Sum grazing and trampling
                         Me%Fluxes%BiomassGrazed(i,j) = BiomassGrazed + BiomassTrampled
 
-                        !Soil Point of View - Recieve only trampling fluxes. Manure in future
-                        Me%Fluxes%ToSoil%GrazingBiomassToSoil(i,j) = BiomassTrampled
+                        !Soil Point of View - Recieve trampling fluxes + Manure (from grazing)
+                        Me%Fluxes%ToSoil%GrazingBiomassToSoil(i,j) = BiomassTrampled + ManureBiomass
 
                     
                         if (Me%ComputeOptions%ModelNitrogen) then
                         
                             TotalPlantNitrogen    = Me%StateVariables%TotalPlantNitrogen(i,j)
+                            
+                            GrazingManureNFraction = Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingManureNFraction
+                            GrazingManureNUreaFraction =    &
+                                Me%VegetationTypes(Me%VegetationID(i,j))%GrazingDatabase%GrazingManureNUreaFraction
 
                             NitrogenRemovedInDormancy = 0.0
                             if (Me%ComputeOptions%Dormancy .and. Me%PlantGoingDormant(i,j)) then
@@ -13099,11 +13175,32 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             if ((NitrogenGrazed + NitrogenTrampled) .gt. PredictedNitrogen) then
                                 NitrogenTrampled  =   PredictedNitrogen - NitrogenGrazed
                             endif                               
-                        
+                            
+                            !get manure N fraction. if not existing use plant n fraction
+                            if (GrazingManureNFraction .le. 0.0) then
+                                ManureNitrogen = ManureBiomass * Me%PlantNitrogenFraction (i,j)
+                            else
+                                ManureNitrogen = ManureBiomass * GrazingManureNFraction
+                            endif
+                            !manure can not be greater then grazed
+                            if (ManureNitrogen .gt. NitrogenGrazed) then
+                                ManureNitrogen = NitrogenGrazed
+                            endif
+                            
+                            !Separate in organic and inorganic
+                            !Urea fraction of N
+                            if (GrazingManureNUreaFraction .le. 0.0) then
+                                ManureOrganicN = ManureNitrogen
+                                ManureAmmonia = 0.0
+                            else
+                                ManureOrganicN = ManureNitrogen * (1 - GrazingManureNUreaFraction)
+                                ManureAmmonia = ManureNitrogen * GrazingManureNUreaFraction
+                            endif
+                            
                             Me%Fluxes%NitrogenGrazed(i,j) = NitrogenGrazed + NitrogenTrampled
                         
-                            Me%Fluxes%ToSoil%GrazingNitrogenToSoil(i,j) = NitrogenTrampled
-
+                            Me%Fluxes%ToSoil%GrazingOrganicNToSoil(i,j) = NitrogenTrampled + ManureOrganicN
+                            Me%Fluxes%ToSoil%GrazingAmmoniaToSoil(i,j) = ManureAmmonia
 
                         endif
                         if (Me%ComputeOptions%ModelPhosphorus) then
@@ -13135,9 +13232,24 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                                 PhosphorusTrampled  =   PredictedPhosphorus - PhosphorusGrazed
                             endif                               
                          
+                            
+                            !get manure P fraction. if not existing use plant P fraction
+                            if (GrazingManurePFraction .le. 0.0) then
+                                ManurePhosphorus = ManureBiomass * Me%PlantPhosphorusFraction (i,j)
+                            else
+                                ManurePhosphorus = ManureBiomass * GrazingManurePFraction
+                            endif
+                            !manure can not be greater then grazed
+                            if (ManurePhosphorus .gt. PhosphorusGrazed) then
+                                ManurePhosphorus = PhosphorusGrazed
+                            endif
+                            
+                            !only organic
+                            ManureOrganicP = ManurePhosphorus
+                            
                             Me%Fluxes%PhosphorusGrazed(i,j) = PhosphorusGrazed + PhosphorusTrampled
 
-                            Me%Fluxes%ToSoil%GrazingPhosphorusToSoil(i,j) = PhosphorusTrampled
+                            Me%Fluxes%ToSoil%GrazingOrganicPToSoil(i,j) = PhosphorusTrampled + ManureOrganicP
 
                         endif
 
@@ -15134,12 +15246,12 @@ if4:                            if (Me%VegetationTypes(Me%VegetationID(i,j))%Pes
                     if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR045'     
                 
                     if (Me%ComputeOptions%ModelNitrogen) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingNitrogenToSoil,      &
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingOrganicNToSoil,      &
                                              STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR046'     
                     endif
                     if (Me%ComputeOptions%ModelPhosphorus) then
-                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingPhosphorusToSoil,    &
+                        call WriteTimeSerie (Me%ObjTimeSerieToSoil, Data2D = Me%Fluxes%ToSoil%GrazingOrganicPToSoil,    &
                                              STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'OutPutTimeSeries - ModuleVegetation - ERR047'     
                     endif
@@ -15844,12 +15956,12 @@ do1 :   do while(associated(PropertyX))
 
                 if (Me%ComputeOptions%ModelNitrogen) then
                     deallocate(Me%Fluxes%NitrogenGrazed                         )  
-                    deallocate(Me%Fluxes%ToSoil%GrazingNitrogenToSoil           ) 
+                    deallocate(Me%Fluxes%ToSoil%GrazingOrganicNToSoil           ) 
                 endif
             
                 if (Me%ComputeOptions%ModelPhosphorus) then
                     deallocate(Me%Fluxes%PhosphorusGrazed                       ) 
-                    deallocate(Me%Fluxes%ToSoil%GrazingPhosphorusToSoil         ) 
+                    deallocate(Me%Fluxes%ToSoil%GrazingOrganicPToSoil         ) 
                 endif
 
             endif

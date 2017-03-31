@@ -2188,7 +2188,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 write(*, *)"-----CPU Time---------------------------------------------"
                 write(*,110) int(ExecutionTime )
                 write(*,120) int(StillToRun )
-                write(*,125) (ExecutionTime / (ExecutionTime + StillToRun))*100.0
+                !this happens in MOHID River where executiontime and stilltorun are zero
+                !instead of this hack, the reason for it to happen should be fixed
+                if (ExecutionTime + StillToRun > 0.0) then
+                    write(*,125) (ExecutionTime / (ExecutionTime + StillToRun))*100.0
+                endif
                 write(*,130) Coeficient
                 if (Me%IterSinceLastPrint /= 0) then
                     write(*,131)(ExecutionTime - Me%LastCpuTime) /Me%IterSinceLastPrint
