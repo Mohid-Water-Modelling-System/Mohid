@@ -65,8 +65,10 @@ Module ModuleHDF5Extractor
     use ModuleEnterData,         only : ConstructEnterData, KillEnterData,      &
                                         GetData, ExtractBlockFromBuffer,        &
                                         Block_Unlock
-
+                                        
     use ModuleTime
+    
+    use ModuleDrawing,           only : ArrayPolygonWindow
 
     implicit none
 
@@ -131,7 +133,9 @@ Module ModuleHDF5Extractor
     ! Definition of SpatialWindow
     type       T_SpatialWindow
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
-        logical                                     :: XY_ON, Layers_ON
+        logical                                     :: XY_ON, Layers_ON, SurfaceLayer
+        logical                                     :: XY_COORD
+        real                                        :: Xmin, Ymin, Xmax, Ymax
     end type T_SpatialWindow
 
     ! Definition of type T_Field
@@ -253,7 +257,7 @@ Module ModuleHDF5Extractor
 
         ! Open supplied HDF5 file
         call OpenAndDateHDF5File
-       
+        
         ! Open HDF5 output file
         call PrepareOutput
         ! (and copy the time independent items' values to the new file)
@@ -270,7 +274,7 @@ Module ModuleHDF5Extractor
         integer                                     :: STAT_CALL, iflag
         integer, dimension(4)                       :: Aux4
         integer, dimension(2)                       :: Aux2
-
+        real,    dimension(4)                       :: AuxR
         !Begin-----------------------------------------------------------------
         
         call ConstructEnterData (Me%ObjEnterData, Me%DataFile, STAT = STAT_CALL)
@@ -298,6 +302,7 @@ Module ModuleHDF5Extractor
 
         Aux4(:) = FillValueInt
         Aux2(:) = FillValueInt
+        AuxR(:) = FillValueReal
 
         ! Check if the user want to extract a XY spatial window
         call GetData(Me%SpatialWindow%XY_ON, Me%ObjEnterData, iflag,            &
@@ -311,22 +316,57 @@ Module ModuleHDF5Extractor
 
 
         if (Me%SpatialWindow%XY_ON) then
-            call GetData(Aux4, Me%ObjEnterData, iflag,                          &
-                         keyword      = 'XY_WINDOW_LIMITS',                     &
+
+            call GetData(Me%SpatialWindow%XY_COORD, Me%ObjEnterData, iflag,     &
+                         keyword      = 'XY_COORD',                             &
                          SearchType   = FromFile,                               &
                          ClientModule = 'HDF5Extractor',                        &
+                         default      = .false.,                                &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                          &
             stop 'ReadKeywords - ModuleHDF5Extractor - ERR50'  
 
-            if (iflag /= 4)                                                     &
-            stop 'ReadKeywords - ModuleHDF5Extractor - ERR60'  
+            
+            if (Me%SpatialWindow%XY_COORD) then
+            
+                call GetData(AuxR, Me%ObjEnterData, iflag,                          &
+                             keyword      = 'XY_WINDOW_LIMITS',                     &
+                             SearchType   = FromFile,                               &
+                             ClientModule = 'HDF5Extractor',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                          &
+                stop 'ReadKeywords - ModuleHDF5Extractor - ERR60'  
 
-            Me%SpatialWindow%ILB = Aux4(1)
-            Me%SpatialWindow%JLB = Aux4(2)
-            Me%SpatialWindow%IUB = Aux4(3)
-            Me%SpatialWindow%JUB = Aux4(4)
+                if (iflag /= 4)                                                     &
+                stop 'ReadKeywords - ModuleHDF5Extractor - ERR70'  
 
+
+                Me%SpatialWindow%Xmin = AuxR(1)
+                Me%SpatialWindow%Ymin = AuxR(2)
+                Me%SpatialWindow%Xmax = AuxR(3)
+                Me%SpatialWindow%Ymax = AuxR(4)
+            
+            
+            else
+
+                call GetData(Aux4, Me%ObjEnterData, iflag,                          &
+                             keyword      = 'XY_WINDOW_LIMITS',                     &
+                             SearchType   = FromFile,                               &
+                             ClientModule = 'HDF5Extractor',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                          &
+                stop 'ReadKeywords - ModuleHDF5Extractor - ERR80'  
+
+                if (iflag /= 4)                                                     &
+                stop 'ReadKeywords - ModuleHDF5Extractor - ERR90'  
+
+
+                Me%SpatialWindow%ILB = Aux4(1)
+                Me%SpatialWindow%JLB = Aux4(2)
+                Me%SpatialWindow%IUB = Aux4(3)
+                Me%SpatialWindow%JUB = Aux4(4)
+
+            endif
         endif
 
         ! Check if the user want to extract some layers
@@ -337,23 +377,37 @@ Module ModuleHDF5Extractor
                      default      = .false.,                                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
-        stop 'ReadKeywords - ModuleHDF5Extractor - ERR70'  
+        stop 'ReadKeywords - ModuleHDF5Extractor - ERR100'  
 
 
         if (Me%SpatialWindow%Layers_ON) then
-            call GetData(Aux2, Me%ObjEnterData, iflag,                          &
-                         keyword      = 'LAYERS_MIN_MAX',                       &
-                         SearchType   = FromFile,                               &
-                         ClientModule = 'HDF5Extractor',                        &
+        
+            call GetData(Me%SpatialWindow%SurfaceLayer, Me%ObjEnterData, iflag,         &
+                         keyword      = 'SURFACE_LAYER',                                &
+                         SearchType   = FromFile,                                       &
+                         ClientModule = 'HDF5Extractor',                                &
+                         default      = .false.,                                        &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadKeywords - ModuleHDF5Extractor - ERR80'  
+            if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'ReadKeywords - ModuleHDF5Extractor - ERR110'  
+            
+            if (.not. Me%SpatialWindow%SurfaceLayer) then
 
-            if (iflag /= 2)                                                     &
-            stop 'ReadKeywords - ModuleHDF5Extractor - ERR90'  
+                call GetData(Aux2, Me%ObjEnterData, iflag,                              &
+                             keyword      = 'LAYERS_MIN_MAX',                           &
+                             SearchType   = FromFile,                                   &
+                             ClientModule = 'HDF5Extractor',                            &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                stop 'ReadKeywords - ModuleHDF5Extractor - ERR120'  
 
-            Me%SpatialWindow%KLB = Aux2(1)
-            Me%SpatialWindow%KUB = Aux2(2)
+                if (iflag /= 2)                                                         &
+                stop 'ReadKeywords - ModuleHDF5Extractor - ERR130'  
+
+                Me%SpatialWindow%KLB = Aux2(1)
+                Me%SpatialWindow%KUB = Aux2(2)
+                
+            endif                
 
         endif
 
@@ -365,7 +419,7 @@ Module ModuleHDF5Extractor
                      default      = .false.,                                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                              &
-        stop 'ReadKeywords - ModuleHDF5Extractor - ERR100'  
+        stop 'ReadKeywords - ModuleHDF5Extractor - ERR140'  
 
         if (Me%Interval%Interval_ON) then
             !get DT
@@ -376,7 +430,7 @@ Module ModuleHDF5Extractor
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then
                 write(*,*) 'A DT_INTERVAL must be provided!'
-                stop 'ReadKeywords - ModuleHDF5Extractor - ERR110'  
+                stop 'ReadKeywords - ModuleHDF5Extractor - ERR150'  
             endif
 
         else
@@ -388,7 +442,7 @@ Module ModuleHDF5Extractor
                          ClientModule = 'HDF5Extractor',                        &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                          &
-            stop 'ReadKeywords - ModuleHDF5Extractor - ERR120'   
+            stop 'ReadKeywords - ModuleHDF5Extractor - ERR160'   
 
             ! End Time 
             call GetData(Me%EndTime,   Me%ObjEnterData, iflag,                  &
@@ -397,13 +451,13 @@ Module ModuleHDF5Extractor
                          ClientModule = 'HDF5Extractor',                        &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_ .or. iflag == 0)                          &
-            stop 'ReadKeywords - ModuleHDF5Extractor - ERR130'   
+            stop 'ReadKeywords - ModuleHDF5Extractor - ERR170'   
 
             ! Verifies Time Variables
             if (Me%EndTime .lt. Me%StartTime) then
                 write (*,*) 'End Time is BEFORE Start Time'
                 write (*,*) 'Module :','HDF5Extractor'
-                stop 'ReadKeywords - ModuleHDF5Extractor - ERR140'
+                stop 'ReadKeywords - ModuleHDF5Extractor - ERR180'
             endif
 
         endif
@@ -417,7 +471,7 @@ Module ModuleHDF5Extractor
                      ClientModule = 'HDF5Extractor',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-        stop 'ConstructParameters - ModuleHDF5Extractor - ERR150'
+        stop 'ConstructParameters - ModuleHDF5Extractor - ERR190'
 
 
         call GetData(Me%TimeGroup,                                              &
@@ -428,7 +482,7 @@ Module ModuleHDF5Extractor
                      ClientModule = 'HDF5Extractor',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                            &
-        stop 'ConstructParameters - ModuleHDF5Extractor - ERR160'
+        stop 'ConstructParameters - ModuleHDF5Extractor - ERR200'
 
         
 
@@ -437,7 +491,7 @@ Module ModuleHDF5Extractor
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
-            stop 'ReadKeywords - ModuleHDF5Extractor - ERR170'
+            stop 'ReadKeywords - ModuleHDF5Extractor - ERR210'
         end if
 
     end subroutine ReadKeywords
@@ -863,12 +917,108 @@ cd2 :           if (BlockFound) then
         ! Get all HDF5 reference of time independent/grid itens
         ! (search all file for itens!)
         call InquireSubGroup(Me%FileID, "/", 1)
+        
+
+        if (Me%SpatialWindow%XY_ON) then
+            if (Me%SpatialWindow%XY_COORD) then
+                call ConvertWindow_XY_2_IJ
+            endif                
+        endif     
 
         call KillHDF5(Me%ObjHDF5File)           
         
     end subroutine OpenAndDateHDF5File
 
     !--------------------------------------------------------------------------
+    
+    subroutine ConvertWindow_XY_2_IJ
+
+        !Local---------------------------------------------------------------------      
+        real,    dimension(:,:), pointer :: LonStag, LatStag
+        real,    dimension(2,2)          :: WindowLimitsXY = null_real
+        integer, dimension(:,:), pointer :: WindowDomain 
+        logical                          :: WindowWithData   
+        type(T_Item), pointer            :: ObjItem        
+
+        !Begin---------------------------------------------------------------------  
+        
+        !Point for items independent of time 
+        ObjItem => Me%FirstIndependentItem
+       
+        do while (associated(ObjItem))
+                        
+            if (trim(ObjItem%Name) == trim("Latitude")) then
+
+                Me%WorkSize%ILB = 1
+                Me%WorkSize%IUB = ObjItem%Dimensions(1) - 1
+                Me%WorkSize%JLB = 1
+                Me%WorkSize%JUB = ObjItem%Dimensions(2) - 1
+                
+                LatStag => ObjItem%FirstField%Values2D                
+                
+            endif                
+            
+
+            if( trim(ObjItem%Name) == trim("Longitude")) then
+
+                LonStag => ObjItem%FirstField%Values2D
+                
+            endif        
+        
+            ObjItem => ObjItem%Next
+        enddo
+        
+        
+        nullify(ObjItem)
+        
+
+        WindowLimitsXY(2,1) = Me%SpatialWindow%Ymin
+        WindowLimitsXY(2,2) = Me%SpatialWindow%Ymax
+        WindowLimitsXY(1,1) = Me%SpatialWindow%Xmin
+        WindowLimitsXY(1,2) = Me%SpatialWindow%Xmax
+
+        allocate (WindowDomain(2,2))
+        
+        WindowDomain(:,:) = FillValueInt
+    
+        call ArrayPolygonWindow(XX              = LonStag,                              &
+                                YY              = LatStag,                              &
+                                WIn             = WindowLimitsXY,                       &
+                                ILB             = Me%WorkSize%ILB,                      &
+                                IUB             = Me%WorkSize%IUB+1,                    &
+                                JLB             = Me%WorkSize%JLB,                      &
+                                JUB             = Me%WorkSize%JUB+1,                    &
+                                WOut            = WindowDomain,                         &
+                                WindowWithData  = WindowWithData)
+                                
+        if (WindowWithData) then
+        
+            Me%SpatialWindow%ILB = max(WindowDomain(1,1),Me%WorkSize%ILB)
+            Me%SpatialWindow%IUB = min(WindowDomain(1,2),Me%WorkSize%IUB)
+            Me%SpatialWindow%JLB = max(WindowDomain(2,1),Me%WorkSize%JLB)
+            Me%SpatialWindow%JUB = min(WindowDomain(2,2),Me%WorkSize%JUB)
+            
+        else
+
+            Me%SpatialWindow%ILB =Me%WorkSize%ILB
+            Me%SpatialWindow%IUB =Me%WorkSize%IUB
+            Me%SpatialWindow%JLB =Me%WorkSize%JLB
+            Me%SpatialWindow%JUB =Me%WorkSize%JUB
+
+            write(*,*) 'Input file do not intersect the model domain'
+            write(*,*) 'The window dimension assumed equal to the original domain'
+            write(*,*) 'ConvertWindow_XY_2_IJ - ModuleHDF5Extractor - WRN10'
+        
+        endif
+        
+        
+        deallocate (WindowDomain)
+
+        nullify(LonStag, LatStag)
+        
+    end subroutine ConvertWindow_XY_2_IJ
+    
+    !--------------------------------------------------------------------------    
 
     type(T_Time) function HDF5TimeInstant(Instant)
 
@@ -1073,9 +1223,13 @@ cd2 :           if (BlockFound) then
                     Me%WorkSize%KUB = ObjItem%Dimensions(3)
 
                     if (Me%SpatialWindow%Layers_ON) then
-                        Me%WorkSize%KLB = Me%SpatialWindow%KLB 
-                        Me%WorkSize%KUB = Me%SpatialWindow%KUB 
-
+                        if (Me%SpatialWindow%SurfaceLayer) then
+                            Me%WorkSize%KLB = ObjItem%Dimensions(3)
+                            Me%WorkSize%KUB = ObjItem%Dimensions(3)
+                        else
+                            Me%WorkSize%KLB = Me%SpatialWindow%KLB 
+                            Me%WorkSize%KUB = Me%SpatialWindow%KUB 
+                        endif
                     endif
 
                     call HDF5SetLimits (ObjEnterData, Me%WorkSize%ILB,          &
@@ -1349,7 +1503,7 @@ cd2 :           if (BlockFound) then
         character(StringLength)                     :: obj_name
         integer                                     :: obj_type
         integer(HID_T)                              :: gr_id, dset_id
-        integer(HID_T)                              :: datatype_id, class_id, size        
+        integer(HID_T)                              :: datatype_id, class_id !, size        
         integer                                     :: STAT_CALL
         character(StringLength)                     :: NewGroupName
         integer                                     :: ItensNumber
@@ -2272,13 +2426,26 @@ do2:            do while(associated(CurrentField))
                 Me%WorkSize%KUB = ObjItem%Dimensions(3)
 
                 if (Me%SpatialWindow%Layers_ON) then
-                    Me%WorkSize%KLB = Me%SpatialWindow%KLB 
-                    Me%WorkSize%KUB = Me%SpatialWindow%KUB 
+                
+                        if (Me%SpatialWindow%SurfaceLayer) then
 
-                    if (trim(ObjItem%Name)=="VerticalZ") then
-                        Me%WorkSize%KUB = Me%WorkSize%KUB + 1
-                    endif                    
+                            Me%WorkSize%KUB = ObjItem%Dimensions(3)
+                            Me%WorkSize%KLB = Me%WorkSize%KUB
+                            
+                            if (trim(ObjItem%Name)=="VerticalZ") then
+                                Me%WorkSize%KLB = Me%WorkSize%KUB - 1
+                            endif  
+                            
+                        else                
+                            Me%WorkSize%KLB = Me%SpatialWindow%KLB 
+                            Me%WorkSize%KUB = Me%SpatialWindow%KUB 
 
+                            if (trim(ObjItem%Name)=="VerticalZ") then
+                                Me%WorkSize%KUB = Me%WorkSize%KUB + 1
+                            endif                          
+
+                        endif
+ 
                 endif
 
                 if (trim(ObjItem%Name)=="VerticalZ") then
