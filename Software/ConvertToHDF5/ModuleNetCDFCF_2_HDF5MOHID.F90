@@ -187,6 +187,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: Accumulated2Step
         logical                                 :: FromDir2Vector
         logical                                 :: FromMeteo2Algebric
+        logical                                 :: FromCartesian2Meteo
         character(len=StringLength)             :: DirX
         character(len=StringLength)             :: DirY
         logical                                 :: ComputeIntensity, Rotation, Beaufort, WaveBeaufort
@@ -2639,6 +2640,20 @@ BF:         if (BlockFound) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2650'
                     
+                    call GetData(Me%Field(ip)%FromCartesian2Meteo,                      &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'CARTESIAN_TO_METEO',                   &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2655'
+                    
+                    if (Me%Field(ip)%FromMeteo2Algebric .and. Me%Field(ip)%FromCartesian2Meteo) then
+                        write(*,*) "Options METEO_TO_ALGEBRIC and CARTESIAN_TO_METEO can not be both true"
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2657'
+                    endif
+                   
 
                     call GetData(Me%Field(ip)%ValueIn%diL,                              &
                                  Me%ObjEnterData, iflag,                                &
@@ -6465,7 +6480,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     Aux2D(i,j) = FillValueReal
                 else
                     !Direction property - from meteorological convention to algebric 
-                    if (Me%Field(iP)%FromMeteo2Algebric) then
+                    if (Me%Field(iP)%FromMeteo2Algebric .or. Me%Field(iP)%FromCartesian2Meteo) then
                         Aux2D(i,j) = 270. - Aux2D(i,j)    
                     endif
                 endif
@@ -6886,7 +6901,17 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     Field2D(j,i) = 270. - Field2D(j,i)    
                 endif                
             enddo
-            enddo                
+            enddo      
+            
+            do j = 1, WorkJUB
+            do i = 1, WorkIUB
+                Field2D(j,i)=Me%Field(iP)%Value2DOut(i,j)
+               !Direction property - from cartesian (or algebric) convention to meteorological
+                if (Me%Field(iP)%FromCartesian2Meteo) then
+                    Field2D(j,i) = 270. - Field2D(j,i)    
+                endif                
+            enddo
+            enddo                           
              
 
             call BuildAttributes(trim(Me%Field(iP)%ID%Name), NCDFName, LongName, StandardName, &
@@ -6921,6 +6946,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 enddo
                 enddo
 
+                
                 call BuildAttributes(trim(Me%Field(iP)%DirX), NCDFName, LongName, StandardName, &
                                            Units, ValidMin, ValidMax,        &
                                            MinValue, MaxValue, MissingValue, Float2D = Field2D)
