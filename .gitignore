@@ -276,3 +276,4 @@ Solutions/Linux/MohidWater/MohidWater
 *.opendb
 /Solutions/VisualStudio2015_IntelFortran16/MOHIDNumerics/MOHIDNumerics.VC.VC.opendb
 *.db
+*.db3
