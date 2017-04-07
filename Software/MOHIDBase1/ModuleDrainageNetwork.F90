@@ -172,7 +172,7 @@ Module ModuleDrainageNetwork
                                            ModifyLightExtinctionField, UnGetLightExtinction,                &
                                            KillLightExtinction, GetLongWaveExtinctionCoef
     use ModuleInterface            , only: ConstructInterface, Modify_Interface, KillInterface, GetWQRatio, &
-                                           GetRateFlux
+                                           GetRateFlux, SetSOD
                                           
     implicit none
 
@@ -376,6 +376,7 @@ Module ModuleDrainageNetwork
     
     character(LEN = StringLength), parameter        :: block_begin          = '<beginproperty>'
     character(LEN = StringLength), parameter        :: block_end            = '<endproperty>'
+
     
     !CrossSections
     integer, parameter                              :: Trapezoidal          = 1
@@ -624,6 +625,7 @@ Module ModuleDrainageNetwork
         type(T_MaxValues)                           :: Max
         real                                        :: EVTP                     = null_real !m/s evapotranspiration in pools
         real                                        :: MinimunToStabilize       = 0.0
+        real                                        :: SODRate                  = 0.0
     end type  T_Node
     
     type T_Reach
@@ -947,6 +949,8 @@ Module ModuleDrainageNetwork
         logical                                     :: StopOnWrongDate       = .false.
         type (T_Property), pointer                  :: FirstProperty         => null()
         type (T_Property), pointer                  :: LastProperty          => null()
+        real       , dimension(:), pointer          :: SODRate               => null() 
+        logical                                     :: UseSOD                   = .false.
         integer                                     :: PropertiesNumber      = 0
         integer                                     :: WQratesNumber         = 0
         type(T_WqRate), pointer                     :: FirstWQrate           => null()
@@ -3119,6 +3123,17 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
             stop 'ModuleDrainageNetwork - ConstructNode - ERR62a'
         endif
 
+        !SOD
+        call GetData(NewNode%SODRate,                                          &
+                    Me%Files%ObjEnterDataNetwork, flag,                        &  
+                    keyword      = 'SOD_RATE',                                 &
+                    ClientModule = 'DrainageNetwork',                          &
+                    SearchType   = FromBlock,                                  &
+                    default      = 0.0,                                        &
+                    STAT         = STAT_CALL) 
+        if (STAT_CALL .NE. SUCCESS_)                                           &
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR62b'           
+        
         if (.not. Me%Continuous) then                            
             call GetData(NewNode%WaterDepth,                                    &
                      Me%Files%ObjEnterDataNetwork, flag,                        &  
@@ -6930,6 +6945,10 @@ do1 :   do while (associated(PropertyX))
 
         !Begin------------------------------------------------------------------
 
+        !SOD from file
+        call ReadSOD
+        
+        
         !Counts the number of Properties which has WaterQuality option set to true
         PropertyX => Me%FirstProperty
         do while (associated(PropertyX))
@@ -6957,6 +6976,7 @@ do1 :   do while (associated(PropertyX))
         Size1D%ILB = 1
         !Size1D%IUB = Me%TotalReaches
         Size1D%IUB = Me%TotalNodes
+        
         call ConstructInterface(InterfaceID         = Me%ObjBenthicInterface,           &
                                 TimeID              = Me%ObjTime,                       &
                                 SinksSourcesModel   = BenthosModel,                     &
@@ -6970,10 +6990,80 @@ do1 :   do while (associated(PropertyX))
 
         Me%Coupled%Benthos%DT_Compute  = BenthosDT 
         Me%Coupled%Benthos%NextCompute = Me%CurrentTime
+        
+        !Set SOD in Interface in kg.m-2.day-1
+        !After construct so that matrixes are allocated for benthos
+        call SetSOD(Me%SODRate, Me%OpenPointsProcess, Me%RiverPoints)        
 
     end subroutine CoupleBenthos
         
     !---------------------------------------------------------------------------
+    
+    subroutine ReadSOD
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+
+        integer                             :: NodePos, iflag
+        real                                :: SODRate
+
+        !Begin-----------------------------------------------------------------
+        
+        
+        call GetData(Me%UseSOD,                                                          &
+                     Me%ObjEnterData, iflag,                                             &
+                     KeyWord    = 'USE_SOD',                                             &
+                     SearchType = FromFile,                                              &
+                     Default    = .false.,                                               &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'ReadSOD - ModuleDrainageNetwork - ERR01'         
+ 
+    
+        if (Me%UseSOD)then
+            
+            nullify(Me%SODRate)
+            allocate(Me%SODRate(1 : Me%TotalNodes))            
+       
+            !One SOD (kg.m-2.day-1) for all
+            call GetData(SODRate,                                                            &
+                         Me%ObjEnterData, iflag,                                             &
+                         KeyWord    = 'SOD_RATE',                                            &
+                         SearchType = FromFile,                                              &
+                         Default    = 0.0,                                                   &
+                         ClientModule = 'ModuleDrainageNetwork',                             &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'ReadSOD - ModuleDrainageNetwork - ERR02' 
+            
+            !Found - one for all
+            if(iflag /= 0)then
+            
+                !kg.m-2.day-1
+                 do NodePos = 1, Me%TotalNodes
+                    Me%SODRate(NodePos) = SODRate    
+                enddo               
+      
+            else
+            
+                !each node has it read from nodes
+                !kg.m-2.day-1
+                do NodePos = 1, Me%TotalNodes
+                    Me%SODRate(NodePos) = Me%Nodes(NodePos)%SODRate 
+                enddo    
+            
+            endif            
+            
+            
+        end if            
+        
+        
+    end subroutine ReadSOD
+    
+    !--------------------------------------------------------------------------    
     
     subroutine CoupleMacroAlgae
         
@@ -14794,6 +14884,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         integer                                     :: NodeID, STAT_CALL
         type (T_Node), pointer                      :: CurrNode        
         real(8),dimension(:),pointer                :: WaterVolume
+        real(8),dimension(:),pointer                :: CellArea
         real                                        :: DT
                 
 
@@ -14801,14 +14892,18 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
 
         if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyBenthos")
 
+        allocate (WaterVolume (1:Me%TotalNodes))
+        allocate (CellArea (1:Me%TotalNodes))
+        do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                WaterVolume(NodeID) = CurrNode%VolumeNew
+                CellArea(NodeID) = CurrNode%Length * CurrNode%CrossSection%BottomWidth
+        enddo        
+        
+        
         if (Me%CurrentTime .GE. Me%Coupled%Benthos%NextCompute) then
-                allocate (WaterVolume (1:Me%TotalNodes))
-                do NodeID = 1, Me%TotalNodes
-                        CurrNode => Me%Nodes (NodeID)
-                        WaterVolume(NodeID) = CurrNode%VolumeNew
-                enddo
-
-            PropertyX => Me%FirstProperty
+            
+           PropertyX => Me%FirstProperty
             do while(associated(PropertyX))
 
                 if(PropertyX%ComputeOptions%Benthos)then
@@ -14872,6 +14967,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
                                               RiverPoints1D     = Me%RiverPoints,               &
                                               OpenPoints1D      = Me%OpenPointsProcess,         &
                                               WaterVolume       = WaterVolume,                  &
+                                              CellArea          = CellArea,                     &
                                               STAT              = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                            &
                             stop 'ModifyBenthos - ModuleDrainageNetwork - ERR01'
@@ -14882,6 +14978,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
             end do
 
             Me%Coupled%Benthos%NextCompute = Me%Coupled%Benthos%NextCompute + Me%Coupled%Benthos%DT_Compute
+
             
         end if
 
@@ -14890,6 +14987,15 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         do while (associated(PropertyX))
 
             if (PropertyX%ComputeOptions%Benthos) then
+                
+                                
+                allocate (WaterVolume (1:Me%TotalNodes))
+                allocate (CellArea (1:Me%TotalNodes))
+                do NodeID = 1, Me%TotalNodes
+                        CurrNode => Me%Nodes (NodeID)
+                        WaterVolume(NodeID) = CurrNode%VolumeNew
+                        CellArea(NodeID) = CurrNode%Length * CurrNode%CrossSection%BottomWidth
+                enddo                
 
                 if(PropertyX%ComputeOptions%BottomFluxes)then
                     do NodeID = 1, Me%TotalNodes
@@ -14935,7 +15041,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
                                          STAT          = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                        &
                         stop 'ModifyBenthos - ModuleDrainageNetwork - ERR02'
-                        nullify  (WaterVolume)
+                        !nullify  (WaterVolume)
                 
                 endif
                     
@@ -14961,17 +15067,23 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
 
                     enddo
                 end if
+                
+                
             endif
 
             PropertyX=>PropertyX%Next
 
         enddo
 
+            
+        deallocate(WaterVolume)
+        deallocate(CellArea)        
+        
         !Set MinimumConcentration of Properties - This will create Mass
         if (Me%ComputeOptions%MinConcentration)     call SetLimitsConcentration 
         if (Me%ComputeOptions%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Benthos')
         
-
+        
         if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyBenthos")
 
     end subroutine ModifyBenthos
@@ -15194,8 +15306,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
    
         !Local----------------------------------------------------------------- 
         type (T_Property),      pointer         :: MacroAlgae 
-        integer                                 :: STAT_CALL, NodePos
-        real                                    :: AvrageArea
+        integer                                 :: NodePos
         type (T_Size1D)                         :: Size1D
         
         !Begin----------------------------------------------------------------- 
@@ -17339,6 +17450,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 !Kill Benthos  
                 if (Me%ComputeOptions%Benthos) then
+                    
+                    if (Me%UseSOD) deallocate(Me%SODRate)
+                    
                     call KillInterface (Me%ObjBenthicInterface, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR30' 
                 endif
