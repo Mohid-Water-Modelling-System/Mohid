@@ -90,7 +90,8 @@ Module ModuleBenthos
     type      T_External
         real,       pointer, dimension(:  )         :: Oxygen
         real,       pointer, dimension(:  )         :: Temperature
-        real,       pointer, dimension(:,:)         :: Mass      
+        real,       pointer, dimension(:,:)         :: Mass   
+        real(8),    pointer, dimension(:)           :: CellArea
     end type T_External
 
     type       T_PropIndex
@@ -118,6 +119,25 @@ Module ModuleBenthos
         integer                                     :: POP5              = null_int        
         integer                                     :: SuspensionFeeders = null_int  ! G.R.      
     end type T_PropIndex
+    
+    private :: T_SOD
+    type       T_SOD
+        logical                                     :: UseSOD
+        real                                        :: NH4RTFactor
+        real                                        :: PO4RTFactor
+        real, pointer, dimension(:  )               :: Rate
+        !real                                        :: T1
+        !real                                        :: T2
+        !real                                        :: K1
+        !real                                        :: K2
+        real                                        :: PO4R
+        real                                        :: NH4R
+        !real                                        :: SiR
+        !real                                        :: CO2R 
+        !real                                        :: O2Sink
+        !real                                        :: TRM
+        !logical                                     :: DefaultO2                
+    end type T_SOD    
 
     type     T_OrganicMatter
         real                                        :: NC_Ratio         = null_real 
@@ -186,6 +206,8 @@ Module ModuleBenthos
         logical                                     :: Phyto             = .false.
         logical                                     :: Bacteria          = .false.
         logical                                     :: Pompools          = .false.
+        logical                                     :: Mineralization    = .true.
+        logical                                     :: AnoxiaRelease     = .false.
         logical                                     :: SuspensionFeeders = .false. ! G.R
     end type T_ComputeOptions
 
@@ -210,6 +232,7 @@ Module ModuleBenthos
         type(T_SuspensionFeeders )                  :: SuspensionFeeders ! G.R. 
         type(T_External      )                      :: ExternalVar
         type(T_ComputeOptions)                      :: ComputeOptions
+        type(T_SOD       )                          :: SOD
         type(T_Benthos       ),     pointer         :: Next
     end type  T_Benthos
 
@@ -354,6 +377,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadDiatomsParameters
 
         call ReadOxygenParameters
+        
+        call ReadSODParameters
 
     end subroutine ReadData
 
@@ -461,10 +486,100 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBenthos',                                    &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthos - ERR110'
+        
+        !if we want mineralization to be computed POM to ammonia and IP (e.g. false when is computed by other module)
+        call GetData(Me%ComputeOptions%Mineralization,                                  &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MINERALIZATION',                                   &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleBenthos',                                    &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthos - ERR120'        
+        
+        !If we want to compute ammonia and IP sediment release on anoxia (0 order)
+        call GetData(Me%ComputeOptions%AnoxiaRelease,                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'ANOXIA_RELEASE',                                   &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleBenthos',                                    &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleBenthos - ERR130'        
 
     end subroutine ConstructGlobalVariables
     
     !--------------------------------------------------------------------------
+    
+    subroutine ReadSODParameters
+        
+        !External--------------------------------------------------------------
+        integer                                     :: FromBlock
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: flag
+
+        !--------------------------------------------------------------------------
+            
+        
+        if (Me%ComputeOptions%AnoxiaRelease) then
+                
+            Me%SOD%UseSOD = .true.
+                
+            call GetExtractType(FromBlock = FromBlock)
+                
+            call GetData(Me%SOD%NH4RTFactor,                                                   &
+                            Me%ObjEnterData,  flag,                                            &
+                            SearchType   = FromFile,                                           &
+                            keyword      = 'NH4R_TFACTOR',                                     &
+                            Default      = 1.02,                                               &
+                            ClientModule = 'ModuleBenthos',                                    &
+                            STAT         = STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_) stop 'ReadNitrogenParameters - ModuleBenthos - ERR04'    
+                
+                
+            call GetData(Me%SOD%PO4RTFactor,                                                   &
+                            Me%ObjEnterData,  flag,                                            &
+                            SearchType   = FromFile,                                           &
+                            keyword      = 'PO4R_TFACTOR',                                     &
+                            Default      = 1.02,                                               &
+                            ClientModule = 'ModuleBenthos',                                    &
+                            STAT         = STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_) stop 'ReadNitrogenParameters - ModuleBenthos - ERR05'                           
+                
+            ![]
+            !Release of PO4 by SOD rate
+            call GetData(   Me%SOD%PO4R,                                        &
+                            Me%ObjEnterData, flag,                              &
+                            SearchType    =  FromFile,                          &
+                            keyword       = 'PO4R',                             &
+                            default       =  0.001,                             &
+                            ClientModule  =  'ModuleBenthos',                   &
+                            STAT          =  STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop "ReadSODData - ModuleBenthos - ERR06"
+                
+            ![]
+            !Release of NH4 by SOD rate
+            call GetData(   Me%SOD%NH4R,                                        &
+                            Me%ObjEnterData, flag,                              &
+                            SearchType    =  FromFile,                          &
+                            keyword       = 'NH4R',                             &
+                            default       =  0.001,                             &
+                            ClientModule  =  'ModuleBenthos',                   &
+                            STAT          =  STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop "ReadSODData - ModuleBenthos - ERR07"              
+              
+                
+        else                
+                Me%SOD%UseSOD = .false.                          
+                                
+        endif
+
+                              
+    end subroutine ReadSODParameters
+
+    ! -------------------------------------------------------------------------    
 
     subroutine ReadOrganicMatterParameters
         
@@ -519,6 +634,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBenthos',                                    &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadNitrogenParameters - ModuleBenthos - ERR02'
+        
+  
+     
 
     end subroutine ReadNitrogenParameters
 
@@ -548,6 +666,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule = 'ModuleBenthos',                                    &
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ReadPhosphorusParameters - ModuleBenthos - ERR02'
+        
+ 
 
 
     end subroutine ReadPhosphorusParameters
@@ -1325,7 +1445,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyBenthos(ObjBenthosID, Temperature, Oxygen, OpenPoints, Mass, WaterVolume, STAT)
+    subroutine ModifyBenthos(ObjBenthosID, Temperature, Oxygen, OpenPoints, Mass, WaterVolume, SODRate, CellArea, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjBenthosID
@@ -1333,6 +1453,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer, dimension(:  ), pointer, optional  :: OpenPoints
         real,    dimension(:,:), pointer            :: Mass
         real(8), dimension(:  ), pointer, optional  :: WaterVolume
+        real,    dimension(:  ), pointer, optional  :: SODRate
+        real(8), dimension(:  ), pointer, optional  :: CellArea
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -1360,6 +1482,23 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 stop 'ModifyBenthos - ModuleBenthos - ERR03'
 
 
+            if (Me%SOD%UseSod .and. .NOT. present(SODRate))         then
+                write(*,*) 'SOD defined in ModuleBenthos but not in calling Module.'
+                stop 'ModifyBenthos - ModuleBenthos - ERR04'
+            
+            else if (.NOT. Me%SOD%UseSod .and. present(SODRate))    then
+                write(*,*) 'SOD defined in Calling Module but not in ModuleBenthos .'
+                stop 'ModifyBenthos - ModuleBenthos - ERR05'
+            
+            else if (Me%SOD%UseSod .and. present(SODRate))          then
+                    Me%SOD%Rate => SODRate
+                    
+                     Me%ExternalVar%CellArea                    => CellArea
+                    if (.NOT. associated(Me%ExternalVar%CellArea))                &
+                        stop 'ModifyBenthos - ModuleBenthos - ERR06'                    
+            endif            
+            
+            
             do Index = Me%Size%ILB, Me%Size%IUB
 
                 if (present(OpenPoints)) then
@@ -1411,7 +1550,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !Local-----------------------------------------------------------------
         integer                                     :: AM, PON, O2
         integer                                     :: PON1, PON2, PON3, PON4, PON5
-        real                                        :: MineralizationRate
+        real                                        :: MineralizationRate, AmmoniaReleaseRate
         real                                        :: OxygenConsumption
         real                                        :: OxygenLimitation
 
@@ -1436,15 +1575,34 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !OxygenLimitation = 0 when Oxygen levels are low 
         OxygenLimitation = OxygenLimitation / (OxygenLimitation + 0.5)
 
-        !day-1
-        MineralizationRate = Me%Nitrogen%PONDecayRate       *  &
-                             Me%Nitrogen%PONDecayTFactor    ** &
-                            (Me%ExternalVar%Temperature(Index) - 20.0)
-
-       
+        if(Me%ComputeOptions%Mineralization) then
+            !day-1
+            MineralizationRate = Me%Nitrogen%PONDecayRate       *  &
+                                 Me%Nitrogen%PONDecayTFactor    ** &
+                                (Me%ExternalVar%Temperature(Index) - 20.0)
+        else
+            MineralizationRate = 0.0
+        endif
+            
+        !Ammonia release from sediment (anoxia) zero order
+        if(Me%ComputeOptions%AnoxiaRelease) then
+            !kg.day-1 = kg.m-2.day-1 * [] * m2
+            AmmoniaReleaseRate = Me%SOD%Rate(Index)                   *  &
+                                 Me%SOD%NH4R                          *  &
+                                 Me%ExternalVar%CellArea(Index)       *  &
+                                 Me%SOD%NH4RTFactor                   ** &
+                                (Me%ExternalVar%Temperature(Index) - 20.0)
+        else
+            AmmoniaReleaseRate = 0.0            
+        endif
+        
         !kgN * day * day-1 (what passes from PON to ammonia)
         Me%Matrix(Index, PON, AM) = Me%ExternalVar%Mass(PON, Index) * Me%DTDay * &
                                     MineralizationRate * OxygenLimitation
+        
+        !kgN * day * day-1 (what passes from ammonia adsorbed to ammonia released)
+        Me%Matrix(Index, AM, AM) =  Me%DTDay * &
+                                    AmmoniaReleaseRate * (1 - OxygenLimitation)        
 
         if(Me%ComputeOptions%Pompools)then
             Me%Matrix(Index, PON1, AM) = Me%ExternalVar%Mass(PON1, Index) * Me%DTDay * &
@@ -1466,7 +1624,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         if(.NOT. Me%ComputeOptions%Pompools)then
 
-            Me%ExternalVar%Mass(AM,  Index) = Me%ExternalVar%Mass(AM , Index) + Me%Matrix(Index, PON, AM)
+            Me%ExternalVar%Mass(AM,  Index) = Me%ExternalVar%Mass(AM , Index) + Me%Matrix(Index, PON, AM) + &
+                                              Me%Matrix(Index, AM, AM)
 
             Me%ExternalVar%Mass(PON, Index) = Me%ExternalVar%Mass(PON, Index) - Me%Matrix(Index, PON, AM)
 
@@ -1479,7 +1638,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             Me%ExternalVar%Mass(AM,  Index) = Me%ExternalVar%Mass(AM , Index) + Me%Matrix(Index, PON, AM) + &
                                               Me%Matrix(Index, PON1, AM) + Me%Matrix(Index, PON2, AM)     + &
                                               Me%Matrix(Index, PON3, AM) + Me%Matrix(Index, PON4, AM)     + &
-                                              Me%Matrix(Index, PON5, AM)  
+                                              Me%Matrix(Index, PON5, AM) + Me%Matrix(Index, AM, AM)
 
             Me%ExternalVar%Mass(PON, Index) = Me%ExternalVar%Mass(PON, Index) - Me%Matrix(Index, PON, AM)
             
@@ -1513,7 +1672,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !Local-----------------------------------------------------------------
         integer                                     :: IP, POP, O2
         integer                                     :: POP1, POP2, POP3, POP4, POP5
-        real                                        :: MineralizationRate
+        real                                        :: MineralizationRate, IPReleaseRate
         real                                        :: OxygenConsumption
         real                                        :: OxygenLimitation
 
@@ -1539,15 +1698,34 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !OxygenLimitation = 0 when Oxygen levels are low 
         OxygenLimitation = OxygenLimitation / (OxygenLimitation + 0.5)
 
-        !day-1
-        MineralizationRate = Me%Phosphorus%POPDecayRate       *  &
-                             Me%Phosphorus%POPDecayTFactor    ** &
-                            (Me%ExternalVar%Temperature(Index) - 20.0)
-
+        if(Me%ComputeOptions%Mineralization) then        
+            !day-1
+            MineralizationRate = Me%Phosphorus%POPDecayRate       *  &
+                                 Me%Phosphorus%POPDecayTFactor    ** &
+                                (Me%ExternalVar%Temperature(Index) - 20.0)
+        else
+           MineralizationRate = 0.0
+        endif
+        
+        if(Me%ComputeOptions%AnoxiaRelease) then            
+            !kg.day-1
+            IPReleaseRate =      Me%SOD%Rate(Index)                   *  &
+                                 Me%SOD%PO4R                          *  &
+                                 Me%ExternalVar%CellArea(Index)       *  &
+                                 Me%SOD%PO4RTFactor                   ** &
+                                 (Me%ExternalVar%Temperature(Index) - 20.0)
+        else
+            IPReleaseRate = 0.0                        
+        endif
 
         !kgP * day * day-1 (what passes from POP to inorganic phosphorus)
         Me%Matrix(Index, POP, IP) = Me%ExternalVar%Mass(POP, Index) * Me%DTDay * &
                          MineralizationRate * OxygenLimitation
+        
+        
+        !kgP * day * day-1 (what passes from IP adsorbed to IP released)
+        Me%Matrix(Index, IP, IP) =  Me%DTDay * &
+                                    IPReleaseRate * (1 - OxygenLimitation)          
         
         
         !------------------------------------------POM POOLS                 
@@ -1572,7 +1750,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         if(.NOT. Me%ComputeOptions%Pompools)then
         
-            Me%ExternalVar%Mass(IP,  Index) = Me%ExternalVar%Mass(IP , Index) + Me%Matrix(Index, POP, IP)
+            Me%ExternalVar%Mass(IP,  Index) = Me%ExternalVar%Mass(IP , Index) + Me%Matrix(Index, POP, IP) + &
+                                              Me%Matrix(Index, IP, IP)
 
             Me%ExternalVar%Mass(POP, Index) = Me%ExternalVar%Mass(POP, Index) - Me%Matrix(Index, POP, IP)
 
@@ -1584,7 +1763,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             Me%ExternalVar%Mass(IP,  Index) = Me%ExternalVar%Mass(IP , Index) + Me%Matrix(Index, POP, IP) +  &
                                               Me%Matrix(Index, POP1, IP) + Me%Matrix(Index, POP2, IP)     +  &
                                               Me%Matrix(Index, POP3, IP) + Me%Matrix(Index, POP4, IP)     +  &
-                                              Me%Matrix(Index, POP5, IP)
+                                              Me%Matrix(Index, POP5, IP) + Me%Matrix(Index, IP, IP)
 
             Me%ExternalVar%Mass(POP, Index) = Me%ExternalVar%Mass(POP, Index) - Me%Matrix(Index, POP, IP)
             

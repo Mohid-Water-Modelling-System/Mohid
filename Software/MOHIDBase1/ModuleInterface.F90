@@ -119,6 +119,13 @@ Module ModuleInterface
         module procedure ConstructMapping_2D
         module procedure ConstructMapping_3D
     end interface ConstructMapping
+    
+    private :: SetSOD_1D
+    private :: SetSOD_2D
+    interface SetSOD
+        module procedure SetSOD_1D
+        module procedure SetSOD_2D
+    end interface SetSOD    
 
     private :: Modify_Interface1D
     private :: Modify_Interface2D
@@ -930,6 +937,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 allocate(Me%Oxygen(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR70'
+                
+                allocate(Me%SOD (ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR71'                
+                
+                allocate(Me%CellArea1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR75'                  
                 
             case (BenthicEcologyModel )
             
@@ -4284,7 +4297,7 @@ do6 :               do index = ArrayLB, ArrayUB
                                   WaterPercentage, DissolvedToParticulate1D,         &
                                   SoilDryDensity, Salinity, pH, IonicStrength,       &
                                   PhosphorusAdsortionIndex, WindVelocity,            &
-                                  Oxygen1D, WaterVolume,                             &
+                                  Oxygen1D, WaterVolume, CellArea,                   &
                                   DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -4307,6 +4320,7 @@ do6 :               do index = ArrayLB, ArrayUB
         real,    optional, dimension(:), pointer        :: DWZ
         real,    optional, dimension(:), pointer        :: Oxygen1D
         real(8), optional, dimension(:), pointer        :: WaterVolume
+        real(8), optional, dimension(:), pointer        :: CellArea
         real,    optional,  intent(IN)                  :: DTProp
         real,    optional, dimension(:), pointer        :: MacrOccupation, ShearStress, SPMFlux
         integer, optional,  intent(OUT)                 :: STAT
@@ -4352,6 +4366,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if(present(Oxygen1D))then
                 call UnfoldMatrix(Oxygen1D, Me%Oxygen)
             end if
+            
+            if(present(CellArea))then
+                call UnfoldMatrix(CellArea, Me%CellArea1D)
+            end if            
 
             Me%ExternalVar%RiverPoints1D => RiverPoints1D
 
@@ -4548,16 +4566,29 @@ cd4 :           if (ReadyToCompute) then
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR08.5'
                             
                             
-                        case(BenthosModel)
+                         case(BenthosModel)
 
-                            call ModifyBenthos  (Me%ObjBenthos,                        &
-                                                 Me%Temperature,                       &
-                                                 Me%Oxygen,                            &
-                                                 Me%OpenPoints,                        &
-                                                 Me%Mass,                              &
-                                                 WaterVolume = WaterVolume,            &
-                                                 STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR09'
+                            if (Me%UseSOD) then
+                                call ModifyBenthos  (Me%ObjBenthos,                        &
+                                                     Me%Temperature,                       &
+                                                     Me%Oxygen,                            &
+                                                     Me%OpenPoints,                        &
+                                                     Me%Mass,                              &
+                                                     WaterVolume = WaterVolume,            &
+                                                     SODRate     = Me%SOD,                 &
+                                                     CellArea    = Me%CellArea1D,          &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR09'
+                            else
+                                call ModifyBenthos  (Me%ObjBenthos,                        &
+                                                     Me%Temperature,                       &
+                                                     Me%Oxygen,                            &
+                                                     Me%OpenPoints,                        &
+                                                     Me%Mass,                              &
+                                                     WaterVolume = WaterVolume,            &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR09.5'
+                            endif
 
                         case(WWTPQModel)
 
@@ -4758,7 +4789,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     
     !--------------------------------------------------------------------------
     
-    subroutine SetSOD (SOD, OpenPoints2D, WaterPoints2D )
+    subroutine SetSOD_2D (SOD, OpenPoints2D, WaterPoints2D )
     
         !Arguments-------------------------------------------------------------        
         real   , dimension(:,:  ), pointer      :: SOD        
@@ -4776,13 +4807,41 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         Me%ExternalVar%OpenPoints2D        => OpenPoints2D
         Me%ExternalVar%WaterPoints2D       => WaterPoints2D       
         
+        !kg.m-2.day-1
         call UnfoldMatrix(SOD, Me%SOD)
     
         !nullify (Me%ExternalVar%OpenPoints2D)
         !nullify (Me%ExternalVar%WaterPoints2D)
-    end subroutine SetSOD
+    end subroutine SetSOD_2D
     
     !--------------------------------------------------------------------------
+    
+    subroutine SetSOD_1D (SOD, OpenPoints1D, WaterPoints1D )
+    
+        !Arguments-------------------------------------------------------------        
+        real   , dimension(:  ), pointer      :: SOD        
+        integer, dimension(:  ), pointer      :: OpenPoints1D
+        integer, dimension(:  ), pointer      :: WaterPoints1D
+        
+        !External--------------------------------------------------------------        
+
+        !Local-----------------------------------------------------------------
+
+        !----------------------------------------------------------------------
+        
+        Me%UseSOD = .true.
+        
+        Me%ExternalVar%OpenPoints1D        => OpenPoints1D
+        Me%ExternalVar%RiverPoints1D       => WaterPoints1D       
+        
+        !kg.m2.day-1
+        call UnfoldMatrix(SOD, Me%SOD)
+    
+        !nullify (Me%ExternalVar%OpenPoints1D)
+        !nullify (Me%ExternalVar%WaterPoints1D)
+    end subroutine SetSOD_1D
+    
+    !--------------------------------------------------------------------------    
     
     subroutine FillMassTempSalinity3D(PropertyID, Concentration, Ready) 
 
