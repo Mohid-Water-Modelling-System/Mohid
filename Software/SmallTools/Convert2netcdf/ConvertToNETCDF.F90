@@ -2514,7 +2514,8 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                             
                             if (kfloor > FillValueInt) then
                                 
-                                Depth1D (kfloor:Me%HDFFile%Size%KUB) = Me%Depth3DIN(i,j,kfloor:Me%HDFFile%Size%KUB)
+                                !Depth = distance to surface
+                                Depth1D (kfloor:Me%HDFFile%Size%KUB) = Me%Depth3DIN(i,j,kfloor:Me%HDFFile%Size%KUB)- Me%Depth3DIN(i,j,Me%HDFFile%Size%KUB)
                                 Matrix1D(kfloor:Me%HDFFile%Size%KUB) = Me%Float3DIn(i,j,kfloor:Me%HDFFile%Size%KUB)
                                 
                                 do k=1,Me%DepthLayers
