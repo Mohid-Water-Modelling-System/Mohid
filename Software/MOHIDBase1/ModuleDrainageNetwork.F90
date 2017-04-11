@@ -14884,7 +14884,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         integer                                     :: NodeID, STAT_CALL
         type (T_Node), pointer                      :: CurrNode        
         real(8),dimension(:),pointer                :: WaterVolume
-        real(8),dimension(:),pointer                :: CellArea
+        real   ,dimension(:),pointer                :: CellArea
         real                                        :: DT
                 
 

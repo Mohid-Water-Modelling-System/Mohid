@@ -91,7 +91,7 @@ Module ModuleBenthos
         real,       pointer, dimension(:  )         :: Oxygen
         real,       pointer, dimension(:  )         :: Temperature
         real,       pointer, dimension(:,:)         :: Mass   
-        real(8),    pointer, dimension(:)           :: CellArea
+        real,       pointer, dimension(:)           :: CellArea
     end type T_External
 
     type       T_PropIndex
@@ -1454,7 +1454,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:,:), pointer            :: Mass
         real(8), dimension(:  ), pointer, optional  :: WaterVolume
         real,    dimension(:  ), pointer, optional  :: SODRate
-        real(8), dimension(:  ), pointer, optional  :: CellArea
+        real,    dimension(:  ), pointer, optional  :: CellArea
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------

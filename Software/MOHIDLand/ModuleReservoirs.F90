@@ -1004,7 +1004,7 @@ if2:            if (BlockFound) then
                 if (NewReservoir%IsWeir) then                    
                     
                   call GetData(NewReservoir%FlowOver%WeirLength,                              &
-                                 Me%ObjEnterData,                                               &
+                                 Me%ObjEnterDataReservoirFile,                                  &
                                  iflag,                                                         &
                                  FromBlock,                                                     &
                                  keyword      ='WEIR_LENGTH',                                   &
@@ -1017,7 +1017,7 @@ if2:            if (BlockFound) then
                     endif
 
                     call GetData(NewReservoir%FlowOver%DischargeCoeficient,                     &
-                                 Me%ObjEnterData,                                               &
+                                 Me%ObjEnterDataReservoirFile,                                  &
                                  iflag,                                                         &
                                  FromBlock,                                                     &
                                  keyword      ='WEIR_COEF',                                     &
@@ -1028,7 +1028,7 @@ if2:            if (BlockFound) then
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructReservoir - ModuleReservoirs - ERR116'
 
                     call GetData(NewReservoir%FlowOver%CrestLevel,                              &
-                                 Me%ObjEnterData,                                               &
+                                 Me%ObjEnterDataReservoirFile,                                  &
                                  iflag,                                                         &
                                  FromBlock,                                                     &
                                  keyword      ='CREST_LEVEL',                                   &
@@ -1047,9 +1047,9 @@ if2:            if (BlockFound) then
         
 
         !Need volume - level curve
-        if (NewReservoir%IsWeir .or. NewReservoir%Management%OperationType == Operation_Level_Outflow_                      &
-            .or. NewReservoir%Management%OperationType == Operation_Level_PercInflow_) then
-                
+        !if (NewReservoir%IsWeir .or. NewReservoir%Management%OperationType == Operation_Level_Outflow_                      &
+        !    .or. NewReservoir%Management%OperationType == Operation_Level_PercInflow_) then
+        !Always get
             call ExtractBlockFromBlock(Me%ObjEnterDataReservoirFile, ClientID,               &
                                         '<<beginaccvolumecurve>>', '<<endaccvolumecurve>>', BlockFound,     &        
                                             FirstLine = FirstLine, LastLine = LastLine,                        & 
@@ -1096,12 +1096,15 @@ if2:            if (BlockFound) then
                     deallocate(Aux)
                     
                 endif
-            else                
+            !endif
+            
+            else if (NewReservoir%IsWeir .or. NewReservoir%Management%OperationType == Operation_Level_Outflow_                      &
+                .or. NewReservoir%Management%OperationType == Operation_Level_PercInflow_) then
                 write(*,*) 'Not Found Reservoir accumulated volumes curve'
                 write(*,*) 'It is mandatory when reservoir operation curve depends on level'
                 stop 'ConstructReservoir - ModuleReservoirs - ERR0121'                   
             end if 
-        endif
+        !endif
         
         
         !max ouflow trough all discharges (projected). if not defined almost infinite
@@ -2656,7 +2659,7 @@ cd0:    if (Exist) then
             
             CurrentReservoir%VolumeNew = CurrentReservoir%VolumeOld
             
-            if (CurrentReservoir%Management%ON .and. associated(CurrentReservoir%Management%AccVolumeCurve)) then
+            if (associated(CurrentReservoir%Management%AccVolumeCurve)) then
                 CurrentReservoir%WaterLevel = ComputeReservoirLevel(CurrentReservoir)
             endif
                         
@@ -2678,17 +2681,17 @@ cd0:    if (Exist) then
         real                                    :: PreviousCurveVolume, NextCurveLevel, NextCurveVolume
         !Begin----------------------------------------------------------------
 
-        if (CurrentReservoir%Management%ON .and. associated(CurrentReservoir%Management%AccVolumeCurve)) then        
+        if (associated(CurrentReservoir%Management%AccVolumeCurve)) then        
             
             ReservoirVolume              = CurrentReservoir%VolumeNew
-            PreviousCurveLevel           = CurrentReservoir%Management%OperationCurve(1, 2)
-            PreviousCurveVolume          = CurrentReservoir%Management%OperationCurve(1, 1)
+            PreviousCurveLevel           = CurrentReservoir%Management%AccVolumeCurve(1, 2)
+            PreviousCurveVolume          = CurrentReservoir%Management%AccVolumeCurve(1, 1)
             
             !go trough all points to find where belongs
-            do i = 1, CurrentReservoir%Management%AccVolumeCurvePoints
+            do i = 2, CurrentReservoir%Management%AccVolumeCurvePoints
                 
-                NextCurveLevel           = CurrentReservoir%Management%OperationCurve(i, 2)
-                NextCurveVolume          = CurrentReservoir%Management%OperationCurve(i, 1)
+                NextCurveLevel           = CurrentReservoir%Management%AccVolumeCurve(i, 2)
+                NextCurveVolume          = CurrentReservoir%Management%AccVolumeCurve(i, 1)
                 
                 if (ReservoirVolume >= PreviousCurveVolume &
                     .and. ReservoirVolume <= NextCurveVolume) then
@@ -4003,7 +4006,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
             
         !Update water level at the end
-        if (CurrReservoir%Management%ON .and. associated(CurrReservoir%Management%AccVolumeCurve)) then            
+        if (associated(CurrReservoir%Management%AccVolumeCurve)) then            
             CurrReservoir%WaterLevel = ComputeReservoirLevel(CurrReservoir)
         endif
             
