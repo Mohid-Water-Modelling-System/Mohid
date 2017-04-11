@@ -4320,7 +4320,7 @@ do6 :               do index = ArrayLB, ArrayUB
         real,    optional, dimension(:), pointer        :: DWZ
         real,    optional, dimension(:), pointer        :: Oxygen1D
         real(8), optional, dimension(:), pointer        :: WaterVolume
-        real(8), optional, dimension(:), pointer        :: CellArea
+        real,    optional, dimension(:), pointer        :: CellArea
         real,    optional,  intent(IN)                  :: DTProp
         real,    optional, dimension(:), pointer        :: MacrOccupation, ShearStress, SPMFlux
         integer, optional,  intent(OUT)                 :: STAT
