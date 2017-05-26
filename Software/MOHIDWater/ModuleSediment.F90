@@ -8113,7 +8113,7 @@ cd1:    if (ObjSediment_ID > 0) then
         call GetComputeFaces2D(Me%ObjHorizontalMap,                                      &
                                ComputeFaces2DU = Me%ExternalVar%ComputeFacesU2D,         &
                                ComputeFaces2DV = Me%ExternalVar%ComputeFacesV2D,         &
-                               ActualTime      = Me%ExternalVar%Now,                     &
+                               !ActualTime      = Me%ExternalVar%Now,                     &
                                STAT            = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleSediment - ERR06'
 
