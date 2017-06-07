@@ -119,6 +119,13 @@ Module ModuleInterface
         module procedure ConstructMapping_2D
         module procedure ConstructMapping_3D
     end interface ConstructMapping
+    
+    private :: SetSOD_1D
+    private :: SetSOD_2D
+    interface SetSOD
+        module procedure SetSOD_1D
+        module procedure SetSOD_2D
+    end interface SetSOD    
 
     private :: Modify_Interface1D
     private :: Modify_Interface2D
@@ -191,6 +198,8 @@ Module ModuleInterface
         real,    dimension(:, :, :), pointer    :: DWZ              => null(), &
                                                    ShearStress      => null(), &
                                                    SPMFlux          => null()
+        real,    dimension(:      ), pointer    :: ShearStress1D    => null(), &
+                                                   SPMFlux1D        => null()        
         real(8), dimension(:, :, :), pointer    :: SedimCellVol     => null()
         logical                                 :: Vertical1D = .false.
     end type T_External
@@ -928,6 +937,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 allocate(Me%Oxygen(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR70'
+                
+                allocate(Me%SOD (ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR71'                
+                
+                allocate(Me%CellArea1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR75'                  
                 
             case (BenthicEcologyModel )
             
@@ -3139,12 +3154,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                     if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR01'
                     
                     
-                    case (BenthicEcologyModel)
+                case (BenthicEcologyModel)
 
                     call GetBenthicEcologyRateFlux(Me%ObjBenthicEcology,                              &
                                             nFirstProp, nSecondProp,                    &
                                             RateFlux, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR01.1'
+                    
+                case (MacroAlgaeModel)
+                    
+                    call GetMacroAlgaeRateFlux(Me%ObjMacroAlgae,                          &
+                                                nFirstProp, nSecondProp,                   &
+                                                RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR01.2'                     
                 
             end select
 
@@ -3169,6 +3191,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
                     call UnGetBenthicEcologyRateFlux(Me%ObjBenthicEcology, RateFlux, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR02.2'
+                    
+                case (MacroAlgaeModel)
+
+                    call UnGetMacroAlgaeRateFlux(Me%ObjMacroAlgae, RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux2D - ModuleInterface - ERR09'                     
                 
             end select
 
@@ -3249,6 +3276,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                                                 nFirstProp, nSecondProp,                    &
                                                 RateFlux, STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR01'
+                        
+                    case (MacroAlgaeModel)
+                    
+                        call GetMacroAlgaeRateFlux(Me%ObjMacroAlgae,                          &
+                                                   nFirstProp, nSecondProp,                   &
+                                                   RateFlux, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR03'                        
 
                     case(LifeModel)
 
@@ -3289,6 +3323,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
                     call UnGetBenthosRateFlux(Me%ObjBenthos, RateFlux, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR02'
+                    
+                case (MacroAlgaeModel)
+
+                    call UnGetMacroAlgaeRateFlux(Me%ObjMacroAlgae, RateFlux, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetRateFlux1D - ModuleInterface - ERR09'                     
                     
                 
             end select
@@ -4130,8 +4169,7 @@ cd4 :           if (ReadyToCompute) then
                                                  Me%Mass,                              &
                                                  STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERR02'
-                            
-                            
+                                                      
                             
                         case(BenthicEcologyModel)
                         
@@ -4255,10 +4293,11 @@ do6 :               do index = ArrayLB, ArrayUB
     subroutine Modify_Interface1D(InterfaceID, PropertyID, Concentration,            &
                                   RiverPoints1D, OpenPoints1D, DWZ,                  &
                                   ShortWaveAverage, ShortWaveTop, LightExtCoefField, &
+                                  ShearStress, SPMFlux, MacrOccupation,              &
                                   WaterPercentage, DissolvedToParticulate1D,         &
                                   SoilDryDensity, Salinity, pH, IonicStrength,       &
                                   PhosphorusAdsortionIndex, WindVelocity,            &
-                                  Oxygen1D, WaterVolume,                             &
+                                  Oxygen1D, WaterVolume, CellArea,                   &
                                   DTProp, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -4281,7 +4320,9 @@ do6 :               do index = ArrayLB, ArrayUB
         real,    optional, dimension(:), pointer        :: DWZ
         real,    optional, dimension(:), pointer        :: Oxygen1D
         real(8), optional, dimension(:), pointer        :: WaterVolume
+        real,    optional, dimension(:), pointer        :: CellArea
         real,    optional,  intent(IN)                  :: DTProp
+        real,    optional, dimension(:), pointer        :: MacrOccupation, ShearStress, SPMFlux
         integer, optional,  intent(OUT)                 :: STAT
 
         !External--------------------------------------------------------------
@@ -4325,6 +4366,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if(present(Oxygen1D))then
                 call UnfoldMatrix(Oxygen1D, Me%Oxygen)
             end if
+            
+            if(present(CellArea))then
+                call UnfoldMatrix(CellArea, Me%CellArea1D)
+            end if            
 
             Me%ExternalVar%RiverPoints1D => RiverPoints1D
 
@@ -4339,6 +4384,12 @@ cd7 :       if (present(DTProp))then
                 Increment = OFF !If Increment is OFF then the sinks and sources module will be computed
             end if cd7
 
+            if(present(ShearStress  ))Me%ExternalVar%ShearStress1D      => ShearStress
+            if(present(SPMFlux      ))Me%ExternalVar%SPMFlux1D          => SPMFlux            
+            
+            if(present(MacrOccupation))then
+                call UnfoldMatrix(MacrOccupation, Me%MacrOccupation)
+            end if            
 
 cd5 :       if (.not. Increment) then 
 
@@ -4491,16 +4542,53 @@ cd4 :           if (ReadyToCompute) then
                                           STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR08'
                             
-                        case(BenthosModel)
+                         case(MacroAlgaeModel)
 
-                            call ModifyBenthos  (Me%ObjBenthos,                        &
-                                                 Me%Temperature,                       &
-                                                 Me%Oxygen,                            &
-                                                 Me%OpenPoints,                        &
-                                                 Me%Mass,                              &
-                                                 WaterVolume = WaterVolume,            &
-                                                 STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR09'
+                            call UnfoldMatrix(ShortWaveTop,               Me%ShortWaveTop  )
+                            call UnfoldMatrix(LightExtCoefField,          Me%LightExtCoefField   )
+                            call UnfoldMatrix(Me%ExternalVar%DWZ1D,       Me%Thickness  )
+                            call UnfoldMatrix(Me%ExternalVar%ShearStress1D, Me%ShearStress)
+                            call UnfoldMatrix(Me%ExternalVar%SPMFlux1D,   Me%SPMFlux    ) 
+                            call UnfoldMatrix(MacrOccupation,             Me%MacrOccupation  )
+
+                            call ModifyMacroAlgae(ObjMacroAlgaeID       = Me%ObjMacroAlgae,       &
+                                                  Temperature           = Me%Temperature,         &
+                                                  Salinity              = Me%Salinity,            &
+                                                  OpenPoints            = Me%OpenPoints,          &
+                                                  ShearStress           = Me%ShearStress,         &
+                                                  SPMDepositionFlux     = Me%SPMFlux,             &
+                                                  SWRadiation           = Me%ShortWaveTop,        &
+                                                  SWLightExctintionCoef = Me%LightExtCoefField,   &
+                                                  Thickness             = Me%Thickness,           &
+                                                  Occupation            = Me%MacrOccupation,      &
+                                                  Mass                  = Me%Mass,                &
+                                                  STAT                  = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR08.5'
+                            
+                            
+                         case(BenthosModel)
+
+                            if (Me%UseSOD) then
+                                call ModifyBenthos  (Me%ObjBenthos,                        &
+                                                     Me%Temperature,                       &
+                                                     Me%Oxygen,                            &
+                                                     Me%OpenPoints,                        &
+                                                     Me%Mass,                              &
+                                                     WaterVolume = WaterVolume,            &
+                                                     SODRate     = Me%SOD,                 &
+                                                     CellArea    = Me%CellArea1D,          &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR09'
+                            else
+                                call ModifyBenthos  (Me%ObjBenthos,                        &
+                                                     Me%Temperature,                       &
+                                                     Me%Oxygen,                            &
+                                                     Me%OpenPoints,                        &
+                                                     Me%Mass,                              &
+                                                     WaterVolume = WaterVolume,            &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR09.5'
+                            endif
 
                         case(WWTPQModel)
 
@@ -4701,7 +4789,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     
     !--------------------------------------------------------------------------
     
-    subroutine SetSOD (SOD, OpenPoints2D, WaterPoints2D )
+    subroutine SetSOD_2D (SOD, OpenPoints2D, WaterPoints2D )
     
         !Arguments-------------------------------------------------------------        
         real   , dimension(:,:  ), pointer      :: SOD        
@@ -4719,13 +4807,41 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         Me%ExternalVar%OpenPoints2D        => OpenPoints2D
         Me%ExternalVar%WaterPoints2D       => WaterPoints2D       
         
+        !kg.m-2.day-1
         call UnfoldMatrix(SOD, Me%SOD)
     
         !nullify (Me%ExternalVar%OpenPoints2D)
         !nullify (Me%ExternalVar%WaterPoints2D)
-    end subroutine SetSOD
+    end subroutine SetSOD_2D
     
     !--------------------------------------------------------------------------
+    
+    subroutine SetSOD_1D (SOD, OpenPoints1D, WaterPoints1D )
+    
+        !Arguments-------------------------------------------------------------        
+        real   , dimension(:  ), pointer      :: SOD        
+        integer, dimension(:  ), pointer      :: OpenPoints1D
+        integer, dimension(:  ), pointer      :: WaterPoints1D
+        
+        !External--------------------------------------------------------------        
+
+        !Local-----------------------------------------------------------------
+
+        !----------------------------------------------------------------------
+        
+        Me%UseSOD = .true.
+        
+        Me%ExternalVar%OpenPoints1D        => OpenPoints1D
+        Me%ExternalVar%RiverPoints1D       => WaterPoints1D       
+        
+        !kg.m2.day-1
+        call UnfoldMatrix(SOD, Me%SOD)
+    
+        !nullify (Me%ExternalVar%OpenPoints1D)
+        !nullify (Me%ExternalVar%WaterPoints1D)
+    end subroutine SetSOD_1D
+    
+    !--------------------------------------------------------------------------    
     
     subroutine FillMassTempSalinity3D(PropertyID, Concentration, Ready) 
 
@@ -5816,6 +5932,10 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
              case(BenthicEcologyModel)
 
                 call GetBenthicEcologyPropIndex(Me%ObjBenthicEcology, PropertyID, IndexNumber, STAT = STAT_CALL)
+                
+            case(MacroAlgaeModel)
+                
+                call GetMacroAlgaePropIndex(Me%ObjMacroAlgae,PropertyID,IndexNumber,STAT=STAT_CALL)                
 
         end select
         
@@ -6630,6 +6750,40 @@ cd45 :                  if (.NOT. Me%AddedProperties(i)) then
                     end do 
                     if (Ready) Me%AddedProperties = .FALSE.
                 end if
+                
+            case(MacroAlgaeModel)
+                
+                call GetMacroAlgaePropIndex(Me%ObjMacroAlgae,PropertyID,IndexNumber,STAT=STAT_CALL)
+                if (STAT_CALL==SUCCESS_) then
+                    call InputData(Concentration, IndexNumber)
+                    Me%AddedProperties(IndexNumber) =.TRUE.
+                else if (STAT_CALL.NE.SUCCESS_ .AND. STAT_CALL.NE.NOT_FOUND_ERR_) then
+                    stop 'FillMassTempSalinity1D - ModuleInterface - ERR06' 
+                end if
+                     
+                               
+                if (PropertyID== Salinity_) then
+                    call UnfoldMatrix(Concentration, Me%Salinity)
+                    SalinityAdded       =.TRUE.
+                end if 
+
+                if (PropertyID== Temperature_) then
+                    call UnfoldMatrix(Concentration, Me%Temperature)
+                    TemperatureAdded    =.TRUE.
+                end if 
+
+       
+                if (SalinityAdded .AND. TemperatureAdded) then
+                    Ready = .TRUE.
+
+                    do i = PropLB, PropUB
+                    if (.NOT. Me%AddedProperties(i)) then
+                            Ready = .FALSE.
+                            exit 
+                    end if 
+                    end do 
+                    if (Ready) Me%AddedProperties = .FALSE.
+                end if                
             
             case(BenthosModel)
 
@@ -7685,7 +7839,8 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                     select case(PropertyID)
                         
                         !if it's not a property it can be a rate ID number 
-                        case(GrossProd_, NutrientLim_, NLim_, PLim_, LightLim_, TemperatureLim_, SalinityLim_) 
+                        case(GrossProd_, NutrientLim_, NLim_, PLim_, LightLim_, TemperatureLim_, SalinityLim_, &
+                             Excretion_, Respiration_, NaturalMort_, Grazing_, MACondition_) 
 
                             nProperty = PropertyID 
 

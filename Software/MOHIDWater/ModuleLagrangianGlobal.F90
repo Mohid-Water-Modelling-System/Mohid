@@ -413,7 +413,8 @@ Module ModuleLagrangianGlobal
                                        GetDataOnlineString, SetMatrixValue, TimeToString,   &
                                        ChangeSuffix, ConstructPropertyID,                   &
                                        DistanceBetweenTwoGPSPoints, WGS84toGoogleMaps,      &
-                                       SettlingVelSecondaryClarifier
+                                       SettlingVelSecondaryClarifier,                       &
+                                       WaveLengthHuntsApproximation
     use ModuleEnterData,        only : ReadFileName, ConstructEnterData, GetData,           &
                                        ExtractBlockFromBuffer, ExtractBlockFromBlock,       &
                                        Block_Unlock, GetOutPutTime, RewindBuffer,           &
@@ -1280,6 +1281,7 @@ Module ModuleLagrangianGlobal
         !Stokes Drift
         integer                                 :: StokesDriftMethod        = LonguetHigginsGeneric
 !        real                                    :: R_ice                    = null_real
+        logical                                 :: WaveLengthFromPeriod     = .false. 
 
     end type T_Movement
 
@@ -5181,7 +5183,6 @@ TURB_V:                 if (flag == 1) then
                        
             end select
 
-            
         endif 
 
         !WINDCOEF
@@ -12820,6 +12821,8 @@ d1:     do while (associated(CurrentOrigin))
         enddo d1
         
         if (Me%State%MeteoOcean) then
+        
+            nMOPtotal = Me%MeteoOcean%PropNumber        
        
             allocate    (Matrix1DX(nPtotal))
             allocate    (Matrix1DY(nPtotal))
@@ -12845,10 +12848,23 @@ d1:     do while (associated(CurrentOrigin))
                     CurrentPartic => CurrentPartic%Next
                     nP = nP + 1
                 enddo
+
+                if (CurrentOrigin%State%StokesDrift) then
+                    CurrentOrigin%Movement%WaveLengthFromPeriod = .true.
+                    do nMOP = 1, nMOPtotal
+                        if (Me%MeteoOcean%Prop(nMOP)%ID%IDNumber == WaveLength_) then
+                            CurrentOrigin%Movement%WaveLengthFromPeriod = .false.        
+                            exit
+                        endif
+                     enddo                               
+                endif
+                
                 CurrentOrigin => CurrentOrigin%Next
             enddo d2
             
-            nMOPtotal = Me%MeteoOcean%PropNumber
+            
+                
+                
             
     do3:    do nMOP = 1, nMOPtotal
                 if (Me%MeteoOcean%Prop(nMOP)%ID%IDNumber == bathymetry_) cycle 
@@ -12867,7 +12883,8 @@ d1:     do while (associated(CurrentOrigin))
     
                     call ModifyField4DXYZ(Field4DID             = Me%MeteoOcean%Prop(nMOP)%Field(nF)%ID, &
                                           PropertyIDNumber      = Me%MeteoOcean%Prop(nMOP)%ID%IDNumber,  &
-                                          CurrentTime           = Me%ExternalVar%Now,               &
+                                          !CurrentTime           = Me%ExternalVar%Now,               &
+                                          CurrentTime           = Me%NextCompute,                   &
                                           X                     = Matrix1DX,                        &
                                           Y                     = Matrix1DY,                        &
                                           Z                     = Matrix1DZ,                        &
@@ -12984,6 +13001,15 @@ d1:     do while (associated(CurrentOrigin))
         elseif  (PropIDNumber == WaveDirection_ ) then  
 
             CurrentPartic%WaveDirection = PropValue
+
+            if (CurrentPartic%WaveDirection > 360. .and. CurrentPartic%WaveDirection <= 720.) then                        
+                CurrentPartic%WaveDirection = CurrentPartic%WaveDirection - 360.
+            endif
+            
+            if (CurrentPartic%WaveDirection >= -360. .and. CurrentPartic%WaveDirection < 0.) then                        
+                CurrentPartic%WaveDirection = CurrentPartic%WaveDirection + 360.
+            endif            
+                                    
             CurrentPartic%SolutionWD    = Solution
             
         elseif  (PropIDNumber == WaveLength_ ) then  
@@ -15782,7 +15808,16 @@ MF:             if (CurrentPartic%Position%Surface) then
 
                         WaterDepth         = Me%EulerModel(emp)%WaterColumn(i, j)
                         WaveAmplitude      = CurrentPartic%WaveHeight / 2.
-                        WaveLength         = CurrentPartic%WaveLength
+                        
+                        if (CurrentOrigin%Movement%WaveLengthFromPeriod) then
+                            if (WavePeriod < 1e-3) then 
+                                CurrentPartic%WaveLength = 0.
+                            else
+                                CurrentPartic%WaveLength = WaveLengthHuntsApproximation(WavePeriod, WaterDepth)
+                            end if
+                        endif
+                        
+                        WaveLength         = CurrentPartic%WaveLength                        
                         
                         If (WaveLength > 0.) then
                             WaveNumber     = 2 * Pi / WaveLength

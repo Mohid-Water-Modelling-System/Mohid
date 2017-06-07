@@ -1023,7 +1023,7 @@ cd2 :           if (BlockFound) then
 
         if (Me%OverrideWindVelStandard) then
 
-            call ConstructOverrideWindVel
+            call OverrideWindVel
 
         else
             !Verifies Wind consistence. Now is done by vectorial prop
@@ -1137,7 +1137,7 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
     
-    subroutine ConstructOverrideWindVel
+    subroutine OverrideWindVel
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropertyX        => null()
@@ -1148,27 +1148,50 @@ cd2 :           if (BlockFound) then
         
         call SearchProperty(PropertyX, WindVelocityX_, .false., STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
-            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR10' 
+            stop 'OverrideWindVel - ModuleAtmosphere . ERR10' 
         endif    
-        
-        if (.not. PropertyX%Constant) then
-            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR20'             
-        endif
     
         call SearchProperty(PropertyY, WindVelocityY_, .false., STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
-            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR30' 
-        endif
-
-        if (.not. PropertyY%Constant) then
-            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR40'             
+            stop 'OverrideWindVel - ModuleAtmosphere . ERR30' 
         endif
 
         call SearchProperty(PropertyZ, WindVelocity_, .false., STAT = STAT_CALL) 
         if (STAT_CALL == SUCCESS_) then 
         
-            if (.not. PropertyZ%Constant) then
-                stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR50'             
+            
+            if (PropertyX%ID%SolutionFromFile) then            
+            
+                call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,     &
+                                       Matrix2D       = PropertyX%Field,                &
+                                       PointsToFill2D = Me%ExternalVar%MappingPoints2D, &
+                                       STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OverrideWindVel - ModuleAtmosphere - ERR50'
+                
+                if (PropertyZ%UseToPredictDT) then
+                    !From Wind X -> Wind 
+                    call GetFillMatrixDTPrediction (PropertyX%ID%ObjFillMatrix, PropertyZ%PredictedDT,    &
+                                                    PropertyZ%DTForNextEvent, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OverrideWindVel - ModuleAtmosphere - ERR60'
+                endif                
+            
+            endif
+
+            if (PropertyY%ID%SolutionFromFile) then            
+            
+                call ModifyFillMatrix (FillMatrixID   = PropertyY%ID%ObjFillMatrix,     &
+                                       Matrix2D       = PropertyY%Field,                &
+                                       PointsToFill2D = Me%ExternalVar%MappingPoints2D, &
+                                       STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OverrideWindVel - ModuleAtmosphere - ERR70'
+                
+                if (PropertyZ%UseToPredictDT) then
+                    !From Wind Y -> Wind 
+                    call GetFillMatrixDTPrediction (PropertyY%ID%ObjFillMatrix, PropertyZ%PredictedDT,    &
+                                                    PropertyZ%DTForNextEvent, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OverrideWindVel - ModuleAtmosphere - ERR80'
+                endif                 
+            
             endif
                                            
             PropertyZ%FieldX(:,:) = PropertyX%Field(:,:)
@@ -1185,18 +1208,18 @@ cd2 :           if (BlockFound) then
                                          RotateY           = .true.,                    &
                                          STAT              = STAT_CALL)                
             if (STAT_CALL /= SUCCESS_) then
-                stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR60' 
+                stop 'OverrideWindVel - ModuleAtmosphere . ERR90' 
             endif                                                                    
         else
             write(*,*) 'Missing wind velocity property'
-            stop 'ConstructOverrideWindVel - ModuleAtmosphere . ERR70'                                 
+            stop 'OverrideWindVel - ModuleAtmosphere . ERR100'                                 
         endif 
             
         nullify (PropertyX)
         nullify (PropertyY)        
         nullify (PropertyZ)        
     
-    end subroutine ConstructOverrideWindVel
+    end subroutine OverrideWindVel
 
     !--------------------------------------------------------------------------
 
@@ -2582,11 +2605,6 @@ cd0:    if (ready_ .EQ. IDLE_ERR_) then
             call SearchProperty(PropertyX, WindDirection_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_) call ModifyWindDirection (PropertyX)
 
-            !call SearchProperty(PropertyX, WindVelocityX_, STAT = STAT_CALL) 
-            !if (STAT_CALL == SUCCESS_)then                                
-                !call SearchProperty(PropertyY, WindVelocityY_, STAT = STAT_CALL) 
-                !if (STAT_CALL == SUCCESS_) call ModifyWindVelocity (PropertyX, PropertyY)
-            !endif
             !Vectorial property
             call SearchProperty(PropertyX, WindVelocity_, STAT = STAT_CALL) 
             if (STAT_CALL == SUCCESS_) call ModifyWindVelocity (PropertyX)                           
@@ -3007,50 +3025,42 @@ do2 :   do while (associated(PropertyX))
         !Begin-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         
-        if (PropWindVelocity%ID%SolutionFromFile) then
+        
+iov:    if (Me%OverrideWindVelStandard) then
 
-            call ModifyFillMatrixVectorial (FillMatrixID   = PropWindVelocity%ID%ObjFillMatrix,  &
-                                   Matrix2DU       = PropWindVelocity%FieldU,           &
-                                   Matrix2DV       = PropWindVelocity%FieldV,           &
-                                   Matrix2DX       = PropWindVelocity%FieldX,           &
-                                   Matrix2DY       = PropWindVelocity%FieldY,           &              
-                                   PointsToFill2D  = Me%ExternalVar%MappingPoints2D,    &
-                                   STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR01'
+            call OverrideWindVel
 
-            if (PropWindVelocity%UseToPredictDT) then
-                call GetFillMatrixDTPrediction (PropWindVelocity%ID%ObjFillMatrix, PropWindVelocity%PredictedDT,    &
-                                                PropWindVelocity%DTForNextEvent, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR02'
+        else iov
+
+            if (PropWindVelocity%ID%SolutionFromFile) then
+        
+                call ModifyFillMatrixVectorial (FillMatrixID   = PropWindVelocity%ID%ObjFillMatrix,  &
+                                       Matrix2DU       = PropWindVelocity%FieldU,           &
+                                       Matrix2DV       = PropWindVelocity%FieldV,           &
+                                       Matrix2DX       = PropWindVelocity%FieldX,           &
+                                       Matrix2DY       = PropWindVelocity%FieldY,           &              
+                                       PointsToFill2D  = Me%ExternalVar%MappingPoints2D,    &
+                                       STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR01'
+
+
+                if (PropWindVelocity%UseToPredictDT) then
+                    call GetFillMatrixDTPrediction (PropWindVelocity%ID%ObjFillMatrix, PropWindVelocity%PredictedDT,    &
+                                                    PropWindVelocity%DTForNextEvent, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR02'
+                endif
+
+
+            !Computes Wind Velocity from Modulus and Direction
+            elseif (.not. PropWindVelocity%Constant            .and. &
+                .not. PropWindVelocity%ID%SolutionFromFile) then
+
+                call ComputeWindVelocity (PropWindVelocity)
+
             endif
 
-        !end if
-
-        !if (PropWindVelocityY%ID%SolutionFromFile) then
-        !
-        !    call ModifyFillMatrix (FillMatrixID   = PropWindVelocityY%ID%ObjFillMatrix,  &
-        !                           Matrix2D       = PropWindVelocityY%Field,             &
-        !                           PointsToFill2D = Me%ExternalVar%MappingPoints2D,      &
-        !                           STAT           = STAT_CALL)
-        !    if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR03'
-        !
-        !    if (PropWindVelocityY%UseToPredictDT) then
-        !        call GetFillMatrixDTPrediction (PropWindVelocityY%ID%ObjFillMatrix, PropWindVelocityY%PredictedDT,    &
-        !                                        PropWindVelocityY%DTForNextEvent, STAT = STAT_CALL)
-        !        if (STAT_CALL /= SUCCESS_) stop 'ModifyWindVelocity - ModuleAtmosphere - ERR04'
-        !    endif
-        !
-        !end if
-
-
-        !Computes Wind Velocity from Modulus and Direction
-        elseif (.not. PropWindVelocity%Constant            .and. &
-            .not. PropWindVelocity%ID%SolutionFromFile) then
-
-            call ComputeWindVelocity (PropWindVelocity)
-
-        endif
-
+        endif iov
+        
     end subroutine ModifyWindVelocity
 
     !--------------------------------------------------------------------------

@@ -1,0 +1,1155 @@
+COORDINATE_TYPE           : 2
+<BeginNode>
+ID                        : 1
+COORDINATES               : 1950 2950
+GRID_I                    : 11
+GRID_J                    : 2
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 8760000
+TERRAIN_LEVEL             : 1.35
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 2
+COORDINATES               : 2050 2950
+GRID_I                    : 11
+GRID_J                    : 3
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 8750000
+TERRAIN_LEVEL             : 1.4
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 3
+COORDINATES               : 2150 2950
+GRID_I                    : 11
+GRID_J                    : 4
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 8560000
+TERRAIN_LEVEL             : 1.435214
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 4
+COORDINATES               : 2250 2950
+GRID_I                    : 11
+GRID_J                    : 5
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 8370000
+TERRAIN_LEVEL             : 1.460193
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 5
+COORDINATES               : 2350 2950
+GRID_I                    : 11
+GRID_J                    : 6
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 8240000
+TERRAIN_LEVEL             : 1.559839
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 6
+COORDINATES               : 2450 2950
+GRID_I                    : 11
+GRID_J                    : 7
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 7910000
+TERRAIN_LEVEL             : 1.769885
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 7
+COORDINATES               : 2550 2950
+GRID_I                    : 11
+GRID_J                    : 8
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 7720000
+TERRAIN_LEVEL             : 2.187564
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 8
+COORDINATES               : 2650 2950
+GRID_I                    : 11
+GRID_J                    : 9
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 7530000
+TERRAIN_LEVEL             : 2.624059
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 9
+COORDINATES               : 2750 2950
+GRID_I                    : 11
+GRID_J                    : 10
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 7360000
+TERRAIN_LEVEL             : 2.894484
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 10
+COORDINATES               : 2850 2850
+GRID_I                    : 10
+GRID_J                    : 11
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 100000
+TERRAIN_LEVEL             : 3.621826
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 11
+COORDINATES               : 2850 2950
+GRID_I                    : 11
+GRID_J                    : 11
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 7350000
+TERRAIN_LEVEL             : 3.095047
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 12
+COORDINATES               : 2850 3050
+GRID_I                    : 12
+GRID_J                    : 11
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 100000
+TERRAIN_LEVEL             : 3.621826
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 13
+COORDINATES               : 2950 2950
+GRID_I                    : 11
+GRID_J                    : 12
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 7140000
+TERRAIN_LEVEL             : 3.249631
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 14
+COORDINATES               : 3050 2950
+GRID_I                    : 11
+GRID_J                    : 13
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 6950000
+TERRAIN_LEVEL             : 3.321738
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 15
+COORDINATES               : 3150 2950
+GRID_I                    : 11
+GRID_J                    : 14
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 6760000
+TERRAIN_LEVEL             : 3.36311
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 16
+COORDINATES               : 3250 2950
+GRID_I                    : 11
+GRID_J                    : 15
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 6590000
+TERRAIN_LEVEL             : 3.450246
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 17
+COORDINATES               : 3350 2950
+GRID_I                    : 11
+GRID_J                    : 16
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 6400000
+TERRAIN_LEVEL             : 3.549909
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 18
+COORDINATES               : 3450 2850
+GRID_I                    : 10
+GRID_J                    : 17
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 100000
+TERRAIN_LEVEL             : 4.219746
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 19
+COORDINATES               : 3450 2950
+GRID_I                    : 11
+GRID_J                    : 17
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 6210000
+TERRAIN_LEVEL             : 3.64817
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 20
+COORDINATES               : 3450 3050
+GRID_I                    : 12
+GRID_J                    : 17
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 100000
+TERRAIN_LEVEL             : 4.219746
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 21
+COORDINATES               : 3550 2950
+GRID_I                    : 11
+GRID_J                    : 18
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 6000000
+TERRAIN_LEVEL             : 3.746801
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 22
+COORDINATES               : 3650 2950
+GRID_I                    : 11
+GRID_J                    : 19
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 5810000
+TERRAIN_LEVEL             : 3.849118
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 23
+COORDINATES               : 3750 2950
+GRID_I                    : 11
+GRID_J                    : 20
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 5640000
+TERRAIN_LEVEL             : 3.949976
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 24
+COORDINATES               : 3850 2950
+GRID_I                    : 11
+GRID_J                    : 21
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 5450000
+TERRAIN_LEVEL             : 4.049999
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 25
+COORDINATES               : 3950 2850
+GRID_I                    : 10
+GRID_J                    : 22
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 100000
+TERRAIN_LEVEL             : 4.762429
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 26
+COORDINATES               : 3950 2950
+GRID_I                    : 11
+GRID_J                    : 22
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 5260000
+TERRAIN_LEVEL             : 4.149995
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 27
+COORDINATES               : 3950 3050
+GRID_I                    : 12
+GRID_J                    : 22
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 100000
+TERRAIN_LEVEL             : 4.762429
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 28
+COORDINATES               : 4050 2950
+GRID_I                    : 11
+GRID_J                    : 23
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 5050000
+TERRAIN_LEVEL             : 4.249994
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 29
+COORDINATES               : 4150 2950
+GRID_I                    : 11
+GRID_J                    : 24
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 4880000
+TERRAIN_LEVEL             : 4.349998
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 30
+COORDINATES               : 4250 2950
+GRID_I                    : 11
+GRID_J                    : 25
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 4690000
+TERRAIN_LEVEL             : 4.45
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 31
+COORDINATES               : 4350 2950
+GRID_I                    : 11
+GRID_J                    : 26
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 4500000
+TERRAIN_LEVEL             : 4.55
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 32
+COORDINATES               : 4450 2950
+GRID_I                    : 11
+GRID_J                    : 27
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 4310000
+TERRAIN_LEVEL             : 4.65
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 33
+COORDINATES               : 4550 2950
+GRID_I                    : 11
+GRID_J                    : 28
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 4120000
+TERRAIN_LEVEL             : 4.75
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 34
+COORDINATES               : 4650 2950
+GRID_I                    : 11
+GRID_J                    : 29
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 3930000
+TERRAIN_LEVEL             : 4.85
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 35
+COORDINATES               : 4750 2950
+GRID_I                    : 11
+GRID_J                    : 30
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 3740000
+TERRAIN_LEVEL             : 4.95
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 36
+COORDINATES               : 4850 2950
+GRID_I                    : 11
+GRID_J                    : 31
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 3550000
+TERRAIN_LEVEL             : 5.05
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 37
+COORDINATES               : 4950 2950
+GRID_I                    : 11
+GRID_J                    : 32
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 3360000
+TERRAIN_LEVEL             : 5.15
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 38
+COORDINATES               : 5050 2950
+GRID_I                    : 11
+GRID_J                    : 33
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 3170000
+TERRAIN_LEVEL             : 5.25
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 39
+COORDINATES               : 5150 2950
+GRID_I                    : 11
+GRID_J                    : 34
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 2980000
+TERRAIN_LEVEL             : 5.35
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 40
+COORDINATES               : 5250 2950
+GRID_I                    : 11
+GRID_J                    : 35
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 2790000
+TERRAIN_LEVEL             : 5.45
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 41
+COORDINATES               : 5350 2950
+GRID_I                    : 11
+GRID_J                    : 36
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 2600000
+TERRAIN_LEVEL             : 5.55
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 42
+COORDINATES               : 5450 2950
+GRID_I                    : 11
+GRID_J                    : 37
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 2410000
+TERRAIN_LEVEL             : 5.649994
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 43
+COORDINATES               : 5550 2950
+GRID_I                    : 11
+GRID_J                    : 38
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 2220000
+TERRAIN_LEVEL             : 5.749968
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 44
+COORDINATES               : 5650 2950
+GRID_I                    : 11
+GRID_J                    : 39
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 2030000
+TERRAIN_LEVEL             : 5.849968
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 45
+COORDINATES               : 5750 2950
+GRID_I                    : 11
+GRID_J                    : 40
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 1840000
+TERRAIN_LEVEL             : 5.949995
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 46
+COORDINATES               : 5850 2950
+GRID_I                    : 11
+GRID_J                    : 41
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 1650000
+TERRAIN_LEVEL             : 6.049986
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 47
+COORDINATES               : 5950 2950
+GRID_I                    : 11
+GRID_J                    : 42
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 1460000
+TERRAIN_LEVEL             : 6.149685
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 48
+COORDINATES               : 6050 2950
+GRID_I                    : 11
+GRID_J                    : 43
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 1270000
+TERRAIN_LEVEL             : 6.248817
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 49
+COORDINATES               : 6150 2950
+GRID_I                    : 11
+GRID_J                    : 44
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 1080000
+TERRAIN_LEVEL             : 6.348927
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 50
+COORDINATES               : 6250 2950
+GRID_I                    : 11
+GRID_J                    : 45
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 890000
+TERRAIN_LEVEL             : 6.449702
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 51
+COORDINATES               : 6350 2950
+GRID_I                    : 11
+GRID_J                    : 46
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 700000
+TERRAIN_LEVEL             : 6.550221
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 52
+COORDINATES               : 6450 2950
+GRID_I                    : 11
+GRID_J                    : 47
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 570000
+TERRAIN_LEVEL             : 6.650937
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 53
+COORDINATES               : 6550 2950
+GRID_I                    : 11
+GRID_J                    : 48
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 420000
+TERRAIN_LEVEL             : 6.754456
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 54
+COORDINATES               : 6650 2650
+GRID_I                    : 8
+GRID_J                    : 49
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 100000
+TERRAIN_LEVEL             : 14.43864
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 55
+COORDINATES               : 6650 2750
+GRID_I                    : 9
+GRID_J                    : 49
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 110000
+TERRAIN_LEVEL             : 10.19951
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 56
+COORDINATES               : 6650 2850
+GRID_I                    : 10
+GRID_J                    : 49
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 120000
+TERRAIN_LEVEL             : 7.694557
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 57
+COORDINATES               : 6650 2950
+GRID_I                    : 11
+GRID_J                    : 49
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 250000
+TERRAIN_LEVEL             : 6.857508
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 58
+COORDINATES               : 6650 3050
+GRID_I                    : 12
+GRID_J                    : 49
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 120000
+TERRAIN_LEVEL             : 7.694557
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 59
+COORDINATES               : 6650 3150
+GRID_I                    : 13
+GRID_J                    : 49
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 110000
+TERRAIN_LEVEL             : 10.19951
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 60
+COORDINATES               : 6650 3250
+GRID_I                    : 14
+GRID_J                    : 49
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 100000
+TERRAIN_LEVEL             : 14.43864
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginNode>
+ID                        : 61
+COORDINATES               : 1850 2950
+GRID_I                    : 11
+GRID_J                    : 1
+CROSS_SECTION_TYPE        : 1
+CROSS_SECTION_ORIGIN      : 0
+DRAINED_AREA              : 8950000
+TERRAIN_LEVEL             : 1
+BOTTOM_LEVEL              : -5
+BOTTOM_WIDTH              : 1
+TOP_WIDTH                 : 1
+HEIGHT                    : 5
+<EndNode>
+<BeginReach>
+ID                        : 1
+UPSTREAM_NODE             : 1
+DOWNSTREAM_NODE           : 61
+<EndReach>
+<BeginReach>
+ID                        : 2
+UPSTREAM_NODE             : 2
+DOWNSTREAM_NODE           : 1
+<EndReach>
+<BeginReach>
+ID                        : 3
+UPSTREAM_NODE             : 3
+DOWNSTREAM_NODE           : 2
+<EndReach>
+<BeginReach>
+ID                        : 4
+UPSTREAM_NODE             : 4
+DOWNSTREAM_NODE           : 3
+<EndReach>
+<BeginReach>
+ID                        : 5
+UPSTREAM_NODE             : 5
+DOWNSTREAM_NODE           : 4
+<EndReach>
+<BeginReach>
+ID                        : 6
+UPSTREAM_NODE             : 6
+DOWNSTREAM_NODE           : 5
+<EndReach>
+<BeginReach>
+ID                        : 7
+UPSTREAM_NODE             : 7
+DOWNSTREAM_NODE           : 6
+<EndReach>
+<BeginReach>
+ID                        : 8
+UPSTREAM_NODE             : 8
+DOWNSTREAM_NODE           : 7
+<EndReach>
+<BeginReach>
+ID                        : 9
+UPSTREAM_NODE             : 9
+DOWNSTREAM_NODE           : 8
+<EndReach>
+<BeginReach>
+ID                        : 10
+UPSTREAM_NODE             : 10
+DOWNSTREAM_NODE           : 11
+<EndReach>
+<BeginReach>
+ID                        : 11
+UPSTREAM_NODE             : 11
+DOWNSTREAM_NODE           : 9
+<EndReach>
+<BeginReach>
+ID                        : 12
+UPSTREAM_NODE             : 12
+DOWNSTREAM_NODE           : 11
+<EndReach>
+<BeginReach>
+ID                        : 13
+UPSTREAM_NODE             : 13
+DOWNSTREAM_NODE           : 11
+<EndReach>
+<BeginReach>
+ID                        : 14
+UPSTREAM_NODE             : 14
+DOWNSTREAM_NODE           : 13
+<EndReach>
+<BeginReach>
+ID                        : 15
+UPSTREAM_NODE             : 15
+DOWNSTREAM_NODE           : 14
+<EndReach>
+<BeginReach>
+ID                        : 16
+UPSTREAM_NODE             : 16
+DOWNSTREAM_NODE           : 15
+<EndReach>
+<BeginReach>
+ID                        : 17
+UPSTREAM_NODE             : 17
+DOWNSTREAM_NODE           : 16
+<EndReach>
+<BeginReach>
+ID                        : 18
+UPSTREAM_NODE             : 18
+DOWNSTREAM_NODE           : 19
+<EndReach>
+<BeginReach>
+ID                        : 19
+UPSTREAM_NODE             : 19
+DOWNSTREAM_NODE           : 17
+<EndReach>
+<BeginReach>
+ID                        : 20
+UPSTREAM_NODE             : 20
+DOWNSTREAM_NODE           : 19
+<EndReach>
+<BeginReach>
+ID                        : 21
+UPSTREAM_NODE             : 21
+DOWNSTREAM_NODE           : 19
+<EndReach>
+<BeginReach>
+ID                        : 22
+UPSTREAM_NODE             : 22
+DOWNSTREAM_NODE           : 21
+<EndReach>
+<BeginReach>
+ID                        : 23
+UPSTREAM_NODE             : 23
+DOWNSTREAM_NODE           : 22
+<EndReach>
+<BeginReach>
+ID                        : 24
+UPSTREAM_NODE             : 24
+DOWNSTREAM_NODE           : 23
+<EndReach>
+<BeginReach>
+ID                        : 25
+UPSTREAM_NODE             : 25
+DOWNSTREAM_NODE           : 26
+<EndReach>
+<BeginReach>
+ID                        : 26
+UPSTREAM_NODE             : 26
+DOWNSTREAM_NODE           : 24
+<EndReach>
+<BeginReach>
+ID                        : 27
+UPSTREAM_NODE             : 27
+DOWNSTREAM_NODE           : 26
+<EndReach>
+<BeginReach>
+ID                        : 28
+UPSTREAM_NODE             : 28
+DOWNSTREAM_NODE           : 26
+<EndReach>
+<BeginReach>
+ID                        : 29
+UPSTREAM_NODE             : 29
+DOWNSTREAM_NODE           : 28
+<EndReach>
+<BeginReach>
+ID                        : 30
+UPSTREAM_NODE             : 30
+DOWNSTREAM_NODE           : 29
+<EndReach>
+<BeginReach>
+ID                        : 31
+UPSTREAM_NODE             : 31
+DOWNSTREAM_NODE           : 30
+<EndReach>
+<BeginReach>
+ID                        : 32
+UPSTREAM_NODE             : 32
+DOWNSTREAM_NODE           : 31
+<EndReach>
+<BeginReach>
+ID                        : 33
+UPSTREAM_NODE             : 33
+DOWNSTREAM_NODE           : 32
+<EndReach>
+<BeginReach>
+ID                        : 34
+UPSTREAM_NODE             : 34
+DOWNSTREAM_NODE           : 33
+<EndReach>
+<BeginReach>
+ID                        : 35
+UPSTREAM_NODE             : 35
+DOWNSTREAM_NODE           : 34
+<EndReach>
+<BeginReach>
+ID                        : 36
+UPSTREAM_NODE             : 36
+DOWNSTREAM_NODE           : 35
+<EndReach>
+<BeginReach>
+ID                        : 37
+UPSTREAM_NODE             : 37
+DOWNSTREAM_NODE           : 36
+<EndReach>
+<BeginReach>
+ID                        : 38
+UPSTREAM_NODE             : 38
+DOWNSTREAM_NODE           : 37
+<EndReach>
+<BeginReach>
+ID                        : 39
+UPSTREAM_NODE             : 39
+DOWNSTREAM_NODE           : 38
+<EndReach>
+<BeginReach>
+ID                        : 40
+UPSTREAM_NODE             : 40
+DOWNSTREAM_NODE           : 39
+<EndReach>
+<BeginReach>
+ID                        : 41
+UPSTREAM_NODE             : 41
+DOWNSTREAM_NODE           : 40
+<EndReach>
+<BeginReach>
+ID                        : 42
+UPSTREAM_NODE             : 42
+DOWNSTREAM_NODE           : 41
+<EndReach>
+<BeginReach>
+ID                        : 43
+UPSTREAM_NODE             : 43
+DOWNSTREAM_NODE           : 42
+<EndReach>
+<BeginReach>
+ID                        : 44
+UPSTREAM_NODE             : 44
+DOWNSTREAM_NODE           : 43
+<EndReach>
+<BeginReach>
+ID                        : 45
+UPSTREAM_NODE             : 45
+DOWNSTREAM_NODE           : 44
+<EndReach>
+<BeginReach>
+ID                        : 46
+UPSTREAM_NODE             : 46
+DOWNSTREAM_NODE           : 45
+<EndReach>
+<BeginReach>
+ID                        : 47
+UPSTREAM_NODE             : 47
+DOWNSTREAM_NODE           : 46
+<EndReach>
+<BeginReach>
+ID                        : 48
+UPSTREAM_NODE             : 48
+DOWNSTREAM_NODE           : 47
+<EndReach>
+<BeginReach>
+ID                        : 49
+UPSTREAM_NODE             : 49
+DOWNSTREAM_NODE           : 48
+<EndReach>
+<BeginReach>
+ID                        : 50
+UPSTREAM_NODE             : 50
+DOWNSTREAM_NODE           : 49
+<EndReach>
+<BeginReach>
+ID                        : 51
+UPSTREAM_NODE             : 51
+DOWNSTREAM_NODE           : 50
+<EndReach>
+<BeginReach>
+ID                        : 52
+UPSTREAM_NODE             : 52
+DOWNSTREAM_NODE           : 51
+<EndReach>
+<BeginReach>
+ID                        : 53
+UPSTREAM_NODE             : 53
+DOWNSTREAM_NODE           : 52
+<EndReach>
+<BeginReach>
+ID                        : 54
+UPSTREAM_NODE             : 54
+DOWNSTREAM_NODE           : 55
+<EndReach>
+<BeginReach>
+ID                        : 55
+UPSTREAM_NODE             : 55
+DOWNSTREAM_NODE           : 56
+<EndReach>
+<BeginReach>
+ID                        : 56
+UPSTREAM_NODE             : 56
+DOWNSTREAM_NODE           : 57
+<EndReach>
+<BeginReach>
+ID                        : 57
+UPSTREAM_NODE             : 57
+DOWNSTREAM_NODE           : 53
+<EndReach>
+<BeginReach>
+ID                        : 58
+UPSTREAM_NODE             : 58
+DOWNSTREAM_NODE           : 57
+<EndReach>
+<BeginReach>
+ID                        : 59
+UPSTREAM_NODE             : 59
+DOWNSTREAM_NODE           : 58
+<EndReach>
+<BeginReach>
+ID                        : 60
+UPSTREAM_NODE             : 60
+DOWNSTREAM_NODE           : 59
+<EndReach>

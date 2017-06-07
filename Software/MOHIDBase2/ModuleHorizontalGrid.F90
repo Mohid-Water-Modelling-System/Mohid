@@ -935,7 +935,7 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)           
         if (STAT_CALL /= SUCCESS_)                                                      &
            call SetError(FATAL_, INTERNAL_, "ConstructDDecomp - Hydrodynamic - ERR10")
-
+           
 ii:     if (iflag == 0) then
             Me%DDecomp%Auto = .true.
         else ii
@@ -953,10 +953,12 @@ iE:         if  (Exist) then
                    call SetError(FATAL_, INTERNAL_, "ConstructDDecomp - Hydrodynamic - ERR30")
                 
             else iE
+                write(*,*) 'keyword D_DECOMP do not exit file =',trim(DDFile)
+                write(*,*) 'Automatic decomposition will be assumed'
                 Me%DDecomp%Auto = .true.
             endif iE
 
-        endif ii               
+        endif ii              
         
         if (Me%DDecomp%MasterOrSlave) then
         
@@ -1446,6 +1448,28 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
         !Arguments------------------------------------------------------------
 
         !Local----------------------------------------------------------------
+        !Begin----------------------------------------------------------------
+
+        
+        write(*,*) 'halo_points', Me%DDecomp%Halo_Points        
+        
+        if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB) then
+            call AutomaticDDecompLines  ()
+        else
+            call AutomaticDDecompColumns()        
+        endif
+       
+
+   
+    end subroutine AutomaticDDecomp
+    
+    !End------------------------------------------------------------------
+    
+    subroutine AutomaticDDecompLines()
+        
+        !Arguments------------------------------------------------------------
+
+        !Local----------------------------------------------------------------
 
 
         integer                                     :: i, iSouth, iNorth
@@ -1455,62 +1479,124 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
         !Begin----------------------------------------------------------------
 
         
-        write(*,*) 'halo_points', Me%DDecomp%Halo_Points        
+        !In automatic mode MOHID slices the domains along the matrix lines (ILB-IUB)
+
+        Me%DDecomp%Mapping%JLB = Me%DDecomp%Global%JLB
+        Me%DDecomp%Mapping%JUB = Me%DDecomp%Global%JUB
         
-iAuto:  if (Me%DDecomp%Auto) then
+        ILB  = Me%DDecomp%Global%ILB
+        IUB  = Me%DDecomp%Global%IUB
+        ND   = Me%DDecomp%Nslaves + 1
+        IDD  = real (IUB - ILB + 1) / real(ND)
+        is   = Me%DDecomp%Master_MPI_ID
         
-            !In automatic mode MOHID slices the domains along the matrix lines (ILB-IUB)
+        do i=1, Me%DDecomp%Nslaves + 1
+            if (is + i - 1 == Me%DDecomp%MPI_ID) then
+                ilb_map = ILB     + int(real(i-1)*IDD)
+                iub_map = ILB - 1 + int(real(i  )*IDD)
+                exit
+            endif
+        enddo
+        
+        Me%DDecomp%Mapping%ILB = ilb_map
+        Me%DDecomp%Mapping%IUB = iub_map
+        write(*,*) 'Limits ', Me%DDecomp%MPI_ID, iub_map, ilb_map
+        
+        Me%DDecomp%NInterfaces = Me%DDecomp%Nslaves
 
-            Me%DDecomp%Mapping%JLB = Me%DDecomp%Global%JLB
-            Me%DDecomp%Mapping%JUB = Me%DDecomp%Global%JUB
-            
-            ILB  = Me%DDecomp%Global%ILB
-            IUB  = Me%DDecomp%Global%IUB
-            ND   = Me%DDecomp%Nslaves + 1
-            IDD  = real (IUB - ILB + 1) / real(ND)
-            is   = Me%DDecomp%Master_MPI_ID
-            
-            do i=1, Me%DDecomp%Nslaves + 1
-                if (is + i - 1 == Me%DDecomp%MPI_ID) then
-                    ilb_map = ILB     + int(real(i-1)*IDD)
-                    iub_map = ILB - 1 + int(real(i  )*IDD)
-                    exit
-                endif
-            enddo
-            
-            Me%DDecomp%Mapping%ILB = ilb_map
-            Me%DDecomp%Mapping%IUB = iub_map
-            write(*,*) 'Limits ', Me%DDecomp%MPI_ID, iub_map, ilb_map
-            
-            Me%DDecomp%NInterfaces = Me%DDecomp%Nslaves
+        allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
+        
+        do i = 1, Me%DDecomp%NInterfaces
 
-            allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
+            iSouth = Me%DDecomp%Master_MPI_ID + i - 1
+            iNorth = Me%DDecomp%Master_MPI_ID + i
             
-            do i = 1, Me%DDecomp%NInterfaces
+            Me%DDecomp%Interfaces(i,1) = iSouth
+            Me%DDecomp%Interfaces(i,2) = iNorth
+            Me%DDecomp%Interfaces(i,3) = SouthNorth_
+            write(*,*) 'Interface ', i, Me%DDecomp%Interfaces(i,1), Me%DDecomp%Interfaces(i,2)
 
-                iSouth = Me%DDecomp%Master_MPI_ID + i - 1
-                iNorth = Me%DDecomp%Master_MPI_ID + i
-                
-                Me%DDecomp%Interfaces(i,1) = iSouth
-                Me%DDecomp%Interfaces(i,2) = iNorth
-                Me%DDecomp%Interfaces(i,3) = SouthNorth_
-                write(*,*) 'Interface ', i, Me%DDecomp%Interfaces(i,1), Me%DDecomp%Interfaces(i,2)
+             if (Me%DDecomp%MPI_ID == iSouth) then
+                Me%DDecomp%NeighbourNorth = iNorth
+            endif
+            
+            if (Me%DDecomp%MPI_ID == iNorth) then
+                Me%DDecomp%NeighbourSouth = iSouth
+            endif            
+            
+        enddo
 
-                 if (Me%DDecomp%MPI_ID == iSouth) then
-                    Me%DDecomp%NeighbourNorth = iNorth
-                endif
-                
-                if (Me%DDecomp%MPI_ID == iNorth) then
-                    Me%DDecomp%NeighbourSouth = iSouth
-                endif            
-                
-            enddo
-
-        endif iAuto        
-    
-    end subroutine AutomaticDDecomp
+   
+    end subroutine AutomaticDDecompLines
     
     !End------------------------------------------------------------------
+    
+    
+    subroutine AutomaticDDecompColumns()
+        
+        !Arguments------------------------------------------------------------
+
+        !Local----------------------------------------------------------------
+
+
+        integer                                     :: i, jWest, jEast
+        integer                                     :: jub_map, jlb_map, JLB, JUB, ND, is
+        real                                        :: IDD
+        
+        !Begin----------------------------------------------------------------
+
+        
+        !In automatic mode MOHID slices the domains along the matrix columns (JLB-JUB)
+
+        Me%DDecomp%Mapping%ILB = Me%DDecomp%Global%ILB
+        Me%DDecomp%Mapping%IUB = Me%DDecomp%Global%IUB
+        
+        JLB  = Me%DDecomp%Global%JLB
+        JUB  = Me%DDecomp%Global%JUB
+        ND   = Me%DDecomp%Nslaves + 1
+        IDD  = real (JUB - JLB + 1) / real(ND)
+        is   = Me%DDecomp%Master_MPI_ID
+        
+        do i=1, Me%DDecomp%Nslaves + 1
+            if (is + i - 1 == Me%DDecomp%MPI_ID) then
+                jlb_map = JLB     + int(real(i-1)*IDD)
+                jub_map = JLB - 1 + int(real(i  )*IDD)
+                exit
+            endif
+        enddo
+        
+        Me%DDecomp%Mapping%JLB = jlb_map
+        Me%DDecomp%Mapping%JUB = jub_map
+        write(*,*) 'Limits ', Me%DDecomp%MPI_ID, jub_map, jlb_map
+        
+        Me%DDecomp%NInterfaces = Me%DDecomp%Nslaves
+
+        allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
+        
+        do i = 1, Me%DDecomp%NInterfaces
+
+            jWest = Me%DDecomp%Master_MPI_ID + i - 1
+            jEast = Me%DDecomp%Master_MPI_ID + i
+            
+            Me%DDecomp%Interfaces(i,1) = jWest
+            Me%DDecomp%Interfaces(i,2) = jEast
+            Me%DDecomp%Interfaces(i,3) = WestEast_
+            write(*,*) 'Interface ', i, Me%DDecomp%Interfaces(i,1), Me%DDecomp%Interfaces(i,2)
+
+             if (Me%DDecomp%MPI_ID == jWest) then
+                Me%DDecomp%NeighbourEast = jEast
+            endif
+            
+            if (Me%DDecomp%MPI_ID == jEast) then
+                Me%DDecomp%NeighbourWest = jWest
+            endif            
+            
+        enddo
+
+   
+    end subroutine AutomaticDDecompColumns
+    
+    !End------------------------------------    
 
 #endif _USE_MPI   
 
@@ -8546,7 +8632,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         integer,           intent(OUT)              :: CoordType
-        integer, optional, intent(OUT)              :: ReadCartCorners, ProjType
+        logical, optional, intent(OUT)              :: ReadCartCorners
+        integer, optional, intent(OUT)              :: ProjType
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------

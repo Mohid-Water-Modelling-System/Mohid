@@ -1,0 +1,20 @@
+IN_BASIN                  : ../GeneralData/DigitalTerrain/DTM_SampleCatchment2.dat
+ROOT                      : ../../schematicWatershed/res
+ROOT_SRT                  : ../../schematicWatershed/res/Run10/
+IN_MODEL                  : ../../schematicWatershed/data/Model_10.dat
+SURF_DAT                  : ../../schematicWatershed/data/Atmosphere_10.dat
+SURF_HDF                  : ../../schematicWatershed/res/Atmosphere_10.hdf
+BASIN_DATA                : ../../schematicWatershed/data/Basin_10.dat
+BASIN_HDF                 : ../../schematicWatershed/res/Basin_10.hdf
+BASIN_FIN                 : ../../schematicWatershed/res/Basin_10.fin
+POROUS_DATA               : ../../schematicWatershed/data/Porous Media_10.dat
+POROUS_HDF                : ../../schematicWatershed/res/Porous Media_10.hdf
+POROUS_FIN                : ../../schematicWatershed/res/Porous Media_10.fin
+RUNOFF_DATA               : ../../schematicWatershed/data/RunOff_10.dat
+RUNOFF_HDF                : ../../schematicWatershed/res/RunOff_10.hdf
+RUNOFF_FIN                : ../../schematicWatershed/res/RunOff_10.fin
+BASIN_GEOMETRY            : ../../schematicWatershed/data/Basin Geometry_10.dat
+DOMAIN                    : ../../schematicWatershed/data/Geometry_10.dat
+DRAINAGE_NETWORK          : ../../schematicWatershed/data/Drainage Network_10.dat
+DRAINAGE_NETWORK_HDF      : ../../schematicWatershed/res/Drainage Network_10.hdf
+DRAINAGE_NETWORK_FIN      : ../../schematicWatershed/res/Drainage Network_10.fin

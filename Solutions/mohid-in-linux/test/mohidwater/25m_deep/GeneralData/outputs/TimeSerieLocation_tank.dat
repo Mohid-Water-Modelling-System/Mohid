@@ -1,0 +1,9 @@
+DT_OUTPUT_TIME          : 3600.
+MAX_BUFFER_SIZE         : 10000.
+
+<BeginTimeSerie>
+NAME                    : vm_layer_1
+LOCALIZATION_I          : 2
+LOCALIZATION_J          : 2
+LOCALIZATION_K          : 1
+<EndTimeSerie>

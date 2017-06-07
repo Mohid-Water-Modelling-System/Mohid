@@ -327,8 +327,9 @@ Module ModulePorousMediaProperties
         logical                                     :: ComputeVegInterfaceFluxes = .false.
         logical, dimension(:,:  ), pointer          :: SoilFluxesActive          => null()
         real,    dimension(:,:  ), pointer          :: GrazingBiomass            => null()
-        real,    dimension(:,:  ), pointer          :: GrazingNitrogen           => null()
-        real,    dimension(:,:  ), pointer          :: GrazingPhosphorus         => null()
+        real,    dimension(:,:  ), pointer          :: GrazingOrganicN           => null()
+        real,    dimension(:,:  ), pointer          :: GrazingAmmonia            => null()
+        real,    dimension(:,:  ), pointer          :: GrazingOrganicP           => null()
         real,    dimension(:,:  ), pointer          :: HarvestKillAerialBiomass  => null()
         real,    dimension(:,:  ), pointer          :: HarvestKillNitrogen       => null()
         real,    dimension(:,:  ), pointer          :: HarvestKillPhosphorus     => null()
@@ -4956,6 +4957,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                          SoilFluxesActive,                         &
                                          GrazingBiomass,                           &
                                          GrazingNitrogen,                          &
+                                         GrazingAmmonia,                           &
                                          GrazingPhosphorus,                        &
                                          HarvestKillAerialBiomass,                 &
                                          HarvestKillNitrogen,                      &
@@ -5001,6 +5003,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         logical, dimension(:,:), pointer, optional  :: SoilFluxesActive
         real, dimension(:,:), pointer, optional     :: GrazingBiomass
         real, dimension(:,:), pointer, optional     :: GrazingNitrogen
+        real, dimension(:,:), pointer, optional     :: GrazingAmmonia
         real, dimension(:,:), pointer, optional     :: GrazingPhosphorus
         real, dimension(:,:), pointer, optional     :: HarvestKillAerialBiomass
         real, dimension(:,:), pointer, optional     :: HarvestKillNitrogen
@@ -5068,8 +5071,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if (present(Grazing)) then
                 Me%ExtVar%Grazing                  = Grazing
                 if (present(GrazingBiomass          )) Me%ExtVar%GrazingBiomass           => GrazingBiomass
-                if (present(GrazingNitrogen         )) Me%ExtVar%GrazingNitrogen          => GrazingNitrogen
-                if (present(GrazingPhosphorus       )) Me%ExtVar%GrazingPhosphorus        => GrazingPhosphorus
+                if (present(GrazingNitrogen         )) Me%ExtVar%GrazingOrganicN          => GrazingNitrogen
+                if (present(GrazingAmmonia          )) Me%ExtVar%GrazingAmmonia           => GrazingAmmonia
+                if (present(GrazingPhosphorus       )) Me%ExtVar%GrazingOrganicP          => GrazingPhosphorus
             endif
             if (present(HarvestKill)) then
                 Me%ExtVar%HarvestKill               = HarvestKill
@@ -6382,7 +6386,7 @@ dk:                 do k=kmin, kmax
         real                                        :: Area, RootDepth
         logical                                     :: FoundEnd
         real                                        :: BottomDepth, TopDepth
-        real                                        :: GrazingNotCarbon, GrazingNitrogen, GrazingPhosphorus
+        real                                        :: GrazingNotCarbon, GrazingOrganicN, GrazingAmmonia, GrazingOrganicP
         real                                        :: GrazingBiomass, GrazingCarbon
         real                                        :: DormancyNotCarbon, DormancyNitrogen, DormancyPhosphorus
         real                                        :: DormancyBiomass, DormancyCarbon
@@ -6453,8 +6457,9 @@ dk:                 do k=kmin, kmax
                     GrazingCarbon               = 0.0
                     GrazingBiomass              = 0.0
                     GrazingNotCarbon            = 0.0
-                    GrazingNitrogen             = 0.0
-                    GrazingPhosphorus           = 0.0
+                    GrazingOrganicN             = 0.0
+                    GrazingAmmonia              = 0.0
+                    GrazingOrganicP             = 0.0
                     DormancyBiomass             = 0.0
                     DormancyCarbon              = 0.0
                     DormancyNotCarbon           = 0.0
@@ -6486,24 +6491,27 @@ dk:                 do k=kmin, kmax
                     
                             !Grazing
                             GrazingNotCarbon  = 0.0
-                            GrazingNitrogen   = 0.0
-                            GrazingPhosphorus = 0.0
+                            GrazingOrganicN   = 0.0
+                            GrazingAmmonia    = 0.0
+                            GrazingOrganicP   = 0.0
                             if (Me%ExtVar%Grazing) then
                     
                                 if (Me%ExtVar%ModelNitrogen) then
                                 
                                     !     mgN        = KgN/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
-                                    GrazingNitrogen  = Me%ExtVar%GrazingNitrogen(i,j) * 1e6 * Area / 10000.
+                                    GrazingOrganicN  = Me%ExtVar%GrazingOrganicN(i,j) * 1e6 * Area / 10000.
+                                    !     gN
+                                    GrazingAmmonia   = Me%ExtVar%GrazingAmmonia(i,j) * 1e3 * Area / 10000.
                                 
-                                    GrazingNotCarbon = GrazingNotCarbon + GrazingNitrogen
+                                    GrazingNotCarbon = GrazingNotCarbon + GrazingOrganicN + GrazingAmmonia
                     
                                 endif                    
                                 if (Me%ExtVar%ModelPhosphorus) then
 
                                     !      mgP       = KgP/ha * 1E6mg/kg * (m2) * 1ha/10000m2                     
-                                    GrazingPhosphorus = Me%ExtVar%GrazingPhosphorus(i,j) * 1e6 * Area / 10000.
+                                    GrazingOrganicP = Me%ExtVar%GrazingOrganicP(i,j) * 1e6 * Area / 10000.
 
-                                    GrazingNotCarbon  = GrazingNotCarbon + GrazingPhosphorus
+                                    GrazingNotCarbon  = GrazingNotCarbon + GrazingOrganicP
                     
                                 endif                          
                     
@@ -6740,7 +6748,7 @@ dk:                 do k=kmin, kmax
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR110'
                             endif                          
                             !         mg/kgsoil 
-                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((GrazingNitrogen           &
+                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((GrazingOrganicN           &
                                                                + DormancyNitrogen + HarvestKillNitrogen                          &
                                                                + HarvestKillRootNitrogen) * ModelDT / VegDT)                     &
                                                                / CellSoilMass)
@@ -6817,7 +6825,8 @@ dk:                 do k=kmin, kmax
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR140'
                             endif    
                             !         g/m3                = g/m3 + g / m3H20 
-                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((FertilizationAmmonia)   &
+                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((GrazingAmmonia         &
+                                                               + FertilizationAmmonia)                                        &
                                                                * ModelDT / VegDT) / CellWaterVolume)
                         else
 
@@ -6882,7 +6891,7 @@ dk:                 do k=kmin, kmax
                                 stop 'InterfaceFluxes - ModulePorousMediaProperties - ERR150'
                             endif    
                             !         mg/kgsoil  
-                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((GrazingPhosphorus         &
+                            Property%ConcentrationOld (i,j,k) = Property%ConcentrationOld (i,j,k) + (((GrazingOrganicP         &
                                                                + DormancyPhosphorus + HarvestKillPhosphorus                      &
                                                                + HarvestKillRootNitrogen) * ModelDT / VegDT)                     &
                                                                / CellSoilMass)
@@ -12472,6 +12481,9 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         if (MonitorPerformance) call StartWatch ("ModulePorousMediaProperties", "WriteFinalFile")
 
+        call GetBasinPoints   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR00a'        
+        
         !Gets a pointer to Topography
         call GetGridData        (Me%ObjGridData, Me%ExtVar%Topography, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR00'
@@ -12484,6 +12496,9 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !OpenPoints3D
         call GetOpenPoints3D    (Me%ObjMap, Me%ExtVar%OpenPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR02'
+        
+        call GetWaterPoints3D   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR03'         
 
         !Gets File Access Code
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
@@ -12540,7 +12555,6 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         call HDF5WriteData  ( ObjHDF5,  "/Grid/VerticalZ", & 
                              "Vertical",   "m",               & 
                               Array3D      = Me%ExtVar%SZZ,   &
-                              OutputNumber = OutPutNumber,    &
                               STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR040'
         
@@ -12557,21 +12571,29 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR25'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR53'
         
         !Writes the Grid
         call HDF5WriteData      (ObjHDF5, "/Grid", "Topography", "m",                    &
                               Array2D = Me%ExtVar%Topography, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR035'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR054'
+        
+        !WriteBasinPoints
+        call HDF5WriteData   (ObjHDF5, "/Grid", "BasinPoints", "-",          &
+                              Array2D = Me%ExtVar%BasinPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleBasin - ERR55'        
 
 
         !Writes the Open Points
         call HDF5WriteData   (ObjHDF5, "//Grid/OpenPoints",              &
                               "OpenPoints", "-",                            &
                               Array3D = Me%ExtVar%OpenPoints3D,             &
-                              OutputNumber = OutPutNumber,                  &
                               STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR060'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR056'
+        
+        call HDF5WriteData   (ObjHDF5,  "/Grid", "WaterPoints3D", "-",                  &
+                                Array3D = Me%ExtVar%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR60'          
 
 
         PropertyX => Me%FirstProperty
@@ -12600,7 +12622,7 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
                 call HDF5WriteData   (ObjHDF5,                                        &
                                       "/Results/"//trim(PropertyX%ID%Name)//" Mass Created",& 
-                                      "Property Mass Created",                        &
+                                      trim(PropertyX%ID%Name)//" Mass Created",       &
                                       "g",                                            &
                                       Array3D = PropertyX%Mass_Created,               &
                                       STAT = STAT_CALL)
@@ -12629,6 +12651,9 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaproperties - ERR080'
             
 
+        call UnGetMap                   (Me%ObjMap, Me%ExtVar%WaterPoints3D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR082'        
+        
         call UnGetMap                   (Me%ObjMap, Me%ExtVar%OpenPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR085'
         
@@ -12637,6 +12662,9 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         call UnGetGridData              (Me%ObjGridData, Me%ExtVar%Topography,  STAT = STAT_CALL )        
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR120'
+        
+        call UnGetBasin   (Me%ObjBasinGeometry, Me%ExtVar%BasinPoints, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR130'         
 
         call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModulePorousMediaProperties - ERR0190'            

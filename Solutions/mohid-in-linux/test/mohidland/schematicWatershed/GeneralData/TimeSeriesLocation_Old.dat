@@ -1,0 +1,39 @@
+!Time Series Locations for C:\Users\frank\Documents\MOHID Studio\Projects\MOHID Land Unit Tests\SchematicWatershed\General Data\Digital Terrain\UrbanDrainage.dat
+DT_OUTPUT_TIME            : 60
+MAX_BUFFER_SIZE           : 10000
+
+
+<BeginTimeSerie>
+NAME                      : RuralArea
+COORD_X                   : 3850
+COORD_Y                   : 2550
+LOCALIZATION_K            : 1
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                      : ImpermeableArea
+COORD_X                   : 4950
+COORD_Y                   : 3250
+LOCALIZATION_K            : 1
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                      : UrbanArea
+COORD_X                   : 4950
+COORD_Y                   : 2550
+LOCALIZATION_K            : 1
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                      : Node1
+COORD_X                   : 1950
+COORD_Y                   : 2950
+LOCALIZATION_K            : 1
+<EndTimeSerie>
+
+<BeginTimeSerie>
+NAME                      : Node7
+COORD_X                   : 2050
+COORD_Y                   : 2950
+LOCALIZATION_K            : 1
+<EndTimeSerie>

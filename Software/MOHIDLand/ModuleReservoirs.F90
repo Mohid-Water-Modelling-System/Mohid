@@ -85,6 +85,7 @@ Module ModuleReservoirs
     integer,    parameter                             :: Operation_Level_PercInflow_     = 2
     integer,    parameter                             :: Operation_PercVol_Outflow_      = 3    
     integer,    parameter                             :: Operation_PercVol_PercInflow_   = 4
+    integer,    parameter                             :: Operation_PercVol_PercMaxOutflow_   = 5
     
     !Initial Conditions
     integer,    parameter                             :: StartPercentageFull_            = 1
@@ -221,6 +222,12 @@ Module ModuleReservoirs
          character(len=Pathlength)                    :: FinalFile        = null_str 
     end type T_Files    
 
+    type T_TimeSerieImposed
+        integer                                      :: ID                   = null_int 
+        character(len=Pathlength)                    :: FileName             = null_str 
+        integer                                      :: Column               = null_int 
+    end  type T_TimeSerieImposed
+    
     type T_FlowOver
         real                                         :: WeirLength           = null_real 
         real                                         :: DischargeCoeficient  = null_real 
@@ -233,7 +240,8 @@ Module ModuleReservoirs
         logical                                       :: HasDischarge         = .false.  
         
         !how to compute outflow
-        logical                                       :: ImposedOutflow       = .false.    !if imposed flow, operation is forgotten
+        logical                                       :: ImposedOutflow       = .false.    
+        logical                                       :: ImposedLevel         = .false.    
         logical                                       :: ImposedOperation     = .false.    !operation rules        
         
         !Operation
@@ -265,8 +273,9 @@ Module ModuleReservoirs
         integer                                       :: DNNodeID             = null_int
         
         !State Variables
-        real                                          :: VolumeOld            = null_real
-        real                                          :: VolumeNew            = null_real
+        real                                          :: VolumeOld            = null_real  !volume at start of timestep
+        real                                          :: VolumeNew            = null_real  !volume conti being updated with fluxes
+        real                                          :: VolumeTarget         = null_real  !volume final used if imposed level
         real                                          :: PercFull             = null_real
         
         !Derived State variables
@@ -302,7 +311,8 @@ Module ModuleReservoirs
         character(len = StringLength)                 :: TimeSeriesName       = null_str
         
         type (T_Reservoir), pointer                   :: Next                 => null()
-        type (T_Reservoir), pointer                   :: Prev                 => null()         
+        type (T_Reservoir), pointer                   :: Prev                 => null()       
+        type (T_TimeSerieImposed)                     :: TimeSeries           
     end type T_Reservoir    
     
     private :: T_Reservoirs
@@ -450,13 +460,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ConstructDischarges
             endif
             
+            call VerifyOptions
+            
             !Intial volume condition
             if (Me%Continuous) then
                 call ReadInitialVolume
             else
-                !Try to get timeserie of imposed volume (timeseries) available for all or some reservoirs
-                !this value will overwrite the defined in reservoirs file
-                call GetImposedReservoirVolume     
                 
                 !Initialize all reservoirs volume
                 call InitializeReservoirsVolume
@@ -705,10 +714,7 @@ if2:            if (BlockFound) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: iflag
-        real, dimension (2)                         :: AuxCoord  
-        logical                                     :: BlockFound
-        integer                                     :: FirstLine, LastLine, NLayers, l, line
-        real, dimension(:), allocatable             :: Aux 
+        real, dimension (2)                         :: AuxCoord 
         !----------------------------------------------------------------------
              
 
@@ -875,10 +881,72 @@ if2:            if (BlockFound) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR100'           
 
-                
+        !reset
         NewReservoir%Management%ON                    = .false.
         NewReservoir%Management%ImposedOperation      = .false.
-        NewReservoir%Management%ImposedOutflow        = .false.                
+        NewReservoir%Management%ImposedLevel          = .false.
+        NewReservoir%Management%ImposedOutflow        = .false.               
+        
+        
+        !Get curve with acc volume for level
+        !Always fetched is used for transforming volume to level
+        !In case of weir, imposed level or operations based on level is mandatory
+        call GetVolumeAccCurve(NewReservoir, ClientID)        
+        
+        
+        !Get if reservoir has imposed level
+        call GetImposedReservoirLevel(NewReservoir, ClientID, .true.)        
+        
+        !Get management options (operation curves, environmental flow)
+        !or unmanaged weir
+        call GetManagementOptions(NewReservoir, ClientID)
+        
+      
+        
+        !max ouflow trough all discharges (projected). if not defined almost infinite
+        call GetData(NewReservoir%Management%MaxOutflow,                                &
+                     Me%ObjEnterDataReservoirFile, iflag,                               &
+                     SearchType   = FromBlock,                                          &
+                     keyword      ='MAX_OUTFLOW',                                       &
+                     default      = -null_real,                                         &
+                     ClientModule = 'ModuleReservoirs',                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR130'         
+        
+        !In case that is forcing with operation pec max outflow this property is mandatory and not dummy
+        if (NewReservoir%Management%OperationType == Operation_PercVol_PercMaxOutflow_) then
+            if (NewReservoir%Management%MaxOutflow .gt. -null_real / 2.0) then
+                write(*,*) 'Using operation curve of type percentage max outflow and'
+                write(*,*) 'MAX_OUTFLOW is not defined '
+                write(*,*) 'in reservoir ID : ', NewReservoir%ID                
+                stop 'ConstructReservoir - ModuleReservoirs - ERR0140'                  
+            endif
+        endif
+        
+
+
+    end subroutine ConstructReservoir
+
+    !--------------------------------------------------------------------------
+    
+    subroutine GetManagementOptions(NewReservoir, ClientID)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Reservoir), pointer                  :: NewReservoir
+        integer                                     :: ClientID
+
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: iflag
+        logical                                     :: BlockFound
+        integer                                     :: FirstLine, LastLine, NLayers, l, line
+        real, dimension(:), allocatable             :: Aux 
+        !----------------------------------------------------------------------
+        
+        call RewindBlock(Me%ObjEnterDataReservoirFile, ClientId, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'GetManagementOptions - ModuleReservoirs - ERR01'        
         
         !Get Management Options. Start from more complex managed to unmanaged        
         call GetData(NewReservoir%Management%OperationType,                             &
@@ -895,12 +963,13 @@ if2:            if (BlockFound) then
             if (NewReservoir%Management%OperationType /= Operation_Level_Outflow_ .and.  &
                 NewReservoir%Management%OperationType /= Operation_Level_PercInflow_ .and.  &
                 NewReservoir%Management%OperationType /= Operation_PercVol_Outflow_ .and.  &
-                NewReservoir%Management%OperationType /= Operation_PercVol_PercInflow_) then
+                NewReservoir%Management%OperationType /= Operation_PercVol_PercInflow_ .and. &
+                NewReservoir%Management%OperationType /= Operation_PercVol_PercMaxOutflow_) then
                 write(*,*) 'Unknown OPERATION_TYPE'
                 write(*,*) 'in reservoir ID : ', NewReservoir%ID
                 stop 'ConstructReservoir - ModuleReservoirs - ERR0110a'                     
             endif
-            
+                      
             call ExtractBlockFromBlock(Me%ObjEnterDataReservoirFile, ClientID,     &
                                         '<<beginoperation>>', '<<endoperation>>', BlockFound,     &
                                         FirstLine = FirstLine, LastLine = LastLine,               &            
@@ -914,7 +983,6 @@ if2:            if (BlockFound) then
                     
                     NewReservoir%Management%ON                    = .true.
                     NewReservoir%Management%ImposedOperation      = .true.
-                    NewReservoir%Management%ImposedOutflow        = .false.
                     NewReservoir%Management%OperationCurvePoints  = NLayers
                     
                     allocate (NewReservoir%Management%OperationCurve(NLayers, 2))
@@ -979,16 +1047,10 @@ if2:            if (BlockFound) then
             
             !simple amanagement
             if (NewReservoir%Management%MinOutflow > 0.0) then
-                NewReservoir%Management%ON                    = .true.
-                NewReservoir%Management%ImposedOperation      = .false.
-                NewReservoir%Management%ImposedOutflow        = .false.                
+                NewReservoir%Management%ON                    = .true.             
             
             
-            else !no management - type ditch or weir
-                
-                NewReservoir%Management%ON                    = .false.
-                NewReservoir%Management%ImposedOperation      = .false.
-                NewReservoir%Management%ImposedOutflow        = .false.                
+            else !no management - type ditch or weir                          
                 
                 call GetData(NewReservoir%IsWeir,                                               &
                              Me%ObjEnterDataReservoirFile, iflag,                               &
@@ -1002,7 +1064,7 @@ if2:            if (BlockFound) then
                 if (NewReservoir%IsWeir) then                    
                     
                   call GetData(NewReservoir%FlowOver%WeirLength,                              &
-                                 Me%ObjEnterData,                                               &
+                                 Me%ObjEnterDataReservoirFile,                                  &
                                  iflag,                                                         &
                                  FromBlock,                                                     &
                                  keyword      ='WEIR_LENGTH',                                   &
@@ -1015,7 +1077,7 @@ if2:            if (BlockFound) then
                     endif
 
                     call GetData(NewReservoir%FlowOver%DischargeCoeficient,                     &
-                                 Me%ObjEnterData,                                               &
+                                 Me%ObjEnterDataReservoirFile,                                  &
                                  iflag,                                                         &
                                  FromBlock,                                                     &
                                  keyword      ='WEIR_COEF',                                     &
@@ -1026,7 +1088,7 @@ if2:            if (BlockFound) then
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructReservoir - ModuleReservoirs - ERR116'
 
                     call GetData(NewReservoir%FlowOver%CrestLevel,                              &
-                                 Me%ObjEnterData,                                               &
+                                 Me%ObjEnterDataReservoirFile,                                  &
                                  iflag,                                                         &
                                  FromBlock,                                                     &
                                  keyword      ='CREST_LEVEL',                                   &
@@ -1043,11 +1105,37 @@ if2:            if (BlockFound) then
         
         endif
         
+        
+        
+    
+    end subroutine GetManagementOptions
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetVolumeAccCurve(NewReservoir, ClientID)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Reservoir), pointer                  :: NewReservoir
+        integer                                     :: ClientID
 
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: iflag
+        logical                                     :: BlockFound
+        integer                                     :: FirstLine, LastLine, NLayers, l, line
+        real, dimension(:), allocatable             :: Aux 
+        !----------------------------------------------------------------------
+    
+        call RewindBlock(Me%ObjEnterDataReservoirFile, ClientId, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'GetVolumeAccCurve - ModuleReservoirs - ERR01'        
+        
+        
         !Need volume - level curve
-        if (NewReservoir%IsWeir .or. NewReservoir%Management%OperationType == Operation_Level_Outflow_                      &
-            .or. NewReservoir%Management%OperationType == Operation_Level_PercInflow_) then
-                
+        !if (NewReservoir%IsWeir .or. NewReservoir%Management%OperationType == Operation_Level_Outflow_                      &
+        !    .or. NewReservoir%Management%OperationType == Operation_Level_PercInflow_) then
+        !Always get
             call ExtractBlockFromBlock(Me%ObjEnterDataReservoirFile, ClientID,               &
                                         '<<beginaccvolumecurve>>', '<<endaccvolumecurve>>', BlockFound,     &        
                                             FirstLine = FirstLine, LastLine = LastLine,                        & 
@@ -1094,29 +1182,15 @@ if2:            if (BlockFound) then
                     deallocate(Aux)
                     
                 endif
-            else                
-                write(*,*) 'Not Found Reservoir accumulated volumes curve'
-                write(*,*) 'It is mandatory when reservoir operation curve depends on level'
-                stop 'ConstructReservoir - ModuleReservoirs - ERR0121'                   
+            !endif
+                             
             end if 
-        endif
+        !endif        
         
         
-        !max ouflow trough all discharges (projected). if not defined almost infinite
-        call GetData(NewReservoir%Management%MaxOutflow,                                &
-                     Me%ObjEnterDataReservoirFile, iflag,                               &
-                     SearchType   = FromBlock,                                          &
-                     keyword      ='MAX_OUTFLOW',                                       &
-                     default      = -null_real,                                         &
-                     ClientModule = 'ModuleReservoirs',                                 &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ConstructReservoir - ModuleReservoirs - ERR130'         
-        
-
-
-    end subroutine ConstructReservoir
-
-    !--------------------------------------------------------------------------
+    end subroutine GetVolumeAccCurve    
+    
+    !---------------------------------------------------------------------------
     
    subroutine ConstructDischarges
 
@@ -1176,7 +1250,7 @@ if2:            if (BlockFound) then
                 if (IsImposedOutflow) then
                     Reservoir%Management%ON                 = .true.
                     Reservoir%Management%ImposedOutflow     = .true.
-                    Reservoir%Management%ImposedOperation   = .false.
+                    
 
                 endif
             else
@@ -2267,134 +2341,219 @@ cd0:    if (Exist) then
     
     !-------------------------------------------------------------------------
     
-    subroutine GetImposedReservoirVolume()
+    subroutine GetImposedReservoirlevel(NewReservoir, ClientID, Construct)
     
-        !Arguments--------------------------------------------------------------
+
+        !Arguments-------------------------------------------------------------
+        type(T_Reservoir), pointer                  :: NewReservoir
+        integer, optional                           :: ClientID
+        logical                                     :: Construct
+        
         !Local------------------------------------------------------------------
         integer                                         :: NumberOfSources, index, iflag
-        integer                                         :: ClientNumber, STAT_CALL
-        logical                                         :: FoundBlock, FoundReservoir
-        integer                                         :: ReservoirID, ObjTimeSerie
-        character(LEN = StringLength)                   :: FileName
+        integer                                         :: STAT_CALL
+        logical                                         :: FoundBlock
+        real                                            :: ReservoirVolume
+ 
+        !Begin------------------------------------------------------------------
+        
+           
+        
+        if (Construct) then
+            
+            
+            call RewindBlock(Me%ObjEnterDataReservoirFile, ClientId, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirLevel - ModuleReservoirs - ERR01'             
+            
+           !Gets the number of Source blocks
+            call GetNumberOfBlocks(Me%ObjEnterDataReservoirFile, "<<beginleveltimeseries>>", "<<endleveltimeseries>>",   &
+                                   FromBlock, NumberOfSources,    &
+                                   ClientID, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirLevel - ModuleReservoirs - ERR010'        
+        
+            if (NumberOfSources > 0) then
+          
+                do index = 1, NumberOfSources
+
+                    call ExtractBlockFromBlock(Me%ObjEnterDataReservoirFile,                    &
+                                               ClientNumber      = ClientID,                    &
+                                               block_begin       = "<<beginleveltimeseries>>",    &
+                                               block_end         = "<<endleveltimeseries>>",      &
+                                               BlockInBlockFound = FoundBlock,                  &
+                                               STAT         = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'GetImposedReservoirLevel - ModuleReservoirs - ERR020'
+
+                    if (FoundBlock) then
+            
+
+                        call GetData(NewReservoir%TimeSeries%Filename,                &
+                                        Me%ObjEnterDataReservoirFile, iflag,          &
+                                        SearchType   = FromBlockInBlock,              &
+                                        keyword      = 'FILENAME',                    &                             
+                                        ClientModule = 'ModuleReservoirs',            &
+                                        STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'GetImposedReservoirLevel - ModuleReservoirs - ERR025'
+                        
+                        call GetData(NewReservoir%TimeSeries%Column,                  &
+                                        Me%ObjEnterDataReservoirFile , iflag,         &
+                                        SearchType   = FromBlockInBlock,              &
+                                        keyword      = 'DATA_COLUMN',                 &
+                                        ClientModule = 'ModuleReservoirs',            &
+                                        STAT         = STAT_CALL)                                      
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'GetImposedReservoirLevel - ModuleReservoirs - ERR026'
+                        if (iflag /= 1) &
+                            stop 'GetImposedReservoirLevel - ModuleReservoirs - ERR027'                
+
+                        !Starts Time Serie
+                        NewReservoir%TimeSeries%ID = 0
+                        call StartTimeSerieInput(NewReservoir%TimeSeries%ID,       &
+                                                    NewReservoir%TimeSeries%FileName, &
+                                                    Me%ObjTime,                        &
+                                                    STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) &
+                            stop 'GetImposedReservoirLevel - ModuleReservoirs - ERR028'
+                    
+                    
+                        !Get value for start instant
+                        ReservoirVolume = GetReservoirVolume(NewReservoir, Me%ExtVar%ActualTime)
+                    
+                        !apply reservoir value. it will overwrite value defined in reservoir file (if defined)
+                        if (ReservoirVolume <= NewReservoir%MaxVolume .and. ReservoirVolume >= 0.0) then
+                            NewReservoir%InitialVolume = ReservoirVolume
+                            NewReservoir%InitialVolumeDefined = .true.      
+                            
+                            NewReservoir%Management%ON                    = .true.
+                            NewReservoir%Management%ImposedLevel          = .true.                              
+                        endif
+                        
+                      
+                            
+                        !call KillTimeSerie (ObjTimeSerie, STAT = STAT_CALL)
+                        !if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirLevel - ModuleReservoirs - ERR30'
+                        
+
+                    
+                    else
+
+                        stop 'GetImposedReservoirLevel - ModuleReservoirs - ERR040'
+
+                    endif
+
+                enddo          
+        
+            endif
+            
+        else
+            
+            if (NewReservoir%Management%ImposedLevel) then
+                
+                !Get value for timestep start
+                ReservoirVolume = GetReservoirVolume(NewReservoir, Me%ExtVar%ActualTime - Me%ExtVar%DT)
+                   
+                !apply reservoir value. 
+                if (ReservoirVolume <= NewReservoir%MaxVolume .and. ReservoirVolume >= 0.0) then
+                    NewReservoir%VolumeOld = ReservoirVolume   
+                    NewReservoir%VolumeNew = NewReservoir%VolumeOld
+                endif            
+            
+                !Get value for timestep end
+                !Get reservoir volume that will be the target after all fluxes to compute outflow
+                NewReservoir%VolumeTarget = GetReservoirVolume(NewReservoir, Me%ExtVar%ActualTime)
+            
+            endif
+            
+        endif
+        
+    end subroutine GetImposedReservoirLevel
+    
+    !-------------------------------------------------------------------------
+    
+    real function GetReservoirVolume(CurrReservoir, Time)
+    
+        !Arguments----------------------------------------------------------------
+        type(T_Reservoir),           pointer     :: CurrReservoir
+        type(T_Time)                             :: Time    
+        
+        !Local--------------------------------------------------------------------
         type (T_Time)                                   :: Time1, Time2
         real                                            :: Value1, Value2
         logical                                         :: TimeCycle        
         real                                            :: TimeSerieValue
-        type (T_Reservoir), pointer                     :: CurrReservoir 
-        integer                                         :: Column
-        !Begin------------------------------------------------------------------
-        
-        
-        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR01'        
-        
-        
-       !Gets the number of Source blocks
-        call GetNumberOfBlocks(Me%ObjEnterData, "<BeginInitialVolumeTimeSeries>", "<EndInitialVolumeTimeSeries>",   &
-                               FromFile, NumberOfSources,    &
-                               ClientNumber, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR010'        
-        
-        if (NumberOfSources > 0) then
-          
-            do index = 1, NumberOfSources
+        integer                                         :: STAT_CALL
+        !Begin--------------------------------------------------------------------
 
-                call ExtractBlockFromBuffer(Me%ObjEnterData,                       &
-                                           ClientNumber      = ClientNumber,     &
-                                           block_begin       = "<BeginInitialVolumeTimeSeries>",    &
-                                           block_end         = "<EndInitialVolumeTimeSeries>",      &
-                                           BlockFound        = FoundBlock,                          &
-                                           STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                    stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR020'
-
-                if (FoundBlock) then
-            
-                    call GetData(ReservoirID,                                  &
-                                 Me%ObjEnterData , iflag,                      &
-                                 SearchType   = FromBlock,                     &
-                                 keyword      = 'RESERVOIR_ID',                &
-                                 ClientModule = 'ModuleReservoirs',            &
-                                 STAT         = STAT_CALL)                                      
-                    if (STAT_CALL /= SUCCESS_) &
-                        stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR021'
-                    if (iflag /= 1) &
-                        stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR022'                    
-
-                
-                    !get the reservoir 
-                    call FindReservoir (ReservoirID, CurrReservoir, FoundReservoir)
-
-                    if (FoundReservoir) then
-                
-                        call GetData(FileName,                                     &
-                                     Me%ObjEnterData, iflag,                       &
-                                     SearchType   = FromBlock,                     &
-                                     keyword      = 'FILENAME',                    &                             
-                                     ClientModule = 'ModuleReservoirs',            &
-                                     STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) &
-                            stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR025'
-                        
-                        call GetData(Column,                                       &
-                                     Me%ObjEnterData , iflag,                      &
-                                     SearchType   = FromBlock,                     &
-                                     keyword      = 'DATA_COLUMN',                 &
-                                     ClientModule = 'ModuleReservoirs',            &
-                                     STAT         = STAT_CALL)                                      
-                        if (STAT_CALL /= SUCCESS_) &
-                            stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR026'
-                        if (iflag /= 1) &
-                            stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR027'                
-
-                        !Starts Time Serie
-                        ObjTimeSerie = 0
-                        call StartTimeSerieInput(ObjTimeSerie,                      &
-                                                 FileName,                          &
-                                                 Me%ObjTime,                        &
-                                                 STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) &
-                            stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR028'
-                    
-                    
-                        !Get value for start instant
-                        call GetTimeSerieValue (ObjTimeSerie, Me%ExtVar%ActualTime, Column,                     &
-                                                Time1, Value1, Time2, Value2, TimeCycle,                &
-                                                STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR29'
+        call GetTimeSerieValue (CurrReservoir%TimeSeries%ID, Time,          &
+                                CurrReservoir%TimeSeries%Column,             &
+                                Time1, Value1, Time2, Value2, TimeCycle,     &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GetReservoirVolume - ModuleReservoirs - ERR29'
      
-                        if (TimeCycle) then
-                            TimeSerieValue = Value1
+        if (TimeCycle) then
+            TimeSerieValue = Value1
 
-                        else
+        else
 
-                            !Interpolates Value for current instant
-                            call InterpolateValueInTime(Me%ExtVar%ActualTime, Time1, Value1, Time2, Value2, TimeSerieValue)
+            !Interpolates Value for current instant
+            call InterpolateValueInTime(Time, Time1, Value1, Time2, Value2, TimeSerieValue)
 
-                        endif     
-                    
-                        !apply reservoir value. it will overwrite value defined in reservoir file (if defined)
-                        if (TimeSerieValue <= CurrReservoir%MaxVolume .and. TimeSerieValue >= 0.0) then
-                            CurrReservoir%InitialVolume = TimeSerieValue
-                            CurrReservoir%InitialVolumeDefined = .true.                            
-                        endif
-                    
-                        call KillTimeSerie (ObjTimeSerie, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR30'
+        endif     
                         
-                    endif
+        !Compute Volume from level
+        GetReservoirVolume = ComputeReservoirVolume(CurrReservoir, TimeSerieValue)    
+    
+    end function 
+    
+    !-------------------------------------------------------------------------
+    
+    subroutine VerifyOptions
+        
+        !Local----------------------------------------------------------------
+        type(T_Reservoir),           pointer     :: CurrentReservoir
+        integer                                  :: nImposed
+    
+       CurrentReservoir => Me%FirstReservoir
+        do while (associated(CurrentReservoir))
+            
+            nImposed = 0
+            if (CurrentReservoir%Management%ImposedLevel) then
+                nImposed = nImposed + 1
+            endif
+            
+            if (CurrentReservoir%Management%ImposedOutflow) then
+                nImposed = nImposed + 1
+            endif
+            
+            if (CurrentReservoir%Management%ImposedOperation) then
+                nImposed = nImposed + 1
+            endif       
+            
+            !inconsistent options  can only impose one
+            if (nImposed > 1) then
+                write (*,*) 'Can only impose outflow OR level OR operation curves in'
+                write (*,*) 'Reservoir ID = ', CurrentReservoir%ID            
+                stop 'VerifyOptions - ModuleReservoirs - ERR01'                        
+            endif
                     
-                else
-
-                    stop 'GetImposedReservoirVolume - ModuleReservoirs - ERR040'
-
+            
+            !need acc curve?
+            if (CurrentReservoir%IsWeir .or. CurrentReservoir%Management%OperationType == Operation_Level_Outflow_  &
+                .or. CurrentReservoir%Management%OperationType == Operation_Level_PercInflow_                       &
+                .or. CurrentReservoir%Management%ImposedLevel) then
+                
+                if (.not. associated(CurrentReservoir%Management%AccVolumeCurve)) then
+                    write(*,*) 'Not Found Reservoir accumulated volumes curve'
+                    write(*,*) 'It is mandatory when reservoir is weir, level is imposed or operation curve depends on level'
+                    write(*,*)  'in reservoir ID : ', CurrentReservoir%ID
+                    stop 'VerifyOptions - ModuleReservoirs - ERR010'   
                 endif
-
-            enddo          
-        
-        endif
-        
-    end subroutine GetImposedReservoirVolume
+            endif
+            CurrentReservoir => CurrentReservoir%Next
+        enddo    
+    
+    end subroutine VerifyOptions
     
     !-------------------------------------------------------------------------
     
@@ -2592,6 +2751,7 @@ cd0:    if (Exist) then
             do while (associated(CurrReservoir))
                 
                 CurrReservoir%VolumeOld = ReservoirVolume(CurrReservoir%GridI, CurrReservoir%GridJ)
+                CurrReservoir%VolumeNew = CurrReservoir%VolumeOld
                 
                 CurrReservoir => CurrReservoir%Next
             enddo                                                        
@@ -2645,7 +2805,7 @@ cd0:    if (Exist) then
             
             CurrentReservoir%VolumeNew = CurrentReservoir%VolumeOld
             
-            if (CurrentReservoir%Management%ON .and. associated(CurrentReservoir%Management%AccVolumeCurve)) then
+            if (associated(CurrentReservoir%Management%AccVolumeCurve)) then
                 CurrentReservoir%WaterLevel = ComputeReservoirLevel(CurrentReservoir)
             endif
                         
@@ -2667,17 +2827,17 @@ cd0:    if (Exist) then
         real                                    :: PreviousCurveVolume, NextCurveLevel, NextCurveVolume
         !Begin----------------------------------------------------------------
 
-        if (CurrentReservoir%Management%ON .and. associated(CurrentReservoir%Management%AccVolumeCurve)) then        
+        if (associated(CurrentReservoir%Management%AccVolumeCurve)) then        
             
             ReservoirVolume              = CurrentReservoir%VolumeNew
-            PreviousCurveLevel           = CurrentReservoir%Management%OperationCurve(1, 2)
-            PreviousCurveVolume          = CurrentReservoir%Management%OperationCurve(1, 1)
+            PreviousCurveLevel           = CurrentReservoir%Management%AccVolumeCurve(1, 2)
+            PreviousCurveVolume          = CurrentReservoir%Management%AccVolumeCurve(1, 1)
             
             !go trough all points to find where belongs
-            do i = 1, CurrentReservoir%Management%AccVolumeCurvePoints
+            do i = 2, CurrentReservoir%Management%AccVolumeCurvePoints
                 
-                NextCurveLevel           = CurrentReservoir%Management%OperationCurve(i, 2)
-                NextCurveVolume          = CurrentReservoir%Management%OperationCurve(i, 1)
+                NextCurveLevel           = CurrentReservoir%Management%AccVolumeCurve(i, 2)
+                NextCurveVolume          = CurrentReservoir%Management%AccVolumeCurve(i, 1)
                 
                 if (ReservoirVolume >= PreviousCurveVolume &
                     .and. ReservoirVolume <= NextCurveVolume) then
@@ -2702,6 +2862,53 @@ cd0:    if (Exist) then
     end function ComputeReservoirLevel
     
     !---------------------------------------------------------------------------
+    
+    real function ComputeReservoirVolume(CurrentReservoir, ReservoirLevel)
+
+        !Arguments------------------------------------------------------------
+        type(T_Reservoir),           pointer     :: CurrentReservoir
+        real                                     :: ReservoirLevel
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: i
+        real                                    :: WaterVolume, PreviousCurveLevel
+        real                                    :: PreviousCurveVolume, NextCurveLevel, NextCurveVolume
+        !Begin----------------------------------------------------------------
+
+        if (associated(CurrentReservoir%Management%AccVolumeCurve)) then        
+            
+            PreviousCurveLevel           = CurrentReservoir%Management%AccVolumeCurve(1, 2)
+            PreviousCurveVolume          = CurrentReservoir%Management%AccVolumeCurve(1, 1)
+            
+            !go trough all points to find where belongs
+            do i = 2, CurrentReservoir%Management%AccVolumeCurvePoints
+                
+                NextCurveLevel           = CurrentReservoir%Management%AccVolumeCurve(i, 2)
+                NextCurveVolume          = CurrentReservoir%Management%AccVolumeCurve(i, 1)
+                
+                if (ReservoirLevel >= PreviousCurveLevel &
+                    .and. ReservoirLevel <= NextCurveLevel) then
+                    
+                    WaterVolume = LinearInterpolation(PreviousCurveLevel, PreviousCurveVolume,       &
+                                        NextCurveLevel, NextCurveVolume, ReservoirLevel)                           
+                    
+                endif
+                
+                PreviousCurveLevel  = NextCurveLevel
+                PreviousCurveVolume = NextCurveVolume
+            
+            enddo
+               
+        else
+            !not all reservoitrs need to have it defined
+            WaterVolume = null_real
+        endif
+            
+        ComputeReservoirVolume = WaterVolume
+
+    end function ComputeReservoirVolume
+    
+    !---------------------------------------------------------------------------    
     
     subroutine ConstructOutput
 
@@ -3641,6 +3848,9 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             
             call InitializeVariables(.false.)
             
+            !verify if level (-> volume) is imposed and update it
+            call GetImposedLevel
+            
             !Get discharge flow and concentration. include possible imposed outflow 
             if (Me%ComputeOptions%Discharges) then
                 call ComputeReservoirDischarges
@@ -3654,12 +3864,14 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 call ComputeReservoirBottomFluxes
             endif              
             
-            !Update volumes and concentrations based on computed fluxes
+            !Update volumes and concentrations based on computed fluxes (except outflow)
             call UpdateReservoirStateVariables
-                        
-            
+                                    
             !Compute outflows from actual volume condition
             call ComputeReservoirOutflows
+            
+            !Update finally the new volumes, and derived matrixes
+            call UpdateVolumes
         
 
             if (Me%Output%HDF .or. Me%Output%TimeSerie) then
@@ -3675,6 +3887,27 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
     end subroutine ModifyReservoirs
 
+    !-------------------------------------------------------------------------
+    
+    subroutine GetImposedLevel()
+    
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Reservoir), pointer             :: CurrReservoir
+        logical                                 :: Construct            
+    
+        CurrReservoir => Me%FirstReservoir
+        do while(associated(CurrReservoir))
+            
+            Construct = .false.
+            call GetImposedReservoirLevel(NewReservoir = CurrReservoir, Construct = Construct)
+
+            CurrReservoir => CurrReservoir%Next
+        enddo
+    
+    end subroutine GetImposedLevel
+    
     !-------------------------------------------------------------------------
     
     subroutine ComputeReservoirDischarges ()
@@ -3985,24 +4218,41 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
     
     !---------------------------------------------------------------------------    
             
-    subroutine UpdateMatrixesFromVolume(CurrReservoir)
+    subroutine UpdateVolumes()
     
-        !Arguments--------------------------------------------------------------
+        !Local------------------------------------------------------------------
         type (T_Reservoir), pointer                 :: CurrReservoir
 
+        
+        
+        CurrReservoir => Me%FirstReservoir
+        do while (associated (CurrReservoir))                    
+                  
+        
+            !Update Volume
+            CurrReservoir%VolumeNew = CurrReservoir%VolumeNew - CurrReservoir%Outflow * Me%ExtVar%DT
             
-        !Update water level at the end
-        if (CurrReservoir%Management%ON .and. associated(CurrReservoir%Management%AccVolumeCurve)) then            
-            CurrReservoir%WaterLevel = ComputeReservoirLevel(CurrReservoir)
-        endif
+            !volumes close to zero. use abs to not masquerade possible erros with negative volumes
+            if (Abs(CurrReservoir%VolumeNew) < AlmostZero) then
+                CurrReservoir%VolumeNew = 0.0
+            endif        
             
-        !Save in global matrix
-        Me%ReservoirVolumes(CurrReservoir%Position)  = CurrReservoir%VolumeNew           
-        Me%ReservoirPercFull(CurrReservoir%Position) = CurrReservoir%VolumeNew / CurrReservoir%MaxVolume * 100
+            !Update water level at the end
+            if (associated(CurrReservoir%Management%AccVolumeCurve)) then            
+                CurrReservoir%WaterLevel = ComputeReservoirLevel(CurrReservoir)
+            endif
             
-        CurrReservoir%PercFull = CurrReservoir%VolumeNew / CurrReservoir%MaxVolume * 100    
+            !Save in global matrix
+            Me%ReservoirVolumes(CurrReservoir%Position)  = CurrReservoir%VolumeNew           
+            Me%ReservoirPercFull(CurrReservoir%Position) = CurrReservoir%VolumeNew / CurrReservoir%MaxVolume * 100
+            
+            CurrReservoir%PercFull = CurrReservoir%VolumeNew / CurrReservoir%MaxVolume * 100    
+        
+        
+            CurrReservoir => CurrReservoir%Next
+        enddo         
     
-    end subroutine UpdateMatrixesFromVolume
+    end subroutine UpdateVolumes
     
     !----------------------------------------------------------------------------
     
@@ -4101,84 +4351,61 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         do while (associated(CurrentReservoir))
             
             
+            !since reservoirs never go below (associated to discharger location) limit. 
+            !in undefined MinVolume is zero
+            if (CurrentReservoir%VolumeNew <= CurrentReservoir%MinVolume) then
+                Outflow = 0.0 
+         
+            !if level is imposed
+            else if (CurrentReservoir%Management%ON .and. CurrentReservoir%Management%ImposedLevel) then
+                
+                !outflow is the remainder balance betwewn all the fluxes already computed (VolumeNew) and 
+                !the VolumeTarget read from file
+                !negative outlflow (underpredicted inflows)
+                if (CurrentReservoir%VolumeTarget >= CurrentReservoir%VolumeNew) then
+                    Outflow = 0.0
+                else                    
+                    Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%VolumeTarget) / Me%ExtVar%DT
+                endif            
+            
             !if imposed by discharge verify computation
-            if (CurrentReservoir%Management%ON .and. CurrentReservoir%Management%ImposedOutflow) then  
+            else if (CurrentReservoir%Management%ON .and. CurrentReservoir%Management%ImposedOutflow) then  
                 
                 !computed already in discharges
                 Outflow = CurrentReservoir%Outflow
+                                  
+            !operation
+            else if (CurrentReservoir%Management%ON .and. CurrentReservoir%Management%ImposedOperation) then            
+                                    
+                !Compute outflow. uses environmental flow if curves defined above curr volume
+                Outflow = GetOutflowFromOperation(CurrentReservoir)                                                     
+                                
+            !only minimum flow defined
+            else if (CurrentReservoir%Management%ON) then
                 
-                !even that is imposed outflow, volumes lower than minimum probably are errors in volume
-                !since reservoirs never go below, discharge are closed to avoid that
-                if (CurrentReservoir%VolumeNew - (Outflow * Me%ExtVar%DT) < CurrentReservoir%MinVolume) then
-                    Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%MinVolume) / Me%ExtVar%DT   
-                endif
-                
-                !test outflow computed - not enough to avoid overflow?
-                if (CurrentReservoir%VolumeNew - (Outflow * Me%ExtVar%DT) > CurrentReservoir%MaxVolume) then
-                    ![m3/s] = [m3] / [s]
-                    Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%MaxVolume) / Me%ExtVar%DT
-                endif
-                  
-
+                Outflow = CurrentReservoir%Management%MinOutflow
+                 
             !First verify if not managed 
             else if (.not. CurrentReservoir%Management%ON) then
                 
                 !type weir
-                if (CurrentReservoir%IsWeir) then
-                   
-                    Outflow = ComputeWeirFlow(CurrentReservoir)                    
-                    
-                    !test outflow computed - not enough to avoid overflow?
-                    !There is no min volume (unmanaged), so only this test to do
-                    if (CurrentReservoir%VolumeNew - (Outflow * Me%ExtVar%DT) > CurrentReservoir%MaxVolume) then
-                        ![m3/s] = [m3] / [s]
-                        Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%MaxVolume) / Me%ExtVar%DT
-                    endif                       
-                    
-                else
-                    
+                if (CurrentReservoir%IsWeir) then                   
+                    Outflow = ComputeWeirFlow(CurrentReservoir)
+                else                    
                     !type ditch, flow zero until maximum capacity, then all exits
                     Outflow = 0.0
-                    if (CurrentReservoir%VolumeNew >= CurrentReservoir%MaxVolume) then
-                        ![m3/s] = [m3] / [s]
-                        Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%MaxVolume) / Me%ExtVar%DT
-                    endif
                 endif                        
-            
-            else if (CurrentReservoir%Management%ON .and. CurrentReservoir%Management%ImposedOperation) then            
-                
-                if (CurrentReservoir%VolumeNew < CurrentReservoir%MinVolume) then
-                    Outflow = 0.0
-                else
-                    
-                    !Compute outflow. uses environmental flow if curves defined above curr volume
-                    Outflow = GetOutflowFromOperation(CurrentReservoir)                    
-                    
-                    !test outflow computed - below mnimum?
-                    if (CurrentReservoir%VolumeNew - (Outflow * Me%ExtVar%DT) < CurrentReservoir%MinVolume) then
-                        Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%MinVolume) / Me%ExtVar%DT  
-                    endif        
-
-                    !test outflow computed - not enough to avoid overflow?
-                    if (CurrentReservoir%VolumeNew - (Outflow * Me%ExtVar%DT) > CurrentReservoir%MaxVolume) then
-                        ![m3/s] = [m3] / [s]
-                        Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%MaxVolume) / Me%ExtVar%DT
-                    endif                        
-                    
-                endif
-            
-            !only minimum flow defined
-            else if (CurrentReservoir%Management%ON) then
-                
-                if (CurrentReservoir%VolumeNew < CurrentReservoir%MinVolume) then
-                    Outflow = 0.0  
-                elseif (CurrentReservoir%VolumeNew < CurrentReservoir%MaxVolume) then
-                    Outflow = CurrentReservoir%Management%MinOutflow
-                else !similar or over maximum
-                    Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%MaxVolume) / Me%ExtVar%DT
-                endif                
+                          
             endif
             
+            
+            !avoid under min volume and above max volume after outflow integration
+            if (CurrentReservoir%VolumeNew - (Outflow * Me%ExtVar%DT) < CurrentReservoir%MinVolume) then
+                Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%MinVolume) / Me%ExtVar%DT   
+            else if (CurrentReservoir%VolumeNew - (Outflow * Me%ExtVar%DT) > CurrentReservoir%MaxVolume) then
+                ![m3/s] = [m3] / [s]
+                Outflow = (CurrentReservoir%VolumeNew - CurrentReservoir%MaxVolume) / Me%ExtVar%DT            
+            endif
 
             !limit to available water
             Outflow = min(Outflow, CurrentReservoir%VolumeNew / Me%ExtVar%DT)
@@ -4191,17 +4418,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
             
             CurrentReservoir%Outflow = Outflow
             
-            !Update Volume
-            CurrentReservoir%VolumeNew = CurrentReservoir%VolumeNew - CurrentReservoir%Outflow * Me%ExtVar%DT
-            
-            !volumes close to zero. use abs to not masquerade possible erros with negative volumes
-            if (Abs(CurrentReservoir%VolumeNew) < AlmostZero) then
-                CurrentReservoir%VolumeNew = 0.0
-            endif
-            
-            call UpdateMatrixesFromVolume (CurrentReservoir)                             
-            
-            
+
             !update outflows to DN - includes the ones from imposed discharge
             Me%ReservoirOutflows(CurrentReservoir%Position) = Me%ReservoirOutflows(CurrentReservoir%Position)   &
                                                                 + CurrentReservoir%Outflow
@@ -4255,8 +4472,8 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
         !Local-----------------------------------------------------------------
         integer                                 :: i
         real                                    :: Outflow, ReservoirPercentageVolume
-        real                                    :: PreviousCurvePercentageVolume, PreviousCurveOutflow
-        real                                    :: NextCurvePercentageVolume, NextCurveOutflow
+        real                                    :: PreviousCurvePercentageVolume, PreviousCurveOutflow, PreviousCurvePercMaxOutflow
+        real                                    :: NextCurvePercentageVolume, NextCurveOutflow, NextCurvePercMaxOutflow
         real                                    :: ReservoirLevel, PercentInflow
         real                                    :: PreviousCurvePercInflow, NextCurvePercInflow
         real                                    :: PreviousCurveLevel, NextCurveLevel
@@ -4310,6 +4527,54 @@ do1:             do i = 2, CurrentReservoir%Management%OperationCurvePoints
                 enddo do1
                 
             endif
+            
+        else if (CurrentReservoir%Management%OperationType == Operation_PercVol_PercMaxOutflow_) then
+            
+            ReservoirPercentageVolume     = CurrentReservoir%VolumeNew / CurrentReservoir%MaxVolume
+            PreviousCurvePercentageVolume = CurrentReservoir%Management%OperationCurve(1, 1)
+            PreviousCurvePercMaxOutflow   = CurrentReservoir%Management%OperationCurve(1, 2)
+            
+            !reservoir empty. avoid all kinds of interpolations
+            if (CurrentReservoir%VolumeNew < AllmostZero) then
+                
+                Outflow = 0.0
+                
+            !reservoir lower than first point
+            else if (ReservoirPercentageVolume < PreviousCurvePercentageVolume) then
+                
+                !set environmental flow (if not defined is zero)
+                Outflow = CurrentReservoir%Management%MinOutflow 
+                    
+            !reservoir higherthan last point
+            else if (ReservoirPercentageVolume >     &
+               CurrentReservoir%Management%OperationCurve(CurrentReservoir%Management%OperationCurvePoints, 1)) then
+                
+                !set last ouflow
+                Outflow = CurrentReservoir%Management%OperationCurve(CurrentReservoir%Management%OperationCurvePoints, 2)
+                
+            else
+                
+                !go trough all points to find where belongs
+do12:           do i = 2, CurrentReservoir%Management%OperationCurvePoints
+                
+                    NextCurvePercentageVolume = CurrentReservoir%Management%OperationCurve(i, 1)
+                    NextCurvePercMaxOutflow   = CurrentReservoir%Management%OperationCurve(i, 2)
+                
+                    if (ReservoirPercentageVolume >= PreviousCurvePercentageVolume &
+                        .and. ReservoirPercentageVolume <= NextCurvePercentageVolume) then
+                    
+                        Outflow = LinearInterpolation(PreviousCurvePercentageVolume, PreviousCurvePercMaxOutflow,       &
+                                         NextCurvePercentageVolume, NextCurvePercMaxOutflow, ReservoirPercentageVolume)  &
+                                    * CurrentReservoir%Management%MaxOutflow
+                        exit do12
+                        
+                    endif
+                
+                    PreviousCurvePercentageVolume = NextCurvePercentageVolume
+                    PreviousCurvePercMaxOutflow   = NextCurvePercMaxOutflow
+                enddo do12
+                
+            endif            
                     
         elseif (CurrentReservoir%Management%OperationType == Operation_PercVol_PercInflow_) then
             

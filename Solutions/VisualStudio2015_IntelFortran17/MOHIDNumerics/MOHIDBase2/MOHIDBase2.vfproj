@@ -155,7 +155,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double|x64" ConfigurationType="typeStaticLibrary" WholeProgramOptimization="true">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Optimization="optimizeFull" PrefetchInsertionOpt="prefetchAggressive" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\x64\Release Double" PreprocessorDefinitions="_NO_NETCDF,_INCREASE_MAXINSTANCES" OpenMPConditionalCompilation="false" F2003Semantics="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" OptDiagPhase="odpVEC" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" FloatingPointModel="precise" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Optimization="optimizeFull" PrefetchInsertionOpt="prefetchAggressive" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\x64\Release Double" PreprocessorDefinitions="_NO_NETCDF,_INCREASE_MAXINSTANCES" OpenMPConditionalCompilation="false" F2003Semantics="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" OptDiagPhase="odpVEC" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" FloatingPointModel="precise" Traceback="true" RuntimeChecks="rtChecksNone"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -387,6 +387,7 @@
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Phreeqc|Win32" ExcludedFromBuild="true"/>

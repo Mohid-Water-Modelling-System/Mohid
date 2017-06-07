@@ -5194,7 +5194,7 @@ i1:     if (NumberOfCells > 0) then
         real,         dimension(:,:  ), pointer     :: Value2D
         integer,      dimension(:,:  ), pointer     :: Map2D
 
-        integer                                     :: k, kfirst, klast
+        integer                                     :: k, kfirst, klast, i, j
         
         
         !Begin-----------------------------------------------------------------
@@ -5218,10 +5218,14 @@ d1:     do k = KLB, KUB
         
 !Search for the first layer with data
 d2:     do k = KLB, KUB
-            if (OutValues3D(ILB, JLB, k) > FillValueReal/1e4) then
+        do j = JLB, JUB
+        do i = ILB, IUB        
+            if (OutValues3D(i, j, k) > FillValueReal/1e4) then
                 kfirst = k
-                exit
+                exit d2
             endif
+        enddo
+        enddo            
         enddo d2
         
 !Extrapolate for the bottom layers
@@ -5231,10 +5235,14 @@ d3:     do k = KLB, kfirst - 1
 
 !Search for the last layer with data
 d4:     do k = KUB, KLB,-1
+        do j = JLB, JUB
+        do i = ILB, IUB
             if (OutValues3D(ILB, JLB, k) > FillValueReal/1e4) then
                 klast = k
-                exit
+                exit d4
             endif
+        enddo
+        enddo            
         enddo d4
         
 !Extrapolate for the surface layers

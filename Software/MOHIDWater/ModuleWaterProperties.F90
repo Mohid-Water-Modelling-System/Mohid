@@ -44,6 +44,11 @@
 !   RESTART_FILE_OUTPUT_TIME    : sec. sec. sec.    -           !Output Time to write restart files
 !   RESTART_FILE_OVERWRITE      : 0/1              [1]          !Overwrite intermediate restart files    
 !   TIME_SERIE_LOCATION         : char              -           !Path to time serie location file
+
+!   SIMPLE_OUTPUT               : logical           1           !By default the output is only for the properties 
+                                                                !However, if the user considers the 0 option several secondries properties will be output
+!   SIMPLE_WINDOW_OUTPUT        : logical           1           !The same of SIMPLE_OUTPUT but for the windows output option
+
 !   BOXFLUXES                   : char              -           !If specified computes box integration
 !                                                               !based on boxes file defined by this keyword
 !   ALTIMETRIC_ASSIMILATION     : 0/1               -           !Cooper-Haines altimetry assimilation method
@@ -836,7 +841,7 @@ Module ModuleWaterProperties
     end type T_Evolution
 
     type       T_LocalAssimila       
-        real                                    :: scalar = FillValueReal
+        real                                    :: scalar       = FillValueReal
         real, pointer, dimension(:,:,:)         :: Field
         real, pointer, dimension(:,:,:)         :: DecayTime
     end type T_LocalAssimila
@@ -865,6 +870,7 @@ Module ModuleWaterProperties
          real                                   :: C_CHLA
          real,    pointer, dimension(:,:,:)     :: Aux3D
          real,    pointer, dimension(:,:)       :: Aux2D
+        logical                                 :: Simple               = .false.          
     end type T_OutPut
     
     type      T_OutW
@@ -3092,10 +3098,10 @@ do1:        do while (associated(ObjCohort%Next))
 
         !if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
 
-            allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)            
-            if (STAT_CALL .NE. SUCCESS_)                                                     &
-                call CloseAllAndStop ('Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR30') 
-                NewProperty%Assimilation%Field(:,:,:) = FillValueReal
+        allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)            
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            call CloseAllAndStop ('Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR30') 
+            NewProperty%Assimilation%Field(:,:,:) = FillValueReal
 
         !endif
         
@@ -11695,8 +11701,17 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR70")
            
-
-
+        call GetData(Me%OutPut%Simple,                                                  &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SIMPLE_OUTPUT',                                    &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleWaterProperties',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR80")
+           
     end subroutine ConstructGlobalOutput
 
 
@@ -12675,9 +12690,20 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                         InitialField = InitialField)
 
             if (.not. InitialField) then
+
+                if ((PropertySon%SubModel%VertComunic == FatherSonDifDim) .or.                &
+                    (PropertySon%SubModel%VertComunic == Father3DSon2D)) then
+
+                    !Get time for interpolation from aux variables
+                    PropertySon%SubModel%GetFatherTime = PropertySon%SubModel%NextTime &
+                        + PropertySon%Evolution%DTInterval
+                        
+                endif
+
                 PropertySon%SubModel%PreviousTime = PropertySon%SubModel%NextTime
                 PropertySon%SubModel%NextTime     = PropFatherLastCompute
             endif
+            
 
 
             if      (PropertySon%SubModel%VertComunic == FatherSonEqualDim) then
@@ -12742,7 +12768,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if      (PropertySon%SubModel%VertComunic == FatherSonEqualDim) then
                 
-                !PropFatherOld can be set to opld because initial field is false
+                !PropFatherOld can be set to old because initial field is false
                 call ActualizeSubModelValues(PropertySon, PropFatherOld = .false., InitialField = InitialField)
 
             else if (PropertySon%SubModel%VertComunic == Father2DSon3D) then
@@ -12877,7 +12903,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                         !Get time for interpolation from aux variables
                         PropertySon%SubModel%GetFatherTime = PropertySon%SubModel%NextTime &
                             + PropertySon%Evolution%DTInterval
-
+                            
                     endif
 
                     PropertySon%SubModel%PreviousTime = PropertySon%SubModel%NextTime
@@ -13514,7 +13540,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
             TimeCoef = 1                    
             
         endif
-
+        
         !Ang: new father-son implementation
         !Get father layers (just shorten variables)
         KLBFather = PropertySon%SubModel%FatherKLB
@@ -13564,7 +13590,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         endif
         
         if(InitialField)then
-
+        
             !ACanas: Next cycle is not parallelized because of function call
             !ACanas: inside cycle iterations.
         
@@ -13615,7 +13641,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
 
                                 PropertySon%SubModel%PreviousField(i,j,k) =             &
                                 PropertySon%SubModel%NextField(i,j,k)
-
+                                
                             endif
 
                             !Perform time interpolation                
@@ -13646,6 +13672,8 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
             !$OMP END MASTER
 
         else
+
+       
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
@@ -13664,7 +13692,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                             Aux = kfather + 1
                            exit
                         else
-                            Values(kfather) = PropertySon%SubModel%Aux_Field(i,j,kfather)
+                            Values(kfather) =   PropertySon%SubModel%Aux_Field(i,j,kfather)
                             Depths(kfather) = - PropertySon%SubModel%Aux_ZCellCenter(i,j,kfather)
                         endif
                     enddo
@@ -13715,7 +13743,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                                     PropertySon%SubModel%PreviousField(i, j, k) * (1 - TimeCoef) 
 
                                 !(only the assimilation field is changed: it can or not be used)
-
+                                
                             else
                                 !do nothing?
                             endif
@@ -20053,6 +20081,8 @@ i4 :                if (Property%SubModel%ON) then
                                                   STAT            = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                          &
                             call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR20')
+                            
+                        Property%Assimilation%Field(:,:,:) = PropAssimilation(:,:,:)
 
 
                     end if i4
@@ -21765,6 +21795,8 @@ do9:                do k=kbottom, KUB
                 OutPutNumber = Me%OutPut%TotalOutputs - OutPutNumber + 1 
             endif 
             
+            if (Me%OutPut%Simple) SimpleOutPut = .true.
+            
         endif
         
 TOut:   if (Actual >= OutTime) then
@@ -21827,8 +21859,7 @@ sp:                     if (.not. SimpleOutPut) then
                                                  "Kg/m3", Array3D = Me%Density%Field,   &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR70')
-                    
-                    
+                            
                         endif sp
                     endif First
                     
@@ -21860,6 +21891,18 @@ sp:                     if (.not. SimpleOutPut) then
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR100')
 
 
+                    if (associated(PropertyX%Assimilation%Field) .and. .not. SimpleOutPut) then                             
+
+                        call HDF5WriteData(ObjHDF5,                                         &
+                                           trim(AuxGroup)//'Assimila/'//PropertyX%ID%Name,  &
+                                           PropertyX%ID%Name,                               &
+                                           PropertyX%ID%Units,                              &
+                                           Array3D      = PropertyX%Assimilation%Field,     &
+                                           OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                          &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR110')
+                    endif
+
                     if (PropertyX%Evolution%Filtration%On .and. .not. SimpleOutPut) then
 
                         call HDF5WriteData(ObjHDF5,                                     &
@@ -21872,6 +21915,7 @@ sp:                     if (.not. SimpleOutPut) then
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR120')
                     
                     endif
+                    
 
                     if (PropertyX%Evolution%FreeVerticalMovement .and. PropertyX%OutputHDFSedVel) then
                     
@@ -22495,11 +22539,9 @@ i2:     if (Me%OutPut%Radiation) then
             
 
             nullify(PropPhytoplankton)            
-          
-          endif i6
-          
-          
-         
+              
+        endif i6
+        
          
         if (Me%OutPut%DO_PercentSat) then
             nullify(PropTemperature   )

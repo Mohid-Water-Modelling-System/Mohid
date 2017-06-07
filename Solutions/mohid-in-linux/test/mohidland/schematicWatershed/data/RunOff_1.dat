@@ -1,0 +1,45 @@
+!MOHID Studio Sample Data File
+!This file contains the most common options.
+!MODULE: RunOff
+!Please complete and comment/uncomment for your specific needs
+!
+!
+!
+!Compute Options
+MIN_WATER_COLUMN          : 0.0001
+HYDRODYNAMIC_APROX        : 3
+DISCHARGES                : 0
+
+STABILIZE                 : 1
+STABILIZE_FACTOR          : 0.05
+LIMIT_DT_COURANT          : 0
+MAX_COURANT               : 0.5
+
+SIMPLE_CHANNEL_FLOW       : 1
+
+!Start / Continuous Computation
+CONTINUOUS                : 0
+
+!Output Options
+OUTPUT_TIME               : 0 3600
+TIME_SERIE_LOCATION       : ../GeneralData/TimeSeriesLocation.dat
+
+!Overland Manning Block
+<BeginOverLandCoefficient>
+FILE_IN_TIME              : NONE
+INITIALIZATION_METHOD     : CONSTANT
+REMAIN_CONSTANT           : 1
+DEFAULTVALUE              : 0.015
+<EndOverLandCoefficient>
+
+<BeginInitialWaterColumn>
+FILE_IN_TIME              : NONE
+INITIALIZATION_METHOD     : CONSTANT
+REMAIN_CONSTANT           : 1
+DEFAULTVALUE              : 0.000
+<EndInitialWaterColumn>
+
+!
+!For more information about MOHID please visit MOHID's forum: http://www.mohid.com/forum/
+!Copyright (C) 2010. Action Modulers. http://www.actionmodulers.com
+!

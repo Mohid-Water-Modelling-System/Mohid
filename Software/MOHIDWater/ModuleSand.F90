@@ -110,6 +110,8 @@ Module ModuleSand
     private ::      ComputeHybridMorphEvolution
     private ::          ComputeAlongShoreFlow1D
     private ::          ComputeProfileCrossShoreMovement
+    private ::          ComputeAlongShoreDZ1D
+    private ::          ComputeProfileCrossShoreMovementDZ
     private ::          ComputeNewBathymetryFromNewProfiles
     private ::              InterpolateNewBathymProfile
     !Update the bathym increment using the HybridMoprh methodology 
@@ -340,6 +342,8 @@ Module ModuleSand
         integer, dimension(:),   pointer        :: OffShoreMapping          => null()
         real(8), dimension(:),   pointer        :: AlongShoreFlux           => null()
         real(8), dimension(:),   pointer        :: ResidualAlongShoreFlux   => null()
+        real(8), dimension(:),   pointer        :: AlongShoreDZ             => null()
+        real(8), dimension(:),   pointer        :: ResidualAlongShoreDZ     => null()        
         integer                                 :: DintegLongShore          = 1
         real(8), dimension(:),   pointer        :: CrossShoreVel            => null()
         real(8), dimension(:),   pointer        :: ResidualCrossShoreVel    => null()        
@@ -2505,6 +2509,8 @@ cd2 :               if (BlockFound) then
         allocate(Me%HybridMorph%OffShoreMapping       (Min1D:Max1D)) 
         allocate(Me%HybridMorph%AlongShoreFlux        (Min1D:Max1D)) 
         allocate(Me%HybridMorph%ResidualAlongShoreFlux(Min1D:Max1D)) 
+        allocate(Me%HybridMorph%AlongShoreDZ          (Min1D:Max1D)) 
+        allocate(Me%HybridMorph%ResidualAlongShoreDZ  (Min1D:Max1D)) 
         allocate(Me%HybridMorph%CrossShoreVel         (Min1D:Max1D)) 
         allocate(Me%HybridMorph%ResidualCrossShoreVel (Min1D:Max1D)) 
 
@@ -2513,6 +2519,8 @@ cd2 :               if (BlockFound) then
         
         Me%HybridMorph%AlongShoreFlux        (Min1D:Max1D) = 0.
         Me%HybridMorph%ResidualAlongShoreFlux(Min1D:Max1D) = 0.
+        Me%HybridMorph%AlongShoreDZ          (Min1D:Max1D) = 0.
+        Me%HybridMorph%ResidualAlongShoreDZ  (Min1D:Max1D) = 0.
         Me%HybridMorph%CrossShoreVel         (Min1D:Max1D) = 0.
         Me%HybridMorph%ResidualCrossShoreVel (Min1D:Max1D) = 0.
 
@@ -4822,8 +4830,12 @@ ifMS:   if (MasterOrSlave) then
         
             
         call ComputeAlongShoreFlow1D
+
+        !call ComputeProfileCrossShoreMovement
         
-        call ComputeProfileCrossShoreMovement
+        call ComputeAlongShoreDZ1D        
+
+        call ComputeProfileCrossShoreMovementDZ
         
         call ComputeNewBathymetryFromNewProfiles
         
@@ -4876,9 +4888,11 @@ ifMS:   if (MasterOrSlave) then
                         endif                            
                     endif                    
                     
-                    !Integrate in the "j direction" - from "ILB" line = coast line 
-                    Me%HybridMorph%AlongShoreFlux(j) = Me%HybridMorph%AlongShoreFlux(j) + Me%FluxXIntegral(i, j)
-                    
+                    if (StartProfile) then                    
+                        !Integrate in the "j direction" - from "ILB" line = coast line 
+                        Me%HybridMorph%AlongShoreFlux(j) = Me%HybridMorph%AlongShoreFlux(j) + Me%FluxXIntegral(i, j)
+                    endif
+                                        
                 enddo
                 
                 if (.not. EndProfile) then
@@ -5052,6 +5066,228 @@ ifMS:   if (MasterOrSlave) then
             
     !--------------------------------------------------------------------------    
 
+    !--------------------------------------------------------------------------    
+
+    subroutine ComputeAlongShoreDZ1D
+
+        !Local-----------------------------------------------------------------
+        real                               :: RunPeriod
+        integer                            :: i, j
+        logical                            :: StartProfile, EndProfile
+        !----------------------------------------------------------------------
+        
+        Me%HybridMorph%AlongShoreDZ(:) = 0.
+        
+        
+        !ILB coast line 
+        if (Me%HybridMorph%CoastBoundary == ILB_) then
+        
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                StartProfile = .false. 
+                EndProfile   = .false.                
+
+                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                    !Defines the first cell of the beach profile
+                    if (Me%ExternalVar%WaterPoints2D(i, j)  == WaterPoint .and. .not. StartProfile) then
+                        StartProfile = .true.
+                        Me%HybridMorph%InShoreMapping(j) = i
+                    endif      
+                    
+                    !Found a land cell (e.g. detached breakwater) - the sand profile active area ends so the alongshore transport integration also ends
+                    if (StartProfile) then
+                        !If the closure depth is reached  - the sand profile active area ends so the alongshore transport integration also ends           
+                        if (Me%ExternalVar%InitialBathym(i,j) > Me%HybridMorph%ClosureDepth) then
+                            Me%HybridMorph%OffShoreMapping(j) = i-1
+                            EndProfile = .true.                            
+                            exit
+                        endif                            
+                    endif                    
+                    
+                    if (StartProfile) then                                        
+                        !Integrate in the "i direction" - from "ILB" line = coast line to closure depth   
+                        Me%HybridMorph%AlongShoreDZ(j) = Me%HybridMorph%AlongShoreDZ(j) +   &
+                            Me%DZ%Field2D(i, j) * Me%ExternalVar%DVY(i, j) / Me%HybridMorph%ClosureDepth
+                    endif
+                                        
+                enddo
+                
+                if (.not. EndProfile) then
+                    Me%HybridMorph%OffShoreMapping(j) = Me%WorkSize%IUB
+                endif
+
+                if (Me%HybridMorph%InShoreMapping(j) == FillValueInt) then
+                    stop 'ComputeAlongShoreDZ1D - ModuleSand - ERR10'
+                endif
+                
+                if (Me%HybridMorph%OffShoreMapping(j) == FillValueInt) then                
+                    stop 'ComputeAlongShoreDZ1D - ModuleSand - ERR20'
+                endif
+                
+            enddo
+            
+        else if (Me%HybridMorph%CoastBoundary == IUB_) then
+        
+            do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                StartProfile = .false. 
+                EndProfile   = .false.                
+
+                do i=Me%WorkSize%IUB, Me%WorkSize%ILB, -1
+            
+                    !Defines the first cell of the beach profile
+                    if (Me%ExternalVar%WaterPoints2D(i, j)  == WaterPoint .and. .not. StartProfile) then
+                        StartProfile = .true.
+                        !The first water point of the profile do not move never is fixed in time 
+                        Me%HybridMorph%InShoreMapping(j) = i
+                    endif      
+                    
+                    !Found a land cell (e.g. detached breakwater) - the sand profile active area ends so the alongshore transport integration also ends
+                    if (StartProfile) then
+                        !If the closure depth is reached  - the sand profile active area ends so the alongshore transport integration also ends                               
+                        if  (Me%ExternalVar%InitialBathym(i,j) > Me%HybridMorph%ClosureDepth) then
+                            Me%HybridMorph%OffShoreMapping(j) = i+1
+                            EndProfile = .true.                            
+                            exit
+                        endif                            
+                    endif        
+                    
+                    if (StartProfile) then
+                        !Integrate in the "i direction" - from "IUB" line = coast line to closure depth   
+                        Me%HybridMorph%AlongShoreDZ(j) = Me%HybridMorph%AlongShoreDZ(j) + &
+                            Me%DZ%Field2D(i, j) * Me%ExternalVar%DVY(i, j) / Me%HybridMorph%ClosureDepth
+                    endif
+                enddo
+                
+                if (.not. EndProfile) then
+                    Me%HybridMorph%OffShoreMapping(j) = Me%WorkSize%ILB
+                endif              
+                
+                if (Me%HybridMorph%InShoreMapping(j) == FillValueInt) then
+                    stop 'ComputeAlongShoreDZ1D - ModuleSand - ERR30'
+                endif
+                
+                if (Me%HybridMorph%OffShoreMapping(j) == FillValueInt) then                
+                    stop 'ComputeAlongShoreDZ1D - ModuleSand - ERR40'
+                endif                
+                
+            enddo          
+            
+        else if (Me%HybridMorph%CoastBoundary == JLB_) then
+        
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                StartProfile = .false. 
+                EndProfile   = .false.
+
+                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+            
+                    !Defines the first cell of the beach profile
+                    if (Me%ExternalVar%WaterPoints2D(i, j)  == WaterPoint .and. .not. StartProfile) then
+                        StartProfile = .true.
+
+                        !The first water point of the profile do not move never is fixed in time 
+                        Me%HybridMorph%InShoreMapping(i) = j                       
+                        
+                    endif      
+                    
+                    !Found a land cell (e.g. detached breakwater) - the sand profile active area ends so the alongshore transport integration also ends
+                    if (StartProfile) then
+                        !If the closure depth is reached  - the sand profile active area ends so the alongshore transport integration also ends                               
+                        if (Me%ExternalVar%InitialBathym(i,j) > Me%HybridMorph%ClosureDepth) then
+                            Me%HybridMorph%OffShoreMapping(i) = j-1
+                            EndProfile = .true.
+                            exit
+                        endif                            
+                    endif                        
+
+                    if (StartProfile) then
+                        !Integrate in the "j direction" - from "JLB" line = coast line to closure depth   
+                        Me%HybridMorph%AlongShoreDZ(i) = Me%HybridMorph%AlongShoreDZ(i) + &
+                            Me%DZ%Field2D(i, j) * Me%ExternalVar%DUX(i, j) / Me%HybridMorph%ClosureDepth
+                    endif
+                enddo
+                
+                if (.not. EndProfile) then
+                    Me%HybridMorph%OffShoreMapping(i) = Me%WorkSize%JUB
+                endif                                  
+                
+                if (Me%HybridMorph%InShoreMapping(i) == FillValueInt) then
+                    stop 'ComputeAlongShoreDZ1D - ModuleSand - ERR50'
+                endif
+                
+                if (Me%HybridMorph%OffShoreMapping(i) == FillValueInt) then                
+                    stop 'ComputeAlongShoreDZ1D - ModuleSand - ERR60'
+                endif
+                
+            enddo          
+            
+        else if (Me%HybridMorph%CoastBoundary == JUB_) then
+        
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                StartProfile = .false.
+                EndProfile   = .false.
+
+                do j = Me%WorkSize%JUB, Me%WorkSize%JLB, -1
+            
+                    !Defines the first cell of the beach profile
+                    if (Me%ExternalVar%WaterPoints2D(i, j)  == WaterPoint .and. .not. StartProfile) then
+                        StartProfile = .true.
+                        !The first water point of the profile do not move never is fixed in time 
+                        Me%HybridMorph%InShoreMapping(i) = j
+                    endif      
+                    
+                    !Found a land cell (e.g. detached breakwater) - the sand profile active area ends so the alongshore transport integration also ends
+                    if (StartProfile) then
+                        !If the closure depth is reached  - the sand profile active area ends so the alongshore transport integration also ends                               
+                        if (Me%ExternalVar%InitialBathym(i,j) > Me%HybridMorph%ClosureDepth) then
+                            Me%HybridMorph%OffShoreMapping(i) = j+1
+                            EndProfile = .true.                            
+                            exit
+                        endif                            
+                    endif                                           
+                    
+                    if (StartProfile) then
+                        !Integrate in the "j direction" - from "JUB" line = coast line to closure depth   
+                        Me%HybridMorph%AlongShoreDZ(i) = Me%HybridMorph%AlongShoreDZ(i) + &
+                            Me%DZ%Field2D(i, j) * Me%ExternalVar%DUX(i, j) / Me%HybridMorph%ClosureDepth
+                    endif
+                enddo
+                
+                if (.not. EndProfile) then
+                    Me%HybridMorph%OffShoreMapping(i) = Me%WorkSize%JLB
+                endif              
+                
+                if (Me%HybridMorph%InShoreMapping(i) == FillValueInt) then
+                    stop 'ComputeAlongShoreDZ1D - ModuleSand - ERR70'
+                endif
+                
+                if (Me%HybridMorph%OffShoreMapping(i) == FillValueInt) then                
+                    stop 'ComputeAlongShoreDZ1D - ModuleSand - ERR80'
+                endif                
+                
+            enddo          
+            
+        endif
+        
+        call BoundaryCondition1D(Me%HybridMorph%AlongShoreDZ, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)        
+        
+        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+        
+
+        Me%HybridMorph%ResidualAlongShoreDZ(:) = ( Me%HybridMorph%ResidualAlongShoreDZ(:) * &
+                                                   (RunPeriod -  Me%Evolution%DZDT)         + &
+                                                    Me%HybridMorph%AlongShoreDZ(:)        * &
+                                                    Me%Evolution%DZDT) / RunPeriod
+
+    end subroutine ComputeAlongShoreDZ1D                                                    
+    
+            
+    !--------------------------------------------------------------------------    
+
+
     subroutine ComputeProfileCrossShoreMovement
 
         !Local-----------------------------------------------------------------
@@ -5184,6 +5420,129 @@ ifMS:   if (MasterOrSlave) then
         endif
 
     end subroutine ComputeProfileCrossShoreMovement
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ComputeProfileCrossShoreMovementDZ
+
+        !Local-----------------------------------------------------------------
+        real(8),    pointer, dimension(:)  :: Aux1D
+        real                               :: RunPeriod, K
+        integer                            :: i, j, ij, imin, imax, di, iaux
+        
+        !----------------------------------------------------------------------
+        
+        Me%HybridMorph%CrossShoreVel(:) = 0.
+
+        !ILB or IUB coast line 
+        if (Me%HybridMorph%CoastBoundary == ILB_ .or. Me%HybridMorph%CoastBoundary == IUB_) then
+        
+            if (Me%HybridMorph%CoastBoundary == ILB_) then
+                ij =  Me%WorkSize%ILB                    
+            endif                
+            if (Me%HybridMorph%CoastBoundary == IUB_) then        
+                ij =  Me%WorkSize%IUB
+            endif
+            
+            do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+
+                ! [m/s]                         = [m/s] + [m] / [s]
+                Me%HybridMorph%CrossShoreVel(j) = Me%HybridMorph%CrossShoreVel(j) + &
+                    Me%HybridMorph%AlongShoreDZ(j) / Me%Evolution%DZDT
+            
+            enddo          
+            
+        else if (Me%HybridMorph%CoastBoundary == JLB_ .or. Me%HybridMorph%CoastBoundary == JUB_) then
+        
+            if (Me%HybridMorph%CoastBoundary == JLB_) then
+                ij = Me%WorkSize%JLB                    
+            endif                
+            if (Me%HybridMorph%CoastBoundary == JUB_) then        
+                ij = Me%WorkSize%JUB
+            endif
+            
+                
+            do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+                ! [m/s]                         = [m/s] + [m] / [s]
+                Me%HybridMorph%CrossShoreVel(i) = Me%HybridMorph%CrossShoreVel(i) + &
+                    Me%HybridMorph%AlongShoreDZ(i) / Me%Evolution%DZDT
+                        
+            enddo          
+            
+        endif
+                
+        call BoundaryCondition1D(Me%HybridMorph%CrossShoreVel, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)
+        
+        if (Me%HybridMorph%DintegLongShore > 1) then
+
+            allocate (Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D))
+            
+            Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = &
+                Me%HybridMorph%CrossShoreVel(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D)
+            
+            do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
+            
+                imin=max(Me%HybridMorph%Min1D,j- Me%HybridMorph%DintegLongShore)
+                imax=min(Me%HybridMorph%Max1D,j+ Me%HybridMorph%DintegLongShore)            
+                
+                Me%HybridMorph%CrossShoreVel(j) = 0.
+                
+                di = imax-imin
+                do i = imin, imax
+                    Me%HybridMorph%CrossShoreVel(j) = Me%HybridMorph%CrossShoreVel(j) + Aux1D(i)/real(di)
+                enddo            
+                
+            enddo            
+            
+            deallocate (Aux1D)
+            
+            call BoundaryCondition1D(Me%HybridMorph%CrossShoreVel, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)
+                        
+        endif
+        
+         
+        
+        RunPeriod = Me%ExternalVar%Now- Me%Residual%StartTime
+        
+
+        Me%HybridMorph%ResidualCrossShoreVel(:) = ( Me%HybridMorph%ResidualCrossShoreVel(:) * &
+                                                     (RunPeriod -  Me%Evolution%DZDT)         + &
+                                                    Me%HybridMorph%CrossShoreVel(:) *          &
+                                                    Me%Evolution%DZDT) / RunPeriod        
+
+!        !Biharmonic filter 
+
+        allocate (Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D))
+        
+        Aux1D(Me%HybridMorph%Min1D:Me%HybridMorph%Max1D) = 0
+
+        K = 1./8.
+
+        do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
+           Aux1D(j) = (Me%HybridMorph%ResidualCrossShoreVel(j-1)- 2.* Me%HybridMorph%ResidualCrossShoreVel(j) + &
+                       Me%HybridMorph%ResidualCrossShoreVel(j+1))
+        enddo            
+        
+        call BoundaryCondition1D(Aux1D, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)    
+        
+         do j = Me%HybridMorph%Min1D+1, Me%HybridMorph%Max1D-1
+            Me%HybridMorph%ResidualCrossShoreVel(j) =  Me%HybridMorph%ResidualCrossShoreVel(j) - K*(Aux1D(j-1)- &
+                                                       2. * Aux1D(j) + Aux1D(j+1))
+        enddo                        
+        
+        deallocate (Aux1D)
+        
+        call BoundaryCondition1D(Me%HybridMorph%ResidualCrossShoreVel, Me%HybridMorph%Min1D, Me%HybridMorph%Max1D)
+
+        !Buffer area adjacent to open boundary with no transport
+        if (Me%HybridMorph%NoTransportBufferCells > 0) then
+            iaux = Me%HybridMorph%NoTransportBufferCells
+            Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Min1D     : Me%HybridMorph%Min1D+iaux) = 0.
+            Me%HybridMorph%ResidualCrossShoreVel(Me%HybridMorph%Max1D-iaux: Me%HybridMorph%Max1D    ) = 0.        
+        endif
+
+    end subroutine ComputeProfileCrossShoreMovementDZ
     
     !--------------------------------------------------------------------------
 

@@ -1,0 +1,16 @@
+MINIMUMDEPTH                  : 0.1
+
+<begindomain>
+ID                            : 1
+TYPE                          : SIGMA
+
+LAYERS                        : 1
+LAYERTHICKNESS                : 1
+
+TOLERANCEDEPTH                : 0.05
+DOMAINDEPTH                   : -99.0
+MININITIALLAYERTHICKNESS      : 0.05
+<enddomain>
+
+
+
