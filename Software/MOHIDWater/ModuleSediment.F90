@@ -5335,15 +5335,13 @@ do1:    do n=1,Me%NumberOfClasses
                         dhdy = 0.
                             
                         if (SandClass%FluxU(i, j) < 0.) then                            
-                            !if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
-                            if (Me%ExternalVar%WaterPoints2D(i, j-1) == WaterPoint) then
+                            if (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
                                     
                                 dhdx = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i, j-1)) /  &
                                         Me%ExternalVar%DZX(i,j-1)
                             endif
                         else
-                            !if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
-                            if (Me%ExternalVar%WaterPoints2D(i, j+1) == WaterPoint) then
+                            if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
                                     
                                 dhdx = (Me%ExternalVar%Bathymetry(i, j+1) - Me%ExternalVar%Bathymetry(i, j)) /  &
                                         Me%ExternalVar%DZX(i,j)
@@ -5351,15 +5349,13 @@ do1:    do n=1,Me%NumberOfClasses
                         endif
 
                         if (SandClass%FluxV(i, j) < 0.) then
-                            !if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
-                            if (Me%ExternalVar%WaterPoints2D(i-1, j) == WaterPoint) then
+                            if  (Me%ExternalVar%ComputeFacesV2D(i,   j) == Covered) then
                             
                                 dhdy = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i-1, j)) /  &
                                         Me%ExternalVar%DZY(i-1,j)     
                             endif
                         else 
-                            !if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
-                            if (Me%ExternalVar%WaterPoints2D(i+1, j) == WaterPoint) then
+                            if (Me%ExternalVar%ComputeFacesV2D(i+1, j) == Covered) then
                                     
                                 dhdy = (Me%ExternalVar%Bathymetry(i+1, j) - Me%ExternalVar%Bathymetry(i, j)) /  &
                                             Me%ExternalVar%DZY(i,j)        
@@ -5708,8 +5704,7 @@ do1:    do n=1,Me%NumberOfClasses
                 do i=WILB, WIUB
                     
                     if (SandClass%FluxU(i, j) < 0.) then 
-                        !if  (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
-                         if (Me%ExternalVar%WaterPoints2D(i, j-1) == WaterPoint) then
+                         if  (Me%ExternalVar%ComputeFacesU2D(i,  j) == Covered ) then
                         
                             SandClass%DM(i, j-1) = SandClass%DM(i, j-1) - Me%Evolution%SedimentDT * SandClass%FluxU(i, j)
                             SandClass%DM(i, j  ) = SandClass%DM(i, j  ) + Me%Evolution%SedimentDT * SandClass%FluxU(i, j)
@@ -5721,8 +5716,7 @@ do1:    do n=1,Me%NumberOfClasses
                         endif
                     elseif (SandClass%FluxU(i, j) > 0.) then 
 
-                        !if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
-                        if (Me%ExternalVar%WaterPoints2D(i, j+1) == WaterPoint) then
+                        if (Me%ExternalVar%ComputeFacesU2D(i,j+1) == Covered) then
                   
                             SandClass%DM(i, j+1) = SandClass%DM(i, j+1) + Me%Evolution%SedimentDT * SandClass%FluxU(i, j)  
                             SandClass%DM(i, j  ) = SandClass%DM(i, j  ) - Me%Evolution%SedimentDT * SandClass%FluxU(i, j) 
