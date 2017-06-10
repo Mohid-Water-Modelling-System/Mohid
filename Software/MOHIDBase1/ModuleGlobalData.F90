@@ -382,7 +382,8 @@ Module ModuleGlobalData
     integer, parameter :: NaturalMort_                      = 812
     integer, parameter :: Grazing_                          = 813
     integer, parameter :: MACondition_                      = 814
-
+    integer, parameter :: CarrCapLim_                       = 815
+    
     !Drifting macroalgae
     integer, parameter :: DriftingMacroAlgae_               = 850
 
@@ -804,7 +805,7 @@ Module ModuleGlobalData
     integer, parameter :: MA_NaturalMort_                   = 10
     integer, parameter :: MA_Grazing_                       = 11
     integer, parameter :: MA_Condition_                     = 12
-
+    integer, parameter :: MA_CarrCapFact_                   = 13
 
     integer, parameter :: ConsolidationFlux_                = 9000
     integer, parameter :: Porosity_                         = 9001
@@ -1206,6 +1207,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_NaturalMort          = 'naturalmort'
     character(StringLength), private, parameter :: Char_Grazing              = 'grazing'
     character(StringLength), private, parameter :: Char_MACondition          = 'macondition'
+    character(StringLength), private, parameter :: Char_CarrCapLim           = 'carrcaplim'
     
     character(StringLength), private, parameter :: Char_DiaGrossProd         = 'diagrossprod'      
     character(StringLength), private, parameter :: Char_DiaNutrientLim       = 'dianutrientlim'    
@@ -2797,6 +2799,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (LightLim_ ,               Char_LightLim ,                 ListNumber)
             call AddPropList (TemperatureLim_,          Char_TemperatureLim,            ListNumber)
             call AddPropList (SalinityLim_,             Char_SalinityLim,               ListNumber)
+            call AddPropList (CarrCapLim_,              Char_CarrCapLim,                ListNumber)
             call AddPropList (DiaGrossProd_,            Char_DiaGrossProd,              ListNumber)
             call AddPropList (DiaNutrientLim_,          Char_DiaNutrientLim,            ListNumber)
             call AddPropList (DiaNLim_,                 Char_DiaNLim,                   ListNumber)
