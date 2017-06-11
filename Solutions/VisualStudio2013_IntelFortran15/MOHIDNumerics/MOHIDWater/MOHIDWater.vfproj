@@ -341,12 +341,12 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceWaterAir.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleJet.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangian.F90">
-			<FileConfiguration Name="Release Double OpenMP|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release OpenMP|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double OpenMP|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double OpenMP PhreeqC|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release OpenMP|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Phreeqc|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double OpenMP PhreeqC|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangianGlobal.F90">
 			<FileConfiguration Name="Release Double OpenMP|Win32">
@@ -364,7 +364,6 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSedimentProperties.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleToga.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbGOTM.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbine.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbulence.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaterProperties.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaves.F90"/></Filter></Files>
