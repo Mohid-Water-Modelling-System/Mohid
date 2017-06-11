@@ -1073,7 +1073,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR124'
                 
                 allocate(Me%MacrOccupation(ArrayLB:ArrayUB), STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR75' 
+                if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR124.5' 
+                
+                !allocate(Me%CellArea1D(ArrayLB:ArrayUB), STAT = STAT_CALL)
+                !if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR124.7'                
                 
                 allocate(Me%SPMFlux(ArrayLB:ArrayUB), STAT = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)stop 'AllocateVariables - ModuleInterface - ERR125'
@@ -1085,7 +1088,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ShearStress        = FillValueReal
                 Me%SPMFlux            = FillValueReal
                 Me%MacrOccupation     = FillValueReal
-
+                !Me%CellArea1D         = FillValueReal
 
 #ifdef _PHREEQC_
             case (PhreeqCModel)
@@ -3698,7 +3701,8 @@ cd4 :           if (ReadyToCompute) then
                             call UnfoldMatrix(Me%ExternalVar%DWZ,         Me%Thickness  )
                             call UnfoldMatrix(Me%ExternalVar%ShearStress, Me%ShearStress)
                             call UnfoldMatrix(Me%ExternalVar%SPMFlux,     Me%SPMFlux    ) 
-                            call UnfoldMatrix(MacrOccupation,        Me%MacrOccupation  )
+                            call UnfoldMatrix(MacrOccupation,             Me%MacrOccupation  )
+                            !call UnfoldMatrix(CellArea,                   Me%CellArea1D  )
 
                             call ModifyMacroAlgae(ObjMacroAlgaeID       = Me%ObjMacroAlgae,       &
                                                   Temperature           = Me%Temperature,         &
@@ -4161,14 +4165,28 @@ cd4 :           if (ReadyToCompute) then
                             endif
                         
                         case(BenthosModel)
-
-                            call ModifyBenthos  (Me%ObjBenthos,                        &
-                                                 Me%Temperature,                       &
-                                                 Me%Oxygen,                            &
-                                                 Me%OpenPoints,                        &
-                                                 Me%Mass,                              &
-                                                 STAT = STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface2D - ModuleInterface - ERR02'
+                            
+                           if (Me%UseSOD) then
+                                call ModifyBenthos  (Me%ObjBenthos,                        &
+                                                     Me%Temperature,                       &
+                                                     Me%Oxygen,                            &
+                                                     Me%OpenPoints,                        &
+                                                     Me%Mass,                              &
+                                                     WaterVolume = Me%WaterVolume1D,       &
+                                                     SODRate     = Me%SOD,                 &
+                                                     CellArea    = Me%CellArea1D,          &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR09'
+                            else
+                                call ModifyBenthos  (Me%ObjBenthos,                        &
+                                                     Me%Temperature,                       &
+                                                     Me%Oxygen,                            &
+                                                     Me%OpenPoints,                        &
+                                                     Me%Mass,                              &
+                                                     WaterVolume = Me%WaterVolume1D,       &
+                                                     STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR09.5'
+                            endif                            
                                                       
                             
                         case(BenthicEcologyModel)
@@ -4561,6 +4579,7 @@ cd4 :           if (ReadyToCompute) then
                                                   SWLightExctintionCoef = Me%LightExtCoefField,   &
                                                   Thickness             = Me%Thickness,           &
                                                   Occupation            = Me%MacrOccupation,      &
+                                                  !CellArea              = Me%CellArea1D,          &
                                                   Mass                  = Me%Mass,                &
                                                   STAT                  = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Modify_Interface1D - ModuleInterface - ERR08.5'
@@ -7840,7 +7859,7 @@ cd1 :           if      (PropertyID== Phytoplankton_       ) then
                         
                         !if it's not a property it can be a rate ID number 
                         case(GrossProd_, NutrientLim_, NLim_, PLim_, LightLim_, TemperatureLim_, SalinityLim_, &
-                             Excretion_, Respiration_, NaturalMort_, Grazing_, MACondition_) 
+                             Excretion_, Respiration_, NaturalMort_, Grazing_, MACondition_, CarrCapLim_) 
 
                             nProperty = PropertyID 
 

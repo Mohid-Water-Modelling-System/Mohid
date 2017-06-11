@@ -15474,8 +15474,9 @@ cd5:                if (TotalVolume > 0.) then
                                 Me%MacroAlgae%Occupation(i,j,k)   = 1.
                                 Remaining_Length                  = Remaining_Length - Me%ExternalVar%DWZ(i,j,k)
                                 !Me%MacroAlgae%DistFromTop(i,j,k)  = 0. 
-                            else
+                            else if (Remaining_Length .gt. 0.0) then
                                 Me%MacroAlgae%Occupation(i,j,k)   = Remaining_Length / Me%ExternalVar%DWZ(i,j,k)
+                                Remaining_Length                  = 0.0
                                 !Me%MacroAlgae%DistFromTop(i,j,k)   = Me%ExternalVar%DWZ(i,j,k)- Remaining_Length
                             end if
                             
@@ -15533,6 +15534,7 @@ cd5:                if (TotalVolume > 0.) then
         integer                                 :: i, j, k, kbottom
         integer                                 :: ILB, IUB, JLB, JUB, KUB
         integer                                 :: STAT_CALL
+        real                                    :: occupation
         
         !Begin----------------------------------------------------------------- 
 
@@ -15561,13 +15563,26 @@ cd5:                if (TotalVolume > 0.) then
 
 
                     do k = kbottom, KUB
+                        
+                        !occupation up to 1 to give % of dwz occupied
+                        occupation = min(Me%MacroAlgae%Occupation(i,j,k), 1.0)
+                        
                         !gC/m3 = gC/m2 * m2 / m3 * m / m
-                        MacroAlgae%Concentration(i,j,k) = Me%MacroAlgae%Occupation(i,j,k) * &
-                                                          Me%MacroAlgae%Distribution(i,j) * &
-                                                          Me%ExternalVar%GridCellArea(i,j)/ &
-                                                          Me%ExternalVar%VolumeZ(i,j,k)   * &
-                                                         (Me%ExternalVar%DWZ(i,j,k)       / &
-                                                          Me%MacroAlgae%Height(i,j))
+                        MacroAlgae%Concentration(i,j,k) = Me%MacroAlgae%Distribution(i,j)    * &
+                                                          Me%ExternalVar%GridCellArea(i,j)   * &
+                                                         (occupation                         * &
+                                                          Me%ExternalVar%DWZ(i,j,k)          / &
+                                                          Me%MacroAlgae%Height(i,j))         / &
+                                                          Me%ExternalVar%VolumeZ(i,j,k)
+                        
+                                                
+                    
+                        
+                        !write(*,*)
+                        !write(*,*)' occupation, distibution, area, volume, dwz, height, conc'
+                        !write(*,*)Me%MacroAlgae%Occupation(i,j,k), Me%MacroAlgae%Distribution(i,j), &
+                        !    Me%ExternalVar%GridCellArea(i,j), Me%ExternalVar%VolumeZ(i,j,k),        &
+                        !    Me%ExternalVar%DWZ(i,j,k), Me%MacroAlgae%Height(i,j), MacroAlgae%Concentration(i,j,k)
 
                     enddo
 
