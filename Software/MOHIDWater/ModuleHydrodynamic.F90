@@ -926,6 +926,9 @@ Module ModuleHydrodynamic
         real,    dimension (:,:),     pointer :: TidePotentialLevel => null()
         real,    dimension (:, :, :), pointer :: Scraper_Aceleration => null()
         real,    dimension (:, :, :), pointer :: ThinWalls_Dissipation => null()
+        !Oscar_BB_INI
+        real,    dimension (:, :, :), pointer :: Turbine_Aceleration => null()
+        !Oscar_BB_END
         
         real,    dimension (:, :, :), pointer :: Wave3DExplicit_Acceleration
 
@@ -1485,7 +1488,9 @@ Module ModuleHydrodynamic
                                            WaveShearStress      = .false., & !Enhancement of bed shear stress by the waves 
                                            Obstacle             = .false., & 
                                            Scraper              = .false.  
-
+        !Oscar_BB_INI
+        logical                         :: Turbine              = .false.
+        !Oscar_BB_END
         type (T_Time)                   :: RAMP_BeginTime
 
         logical                         :: CentrifugalForce = .false., &  

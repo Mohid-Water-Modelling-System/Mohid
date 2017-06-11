@@ -76,7 +76,10 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  94
+    !Oscar_BB 11/05/2017 Begin_
+    !integer, parameter  :: MaxModules           =  94
+    integer, parameter  :: MaxModules           =  95
+    !Oscar_BB 11/05/2017 End_
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1927,7 +1930,10 @@ Module ModuleGlobalData
     integer, parameter ::  mSediment_               = 92
     integer, parameter ::  mReservoirs_             = 93
     integer, parameter ::  mIrrigation_             = 94
-    
+    !Oscar_BB 11/05/2017 Begin_
+    integer, parameter :: mTurbine_               = 95
+    !Oscar_BB 11/05/2017 End_
+
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
     integer, parameter :: EastNorth        = 2
@@ -2047,8 +2053,12 @@ Module ModuleGlobalData
         T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS"           ),        &
         T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"),           T_Module(mSnow_                   , "Snow"          ),        &
         T_Module(mSediment_              , "Sediment"           ),   T_Module(mReservoirs_             , "Reservoirs"    ),        &
-        T_Module(mIrrigation_            , "Irrigation")/)
+        T_Module(mIrrigation_            , "Irrigation"),            T_Module(mTurbine_                , "Turbine"      )/)
         
+        !Oscar_BB 11/05/2017 Begin_
+        !Incluir en el type de arriba
+        !T_Module(mTurbine_          , "Turbine")
+        !Oscar_BB 11/05/2017 End_
 
     !Variables
     logical, dimension(MaxModules)                                  :: RegisteredModules  = .false.
