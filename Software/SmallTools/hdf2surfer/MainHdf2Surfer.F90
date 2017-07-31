@@ -28,6 +28,7 @@ program MohidHdf2Surfer
     use ModuleGeometry     
     use ModuleMap 
     use ModuleStatistic
+    use ModuleTimeSerie
     use ModuleHdf2Surfer
 
     implicit none

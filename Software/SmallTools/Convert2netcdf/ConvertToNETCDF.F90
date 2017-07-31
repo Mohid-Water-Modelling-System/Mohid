@@ -51,6 +51,9 @@
 !/Results/salinity     : e.g. converts only the salinity results
 !<end_groups>
 
+! MULTIPLY_FACTOR      : real          [1.]                     !multiply by fACTOR 
+! ADD_FACTOR
+
 
 program Convert2netcdf
 
@@ -99,7 +102,7 @@ program Convert2netcdf
 
     type T_Conv2netcdf
 
-        character(len=PathLength)                           :: DataFile         = 'Convert2netcdf.dat'
+        character(len=PathLength)                           :: DataFile         = null_str
         character(len=PathLength)                           :: netcdfFile
                                                             
         type(T_Time)                                        :: InitialSystemTime
@@ -138,6 +141,9 @@ program Convert2netcdf
         integer                                             :: DepthLayers      =  FillValueInt
         logical                                             :: DepthLayersON    = .false. 
         
+        real                                                :: Add_Factor       = FillValueReal
+        real                                                :: Multiply_Factor  = FillValueReal        
+        
 
     end type T_Conv2netcdf
 
@@ -171,9 +177,19 @@ program Convert2netcdf
         real, dimension(:), allocatable             :: Aux1D
         
         !Begin-----------------------------------------------------------------
+        
+        !Read input file name from nomfich file
+        call ReadFileName('IN_MODEL', Me%DataFile, "Convert2netcdf", STAT = STAT_CALL)
+        
+        if     (STAT_CALL == FILE_NOT_FOUND_ERR_) then
+            Me%DataFile = "Convert2netcdf.dat"
+        elseif (STAT_CALL /= SUCCESS_              ) then
+            stop 'ReadKeywords - ModuleValida4D - ERR10'
+        endif                        
+                       
 
         call ConstructEnterData (Me%ObjEnterData, Me%DataFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR20'
 
         call GetData(Me%HDFFile%Name,                                                   &
                      Me%ObjEnterData,iflag,                                             &
@@ -181,7 +197,7 @@ program Convert2netcdf
                      keyword      = 'HDF_FILE',                                         &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR30'
 
         !Verifies if file exists
         inquire(FILE = trim(Me%HDFFile%Name), EXIST = exist)
@@ -189,7 +205,7 @@ program Convert2netcdf
             call OpenHDF5File
         else
             write(*,*)'HDF5 file does not exist'
-            stop 'ReadKeywords - Convert2netcdf - ERR30'
+            stop 'ReadKeywords - Convert2netcdf - ERR40'
         endif
 
         call GetData(Me%NCDF_File%Name,                                                 &
@@ -198,7 +214,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_FILE',                                      &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR50'
 
         call GetData(Me%NCDF_File%Title,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -206,7 +222,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_TITLE',                                     &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR50'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR60'
 
         call GetData(Me%NCDF_File%Convention,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -215,7 +231,7 @@ program Convert2netcdf
                      Default      = 'CF-1.0',                                           &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR60'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR70'
 
         call GetData(Me%NCDF_File%Version,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -224,7 +240,7 @@ program Convert2netcdf
                      Default      = '3.6.1',                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR80'
 
         call GetData(Me%NCDF_File%History,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -232,7 +248,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_HISTORY',                                   &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR90'
         
         call GetData(Me%NCDF_File%Source,                                               &
                      Me%ObjEnterData,iflag,                                             &
@@ -240,7 +256,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_SOURCE',                                    &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR100'
 
         
         call GetData(Me%NCDF_File%Institution,                                          &
@@ -250,7 +266,7 @@ program Convert2netcdf
                      Default      = 'Instituto Superior Tecnico',                       &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR100'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR110'
         
         call GetData(Me%NCDF_File%References,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -259,7 +275,7 @@ program Convert2netcdf
                      Default      = 'http://www.mohid.com',                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR110'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR120'
 
         call GetData(Me%NCDF_File%iDate,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -267,7 +283,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_DATE',                                      &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR120'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR130'
 
         call GetData(Me%HDFFile%TimeVar,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -276,7 +292,7 @@ program Convert2netcdf
                      Default      = 'Time',                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR130'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR140'
 
         call GetData(Me%HDFFile%VertVar,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -285,7 +301,7 @@ program Convert2netcdf
                      Default      = 'VerticalZ/Vertical',                               &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR140'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR150'
 
 
         call GetData(Me%HDFFile%SizeGroup,                                              &
@@ -295,7 +311,7 @@ program Convert2netcdf
                      Default      = '/Grid',                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR150'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR160'
 
         call GetData(Me%HDFFile%ImposeMask,                                             &
                      Me%ObjEnterData,iflag,                                             &
@@ -304,7 +320,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR160'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR170'
 
         call GetData(Me%HDFFile%HdfMask,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -313,14 +329,14 @@ program Convert2netcdf
                      Default      = 'WaterPoints3D',                                    &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR170'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR180'
         
         call GetHDF5DataSetExist (HDF5ID        = Me%HDFFile%ObjHDF5,           &
                                   DataSetName   = trim(Me%HDFFile%SizeGroup)//  &
                                                   "/"//trim(Me%HDFFile%HdfMask),&
                                   Exist         = Exist,                        & 
                                   STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR180'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR190'
         
         if (.not.Exist) then
         
@@ -329,13 +345,13 @@ program Convert2netcdf
                                                       "/"//"WaterPoints",           &
                                       Exist         = Exist2,                       & 
                                       STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR190'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR200'
             
             if (Exist2) then
                 Me%HDFFile%HdfMask = "WaterPoints"
             else
                 write(*,*) 'Name define in keyword HDF_MASK not valid' 
-                stop 'ReadMask - Convert2netcdf - ERR200'
+                stop 'ReadMask - Convert2netcdf - ERR210'
             endif
 
         endif
@@ -348,7 +364,7 @@ program Convert2netcdf
                      Default      = .true.,                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR210'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR220'
 
         call GetData(Me%HDFFile%ResultsAre2D,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -357,7 +373,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR220'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR230'
 
         call GetData(Me%HDFFile%OutputIs2D,                                             &
                      Me%ObjEnterData,iflag,                                             &
@@ -366,7 +382,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR230'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR240'
 
 
         call GetData(Me%HDFFile%SizeDataSet,                                            &
@@ -376,7 +392,7 @@ program Convert2netcdf
                      Default      = trim(Me%HDFFile%HdfMask),                           &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR240'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR250'
         
         call GetData(Me%HDFFile%ReadLatLon,                                             &
                      Me%ObjEnterData,iflag,                                             &
@@ -385,7 +401,7 @@ program Convert2netcdf
                      Default      = .true.,                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR250'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR260'
 
         call GetData(Me%HDFFile%Sigma,                                                  &
                      Me%ObjEnterData,iflag,                                             &
@@ -394,7 +410,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR260'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR270'
 
         call GetData(Me%ConvertEverything,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -403,7 +419,7 @@ program Convert2netcdf
                      Default      = .true.,                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR270'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR280'
 
 
         call GetData(Me%DepthAddOffSet,                                                 &
@@ -413,7 +429,7 @@ program Convert2netcdf
                      Default      = 0.,                                                 &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR280'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR290'
 
 
         call GetData(Me%ReferenceTime,                                                  &
@@ -422,7 +438,7 @@ program Convert2netcdf
                      keyword      = 'REFERENCE_TIME',                                   &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR290'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR300'
 
         if(iflag == 0)then
             call SetDate(Me%ReferenceTime, 2004, 1, 1, 0, 0, 0)
@@ -435,15 +451,15 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      Default      = FillValueInt,                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR300'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR310'
         
         if (iflag /= 0) then
             if (Me%DecimalPlaces < 0) then
-                stop 'ReadKeywords - Convert2netcdf - ERR310'
+                stop 'ReadKeywords - Convert2netcdf - ERR320'
             endif
             
             if (Me%DecimalPlaces > 16) then
-                stop 'ReadKeywords - Convert2netcdf - ERR320'
+                stop 'ReadKeywords - Convert2netcdf - ERR330'
             endif            
             
         endif
@@ -457,7 +473,7 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      Default      = .true.,                                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR330'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR340'
         
         iflag = 0
         
@@ -484,7 +500,7 @@ program Convert2netcdf
 !                         keyword      = 'DEPTH_LAYERS',                                 &
 !                         ClientModule = 'Convert2netcdf',                               &
 !                         STAT         = STAT_CALL)
-!            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR340'              
+!            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR350'              
             
             Me%DepthLayers          = iflag    
             Me%DepthLayersON        = .true.            
@@ -493,6 +509,24 @@ program Convert2netcdf
             Me%DepthLayersON        = .false.
         endif            
         
+        call GetData(Me%Add_Factor,                                                     &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'ADD_FACTOR',                                       &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = 0.,                                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR360'
+        
+        call GetData(Me%Multiply_Factor,                                                &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MULTIPLY_FACTOR',                                  &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = 1.,                                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR370'
+     
         if(.not. Me%ConvertEverything)then
 
              call ReadVGroupsToConvert
@@ -1326,7 +1360,7 @@ program Convert2netcdf
         call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName, &
                                            Units, ValidMin, ValidMax,        &
                                            MinValue, MaxValue, MissingValue, &
-                                           Positive, Me%Float2DIn)
+                                           Positive, Me%Float2DOut)
         
         call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
                               Name          = trim(NCDFName),           &
@@ -1394,7 +1428,7 @@ program Convert2netcdf
                     call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
                                          LongName, StandardName,                                &
                                          Units, ValidMin, ValidMax,                             &
-                                         MinValue, MaxValue, MissingValue, Int2D = Me%Int2DIn)
+                                         MinValue, MaxValue, MissingValue, Int2D = Me%Int2DOut)
             
                     call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
                                           Name          = trim(NCDFName),                       &
@@ -1453,7 +1487,7 @@ program Convert2netcdf
                     call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName,                    &
                                          LongName, StandardName,                                &
                                          Units, ValidMin, ValidMax,                             &
-                                         MinValue, MaxValue, MissingValue, Int3D = Me%Int3DIn)
+                                         MinValue, MaxValue, MissingValue, Int3D = Me%Int3DOut)
             
                     call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
                                           Name          = trim(NCDFName),                       &
@@ -1494,7 +1528,7 @@ program Convert2netcdf
 
                 call BuildAttributes(trim(Me%HDFFile%HdfMask), NCDFName, LongName,          &
                                      StandardName, Units, ValidMin, ValidMax,               &
-                                     MinValue, MaxValue, MissingValue, Int2D = Me%Int2DIn)
+                                     MinValue, MaxValue, MissingValue, Int2D = Me%Int2DOut)
         
                 call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,               &
                                       Name          = trim(NCDFName),                       &
@@ -1614,7 +1648,7 @@ program Convert2netcdf
                             call BuildAttributes(obj_name, NCDFName, LongName, StandardName, &
                                                  Units, ValidMin, ValidMax,             &
                                                  MinValue, MaxValue, MissingValue,      &
-                                                 Int2D = Me%Int2DIn)
+                                                 Int2D = Me%Int2DOut)
 
                             call CheckAndCorrectVarName(obj_name, NCDFName)
 
@@ -1656,7 +1690,7 @@ program Convert2netcdf
                             call BuildAttributes(obj_name, NCDFName, LongName, StandardName, &
                                                            Units, ValidMin, ValidMax,        &
                                                            MinValue, MaxValue, MissingValue, &
-                                                           Int3D = Me%Int3DIn)
+                                                           Int3D = Me%Int3DOut)
 
                             call NETCDFWriteData (NCDFID        = Me%NCDF_File%ObjNETCDF,   &
                                                   Name          = trim(NCDFName),           &
@@ -1694,7 +1728,7 @@ program Convert2netcdf
     
     subroutine BuildAttributes(Name, NCDFName, LongName, StandardName, Units,           &
                                ValidMin, ValidMax, Min, Max, MissingValue, Positive,    &
-                               Float2D, Float3D, Int2D, Int3D)
+                               Float2D, Float3D, Int2D, Int3D, Add_Factor, Multiply_Factor)
 
         !Arguments-------------------------------------------------------------
         character(len=*), intent(in )                       :: Name
@@ -1710,15 +1744,26 @@ program Convert2netcdf
         real,    dimension(:,:,:), pointer, optional        :: Float3D 
         integer, dimension(:,:  ), pointer, optional        :: Int2D   
         integer, dimension(:,:,:), pointer, optional        :: Int3D   
+        real,                               optional        :: Add_Factor
+        real,                               optional        :: Multiply_Factor
 
         !Local-----------------------------------------------------------------
         integer                                             :: i, j, k
-        real                                                :: Add_Factor
-        real                                                :: Multiply_Factor
+        real                                                :: Add_Factor_
+        real                                                :: Multiply_Factor_
 
         !Begin-----------------------------------------------------------------
-        Add_Factor      = 0.
-        Multiply_Factor = 1.
+        if (present(Add_Factor)) then
+            Add_Factor_      = Add_Factor
+        else
+            Add_Factor_      = 0.
+        endif
+
+        if (present(Multiply_Factor)) then
+            Multiply_Factor_      = Multiply_Factor
+        else
+            Multiply_Factor_      = 1.
+        endif
 
         select case(trim(adjustl(Name)))
 
@@ -1932,9 +1977,9 @@ program Convert2netcdf
                 LongName        = "mole concentration of phytoplankton expressed as carbon in sea water"
                 StandardName    = "mole_concentration_of_phytoplankton_expressed_as_carbon_in_sea_water"
                 Units           = "mol m-3"
-                Multiply_Factor = 1000./12.0107
-                ValidMin        = 0. * Multiply_Factor
-                ValidMax        = 10. * Multiply_Factor
+                Multiply_Factor_ = 1000./12.0107
+                ValidMin        = 0. * Multiply_Factor_
+                ValidMax        = 10. * Multiply_Factor_
                 MissingValue    = FillValueReal
 
             case("zooplankton")
@@ -1942,9 +1987,9 @@ program Convert2netcdf
                 LongName        = "mole concentration of zooplankton expressed as carbon in sea water"
                 StandardName    = "mole_concentration_of_zooplankton_expressed_as_carbon_in_sea_water"
                 Units           = "mol m-3"
-                Multiply_Factor = 1000./12.0107
-                ValidMin        = 0. * Multiply_Factor
-                ValidMax        = 10. * Multiply_Factor
+                Multiply_Factor_ = 1000./12.0107
+                ValidMin        = 0. * Multiply_Factor_
+                ValidMax        = 10. * Multiply_Factor_
                 MissingValue    = FillValueReal
 
             case("nitrate")
@@ -1952,9 +1997,9 @@ program Convert2netcdf
                 LongName        = "mole concentration of nitrate in sea water"
                 StandardName    = "mole_concentration_of_nitrate_in_sea_water"
                 Units           = "mol m-3"
-                Multiply_Factor = 1000./14.0067
-                ValidMin        = 0. * Multiply_Factor
-                ValidMax        = 10. * Multiply_Factor
+                Multiply_Factor_ = 1000./14.0067
+                ValidMin        = 0. * Multiply_Factor_
+                ValidMax        = 10. * Multiply_Factor_
                 MissingValue    = FillValueReal
 
             case("ammonia")
@@ -1962,9 +2007,9 @@ program Convert2netcdf
                 LongName        = "mole concentration of ammonium in sea water"
                 StandardName    = "mole_concentration_of_ammonium_in_sea_water"
                 Units           = "mol m-3"
-                Multiply_Factor = 1000./14.0067
-                ValidMin        = 0. * Multiply_Factor
-                ValidMax        = 10. * Multiply_Factor
+                Multiply_Factor_ = 1000./14.0067
+                ValidMin        = 0. * Multiply_Factor_
+                ValidMax        = 10. * Multiply_Factor_
                 MissingValue    = FillValueReal
 
             case("cohesive_sediment")
@@ -1981,9 +2026,9 @@ program Convert2netcdf
                 LongName        = "mole concentration of phosphate in sea water"
                 StandardName    = "mole_concentration_of_phosphate_in_sea_water"
                 Units           = "mol m-3"
-                Multiply_Factor = 1000./30.974
-                ValidMin        = 0. * Multiply_Factor
-                ValidMax        = 10. * Multiply_Factor
+                Multiply_Factor_ = 1000./30.974
+                ValidMin        = 0. * Multiply_Factor_
+                ValidMax        = 10. * Multiply_Factor_
                 MissingValue    = FillValueReal
 
             case("particulate_organic_nitrogen")
@@ -1991,9 +2036,9 @@ program Convert2netcdf
                 LongName        = "mole concentration of particulate organic matter expressed as nitrogen in sea water"
                 StandardName    = "mole_concentration_of_particulate_organic_matter_expressed_as_nitrogen_in_sea_water"
                 Units           = "mol m-3"
-                Multiply_Factor = 1000./14.0067
-                ValidMin        = 0. * Multiply_Factor
-                ValidMax        = 10. * Multiply_Factor
+                Multiply_Factor_ = 1000./14.0067
+                ValidMin        = 0. * Multiply_Factor_
+                ValidMax        = 10. * Multiply_Factor_
                 MissingValue    = FillValueReal
 
             case("particulate_organic_phosphorus")
@@ -2001,9 +2046,9 @@ program Convert2netcdf
                 LongName        = "mole concentration of particulate organic matter expressed as phosphorus in sea water"
                 StandardName    = "mole_concentration_of_particulate_organic_matter_expressed_as_phosphorus_in_sea_water"
                 Units           = "mol m-3"
-                Multiply_Factor = 1000./30.974
-                ValidMin        = 0. * Multiply_Factor
-                ValidMax        = 10. * Multiply_Factor
+                Multiply_Factor_ = 1000./30.974
+                ValidMin        = 0. * Multiply_Factor_
+                ValidMax        = 10. * Multiply_Factor_
                 MissingValue    = FillValueReal
 
             case("mean_wave_direction")
@@ -2011,9 +2056,9 @@ program Convert2netcdf
                 LongName        = "sea surface wave to direction"
                 StandardName    = "sea_surface_wave_to_direction"
                 Units           = "degree"
-                ValidMin        = -180 
-                ValidMax        = 180.
-                Multiply_Factor = 57.2958
+                !ValidMin        = -180 
+                !ValidMax        = 180.
+                !Multiply_Factor_ = 57.2958
                 MissingValue    = FillValueReal
 ! Next 2 keywords are not CF compliant
             case("mean_wave_direction_X")
@@ -2076,18 +2121,18 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
             do j = 1, Me%HDFFile%Size%JUB
             do i = 1, Me%HDFFile%Size%IUB
-                Float2D(i,j) = Float2D(i, j) * Multiply_Factor + Add_Factor
+                Float2D(j,i) = Float2D(j,i) * Multiply_Factor_ + Add_Factor_
 
-                if(Float2D(i,j) .gt. FillValueReal/2. .and. Float2D(i,j) .lt.  Min .and. &
-                                                            Float2D(i,j) .ge. ValidMin)then
+                if(Float2D(j,i) .gt. FillValueReal/2. .and. Float2D(j,i) .lt.  Min .and. &
+                                                            Float2D(j,i) .ge. ValidMin)then
 
-                    Min = Float2D(i,j)
+                    Min = Float2D(j,i)
 
                 end if
 
-                if(Float2D(i,j) > Max .and. Float2D(i,j) .le. ValidMax) then
+                if(Float2D(j,i) > Max .and. Float2D(j,i) .le. ValidMax) then
 
-                    Max = Float2D(i,j) 
+                    Max = Float2D(j,i) 
 
                 endif
 
@@ -2099,18 +2144,18 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             do j = 1, Me%HDFFile%Size%JUB
             do i = 1, Me%HDFFile%Size%IUB
             do k = 1, Me%HDFFile%Size%KUB
-                Float3D(i,j,k) = Float3D(i, j, k) * Multiply_Factor + Add_Factor
+                Float3D(j,i,k) = Float3D(j, i, k) * Multiply_Factor_ + Add_Factor_
 
-                if(Float3D(i,j,k) .gt. FillValueReal/2. .and. Float3D(i,j,k) .lt.  Min .and. &
-                                                              Float3D(i,j,k) .ge. ValidMin)then
+                if(Float3D(j,i,k) .gt. FillValueReal/2. .and. Float3D(j,i,k) .lt.  Min .and. &
+                                                              Float3D(j,i,k) .ge. ValidMin)then
 
-                    Min = Float3D(i,j,k)
+                    Min = Float3D(j,i,k)
 
                 end if
 
-                if(Float3D(i,j,k) > Max .and. Float3D(i,j,k) .le. ValidMax) then
+                if(Float3D(j,i,k) > Max .and. Float3D(j,i,k) .le. ValidMax) then
 
-                    Max = Float3D(i,j,k) 
+                    Max = Float3D(j,i,k) 
 
                 endif
 
@@ -2365,7 +2410,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                 call BuildAttributes(Name, NCDFName, LongName, StandardName, &
                                            Units, ValidMin, ValidMax,        &
                                            MinValue, MaxValue, MissingValue, &
-                                           Float2D = Me%Float2DIn)
+                                           Float2D = Me%Float2DOut,          &
+                                           Add_Factor = Me%Add_Factor,       &
+                                           Multiply_Factor = Me%Multiply_Factor)
 
                 if(nGItems > 1)then
 
@@ -2448,7 +2495,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     call BuildAttributes(Name, NCDFName, LongName, StandardName, &
                                                Units, ValidMin, ValidMax,        &
                                                MinValue, MaxValue, MissingValue, &
-                                               Float2D = Me%Float2DIn)
+                                               Float2D = Me%Float2DOut,           &
+                                               Add_Factor = Me%Add_Factor,       &
+                                               Multiply_Factor = Me%Multiply_Factor)
 
                     if(nGItems > 1)then
 
@@ -2573,7 +2622,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     call BuildAttributes(Name, NCDFName, LongName, StandardName, &
                                                Units, ValidMin, ValidMax,        &
                                                MinValue, MaxValue, MissingValue, &
-                                               Float3D = Me%Float3DIn)
+                                               Float3D = Me%Float3DOut,           &
+                                               Add_Factor = Me%Add_Factor,       &
+                                               Multiply_Factor = Me%Multiply_Factor)                                               
 
                     if(nGItems > 1)then
 

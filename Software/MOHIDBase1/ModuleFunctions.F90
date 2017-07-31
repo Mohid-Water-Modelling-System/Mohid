@@ -160,6 +160,8 @@ Module ModuleFunctions
     public  :: InterpolateValueInTime
     public  :: InterpolateMatrix2DInTime
     public  :: InterpolateMatrix3DInTime
+    public  :: InterpolateAngle2DInTime
+    public  :: InterpolateAngle3DInTime
 
     public  :: LinearInterpolation
     public  :: InterpolateLinearyMatrix2D
@@ -4353,6 +4355,255 @@ end function
 
     !--------------------------------------------------------------------------
 
+    subroutine InterpolateAngle2DInTime(ActualTime, Size, Time1, Matrix1, &
+                                         Time2, Matrix2, MatrixOUT, PointsToFill2D)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time),      intent(IN)                   :: ActualTime
+        type(T_Size2D)                                  :: Size
+        type(T_Time),      intent(IN)                   :: Time1
+        real, dimension(:,:), pointer                   :: Matrix1
+        type(T_Time),      intent(IN)                   :: Time2
+        real, dimension(:,:), pointer                   :: Matrix2
+        real, dimension(:,:), pointer                   :: MatrixOUT
+        integer, dimension(:, :), pointer, optional     :: PointsToFill2D
+
+        !Local-----------------------------------------------------------------
+        real                                            :: X1, X, X2
+
+        !Begin-----------------------------------------------------------------
+
+        !Time1 = 0
+        X1       = 0.
+        X        = ActualTime - Time1
+        X2       = Time2      - Time1
+
+        call InterpolateLinearyAngle2D(X, Size, X1, Matrix1,                            &
+                                       X2, Matrix2, MatrixOUT, PointsToFill2D)
+
+    end subroutine InterpolateAngle2DInTime
+
+    !--------------------------------------------------------------------------
+
+    subroutine InterpolateAngle3DInTime(ActualTime, Size, Time1, Matrix1,               &
+                                        Time2, Matrix2, MatrixOUT, PointsToFill3D)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time),      intent(IN)                   :: ActualTime
+        type(T_Size3D)                                  :: Size
+        type(T_Time),      intent(IN)                   :: Time1
+        real, dimension(:,:,:), pointer                 :: Matrix1
+        type(T_Time),      intent(IN)                   :: Time2
+        real, dimension(:,:,:), pointer                 :: Matrix2
+        real, dimension(:,:,:), pointer                 :: MatrixOUT
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+
+        !Local-----------------------------------------------------------------
+        real                                            :: X1, X, X2
+        
+        !Begin-----------------------------------------------------------------
+
+        !Time1 = 0
+        X1       = 0.
+        X        = ActualTime - Time1
+        X2       = Time2 - Time1
+
+        call InterpolateLinearyAngle3D(X, Size, X1, Matrix1,                            &
+                                       X2, Matrix2, MatrixOUT, PointsToFill3D)
+
+    end subroutine InterpolateAngle3DInTime
+
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    subroutine InterpolateLinearyAngle2D(X, Size, X1, Matrix1, &
+                                         X2, Matrix2, MatrixOUT, PointsToFill2D)
+
+        !Arguments-------------------------------------------------------------
+        real                                            :: X1, X2, X
+        type(T_Size2D)                                  :: Size
+        real, dimension(:,:), pointer                   :: Matrix1
+        real, dimension(:,:), pointer                   :: Matrix2
+        real, dimension(:,:), pointer                   :: MatrixOUT
+        integer, dimension(:, :), pointer, optional     :: PointsToFill2D
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j
+        real                                            :: DT1, DT2, DTtotal
+        real                                            :: RealOut, Real1, Real2
+        real                                            :: ImagOut, Imag1, Imag2 
+        real                                            :: Amp       
+        integer                                         :: CHUNK 
+
+        !Begin-----------------------------------------------------------------
+
+        DT1      = X - X1
+        DT2      = X2 - X
+        DTtotal  = DT1 + DT2
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "InterpolateLinearyMatrix2D")
+       
+        CHUNK = CHUNK_J(Size%JLB, Size%JUB)
+
+        if(present(PointsToFill2D))then
+            
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill2D, &
+            !! $OMP Real1, Imag1, Real2, Imag2, RealOut, ImagOut) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+            
+                if(PointsToFill2D(i,j) == 1)then
+                
+                    
+                    call AmpPhase_To_Complex(1., Matrix1(i,j)/360.,Real1, Imag1)
+                    call AmpPhase_To_Complex(1., Matrix2(i,j)/360.,Real2, Imag2)
+
+                    RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
+                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
+                    
+                    call Complex_to_AmpPhase(RealOut,ImagOut, Amp, MatrixOUT(i,j))
+                    
+                    MatrixOUT(i,j) = MatrixOUT(i,j) * 360. 
+
+                    !MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal                    
+            
+                endif
+
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        else
+            
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, &
+            !! $OMP Real1, Imag1, Real2, Imag2, RealOut, ImagOut) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+            
+                    call AmpPhase_To_Complex(1., Matrix1(i,j)/360.,Real1, Imag1)
+                    call AmpPhase_To_Complex(1., Matrix2(i,j)/360.,Real2, Imag2)
+
+                    RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
+                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
+                    
+                    call Complex_to_AmpPhase(RealOut,ImagOut, 1., MatrixOUT(i,j))
+                    
+                    MatrixOUT(i,j) = MatrixOUT(i,j) * 360.     
+                    
+                    !MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal 
+
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "InterpolateLinearyMatrix2D")
+
+    end subroutine InterpolateLinearyAngle2D
+
+    !--------------------------------------------------------------------------
+
+    subroutine InterpolateLinearyAngle3D(X, Size, X1, Matrix1, &
+                                         X2, Matrix2, MatrixOUT, PointsToFill3D)
+
+        !Arguments-------------------------------------------------------------
+        real                                            :: X1, X2, X
+        type(T_Size3D)                                  :: Size
+        real, dimension(:,:,:), pointer                 :: Matrix1
+        real, dimension(:,:,:), pointer                 :: Matrix2
+        real, dimension(:,:,:), pointer                 :: MatrixOUT
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j, k
+        real                                            :: DT1, DT2, DTtotal
+        real                                            :: RealOut, Real1, Real2
+        real                                            :: ImagOut, Imag1, Imag2 
+        real                                            :: Amp                      
+        integer                                         :: CHUNK 
+        
+        !Begin-----------------------------------------------------------------
+
+
+        DT1      = X - X1
+        DT2      = X2 - X
+        DTtotal  = DT1 + DT2
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "InterpolateLinearyMatrix3D")
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+        if(present(PointsToFill3D))then
+
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+
+                if(PointsToFill3D(i,j,k) == 1)then
+
+                    call AmpPhase_To_Complex(1., Matrix1(i,j,k)/360.,Real1, Imag1)
+                    call AmpPhase_To_Complex(1., Matrix2(i,j,k)/360.,Real2, Imag2)
+
+                    RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
+                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
+                    
+                    call Complex_to_AmpPhase(RealOut,ImagOut, Amp, MatrixOUT(i,j,k))
+                    
+                    MatrixOUT(i,j,k) = MatrixOUT(i,j,k) * 360.                     
+                    
+                    !MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal 
+
+
+                endif
+
+            enddo
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        else
+            
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+
+                call AmpPhase_To_Complex(1., Matrix1(i,j,k)/360.,Real1, Imag1)
+                call AmpPhase_To_Complex(1., Matrix2(i,j,k)/360.,Real2, Imag2)
+
+                RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
+                ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
+                
+                call Complex_to_AmpPhase(RealOut,ImagOut, 1., MatrixOUT(i,j,k))
+                
+                MatrixOUT(i,j,k) = MatrixOUT(i,j,k) * 360.         
+                
+                !MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal 
+
+            enddo
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        end if
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "InterpolateLinearyMatrix3D")
+
+    end subroutine InterpolateLinearyAngle3D
+
+    !--------------------------------------------------------------------------
+
+
     subroutine InterpolateMatrix2DInTime(ActualTime, Size, Time1, Matrix1, &
                                          Time2, Matrix2, MatrixOUT, PointsToFill2D)
 
@@ -5275,9 +5526,10 @@ d5:     do k = klast + 1,KUB
         real, optional                              :: DTPredictionInterval
 
         !Local-----------------------------------------------------------------
-        real(8)                                     :: aux
-        real                                        :: MinError
-        integer                                     :: STAT_CALL, iflag
+        real(8)                                     :: aux, aux1, DTD
+        real(8)                                     :: MinError
+        integer                                     :: STAT_CALL, iflag, i
+        character(len = 256)                        :: AuxChar
 
         !Reads Begin Time
         call GetData(BeginTime, ObjEnterData, iflag, keyword = 'START',                  &
@@ -5386,17 +5638,28 @@ d5:     do k = klast + 1,KUB
 
             !Run period in seconds
             aux  = EndTime - BeginTime
-        
+            
+            !when real is real(4) by default if DT = 0.2
+            !DTD = dble(DT) = 0.200000002980232
+            DTD  = dble(DT)
+            
+            !after many attempts this was the only way to clear the spurious values 
+            !added by the dble function after the 6 decimal place
+            
+            write(AuxChar,*)  DTD
+            i = scan(AuxChar,".")
+            read (AuxChar(1:i+7),*) DTD 
+            
             !The run period must be a multiple of the model DT
             !The abs function is used, to avoid rounding erros
-            !The old way was removed, to be able to run with Timesteps lower then 1 sec
-            !Frank Dec - 2000
-            MinError = min (abs(mod (aux, dble(DT))), abs(dble(DT) - mod (aux, dble(DT))))
+            
+            aux1 = dmod (aux, DTD)
+            MinError = min (dabs(aux1), dabs(DTD - aux1))
             if (MinError >= 1.e-5.and.(.not.VariableDT)) then
                 write(*,*) 
                 write(*,*)' Time step error - Run period must be a multiple of DT'
-                write(*,*)' Shorten the run time by ', mod (aux, dble(DT))
-                write(*,*)' or increase the run time by ', DT - mod (aux, dble(DT))
+                write(*,*)' Shorten the run time by ', aux1
+                write(*,*)' or increase the run time by ', DTD - aux1
                 stop 'ReadTimeKeyWords - ModuleFunctions - ERR08'
             endif
         endif
@@ -5557,10 +5820,10 @@ d5:     do k = klast + 1,KUB
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyID - ModuleFunctions - ERR03.1.3'
         else
-            PropertyID%IDNumber = GetPropertyIDNumber (PropertyID%Name)
-            PropertyID%IsAngle = Check_Angle_Property(PropertyID%IDNumber)
+            PropertyID%IDNumber      = GetPropertyIDNumber       (PropertyID%Name    )
+            PropertyID%IsAngle       = Check_Angle_Property      (PropertyID%IDNumber)
             PropertyID%IsParticulate = Check_Particulate_Property(PropertyID%IDNumber)
-            PropertyID%IsVectorial = Check_Vectorial_Property(PropertyID%IDNumber)
+            PropertyID%IsVectorial   = Check_Vectorial_Property  (PropertyID%IDNumber)
         endif
         
         if (present(CheckProperty)) then
@@ -11230,17 +11493,22 @@ D2:     do I=imax-1,2,-1
 
         !Begin-----------------------------------------------------------------    
         Amplitude = sqrt(Sreal**2.+Simag**2.)
-        Phase = Atan (Simag/Sreal)
-
-        if(Sreal < 0 .And. Simag < 0)Then
-           Phase = Phase + Pi
-        end If
-
-        if(Sreal < 0 .And. Simag > 0)Then
-          Phase = Phase - Pi
-        end If
+        if (abs(Sreal)>0.) then
+            Phase = Atan2 (Simag,Sreal)
+        else
         
+            if (Simag > 0) then
+                Phase =  Pi/2.
+            else
+                Phase = -Pi/2.            
+            endif
+            
+        endif            
+
         Phase = Phase / (2 * Pi)
+
+        if (Phase >= 1.) Phase = Phase - 1.
+        if (Phase <  0.) Phase = Phase + 1.            
 
     end subroutine Complex_to_AmpPhase
 

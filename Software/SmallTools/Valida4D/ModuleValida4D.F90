@@ -232,11 +232,22 @@ Module ModuleValida4D
           
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, iflag
-        character(PathLength)                       :: WatchFile        
+        character(PathLength)                       :: WatchFile, DataFile        
         
         !Begin-----------------------------------------------------------------
-        call ConstructEnterData (Me%ObjEnterData, "InputValida4D.dat", STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsFile - ModuleValida4D - ERR10'
+        
+        !Read input file name from nomfich file
+        call ReadFileName('IN_MODEL', DataFile, "ModuleValida4D", STAT = STAT_CALL)
+        
+        if     (STAT_CALL == FILE_NOT_FOUND_ERR_) then
+            DataFile = "InputValida4D.dat"
+        elseif (STAT_CALL /= SUCCESS_           ) then
+            stop 'ReadOptionsFile - ModuleValida4D - ERR10'
+        endif                        
+               
+        call ConstructEnterData (Me%ObjEnterData, DataFile, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsFile - ModuleValida4D - ERR20'
+        
         
         call GetData(WatchFile,                                             &
                      Me%ObjEnterData, iflag,                                &
@@ -244,7 +255,7 @@ Module ModuleValida4D
                      keyword      = 'OUTWATCH',                             &
                      ClientModule = 'Valida4D',                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsFile - ModuleValida4D - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptionsFile - ModuleValida4D - ERR30'
         if (iflag == 0)then
             MonitorPerformance  = .false.
         else
@@ -1725,7 +1736,7 @@ diV1:   do iV = 1, Me%TableValues
                     
                     call FillMatrix3D (imin, imax, jmin, jmax, kmin_next-1, KUB,        &
                                        Me%VerticalZ%Mapping,                            &
-                                       Me%VerticalZ%InterpolTime%NextValues3D,
+                                       Me%VerticalZ%InterpolTime%NextValues3D,          &
                                        FillGridMethod = ExtrapolAverage_)                        
                 
                 
@@ -1941,8 +1952,8 @@ iN2:                if (NewFields) then
                         
                         
                         call FillMatrix2D            (imin, imax, jmin, jmax,               &
-                                                      Me%External_Var%Waterpoints2D,    &
-                                                      Me%Properties(iP)%InterpolTime%PrevValues2D
+                                                      Me%External_Var%Waterpoints2D,        &
+                                                      Me%Properties(iP)%InterpolTime%PrevValues2D, &
                                                       FillGridMethod = ExtrapolAverage_)
 
                         call HDF5ReadData(HDF5ID      = Me%HDF5Files(iH)%ObjHDF5,               &

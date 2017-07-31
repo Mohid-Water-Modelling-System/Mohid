@@ -1381,6 +1381,7 @@ doNext:     do while (associated(NextModel))
         logical                                     :: DoNextStep
         integer                                     :: STAT_CALL
         real                                        :: DTmin, DTmax, DT_Father
+        real                                        :: Year, Month, Day, Hour, Minute, Second                                    
 
         !Search for initial Min and Max Time Step
         
@@ -1425,6 +1426,14 @@ doNext:     do while (associated(NextModel))
                                 else if (CurrentModel%StartIteration < CurrentModel%StartFatherIteration) then 
                                     call UpdateSubModelValues (CurrentModel)
                                 else if (CurrentModel%StartIteration > CurrentModel%StartFatherIteration) then
+                                    call ExtractDate(CurrentModel%StartIteration,                       &
+                                                             Year, Month, Day, Hour, Minute, Second)                                
+                                    write(*,*)               'Current Model - Start Iteration'
+                                    write(*,'(5f6.0,f12.6)')  Year, Month, Day, Hour, Minute, Second
+                                    call ExtractDate(CurrentModel%StartFatherIteration,                 &
+                                                             Year, Month, Day, Hour, Minute, Second)                                
+                                    write(*,*)               'Current Model - Start Father Iteration'
+                                    write(*,'(5f6.0,f12.6)') Year, Month, Day, Hour, Minute, Second
                                     stop 'ModifyMohidWater - MohidWater - ERR20'
                                 endif
                             endif                                

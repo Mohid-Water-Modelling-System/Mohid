@@ -159,6 +159,8 @@ Module ModuleTimeSeriesAnalyser
         real                                                    :: NoisyPeriodAnalysis, NoisyRacioStdevAverage
         real                                                    :: SmoothPeriodAnalysis
         integer                                                 :: NoisyPeriodMinSample
+        
+        logical                                                 :: RemoveConstantValues        
                 
         integer                                                 :: InterpolInTime = FillValueInt
         
@@ -383,7 +385,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%PercentileEvolution .and. .not. Me%PercentileAnalysis) then
             write(*,*) 'PERCENTILE_EVOLUTION can not be true'
             write(*,*) 'if PERCENTILE_ANALYSIS is false'
-            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR165'
+            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR170'
         endif
 
         call GetData(Me%InterpolInTime,                                                 &
@@ -394,10 +396,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = LinearTS_,                                          &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR170'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR180'
 
         if (Me%InterpolInTime /= LinearTS_ .and. Me%InterpolInTime /= BackwardTS_) then
-            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR180'
+            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR190'
         endif
 
 
@@ -409,7 +411,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = -FillValueReal,                                     &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR190'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR200'
         
         call GetData(Me%FilterTimeSerie,                                                &
                      Me%ObjEnterData,                                                   &
@@ -419,7 +421,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .true.,                                             &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR200'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR210'
         
         if (Me%FilterTimeSerie) then
         
@@ -431,7 +433,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = FillValueReal,                                  &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR210'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR220'
 
             call GetData(Me%FilterMaxValue,                                             &
                          Me%ObjEnterData,                                               &
@@ -441,7 +443,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = - FillValueReal,                                &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR220'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR230'
 
 
             call GetData(Me%FilterMaxRateValue,                                         &
@@ -452,7 +454,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = - FillValueReal,                                &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR230'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR240'
             
 !            if (flag == 1) then
 !                if (flag_min == 1 .and. flag_max == 1) then
@@ -468,7 +470,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = FillValueReal,                                  &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR235'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR250'
 
 !            if (flag == 1) then
 !                if (flag_min == 1 .and. flag_max == 1) then
@@ -485,7 +487,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword      ='INPUT_FILTER_FILE',                             &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR240'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR260'
 
             if (flag == 0) Me%TimeSerieFilterInON = .false.
             
@@ -499,7 +501,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              default      = 2,                                          &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR250'
+                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR270'
 
                 call GetData(Me%FilterFlagLimit,                                        &
                              Me%ObjEnterData,                                           &
@@ -509,7 +511,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              default      = 0.5,                                        &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR260'
+                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
 
                 call GetData(Me%FilterFlagLimitAbove,                                   &
                              Me%ObjEnterData,                                           &
@@ -519,7 +521,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              default      = .true.,                                     &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR270'
+                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR290'
 
             endif         
             
@@ -531,7 +533,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = .false.,                                        &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR300'
             
             if (Me%RemoveNoisyPeriods) then
 
@@ -543,7 +545,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              Default      = 86400.,                                     &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR310'
             
                 call GetData(Me%NoisyPeriodMinSample,                                   &
                              Me%ObjEnterData,                                           &
@@ -553,7 +555,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              Default      = 10,                                         &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR320'
                 
                 call GetData(Me%NoisyRacioStdevAverage,                                 &
                              Me%ObjEnterData,                                           &
@@ -563,10 +565,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              Default      = 0.5,                                        &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR330'
                 
-            
             endif
+            
+            call GetData(Me%RemoveConstantValues,                                       &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='REMOVE_CONSTANT_VALUES',                        &
+                         Default      = .true.,                                         &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR340'            
 
 
         endif
@@ -579,7 +590,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = FillValueReal,                                      &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR350'
         
         
         call GetData(Me%CompareTimeSerieOn,                                             &
@@ -590,7 +601,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                            &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR290'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR360'
         
         if (Me%CompareTimeSerieOn) then
         
@@ -601,8 +612,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword      ='COMPARE_FILE',                                  &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR300'
-            if (flag == 0)             stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR310'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR370'
+            if (flag == 0)             stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR380'
 
             call GetData(Me%CompareColumn,                                              &
                          Me%ObjEnterData,                                               &
@@ -612,7 +623,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = 2,                                              &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR310'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR390'
             
 
             call GetData(Me%CompareObservations,                                        &
@@ -623,7 +634,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = .true.,                                         &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR400'
             
            
         endif
@@ -637,10 +648,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = stdv4_,                                             &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR330'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR410'
 
         if (Me%ErrorNormalization /= stdv4_ .and. Me%ErrorNormalization /= Average_) then
-            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR340'
+            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR420'
         endif
 
         call GetData(Me%MovAverageBackward%ON,                                          &
@@ -651,7 +662,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                            &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR350'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR430'
         
 
         call GetData(Me%StartNightHour,                                                 &
@@ -662,7 +673,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      default      = 0.,                                                 &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR360'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR440'
 
         call GetData(Me%EndNightHour,                                                   &
                      Me%ObjEnterData,                                                   &
@@ -672,7 +683,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      default      = 4.,                                                 &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR370'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR450'
 
         
         if (Me%StartNightHour >= Me%EndNightHour) then
@@ -687,7 +698,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      default      = 0.75,                                               &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR380'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR460'
         
 
         
@@ -699,7 +710,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                            &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR390'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR470'
         
         if (Me%SmoothTimeSerie) then
         
@@ -711,10 +722,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = FillValueReal,                                  &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR400'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR480'
             
             if (flag == 0) then
-                stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR410'
+                stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR490'
             endif
 
         endif
@@ -727,7 +738,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      keyword      ='START',                                             &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR420'
+        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR500'
         
         if (flag == 0) then
                 call null_time(Me%BeginTime)
@@ -741,14 +752,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      keyword      ='END',                                               &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR430'
+        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR510'
 
         if (flag == 0) then
                 call null_time(Me%EndTime)
         endif
 
         call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR440'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR520'
 
     
     end subroutine ReadKeywords
@@ -1891,15 +1902,16 @@ d2:     do i=1, Me%DataValues
             endif
 
             !Filter persistent constant values
-            if (i < Me%DataValues-3) then
-                if (Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+1,Me%DataColumn) .and. &
-                    Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+2,Me%DataColumn)) then 
-                    Me%FlagFilter(i  ) = 0
-                    Me%FlagFilter(i+1) = 0
-                    Me%FlagFilter(i+2) = 0
+            if (Me%RemoveConstantValues) then
+                if (i < Me%DataValues-3) then
+                    if (Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+1,Me%DataColumn) .and. &
+                        Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+2,Me%DataColumn)) then 
+                        Me%FlagFilter(i  ) = 0
+                        Me%FlagFilter(i+1) = 0
+                        Me%FlagFilter(i+2) = 0
+                    endif
                 endif
             endif
-            
         enddo d2
         
         
