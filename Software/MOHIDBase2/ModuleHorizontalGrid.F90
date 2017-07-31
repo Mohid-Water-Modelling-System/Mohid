@@ -2706,7 +2706,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
 
 
         !Reads COORD_TIP
-        call GetData(Me%CoordType, Me%ObjEnterData, flag,                                  &
+        call GetData(Me%CoordType, Me%ObjEnterData, flag,                               &
                      keyword      = 'COORD_TIP',                                        &
                      ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)
@@ -4535,11 +4535,18 @@ Inp:    if (Me%CornersXYInput) then
 
             if (abs(Me%Grid_Angle) > 0.) then
 
-                Me%GridBorderCart%Type_      = RotatedRectang_
-                Me%GridBorderCoord%Type_     = RotatedRectang_
-                Me%GridOutBorderCoord%Type_  = RotatedRectang_
-                Me%GridBorderAlongGrid%Type_ = RotatedRectang_
-                Me%GridOutBorderCart%Type_   = RotatedRectang_                
+!                Me%GridBorderCart%Type_      = RotatedRectang_
+!                Me%GridBorderCoord%Type_     = RotatedRectang_
+!                Me%GridOutBorderCoord%Type_  = RotatedRectang_
+!                Me%GridBorderAlongGrid%Type_ = RotatedRectang_
+!                Me%GridOutBorderCart%Type_   = RotatedRectang_    
+
+                Me%GridBorderCart%Type_      = ComplexPolygon_
+                Me%GridBorderCoord%Type_     = ComplexPolygon_
+                Me%GridOutBorderCoord%Type_  = ComplexPolygon_
+                Me%GridBorderAlongGrid%Type_ = ComplexPolygon_
+                Me%GridOutBorderCart%Type_   = ComplexPolygon_ 
+            
             endif
 
 

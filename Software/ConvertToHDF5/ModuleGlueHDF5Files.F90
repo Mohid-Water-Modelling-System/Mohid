@@ -348,7 +348,7 @@ if2 :           if (BlockFound) then
     subroutine InquireFile(FileName)
     
         !Argument--------------------------------------------------------------
-        character (StringLength)                    :: Filename
+        character (*)                               :: Filename
         !Local-----------------------------------------------------------------
         logical                                     :: exist
         !Begin-----------------------------------------------------------------

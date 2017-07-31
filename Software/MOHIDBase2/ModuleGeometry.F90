@@ -2425,7 +2425,8 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                             Me%KFloor%Z(i, j) = iLayer
                             FoundKFloor = .true.
                             
-                        else if (Me%BathymNotCorrect .and. LayerBottomDepthMin > AuxDepth) then
+                        !else if (Me%BathymNotCorrect .and. LayerBottomDepthMin > AuxDepth) then
+                        else if (LayerBottomDepthMin > AuxDepth) then                        
 
                             Me%KFloor%Z(i, j) = iLayer + 1
                             FoundKFloor = .true.
