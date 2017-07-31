@@ -827,6 +827,8 @@ Module ModuleHydrodynamic
         real, dimension (:, :), pointer :: VolumeCreated => null()
         real, dimension (:, :), pointer :: Maxi          => null()
         real, dimension (:, :), pointer :: Mini          => null()
+        type(T_PropertyID)              :: TideStateID        
+        real, dimension (:, :), pointer :: TideState     => null()        
         real                            :: DT      = null_real 
         real                            :: Default = null_real 
         logical                         :: InitalizedByFile = .false.
@@ -1466,7 +1468,8 @@ Module ModuleHydrodynamic
                                            ConservativeHorDif   = .false., & 
                                            BiHarmonic           = .false., & 
                                            BottomVisc_LIM       = .false., & 
-                                           WaterLevelMaxMin     = .false.    
+                                           WaterLevelMaxMin     = .false., &    
+                                           TideStateON          = .false. 
 
 #ifdef OVERLAP
         logical                         :: Overlap  = .false. 
@@ -2408,6 +2411,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (.not. Me%ComputeOptions%Continuous) then
             call ReadInitialImposedSolution 
+            if (Me%ComputeOptions%TideStateON) then
+                call ReadInitialTideState            
+            endif                
         endif            
 
         !Guillaume
@@ -3045,7 +3051,104 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
 
 
     end subroutine ReadInitialImposedSolution 
+    
+    !--------------------------------------------------------------------------    
 
+
+    subroutine ReadInitialTideState
+
+        !Arguments-------------------------------------------------------------
+        
+
+        !Local-----------------------------------------------------------------
+        character(len = StringLength)      :: BeginBlock, EndBlock
+        integer                            :: STAT_CALL, ClientNumber 
+        logical                            :: BlockFound
+        
+        !----------------------------------------------------------------------
+
+
+        BeginBlock = "<begin_tidestate>"
+        EndBlock   = "<end_tidestate>"
+
+        !Searches for water level 
+        call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                     &
+                                     BeginBlock, EndBlock,                              &
+                                     BlockFound, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialTideState  - ModuleHydrodynamic - ERR10'
+
+
+
+        if (BlockFound) then
+
+            !Gets WaterPoints2D
+            call GetWaterPoints2D(Me%ObjHorizontalMap,                                  &
+                                  Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ReadInitialTideState  - ModuleHydrodynamic - ERR20'
+
+            call ConstructPropertyID  (Me%WaterLevel%TideStateID, Me%ObjEnterData, FromBlock)
+
+            call ConstructFillMatrix  (PropertyID           = Me%WaterLevel%TideStateID,    &
+                                       EnterDataID          = Me%ObjEnterData,              &
+                                       TimeID               = Me%ObjTime,                   &
+                                       HorizontalGridID     = Me%ObjHorizontalGrid,         &
+                                       ExtractType          = FromBlock,                    &
+                                       PointsToFill2D       = Me%External_Var%WaterPoints2D,&
+                                       Matrix2D             = Me%WaterLevel%TideState,      &
+                                       TypeZUV              = TypeZ_,                       &
+                                       ClientID             = ClientNumber,                 &
+                                       STAT                 = STAT_CALL)
+                                       
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialTideState  - ModuleHydrodynamic - ERR30'
+            
+            if (Me%WaterLevel%TideStateID%SolutionFromFile .and.                                 &
+                Me%ComputeOptions%Evolution /= ImposedSolution_) then
+                
+                write(*,*) "Tide State input field can not change in time"
+                write(*,*) "must be FILE_IN_TIME : None"
+                stop 'ReadInitialTideState - ModuleHydrodynamic - ERR65'
+                
+            endif
+            
+            
+            if(.not. Me%WaterLevel%TideStateID%SolutionFromFile) then
+                
+                call KillFillMatrix(Me%WaterLevel%TideStateID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialTideState  - ModuleHydrodynamic - ERR70'
+                
+            end if
+            
+            !UnGets WaterPoints2D
+            call UnGetHorizontalMap(Me%ObjHorizontalMap,                                &                      
+                                    Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ReadInitialTideState  - ModuleHydrodynamic - ERR80'
+
+
+        else 
+            if (Me%ComputeOptions%Evolution == ImposedSolution_) then
+                write(*,*) 'Block not found'
+                write(*,*) 'Begin = ',trim(BeginBlock)
+                write(*,*) 'End   = ',trim(EndBlock)
+                stop 'ReadInitialTideState  - ModuleHydrodynamic - ERR90'
+            endif
+
+        endif
+        
+
+
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialTideState  - ModuleHydrodynamic - ERR100'
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialTideState  - ModuleHydrodynamic - ERR110'
+
+        
+
+    end subroutine ReadInitialTideState 
+
+    !--------------------------------------------------------------------------    
 
     subroutine ConstructDragCoefficients
 
@@ -7662,7 +7765,33 @@ cd21:   if (Baroclinic) then
                      STAT       = STAT_CALL)            
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1210')                        
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1210')        
+            
+        !<BeginKeyword>
+            !Keyword          : TIDE_STATE
+            !<BeginDescription>       
+               ! 
+               ! Check if the user wants to output the tide state
+               ! water elevation map.
+               ! 
+            !<EndDescription>
+            !Type             : Logical
+            !Default          : .false.
+            !Multiple Options : .true. (Yes), .false. (No)
+            !Search Type      : From File
+        !<EndKeyword>
+        
+        call GetData(Me%ComputeOptions%TideStateON,                                     &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'TIDE_STATE_ON',                                      &
+                     Default    = .false.,                                              & 
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+        
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1220') 
+                            
 
     End Subroutine Construct_Numerical_Options
 
@@ -8453,6 +8582,9 @@ cd43:   if (.NOT. BlockFound) then
             allocate (Me%WaterLevel%Maxi            (ILB:Pad(ILB, IUB), JLB:JUB     )) 
             allocate (Me%WaterLevel%Mini            (ILB:Pad(ILB, IUB), JLB:JUB     ))
         endif
+        if (Me%ComputeOptions%TideStateON     ) then
+            allocate (Me%WaterLevel%TideState       (ILB:Pad(ILB, IUB), JLB:JUB     )) 
+        endif           
                     
 #ifdef _USE_PAGELOCKED
         call Alloc3DPageLocked(Me%ObjCuda, Me%Velocity%Horizontal%U%NewPtr, Me%Velocity%Horizontal%U%New, IUB + 1, JUB + 1, KUB + 1)
@@ -21696,6 +21828,18 @@ cd1:    if (Evolution == Solve_Equations_) then
         endif
         
         Me%WaterLevel%New (:,:) = Me%WaterLevel%New (:,:) / Me%OutPut%WaterLevelUnits 
+        
+
+        if (Me%ComputeOptions%TideStateON) then
+            if (Me%WaterLevel%TideStateID%SolutionFromFile) then
+                call ModifyFillMatrix (FillMatrixID   = Me%WaterLevel%TideStateID%ObjFillMatrix, &
+                                       Matrix2D       = Me%WaterLevel%TideState,        &
+                                       PointsToFill2D = Me%External_Var%WaterPoints2D,  &
+                                       STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)  Stop 'ReadImposedSolution - ModuleHydrodynamic - ERR15'
+            endif
+        endif
+        
 
         RotateX = .false. 
         RotateY = .false. 
@@ -49341,16 +49485,25 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                              Array2D = Me%OutPut%Aux2D,                                 &
                              OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR100'
+        
+        if (Me%ComputeOptions%TideStateON) then
+            call HDF5WriteData  (ObjHDF5,                                               &
+                                 "/Results/"//trim(GetPropertyName (TideState_)),       &
+                                 trim(GetPropertyName (TideState_)),"-",                &
+                                 Array2D = Me%WaterLevel%TideState,                     &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR105'            
+        endif
 
         !Writes Velocity
-        call HDF5WriteData  (ObjHDF5,                                                &
+        call HDF5WriteData  (ObjHDF5,                                                   &
                              "/Results/"//trim(GetPropertyName (VelocityU_)),           &
                              trim(GetPropertyName (VelocityU_)),                        &
                              "m/s", Array3D = Me%OutPut%CenterU,                        &
                              OutputNumber = Index, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR110'
         
-        call HDF5WriteData  (ObjHDF5,                                                &
+        call HDF5WriteData  (ObjHDF5,                                                   &
                              "/Results/"//trim(GetPropertyName (VelocityV_)),           &
                              trim(GetPropertyName (VelocityV_)),                        &
                              "m/s", Array3D =  Me%OutPut%CenterV,                       &
@@ -49358,7 +49511,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR120'
         
         !Writes Velocity modulus
-        call HDF5WriteData  (ObjHDF5,                                                &
+        call HDF5WriteData  (ObjHDF5,                                                   &
                              "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
                              trim(GetPropertyName (VelocityModulus_)),                  &
                              "m/s", Array3D =  Me%OutPut%ModulusH,                      &
@@ -50099,12 +50252,12 @@ cd3:        if (Me%ComputeOptions%Residual) then
         endif    
     
         !Writes current time
-        call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),         &
+        call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),                    &
                             AuxTime(4), AuxTime(5), AuxTime(6))
         TimePtr => AuxTime
 
         call HDF5SetLimits  (Me%ObjSurfaceHDF5, 1, 6, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR10'
 
         call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
                              "/Time",                                                   &
@@ -50112,13 +50265,26 @@ cd3:        if (Me%ComputeOptions%Residual) then
                              Array1D        = TimePtr,                                  &
                              OutputNumber   = NextSurfaceOutPut,                        &
                              STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR02'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR20'
+
+        !Writes VerticalZ
+        call HDF5SetLimits  (Me%ObjSurfaceHDF5, WorkILB, WorkIUB,                       &
+                             WorkJLB, WorkJUB, WorkKUB-1, WorkKUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR30'
+
+        call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
+                             "/Grid/VerticalZ",                                         &
+                             "VerticalZ", "m",                                          &
+                             Array3D        = Me%External_Var%SZZ,                      &
+                             OutputNumber   = NextSurfaceOutPut,                        &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR40'
 
 
         !Writes OpenPoints
         call HDF5SetLimits  (Me%ObjSurfaceHDF5, WorkILB, WorkIUB,                       &
                              WorkJLB, WorkJUB, WorkKUB, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR50'
 
         call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
                              "/Grid/OpenPoints",                                        &
@@ -50126,7 +50292,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
                              Array3D        = OpenPoints3D,                             &
                              OutputNumber   = NextSurfaceOutPut,                        &
                              STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR04'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR60'
+        
 
         !surface velocity U
         call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
@@ -50135,7 +50302,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
                              Array3D        = Me%OutPut%CenterU,                        &
                              OutputNumber   = NextSurfaceOutPut,                        &
                              STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR09'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR70'
         
 
         !surface velocity V
@@ -50145,7 +50312,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
                              Array3D        = Me%OutPut%CenterV,                        &
                              OutputNumber   = NextSurfaceOutPut,                        &
                              STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR80'
        
         !Writes Velocity modulus
         call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
@@ -50154,7 +50321,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
                              Array3D        = Me%OutPut%ModulusH,                       &
                              OutputNumber   = NextSurfaceOutPut,                        &
                              STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR11'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR90'
 
         !Writes water level
         call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
@@ -50163,12 +50330,12 @@ cd3:        if (Me%ComputeOptions%Residual) then
                              Array2D        = Me%WaterLevel%New,                        &
                              OutputNumber   = NextSurfaceOutPut,                        &
                              STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR12'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR100'
 
 
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjSurfaceHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR37'
+        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR110'
 
 
         !Nullify auxiliar variables
@@ -51111,7 +51278,7 @@ cd2:        if (nUsers == 0) then
                 call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) &
-                    stop 'KillHydrodynamic; ModuleHydrodynamic. ERR01.'
+                    stop 'KillHydrodynamic; ModuleHydrodynamic. ERR10.'
 
                 !Write final HDF output if necessary
 cd3:            if (Me%OutPut%hdf5ON) then
@@ -51136,7 +51303,7 @@ cd3:            if (Me%OutPut%hdf5ON) then
                 if (Me%OutPut%HDF5_Surface_ON) then
 
                     call KillHDF5 (Me%ObjSurfaceHDF5, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR00'
+                    if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR20'
 
                 endif
 
@@ -51164,17 +51331,24 @@ cd3:            if (Me%OutPut%hdf5ON) then
 
                     if(Me%WaterLevel%ID%SolutionFromFile)then
                         call KillFillMatrix(Me%WaterLevel%ID%ObjFillMatrix, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR10'
+                        if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR30'
                     end if
+                    
+                    if (Me%ComputeOptions%TideStateON) then
+                        if (Me%WaterLevel%TideStateID%SolutionFromFile) then
+                            call KillFillMatrix(Me%WaterLevel%TideStateID%ObjFillMatrix, STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR40'
+                        endif
+                    endif                    
     
                     if(Me%Velocity%Horizontal%U%ID%SolutionFromFile)then
                         call KillFillMatrix(Me%Velocity%Horizontal%U%ID%ObjFillMatrix, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR10'
+                        if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR50'
                     end if
 
                     if(Me%Velocity%Horizontal%V%ID%SolutionFromFile)then
                         call KillFillMatrix(Me%Velocity%Horizontal%V%ID%ObjFillMatrix, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR20'
+                        if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR60'
                     end if
 
 
@@ -51184,7 +51358,7 @@ cd3:            if (Me%OutPut%hdf5ON) then
                     if (Me%LandAbsorption%ID%SolutionFromFile) then
                         call KillFillMatrix (FillMatrixID   = Me%LandAbsorption%ID%ObjFillMatrix, &
                                              STAT           = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)  Stop 'KillHydrodynamic - ModuleHydrodynamic - ERR30'
+                        if (STAT_CALL /= SUCCESS_)  Stop 'KillHydrodynamic - ModuleHydrodynamic - ERR70'
                     endif                
                     if (associated(Me%LandAbsorption%Coef))then
                         deallocate(Me%LandAbsorption%Coef)
@@ -54889,7 +55063,12 @@ ic1:    if (Me%CyclicBoundary%ON) then
             nullify  (Me%OutPut%WaterLevelMin       ) 
             nullify  (Me%OutPut%WaterLevelDif       )    
 
-        endif            
+        endif       
+        
+        if (Me%ComputeOptions%TideStateON     ) then
+            deallocate (Me%WaterLevel%TideState) 
+            nullify    (Me%WaterLevel%TideState)
+        endif                        
 
 ! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 25/11/2011

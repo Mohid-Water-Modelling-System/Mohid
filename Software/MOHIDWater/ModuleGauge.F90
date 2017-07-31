@@ -502,12 +502,15 @@ if6 :           if (BlockFound) then
         real,       dimension(:,:), pointer                     :: CoordX, CoordY 
         integer,    dimension(:,:), pointer                     :: BoundaryPoints2D        
         real,       dimension(:  ), pointer                     :: X, Y, Amplitude, Phase
+        real,       dimension(:  ), pointer                     :: PhaseReal, PhaseImag
         real,       dimension(:  ), pointer                     :: AuxX, AuxY
         integer,    dimension(:  ), pointer                     :: Icell, Jcell
-        logical,    dimension(:  ), pointer                     :: NoAmplitude, NoPhase
+        logical,    dimension(:  ), pointer                     :: NoAmplitude
+        logical,    dimension(:  ), pointer                     :: NoPhaseReal, NoPhaseImag
         type (T_Size2D)                                         :: WorkSize
         real                                                    :: West, East, South, North
         real                                                    :: LatDefault, LongDefault
+        real                                                    :: Aux
         integer                                                 :: STAT_CALL
         logical                                                 :: BlockFound, Field4DHarmonicsON
         type(T_TideGauge), pointer                              :: PresentGauge
@@ -714,11 +717,15 @@ if6 :           if (BlockFound) then
             
         endif
         
-        allocate(Amplitude  (1:NP), Phase  (1:NP))
-        allocate(NoAmplitude(1:NP), NoPhase(1:NP))     
+        allocate(Amplitude  (1:NP), Phase      (1:NP))
+        allocate(PhaseReal  (1:NP), PhaseImag  (1:NP))   
+        allocate(NoAmplitude(1:NP)                   )     
+        allocate(NoPhaseReal(1:NP), NoPhaseImag(1:NP))        
         
         Amplitude   (:) = FillValueReal
         Phase       (:) = FillValueReal
+        PhaseReal   (:) = FillValueReal
+        PhaseImag   (:) = FillValueReal        
                 
         do n = 1, HarmonicsNumber
         
@@ -735,18 +742,33 @@ if6 :           if (BlockFound) then
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR160' 
             
-            NoPhase    (:) = .true.             
+            NoPhaseReal(:) = .true.             
 
             call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
                                   PropertyIDNumber  = WaterLevel_,                      &
                                   X                 = X,                                & 
                                   Y                 = Y,                                &
-                                  Field             = Phase,                            & 
-                                  NoData            = NoPhase,                          &
+                                  Field             = PhaseReal,                        & 
+                                  NoData            = NoPhaseReal,                      &
                                   WaveName          = HarmonicsName(n),                 &    
                                   ExtractAmplitudes = .false.,                          &
+                                  ExtractPhaseReal  = .true.,                           & 
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR170' 
+            
+            NoPhaseImag(:) = .true.
+            
+            call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
+                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  X                 = X,                                & 
+                                  Y                 = Y,                                &
+                                  Field             = PhaseImag,                        & 
+                                  NoData            = NoPhaseImag,                      &
+                                  WaveName          = HarmonicsName(n),                 &    
+                                  ExtractAmplitudes = .false.,                          &
+                                  ExtractPhaseReal  = .false.,                          & 
+                                  STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR180'             
             
             do ni = 1, NP 
             
@@ -756,10 +778,16 @@ if6 :           if (BlockFound) then
                     stop 'ReadGaugeDataHDF - ModuleGauges - ERR190' 
                 endif
                 
-                if (NoPhase(ni)    .and. .not. Me%Triangulation) then
-                    write(*,*) 'Tidal phase missing in the open boundary'
+                if (NoPhaseReal(ni)    .and. .not. Me%Triangulation) then
+                    write(*,*) 'Tidal phase (real component) missing in the open boundary'
                     write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
                     stop 'ReadGaugeDataHDF - ModuleGauges - ERR200' 
+                endif                    
+
+                if (NoPhaseImag(ni)    .and. .not. Me%Triangulation) then
+                    write(*,*) 'Tidal phase (imaginary component) missing in the open boundary'
+                    write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
+                    stop 'ReadGaugeDataHDF - ModuleGauges - ERR210' 
                 endif                    
 
             enddo
@@ -767,7 +795,7 @@ if6 :           if (BlockFound) then
                             
             if (n== 1) then
                 do ni = 1, NP 
-                    if (.not. NoAmplitude(ni) .and. .not. NoPhase(ni)) then
+                    if (.not. NoAmplitude(ni) .and. .not. NoPhaseReal(ni) .and. .not. NoPhaseImag(ni)) then
                         if(Me%Triangulation) then
                             i = FillValueInt
                             j = FillValueInt
@@ -786,9 +814,8 @@ if6 :           if (BlockFound) then
             PresentGauge => Me%FirstGauge
 
             do ni = 1, NP 
-                if (.not. NoAmplitude(ni) .and. .not. NoPhase(ni)) then            
-                    !no need to divide by 360º already done in the ModuleField4D
-                    Phase(ni)     = Phase(ni) 
+                if (.not. NoAmplitude(ni) .and. .not. NoPhaseReal(ni) .and. .not. NoPhaseImag(ni)) then            
+                    call Complex_to_AmpPhase(PhaseReal(ni), PhaseImag(ni), Aux, Phase(ni))
                     call NewWave(PresentGauge, HarmonicsName(n), Amplitude(ni), Phase(ni))                
                     PresentGauge => PresentGauge%Next
                 endif                
@@ -797,8 +824,10 @@ if6 :           if (BlockFound) then
                                     
         enddo
 
-        deallocate(Amplitude  , Phase  )
-        deallocate(NoAmplitude, NoPhase)       
+        deallocate(Amplitude  , Phase      )
+        deallocate(PhaseReal  , PhaseImag  )   
+        deallocate(NoAmplitude             )     
+        deallocate(NoPhaseReal, NoPhaseImag)        
         deallocate(HarmonicsName) 
         if (.not. Me%Triangulation) then
             deallocate(X, Y)
