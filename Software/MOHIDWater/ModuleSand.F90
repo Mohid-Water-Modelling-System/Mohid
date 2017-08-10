@@ -1508,6 +1508,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         
         allocate(NewProperty%Field2D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+        NewProperty%Field2D(:,:) = 0.
 
 
         call ConstructFillMatrix  (PropertyID           = NewProperty%ID,              &
