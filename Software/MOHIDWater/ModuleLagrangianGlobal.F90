@@ -23048,6 +23048,22 @@ i1:             if (nP>0) then
                                                  STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR230'
                         endif
+                        
+                        !ParticNumber
+                        CurrentPartic   => CurrentOrigin%FirstPartic
+                        nP = 0
+                        do while (associated(CurrentPartic))
+                            nP = nP + 1
+                            Matrix1D(nP)  =  CurrentPartic%ID
+                            CurrentPartic => CurrentPartic%Next
+                        enddo            
+                        if (nP > 0) then
+                            !HDF 5
+                            call HDF5WriteData  (Me%ObjHDF5(em), "/Results/"//trim(CurrentOrigin%Name)//"/Partic ID", &
+                                                "Partic ID",  "-", Array1D = Matrix1D, OutputNumber = OutPutNumber,     &
+                                                 STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'ParticleOutput - ModuleLagrangianGlobal - ERR230'
+                        endif                        
 
                         !Model ID
                         CurrentPartic   => CurrentOrigin%FirstPartic
@@ -23907,13 +23923,41 @@ iTP:                    if (TotParticle(ig) == 0) then
 
 
                         !HDF 5
-                        call HDF5WriteData        (Me%ObjHDF5(em),                    &
+                        call HDF5WriteData        (Me%ObjHDF5(em),                      &
                                                    "/Results/"//trim(GroupName)//"/Origin ID",&
-                                                   "Origin ID",                              &
-                                                   "-",                                      &
-                                                   Array1D = Matrix1D,                       &
-                                                   OutputNumber = OutPutNumber,              &
+                                                   "Origin ID",                         &
+                                                   "-",                                 &
+                                                   Array1D = Matrix1D,                  &
+                                                   OutputNumber = OutPutNumber,         &
                                                    STAT = STAT_CALL)
+                                                   
+                        !ParticNumber)
+                        nP = 1
+                        CurrentOrigin => Me%FirstOrigin
+    Partic:             do while (associated(CurrentOrigin))
+
+                            if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+                                CurrentPartic   => CurrentOrigin%FirstPartic
+                                do while (associated(CurrentPartic))
+                                    Matrix1D(nP)  = CurrentPartic%ID
+                                    CurrentPartic => CurrentPartic%Next
+                                    nP = nP + 1
+                                enddo            
+                            endif
+                
+                            CurrentOrigin => CurrentOrigin%Next
+                        enddo Partic
+
+
+                        !HDF 5
+                        call HDF5WriteData        (Me%ObjHDF5(em),                      &
+                                                   "/Results/"//trim(GroupName)//"/Partic ID",&
+                                                   "Partic ID",                         &
+                                                   "-",                                 &
+                                                   Array1D = Matrix1D,                  &
+                                                   OutputNumber = OutPutNumber,         &
+                                                   STAT = STAT_CALL)
+                                                   
                         !Model ID
                         nP = 1
                         CurrentOrigin => Me%FirstOrigin
