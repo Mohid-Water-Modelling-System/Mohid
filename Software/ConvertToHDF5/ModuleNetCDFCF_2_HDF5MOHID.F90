@@ -112,6 +112,10 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: RefAttribute
         character(len=StringLength)             :: RefAttributeName
         real                                    :: RefDateOffSet
+        logical                                 :: RefDateOffSetFromAtt
+        character(len=StringLength)             :: RefDateOffSetProp
+        character(len=StringLength)             :: RefDateOffSetAtt        
+        real                                    :: RefDateOffSetAttFactor        
         integer                                 :: NetCDFvar, NetCDFdim
     end type  T_Date
 
@@ -1853,26 +1857,78 @@ BF:         if (BlockFound) then
                 
                 if (Me%Date%RefAttribute) then
         
-                    call GetData(Me%Date%RefAttributeName,                                  &
-                                 Me%ObjEnterData, iflag,                                    &
-                                 SearchType   = FromBlock,                                  &
-                                 keyword      = 'REF_DATE_ATTRIBUTE_NAME',                  &
+                    call GetData(Me%Date%RefAttributeName,                              &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      = 'REF_DATE_ATTRIBUTE_NAME',              &
                                  !CF convention
-                                 default      = "units",                                    &
-                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                                 default      = "units",                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'    
-
-                    !off-set in days
-                    call GetData(Me%Date%RefDateOffSet,                                     &
-                                 Me%ObjEnterData, iflag,                                    &
-                                 SearchType   = FromBlock,                                  &
-                                 keyword      = 'REF_DATE_OFF_SET',                         &
+                    
+                    !off-set in seconds
+                    call GetData(Me%Date%RefDateOffSet,                                 &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      = 'REF_DATE_OFF_SET',                     &
                                  !CF convention
-                                 default      = 0.,                                         &
-                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                                 default      = 0.,                                     &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR85'                        
+
+                    !off-set from a specific property attribute 
+                    call GetData(Me%Date%RefDateOffSetFromAtt,                          &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      = 'REF_DATE_OFF_SET_FROM_ATT',            &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR86'
+                    
+                    if (Me%Date%RefDateOffSetFromAtt) then
+
+                        !off-set from a specific property name 
+                        call GetData(Me%Date%RefDateOffSetProp,                         &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlock,                          &
+                                     keyword      = 'REF_DATE_OFF_SET_PROP',            &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR87'
+
+                        if (iflag == 0) then
+                            stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR87a'
+                        endif
+
+                        !off-set from a specific attribute name 
+                        call GetData(Me%Date%RefDateOffSetAtt,                          &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlock,                          &
+                                     keyword      = 'REF_DATE_OFF_SET_ATT',             &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR88'
+                        
+                        if (iflag == 0) then
+                            stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR88a'
+                        endif
+                        
+
+                        !off-set from a specific property attribute name - multiplying factor
+                        call GetData(Me%Date%RefDateOffSetAttFactor,                    &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlock,                          &
+                                     keyword      = 'REF_DATE_OFF_SET_ATT_FACTOR',      &
+                                     default      = 3600.,                              &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)        
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR89'                        
+                        
+                    endif                        
+                    
                 endif
                 
                 call GetData(Me%Date%NetCDFDimName,                                     &
@@ -4543,6 +4599,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         integer                                 :: stat
         logical                                 :: ReadTime
         type (T_Time)                           :: CurrentTime
+        real                                    :: AuxOffSet
         
         !Begin-----------------------------------------------------------------
         
@@ -4697,14 +4754,22 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             endif
 
                         
-            call SetDate (Me%Date%RefDateTimeIn, Year  = AuxTime(1),                &
-                                               Month   = AuxTime(2),                &
-                                               Day     = AuxTime(3),                &
-                                               Hour    = AuxTime(4),                &
-                                               Minute  = AuxTime(5),                &
-                                               Second  = AuxTime(6))
+            call SetDate (Me%Date%RefDateTimeIn, Year    = AuxTime(1),                  &
+                                                 Month   = AuxTime(2),                  &
+                                                 Day     = AuxTime(3),                  &
+                                                 Hour    = AuxTime(4),                  &
+                                                 Minute  = AuxTime(5),                  &
+                                                 Second  = AuxTime(6))
 
         endif
+        
+        if (Me%Date%RefDateOffSetFromAtt) then
+        
+            AuxOffSet   = ReadOffSetAtt (ncid = ncid,                                   &
+                                         Prop = Me%Date%RefDateOffSetProp,              &
+                                         Att  = Me%Date%RefDateOffSetAtt)
+        endif
+                
         
         do i=1, Me%Date%NumberInst
 
@@ -4729,9 +4794,15 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
                         
             CurrentTime = CurrentTime + Aux1
             
-            if (i==Me%Date%NumberInst) Me%Date%FileEndTime = CurrentTime
+            !CurrentTime = CurrentTime + Me%Date%RefDateOffSet*86400
+            !Date off set in seconds
+            CurrentTime = CurrentTime + Me%Date%RefDateOffSet
             
-            CurrentTime = CurrentTime + Me%Date%RefDateOffSet*86400
+            if (Me%Date%RefDateOffSetFromAtt) then
+                CurrentTime = CurrentTime + AuxOffSet 
+            endif
+            
+            if (i==Me%Date%NumberInst) Me%Date%FileEndTime = CurrentTime
             
             Aux = CurrentTime - Me%Date%RefDateTimeOut
             
@@ -4742,8 +4813,37 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
  
     end subroutine ReadTimeNetCDF
 
-    !------------------------------------------------------------------------
    !---------------------------------------------------------------------------
+   
+   
+   real function ReadOffSetAtt (ncid, Prop , Att)
+
+        !Arguments-------------------------------------------------------------
+        integer                                 :: ncid
+        character(Len=*)                        :: Prop , Att
+
+        
+        !Local-----------------------------------------------------------------
+        integer                                 :: OffSet
+        integer                                 :: status, n
+        
+        !Begin-----------------------------------------------------------------
+        
+        status = nf90_inq_varid(ncid, trim(Prop), n)
+        if (status /= nf90_noerr) stop 'ReadOffSetAtt - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+        
+        status=NF90_GET_ATT(ncid,n,trim(Att), OffSet)
+        if (status /= nf90_noerr) stop 'ReadOffSetAtt - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+        
+        
+        ReadOffSetAtt = real(OffSet)* Me%Date%RefDateOffSetAttFactor
+
+    end function ReadOffSetAtt 
+    
+   
+   !---------------------------------------------------------------------------
+   
+   
     subroutine ReadGrid2DNetCDF(ncid)
         !Arguments-------------------------------------------------------------
         integer                                 :: ncid

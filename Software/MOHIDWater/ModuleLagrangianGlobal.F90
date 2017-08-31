@@ -8904,10 +8904,10 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
                             stop 'MergeOldWithNewOrigins - ModuleLagrangianGlobal - ERR02'
                         endif
 
-                        CurrentOrigin%nParticle   =  CurrentOldOrigin%nParticle
-                        CurrentOrigin%FirstPartic => CurrentOldOrigin%FirstPartic
-                        CurrentOrigin%ObjOil      =  CurrentOldOrigin%ObjOil
-
+                        CurrentOrigin%nParticle    =  CurrentOldOrigin%nParticle
+                        CurrentOrigin%FirstPartic  => CurrentOldOrigin%FirstPartic
+                        CurrentOrigin%ObjOil       =  CurrentOldOrigin%ObjOil
+                        CurrentOrigin%NextParticID = CurrentOldOrigin%NextParticID
 
                         nullify (CurrentOldOrigin%FirstPartic)
 
@@ -11649,12 +11649,18 @@ CurrOr: do while (associated(CurrentOrigin))
 
     !--------------------------------------------------------------------------
 
-    subroutine AllocateNewParticle (NewPartic, nProp, NextParticID)
+    subroutine AllocateNewParticle (NewPartic, nProp, NextParticID, DefineID)
 
         !Arguments-------------------------------------------------------------
         type (T_Partic), pointer                    :: NewPartic
         integer                                     :: nProp
         integer                                     :: NextParticID
+        logical, optional                           :: DefineID
+        
+        !Local-----------------------------------------------------------------
+        logical                                     :: DefineID_
+        
+        !Begin-----------------------------------------------------------------        
 
         nullify  (NewPartic)
         allocate (NewPartic)
@@ -11679,11 +11685,19 @@ CurrOr: do while (associated(CurrentOrigin))
 
         NewPartic%TpercursoH = abs(null_real)
         NewPartic%TpercursoZ = abs(null_real)
-
-        NewPartic%ID         = NextParticID
-        NextParticID         = NextParticID + 1
         
         NewPartic%EmissionTime = Me%Now
+        
+        if (present(DefineID)) then
+            DefineID_ = DefineID
+        else
+            DefineID_ = .true.  
+        endif                
+        
+        if (DefineID_) then
+            NewPartic%ID         = NextParticID
+            NextParticID         = NextParticID + 1
+        endif
 
 
     end subroutine AllocateNewParticle
@@ -28101,6 +28115,9 @@ do2:        do nF = 1, nFiles_total
         integer                                     :: STAT_CALL
         character (Len = Pathlength)                :: filename
         logical                                     :: Final_ = .false.
+        real                                        :: Year, Month, Day, Hour, Minute, Second
+
+        !Begin-----------------------------------------------------------------        
 
         if(present(Final)) Final_ = Final
 
@@ -28142,6 +28159,7 @@ CurrOr: do while (associated(CurrentOrigin))
             write (UnitID) CurrentOrigin%State%FarFieldBuoyancy
             write (UnitID) CurrentOrigin%nParticle
             write (UnitID) CurrentOrigin%nProperties
+            write (UnitID) CurrentOrigin%NextParticID            
 
 !            If (CurrentOrigin%State%Oil)   then
 !                write (UnitID) CurrentOrigin%OilSpreading%GridThickness                      
@@ -28216,6 +28234,10 @@ CurrOr: do while (associated(CurrentOrigin))
                 write (UnitID) CurrentPartic%UD_old
                 write (UnitID) CurrentPartic%VD_old
                 write (UnitID) CurrentPartic%WD_old
+                
+                call ExtractDate(CurrentPartic%EmissionTime, Year, Month, Day, Hour, Minute, Second)                
+                
+                write (UnitID) Year, Month, Day, Hour, Minute, Second
 
                 CurrentPartic => CurrentPartic%Next
             enddo
@@ -28260,7 +28282,11 @@ CurrOr: do while (associated(CurrentOrigin))
         integer                                     :: STAT_CALL
         integer                                     :: nO, nP
         integer                                     :: nParticle, nProperties
-        integer                                     :: Dummy, em
+        integer                                     :: em        
+!        integer                                     :: Dummy
+        real                                        :: Year, Month, Day, Hour, Minute, Second
+        
+        !Begin-----------------------------------------------------------------
 
         !Opens File
         call UnitsManager (UnitID, OPEN_FILE, STAT = STAT_CALL)
@@ -28276,8 +28302,12 @@ d1:     do nO = 1, OldOrigins
             
             NewOrigin%Old   = ON 
 
+            
+            call AllocateNewOrigin (NewOrigin)            
+            
+
             !Reads Origin Information
-            read (UnitID) NewOrigin%Name
+            read (UnitID) NewOrigin%Name            
             read (UnitID) NewOrigin%ID
             read (UnitID) NewOrigin%Position%ModelID
             read (UnitID) NewOrigin%State%Oil
@@ -28288,6 +28318,8 @@ d1:     do nO = 1, OldOrigins
             read (UnitID) NewOrigin%State%FarFieldBuoyancy
             read (UnitID) nParticle
             read (UnitID) nProperties
+            read (UnitID) NewOrigin%NextParticID                                    
+            
 
             if (NewOrigin%State%Oil) then
         
@@ -28318,16 +28350,18 @@ d1:     do nO = 1, OldOrigins
             !Reads Particle Information
 d2:         do nP = 1, nParticle
 
-                call AllocateNewParticle (NewParticle, nProperties, NewOrigin%NextParticID)
 
-                read (UnitID) Dummy !Does not read NewParticle%ID any more
-                                    !This is due to an error in attributing 
-                                    !identical ID's to different particles
-                                    !This error was not completely understood
-                                    !but the problem was solved. If you find 
-                                    !any problem regarding memory errors and 
-                                    !particle ID's please warn Luis or Frank
+!                read (UnitID) Dummy !Does not read NewParticle%ID any more
+!                                    !This is due to an error in attributing 
+!                                    !identical ID's to different particles
+!                                    !This error was not completely understood
+!                                    !but the problem was solved. If you find 
+!                                    !any problem regarding memory errors and 
+!                                    !particle ID's please warn Luis or Frank
 
+                call AllocateNewParticle (NewParticle, nProperties, NewOrigin%NextParticID, DefineID = .false.)
+
+                read (UnitID) NewParticle%ID 
                 read (UnitID) NewParticle%Position%ModelID
 
                 read (UnitID) NewParticle%Position%I
@@ -28391,6 +28425,10 @@ d2:         do nP = 1, nParticle
                 read (UnitID) NewParticle%UD_old
                 read (UnitID) NewParticle%VD_old
                 read (UnitID) NewParticle%WD_old
+                
+                read (UnitID) Year, Month, Day, Hour, Minute, Second      
+                
+                call SetDate(NewParticle%EmissionTime, Year, Month, Day, Hour, Minute, Second)
 
                 call InsertParticleToList (NewOrigin, NewParticle, .false.)
 
