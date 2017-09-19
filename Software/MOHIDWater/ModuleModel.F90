@@ -123,7 +123,7 @@ Module ModuleModel
 
     !$ use omp_lib
     !Oscar_BB INI-----
-    use ModuleTurbine,               only: ConstructTurbine2
+    !use ModuleTurbine,               only: ConstructTurbine
     !Oscar_BB FIN-----
 
     implicit none
@@ -633,7 +633,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !!$    endif
             !$ endif
             !Oscar_BB INI
-            !call ConstructTurbine2 (TurbineID = Me%ObjTurbine, HorizontalGridID = Me%ObjHorizontalGrid, STAT = STAT_CALL)
+            !call ConstructTurbine (TurbineID = Me%ObjTurbine, HorizontalGridID = Me%ObjHorizontalGrid, STAT = STAT_CALL)
             !if (STAT_CALL /= SUCCESS_) stop 'ERR'
             !Oscar_BB FIN            
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)
@@ -834,6 +834,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 #ifdef _ENABLE_CUDA
                                          CudaID           = Me%ObjCuda,                 &
 #endif
+                                         TurbineID        = Me%ObjTurbine,               & !Oscar_BB
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR260'
 
