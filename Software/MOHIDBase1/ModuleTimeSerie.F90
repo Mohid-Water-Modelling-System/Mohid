@@ -497,7 +497,12 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
                     
     end subroutine StartTimeSerie
-
+                              
+    !----------------------------------------------------------------------------------------
+    !This subroutine, StartTimeSerieTurbine is used only for the turbine output, the structure is the same as 
+    !the standard StartTimeSerie with some changes because the input format of the turbine data is diferent
+    !----------------------------------------------------------------------------------------
+                              
     subroutine StartTimeSerieTurbine(TimeSerieID, ObjTime, ObjEnterData, TurbineTimeSerieList,                 &
                               PropertyList, Extension, WaterPoints3D, &
                               WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &

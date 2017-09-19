@@ -2,14 +2,14 @@
 !        IST/MARETEC, Water Modelling Group, Mohid modelling system
 !------------------------------------------------------------------------------
 !
-! TITLE         : Mohid Model
-! PROJECT       : Mohid Base 1
-! MODULE        : Shell
+! TITLE         : Mohid Turbine
+! PROJECT       : Mohid Water
+! MODULE        : ModuleTurbine
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
-! DATE          : May 2003
-! REVISION      : Luis Fernandes - v4.0
-! DESCRIPTION   : Module to serve as shell to create new modules
+! DATE          : Sept 2017
+! REVISION      : Oscar Balsells - v4.0
+! DESCRIPTION   : Module for calculating the force exerted by turbines, the power output and the energy extraction.
 !
 !------------------------------------------------------------------------------
 
@@ -51,7 +51,7 @@ Module ModuleTurbine
                      
     
     !Modifier
-    public  :: ModifyTurbine2
+    public  :: ModifyTurbine
     private ::      TurbineVerticalDiscretisation
     public  :: ComputeTurbineEnergy
     public  :: OutPut_turbine
@@ -156,7 +156,6 @@ Module ModuleTurbine
         logical, intent(OUT)            :: OutPut
         !Local-------------------------------------------------------------------
         
-        type (T_Turbine_param), pointer :: NewTurbine
         integer                         :: ready_, iflag
         integer                         :: STAT_, STAT_CALL
         integer                         :: ClientNumber
@@ -575,7 +574,7 @@ if1:                if (BlockInBlockFound) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     
-    subroutine ModifyTurbine2(TurbineID,VelocityU, VelocityV, VelocityUV, VelocityVU, VolumeUV,  &
+    subroutine ModifyTurbine(TurbineID,VelocityU, VelocityV, VelocityUV, VelocityVU, VolumeUV,  &
                               KFloor_UV, DXX_YY, DUX_VY, di, dj, Density, DT, STAT)
     
         !Arguments------------------------------------------------------------------
@@ -597,7 +596,7 @@ if1:                if (BlockInBlockFound) then
         integer                             :: KBottom
         !integer                             :: iSouth, I_North, J_East, jWest
         
-        real                            ::  TotalAreaTurbine, aux, aux2
+        real                            ::  TotalAreaTurbine, aux
         integer :: ready_, STAT_
         !Inicialización de variables
          STAT_ = UNKNOWN_
@@ -674,7 +673,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                    VelocityModul = sqrt(((VelocityU(I,J,K)+VelocityU(I,J+1,K))/2.0)**2 +            &
                                     ((VelocityV(I,J,K)+VelocityV(I+1,J,K))/2.0)**2)
                    
-                   !aux2 = aux2 + VelocityModul2*T_Area(K)
                    aux = aux + VelocityModul*T_Area(K)
                    TotalAreaTurbine = TotalAreaTurbine + T_Area(K)
     
@@ -731,7 +729,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         end if cd1
         if (present(STAT)) STAT = STAT_
     
-    end subroutine ModifyTurbine2
+    end subroutine ModifyTurbine
         
     subroutine ComputeTurbineEnergy(TurbineID,DT, STAT)
         !Arguments-------------------------------------------------------------
@@ -821,29 +819,39 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     
    
     
-    Subroutine OutPut_Turbine(TurbineID)
+    Subroutine OutPut_Turbine(TurbineID, STAT)
         !Arguments-------------------------------------------------------------
         integer                         :: TurbineID
+        integer, optional, intent (OUT) :: STAT
+
         !Local-----------------------------------------------------------------
-        integer                         :: STAT_CALL
+        integer                         :: STAT_, STAT_CALL, ready_
         !Begin-----------------------------------------------------------------
+        STAT_ = UNKNOWN_
+    
+        call Ready(TurbineID, ready_)
         
-        !Power turbine
-        call WriteTimeSerie(Me%ObjTimeSerie,                        &
-                            Data1D = Me%Power,                      &
-                            STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Turbine - ModuleTurbine - ERR21'
+        if (ready_ .EQ. IDLE_ERR_) then
+            call WriteTimeSerie(Me%ObjTimeSerie,                        &
+                                Data1D = Me%Power,                      &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Turbine - ModuleTurbine - ERR21'
         
-        call WriteTimeSerie(Me%ObjTimeSerie,                        &
-                            Data1D = Me%Energy,                      &
-                            STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Turbine - ModuleTurbine - ERR22'
+            call WriteTimeSerie(Me%ObjTimeSerie,                        &
+                              Data1D = Me%Energy,                      &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Turbine - ModuleTurbine - ERR22'
         
-        call WriteTimeSerie(Me%ObjTimeSerie,                        &
-                            Data1D = Me%TurbineVelocity,                      &
-                            STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Turbine - ModuleTurbine - ERR23'        
-        
+            call WriteTimeSerie(Me%ObjTimeSerie,                        &
+                                Data1D = Me%TurbineVelocity,                      &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutPut_Turbine - ModuleTurbine - ERR23'        
+         else 
+            STAT_ = ready_
+        end if
+    
+        if (present(STAT)) STAT = STAT_
+       
     end subroutine OutPut_Turbine
     
     subroutine ModifyShell(ObjShellID, STAT)
