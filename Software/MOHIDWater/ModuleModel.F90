@@ -122,6 +122,9 @@ Module ModuleModel
 #endif
 
     !$ use omp_lib
+    !Oscar_BB INI-----
+    !use ModuleTurbine,               only: ConstructTurbine
+    !Oscar_BB FIN-----
 
 
     implicit none
@@ -288,6 +291,9 @@ Module ModuleModel
         integer                                 :: ObjSedimentProperties        = 0
         integer                                 :: ObjConsolidation             = 0
         integer                                 :: ObjFreeVerticalMovement      = 0
+        !Oscar_BB INI
+        integer                                 :: ObjTurbine                   = 0
+        !Oscar_BB FIN
 #ifdef _USE_SEQASSIMILATION
         integer                                 :: ObjSeqAssimilation           = 0
 #endif _USE_SEQASSIMILATION
@@ -627,7 +633,10 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !!$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
             !!$    endif
             !$ endif
-
+            !Oscar_BB INI
+            !call ConstructTurbine (TurbineID = Me%ObjTurbine, HorizontalGridID = Me%ObjHorizontalGrid, STAT = STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) stop 'ERR'
+            !Oscar_BB FIN            
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR150'
 
@@ -826,6 +835,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 #ifdef _ENABLE_CUDA
                                          CudaID           = Me%ObjCuda,                 &
 #endif
+                                         TurbineID        = Me%ObjTurbine,               & !Oscar_BB
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR260'
 

@@ -51,7 +51,8 @@ Module ModuleTimeSerie
     private ::      ReadOnlyOneTimeSerieData
     private ::      AllocateTimeSerieBuffer
     private ::      OpenTimeSerieFiles
-
+    
+    public  ::      StartTimeSerieTurbine
     public  :: StartTimeSerieInput
 
 
@@ -497,6 +498,228 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                     
     end subroutine StartTimeSerie
 
+    subroutine StartTimeSerieTurbine(TimeSerieID, ObjTime, ObjEnterData, TurbineTimeSerieList,                 &
+                              PropertyList, Extension, WaterPoints3D, &
+                              WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
+                              ModelName, CoordX, CoordY, UseTabulatedData,               &
+                              HavePath, Comment, ModelDomain, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: TimeSerieID
+        integer                                         :: ObjTime
+        integer                                         :: ObjEnterData
+        integer, dimension(:), intent(IN), pointer      :: TurbineTimeSerieList
+        character(len=*), dimension(:), pointer         :: PropertyList
+        character(len=*), intent(IN )                   :: Extension
+        integer, dimension(:,:,:), optional, pointer    :: WaterPoints3D
+        integer, dimension(:,:  ), optional, pointer    :: WaterPoints2D
+        integer, dimension(:    ), optional, pointer    :: WaterPoints1D
+        character(len=*), optional, intent(IN )         :: ResultFileName
+        character(len=*), optional, intent(IN )         :: Instance  
+        character(len=*), optional, intent(IN )         :: ModelName
+        real, optional                                  :: CoordX
+        real, optional                                  :: CoordY
+        logical, optional, intent(IN )                  :: UseTabulatedData
+        logical, optional, intent(IN )                  :: HavePath
+        character(len=*), optional, intent(IN )         :: Comment
+        type (T_Polygon), pointer, optional, intent(IN ):: ModelDomain
+        integer, optional, intent(OUT)                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL, nUsers
+        integer                                         :: ready_ , STAT_
+        integer                                         :: FromFile
+        integer                                         :: flag, ret
+        integer                                         :: iTimeSerie, j
+        character(len=20)                              :: str
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        !Assures nullification of the global variable
+        if (.not. ModuleIsRegistered(mTimeSerie_)) then
+            nullify (FirstTimeSerie)
+            call RegisterModule (mTimeSerie_) 
+        endif
+
+        call Ready(TimeSerieID, ready_)    
+
+if0 :   if (ready_ .EQ. OFF_ERR_) then
+
+            !Allocates Instance
+            call AllocateInstance
+
+            nullify (Me%DataMatrix)
+            nullify (Me%ColumnsRead)
+            nullify (Me%FileColumns)
+            nullify (Me%TimeSerie)
+
+            !Associates module Time
+            Me%ObjTime = AssociateInstance   (mTIME_, ObjTime)
+            Me%ObjEnterData    = AssociateInstance (mENTERDATA_,  ObjEnterData)
+
+            !-----------TODO ESTO SE PUEDE QUITAR-----------------------
+            if (present(ModelName)) then
+                Me%ModelName    = ModelName
+                Me%ModelNameON  = .true.
+            endif
+
+            if (present(UseTabulatedData)) then
+                Me%UseTabulatedData = UseTabulatedData
+            endif
+            if (present(ModelDomain)) then
+                Me%ModelDomainON = .true.
+                Me%ModelDomain   => ModelDomain
+            else
+                Me%ModelDomainON = .false.
+            endif
+            !-----------TODO ESTO SE PUEDE QUITAR-----------------------
+            
+            !Constructs EnterData
+            !call ConstructEnterData(Me%ObjEnterData, TimeSerieDataFile, STAT = STAT_CALL)
+            !if (STAT_CALL .NE. SUCCESS_) stop 'StartTimeSerie - ModuleTimeSerie - ERR10'
+
+            !Get Extract type
+            !call GetExtractType    (FromFile  = FromFile )
+
+            !The maximum BufferSize is set here to 0.1Mb (for each property)
+            !This lets perfrom 25000 outputs to the buffer (considering each output of 4 bytes)
+            call GetData(Me%MaxBufferSize,                                      &
+                         Me%ObjEnterData,                                       &
+                         flag,                                                  &
+                         SearchType   = FromFile_,                               &
+                         keyword      ='MAX_BUFFER_SIZE',                       &
+                         Default      = 100000,                                 &
+                         ClientModule ='ModuleTimeSerie',                       &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL .NE. SUCCESS_)                                        &
+                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerieTurbine - ModuleTimeSerie. ERR20") 
+
+            call GetData(Me%ComputeResidual,                                    &
+                         Me%ObjEnterData,                                       &
+                         flag,                                                  &
+                         SearchType   = FromFile_,                               &
+                         keyword      ='COMPUTE_RESIDUAL',                      &
+                         Default      = .true.,                                 &
+                         ClientModule ='ModuleTimeSerie',                       &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL .NE. SUCCESS_)                                        &
+                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerieTurbine - ModuleTimeSerie. ERR30") 
+
+            call GetData(Me%ReplacePath,                                        &
+                         Me%ObjEnterData,                                       &
+                         flag,                                                  &
+                         SearchType   = FromFile_,                               &
+                         keyword      ='REPLACE_PATH',                          &
+                         Default      = '****',                                 &
+                         ClientModule ='ModuleTimeSerie',                       &
+                         STAT         = STAT_CALL)        
+            
+            Me%NumberOfProperties = size(PropertyList)
+
+                !Reads the data
+                Me%NumberOfTimeSeries =  size(TurbineTimeSerieList)              
+                if (Me%NumberOfTimeSeries == -1 ) then
+                    stop 'StartTimeSerieTurbine - ModuleTimeSerie - ERR60'
+                elseif (Me%NumberOfTimeSeries > 0) then
+
+                    !Allocate TimeSerie
+                    allocate (Me%TimeSerie(Me%NumberOfTimeSeries), STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)  stop 'StartTimeSerieTurbine - ModuleTimeSerie - ERR70' 
+
+                    do iTimeSerie = 1, Me%NumberOfTimeSeries
+                        nullify (Me%TimeSerie(iTimeSerie)%TimeSerieData)
+                        nullify (Me%TimeSerie(iTimeSerie)%TimeBuffer)
+                        nullify (Me%TimeSerie(iTimeSerie)%ResidualValues)
+                    enddo
+                    
+                    !ret = ReadTimeSeriesLocation ()
+                    !if (ret == SUCCESS_) then
+                    ret = ReadTimeSeriesTimesTurbine ()
+                    if (ret /= SUCCESS_) stop 'StartTimeSerieTurbine - ModuleTimeSerie - ERR80'
+                    
+                endif
+
+                Me%Points = .true.
+                
+
+
+            !Creates the files names for the turbines
+            do iTimeSerie = 1, (Me%NumberOfTimeSeries - 1)
+                write (str, *) TurbineTimeSerieList(iTimeSerie)
+                str = adjustl(str)
+                Me%TimeSerie(iTimeSerie)%FromBlockFileName = 'Turbine' // trim(str)
+                Me%TimeSerie(iTimeSerie)%LocalizationI = TurbineTimeSerieList(iTimeSerie)
+            enddo
+            !Total turbines power and energy timeserie
+          
+            Me%TimeSerie(iTimeSerie)%FromBlockFileName = 'TotalTurbine'
+            Me%TimeSerie(iTimeSerie)%LocalizationI = TurbineTimeSerieList(iTimeSerie)    
+
+            !Allocates the Buffer
+            call AllocateTimeSerieBuffer
+
+            !Constructs the time serie files
+            if (present(Comment)) then
+                if (present(ResultFileName)) then
+                    if (present(HavePath)) then 
+                        call OpenTimeSerieFiles(Extension, &
+                                                PropertyList, &
+                                                ResultFileName = ResultFileName, &
+                                                HavePath = HavePath, &
+                                                Comment = Comment)
+                    else
+                        call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName, Comment = Comment)
+                    endif
+                else if (present(Instance)) then
+                    call OpenTimeSerieFiles(Extension, PropertyList, Instance = Instance, Comment = Comment)
+                else 
+                    call OpenTimeSerieFiles(Extension, PropertyList, Comment = Comment)
+                endif
+            else
+                if (present(ResultFileName)) then
+                    if (present(HavePath)) then 
+                        call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName, HavePath = HavePath)
+                    else
+                        call OpenTimeSerieFiles(Extension, PropertyList, ResultFileName = ResultFileName)
+                    endif
+                else if (present(Instance)) then
+                    call OpenTimeSerieFiles(Extension, PropertyList, Instance = Instance)
+                else 
+                    call OpenTimeSerieFiles(Extension, PropertyList)
+                endif
+            endif
+            
+
+
+            !Inits internal counts
+            Me%InternalPropertyCount = 0
+
+
+            !Kills EnterData
+            !call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
+            !if (STAT_CALL .NE. SUCCESS_) stop 'StartTimeSerie - ModuleTimeSerie - ERR130'
+            nUsers = DeassociateInstance(mENTERDATA_,            Me%ObjEnterData)
+            if (nUsers /= 1) stop 'StartTimeSerieTurbine - ModuleTimeSerie - ERR130'
+               
+                
+            !Returns ID
+            TimeSerieID    = Me%InstanceID
+
+            STAT_ = SUCCESS_
+
+        else
+         
+            stop 'ModuleTimeSerie - StartTimeSerieTurbine - ERR140' 
+
+        end if if0
+
+
+        if (present(STAT)) STAT = STAT_
+
+                    
+    end subroutine StartTimeSerieTurbine
+    
     !--------------------------------------------------------------------------
 
     subroutine AllocateInstance 
@@ -884,6 +1107,115 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
         ReadTimeSeriesTimes = SUCCESS_
 
     end function ReadTimeSeriesTimes
+    
+        integer function ReadTimeSeriesTimesTurbine ()
+
+        !Local-----------------------------------------------------------------
+        type (T_Time)                       :: AuxTime, DummyTime
+        integer                             :: STAT_CALL
+        integer                             :: ClientNumber
+        integer                             :: iTimeSerie, iflag
+        integer                             :: FromBlock, FromFile        
+
+        !Gets parameter from the module EnterData
+
+        do iTimeSerie = 1, Me%NumberOfTimeSeries
+        
+            if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
+
+
+            !Searches for the first output DT
+            call GetData(Me%TimeSerie(iTimeSerie)%FirstDT,                          &
+                         Me%ObjEnterData,                                           &
+                         iflag,                                                     &
+                         SearchType   = FromFile_,                                   &
+                         keyword      ='FIRST_OUTPUT_DT',                           &
+                         default      = 0.,                                         &
+                         ClientModule ='ModuleTimeSerie',                           &
+                         STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                            & 
+                stop 'ReadTimeSeriesTimesTurbine - ModuleTimeSerie - ERR10'
+
+            !Searches for the first output time
+            call GetData(AuxTime,                                                   &
+                         Me%ObjEnterData,                                           &
+                         iflag,                                                     &
+                         SearchType   = FromFile_,                                   &
+                         keyword      ='FIRST_OUTPUT_TIME',                         &
+                         ClientModule ='ModuleTimeSerie',                           &
+                         STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                            & 
+                stop 'ReadTimeSeriesTimesTurbine - ModuleTimeSerie - ERR10'
+
+            !If the first output time is not specified assmues the current one
+            if (iflag == 6) then
+                Me%TimeSerie(iTimeSerie)%BeginOutPut  = AuxTime
+            elseif (iflag == 0) then
+                call GetComputeCurrentTime(Me%ObjTime,                              &
+                                           Me%TimeSerie(iTimeSerie)%BeginOutPut,    &
+                                           STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ReadTimeSeriesTimesTurbine - ModuleTimeSerie - ERR10a'
+            else
+                write(*,*)"Error specifing first instant of the a time serie"
+                write(*,*)"Assuming current time"
+                write(*,*)"ReadTimeSeriesTimesTurbine - ModuleTimeSerie - WRN01."
+                call GetComputeCurrentTime(Me%ObjTime,                              &
+                                           Me%TimeSerie(iTimeSerie)%BeginOutPut,    &
+                                           STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ReadTimeSeriesTimesTurbine - ModuleTimeSerie - ERR10b'
+            endif
+
+            !Searches for the DT
+            call GetData(Me%TimeSerie(iTimeSerie)%DT,                               &
+                         Me%ObjEnterData,                                           &
+                         iflag,                                                     &
+                         SearchType   = FromFile_,                                   &
+                         keyword      ='DT_OUTPUT_TIME',                            &
+                         ClientModule ='ModuleTimeSerie',                           &
+                         STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'ReadTimeSeriesTimesTurbine - ModuleTimeSerie - ERR11'
+
+            if (iflag == 0) then
+                call GetComputeTimeStep(Me%ObjTime,                                 &
+                                        Me%TimeSerie(iTimeSerie)%DT,                &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ReadTimeSeriesTimesTurbine - ModuleTimeSerie - ERR11a'
+            endif
+
+            !Assumes that the last instant of the output is at the end of the simulation
+            call GetComputeTimeLimits(Me%ObjTime,                                   &
+                                      BeginTime = DummyTime,                        &
+                                      EndTime   = Me%TimeSerie(iTimeSerie)%EndOutPut,&
+                                      STAT      = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'ReadTimeSeriesTimesTurbine - ModuleTimeSerie - ERR11b'
+                
+            if (Me%TimeSerie(iTimeSerie)%DT > 0.) then
+
+                !Computes the total number of outputs
+                Me%TimeSerie(iTimeSerie)%TotalOutPutsNumber                             &
+                            = (Me%TimeSerie(iTimeSerie)%EndOutPut                       &
+                            -  Me%TimeSerie(iTimeSerie)%BeginOutPut)                    &
+                            /  Me%TimeSerie(iTimeSerie)%DT + 1
+            else
+                Me%TimeSerie(iTimeSerie)%TotalOutPutsNumber = 1
+            endif
+            
+            !Inits NextOutput
+            Me%TimeSerie(iTimeSerie)%NextOutPut =                                   &
+                Me%TimeSerie(iTimeSerie)%BeginOutPut + Me%TimeSerie(iTimeSerie)%FirstDT
+
+
+
+        enddo
+
+        ReadTimeSeriesTimesTurbine = SUCCESS_
+
+    end function ReadTimeSeriesTimesTurbine
 
     !--------------------------------------------------------------------------
 
