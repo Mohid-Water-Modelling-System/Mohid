@@ -958,7 +958,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         nUsers = DeassociateInstance (mGEOMETRY_,       Me%ObjGeometry)
         if (nUsers == 0) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR25'
-    
+        
+        nUsers = DeassociateInstance (mTIME_, Me%ObjTime)
+        if (nUsers == 0) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR26'
     
     
     end subroutine Deassociate_External_Modules
