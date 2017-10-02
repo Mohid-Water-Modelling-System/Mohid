@@ -1409,7 +1409,11 @@ Module ModuleHydrodynamic
                                            !AtmosphereCoef: This is the coefficient bounded by [0 1] to multiply the atmospheric forces with.
                                            AtmosphereCoef           = null_real, & 
                                            !AtmospherePeriod: This period will substitute the SmoothInitial period                                                    
-                                           AtmospherePeriod         = null_real                                           
+                                           AtmospherePeriod         = null_real     
+                                           !Calibration coefficent of the inverted barometer solution                                      
+        real                            :: InvertBaroCoef      
+                                           !Reference atmospheric pressure to be used in the inverted barometer solution
+        real                            :: AtmSeaLevelReference                                           
 
         integer                         :: UpStream                 = null_int, & 
                                            Evolution                = null_int, & 
@@ -5910,6 +5914,58 @@ cd21:   if (Baroclinic) then
 
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR501')
+            
+        !<BeginKeyword>
+            !Keyword          : INVERTED_BAROMETER_COEF
+            !<BeginDescription>       
+               ! 
+               !Calibration coefficent of the inverted barometer solution
+               ! 
+            !<EndDescription>
+            !Type             : logical
+            !Default          : .false. 
+            !File keyword     : IN_DAD3D 
+            !Search Type      : From File
+        !<EndKeyword>
+
+        call GetData(Me%ComputeOptions%InvertBaroCoef,                                  & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'INVERTED_BAROMETER_COEF',                            &
+                     Default    = 1.,                                                   &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR5001')
+            
+        !<BeginKeyword>
+            !Keyword          : INVERTED_BAROMETER_REF_ATM_PRESSUE
+            !<BeginDescription>       
+               ! 
+               !Reference atmospheric pressure to be used in the inverted barometer solution
+               ! 
+            !<EndDescription>
+            !Type             : logical
+            !Default          : .false. 
+            !File keyword     : IN_DAD3D 
+            !Search Type      : From File
+        !<EndKeyword>
+
+        call GetData(Me%ComputeOptions%AtmSeaLevelReference,                            & 
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'INVERTED_BAROMETER_REF_ATM_PRESSUE',                 &
+                     !    Parameter defined in the ModuleGlobalData
+                     !    Reference atmospheric pressure at sea level in Pa
+                     !    real,    parameter  :: AtmPressSeaLevelReference = 101325 
+                     Default    = AtmPressSeaLevelReference,                            &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR5002')
+            
 
         if (Me%ComputeOptions%InvertBarometer) then
             Me%State%Surface = .true.             
@@ -10235,10 +10291,12 @@ cd2:        if (Me%ComputeOptions%Num_Discretization == Leendertse) then
 
 
             !Water elevation initialization
-            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                 &
-                                     Me%CurrentTime,                                     &
-                                     Me%External_Var%AtmosphericPressure,                &
-                                     Me%ComputeOptions%AtmosphereCoef,                   & 
+            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
+                                     Me%CurrentTime,                                    &
+                                     Me%External_Var%AtmosphericPressure,               &
+                                     Me%ComputeOptions%AtmosphereCoef,                  &
+                                     Me%ComputeOptions%InvertBaroCoef,                  &
+                                     Me%ComputeOptions%AtmSeaLevelReference,            &
                                      STAT        = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) &
@@ -27381,13 +27439,15 @@ cd3:        if (.not. Me%SubModel%Set) then
 cd2:    if (Me%ComputeOptions%Compute_Tide .or. Me%ComputeOptions%InvertBarometer) then
 
 
-            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                 &
-                                     Me%CurrentTime,                                     &
-                                     Me%External_Var%AtmosphericPressure,                &
-                                     Me%ComputeOptions%AtmosphereCoef,                   & 
+            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
+                                     Me%CurrentTime,                                    &
+                                     Me%External_Var%AtmosphericPressure,               &
+                                     Me%ComputeOptions%AtmosphereCoef,                  &
+                                     Me%ComputeOptions%InvertBaroCoef,                  &
+                                     Me%ComputeOptions%AtmSeaLevelReference,            &
                                      STAT        = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)                                                   &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 Stop 'Sub. WaterLevel_ImposedWave - ModuleHydrodynamic - ERR01.'
             
                 
@@ -28323,12 +28383,14 @@ do6:               do k = KLB, KUB + 1
 cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
 
-            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                    &
-                                     Me%CurrentTime,                                        &
-                                     Me%External_Var%AtmosphericPressure,                   &                                 
-                                     Me%ComputeOptions%AtmosphereCoef,                      &
+            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
+                                     Me%CurrentTime,                                    &
+                                     Me%External_Var%AtmosphericPressure,               &                                 
+                                     Me%ComputeOptions%AtmosphereCoef,                  &
+                                     Me%ComputeOptions%InvertBaroCoef,                  &
+                                     Me%ComputeOptions%AtmSeaLevelReference,            &                                     
                                      STAT        = status)
-            if (status /= SUCCESS_)                                                          &
+            if (status /= SUCCESS_)                                                     &
                 call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR10")
 
 
@@ -29090,12 +29152,14 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
 
-            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                    &
-                                     Me%CurrentTime,                                        &
-                                     Me%External_Var%AtmosphericPressure,                   &                                 
-                                     Me%ComputeOptions%AtmosphereCoef,                      &
+            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
+                                     Me%CurrentTime,                                    &
+                                     Me%External_Var%AtmosphericPressure,               &                                 
+                                     Me%ComputeOptions%AtmosphereCoef,                  &
+                                     Me%ComputeOptions%InvertBaroCoef,                  &
+                                     Me%ComputeOptions%AtmSeaLevelReference,            &                                     
                                      STAT        = status)
-            if (status /= SUCCESS_)                                                          &
+            if (status /= SUCCESS_)                                                     &
                 call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR10")
 
 
@@ -29843,12 +29907,14 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
 
-            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                    &
-                                     Me%CurrentTime,                                        &
-                                     Me%External_Var%AtmosphericPressure,                   &                                 
-                                     Me%ComputeOptions%AtmosphereCoef,                      &
+            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
+                                     Me%CurrentTime,                                    &
+                                     Me%External_Var%AtmosphericPressure,               &                                 
+                                     Me%ComputeOptions%AtmosphereCoef,                  &
+                                     Me%ComputeOptions%InvertBaroCoef,                  &
+                                     Me%ComputeOptions%AtmSeaLevelReference,            &                                     
                                      STAT        = status)
-            if (status /= SUCCESS_)                                                          &
+            if (status /= SUCCESS_)                                                     &
                 call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR10")
 
 
@@ -30644,6 +30710,8 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
                                      Me%CurrentTime,                                    &
                                      Me%External_Var%AtmosphericPressure,               &
                                      Me%ComputeOptions%AtmosphereCoef,                  &
+                                     Me%ComputeOptions%InvertBaroCoef,                  &
+                                     Me%ComputeOptions%AtmSeaLevelReference,            &                                     
                                      STAT        = status)
             if (status /= SUCCESS_)                                                     &
                 call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR020")
@@ -31751,7 +31819,9 @@ dk:                         do k= KFloor_Z(i, j), KUB
         call Modify_OpenBoundary(Me%ObjOpenBoundary,                                    &
                                  Me%CurrentTime,                                        &
                                  Me%External_Var%AtmosphericPressure,                   &
-                                 Me%ComputeOptions%AtmosphereCoef,                      & 
+                                 Me%ComputeOptions%AtmosphereCoef,                      &
+                                 Me%ComputeOptions%InvertBaroCoef,                      &
+                                 Me%ComputeOptions%AtmSeaLevelReference,                &                                  
                                  STAT        = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &

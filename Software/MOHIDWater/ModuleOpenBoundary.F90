@@ -865,13 +865,16 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine Modify_OpenBoundary(OpenBoundaryID, time_, AtmosphericPressure,          &
-                                   AtmosphericCoef, STAT)
+                                   AtmosphericCoef, InvertBaroCoef, AtmSeaLevelReference, &
+                                   STAT)
 
         !Arguments-------------------------------------------------------------
         integer                             :: OpenBoundaryID  
         type(T_Time), intent(IN)            :: time_
         real,  dimension(:,:), pointer      :: AtmosphericPressure
         real   , intent(IN)                 :: AtmosphericCoef
+        real                                :: InvertBaroCoef
+        real                                :: AtmSeaLevelReference        
         integer, optional, intent(OUT)      :: STAT  
 
         !External--------------------------------------------------------------
@@ -1187,7 +1190,8 @@ cd7:                        if (FoundBound) then
             endif
             
             if (Me%InvertBarometer .and. associated(AtmosphericPressure))               &
-                    call ImposeInvertBarometer(AtmosphericPressure, AtmosphericCoef)
+                    call ImposeInvertBarometer(AtmosphericPressure, AtmosphericCoef,    &
+                                               InvertBaroCoef, AtmSeaLevelReference)
 
             !Unget boundary points 2D
             call UnGetHorizontalMap(Me%ObjHorizontalMap, BoundaryPoints2D, STAT = STAT_CALL)
@@ -1333,11 +1337,14 @@ cd3:            if (NGauges < 3) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ImposeInvertBarometer(AtmosphericPressure, AtmosphericCoef)
+    subroutine ImposeInvertBarometer(AtmosphericPressure, AtmosphericCoef,              &
+                                     InvertBaroCoef, AtmSeaLevelReference)
 
         !Arguments-------------------------------------------------------------
         real,      dimension(:,:), pointer      :: AtmosphericPressure
         real                                    :: AtmosphericCoef
+        real                                    :: InvertBaroCoef
+        real                                    :: AtmSeaLevelReference
 
         !Local-----------------------------------------------------------------
         integer,   dimension(:,:), pointer      :: BoundaryFacesU2D, BoundaryFacesV2D
@@ -1367,8 +1374,8 @@ cd3:            if (NGauges < 3) then
                 endif
                     
                 !Inverted barometer effect
-                Me%ImposedElevation(i, j) = Me%ImposedElevation(i, j) + AtmosphericCoef * &
-                                            (AtmPressSeaLevelReference - AtmosphericPressure(i,j)) /( 1.e3 * Gravity) 
+                Me%ImposedElevation(i, j) = Me%ImposedElevation(i, j) + InvertBaroCoef * AtmosphericCoef * &
+                                            (AtmSeaLevelReference - AtmosphericPressure(i,j)) /( 1.e3 * Gravity) 
                              
             endif
 
