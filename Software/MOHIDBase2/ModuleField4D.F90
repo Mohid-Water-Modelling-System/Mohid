@@ -5460,8 +5460,8 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
         nPoints = size(X)  
         
-        allocate(Depth1D (KLB:KUB))  
-        allocate(Matrix1D(KLB:KUB))
+        allocate(Depth1D (KLB-1:KUB+1))  
+        allocate(Matrix1D(KLB-1:KUB+1))
 
 dnP:    do nP = 1,nPoints      
 
@@ -5505,37 +5505,37 @@ dnP:    do nP = 1,nPoints
                 
                 if (k>1) then
 
-                    Depth1D (:) = Depth3D   (iS, jW, :) 
-                    Matrix1D(:) = Matrix3D  (iS, jW, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iS, jW, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Matrix3D  (iS, jW, KLB:KUB)
                     ValueSW     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
                     
-                    Depth1D (:) = Depth3D   (iS, jE, :) 
-                    Matrix1D(:) = Matrix3D  (iS, jE, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iS, jE, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Matrix3D  (iS, jE, KLB:KUB)
                     ValueSE     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
 
-                    Depth1D (:) = Depth3D   (iN, jW, :) 
-                    Matrix1D(:) = Matrix3D  (iN, jW, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iN, jW, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Matrix3D  (iN, jW, KLB:KUB)
                     ValueNW     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
 
-                    Depth1D (:) = Depth3D   (iN, jE, :) 
-                    Matrix1D(:) = Matrix3D  (iN, jE, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iN, jE, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Matrix3D  (iN, jE, KLB:KUB)
                     ValueNE     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
                     
                     
-                    Depth1D (:) = Depth3D   (iS, jW, :) 
-                    Matrix1D(:) = Mask3D    (iS, jW, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iS, jW, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Mask3D    (iS, jW, KLB:KUB)
                     MaskSW      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
 
-                    Depth1D (:) = Depth3D   (iS, jE, :) 
-                    Matrix1D(:) = Mask3D    (iS, jE, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iS, jE, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Mask3D    (iS, jE, KLB:KUB)
                     MaskSE      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
 
-                    Depth1D (:) = Depth3D   (iN, jW, :) 
-                    Matrix1D(:) = Mask3D    (iN, jW, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iN, jW, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Mask3D    (iN, jW, KLB:KUB)
                     MaskNW      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
                     
-                    Depth1D (:) = Depth3D   (iN, jE, :) 
-                    Matrix1D(:) = Mask3D    (iN, jE, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iN, jE, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Mask3D    (iN, jE, KLB:KUB)
                     MaskNE      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
                                             
                 else
