@@ -271,7 +271,8 @@ Module ModuleField4D
         logical                                     :: MinValueON           = .false.
         logical                                     :: MaxValueON           = .false.
         logical                                     :: HasAddingFactor      = .false.
-        logical                                     :: From2Dto3D           = .false.        
+        logical                                     :: From2Dto3D           = .false.
+        logical                                     :: From3Dto2D           = .false.
         type (T_Time)                               :: NextTime
         type (T_Time)                               :: PreviousTime
         type (T_PropertyID)                         :: ID
@@ -286,6 +287,7 @@ Module ModuleField4D
         logical                                     :: Extrapolate          = .false.
         integer                                     :: ExtrapolateMethod    = null_int
         integer                                     :: InterpolMethod       = null_int
+        logical                                     :: Zdepths              = .false. 
        
         integer                                     :: ValuesType           = null_int
         real                                        :: Next4DValue          = null_real
@@ -1660,6 +1662,16 @@ wwd1:       if (Me%WindowWithData) then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR90'
         
+
+        call GetData(PropField%From3Dto2D,                                              &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'FROM_3D_TO_2D',                                    &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR95'
+
         
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime      = Me%StartTime,                             &
@@ -1849,6 +1861,15 @@ wwd1:       if (Me%WindowWithData) then
             stop 'ReadOptions - ModuleField4D - ERR180'
         endif            
         
+        
+        call GetData(PropField%Zdepths,                                                 &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'Z_DEPTHS',                                         &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR180'             
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
@@ -3178,10 +3199,12 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
        
         !Local-----------------------------------------------------------------
         integer                                 :: Instant
-        real, dimension(:,:,:), pointer         :: Field, Aux3D, FieldAux
+        real,    dimension(:,:,:), pointer      :: Field, Aux3D, FieldAux, SZZ
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D     
+        real                                    :: HT   
         integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                 :: Obj, iaux
+        integer                                 :: Obj, iaux, kbottom
 
         !Begin-----------------------------------------------------------------
         
@@ -3197,12 +3220,17 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
          IUB = Me%WorkSize3D%IUB
          JLB = Me%WorkSize3D%JLB
          JUB = Me%WorkSize3D%JUB
+         
+        if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) then
+            allocate(Aux3D(Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,1:1))   
+            Aux3D(:,:,:) = 0.      
+        endif            
+            
 
         if (NewPropField%From2Dto3D) then
             KLB = 1
             KUB = 1
-            allocate(Aux3D(Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,1:1))
-            
+           
             FieldAux => Aux3D
         else
             KLB = Me%WorkSize3D%KLB
@@ -3235,7 +3263,9 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         
             call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, KUB = Kmax, STAT = STAT_CALL)
 #endif
-        endif            
+        endif   
+        
+        
 
         if ((Imax < IUB - ILB + 1) .or.                                                &
             (Jmax < JUB - JLB + 1) .or.                                                &
@@ -3243,16 +3273,19 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             
             write (*,*) trim(NewPropField%FieldName)
             write (*,*) 'miss match between the input file and model domain'
-            stop 'ReadValues3D - ModuleField4D - ERR20'                                   
+            stop 'ReadValues3D - ModuleField4D - ERR30'                                   
 
+        endif        
+        
+        if      (.not. Me%File%Form == HDF5_  .and. NewPropField%From3Dto2D) then
+            stop 'ReadValues3D - ModuleField4D - ERR300'                                   
         endif
-          
-
-
+        
+        
         if      (Me%File%Form == HDF5_  ) then
         
             call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR30'
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
             
             
             call HDF5ReadWindow(HDF5ID        = Obj,                                    &
@@ -3261,7 +3294,34 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                 Array3D       = Field,                                  &
                                 OutputNumber  = iaux,                                   &
                                 STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR50'
+            
+!            if (NewPropField%From3Dto2D) then
+!
+!                call HDF5ReadWindow(HDF5ID        = Obj,                                &
+!                                    GroupName     = "/Grid",                            &
+!                                    Name          = "WaterPoints3D",                    &
+!                                    Array3D       = WaterPoints3D,                      &
+!                                    STAT          = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) then
+!                    stop 'ReadValues3D - ModuleField4D - ERR60'            
+!                endif
+!            
+!                call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR70'                
+!                
+!                call HDF5ReadWindow(HDF5ID        = Obj,                                &
+!                                    GroupName     = "/Grid/VerticalZ",                  &
+!                                    Name          = "Vertical",                         &
+!                                    Array3D       = SZZ,                                &
+!                                    OutputNumber  = iaux,                               &
+!                                    STAT          = STAT_CALL)
+!                if (STAT_CALL /= SUCCESS_) then
+!                    stop 'ReadValues3D - ModuleField4D - ERR80'            
+!                endif
+!                
+!            endif            
+            
 
 #ifndef _NO_NETCDF                                                   
         else if (Me%File%Form == NetCDF_) then
@@ -3277,7 +3337,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                 KLB             = KLB,                                  &
                                 KUB             = KUB,                                  &
                                 STAT            = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR50'            
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR90'            
 #endif            
         endif
 
@@ -3292,6 +3352,53 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             enddo
             enddo
          endif        
+         
+        if (NewPropField%From3Dto2D) then   
+        
+            call GetWaterPoints3D(Map_ID            = Me%ObjMap,                        &
+                                  WaterPoints3D     = WaterPoints3D,                    &
+                                  STAT              = STAT_CALL) 
+            if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR100' 
+
+            call GetGeometryDistances(  GeometryID      = Me%ObjGeometry,               &
+                                                SZZ     = SZZ,                          &
+                                        STAT            = STAT_CALL)                                     
+            if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleValida4D - ERR110'
+            
+           
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                kbottom = -99
+                do k = KLB, KUB
+                    if (WaterPoints3D (i,j,k)== 1) then
+                        if (kbottom< 0) then
+                            kbottom = k
+                            HT      = (SZZ(i,j,kbottom-1) - SZZ(i,j,KUB))
+                        endif                            
+                        if (HT > 0) then
+                            Aux3D(i,j,1) = Aux3D(i,j,1) + FieldAux(i,j,k) * (SZZ(i,j,k-1)-SZZ(i,j,k)) / HT
+                        endif                            
+                    endif                        
+                enddo
+            
+            enddo
+            enddo
+            
+            FieldAux(:,:,KUB) = Aux3D(:,:,1)
+            
+            call UnGetGeometry       (  GeometryID      = Me%ObjGeometry,               &
+                                        Array           = SZZ,                          &
+                                        STAT            = STAT_CALL)                                     
+            if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleValida4D - ERR120'        
+            
+            call UnGetMap(Map_ID            = Me%ObjMap,                                &
+                          Array             = WaterPoints3D,                            &
+                          STAT              = STAT_CALL) 
+            if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR130' 
+            
+            
+         endif               
          
          nullify(FieldAux)           
 
@@ -3343,6 +3450,9 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             enddo
         end if        
 
+        if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) then
+            deallocate(Aux3D)   
+        endif       
         
 
         nullify(Field)
@@ -4626,7 +4736,11 @@ d2:     do N =1, NW
                 endif
 
                 if (present(Matrix3D)) then
-                    Matrix3D(:,:,:) = Me%Matrix3D(:,:,:)
+                    if (PropField%From3Dto2D) then
+                        Matrix3D(:,:,1) = Me%Matrix3D(:,:, Me%WorkSize3D%KUB)
+                    else
+                        Matrix3D(:,:,:) = Me%Matrix3D(:,:,:)
+                    endif                        
                 endif
                                 
 
@@ -5384,6 +5498,7 @@ dnP:    do nP = 1,nPoints
                                     STAT            = STAT_CALL)                                     
         if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR20'
         
+        
 do1 :   do K = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
 do2 :   do J = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
 do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
@@ -5393,6 +5508,20 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
         end do do3
         end do do2
         end do do1
+            
+        if (PropField%Zdepths) then
+
+    do4 :   do K = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+    do5 :   do J = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+    do6 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+            
+                Me%Depth3D(i,j,k) = Me%Depth3D(i,j,k) - SZZ(i,j,Me%WorkSize3D%KUB)
+
+            end do do6
+            end do do5
+            end do do4        
+        
+        endif            
         
         call UnGetGeometry       (  GeometryID      = Me%ObjGeometry,           &
                                     Array           = SZZ,                      &

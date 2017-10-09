@@ -1724,6 +1724,9 @@ Module ModuleGlobalData
     real(8), parameter  :: Pi               = 3.1415926535897932384626433832795
     ! ARC RADIAN OF 1 DEGREE
     real(8), parameter  :: RAD_DEG          = 0.01745329252
+    !Angle units
+    integer, parameter  :: Degree_          = 1
+    integer, parameter  :: Radian_          = 2
     
 
     !Zero Degrees Kelvin
