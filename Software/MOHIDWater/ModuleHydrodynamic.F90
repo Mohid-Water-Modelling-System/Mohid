@@ -5940,7 +5940,7 @@ cd21:   if (Baroclinic) then
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR5001')
             
         !<BeginKeyword>
-            !Keyword          : INVERTED_BAROMETER_REF_ATM_PRESSUE
+            !Keyword          : INVERTED_BAROMETER_REF_ATM_PRESSURE
             !<BeginDescription>       
                ! 
                !Reference atmospheric pressure to be used in the inverted barometer solution
@@ -5954,7 +5954,7 @@ cd21:   if (Baroclinic) then
 
         call GetData(Me%ComputeOptions%AtmSeaLevelReference,                            & 
                      Me%ObjEnterData, iflag,                                            & 
-                     Keyword    = 'INVERTED_BAROMETER_REF_ATM_PRESSUE',                 &
+                     Keyword    = 'INVERTED_BAROMETER_REF_ATM_PRESSURE',                &
                      !    Parameter defined in the ModuleGlobalData
                      !    Reference atmospheric pressure at sea level in Pa
                      !    real,    parameter  :: AtmPressSeaLevelReference = 101325 
