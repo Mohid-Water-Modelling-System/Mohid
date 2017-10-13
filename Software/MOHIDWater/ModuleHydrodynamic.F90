@@ -8433,7 +8433,8 @@ cd3:            if (Me%ComputeOptions%Continuous) then
         integer                             :: ClientNumber
         integer                             :: FirstLine, LastLine    
         integer                             :: Line, iflag, FromFile
-        integer                             :: i,j
+        integer                             :: i ,j
+        integer                             :: ii,jj
 
         Character(LEN = StringLength)       :: FileName
         Character(LEN = StringLength)       :: block_begin, block_end
@@ -8460,8 +8461,8 @@ cd3:            if (Me%ComputeOptions%Continuous) then
 
         allocate (Me%ComputeOptions%Tlag(ILB : IUB, JLB : JUB), STAT = status)
 
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR01") 
+        if (status /= SUCCESS_)                                                         &
+           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR10") 
 
         Me%ComputeOptions%Tlag(ILBWork : IUBWork, JLBWork : JUBWork) = 1E-12
 
@@ -8478,24 +8479,24 @@ cd3:            if (Me%ComputeOptions%Continuous) then
         !<EndKeyword>
 
 
-        call GetData(FileName,    Me%ObjEnterData, iflag,                   &  
-                     SearchType = FromFile,                                              &
-                     keyword    = 'TLAG_FILE',                                           &   
-                     default    = '******.***',                                          &    
-                     ClientModule ='ModuleHydrodynamic',                                 &
+        call GetData(FileName,    Me%ObjEnterData, iflag,                               &  
+                     SearchType = FromFile,                                             &
+                     keyword    = 'TLAG_FILE',                                          &   
+                     default    = '******.***',                                         &    
+                     ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = status)
 
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR02") 
+        if (status /= SUCCESS_)                                                         &
+           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR20") 
         
         if (iflag == 0) &
-            call SetError (FATAL_, OUT_OF_MEM_, "ConstructBlumbergKantha - Hydrodynamic - ERR03")
+            call SetError (FATAL_, OUT_OF_MEM_, "ConstructBlumbergKantha - Hydrodynamic - ERR30")
 
 
         call ConstructEnterData(Me%ObjEnterData1, FileName, STAT = status) 
 
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR04") 
+        if (status /= SUCCESS_)                                                         &
+           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR40") 
 
 
         block_begin = '<TlagBegin>'
@@ -8505,12 +8506,12 @@ cd3:            if (Me%ComputeOptions%Continuous) then
         block_end   = trim(block_end)
 
 
-        call ExtractBlockFromBuffer(Me%ObjEnterData1, ClientNumber,         &
-                                    block_begin, block_end, BlockFound,                  &
-                                    FirstLine, LastLine,                                 &  
+        call ExtractBlockFromBuffer(Me%ObjEnterData1, ClientNumber,                     &
+                                    block_begin, block_end, BlockFound,                 &
+                                    FirstLine, LastLine,                                &  
                                     STAT = status)
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR05") 
+        if (status /= SUCCESS_)                                                         &
+           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR50") 
 
 
 cd43:   if (.NOT. BlockFound) then   
@@ -8523,7 +8524,7 @@ cd43:   if (.NOT. BlockFound) then
             write(*,*)     '            .'
             write(*,*)     '            .'
             write(*,*)     '        <TlagEnd>'
-           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR06") 
+           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR60") 
 
         end if cd43
 
@@ -8531,67 +8532,76 @@ cd43:   if (.NOT. BlockFound) then
 
         allocate (AuxVector(3), STAT = status) 
 
-        if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR07") 
+        if (status /= SUCCESS_)                                                         &
+            call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR70") 
 
 
 
         do Line = FirstLine + 1, LastLine - 1        !Frank -start one line after firstline
 
         
-            call GetData(AuxVector,                                                      &
-                         Me%ObjEnterData1,                                  &
+            call GetData(AuxVector,                                                     &
+                         Me%ObjEnterData1,                                              &
                          iflag, Buffer_Line  = Line, STAT = status)
 
-            if (status /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR08") 
+            if (status /= SUCCESS_)                                                     &
+                call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR80") 
 
-            if (iflag /= 3)                                                              &          
-                call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR09") 
+            if (iflag /= 3)                                                             &          
+                call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR90") 
 
 
             i = int(AuxVector(1))
             j = int(AuxVector(2))
             
             if (Me%DDecomp%MasterOrSlave) then
-                
-                if (i < Me%DDecomp%Mapping%ILB .or. i > Me%DDecomp%Mapping%IUB .or.     &
-                    j < Me%DDecomp%Mapping%JLB .or. j > Me%DDecomp%Mapping%JUB) then
-                    cycle
+                if (i>= Me%DDecomp%HaloMap%ILB .and. i<= Me%DDecomp%HaloMap%IUB+1) then
+                    ii = i + 1 - Me%DDecomp%HaloMap%ILB
                 else
-                    i = i - Me%DDecomp%Mapping%ILB + 1
-                    j = j - Me%DDecomp%Mapping%JLB + 1                    
-                endif                    
-                
+                    cycle
+                endif                                
             else
+                ii = i
+                if (ii < ILBWork .or. ii > IUBWork)                                     &          
+                    call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR100") 
+                
+            endif    
+                    
+            if (Me%DDecomp%MasterOrSlave) then
+                if (j>= Me%DDecomp%HaloMap%JLB .and. j<= Me%DDecomp%HaloMap%JUB+1) then
+                    jj = j + 1 - Me%DDecomp%HaloMap%JLB
+                else
+                    cycle
+                endif                                
+            else
+                jj = j
+                if (jj < JLBWork .or. jj > JUBWork)                                     &          
+                    call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR110") 
+            endif                
 
-                if (i < ILBWork .or. i > IUBWork .or. j < JLBWork .or. j > JUBWork)          &          
-                    call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR10") 
-            endif
+            Me%ComputeOptions%Tlag(ii, jj) = AuxVector(3)
 
-            Me%ComputeOptions%Tlag(i, j) = AuxVector(3)
-
-            if(Me%ComputeOptions%Tlag(i, j) < Me%WaterLevel%DT ) &
-               Me%ComputeOptions%Tlag(i, j) = Me%WaterLevel%DT 
+            if(Me%ComputeOptions%Tlag(ii, jj) < Me%WaterLevel%DT )                      &
+               Me%ComputeOptions%Tlag(ii, jj) = Me%WaterLevel%DT 
     
         enddo
 
         deallocate (AuxVector, STAT = status) 
 
-        if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR11") 
+        if (status /= SUCCESS_)                                                         &
+            call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR120") 
 
 
         call Block_Unlock(Me%ObjEnterData1, ClientNumber, STAT = status) 
 
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR12") 
+        if (status /= SUCCESS_)                                                         &
+           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR130") 
 
 
         call KillEnterData(Me%ObjEnterData1, STAT = status)
 
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR13") 
+        if (status /= SUCCESS_)                                                         &
+           call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR140") 
 
     End Subroutine ConstructBlumbergKantha
 
