@@ -22184,7 +22184,7 @@ AO:     if (Actual >= SurfaceOutTime) then
                                              Array3D        = Me%ExternalVar%SZZ,       &
                                              OutputNumber   = SurfaceOutPutNumber,      &
                                              STAT           = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR40'                        
+                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR35')
 
                         !Writes OpenPoints
                         call HDF5SetLimits  (Me%ObjSurfaceHDF5, WorkILB, WorkIUB,       &
