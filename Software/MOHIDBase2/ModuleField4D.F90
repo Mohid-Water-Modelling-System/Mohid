@@ -385,7 +385,7 @@ Module ModuleField4D
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
                                 Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
-                                FileNameList, FieldName, STAT)
+                                FileNameList, FieldName, OnlyReadGridFromFile, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                        intent(INOUT) :: Field4DID
@@ -408,12 +408,14 @@ Module ModuleField4D
         type (T_PropertyID),                  optional, intent(IN )   :: PropertyID
         integer,                              optional, intent(IN )   :: ClientID
         character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList             
-        character(*),                         optional, intent(IN )   :: FieldName                 
+        character(*),                         optional, intent(IN )   :: FieldName             
+        logical,                              optional, intent(IN )   :: OnlyReadGridFromFile    
         integer,                              optional, intent(OUT)   :: STAT     
         
         !Local-------------------------------------------------------------------
         type (T_PropField), pointer                           :: NewPropField        
         integer                                               :: ready_, STAT_, nUsers, STAT_CALL
+        logical                                               :: OnlyReadGridFromFile_
 
         !------------------------------------------------------------------------
 
@@ -542,123 +544,134 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     Me%ReadWindow = .false.
                 endif
                 
+               
                 call ReadGridFromFile()
                 
             endif
+            
+            if (present(OnlyReadGridFromFile)) then
+                OnlyReadGridFromFile_ = OnlyReadGridFromFile
+            else
+                OnlyReadGridFromFile_ = .false.
+            endif                
+                   
+OG:         if (.not. OnlyReadGridFromFile_) then
            
-            if (Me%File%NumberOfInstants == 1) then
-                Me%WindowWithData = .false.
-            endif
-            
-wwd:        if (Me%WindowWithData) then            
-            
-                call GetHorizontalGridSize(HorizontalGridID = Me%ObjHorizontalGrid,         &
-                                           Size             = Me%Size2D,                    &
-                                           WorkSize         = Me%WorkSize2D,                &
-                                           STAT             = STAT_CALL) 
-                if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR60' 
+                if (Me%File%NumberOfInstants == 1) then
+                    Me%WindowWithData = .false.
                 endif
                 
+wwd:            if (Me%WindowWithData) then            
                 
-                if (present(BathymetryID)) then
-                    Me%ObjBathymetry            = AssociateInstance (mGRIDDATA_,       BathymetryID    )
-                    
-                    Me%BuildBathymetry      = .false.
-                else
-                    Me%BuildBathymetry      = .true.
-
-                    call ReadBathymFromFile
-                endif
-
-                if (present(HorizontalMapID)) then
-                    Me%ObjHorizontalMap         = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
-                    
-                    Me%BuildHorizontalMap      = .false.
-                else
-                    Me%BuildHorizontalMap      = .true.
-
-
-                    call ReadMap2DFromFile
-                endif
-                
-                call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
-                                      WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
-                                      STAT              = STAT_CALL) 
-                if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR70' 
-                endif 
-
-                if (Me%MaskDim == Dim3D) then
-
-                    if (present(GeometryID)) then
-                        Me%ObjGeometry          = AssociateInstance (mGEOMETRY_,       GeometryID      )
-                    
-                        Me%BuildGeometry      = .false.
-                    else
-                        Me%BuildGeometry      = .true.
-
-                        call ReadGeometryFromFile
+                    call GetHorizontalGridSize(HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                               Size             = Me%Size2D,                    &
+                                               WorkSize         = Me%WorkSize2D,                &
+                                               STAT             = STAT_CALL) 
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'ConstructField4D - ModuleField4D - ERR60' 
                     endif
                     
-                    if (present(MapID)) then
-                        Me%ObjMap               = AssociateInstance (mMAP_,            MapID           )
+                    
+                    if (present(BathymetryID)) then
+                        Me%ObjBathymetry            = AssociateInstance (mGRIDDATA_,       BathymetryID    )
                         
-                        call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
-                                              WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
-                                              STAT              = STAT_CALL) 
+                        Me%BuildBathymetry      = .false.
+                    else
+                        Me%BuildBathymetry      = .true.
+
+                        call ReadBathymFromFile
+                    endif
+
+                    if (present(HorizontalMapID)) then
+                        Me%ObjHorizontalMap         = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
+                        
+                        Me%BuildHorizontalMap      = .false.
+                    else
+                        Me%BuildHorizontalMap      = .true.
+
+
+                        call ReadMap2DFromFile
+                    endif
+                    
+                    call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
+                                          WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
+                                          STAT              = STAT_CALL) 
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'ConstructField4D - ModuleField4D - ERR70' 
+                    endif 
+
+                    if (Me%MaskDim == Dim3D) then
+
+                        if (present(GeometryID)) then
+                            Me%ObjGeometry          = AssociateInstance (mGEOMETRY_,       GeometryID      )
+                        
+                            Me%BuildGeometry      = .false.
+                        else
+                            Me%BuildGeometry      = .true.
+
+                            call ReadGeometryFromFile
+                        endif
+                        
+                        if (present(MapID)) then
+                            Me%ObjMap               = AssociateInstance (mMAP_,            MapID           )
+                            
+                            call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
+                                                  WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
+                                                  STAT              = STAT_CALL) 
+                            if (STAT_CALL/=SUCCESS_) then
+                                stop 'ConstructField4D - ModuleField4D - ERR80' 
+                            endif 
+                        
+                            Me%BuildMap      = .false.
+                        else
+                            Me%BuildMap      = .true.
+
+                            call ReadMap3DFromFile
+                        endif
+                   
+                    endif
+                    
+                    call AllocatePropertyField  (NewPropField, Me%MaskDim)
+                    
+                    if (present(PropertyID)) then
+                        NewPropField%ID = PropertyID
+                    else
+                        call ConstructPropertyID (NewPropField%ID, Me%ObjEnterData, ExtractType)
+                    endif
+                    
+                    call ReadOptions            (NewPropField, ExtractType)     
+                    
+                    if (NewPropField%Harmonics%ON) then
+                        call ConstructPropertyFieldHarmonics (NewPropField)
+                    else
+                        call ConstructPropertyField          (NewPropField)
+                    endif
+                    
+                    if (Me%OutPut%Yes) then
+                        call Open_HDF5_OutPut_File(NewPropField)
+                    endif
+                    
+                    call UnGetHorizontalMap(HorizontalMapID = Me%ObjHorizontalMap,              &
+                                            Array           = Me%ExternalVar%WaterPoints2D,     &
+                                            STAT            = STAT_CALL) 
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'ConstructField4D - ModuleField4D - ERR90' 
+                    endif 
+                    
+                    if (Me%MaskDim == Dim3D) then
+                    
+                        call UnGetMap(Map_ID          = Me%ObjMap,                              &
+                                      Array           = Me%ExternalVar%WaterPoints3D,           &
+                                      STAT            = STAT_CALL) 
                         if (STAT_CALL/=SUCCESS_) then
-                            stop 'ConstructField4D - ModuleField4D - ERR80' 
+                            stop 'ConstructField4D - ModuleField4D - ERR100' 
                         endif 
                     
-                        Me%BuildMap      = .false.
-                    else
-                        Me%BuildMap      = .true.
-
-                        call ReadMap3DFromFile
                     endif
-               
-                endif
                 
-                call AllocatePropertyField  (NewPropField, Me%MaskDim)
+                endif wwd
                 
-                if (present(PropertyID)) then
-                    NewPropField%ID = PropertyID
-                else
-                    call ConstructPropertyID (NewPropField%ID, Me%ObjEnterData, ExtractType)
-                endif
-                
-                call ReadOptions            (NewPropField, ExtractType)     
-                
-                if (NewPropField%Harmonics%ON) then
-                    call ConstructPropertyFieldHarmonics (NewPropField)
-                else
-                    call ConstructPropertyField          (NewPropField)
-                endif
-                
-                if (Me%OutPut%Yes) then
-                    call Open_HDF5_OutPut_File(NewPropField)
-                endif
-                
-                call UnGetHorizontalMap(HorizontalMapID = Me%ObjHorizontalMap,              &
-                                        Array           = Me%ExternalVar%WaterPoints2D,     &
-                                        STAT            = STAT_CALL) 
-                if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR90' 
-                endif 
-                
-                if (Me%MaskDim == Dim3D) then
-                
-                    call UnGetMap(Map_ID          = Me%ObjMap,                              &
-                                  Array           = Me%ExternalVar%WaterPoints3D,           &
-                                  STAT            = STAT_CALL) 
-                    if (STAT_CALL/=SUCCESS_) then
-                        stop 'ConstructField4D - ModuleField4D - ERR100' 
-                    endif 
-                
-                endif
-            
-            endif wwd
+            endif OG                
                          
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR110' 

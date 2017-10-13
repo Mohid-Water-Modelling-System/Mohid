@@ -7434,8 +7434,8 @@ if4D:   if (CurrentHDF%Field4D) then
 if2D:   if (Me%Dim == Dim2D) then
 
             call ModifyField4DXYZ(Field4DID             = CurrentHDF%ObjField4D,            &
-                                  PropertyIDNumber      = Me%PropertyID%IDNumber,       &
-                                  CurrentTime           = CurrentTime,                  &
+                                  PropertyIDNumber      = Me%PropertyID%IDNumber,           &
+                                  CurrentTime           = CurrentTime,                      &
                                   X                     = CurrentHDF%X,                     &
                                   Y                     = CurrentHDF%Y,                     &
                                   Field                 = CurrentHDF%Prop,                  &
