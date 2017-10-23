@@ -1593,8 +1593,9 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
             DoNextStep = .false.
 
 if9:        if (Me%CurrentTime .LT. Me%EndTime) then      
-
-if2:            if (Global_CurrentTime .GE. Me%CurrentTime) then
+                !João Sobrinho - Changed from GE to GT so that all domains sincronize with the First domain
+if2:            if (Global_CurrentTime .GT. Me%CurrentTime) then
+                !if (Global_CurrentTime .GE. Me%CurrentTime) then
 
                     call GetComputeTimeStep (Me%ObjTime, Me%DT, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'UpdateTimeAndMapping - ModuleModel - ERR03'

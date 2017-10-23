@@ -8274,7 +8274,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     subroutine GetHorizontalGrid(HorizontalGridID, XX_IE, YY_IE, XX_Z, YY_Z,            &
                                  XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross,            &
                                  DXX, DYY, DZX, DZY, DUX, DUY, DVX, DVY, XX, YY,        & 
-                                 XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, STAT)
+                                 XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, IV, JV, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -8283,6 +8283,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
+        integer, dimension(:, :), pointer, optional :: IV, JV     !João Sobrinho
         real, dimension(:   ), pointer, optional    :: XX, YY
         integer, optional,  intent(OUT)             :: STAT    
 
@@ -8441,7 +8442,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 YY2D_V => Me%Compute%YY2D_V
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
-
+            !IV. Father cell inside which is each son cell (row).
+            if (present(IV)) then
+                IV => Me%LastFatherGrid%IV
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(JV)) then
+                JV => Me%LastFatherGrid%JV
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
 
             STAT_ = SUCCESS_
         else 

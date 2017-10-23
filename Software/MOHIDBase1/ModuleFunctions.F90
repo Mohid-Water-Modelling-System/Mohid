@@ -176,6 +176,14 @@ Module ModuleFunctions
     public  :: FillMatrix2D  
     public  :: FillMatrix3D
     
+    !Assimilation - TwoWay   João Sobrinho
+    public  :: TwoWayAssimilation
+    
+    interface  TwoWayAssimilation
+        module procedure TwoWayAssimilation2D
+        module procedure TwoWayAssimilation3D
+    end interface  TwoWayAssimilation
+    
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
 
@@ -380,6 +388,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues1D_R8_Constant
         module procedure SetMatrixValues2D_I4_Constant
         module procedure SetMatrixValues2D_R4_Constant
+        module procedure SetMatrixValues2D_R8ToR4_FromMatrix
         module procedure SetMatrixValues2D_R8_Constant
         module procedure SetMatrixValues2D_R4_FromMatrix
         module procedure SetMatrixValues2D_R8_FromMatrix
@@ -388,6 +397,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R4_Constant
         module procedure SetMatrixValues3D_R8_Constant
         module procedure SetMatrixValues3D_R4_FromMatrix
+        module procedure SetMatrixValues3D_R8ToR4_FromMatrix
         module procedure SetMatrixValues3D_R8_FromMatrix
         module procedure SetMatrixValues3D_I4_FromMatrix
     end interface SetMatrixValue
@@ -1178,7 +1188,48 @@ Module ModuleFunctions
     end subroutine SetMatrixValues2D_R8_FromMatrix
     
     !--------------------------------------------------------------------------
+    subroutine SetMatrixValues2D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
 
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:, :), pointer               :: Matrix
+        type (T_Size2D)                                 :: Size
+        real(8), dimension(:, :), pointer               :: InMatrix
+        integer, dimension(:, :), pointer, optional     :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j
+        integer                                         :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_J(Size%JLB, Size%JUB)
+        
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j) == 1) then
+                    Matrix (i, j) = InMatrix(i, j)
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j) = InMatrix(i, j)
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif    
+
+    end subroutine SetMatrixValues2D_R8ToR4_FromMatrix    
+    !--------------------------------------------------------------------------    
     subroutine SetMatrixValues2D_R8_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
@@ -1556,6 +1607,51 @@ Module ModuleFunctions
         endif    
 
     end subroutine SetMatrixValues3D_R4_FromMatrix
+    
+    subroutine SetMatrixValues3D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+    
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:, :, :), pointer            :: Matrix
+        type (T_Size3D)                                 :: Size
+        real(8), dimension(:, :, :), pointer            :: InMatrix
+        integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j, k
+        integer                                         :: CHUNK
+        
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J, K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J, K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j, k) = InMatrix(i, j, k)
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif        
+    end subroutine SetMatrixValues3D_R8ToR4_FromMatrix
 
     !--------------------------------------------------------------------------
 
@@ -5254,9 +5350,134 @@ d5:     do k = klast + 1,KUB
         deallocate(Map2D, Value2D)        
 
     end subroutine FillMatrix3D
+    !-----------------------------------------------------------------------------------------------------------------
+    
+    subroutine TwoWayAssimilation2D(FatherProperty, SonProperty, Open3DFather, Open3DSon, KUBFather,        &
+                                    IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, IConnect, Jconnect, DecayTime,  &
+                                    DT, TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon)
+    !Arguments---------------------------------------------------------------------------------
+    real,    dimension(:,:), pointer, intent(IN)        :: SonProperty
+    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
+    real,    dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon
+    real,    dimension(:,:), pointer, intent(INOUT)     :: FatherProperty
+    integer, dimension(:,:), pointer, intent(IN)        :: IConnect, Jconnect
+    integer, intent(IN)                                 :: KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
+    real, intent(IN)                                    :: DecayTime, DT
+    !Aux variables --------------------------------------------------------------------------------
+    integer                                             :: i, j
+    real,    dimension(:,:), pointer                    :: AuxMatrix
+    real,    dimension(:,:,:), pointer                  :: TotSonVolInFather
+    real,    dimension(:,:), pointer                    :: FatherCopyCorners
+    !Begin-------------------------------------------------------------------------------------
 
-    !-------------------------------------------------------------------------------------
+    !left lower corner
+    FatherCopyCorners(1, KUBFather) = FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1)
+    !left upper corner
+    FatherCopyCorners(2, KUBFather) = FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1)
+    !Right lower corner
+    FatherCopyCorners(3, KUBFather) = FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1)
+    !Right upper corner
+    FatherCopyCorners(4, KUBFather) = FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1)
+    
+        do j = JLBSon, JUBSon
+            do i = ILBSon, IUBSon
+                if (Open3DSon(i, j, KUBSon) == 1)then                     
+                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1) = &
+                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1) + SonProperty(i, j) * VolumeZSon(i, j, KUBFather)
+                endif
+            enddo        
+        enddo
+    
+        do j = Jconnect(1, 1)+1, Jconnect(IUBSon, JUBSon)+1
+            do i = IConnect(1, 1)+1, IConnect(IUBSon, JUBSon)+1  
+                if (Open3DFather(i, j, KUBFather) == 1 .and. TotSonVolInFather(i, j, KUBFather) > 0 )then
+                    FatherProperty(i, j) = FatherProperty(i, j) + (AuxMatrix(i, j) /                      &
+                                           TotSonVolInFather(i, j, KUBFather) - FatherProperty(i, j)) *   &
+                                           (DT / DecayTime)
+                endif
+            enddo
+        enddo
+        
+        !left lower corner
+        FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1) = FatherCopyCorners(1,KUBFather) 
+        !left upper corner, KUBFather
+        FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1) = FatherCopyCorners(2,KUBFather)
+        !Right lower corner
+        FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1) = FatherCopyCorners(3,KUBFather)
+        !Right upper corner
+        FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1) = FatherCopyCorners(4,KUBFather)
+    
+    end subroutine TwoWayAssimilation2D
+    !------------------------------------------------------------------------------------------------------------------
 
+    subroutine TwoWayAssimilation3D(FatherProperty,SonProperty, Open3DFather, Open3DSon,  &
+                                    KUBFather, KLBFather, IUBSon, ILBSon, JUBSon, JLBSon, &
+                                    KUBSon, KLBSon, IConnect, Jconnect, DecayTime, DT,    &
+                                    TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon) 
+    !Arguments---------------------------------------------------------------------------------
+    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty, VolumeZSon
+    real,    dimension(:,:,:), pointer, intent(INOUT)   :: FatherProperty
+    integer, dimension(:,:),   pointer, intent(IN)      :: IConnect, Jconnect
+    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
+    integer, intent(IN)                                 :: KUBFather, KLBFather, IUBSon, ILBSon, JUBSon, JLBSon
+    integer, intent(IN)                                 :: KUBSon, KLBSon
+    real,    intent (IN)                                :: DecayTime, DT
+    !Aux variables -----------------------------------------------------------------------------
+    integer                                             :: i, j, k
+    real, dimension(:,:,:), pointer                     :: AuxMatrix
+    real, dimension(:,:,:), pointer                     :: TotSonVolInFather
+    real, dimension(:,:), pointer                       :: FatherCopyCorners
+    !Begin----------------------------------------------------------------------------------------
+    
+    !Copies Values of FatherProperty coincident with the corners of the Son domain (because the son domain does
+    ! not compute them).
+    do k = KLBFather, KUBFather
+        !left lower corner
+        FatherCopyCorners(1, k) = FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1, k)
+        !left upper corner
+        FatherCopyCorners(2, k) = FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1, k)
+        !Right lower corner
+        FatherCopyCorners(3, k) = FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1, k)
+        !Right upper corner
+        FatherCopyCorners(4, k) = FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1, k)
+    enddo
+    
+    do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+            do i = ILBSon, IUBSon
+                if (Open3DSon(i, j, k) == 1)then      
+                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) = AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) + &
+                                                                      SonProperty(i, j, k) * VolumeZSon(i, j, k)
+                endif
+            enddo        
+        enddo
+    enddo
+
+    do k = KLBFather, KUBFather
+        do j = Jconnect(1, 1)+1, Jconnect(IUBSon, JUBSon)+1
+            do i = IConnect(1, 1)+1, IConnect(IUBSon, JUBSon)+1
+                if (Open3DFather(i, j, k) == 1 .and. TotSonVolInFather(i, j, k) > 0. )then
+                    FatherProperty(i, j, k) = FatherProperty(i, j, k) + &
+                                              (AuxMatrix(i, j, k) / TotSonVolInFather(i, j, k) - FatherProperty(i, j, k)) * &
+                                              (DT / DecayTime)
+                endif
+                
+            enddo
+        enddo
+    enddo
+    
+    do k = KLBFather, KUBFather
+        !left lower corner
+        FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1, k) = FatherCopyCorners(1, k) 
+        !left upper corner
+        FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1, k) = FatherCopyCorners(2, k)
+        !Right lower corner
+        FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1, k) = FatherCopyCorners(3, k)
+        !Right upper corner
+        FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1, k) = FatherCopyCorners(4, k)
+    enddo
+    
+    end subroutine TwoWayAssimilation3D
    
     !-------------------------------------------------------------------------------------    
     subroutine ReadTimeKeyWords(ObjEnterData, ExtractTime, BeginTime, EndTime, DT,       &

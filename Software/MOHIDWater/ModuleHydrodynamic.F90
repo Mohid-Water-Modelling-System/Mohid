@@ -125,7 +125,8 @@ Module ModuleHydrodynamic
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
                                        GetTimeSerieValue, WriteTimeSerie,                &
-                                       GetTimeSerieName, WriteTimeSerieLine, KillTimeSerie         
+                                       GetTimeSerieName, WriteTimeSerieLine,             &
+                                       KillTimeSerie        
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetBoundaries, GetBoundaryFaces,&
                                        GetExteriorBoundaryFaces, UnGetHorizontalMap,     &
                                        GetLandPoints2D   
@@ -395,6 +396,9 @@ Module ModuleHydrodynamic
     private ::      ComputeSystemEnergy
     private ::          WriteEnergyDataFile
     private ::      Hydrodynamic_OutPut
+    private ::      ReadySon          !João Sobrinho
+    private ::      UpdateFatherModel !João Sobrinho
+    private ::      ComputeFeedbackSon2Father !João Sobrinho
     private ::          Write_HDF5_Format
     private ::          Write_Surface_HDF5_Format
     private ::              CenterVelocity
@@ -436,6 +440,7 @@ Module ModuleHydrodynamic
     public  :: GetVelocityModulus
     public  :: GetResidualVelocityON
     public  :: GetResidualHorizontalVelocity
+    public  :: Get2WayAuxVariables  !João Sobrinho
 
 #ifdef _USE_SEQASSIMILATION
     public  :: GetHydroSeqAssimilation
@@ -453,7 +458,9 @@ Module ModuleHydrodynamic
     public  :: SetHydroFather
     private ::      ConstructTimeInterpolation
     private ::      TestSubModelOptionsConsistence
+    private ::      ConstructHydro2Way !João Sobrinho    
     private ::      ReadNextOrInitialField
+    private ::      AddSubmodelWaterLevel
     private ::          ReadLockFather
     private ::          ReadUnLockFather
     private ::      ActualizeSubModelValues
@@ -565,6 +572,7 @@ Module ModuleHydrodynamic
         module procedure UngetHydrodynamic2Dreal8
         module procedure UngetHydrodynamic3Dreal4
         module procedure UngetHydrodynamic3Dreal8
+        module procedure UngetHydrodynamic3Dinteger !João Sobrinho
     end interface UngetHydrodynamic
 
     private :: pythag
@@ -827,6 +835,7 @@ Module ModuleHydrodynamic
         real, dimension (:, :), pointer :: VolumeCreated => null()
         real, dimension (:, :), pointer :: Maxi          => null()
         real, dimension (:, :), pointer :: Mini          => null()
+        real, dimension (:, :), pointer :: Copy2Way      => null() !João Sobrinho 
         real                            :: DT      = null_real 
         real                            :: Default = null_real 
         logical                         :: InitalizedByFile = .false.
@@ -835,8 +844,8 @@ Module ModuleHydrodynamic
     private :: T_Vel_UV
     type T_Vel_UV    
         type(T_PropertyID)                 :: ID
-        real, dimension (:, :, :), pointer :: New => null()
-        real, dimension (:, :, :), pointer :: Old => null()
+        real, dimension (:, :, :), pointer :: New      => null()
+        real, dimension (:, :, :), pointer :: Old      => null()
 #ifdef _USE_PAGELOCKED
         type(C_PTR)                        :: OldPtr
         type(C_PTR)                        :: NewPtr
@@ -1407,7 +1416,9 @@ Module ModuleHydrodynamic
                                            !AtmosphereCoef: This is the coefficient bounded by [0 1] to multiply the atmospheric forces with.
                                            AtmosphereCoef           = null_real, & 
                                            !AtmospherePeriod: This period will substitute the SmoothInitial period                                                    
-                                           AtmospherePeriod         = null_real                                           
+                                           AtmospherePeriod         = null_real, &
+                                           TwoWayWaitPeriod         = null_real, &
+                                           AssimCoef                = null_real
 
         integer                         :: UpStream                 = null_int, & 
                                            Evolution                = null_int, & 
@@ -1423,6 +1434,7 @@ Module ModuleHydrodynamic
                                            Imposed_BoundaryWave = .false., & 
                                            WaterDischarges      = .false., & 
                                            Residual             = .false., & 
+                                           RestartResidual      = .false., &
                                            ComputeEnteringWave  = .false., & 
                                            Energy               = .false., & 
                                            VolumeVariation      = .false., & 
@@ -1436,8 +1448,9 @@ Module ModuleHydrodynamic
                                            InvertBarometer      = .false., & 
                                            InvertBaromSomeBound = .false., &
                                            NullWaterLevelGradI  = .false., &                                           
-                                           NullWaterLevelGradJ  = .false.
-                                           
+                                           NullWaterLevelGradJ  = .false., &
+                                           TwoWay               = .false., &  ! João Sobrinho
+                                           KillAuxiliar2Way     = .false.     ! João Sobrinho
         real, pointer, dimension(:,:)   :: InvertBarometerCells => null()
                                                       
         integer                         :: Wind                 = null_int  
@@ -1560,14 +1573,19 @@ Module ModuleHydrodynamic
                                                      CenterVaux     => null(), &
                                                      ModulusUVaux   => null(), &
                                                      CenterWaux     => null()
-                                                     
+         
+         real(4),       dimension(:,:,:), pointer :: AuxReal4       => null()  ! Teste João Sobrinho
+         real(4),       dimension(:,:  ), pointer :: Aux2DReal4     => null()  ! Teste João Sobrinho
+         
+  
          real,          dimension(:,:),   pointer :: Aux2D          => null(), &
                                                      WaterLevelMax  => null(), &
                                                      WaterLevelMin  => null(), &
                                                      WaterLevelDif  => null()
                                                      
          logical                                  :: RestartOverwrite   = .false.
-         logical                                  :: Faces              = .false. 
+         logical                                  :: Faces              = .false.
+         logical                                  :: Real4              = .true. !João Sobrinho
                                                      
          real                                     :: WaterLevelUnits    = null_real 
          logical                                  :: TimeSerieDischON   = .false. 
@@ -1737,18 +1755,18 @@ Module ModuleHydrodynamic
 
         real,    dimension(:,:  ), pointer   :: Z   => null()
         
-        real,    dimension(:,:,:), pointer   :: U_New       => null(), &
-                                                V_New       => null(), &
-                                                UV_New      => null(), &
-                                                VU_New      => null(), &
-                                                U_Old       => null(), &
-                                                V_Old       => null(), &
-                                                UV_Old      => null(), &
-                                                DUZ_Old     => null(), &
-                                                DVZ_Old     => null(), &
-                                                DUVZ_Old    => null(), &
-                                                DUZ_New     => null(), &
-                                                DVZ_New     => null()
+        real,    dimension(:,:,:), pointer   :: U_New                => null(), &
+                                                V_New                => null(), &
+                                                UV_New               => null(), &
+                                                VU_New               => null(), &
+                                                U_Old                => null(), &
+                                                V_Old                => null(), &
+                                                UV_Old               => null(), &
+                                                DUZ_Old              => null(), &
+                                                DVZ_Old              => null(), &
+                                                DUVZ_Old             => null(), &
+                                                DUZ_New              => null(), &
+                                                DVZ_New              => null()
                                                 
         real(8), dimension(:,:,:), pointer   :: qX  => null(), &
                                                 qY  => null(), &
@@ -1788,6 +1806,7 @@ Module ModuleHydrodynamic
         type(T_Time)                         :: GetFatherTime 
 
         integer                              :: ObjBoxDif = 0
+        real                                 :: WaterLevelIncrease = 0.0
 
     endtype   
 
@@ -1816,6 +1835,7 @@ Module ModuleHydrodynamic
         private
         type(T_Direction     ) :: Direction 
         type(T_State         ) :: State
+        integer                :: FatherInstanceID !João Sobrinho
         integer                :: InstanceID    = null_int 
         character(PathLength)  :: ModelName     = null_str 
         type(T_Size2D        ) :: Size2D
@@ -1880,8 +1900,14 @@ Module ModuleHydrodynamic
                                           VECW_2D   => null()
         
         !Auxiliar flux properties
-        real(8), pointer, dimension(:,:,:) :: Aux3DFlux => null()    
-
+        real(8), pointer, dimension(:,:,:) :: Aux3DFlux => null()
+        
+        !Auxiliar 2Way matrix
+        real, dimension(:,:,:), pointer    :: TotSonVolInFather    => null() !João Sobrinho
+        real, dimension(:,:), pointer      :: Corners              => null() !João Sobrinho
+        real, dimension (:,:,:), pointer   :: Aux2Way              => null() !João Sobrinho
+        real, dimension(:,:), pointer      :: AuxWaterLevel        => null() !João Sobrinho
+        
         !Instance of ModuleGridData
         integer :: ObjGridData              = 0
       
@@ -2212,7 +2238,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call Actualize_HydrodynamicTimeStep
         
-        call InitialHydrodynamicField (DischargesID, AssimilationID) 
+        call InitialHydrodynamicField (DischargesID, AssimilationID)
         
         call StartOutputBoxFluxes     
 
@@ -2487,7 +2513,49 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
     !End----------------------------------------------------------------
 
+    Subroutine ConstructHydro2Way
+        !Arguments-------------------------------------------------------------
+        
 
+        !Local-----------------------------------------------------------------
+
+        integer                            :: ILBFather, IUBFather, JLBFather, JUBFather
+        integer                            :: KLBFather, KUBFather, ready_, AuxInstanceID
+
+        !----------------------------------------------------------------------
+        !Allocate auxiliar matrixes for 2way. João Sobrinho
+        if(Me%ComputeOptions%TwoWay)then
+            
+            AuxInstanceID = Me%InstanceID
+            call Ready (Me%FatherInstanceID, ready_) ! Change Pointers to father
+            
+            ILBFather = Me%Size%ILB 
+            IUBFather = Me%Size%IUB 
+
+            JLBFather = Me%Size%JLB 
+            JUBFather = Me%Size%JUB 
+
+            KLBFather = Me%Size%KLB 
+            KUBFather = Me%Size%KUB
+            
+            allocate(Me%TotSonVolInFather(ILBFather-1:IUBFather+1, JLBFather-1:JUBFather+1, KLBFather-1:KUBFather+1))
+            Me%TotSonVolInFather(:,:,:) = 0.0
+                
+            allocate(Me%Aux2Way(ILBFather-1:IUBFather+1, JLBFather-1:JUBFather+1, KLBFather-1:KUBFather+1))
+            Me%Aux2Way(:,:,:) = 0.0
+                
+            allocate(Me%AuxWaterLevel(ILBFather-1:IUBFather+1, JLBFather-1:JUBFather+1))
+            Me%AuxWaterLevel(:,:) = 0.0
+                
+            allocate(Me%Corners(0:5, KLBFather-1:KUBFather+1))
+            Me%Corners(:,:) = 0.0
+            
+            Me%ComputeOptions%KillAuxiliar2Way = .true.
+            
+            call Ready (AuxInstanceID, ready_) ! change back to son pointers
+        endif        
+    
+    end Subroutine ConstructHydro2Way
 
    !----------------------------------------------------------------------------
 
@@ -4355,7 +4423,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         
         if (Me%ComputeOptions%WriteContinuousFormat /= Binary_ .and.                     &
             Me%ComputeOptions%WriteContinuousFormat /= HDF5_) then
-            stop 'Construct_Numerical_Options - Hydrodynamic - ERR27.'
+            stop 'Construct_Numerical_Options - Hydrodynamic - ERR28.'!João Sobrinho
         endif
         
 
@@ -4630,6 +4698,16 @@ ifFla: if (BarotropicRadia == FlatherWindWave_ .or. BarotropicRadia == FlatherLo
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR96.')
 
         Me%ComputeOptions%Residual = Residual
+        
+        call GetData(Me%ComputeOptions%RestartResidual,                                 &
+                     Me%ObjEnterData, iflag,                                            &
+                     keyword    = 'RESTART_RESIDUAL',                                   & 
+                     default    = .false.,                                               &
+                     SearchType = FromFile,                                              &
+                     ClientModule ='ModuleHydrodynamic',                                 &
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_)                                            &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR97')
 
         !<BeginKeyword>
             !Keyword          : ENERGY
@@ -6594,20 +6672,7 @@ cd21:   if (Baroclinic) then
                 call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR730') 
         endif
 
-        !<BeginKeyword>
-            !Keyword          : SUBMODEL
-            !<BeginDescription>       
-               ! 
                ! Check if the user wants to run this model as a submodel
-               !  
-               ! 
-            !<EndDescription>
-            !Type             : logical 
-            !Default          : .false.
-            !File keyword     : IN_DAD3D
-            !Search Type      : From File
-        !<EndKeyword>
-
         call GetData(Me%SubModel%ON,                                        & 
                      Me%ObjEnterData, iflag,                                &
                      keyword    = 'SUBMODEL',                                            & 
@@ -6619,20 +6684,8 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR740') 
 
-        !<BeginKeyword>
-            !Keyword          : SUBMODEL_FATHER_HOT_START
-            !<BeginDescription>       
-               ! 
-               ! Check if the user wants to the submodel with a father hot start
-               !  
-               ! 
-            !<EndDescription>
-            !Type             : logical 
-            !Default          : .false.
-            !File keyword     : IN_DAD3D
-            !Search Type      : From File
-        !<EndKeyword>
 
+        ! Check if the user wants to the submodel with a father hot start
         call GetData(Me%SubModel%FatherHotStart,                                        & 
                      Me%ObjEnterData, iflag,                                            &
                      keyword    = 'SUBMODEL_FATHER_HOT_START',                          & 
@@ -6644,22 +6697,7 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR745') 
 
-
-
-        !<BeginKeyword>
-            !Keyword          : MISSING_NULL
-            !<BeginDescription>       
-               ! 
                ! Check if the user wants to replace the missing values by zero 
-               !  
-               ! 
-            !<EndDescription>
-            !Type             : logical 
-            !Default          : .false.
-            !File keyword     : IN_DAD3D
-            !Search Type      : From File
-        !<EndKeyword>
-
         call GetData(Me%SubModel%MissingNull,                               & 
                      Me%ObjEnterData, iflag,                                &
                      keyword    = 'MISSING_NULL',                                        & 
@@ -6671,21 +6709,7 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR750') 
 
-
-        !<BeginKeyword>
-            !Keyword          : SUBMODEL_EXTRAPOLATE
-            !<BeginDescription>       
-               ! 
                ! Check if the user wants to extrapolate the father velocities and water levels  
-               !  
-               ! 
-            !<EndDescription>
-            !Type             : logical 
-            !Default          : .false.
-            !File keyword     : IN_DAD3D
-            !Search Type      : From File
-        !<EndKeyword>
-
         call GetData(Me%SubModel%Extrapolate,                                           & 
                      Me%ObjEnterData, iflag,                                            &
                      keyword    = 'SUBMODEL_EXTRAPOLATE',                               & 
@@ -6695,25 +6719,11 @@ cd21:   if (Baroclinic) then
                      STAT       = STAT_CALL)            
         
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR750') 
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR751') 
 
 
-
-        !<BeginKeyword>
-            !Keyword          : DEADZONE
-            !<BeginDescription>       
-               ! 
                ! Check if the user wants to define a dead zone where the submodel do not 
                ! look for information in the father model
-               !  
-               ! 
-            !<EndDescription>
-            !Type             : logical 
-            !Default          : .false.
-            !File keyword     : IN_DAD3D
-            !Search Type      : From File
-        !<EndKeyword>
-
         call GetData(Me%SubModel%DeadZone,                                  & 
                      Me%ObjEnterData, iflag,                                &
                      keyword    = 'DEADZONE',                                            & 
@@ -6725,20 +6735,7 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR760') 
 
-        !<BeginKeyword>
-            !Keyword          : DEADZONE_FILE
-            !<BeginDescription>       
-               ! 
                ! file name where the dead zone is defined was polygon 
-               !  
-               ! 
-            !<EndDescription>
-            !Type             : logical 
-            !Default          : .false.
-            !File keyword     : IN_DAD3D
-            !Search Type      : From File
-        !<EndKeyword>
-
         call GetData(Me%SubModel%DeadZoneFile,                              & 
                      Me%ObjEnterData, iflag,                                &
                      keyword    = 'DEADZONE_FILE',                                       & 
@@ -7654,22 +7651,82 @@ cd21:   if (Baroclinic) then
         !<EndKeyword>
 
         call GetData(Me%ComputeOptions%NullWaterLevelGradJ,                             &
-                     Me%ObjEnterData, iflag,                                            & 
-                     Keyword    = 'NULL_WATER_LEVEL_GRAD_J',                            &
-                     Default    = .false.,                                              &
-                     SearchType = FromFile,                                             &
-                     ClientModule ='ModuleHydrodynamic',                                &
-                     STAT       = STAT_CALL)            
+                    Me%ObjEnterData, iflag,                                            & 
+                    Keyword    = 'NULL_WATER_LEVEL_GRAD_J',                            &
+                    Default    = .false.,                                              &
+                    SearchType = FromFile,                                             &
+                    ClientModule ='ModuleHydrodynamic',                                &
+                    STAT       = STAT_CALL)            
 
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1210')                        
+        if (STAT_CALL /= SUCCESS_)                                                     &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1210')
+        
+        !João Sobrinho
+        call GetData(Me%ComputeOptions%TwoWay,                                         &
+                    Me%ObjEnterData, iflag,                                            &
+                    Keyword    = 'TWO_WAY',                                            &
+                !By default the model is oneway for downscalling
+                    Default    = .false.,                                              &
+                    SearchType = FromFile,                                             &
+                    ClientModule ='ModuleHydrodynamic',                                &
+                    STAT       = STAT_CALL)            
+
+        if (STAT_CALL /= SUCCESS_)                                                     &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1220')
+        
+        if (Me%ComputeOptions%TwoWay .and. .not. Me%SubModel%ON) then   !João Sobrinho
+            
+            write(*,*) 'Keyword TWO_WAY must ONLY be defined in son domains'            
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1230')
+        
+        endif
+    
+        if (Me%ComputeOptions%TwoWay)then
+    
+            !Period during which the two way is not computed (to avoid assimilation of instabilities) João Sobrinho
+            call GetData(Me%ComputeOptions%TwoWayWaitPeriod,                               &
+                        Me%ObjEnterData, iflag,                                            &
+                        Keyword      = 'TWO_WAY_WAIT_PERIOD',                              &
+                        Default      = 0.,                                                 &
+                        SearchType   = FromFile,                                           &
+                        ClientModule ='ModuleHydrodynamic',                                &
+                        STAT         = STAT_CALL)            
+
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1240')
+
+            call GetData(Me%ComputeOptions%AssimCoef,                                      &
+                        Me%ObjEnterData, iflag,                                            &
+                        Keyword      = 'TWO_WAY_COEF',                                     &
+                        Default      = 86400.,                                             &
+                        SearchType   = FromFile,                                           &
+                        ClientModule ='ModuleHydrodynamic',                                &
+                        STAT         = STAT_CALL)            
+
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1250')
+        endif
+
+        if (Me%SubModel%ON) then
+            call GetData(Me%Submodel%WaterLevelIncrease,                                   &
+                        Me%ObjEnterData, iflag,                                            &
+                        Keyword      = 'WATER_LEVEL_INCREASE ',                            &
+                        Default      = 0.0,                                                &
+                        SearchType   = FromFile,                                           &
+                        ClientModule ='ModuleHydrodynamic',                                &
+                        STAT         = STAT_CALL)            
+
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1260')
+        endif
+    
 
     End Subroutine Construct_Numerical_Options
 
-    !End-----------------------------------------------------------------------
+        !-----------------------------------------------------------------------
     
 
-    !--------------------------------------------------------------------------
+         !--------------------------------------------------------------------------
 
     subroutine InicWaveStressOptions
 
@@ -8423,6 +8480,10 @@ cd43:   if (.NOT. BlockFound) then
         integer :: JLB, JUB
         integer :: KLB, KUB
 
+        !integer :: ILBFather, IUBFather
+        !integer :: JLBFather, JUBFather
+        !integer :: KLBFather, KUBFather
+        
         integer :: IJKLB, IJKUB, imin, imax
 
         integer :: STAT_CALL
@@ -8966,7 +9027,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
             
             Me%Emersion%TotalSimulationTime = 0.0
   
-        endif
+        endif    
         
       !----------------------------------------------------------------------
 
@@ -9543,7 +9604,8 @@ i7:             if (.not. ContinuousGOTM)  then
             Me%Statistics%ID(:) = 0
 
             do i=1, Me%Statistics%NProp
-
+!João Sobrinho
+!Output_R4 = Me%Output%Real4                
                 call ConstructStatistic (Me%Statistics%ID(i),                               &
                                          Me%ObjTime,                                        &
                                          Me%ObjHDF5,                                        &
@@ -9967,6 +10029,18 @@ cd5 :           if (opened) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR90")
+        
+        !João Sobrinho
+        call GetData(Me%Output%Real4,                                                   &
+                     Me%ObjEnterData,                                                   &
+                     iflag,                                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OUTPUT_HDF_REAL4',                                 &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleHydrodynamic',                               &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR100")
     
 
     end subroutine Construct_OutPutTime
@@ -11393,21 +11467,27 @@ i1:         if (CoordON) then
         KUB = Me%Size%KUB 
 
         !Horizontal Velocity
-
-        nullify  (Me%OutPut%CenterU   )
-        nullify  (Me%OutPut%CenterV   )
-        nullify  (Me%OutPut%ModulusH  )
+        if (Me%Output%Real4)then
+            nullify  (Me%OutPut%AuxReal4)
+            nullify  (Me%OutPut%Aux2DReal4)
+            nullify  (Me%OutPut%CenterU   )
+            nullify  (Me%OutPut%CenterV   )
+            nullify  (Me%OutPut%ModulusH  )
+            nullify  (Me%OutPut%CenterW   )
+            nullify  (Me%OutPut%Aux2D)
+        else
+            nullify  (Me%OutPut%CenterU   )
+            nullify  (Me%OutPut%CenterV   )
+            nullify  (Me%OutPut%ModulusH  )
+            nullify  (Me%OutPut%CenterW   )
+            nullify  (Me%OutPut%Aux2D)
+        endif
         nullify  (Me%OutPut%DirectionH)
-        nullify  (Me%OutPut%CenterW   )
         nullify  (Me%OutPut%Vorticity3D )        
         nullify  (Me%OutPut%CenterUaux  ) 
         nullify  (Me%OutPut%CenterVaux  ) 
         nullify  (Me%OutPut%ModulusUVaux)        
         nullify  (Me%OutPut%CenterWaux) 
-        nullify  (Me%OutPut%Aux2D) 
-        
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Modified by Matthias DELPEY - 25/11/2011 - 02/03/2012
         nullify  (Me%OutPut%CenterUglm)
         nullify  (Me%OutPut%CenterVglm)
         nullify  (Me%OutPut%ModulusHglm)
@@ -11426,23 +11506,37 @@ i1:         if (CoordON) then
 
         nullify  (Me%OutPut%Wave3D_FPressureAccelU)
         nullify  (Me%OutPut%Wave3D_FPressureAccelV)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
         
-
-        allocate(Me%OutPut%CenterU     (ILB:IUB, JLB:JUB, KLB:KUB),                     &
-                 Me%OutPut%CenterV     (ILB:IUB, JLB:JUB, KLB:KUB),                     &
-                 Me%OutPut%ModulusH    (ILB:IUB, JLB:JUB, KLB:KUB),                     &
-                 Me%OutPut%DirectionH  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
-                 Me%OutPut%CenterW     (ILB:IUB, JLB:JUB, KLB:KUB),                     &
+        if (Me%Output%Real4)then
+            
+            allocate(Me%OutPut%AuxReal4         (ILB:IUB, JLB:JUB, KLB:KUB),                &
+                     Me%OutPut%Aux2DReal4       (ILB:IUB, JLB:JUB         ),                &
+                     Me%OutPut%CenterU          (ILB:IUB, JLB:JUB, KLB:KUB),                &
+                     Me%OutPut%CenterV          (ILB:IUB, JLB:JUB, KLB:KUB),                &
+                     Me%OutPut%ModulusH         (ILB:IUB, JLB:JUB, KLB:KUB),                &
+                     Me%OutPut%CenterW          (ILB:IUB, JLB:JUB, KLB:KUB),                &
+                     Me%OutPut%Aux2D            (ILB:IUB, JLB:JUB         ),                &
+                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR01a'
+            
+        else
+            allocate(Me%OutPut%CenterU          (ILB:IUB, JLB:JUB, KLB:KUB),                &
+                     Me%OutPut%CenterV          (ILB:IUB, JLB:JUB, KLB:KUB),                &
+                     Me%OutPut%ModulusH         (ILB:IUB, JLB:JUB, KLB:KUB),                &
+                     Me%OutPut%CenterW          (ILB:IUB, JLB:JUB, KLB:KUB),                &
+                     Me%OutPut%Aux2D            (ILB:IUB, JLB:JUB         ),                &
+                
+                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR01b'
+        endif
+        
+        
+        allocate(Me%OutPut%DirectionH  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%Vorticity3D (ILB:IUB, JLB:JUB, KLB:KUB),                     &                 
                  Me%OutPut%CenterUaux  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%CenterVaux  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%ModulusUVaux(ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%CenterWaux  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
-                 Me%OutPut%Aux2D       (ILB:IUB, JLB:JUB         ),                     &
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Modified by Matthias DELPEY - 02/03/2012
                 Me%OutPut%CenterUglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
                 Me%OutPut%CenterVglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
                 Me%OutPut%ModulusHglm    (ILB:IUB, JLB:JUB, KLB:KUB),                   &
@@ -11451,23 +11545,32 @@ i1:         if (CoordON) then
                 Me%OutPut%CenterVstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
                 Me%OutPut%ModulusHstokes (ILB:IUB, JLB:JUB, KLB:KUB),                   &
                 Me%OutPut%CenterWstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR10'
-
-        Me%OutPut%CenterU       (:,:,:) = 0.
-        Me%OutPut%CenterV       (:,:,:) = 0.
-        Me%OutPut%ModulusH      (:,:,:) = 0.
+        
+        !João Sobrinho
+        if (Me%Output%Real4)then
+            Me%OutPut%AuxReal4      (:,:,:) = 0.
+            Me%OutPut%Aux2DReal4    (:,:  ) = 0.
+            Me%OutPut%CenterU       (:,:,:) = 0.
+            Me%OutPut%CenterV       (:,:,:) = 0.
+            Me%OutPut%ModulusH      (:,:,:) = 0.
+            Me%OutPut%CenterW       (:,:,:) = 0.
+            Me%OutPut%Aux2D         (:,:  ) = 0.
+        else
+            Me%OutPut%CenterU       (:,:,:) = 0.
+            Me%OutPut%CenterV       (:,:,:) = 0.
+            Me%OutPut%ModulusH      (:,:,:) = 0.
+            Me%OutPut%CenterW       (:,:,:) = 0.
+            Me%OutPut%Aux2D         (:,:  ) = 0.
+        endif
+        
         Me%OutPut%DirectionH    (:,:,:) = 0.
-        Me%OutPut%CenterW       (:,:,:) = 0.
         Me%OutPut%Vorticity3D   (:,:,:) = 0.         
         Me%OutPut%CenterUaux    (:,:,:) = 0.
         Me%OutPut%CenterVaux    (:,:,:) = 0.
         Me%OutPut%ModulusUVaux  (:,:,:) = 0.
         Me%OutPut%CenterWaux    (:,:,:) = 0.
-        Me%OutPut%Aux2D         (:,:  ) = 0. 
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Modified by Matthias DELPEY - 02/03/2012
 
         Me%OutPut%CenterUglm    (:,:,:) = 0.
         Me%OutPut%CenterVglm    (:,:,:) = 0.
@@ -11478,7 +11581,6 @@ i1:         if (CoordON) then
         Me%OutPut%CenterVstokes (:,:,:) = 0.
         Me%OutPut%ModulusHstokes(:,:,:) = 0.
         Me%OutPut%CenterWstokes (:,:,:) = 0.
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         
         if (Me%ComputeOptions%WaterLevelMaxMin) then   
 
@@ -11547,8 +11649,6 @@ i1:         if (CoordON) then
 
         endif
   
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*
-! Modified by Matthias DELPEY - 25/11/2011
         allocate  (Me%OutPut%Wave3D_FBreakingAccelU(ILB:IUB, JLB:JUB, KLB:KUB))
         allocate  (Me%OutPut%Wave3D_FBreakingAccelV(ILB:IUB, JLB:JUB, KLB:KUB))
 
@@ -11566,7 +11666,6 @@ i1:         if (CoordON) then
 
         Me%OutPut%Wave3D_FPressureAccelU   (:,:,:) =0.
         Me%OutPut%Wave3D_FPressureAccelV   (:,:,:) =0.
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     end subroutine ConstructMatrixesOutput
 
@@ -13227,7 +13326,54 @@ cd3 :       if (present(VelocityResidual_V)) then
     end subroutine GetResidualHorizontalVelocity
 
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    subroutine Get2WayAuxVariables(HydrodynamicID, SonVolumeInFatherCell, AuxMatrix, Corners, STAT)
+    
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: HydrodynamicID   
+        real, dimension(:,:,:), pointer             :: SonVolumeInFatherCell
+        real, dimension(:,:,:), pointer             :: AuxMatrix
+        real, dimension(:,:), pointer               :: Corners
+        integer, optional, intent(OUT)              :: STAT
+        
+        !External -------------------------------------------------------------
+        integer :: ready_        
 
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+        
+        !Begin-----------------------------------------------------------------
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_) 
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call Read_Lock(mHydrodynamic_, Me%InstanceID)
+            SonVolumeInFatherCell => Me%TotSonVolInFather
+            call Read_Lock(mHydrodynamic_, Me%InstanceID)
+            call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
+            AuxMatrix => Me%Aux2Way
+            
+            call Read_Lock(mHydrodynamic_, Me%InstanceID)
+            Corners => Me%Corners
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                    &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------        
+        
+    end subroutine Get2WayAuxVariables
+    !--------------------------------------------------------------------------
+    
     !--------------------------------------------------------------------------
 
     subroutine GetOldHorizontalVelocity(HydrodynamicID, OldVelocity_U, OldVelocity_V, STAT)
@@ -14097,7 +14243,45 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     end subroutine UngetHydrodynamic3Dreal8
 
     !--------------------------------------------------------------------------
+    subroutine UngetHydrodynamic3Dinteger(HydrodynamicID, Array, STAT)
 
+        !Arguments-------------------------------------------------------------
+
+        integer,               intent(IN ) :: HydrodynamicID
+        integer, pointer, dimension(:,:,:) :: Array
+        integer, optional,    intent (OUT) :: STAT
+   
+        
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_   
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_) 
+
+cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+            nullify(Array)
+
+            call Read_UnLock(mHydrodynamic_, Me%InstanceID, "UngetHydrodynamic3Dinteger")
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    !----------------------------------------------------------------------
+    end subroutine UngetHydrodynamic3Dinteger
+    !--------------------------------------------------------------------------
     subroutine SetHydrodynamicManning (HydrodynamicID, Manning, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -14857,16 +15041,17 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
         !External--------------------------------------------------------------
 
-        integer :: ready_ 
-
+        integer :: ready_, readyFather_
+        type (T_Hydrodynamic), pointer              :: ObjHydrodynamicFather
         !Local-----------------------------------------------------------------
 
-        integer :: STAT_, STAT_CALL           !Auxiliar local variable
+        integer :: STAT_, STAT_CALL, AuxHydrodynamicID            !Auxiliar local variable  João Sobrinho
         logical :: VariableDT
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
-
+        AuxHydrodynamicID = 0!João Sobrinho  
+        
         call Ready(HydrodynamicID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
@@ -14928,7 +15113,23 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (Me%ComputeOptions%Energy)                                   &
                 call ComputeSystemEnergy
 
-            call Hydrodynamic_OutPut 
+            !João Sobrinho 2017 - included the call of the routine to update the father model by assimilation
+            !                     of the son domain - Fazer nova routina
+            if (.not. associated(Me%Next))then
+            
+                    if (Me%ComputeOptions%TwoWay) then
+                
+                        if (Me%CurrentTime - Me%BeginTime > Me%ComputeOptions%TwoWayWaitPeriod)then
+                            
+                            call ComputeFeedbackSon2Father(AuxHydrodynamicID, HydrodynamicID)
+                        
+                        endif
+                
+                    endif
+                
+            endif
+            
+            call Hydrodynamic_OutPut
 
             !Records results to binary file
             if (Me%ComputeOptions%Recording) then
@@ -15158,19 +15359,18 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !Arguments-------------------------------------------------------------
          
-        real,    dimension(:,:,:), pointer      :: CenterU, CenterV, CenterW, ModulusH
-        real,    dimension(:,:  ), pointer      :: WaterLevel
+        real,    dimension(:,:,:), pointer                :: CenterU, CenterV, CenterW, ModulusH
+        real,    dimension(:,:  ), pointer                :: WaterLevel
 
         !Local-----------------------------------------------------------------
-        real,    dimension(:,:,:), pointer      :: Value3D
-        real,    dimension(:,:  ), pointer      :: Value2D
-        !real,    dimension(:,:  ), pointer      :: MLD_Surf
-        real,    dimension(:,:  ), pointer      :: Bathymetry
-        integer                                 :: MethodStatistic, LayerDefinition
-        integer                                 :: Depth, Layer, Value3DStatLayers,      &
-                                                   LayersNumber, np, ln
-        integer                                 :: ILB, IUB, JLB, JUB, STAT_CALL
-        integer                                 :: status
+        real,    dimension(:,:,:), pointer                :: Value3D
+        real,    dimension(:,:  ), pointer                :: Value2D
+        real,    dimension(:,:  ), pointer                :: Bathymetry
+        integer                                           :: MethodStatistic, LayerDefinition
+        integer                                           :: Depth, Layer, Value3DStatLayers,      &
+                                                             LayersNumber, np, ln
+        integer                                           :: ILB, IUB, JLB, JUB, STAT_CALL
+        integer                                           :: status
         !Begin-----------------------------------------------------------------
 
         ILB = Me%WorkSize%ILB
@@ -15181,20 +15381,23 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
         if (Me%Statistics%ON) then
-
             do np = 1, Me%Statistics%NProp
 
-                if (Me%Statistics%PropList(np) == VelocityU_)           &
+                if (Me%Statistics%PropList(np) == VelocityU_)then
                     Value3D => CenterU
-
-                if (Me%Statistics%PropList(np) == VelocityV_)           &
+                endif
+                
+                if (Me%Statistics%PropList(np) == VelocityV_)then                  
                     Value3D => CenterV
-
-                if (Me%Statistics%PropList(np) == VelocityW_)           &
+                endif
+                
+                if (Me%Statistics%PropList(np) == VelocityW_)then
                     Value3D => CenterW
-
-                if (Me%Statistics%PropList(np) == VelocityModulus_)           &
+                endif
+                
+                if (Me%Statistics%PropList(np) == VelocityModulus_)then
                     Value3D => ModulusH
+                endif
 
                 call GetStatisticMethod (Me%Statistics%ID(np), MethodStatistic, &
                                         STAT = status)
@@ -15213,7 +15416,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
 cd1:            if (MethodStatistic == Value3DStatLayers) then
-
 
 !                    nullify(MLD_Surf)
 
@@ -15236,65 +15438,48 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
                                                   ln, LayerDefinition, STAT = status)
                                                     
                         if (status /= SUCCESS_)                                          &
-                            call SetError (FATAL_, INTERNAL_, 'OutPut_Statistics - ModuleHydrodynamic - ERR06')
+                            call SetError (FATAL_, INTERNAL_, 'OutPut_Statistics - ModuleHydrodynamic - ERR05')
                        !Statistic of properties values along the bottom 
                         if (LayerDefinition == Layer) then 
-
-
+                            
                             call AddStatisticLayers (StatisticID    = Me%Statistics%ID(np),         &
-                                                     Value3D        = Value3D,                      &
-                                                     WaterPoints3D  = Me%External_Var%WaterPoints3D,&
-                                                     DZ3D           = Me%External_Var%DWZ,          &
-                                                     LayerNumber    = ln,                           &
-                                                     STAT= STAT_CALL) 
+                                                        Value3D        = Value3D,                      &
+                                                        WaterPoints3D  = Me%External_Var%WaterPoints3D,&
+                                                        DZ3D           = Me%External_Var%DWZ,          &
+                                                        LayerNumber    = ln,                           &
+                                                        STAT= STAT_CALL) 
 
                             if (STAT_CALL /= SUCCESS_)                                              &
-                                call SetError (FATAL_, KEYWORD_, 'OutPut_Statistics - ModuleWaterProperties - ERR06')
-
-
+                                call SetError (FATAL_, KEYWORD_, 'OutPut_Statistics - ModuleWaterProperties - ERR06') 
+                                
+                            
                         !Statistic of properties values in the surface mixed layer 
                         else if (LayerDefinition == Depth) then 
-
-!                            call GetMLD_Surf(Me%ObjTurbulence, MLD_Surf, STAT = status) 
-!
-!                            if (status /= SUCCESS_)                                              &
-!                                call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR08')
-
+                        
                             call AddStatisticLayers (Me%Statistics%ID(np),                          &
-                                                     Value3D       = Value3D,                       &
-                                                     WaterPoints3D = Me%External_Var%WaterPoints3D, &
-                                                     DZ3D          = Me%External_Var%DWZ,           &
-                                                     LayerNumber   = ln,                             &
-!                                                     LowerDepth    = MLD_Surf,                      &
-                                                     STAT= status) 
+                                                        Value3D       = Value3D,                       &
+                                                        WaterPoints3D = Me%External_Var%WaterPoints3D, &
+                                                        DZ3D          = Me%External_Var%DWZ,           &
+                                                        LayerNumber   = ln,                            &
+!                                                     LowerDepth    = MLD_Surf,                     &
+                                                        STAT= status) 
 
                             if (status /= SUCCESS_)                                              &
-                                call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR10')
-
-                    
-!                            call UnGetTurbulence(Me%ObjTurbulence, MLD_Surf, STAT = status) 
-
-!                            if (status /= SUCCESS_)                                              &
-!                                call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR13')
+                                call SetError (FATAL_, INTERNAL_, 'OutPut_Statistics - ModuleWaterProperties - ERR07') 
 
                         endif
- 
 
                     enddo
-
-
 
                 endif  cd1
 
                 call ModifyStatistic (Me%Statistics%ID(np),                              &
-                                      Value3D       = Value3D,                           &
-                                      WaterPoints3D = Me%External_Var%WaterPoints3D,     &
-                                      STAT          = status)
+                                        Value3D       = Value3D,                           &
+                                        WaterPoints3D = Me%External_Var%WaterPoints3D,     &
+                                        STAT          = status)
                 if (status /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR12')
-
-
-  
+                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR08')
+                    
             enddo
             
         endif
@@ -15313,14 +15498,14 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
                                         STAT = status)
                                             
                 if (status /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR01b')
+                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR09')
 
                 call ModifyStatistic (Me%Statistics2D%ID(np),                              &
                                       Value2D       = Value2D,                           &
                                       WaterPoints2D = Me%External_Var%WaterPoints2D,     &
                                       STAT          = status)
                 if (status /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR12')
+                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR10')
 
             enddo
            
@@ -15368,10 +15553,15 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
         call ReadyFather(HydrodynamicFatherID, ObjHydrodynamicFather, readyFather_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
+    
+
 
             if(InitialField) then
+                Me%FatherInstanceID = HydrodynamicFatherID  ! João Sobrinho
+                
                 call TestSubModelOptionsConsistence (ObjHydrodynamicFather%ComputeOptions%Continuous)
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
+                call ConstructHydro2Way
                 
                 !Ang: new implementation
                 Me%SubModel%FatherKLB = ObjHydrodynamicFather%WorkSize%KLB
@@ -15798,7 +15988,7 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                         if (Me%SubModel%MissingNull) then
                             !The cell is considered uncovered if WaterColumn < MinWaterColumn 
                             !if WaterColumn < MinWaterColumn / 2 the model put WaterColumn = MinWaterColumn / 2 (creates water)
-                            ! Using WaterColumn = 3/4MinWaterColumn garantes that the cell is uncovered but mass is not created
+                            ! Using WaterColumn = 3/4MinWaterColumn garantees that the cell is uncovered but mass is not created
                             Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn 
 
                         else
@@ -20580,12 +20770,6 @@ cd1:    if (Me%SubModel%InterPolTime .and. .not. InitialField) then
             call SetMatrixValue(Me%SubModel%DUZ_Previous, Me%Size, Me%SubModel%DUZ_Next)
             call SetMatrixValue(Me%SubModel%DVZ_Previous, Me%Size, Me%SubModel%DVZ_Next)
 
-            !Me%SubModel%Z_Previous  (:,:  ) = Me%SubModel%Z_Next  (:,:)
-            !Me%SubModel%U_Previous  (:,:,:) = Me%SubModel%U_Next  (:,:,:)
-            !Me%SubModel%V_Previous  (:,:,:) = Me%SubModel%V_Next  (:,:,:)
-            !Me%SubModel%DUZ_Previous(:,:,:) = Me%SubModel%DUZ_Next(:,:,:)
-            !Me%SubModel%DVZ_Previous(:,:,:) = Me%SubModel%DVZ_Next(:,:,:)
-
         endif cd1
         
         call InterpolRegularGrid   (Me%ObjHorizontalGrid,                           &
@@ -20598,6 +20782,11 @@ cd1:    if (Me%SubModel%InterPolTime .and. .not. InitialField) then
 
         if (status /= SUCCESS_)                                                     &
             call SetError(FATAL_, INTERNAL_, "ReadNextOrInitialField; Hydrodynamic. ERR40") 
+        
+        if (Me%SubModel%WaterLevelIncrease /= 0.0) then
+            call AddSubmodelWaterLevel 
+        endif
+        
             
         if (Me%SubModel%Extrapolate) then
            
@@ -20848,7 +21037,31 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
     end subroutine ReadNextOrInitialField 
 
     !--------------------------------------------------------------------------
-
+    subroutine AddSubmodelWaterLevel
+    !Arguments------------------------------------------------------------- Teste WaterLevelIncrease
+    integer                         :: i, j, STAT_CALL
+    
+        call GetWaterPoints2D(Me%ObjHorizontalMap, &
+					          Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+	        stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'			  
+    
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%External_Var%WaterPoints2D(i, j) == 1)then
+                    Me%Submodel%Z_Next(i, j) = Me%Submodel%Z_Next(i, j) + Me%Submodel%WaterLevelIncrease
+                endif
+        enddo
+        enddo
+        
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, &
+					          Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+	        stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR02'
+      
+    end subroutine AddSubmodelWaterLevel
+    
+    !---------------------------------------------------------------------------
 
     subroutine ReadLockFather(ObjHydrodynamicFather,                                     &
                               FluxXFather, FluxYFather,                                  &
@@ -21389,16 +21602,7 @@ cd2:    if (Me%SubModel%InterpolTime) then
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Actualises_Hydrodynamic")
 
-        !Update the moving boundary  (boundary of the tidal areas covered)
-!        call UpdateComputeFaces3D(Me%ObjMap,                                &
-!                                  Me%WaterLevel%New,                        &
-!                                  Me%CurrentTime, STAT = STAT_CALL)      
-
-!        if (STAT_CALL /= SUCCESS_)                                                       &
-!            stop 'Actualises_Hydrodynamic; ModuleHydrodynamic. ERR01.'
-
         call SetMatrixValue(Me%WaterLevel%Old, Me%Size2D, Me%WaterLevel%New)
-        !Me%WaterLevel%Old (:,:) = Me%WaterLevel%New(:,:)
 
         Num_Discretization = Me%ComputeOptions%Num_Discretization
 
@@ -21435,30 +21639,19 @@ cd3:        if (Previous_Direction == DirectionY_) then
             call SetMatrixValue(Me%Velocity%Horizontal%U%Old, Me%Size, Me%Velocity%Horizontal%U%New)
             call SetMatrixValue(Me%Velocity%Horizontal%V%Old, Me%Size, Me%Velocity%Horizontal%V%New)
             
-! Modified by Matthias DELPEY - 27/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
                 if (Me%ComputeOptions%WaveForcing3D == GLM) then
                     call SetMatrixValue(Me%StokesVel%Horizontal%U%Old, Me%Size, Me%StokesVel%Horizontal%U%New)
                     call SetMatrixValue(Me%StokesVel%Horizontal%V%Old, Me%Size, Me%StokesVel%Horizontal%V%New)
                 endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-            !Me%Velocity%Horizontal%U%Old(:,:,:) =                           &
-            !Me%Velocity%Horizontal%U%New(:,:,:)
-
-            !Me%Velocity%Horizontal%V%Old(:,:,:) =                           & 
-            !Me%Velocity%Horizontal%V%New(:,:,:)
 
             if (Me%SubModel%ON)   then
             
                 call SetMatrixValue(Me%SubModel%U_Old, Me%Size, Me%SubModel%U_New)
                 call SetMatrixValue(Me%SubModel%V_Old, Me%Size, Me%SubModel%V_New)
                 
-                !Me%SubModel%U_Old(:,:,:) =                                  &
-                !Me%SubModel%U_New(:,:,:)
-
-                !Me%SubModel%V_Old(:,:,:) =                                  &
-                !Me%SubModel%V_New(:,:,:)
 
             endif
 
@@ -42004,17 +42197,12 @@ cd9:            if (ImposedNormalFacesUV(i, j, KUB) == Imposed) then
                         ![m^3/s]              = [ ] * [m/s] * [m^2]
                         WaterFlux_XY(i, j, k) = WaterFlux_XY(i, j, k) -                  &
                                                 TotalFlux * dz
-                    enddo dok5
-
-                    
-                                            
+                    enddo dok5                                               
                 endif cd9
-
                 
 cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
 
                     Kbottom = KFloor_UV(i, j)
-
                     TotalFlux = 0.
 
             dok4:   do k = Kbottom, KUB 
@@ -42025,35 +42213,26 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
                                                 dble((1. - Me%WaterFluxes%New_Old))               *         &
                                                 dble(Baroclinic_UV_Old(i, j, k)))  *         &
                                                 Area_UV(i, j, k)
-
 !                        ![m^3/s]              = [ ] * [m/s] * [m^2]
 !                        WaterFlux_XY(i, j, k) = dble(Baroclinic_UV_New (i, j, k))  *         &
 !                                                Area_UV(i, j, k)
 
-
                         TotalFlux = TotalFlux + WaterFlux_XY(i, j, k)
-
                     enddo dok4
-
    
             dok6:   do k = Kbottom, KUB 
-
                         dz = dble(DUZ_VZ(i, j, k)) / dble(WaterColumnUV(i, j))
 
                         ![m^3/s]              = [ ] * [m/s] * [m^2]
                         WaterFlux_XY(i, j, k) = WaterFlux_XY(i, j, k) -                  &
                                                 TotalFlux * dz
-
                     enddo dok6
-
                                             
                 endif cd10
-
 
             enddo doi3
             enddo doj3
             !$OMP END DO
-
         
         endif cd6
         !$OMP END PARALLEL
@@ -48435,8 +48614,215 @@ do5:            do i = ILB, IUB
 
 
     end subroutine Hydrodynamic_OutPut
+    
+    subroutine ReadySon(HydrodynamicID, HydroSon, ready_)   !João Sobrinho
+    
+        !Arguments------------------------------------------------------------
+        type (T_Hydrodynamic), pointer              :: HydroSon
+        integer                                     :: ready_, HydrodynamicID
+    
+        !Begin----------------------------------------------------------------
+        nullify (HydroSon)
+    
+        if (HydrodynamicID > 0) then
+            HydroSon => FirstHydrodynamic
+            do while (associated (HydroSon))
+                if (HydroSon%InstanceID == HydrodynamicID) exit
+                HydroSon => HydroSon%Next
+            enddo
+            if (.not. associated(HydroSon))                                                    &
+                stop 'ModuleHydrodynamic - ReadySon - ERR01'
+    
+            ready_ = VerifyReadLock (mHYDRODYNAMIC_, HydroSon%InstanceID)
+    
+        else
+            ready_ = OFF_ERR_
+        end if
+    
+    
+    end subroutine ReadySon
+    
+    !João Sobrinho - takes submodel variables and updates father domain
+    subroutine UpdateFatherModel(SonHydrodynamicID, STAT) 
+        !Locals----------------------------------------------------------------
+        integer                                           :: IUB, ILB, JUB, JLB, KUB, KLB
+        integer                                           :: IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, KLBSon, AuxHydrodynamicID
+        integer, intent(IN)                               :: SonHydrodynamicID
+        integer, dimension(:,:), pointer                  :: IV, JV
+        integer, dimension(:,:,:), pointer                :: Open3DFather, Open3DSon
+        real,    dimension(:,:,:), pointer                :: VolumeZSon
+        type (T_Hydrodynamic), pointer                    :: ObjHydrodynamicSon
+        integer                                           :: status, STAT_, ready_son, i, j, k
+        integer, optional, intent(OUT)                    :: STAT
+        
+        !Begin------------------------------------------------------------------------------
+        
+        STAT_ = UNKNOWN_
+        AuxHydrodynamicID = SonHydrodynamicID
+        call ReadySon(AuxHydrodynamicID, ObjHydrodynamicSon, ready_son) !Gets son solution
+        
+cd1 :   if (ready_son .EQ. IDLE_ERR_) then
+
+            if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")
+            
+            ! Father gridSize
+            IUB = Me%WorkSize%IUB
+            ILB = Me%WorkSize%ILB
+            JUB = Me%WorkSize%JUB
+            JLB = Me%WorkSize%JLB
+            KUB = Me%WorkSize%KUB
+            KLB = Me%WorkSize%KLB
+        
+            IUBSon = ObjHydrodynamicSon%WorkSize%IUB
+            ILBSon = ObjHydrodynamicSon%WorkSize%ILB
+            JUBSon = ObjHydrodynamicSon%WorkSize%JUB
+            JLBSon = ObjHydrodynamicSon%WorkSize%JLB
+            KUBSon = ObjHydrodynamicSon%WorkSize%KUB
+            KLBSon = ObjHydrodynamicSon%WorkSize%KLB
+        
+            !Get the father cell associated with each son cell
+            call GetHorizontalGrid(AuxHydrodynamicID, IV = IV, STAT = status)
+                if (status /= SUCCESS_)                                                      &
+                    call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR01")
+        
+            call GetHorizontalGrid(AuxHydrodynamicID, JV = JV, STAT = status)
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR02")          
+
+            call GetGeometryVolumes(AuxHydrodynamicID, VolumeZ = VolumeZSon,                  &
+                        STAT = status)
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR03")
+            
+            call GetOpenPoints3D(AuxHydrodynamicID, Open3DSon, STAT = status)
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR04")
+                           
+            AuxHydrodynamicID = Me%InstanceID         ! Change ID to Father
+            
+            call GetOpenPoints3D(AuxHydrodynamicID, Open3DFather, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR05")
+            
+            call SetMatrixValue( Me%TotSonVolInFather, Me%WorkSize, 0.0)
+            do k = KLBSon, KUBSon
+                do j = JLBSon, JUBSon
+                    do i = ILBSon, IUBSon
+                        if (Open3DSon(i, j, k) == 1)then
+                            Me%TotSonVolInFather(IV(i, j)+1, JV(i, j)+1, k) = &
+                            Me%TotSonVolInFather(IV(i, j)+1, JV(i, j)+1, k) + VolumeZSon(i, j, k)
+                        endif
+                    enddo        
+                enddo
+            enddo
+            
+            call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
+            
+           !Assimilation of son domain into father domain
+            call TwoWayAssimilation(Me%Velocity%Horizontal%U%New, ObjHydrodynamicSon%Velocity%Horizontal%U%New,       &
+                                    Open3DFather, Open3DSon, KUB, KLB, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon,        &
+                                    KLBSon, IV, JV, ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,    &
+                                    Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon)
+            
+            call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
+           
+            call TwoWayAssimilation(Me%Velocity%Horizontal%V%New, ObjHydrodynamicSon%Velocity%Horizontal%V%New,       &
+                                    Open3DFather, Open3DSon, KUB, KLB, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, KLBSon,&
+                                    IV, JV, ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,            &
+                                    Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon)
+            
+            call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
+           
+            call TwoWayAssimilation(Me%Velocity%Vertical%Cartesian, ObjHydrodynamicSon%Velocity%Vertical%Cartesian,   &
+                                    Open3DFather, Open3DSon, KUB, KLB, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, KLBSon,&
+                                    IV, JV, ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,             &
+                                    Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon)
+            
+            call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
+           
+            call TwoWayAssimilation(Me%WaterLevel%New, ObjHydrodynamicSon%WaterLevel%New, Open3DFather, Open3DSon,    &
+                                KUB, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, IV, JV,                                  &
+                                ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT, Me%TotSonVolInFather,  &
+                                Me%AuxWaterLevel, Me%Corners, VolumeZSon)
+            
+            call SetMatrixValue( Me%AuxWaterLevel, Me%WorkSize2D, 0.0)
+           
+            AuxHydrodynamicID = SonHydrodynamicID        ! Change ID to Son
+           
+            call UngetHorizontalGrid(AuxHydrodynamicID, IV, STAT = status)
+             if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR06")
+            
+            call UngetHorizontalGrid(AuxHydrodynamicID, JV, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR07")
+            
+            call UnGetGeometry(AuxHydrodynamicID, VolumeZSon, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR08")
+     
+            call UnGetMap(AuxHydrodynamicID, Open3DSon, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR09")            
+            
+            AuxHydrodynamicID = Me%InstanceID  ! Change ID to Father
+            
+            call UnGetMap(AuxHydrodynamicID, Open3DFather, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR10")
+
+            if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")           
+           
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_son
+                
+        end if cd1
+        
+        if (present(STAT))then
+            STAT = STAT_
+        endif
+        
+    end subroutine UpdateFatherModel
 
     !End------------------------------------------------------------------------------
+    subroutine ComputeFeedbackSon2Father(AuxHydrodynamicID, HydrodynamicID)
+    
+    
+    !Externals------------------------------------------------------------------------------
+        type (T_Hydrodynamic), pointer                    :: ObjHydrodynamicFather
+    !Locals----------------------------------------------------------------
+        integer, intent(IN)                               :: HydrodynamicID
+        integer                                           :: ready_, readyFather_, STAT_, STAT_CALL, i, AuxHydrodynamicID
+        
+    !Begin------------------------------------------------------------------------------
+        
+        do i = HydrodynamicID, 2, -1
+                    
+            if(i == HydrodynamicID)then
+                !does nothing
+            else
+                        
+                call Ready (i, ready_) ! points Me% to current domain i
+                    
+            endif
+                
+            AuxHydrodynamicID = Me%FatherInstanceID    ! Changes ID to Father
+               
+            call ReadyFather(AuxHydrodynamicID, ObjHydrodynamicFather, readyFather_) ! getsFather
+                
+            if (ObjHydrodynamicFather%LastIteration == Me%CurrentTime)then
+                !Ver se é preciso nulificar o Pai
+
+                call Ready (AuxHydrodynamicID, ready_) ! switches Me% from Son to Father
+                                        
+                AuxHydrodynamicID = i    !Changes back to Son ID
+                    
+                call UpdateFatherModel(AuxHydrodynamicID, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                stop 'Subroutine ComputeFeedBackSon2Father - ModuleHydrodynamic. ERR01' 
+                    
+            endif
+                                
+        enddo
+                            
+        call Ready (HydrodynamicID, ready_) ! swithes back to the last nested Domain
+        
+        
+    end subroutine ComputeFeedbackSon2Father
+    
+    !--------------------------------------------------------------------------------------------------------------------
     
     
     subroutine ComputeFloodRisk
@@ -48775,7 +49161,7 @@ do3:            do  k = kbottom, KUB
             DZY           => Me%External_Var%DZY
             WaterColumnZ  => Me%External_Var%WaterColumn
 
-            call CenterVelocity(Me%Energy%CenterU, Me%Energy%CenterV, VectorType = CurrentVelocity)
+            call CenterVelocity(CenterU = Me%Energy%CenterU, CenterV = Me%Energy%CenterV, VectorType = CurrentVelocity)
 
             call SetMatrixValue(Me%Energy%CenterW, Me%Size, 0.)
 
@@ -49323,56 +49709,114 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR90'
         endif
 
-        !Writes Waterlevel
 
+        !João Sobrinho
+        if (Me%Output%Real4 .and. .not. present(iw)) then
+            
+            !Writes Waterlevel            
+            Me%OutPut%Aux2DReal4(:, :) = Me%WaterLevel%New(:,:) * Me%OutPut%WaterLevelUnits
+        
+            if      (Me%OutPut%WaterLevelUnits == 100.) then
+                AuxChar = 'cm'
+            else if (Me%OutPut%WaterLevelUnits == 1.  ) then
+                AuxChar = 'm'
+            endif         
 
-        Me%OutPut%Aux2D(:, :) = Me%WaterLevel%New(:,:) * Me%OutPut%WaterLevelUnits
+            call HDF5WriteData  (ObjHDF5,                                                   &
+                                 "/Results/"//trim(GetPropertyName (WaterLevel_)),          &
+                                 trim(GetPropertyName (WaterLevel_)), trim(AuxChar),        &
+                                 Array2D = Me%OutPut%Aux2DReal4,                            &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR100'
+
+            call SetMatrixValue(Me%OutPut%AuxReal4, Me%Size, Me%OutPut%CenterU)
+            
+            call HDF5WriteData  (ObjHDF5,                                                &
+                                 "/Results/"//trim(GetPropertyName (VelocityU_)),           &
+                                 trim(GetPropertyName (VelocityU_)),                        &
+                                 "m/s", Array3D = Me%OutPut%AuxReal4,                       &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR101'
+            
+            call SetMatrixValue(Me%OutPut%AuxReal4, Me%Size, Me%OutPut%CenterV) 
+            
+            call HDF5WriteData  (ObjHDF5,                                                &
+                                 "/Results/"//trim(GetPropertyName (VelocityV_)),           &
+                                 trim(GetPropertyName (VelocityV_)),                        &
+                                 "m/s", Array3D =  Me%OutPut%AuxReal4,                      &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR102'
+            
+            call SetMatrixValue(Me%OutPut%AuxReal4, Me%Size, Me%OutPut%ModulusH) 
+            
+            call HDF5WriteData  (ObjHDF5,                                                &
+                                 "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
+                                 trim(GetPropertyName (VelocityModulus_)),                  &
+                                 "m/s", Array3D =  Me%OutPut%AuxReal4,                      &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR103'
+            
+            call SetMatrixValue(Me%OutPut%AuxReal4, Me%Size, Me%OutPut%CenterW)
+
+            !Writes Velocity W
+            call HDF5WriteData  (ObjHDF5,                                                   &
+                                 "/Results/"//trim(GetPropertyName (VelocityW_)),           &
+                                 trim(GetPropertyName (VelocityW_)), "m/s",                 &
+                                 Array3D = Me%OutPut%AuxReal4,                              &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR104'
+!--------------------------------------------------------------------------------------------------------------------------        
+        else
+            
+         !Writes Waterlevel            
+            Me%OutPut%Aux2D(:, :) = Me%WaterLevel%New(:,:) * Me%OutPut%WaterLevelUnits
         
         
-        if      (Me%OutPut%WaterLevelUnits == 100.) then
-            AuxChar = 'cm'
-        else if (Me%OutPut%WaterLevelUnits == 1.  ) then
-            AuxChar = 'm'
+            if      (Me%OutPut%WaterLevelUnits == 100.) then
+                AuxChar = 'cm'
+            else if (Me%OutPut%WaterLevelUnits == 1.  ) then
+                AuxChar = 'm'
+            endif            
+            
+            call HDF5WriteData  (ObjHDF5,                                                   &
+                                 "/Results/"//trim(GetPropertyName (WaterLevel_)),          &
+                                 trim(GetPropertyName (WaterLevel_)), trim(AuxChar),        &
+                                 Array2D = Me%OutPut%Aux2D,                                 &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR105'
+            !Writes Velocity
+            call HDF5WriteData  (ObjHDF5,                                                &
+                                 "/Results/"//trim(GetPropertyName (VelocityU_)),           &
+                                 trim(GetPropertyName (VelocityU_)),                        &
+                                 "m/s", Array3D = Me%OutPut%CenterU,                        &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR106'
+            
+            call HDF5WriteData  (ObjHDF5,                                                &
+                                 "/Results/"//trim(GetPropertyName (VelocityV_)),           &
+                                 trim(GetPropertyName (VelocityV_)),                        &
+                                 "m/s", Array3D =  Me%OutPut%CenterV,                       &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR107'
+            
+            !Writes Velocity modulus
+            call HDF5WriteData  (ObjHDF5,                                                &
+                                 "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
+                                 trim(GetPropertyName (VelocityModulus_)),                  &
+                                 "m/s", Array3D =  Me%OutPut%ModulusH,                      &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR108'
+
+            !Writes Velocity W
+            call HDF5WriteData  (ObjHDF5,                                                   &
+                                 "/Results/"//trim(GetPropertyName (VelocityW_)),           &
+                                 trim(GetPropertyName (VelocityW_)), "m/s",                 &
+                                 Array3D = Me%OutPut%CenterW,                               &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR109'
+            
         endif
-
-        call HDF5WriteData  (ObjHDF5,                                                   &
-                             "/Results/"//trim(GetPropertyName (WaterLevel_)),          &
-                             trim(GetPropertyName (WaterLevel_)), trim(AuxChar),        &
-                             Array2D = Me%OutPut%Aux2D,                                 &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR100'
-
-        !Writes Velocity
-        call HDF5WriteData  (ObjHDF5,                                                &
-                             "/Results/"//trim(GetPropertyName (VelocityU_)),           &
-                             trim(GetPropertyName (VelocityU_)),                        &
-                             "m/s", Array3D = Me%OutPut%CenterU,                        &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR110'
-        
-        call HDF5WriteData  (ObjHDF5,                                                &
-                             "/Results/"//trim(GetPropertyName (VelocityV_)),           &
-                             trim(GetPropertyName (VelocityV_)),                        &
-                             "m/s", Array3D =  Me%OutPut%CenterV,                       &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR120'
-        
-        !Writes Velocity modulus
-        call HDF5WriteData  (ObjHDF5,                                                &
-                             "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
-                             trim(GetPropertyName (VelocityModulus_)),                  &
-                             "m/s", Array3D =  Me%OutPut%ModulusH,                      &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR180'
-
-        !Writes Velocity W
-        call HDF5WriteData  (ObjHDF5,                                                   &
-                             "/Results/"//trim(GetPropertyName (VelocityW_)),           &
-                             trim(GetPropertyName (VelocityW_)), "m/s",                 &
-                             Array3D = Me%OutPut%CenterW,                               &
-                             OutputNumber = Index, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR190'
-        
+      
 ! Modified by Matthias DELPEY - 20/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 27/07/2011 - 05/08/2011 - 25/10/2011 - 24/11/2011 - 02/03/2012
 
@@ -49653,7 +50097,8 @@ sp:     if (.not. SimpleOutPut) then
 
                 
                 !Baroclinic Horizontal Velocity
-                call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = BaroclinicVelocity)
+                call CenterVelocity(CenterU = Me%OutPut%CenterUaux, CenterV = Me%OutPut%CenterVaux, &
+                                    VectorType = BaroclinicVelocity)
                                     
 
                 call HDF5WriteData  (ObjHDF5, "/Results/Baroclinic/X",                   &
@@ -49718,7 +50163,8 @@ sp:     if (.not. SimpleOutPut) then
                                                STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR340'
 
-                call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = BaroclinicForce)
+                call CenterVelocity(CenterU = Me%OutPut%CenterUaux, CenterV = Me%OutPut%CenterVaux, &
+                                    VectorType = BaroclinicForce)
 
                 call HDF5WriteData  (ObjHDF5,                                            &
                                      "/Results/"//trim(GetPropertyName(BaroclinicForceX_)), &
@@ -49739,7 +50185,8 @@ sp:     if (.not. SimpleOutPut) then
             ! When using altimetry assimilation
             if (Me%ComputeOptions%AltimetryAssimilation%Yes) then
 
-                call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = AltimGeostrophicVelocity)
+                call CenterVelocity(CenterU = Me%OutPut%CenterUaux, CenterV = Me%OutPut%CenterVaux, &
+                                    VectorType = AltimGeostrophicVelocity)
 
                 call HDF5WriteData  (ObjHDF5, "/Results/AltimGeostrophicVelocityU",      &
                                      "AltimGeostrophicVelocityU", "m/s",                    &
@@ -49759,7 +50206,8 @@ sp:     if (.not. SimpleOutPut) then
             
             if (Me%SubModel%ON) then
 
-                call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = SubModelVelocity)
+                call CenterVelocity(CenterU = Me%OutPut%CenterUaux, CenterV = Me%OutPut%CenterVaux, &
+                                    VectorType = SubModelVelocity)
 
                 call HDF5WriteData  (ObjHDF5, "/Results/SubModelVelocityU",             &
                                      "SubModelVelocityU", "m/s",                        &
@@ -49833,7 +50281,8 @@ cd2:    if (Me%OutPut%Run_End) then
             !Residual Velocity
 cd3:        if (Me%ComputeOptions%Residual) then
 
-                call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = ResidualVelocity)
+                call CenterVelocity(CenterU = Me%OutPut%CenterUaux, CenterV = Me%OutPut%CenterVaux, &
+                                    VectorType = ResidualVelocity)
                 
                 !$OMP PARALLEL PRIVATE(i,j,k)
                 
@@ -49878,7 +50327,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
 
                 !Horizontal Residual Flux
-                call CenterVelocity(Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, VectorType = ResidualFlux)
+                call CenterVelocity(CenterU = Me%OutPut%CenterUaux, CenterV = Me%OutPut%CenterVaux, &
+                                    VectorType = ResidualFlux)
 
                 !$OMP PARALLEL PRIVATE(i,j,k)
 
@@ -50127,44 +50577,88 @@ cd3:        if (Me%ComputeOptions%Residual) then
                              OutputNumber   = NextSurfaceOutPut,                        &
                              STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR04'
-
-        !surface velocity U
-        call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
-                             "/Results/"//trim(GetPropertyName (VelocityU_)),           &
-                             trim(GetPropertyName (VelocityU_)), "m/s",                 &
-                             Array3D        = Me%OutPut%CenterU,                        &
-                             OutputNumber   = NextSurfaceOutPut,                        &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR09'
+!João Sobrinho
+        if (Me%Output%Real4) then
+            
+            call SetMatrixValue(Me%OutPut%AuxReal4, Me%Size, Me%OutPut%CenterU)            
+            !surface velocity U        
+            call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
+                                 "/Results/"//trim(GetPropertyName (VelocityU_)),           &
+                                 trim(GetPropertyName (VelocityU_)), "m/s",                 &
+                                 Array3D        = Me%OutPut%AuxReal4,                       &
+                                 OutputNumber   = NextSurfaceOutPut,                        &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR09'
+        
+            call SetMatrixValue(Me%OutPut%AuxReal4, Me%Size, Me%OutPut%CenterV) 
+            !surface velocity V
+            call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
+                                 "/Results/"//trim(GetPropertyName (VelocityV_)),           &
+                                 trim(GetPropertyName (VelocityV_)), "m/s",                 &
+                                 Array3D        = Me%OutPut%AuxReal4,                       &
+                                 OutputNumber   = NextSurfaceOutPut,                        &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR10'
+            
+            call SetMatrixValue(Me%OutPut%AuxReal4, Me%Size, Me%OutPut%ModulusH)       
+            !Writes Velocity modulus
+            call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
+                                 "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
+                                 trim(GetPropertyName (VelocityModulus_)), "m/s",           &
+                                 Array3D        = Me%OutPut%AuxReal4,                       &
+                                 OutputNumber   = NextSurfaceOutPut,                        &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR11'
+            
+            call SetMatrixValue(Me%OutPut%Aux2DReal4, Me%Size2D, Me%WaterLevel%New) 
+            !Writes water level
+            call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
+                                 "/Results/"//trim(GetPropertyName (WaterLevel_)),          &
+                                 trim(GetPropertyName (WaterLevel_)), "m",                  &
+                                 Array2D        = Me%OutPut%Aux2DReal4,                       &
+                                 OutputNumber   = NextSurfaceOutPut,                        &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR12'  
+            
+        else
+            
+            !surface velocity U
+            call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
+                                 "/Results/"//trim(GetPropertyName (VelocityU_)),           &
+                                 trim(GetPropertyName (VelocityU_)), "m/s",                 &
+                                 Array3D        = Me%OutPut%CenterU,                        &
+                                 OutputNumber   = NextSurfaceOutPut,                        &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR09'
         
 
-        !surface velocity V
-        call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
-                             "/Results/"//trim(GetPropertyName (VelocityV_)),           &
-                             trim(GetPropertyName (VelocityV_)), "m/s",                 &
-                             Array3D        = Me%OutPut%CenterV,                        &
-                             OutputNumber   = NextSurfaceOutPut,                        &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR10'
+            !surface velocity V
+            call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
+                                 "/Results/"//trim(GetPropertyName (VelocityV_)),           &
+                                 trim(GetPropertyName (VelocityV_)), "m/s",                 &
+                                 Array3D        = Me%OutPut%CenterV,                        &
+                                 OutputNumber   = NextSurfaceOutPut,                        &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR10'
        
-        !Writes Velocity modulus
-        call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
-                             "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
-                             trim(GetPropertyName (VelocityModulus_)), "m/s",           &
-                             Array3D        = Me%OutPut%ModulusH,                       &
-                             OutputNumber   = NextSurfaceOutPut,                        &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR11'
+            !Writes Velocity modulus
+            call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
+                                 "/Results/"//trim(GetPropertyName (VelocityModulus_)),     &
+                                 trim(GetPropertyName (VelocityModulus_)), "m/s",           &
+                                 Array3D        = Me%OutPut%ModulusH,                       &
+                                 OutputNumber   = NextSurfaceOutPut,                        &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR11'
 
-        !Writes water level
-        call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
-                             "/Results/"//trim(GetPropertyName (WaterLevel_)),          &
-                             trim(GetPropertyName (WaterLevel_)), "m",                  &
-                             Array2D        = Me%WaterLevel%New,                        &
-                             OutputNumber   = NextSurfaceOutPut,                        &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR12'
-
+            !Writes water level
+            call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
+                                 "/Results/"//trim(GetPropertyName (WaterLevel_)),          &
+                                 trim(GetPropertyName (WaterLevel_)), "m",                  &
+                                 Array2D        = Me%WaterLevel%New,                        &
+                                 OutputNumber   = NextSurfaceOutPut,                        &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR12'              
+        endif
 
         !Writes everything to disk
         call HDF5FlushMemory (Me%ObjSurfaceHDF5, STAT = STAT_CALL)
@@ -50199,31 +50693,31 @@ cd3:        if (Me%ComputeOptions%Residual) then
         JUB = Me%WorkSize%JUB 
         KLB = Me%WorkSize%KLB 
         KUB = Me%WorkSize%KUB 
-
+            
         !Horizontal Velocity
-        call CenterVelocity( Me%OutPut%CenterU, Me%OutPut%CenterV,    &
+        call CenterVelocity( CenterU = Me%OutPut%CenterU, CenterV = Me%OutPut%CenterV,    &
                             VectorType = CurrentVelocity)
-
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Modified by Matthias DELPEY - 24/11/2011 - 25/11/2011
 
         if (Me%ComputeOptions%WaveForcing3D == GLM) then
 
-            call CenterVelocity( Me%OutPut%CenterUstokes, Me%OutPut%CenterVstokes,                        &
-                                 VectorType = StokesDriftVelocity)
+            call CenterVelocity( CenterU = Me%OutPut%CenterUstokes, CenterV = Me%OutPut%CenterVstokes,   &
+                                    VectorType = StokesDriftVelocity)
 
             Me%OutPut%CenterUglm(:,:,:) = Me%OutPut%CenterU(:,:,:) + Me%OutPut%CenterUstokes(:,:,:)
             Me%OutPut%CenterVglm(:,:,:) = Me%OutPut%CenterV(:,:,:) + Me%OutPut%CenterVstokes(:,:,:)
 
-            call CenterVelocity( Me%OutPut%Wave3D_FPressureAccelU, Me%OutPut%Wave3D_FPressureAccelV,      &
-                                 VectorType = WavePressureForceAccel)
+            call CenterVelocity( CenterU = Me%OutPut%Wave3D_FPressureAccelU,      &
+                                    CenterV = Me%OutPut%Wave3D_FPressureAccelV,      &
+                                    VectorType = WavePressureForceAccel)
 
-            call CenterVelocity( Me%OutPut%Wave3D_FVortexAccelU, Me%OutPut%Wave3D_FVortexAccelV,          &
-                                 VectorType = WaveVortexForceAccel)
+            call CenterVelocity( CenterU = Me%OutPut%Wave3D_FVortexAccelU,        &
+                                    CenterV = Me%OutPut%Wave3D_FVortexAccelV,        &
+                                    VectorType = WaveVortexForceAccel)
 
             if (Me%ComputeOptions%WaveForcing3D_Two == TauWalstra) then
-                call CenterVelocity( Me%OutPut%Wave3D_FBreakingAccelU, Me%OutPut%Wave3D_FBreakingAccelV,  &
-                                     VectorType = WaveBreakingForceAccel)
+                call CenterVelocity( CenterU = Me%OutPut%Wave3D_FBreakingAccelU,  &
+                                        CenterV = Me%OutPut%Wave3D_FBreakingAccelV,  &
+                                        VectorType = WaveBreakingForceAccel)
             endif
 
         endif
@@ -50258,12 +50752,9 @@ cd3:        if (Me%ComputeOptions%Residual) then
                     Me%OutPut%DirectionH(i, j, k) = Me%OutPut%DirectionH(i, j, k) + 360.
                 endif
 
-! Modified by Matthias DELPEY - 02/03/2012 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 Me%OutPut%ModulusHglm   (i, j, k) = abs(cmplx(Me%OutPut%CenterUglm(i, j, k), Me%OutPut%CenterVglm(i, j, k)))
                 Me%OutPut%ModulusHstokes(i, j, k) = abs(cmplx(Me%OutPut%CenterUstokes(i, j, k), &
-                                                              Me%OutPut%CenterVstokes(i, j, k)))
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
+                                                                Me%OutPut%CenterVstokes(i, j, k)))
             end if
 
         enddo
@@ -50293,9 +50784,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
                 do k = kbottom, KUB
 
                     Me%OutPut%CenterW(i, j, k) = (Me%Velocity%Vertical%Cartesian(i, j, k+1) +  &
-                                                  Me%Velocity%Vertical%Cartesian(i, j, k)) / 2.
+                                                    Me%Velocity%Vertical%Cartesian(i, j, k)) / 2.
                     
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     if (Me%ComputeOptions%WaveForcing3D == GLM) then
 
                         Me%OutPut%CenterWstokes(i, j, k) = (Me%StokesVel%Vertical%Cartesian(i, j, k+1) +  &
@@ -50306,7 +50796,6 @@ cd3:        if (Me%ComputeOptions%Residual) then
                         !                                    Me%Velocity%Vertical%Across(i, j, k)) / 2.
                     
                     endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 enddo
 
@@ -50405,9 +50894,10 @@ cd3:        if (Me%ComputeOptions%Residual) then
                     Me%External_Var%DZY(i, j)                
 
                 enddo            
-            endif        
+            endif   
         enddo        
-        enddo        
+        enddo
+        
         
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyMatrixesOutput")
 
@@ -50419,18 +50909,17 @@ cd3:        if (Me%ComputeOptions%Residual) then
     subroutine CenterVelocity( CenterU, CenterV, VectorType)
 
         !Arguments-------------------------------------------------------------
-         
-        real,    dimension(:, :, :), pointer    :: CenterU, CenterV
-        integer                                 :: VectorType
+        real,    dimension(:, :, :), pointer              :: CenterU, CenterV
+        integer                                           :: VectorType
 
         !Local-----------------------------------------------------------------
-        real,    dimension(:, :, :), pointer    :: FaceVelocityU, FaceVelocityV
-        real(8), dimension(:, :, :), pointer    :: FaceUDouble, FaceVDouble
-        real                                    :: VelU, VelV, AngleX, AngleY
-        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                 :: i, j, k
-        logical                                 :: Simple, Double
-        integer                                 :: CHUNK
+        real,    dimension(:, :, :), pointer              :: FaceVelocityU, FaceVelocityV
+        real(8), dimension(:, :, :), pointer              :: FaceUDouble, FaceVDouble
+        real                                              :: VelU, VelV, AngleX, AngleY
+        integer                                           :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                           :: i, j, k
+        logical                                           :: Simple, Double
+        integer                                           :: CHUNK
                 
         !Bounds
         ILB = Me%Size%ILB 
@@ -50542,145 +51031,148 @@ cd3:        if (Me%ComputeOptions%Residual) then
             call StartWatch ("ModuleHydrodynamic", "CenterVelocity")
         endif
         
-        !$OMP PARALLEL PRIVATE(i,j,k,AngleX,AngleY,VelU,VelV)
-
-        !Interpolates CenterVelocities
-        if (Me%External_Var%Distortion .and. Simple)then
-
-            do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
+        ! João Sobrinho
             
-                if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
+            !$OMP PARALLEL PRIVATE(i,j,k,AngleX,AngleY,VelU,VelV)
 
-                    AngleX = Me%External_Var%RotationX(i, j) 
-                    AngleY = Me%External_Var%RotationY(i, j) 
+            !Interpolates CenterVelocities
+            if (Me%External_Var%Distortion .and. Simple)then
 
-                    VelU = (FaceVelocityU(i, j, k)  +   FaceVelocityU(i, j+1, k)) / 2.
+                do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = JLB, JUB
+                do i = ILB, IUB
+            
+                    if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
-                    VelV = (FaceVelocityV(i, j, k)  +   FaceVelocityV(i+1, j, k)) / 2.
-                else
+                        AngleX = Me%External_Var%RotationX(i, j) 
+                        AngleY = Me%External_Var%RotationY(i, j) 
 
-                    VelU = 0.
-                    VelV = 0.
+                        VelU = (FaceVelocityU(i, j, k)  +   FaceVelocityU(i, j+1, k)) / 2.
 
-                endif
+                        VelV = (FaceVelocityV(i, j, k)  +   FaceVelocityV(i+1, j, k)) / 2.
+                    else
 
-                CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
-                CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
+                        VelU = 0.
+                        VelV = 0.
 
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
+                    endif
+
+                    CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
+                    CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
+
+                enddo
+                enddo
+                !$OMP END DO
+                enddo
             
 
-        elseif(Me%External_Var%Distortion .and. Double)then
+            elseif(Me%External_Var%Distortion .and. Double)then
 
-            do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
+                do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = JLB, JUB
+                do i = ILB, IUB
 
 
-                if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
+                    if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
-                    AngleX = Me%External_Var%RotationX(i, j) 
-                    AngleY = Me%External_Var%RotationY(i, j) 
+                        AngleX = Me%External_Var%RotationX(i, j) 
+                        AngleY = Me%External_Var%RotationY(i, j) 
 
-                    VelU = (FaceUDouble(i, j, k)  +  FaceUDouble(i, j+1, k)) / 2.
+                        VelU = (FaceUDouble(i, j, k)  +  FaceUDouble(i, j+1, k)) / 2.
 
-                    VelV = (FaceVDouble(i, j, k)  +  FaceVDouble(i+1, j, k)) / 2.
+                        VelV = (FaceVDouble(i, j, k)  +  FaceVDouble(i+1, j, k)) / 2.
                               
-                else
+                    else
 
-                    VelU = 0.
-                    VelV = 0.
+                        VelU = 0.
+                        VelV = 0.
 
-                endif
+                    endif
 
-                CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
-                CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
+                    CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
+                    CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
 
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
+                enddo
+                enddo
+                !$OMP END DO
+                enddo
 
 
-        elseif((.not. Me%External_Var%Distortion) .and. Simple)then
+            elseif((.not. Me%External_Var%Distortion) .and. Simple)then
             
-            do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
+                do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = JLB, JUB
+                do i = ILB, IUB
             
-                if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
+                    if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
-                    AngleX = 0.
-                    AngleY = Pi/2.
+                        AngleX = 0.
+                        AngleY = Pi/2.
 
-                    AngleX = AngleX + Me%External_Var%GridRotation
-                    AngleY = AngleY + Me%External_Var%GridRotation
+                        AngleX = AngleX + Me%External_Var%GridRotation
+                        AngleY = AngleY + Me%External_Var%GridRotation
                     
-                    VelU = (FaceVelocityU(i, j, k)  +   FaceVelocityU(i, j+1, k)) / 2.
+                        VelU = (FaceVelocityU(i, j, k)  +   FaceVelocityU(i, j+1, k)) / 2.
 
-                    VelV = (FaceVelocityV(i, j, k)  +   FaceVelocityV(i+1, j, k)) / 2.
+                        VelV = (FaceVelocityV(i, j, k)  +   FaceVelocityV(i+1, j, k)) / 2.
                 
-                else
+                    else
 
-                    VelU = 0.
-                    VelV = 0.
+                        VelU = 0.
+                        VelV = 0.
 
-                endif
+                    endif
                 
-                CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
-                CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
+                    CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
+                    CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
 
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
+                enddo
+                enddo
+                !$OMP END DO
+                enddo
 
-        elseif((.not. Me%External_Var%Distortion) .and. Double)then
+            elseif((.not. Me%External_Var%Distortion) .and. Double)then
 
-            do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
+                do k = KLB, KUB
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = JLB, JUB
+                do i = ILB, IUB
             
-                if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
+                    if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
-                    AngleX = 0.
-                    AngleY = Pi/2.
+                        AngleX = 0.
+                        AngleY = Pi/2.
 
 
-                    AngleX = AngleX + Me%External_Var%GridRotation
-                    AngleY = AngleY + Me%External_Var%GridRotation
+                        AngleX = AngleX + Me%External_Var%GridRotation
+                        AngleY = AngleY + Me%External_Var%GridRotation
 
-                    VelU = (FaceUDouble(i, j, k)  +  FaceUDouble(i, j+1, k)) / 2.
+                        VelU = (FaceUDouble(i, j, k)  +  FaceUDouble(i, j+1, k)) / 2.
 
-                    VelV = (FaceVDouble(i, j, k)  +  FaceVDouble(i+1, j, k)) / 2.
+                        VelV = (FaceVDouble(i, j, k)  +  FaceVDouble(i+1, j, k)) / 2.
                               
-                else
+                    else
 
-                    VelU = 0.
-                    VelV = 0.
+                        VelU = 0.
+                        VelV = 0.
 
-                endif
+                    endif
 
-                CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
-                CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
+                    CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
+                    CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
 
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
+                enddo
+                enddo
+                !$OMP END DO
+                enddo
 
-        endif
+            endif
 
-        !$OMP END PARALLEL
+            !$OMP END PARALLEL                    
+
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "CenterVelocity")
@@ -50758,6 +51250,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         enddo
 
+
         !West-East Velocity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%OutPut%CenterU,                                 &
@@ -50768,21 +51261,20 @@ cd3:        if (Me%ComputeOptions%Residual) then
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%OutPut%CenterV,                                 &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR65'
 
 
         !Vertical Velocity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%OutPut%CenterW,                                 &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR66'
 
         !Horizontal Velocity intensity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data3D = Me%OutPut%ModulusH,                                &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR90'
-
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR67' 
 
         !Horizontal Velocity Direction
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
@@ -50822,30 +51314,29 @@ cd3:        if (Me%ComputeOptions%Residual) then
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "OutPut_Profile")
 
         call WriteProfile(Me%ObjProfile,                                        &
-                          Me%OutPut%CenterU,                                    &
-                          SZZ    = Me%External_Var%SZZ,                         &
-                          STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR01'
+                            Me%OutPut%CenterU,                                    &
+                            SZZ    = Me%External_Var%SZZ,                         &
+                            STAT   = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR05'
             
         call WriteProfile(Me%ObjProfile,                                        &
-                          Me%OutPut%CenterV,                                    &
-                          SZZ    = Me%External_Var%SZZ,                         &
-                          STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR02'
+                            Me%OutPut%CenterV,                                    &
+                            SZZ    = Me%External_Var%SZZ,                         &
+                            STAT   = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR06'
 
         call WriteProfile(Me%ObjProfile,                                        &
-                          Me%OutPut%CenterW,                                    &
-                          SZZ    = Me%External_Var%SZZ,                         &
-                          STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR03'
+                            Me%OutPut%CenterW,                                    &
+                            SZZ    = Me%External_Var%SZZ,                         &
+                            STAT   = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR07'
 
 
         call WriteProfile(Me%ObjProfile,                                        &
-                          Me%OutPut%ModulusH,                                   &
-                          SZZ    = Me%External_Var%SZZ,                         &
-                          STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR04'
-
+                            Me%OutPut%ModulusH,                                   &
+                            SZZ    = Me%External_Var%SZZ,                         &
+                            STAT   = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR08'         
 
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%DirectionH,                                 &
@@ -52224,7 +52715,41 @@ i1:     if (STAT_CALL /= SUCCESS_) then
            
             else if (Residual .and. Me%ComputeOptions%Residual) then cd1
 
-               
+                if (Me%computeOptions%RestartResidual)then
+                    
+                    Me%Residual%ResidualTime = 0
+                    
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                           Me%Residual%WaterLevel(i, j) = 0.
+                    enddo
+                    enddo
+                    
+                    do k = KLB, KUB
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                        
+                        !Residual velocity
+                        Me%Residual%Velocity_U(i, j, k) =  0.
+                        Me%Residual%Velocity_V(i, j, k) =  0.
+
+                        !Residual vertical velocity
+                        Me%Residual%Vertical_Velocity(i, j, k) =  0.              
+
+                        !Residual Water fluxes
+                        Me%Residual%WaterFlux_X(i, j, k) = 0.
+                        Me%Residual%WaterFlux_Y(i, j, k) = 0.
+
+                        !Read residual layer thickness
+                        Me%Residual%DWZ(i, j, k) = 0                        
+
+                    enddo
+                    enddo
+                    enddo
+                    
+                    
+                endif
+                
                 read(InitialFile) Me%Residual%ResidualTime
 
                 !Average water level 
@@ -54763,6 +55288,20 @@ ic1:    if (Me%CyclicBoundary%ON) then
             nullify (Me%Forces%Wave3DExplicit_Acceleration) 
 
         endif
+        
+        !Kill auxiliar variables used in 2way. João Sobrinho
+        if (Me%ComputeOptions%KillAuxiliar2Way)then
+        
+            deallocate(Me%Aux2Way)
+            nullify(Me%Aux2Way)
+            deallocate(Me%TotSonVolInFather)
+            nullify(Me%TotSonVolInFather)
+            deallocate(Me%AuxWaterLevel)
+            nullify(Me%AuxWaterLevel)
+            deallocate(Me%Corners)
+            nullify(Me%Corners)
+        endif
+        
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!                       
 
        !----------------------------------------------------------------------
@@ -54828,18 +55367,28 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
 
         !Horizontal Velocity
-        deallocate(Me%OutPut%CenterU   ,                                                &
-                   Me%OutPut%CenterV   ,                                                &
-                   Me%OutPut%ModulusH  ,                                                &
-                   Me%OutPut%DirectionH,                                                &
-                   Me%OutPut%CenterW,                                                   &
+        !João Sobrinho
+        if (Me%Output%Real4)then
+            deallocate(Me%OutPut%AuxReal4,                                               &
+                       Me%OutPut%Aux2DReal4,                                             &
+                       Me%OutPut%CenterU,                                                &
+                       Me%OutPut%CenterV,                                                &
+                       Me%OutPut%ModulusH,                                               &
+                       Me%OutPut%Aux2D,                                                  &
+                       Me%OutPut%CenterW)
+        else 
+            deallocate(Me%OutPut%CenterU,                                                &
+                       Me%OutPut%CenterV,                                                &
+                       Me%OutPut%ModulusH,                                               &
+                       Me%OutPut%Aux2D,                                                  &
+                       Me%OutPut%CenterW)         
+        endif
+              
+        deallocate(Me%OutPut%DirectionH,                                                &
                    Me%OutPut%CenterUaux,                                                &
                    Me%OutPut%CenterVaux,                                                &
                    Me%OutPut%ModulusUVaux,                                              &
                    Me%OutPut%CenterWaux,                                                &
-                   Me%OutPut%Aux2D,                                                     &
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Modified by Matthias DELPEY - 02/03/2012
                    Me%OutPut%CenterUglm   ,                                             &
                    Me%OutPut%CenterVglm   ,                                             &
                    Me%OutPut%ModulusHglm  ,                                             &
@@ -54848,18 +55397,27 @@ ic1:    if (Me%CyclicBoundary%ON) then
                    Me%OutPut%CenterVstokes   ,                                          &
                    Me%OutPut%ModulusHstokes  ,                                          &
                    Me%OutPut%CenterWstokes   ,                                          &
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'KillMatrixesOutput - ModuleHydrodynamic - ERR10'
 
-        nullify  (Me%OutPut%CenterU     )
-        nullify  (Me%OutPut%CenterV     )
-        nullify  (Me%OutPut%ModulusH    )
+        !João Sobrinho
+        if(Me%Output%Real4)then
+            nullify  (Me%OutPut%AuxReal4    )
+            nullify  (Me%OutPut%Aux2DReal4  )
+            nullify  (Me%OutPut%CenterU     )
+            nullify  (Me%OutPut%CenterV     )
+            nullify  (Me%OutPut%ModulusH    )
+            nullify  (Me%OutPut%CenterW     )
+            nullify  (Me%OutPut%Aux2D       )
+        else
+            nullify  (Me%OutPut%CenterU     )
+            nullify  (Me%OutPut%CenterV     )
+            nullify  (Me%OutPut%ModulusH    )
+            nullify  (Me%OutPut%CenterW     )
+            nullify  (Me%OutPut%Aux2D       )
+        endif
+        
         nullify  (Me%OutPut%DirectionH  )
-        nullify  (Me%OutPut%CenterW     )
-
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Modified by Matthias DELPEY - 02/03/2012
         nullify  (Me%OutPut%CenterUglm     )
         nullify  (Me%OutPut%CenterVglm     )
         nullify  (Me%OutPut%ModulusHglm    )
@@ -54868,8 +55426,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
         nullify  (Me%OutPut%CenterVstokes  )
         nullify  (Me%OutPut%ModulusHstokes )
         nullify  (Me%OutPut%CenterWstokes  )
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
         nullify  (Me%OutPut%CenterUaux  ) 
         nullify  (Me%OutPut%CenterVaux  ) 
         nullify  (Me%OutPut%ModulusUVaux)
@@ -54891,8 +55447,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
         endif            
 
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Modified by Matthias DELPEY - 25/11/2011
         deallocate (Me%OutPut%Wave3D_FPressureAccelU  )
         deallocate (Me%OutPut%Wave3D_FPressureAccelV  )
         deallocate (Me%OutPut%Wave3D_FBreakingAccelU)
@@ -54906,7 +55460,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
         nullify  (Me%OutPut%Wave3D_FBreakingAccelV)
         nullify  (Me%OutPut%Wave3D_FVortexAccelU  )
         nullify  (Me%OutPut%Wave3D_FVortexAccelV  )
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    
     end subroutine KillMatrixesOutput
 
@@ -54996,7 +55549,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
             !Now update linked list
             PreviousHydrodynamic%Next => AuxHydrodynamic%Next
-
 
         endif
 
