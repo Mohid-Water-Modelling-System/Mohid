@@ -113,7 +113,7 @@ program ConvertToHDF5
     logical               :: WatchPassedAsArgument = .false.
     logical               :: Watch     = .false.
     character(PathLength) :: WatchFile
-    character(PathLength) :: DataFile  = 'ConvertToHDF5Action.dat'    
+    character(PathLength) :: DataFile  = null_str
     
     call ReadArguments     
     
@@ -258,9 +258,24 @@ program ConvertToHDF5
         write(*,*)
         write(*,*)'Running ConvertToHDF5...'
         write(*,*)
+        
+        
+        if (DataFile == null_str) then
+        
+            !Read input file name from nomfich file
+            call ReadFileName('IN_MODEL', DataFile, "Convert2netcdf", STAT = STAT_CALL)
+            
+            if     (STAT_CALL == FILE_NOT_FOUND_ERR_) then
+                DataFile = 'ConvertToHDF5Action.dat'    
+            elseif (STAT_CALL /= SUCCESS_              ) then
+                stop 'ReadOptions - ConvertToHDF5 - ERR10'
+            endif                        
+                           
+        endif
+
 
         call ConstructEnterData (ObjEnterData, DataFile, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR20'
 
         !call GetData(WatchFile,                                             &
         !             ObjEnterData, iflag,                                   &
@@ -283,7 +298,7 @@ program ConvertToHDF5
                          keyword      = 'OUTWATCH',                             &
                          ClientModule = 'ConvertToHDF5',                        &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR30'
             if (iflag == 0)then
                 MonitorPerformance  = .false.
             else
@@ -301,7 +316,7 @@ do1 :   do
             call ExtractBlockFromBuffer(ObjEnterData, ClientNumber,                 &
                                         '<begin_file>', '<end_file>', BlockFound,   &
                                         STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR40'
 
 if1 :       if(STAT_CALL .EQ. SUCCESS_) then    
 if2 :           if (BlockFound) then
@@ -313,10 +328,10 @@ if2 :           if (BlockFound) then
                                  keyword      = 'ACTION',                           &
                                  ClientModule = 'ConvertToHDF5',                    &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR30'
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR50'
                     if (iflag == 0)then
                         write(*,*)'Must specify type of file to convert'
-                        stop 'ReadOptions - ConvertToHDF5 - ERR40'
+                        stop 'ReadOptions - ConvertToHDF5 - ERR60'
                     end if
 
                     write(*,*) Action

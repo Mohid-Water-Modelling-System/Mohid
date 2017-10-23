@@ -235,98 +235,100 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write (*,*) trim(ErrorMessage_)
                 write (*,*)'Data File does not exists : ', trim(adjustl(FileName))
                 STAT_ = FILE_NOT_FOUND_ERR_
-            endif
+            else
 
-            call AllocateInstance         
+                call AllocateInstance         
 
-            Me%FileName = FileName
+                Me%FileName = FileName
 
-            call UnitsManager(Me%unit, OPEN_FILE, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleEnterData - ConstructEnterData - ERR01'
-
-
-cd16 :      if (present(FORM)) then
-                if      (FORM .EQ. FORMATTED_  ) then
-                    FORM_ = FORMATTED_
-                else if (FORM .EQ. UNFORMATTED_) then    
-                    FORM_ = UNFORMATTED_
-                else    
-                    stop 'ModuleEnterData - ConstructEnterData - ERR06' 
-                end if 
-            else cd16
-               FORM_ = FORMATTED_
-            end if cd16
-
-if8 :       if      (FORM_ .EQ. FORMATTED_  ) then
-                open(UNIT = Me%unit, FILE = trim(adjustl(Me%FileName)), &
-                     FORM = "FORMATTED",   STATUS = "OLD", ACTION = "READ", IOSTAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) call SetError(FATAL_, INTERNAL_, "ModuleEnterData - ConstructEnterData - ERR02")
-
-                rewind(Me%unit) 
-                             
-            else if (FORM_ .EQ. UNFORMATTED_) then if8
-
-                open(UNIT = Me%unit, FILE = trim(adjustl(Me%FileName)), &
-                     FORM = "UNFORMATTED", STATUS = "OLD", ACTION = "READ", IOSTAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleEnterData - ConstructEnterData - ERR03' 
-
-                rewind(Me%unit)              
-                             
-            end if if8
+                call UnitsManager(Me%unit, OPEN_FILE, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleEnterData - ConstructEnterData - ERR01'
 
 
-            !Counts the number of lines
-            Me%BufferSize = 0
-            rewind(Me%unit)
-do2 :       do 
-                read (Me%unit, "(A)", end=100) auxstring
-                if(len_trim(trim(auxstring)) > line_length)then
-                    write(*,*) 'Maximum of ', len(string),' characters is supported.'
-                    write(*,*) 'String: '//trim(auxstring)
-                    write(*,*) 'File  : '//trim(adjustl(Me%FileName))
-                    write(*,*) 'Line  : ', Me%BufferSize + 1
-                    stop 'ModuleEnterData - ConstructEnterData - ERR05' 
-                end if
-                Me%BufferSize = Me%BufferSize + 1
-            end do do2
+    cd16 :      if (present(FORM)) then
+                    if      (FORM .EQ. FORMATTED_  ) then
+                        FORM_ = FORMATTED_
+                    else if (FORM .EQ. UNFORMATTED_) then    
+                        FORM_ = UNFORMATTED_
+                    else    
+                        stop 'ModuleEnterData - ConstructEnterData - ERR06' 
+                    end if 
+                else cd16
+                   FORM_ = FORMATTED_
+                end if cd16
 
-100         continue
+    if8 :       if      (FORM_ .EQ. FORMATTED_  ) then
+                    open(UNIT = Me%unit, FILE = trim(adjustl(Me%FileName)), &
+                         FORM = "FORMATTED",   STATUS = "OLD", ACTION = "READ", IOSTAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) call SetError(FATAL_, INTERNAL_, "ModuleEnterData - ConstructEnterData - ERR02")
+
+                    rewind(Me%unit) 
+                                 
+                else if (FORM_ .EQ. UNFORMATTED_) then if8
+
+                    open(UNIT = Me%unit, FILE = trim(adjustl(Me%FileName)), &
+                         FORM = "UNFORMATTED", STATUS = "OLD", ACTION = "READ", IOSTAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ModuleEnterData - ConstructEnterData - ERR03' 
+
+                    rewind(Me%unit)              
+                                 
+                end if if8
 
 
-            !Allocates buffer
-cd3 :       if (Me%BufferSize .GT. 0) then
-                allocate(Me%BufferLines(Me%BufferSize))
-            else cd3
-                nullify(Me%BufferLines)
-            end if cd3
-
-            !Copy file to buffer
-            rewind(Me%unit)
-do3 :       do I = 1, Me%BufferSize
-                read (Me%unit, "(A)") string
-                string = adjustl(string)
-
-                do line = 1, line_length
-
-                    one_char = string(line:line)
-
-                    if(one_char == tab)then
-                        string(line:line) = space
+                !Counts the number of lines
+                Me%BufferSize = 0
+                rewind(Me%unit)
+    do2 :       do 
+                    read (Me%unit, "(A)", end=100) auxstring
+                    if(len_trim(trim(auxstring)) > line_length)then
+                        write(*,*) 'Maximum of ', len(string),' characters is supported.'
+                        write(*,*) 'String: '//trim(auxstring)
+                        write(*,*) 'File  : '//trim(adjustl(Me%FileName))
+                        write(*,*) 'Line  : ', Me%BufferSize + 1
+                        stop 'ModuleEnterData - ConstructEnterData - ERR05' 
                     end if
+                    Me%BufferSize = Me%BufferSize + 1
+                end do do2
 
-                end do
-
-                Me%BufferLines(I)%full_line = string
-            end do do3
-
-            call UnitsManager          (Me%unit, CLOSE_FILE, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleEnterData - ConstructEnterData - ERR06' 
+    100         continue
 
 
-            !Returns ID
-            EnterDataID     = Me%InstanceID
+                !Allocates buffer
+    cd3 :       if (Me%BufferSize .GT. 0) then
+                    allocate(Me%BufferLines(Me%BufferSize))
+                else cd3
+                    nullify(Me%BufferLines)
+                end if cd3
 
-            STAT_ = SUCCESS_
+                !Copy file to buffer
+                rewind(Me%unit)
+    do3 :       do I = 1, Me%BufferSize
+                    read (Me%unit, "(A)") string
+                    string = adjustl(string)
+
+                    do line = 1, line_length
+
+                        one_char = string(line:line)
+
+                        if(one_char == tab)then
+                            string(line:line) = space
+                        end if
+
+                    end do
+
+                    Me%BufferLines(I)%full_line = string
+                end do do3
+
+                call UnitsManager          (Me%unit, CLOSE_FILE, STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleEnterData - ConstructEnterData - ERR06' 
+
+
+                !Returns ID
+                EnterDataID     = Me%InstanceID
+
+                STAT_ = SUCCESS_
+            
+            endif
 
         else cd0
 
@@ -781,32 +783,34 @@ cd5 :               if (flag .EQ. 0) then
                 STAT_ = SUCCESS_
             end if cd2
 
+            call KillEnterData(ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop "ModuleEnterData - ReadFileName - ERR02"   
+            
+            if (present(MPI_ID) .and. present(DD_ON)) then
+                if (DD_ON) then
+                    if (STAT_ == SUCCESS_) then
+                        if (MPI_ID > null_int) then
+                            write(AuxChar,fmt='(i5)') MPI_ID
+                            Auxchar = "MPI_"//trim(adjustl(Auxchar))//"_"
+                            iFN = len_trim(FILE_NAME)
+                            ipath = 0
+                            do i = iFN, 1, -1
+                                if (FILE_NAME(i:i) == '/' .or. FILE_NAME(i:i) == '\') then
+                                    ipath = i
+                                    exit
+                                endif
+                            enddo    
+                            if (ipath > 0) then
+                                FILE_NAME = FILE_NAME(1:ipath)//trim(Auxchar)//FILE_NAME(ipath+1:iFN)
+                            endif
+                        endif                    
+                    endif
+                endif                
+            endif
+
         end if cd4
         
-        call KillEnterData(ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop "ModuleEnterData - ReadFileName - ERR02"
         
-        if (present(MPI_ID) .and. present(DD_ON)) then
-            if (DD_ON) then
-                if (STAT_ == SUCCESS_) then
-                    if (MPI_ID > null_int) then
-                        write(AuxChar,fmt='(i5)') MPI_ID
-                        Auxchar = "MPI_"//trim(adjustl(Auxchar))//"_"
-                        iFN = len_trim(FILE_NAME)
-                        ipath = 0
-                        do i = iFN, 1, -1
-                            if (FILE_NAME(i:i) == '/' .or. FILE_NAME(i:i) == '\') then
-                                ipath = i
-                                exit
-                            endif
-                        enddo    
-                        if (ipath > 0) then
-                            FILE_NAME = FILE_NAME(1:ipath)//trim(Auxchar)//FILE_NAME(ipath+1:iFN)
-                        endif
-                    endif                    
-                endif
-            endif                
-        endif
 
 
         if (present(STAT)) STAT = STAT_

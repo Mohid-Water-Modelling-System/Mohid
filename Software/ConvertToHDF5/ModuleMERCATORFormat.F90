@@ -148,6 +148,7 @@ Module ModuleMERCATORFormat
         integer, dimension(12)                  :: Instants(1:12) = 0
         logical                                 :: ComputeBarotropicVel = .false.
         logical                                 :: MyOceanPSY4QV2R2 = .false.
+        logical                                 :: CMEMSPhy0124     = .false.
         character(len=StringLength)             :: MappingVarName
     end type  T_MERCATORFormat
 
@@ -544,7 +545,18 @@ Module ModuleMERCATORFormat
                      ClientModule = 'ModuleMERCATORFormat',                             &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleMERCATORFormat - ERR150'
+        
+        !Copernicus changed variables names in 2017 (format 6)
+        call GetData(Me%CMEMSPhy0124,                                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'CMEMS_PHY0124',                                    &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleMERCATORFormat',                             &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleMERCATORFormat - ERR150a'        
                 
+        
         call GetData(Me%MappingVarName,                                                 &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
@@ -2121,6 +2133,7 @@ i2:                     if (CheckName(nameAux, MohidName)) then
         character(Len=StringLength)             :: MohidName
         integer                                 :: ninst, MERCATORFillVInteger
         real, parameter                         :: MERCATORFillVReal    = 1.0e35
+        logical                                 :: nameChecked
 
         !Begin----------------------------------------------------------------
 
@@ -2265,8 +2278,17 @@ d0:                 do n=1,nVars
                         if (status /= nf90_noerr)                                       &
                             stop 'OpenAndReadBathymMERCATORV6 - ModuleMERCATORFormat - ERR120'
 
+                        
+                        nameChecked = .false.
+                        !new naming PHY 001 024 TDS
+                        if (Me%CMEMSPhy0124) then
+                            nameChecked = CheckNamePhy0124(nameAux, MohidName)
+                        else
+                            nameChecked = CheckName(nameAux, MohidName)
+                        endif
 
-i2:                     if (CheckName(nameAux, MohidName)) then
+                        !if (CheckName(nameAux, MohidName)) then
+i2:                     if (nameChecked) then                        
                 
                             if      (nDimensions == 4) then
                             
@@ -3655,7 +3677,7 @@ i1:         if (CheckName(nameAux, MohidName)) then
         real, parameter                         :: MERCATORFillVReal    = 1.0e35
         integer                                 :: MERCATORFillVInteger, MERCATORFillVInteger_ssh
         integer                                 :: MERCATORFillVInteger_U, MERCATORFillVInteger_V
-        
+        logical                                 :: nameChecked
        
         !Begin----------------------------------------------------------------
         
@@ -3738,9 +3760,18 @@ d0:     do n=1,nVars
                 !Grid properties already written
                 cycle
             endif
+            
+            
+            nameChecked = .false.
+            !new naming PHY 001 024 TDS
+            if (Me%CMEMSPhy0124) then
+                nameChecked = CheckNamePhy0124(nameAux, MohidName)
+            else
+                nameChecked = CheckName(nameAux, MohidName)
+            endif
 
-
-i1:         if (CheckName(nameAux, MohidName)) then
+            !if (CheckName(nameAux, MohidName)) then
+i1:         if (nameChecked) then
 
 
                 status=NF90_GET_ATT(ncid,n,"_FillValue",MERCATORFillVInteger)
@@ -3763,8 +3794,8 @@ i1:         if (CheckName(nameAux, MohidName)) then
                     if (status /= nf90_noerr)                                                   &
                     stop 'ReadMercatorFileV6 - ModuleMERCATORFormat - ERR82a'
                 
-                
-                if(MohidName == GetPropertyName(Temperature_))then
+                !new version is in ºC
+                if(.not. Me%CMEMSPhy0124 .and. MohidName == GetPropertyName(Temperature_))then
                     AddOffSet = AddOffSet - 273.15 
                 endif
 
@@ -5401,6 +5432,55 @@ if0:                if(Field%nDimensions == 2) then
     
     
     !--------------------------------------------------------------------------
+    
+    logical function CheckNamePhy0124(MERCATORName, MohidName)
+        
+        !Arguments-----------------------------------------------------------
+        character(Len=*)                :: MERCATORName
+        character(Len=StringLength)     :: MohidName
+        
+        !Begin-----------------------------------------------------------------
+
+
+        select case(trim(MERCATORName))
+
+            case('uo')
+
+                MohidName = GetPropertyName(VelocityU_)
+                CheckNamePhy0124 = .true.
+
+            case('vo')
+
+                MohidName = GetPropertyName(VelocityV_)
+                CheckNamePhy0124 = .true.
+
+            case('thetao')
+
+                MohidName = GetPropertyName(Temperature_)
+                CheckNamePhy0124 = .true.
+
+            case('so')
+
+                MohidName = GetPropertyName(Salinity_)
+                CheckNamePhy0124 = .true.
+
+            case('zos')
+
+                MohidName = GetPropertyName(WaterLevel_)
+                CheckNamePhy0124 = .true.
+
+
+            case default
+                
+                CheckNamePhy0124 = .false.
+
+        end select
+
+
+    end function CheckNamePhy0124
+    
+    
+    !--------------------------------------------------------------------------    
 
     logical function CheckNameV3(MERCATORName, MohidName)
         

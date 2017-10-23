@@ -429,6 +429,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                         if (trim(Me%TimeSerie(iTimeSerie)%FromBlockFileName) == &
                             trim(Me%TimeSerie(         j)%FromBlockFileName)) then
                             write(*,*) 'Time series can not have equal names'
+                            write(*,*) trim(Me%TimeSerie(j)%FromBlockFileName)
                             stop 
                         endif 
                     endif

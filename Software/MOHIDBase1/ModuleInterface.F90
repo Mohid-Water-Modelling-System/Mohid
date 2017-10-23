@@ -3438,6 +3438,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         type(T_Size2D)                                  :: PropArraySize
 #ifdef _PHREEQC_
         logical                                         :: is_starting
+        integer                                         :: NLB, NUB
 #endif
         
 !        !DEBUG purposes--------------------------------------------------------
