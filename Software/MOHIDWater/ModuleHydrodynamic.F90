@@ -207,7 +207,8 @@ Module ModuleHydrodynamic
 #ifdef _ENABLE_CUDA
     use ModuleCuda
 #endif _ENABLE_CUDA
-
+    use ModuleTurbine,           only : ConstructTurbine, ModifyTurbine, ComputeTurbineEnergy,          &
+                                       GetTurbineAcceleration, UnGetTurbineAcceleration, KillTurbine, OutPut_turbine
     implicit none 
 
     private
@@ -547,9 +548,9 @@ Module ModuleHydrodynamic
     private :: spythag
     private :: dpythag
     private :: Locate_Layer
-    private :: Face_Interpolation
+    private :: Face_Interpolation  
     private :: FrictionCoefficient
-    private :: Face_Velocity_Modulus
+    private  :: Face_Velocity_Modulus
 
 
     !Interfaces----------------------------------------------------------------
@@ -937,6 +938,7 @@ Module ModuleHydrodynamic
         real,    dimension (:,:),     pointer :: TidePotentialLevel => null()
         real,    dimension (:, :, :), pointer :: Scraper_Aceleration => null()
         real,    dimension (:, :, :), pointer :: ThinWalls_Dissipation => null()
+        real,    dimension (:, :, :), pointer :: Turbine_Acceleration => null()
         
         real,    dimension (:, :, :), pointer :: Wave3DExplicit_Acceleration
 
@@ -1327,6 +1329,7 @@ Module ModuleHydrodynamic
         
         logical                            :: Backtracking  = .false.                
 
+        
     end type T_External
 
     type T_Drag
@@ -1505,7 +1508,9 @@ Module ModuleHydrodynamic
                                            WaveShearStress      = .false., & !Enhancement of bed shear stress by the waves 
                                            Obstacle             = .false., & 
                                            Scraper              = .false.  
-
+        
+        logical                         :: Turbine              = .false.
+        
         type (T_Time)                   :: RAMP_BeginTime
 
         logical                         :: CentrifugalForce = .false., &  
@@ -1566,7 +1571,8 @@ Module ModuleHydrodynamic
                                                      Run_End            = .false., & 
                                                      WriteRestartFile   = .false., & 
                                                      TimeSerieON        = .false., & 
-                                                     ProfileON          = .false.    
+                                                     ProfileON          = .false., &
+                                                    TurbineON           = .false.
                                                      
          logical                                  :: Simple             = .false. 
                                                      
@@ -1984,7 +1990,9 @@ Module ModuleHydrodynamic
         !Instance of CUDA
         integer :: ObjCuda                  = 0
 #endif _ENABLE_CUDA
-
+        
+        !Instance of ModuleTurbine
+        integer :: ObjTurbine               = 0
         !griflet
         integer                         :: MaxThreads   = null_int 
         type(T_THOMAS), pointer         :: THOMAS   => null()
@@ -2065,7 +2073,6 @@ Module ModuleHydrodynamic
 #ifdef _ENABLE_CUDA
         integer                       :: CudaID
 #endif _ENABLE_CUDA
-
 ! !OUTPUT PARAMETERS:                                          
         
         integer, optional, intent(OUT):: STAT                          
@@ -2112,7 +2119,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 #ifdef _ENABLE_CUDA
             Me%ObjCuda          = AssociateInstance (mCUDA_,             CudaID)
 #endif _ENABLE_CUDA
-
+           
             call Construct_Hydrodynamic (DischargesID,  AssimilationID)
 
             if (Me%ComputeOptions%Evolution == Solve_Equations_)                        &
@@ -2181,7 +2188,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     ! Author: Paulo Chambel (99/6)                                                         !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    Subroutine Construct_Hydrodynamic(DischargesID,  AssimilationID)
+    Subroutine Construct_Hydrodynamic(DischargesID,  AssimilationID) 
 
         !Arguments------------------------------------------------------------- 
         integer             :: DischargesID
@@ -2416,7 +2423,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !End----------------------------------------------------------------
 
-    Subroutine InitialHydrodynamicField(DischargesID, AssimilationID)
+    Subroutine InitialHydrodynamicField(DischargesID, AssimilationID) 
 
         !Arguments-------------------------------------------------------------
         
@@ -7369,7 +7376,8 @@ cd21:   if (Baroclinic) then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         !<BeginKeyword>
-            !Keyword          : OBSTACLE
+            !Keyword          : 
+    
             !<BeginDescription>       
                ! 
                !Checks if the user want to parameteriza the influence of an
@@ -7905,6 +7913,17 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1220') 
                             
+
+        !Keyword for activating the Turbine implementation => TURBINE  : 1
+        call GetData(Me%ComputeOptions%Turbine,                                         &
+                     Me%ObjEnterData, iflag,                                            & 
+                     Keyword    = 'TURBINE',                            &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)     
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1220')                        
 
     End Subroutine Construct_Numerical_Options
 
@@ -9157,7 +9176,10 @@ ic1:    if (Me%CyclicBoundary%ON) then
             Me%Drag%Coef                      (:,:,:) = FillValueReal
   
         endif
-        
+        if(Me%ComputeOptions%Turbine) then
+            allocate (Me%Forces%Turbine_Acceleration (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            Me%Forces%Turbine_Acceleration(:,:,:) = 0.
+        endif 
         if (Me%SubModel%ON) then
 
             nullify(Me%SubModel%Z)
@@ -9245,7 +9267,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         !Arguments-------------------------------------------------------------
         integer                         :: DischargesID
         integer                         :: AssimilationID
-    
+        
         !Local-----------------------------------------------------------------
         type (T_Lines),     pointer     :: LineX
         type (T_Polygon),   pointer     :: PolygonX, ModelDomainLimit
@@ -9668,6 +9690,10 @@ i7:             if (.not. ContinuousGOTM)  then
         if (Me%SubModel%ON)                                                 &
             call ConstructSubModel 
 
+        if (Me%ComputeOptions%Turbine)                                      &
+            call ConstructTurbine(TurbineID = Me%ObjTurbine, HorizontalGridID = Me%ObjHorizontalGrid,   &
+                                GeometryID = Me%ObjGeometry, TimeID = Me%ObjTime,OutPut= Me%OutPut%TurbineON, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR420'  
 
         call ConstructHydroStatistic
         
@@ -15291,7 +15317,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 #endif
  
             call One_Iteration 
-
+            
+            !Computes the energy extracted by the turbines
+            if (Me%ComputeOptions%Turbine)                              &
+            call ComputeTurbineEnergy(Me%ObjTurbine, Me%Velocity%DT)
+            
 #ifdef _USE_SEQASSIMILATION
             if (.not. Me%VirtualRun) then
             !(the following is not required when evoluting disturbed states in
@@ -22058,6 +22088,8 @@ cd1:    if (Evolution == Solve_Equations_) then
             Stop 'Sub. One_Iteration - ModuleHydrodynamic - Err04'
                     
         endif cd1
+
+
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "One_Iteration")
 
@@ -34614,7 +34646,15 @@ cd3:                   if (Manning) then
         !Obstacle drag
         if (Me%ComputeOptions%Obstacle)                                         &
             call Modify_ObstacleDrag
-            
+        if (Me%ComputeOptions%Turbine)                                          &
+            call ModifyTurbine(Me%ObjTurbine, Me%Velocity%Horizontal%U%New,     &
+                              Me%Velocity%Horizontal%V%New, Me%Velocity%Horizontal%UV%New,     &
+                              Me%Velocity%Horizontal%VU%New,                     &
+                              Me%External_Var%Volume_UV,                    &
+                              Me%External_Var%KFloor_UV, Me%External_Var%DXX_YY,    &
+                              Me%External_Var%DUX_VY, Me%Direction%di, Me%Direction%dj,  &
+                              Me%External_Var%Density, Me%Velocity%DT)
+     
         !Effect of a scraper in a settling tank
         if (Me%ComputeOptions%Scraper)                                          &
             call Modify_ScraperEffect 
@@ -45157,8 +45197,13 @@ dok:            do k = kbottom + 1, KUB
         DZX_ZY                  => Me%External_Var%DZX_ZY
         DUX_VY                  => Me%External_Var%DUX_VY
 
+        
         !End - Shorten variables name 
 
+        if (Me%ComputeOptions%Turbine) then
+            call GetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
+            !Falta gestión de STAT
+        endif
 
         if (Me%TidePotential%Compute) then
             
@@ -45246,6 +45291,12 @@ dok:            do  k = kbottom, KUB
                         TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
                                                                   Me%Forces%ObstacleDrag_Aceleration(i, j, k)  
 
+                    
+                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2] 
+                    if (Me%ComputeOptions%Turbine)                                      &
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity*          &
+                                                                  Me%Forces%Turbine_Acceleration(i, j, k)
+                    
                     if (Me%ComputeOptions%Scraper)                                      &
                         TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
                                                                   Me%Forces%Scraper_Aceleration(i, j, k)  
@@ -45347,6 +45398,7 @@ dok:            do  k = kbottom, KUB
 
         enddo doi
         enddo doj
+
         !griflet: added NOWAIT
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
@@ -45355,6 +45407,10 @@ dok:            do  k = kbottom, KUB
             call StopWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
         endif
 
+        if (Me%ComputeOptions%Turbine) then
+            call UnGetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
+        endif
+    
         !Nullify auxiliar pointers 
         nullify(DCoef_3D)
         nullify(ECoef_3D)
@@ -47597,7 +47653,11 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         !Begin---------------------------------------------------------------------
         
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "WaterLevel_ExplicitForces")
-
+        
+        if (Me%ComputeOptions%Turbine) then
+            call GetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
+        endif
+        
         call SetMatrixValue(Me%Coef%D2%Tiaux,  Me%WorkSize2D, 0.0)
 
         !$OMP PARALLEL PRIVATE( i, j, k, kbottom, iSouth, jWest),                &
@@ -47683,6 +47743,12 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                         AuxExplicit  = AuxExplicit  + Me%Velocity%DT * Me%External_Var%Area_UV(I, J, K)   *                 &
                                                       Me%Forces%ObstacleDrag_Aceleration(I, J, K)
                     endif
+                    
+                    ![m^3/s]           = [m^3/s]            +     [s]     [m^2]*     [m/s^2] 
+                    if (Me%ComputeOptions%Turbine)                                      &
+                        AuxExplicit = AuxExplicit + Me%Velocity%DT * Me%External_Var%Area_UV(I, J, K) *         &
+                                                                  Me%Forces%Turbine_Acceleration(I, J, K)
+                    
 
                     if(Me%ComputeOptions%Scraper) then
                         ![m^3/s]     = [m^3/s]      +     [s]     * [m^2]  * [m/s^2]
@@ -47854,6 +47920,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+        
+        if (Me%ComputeOptions%Turbine) then
+            call UnGetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
+        endif
         
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "WaterLevel_ExplicitForces")
 
@@ -48791,6 +48861,11 @@ do5:            do i = ILB, IUB
         if (Me%OutPut%ProfileON)    &
             call Output_Profile
 
+        
+        if (Me%OutPut%TurbineON)    &
+            call OutPut_Turbine(Me%ObjTurbine)
+        
+        
         !! $OMP SECTION
         if(Me%OutPut%WriteRestartFile .and. .not. Me%OutPut%Run_End)then
 
@@ -51444,6 +51519,15 @@ cd3:        if (Me%ComputeOptions%Residual) then
         real                                    :: DepthLevel
         integer                                 :: STAT_CALL, TimeSerieNumber, dn, id, jd, kd
         logical                                 :: DepthON, IgnoreOK
+        integer                                 :: IUB,ILB,JUB,JLB,KUB,KLB
+        
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
 
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "OutPut_TimeSeries")
@@ -51543,6 +51627,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
                             Data3D_Int = Me%External_Var%OpenPoints3D,                  &
                             STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR120'
+        
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "OutPut_TimeSeries")
 
@@ -51807,7 +51892,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyOverlap_ .EQ. IDLE_ERR_) then
 
 
 #endif OVERLAP
-
 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -54078,7 +54162,6 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
         end if
 #endif
 
-        
 !        nUsers = DeassociateInstance (mBOTTOM_,         Me%ObjBottom)
 !        if (nUsers == 0) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR08'
         
@@ -54199,7 +54282,6 @@ cd1:    if (Me%State%BOXFLUXES) then
 
         endif cd1
 
-
         !Disposes the rest of the energy buffer
         if (Me%ComputeOptions%Energy) call KillEnergy
 
@@ -54213,6 +54295,25 @@ cd1:    if (Me%State%BOXFLUXES) then
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR11.'  
 
+        if (Me%ComputeOptions%Turbine) then 
+            nUsers = GetUsersNumber(mTURBINE_, Me%ObjTurbine)
+            if (nUsers == 1) then
+                call KillTurbine(Me%ObjTurbine, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                   &
+                    stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR12.'  
+            else if (nUsers > 1) then
+
+                nUsers = DeassociateInstance (mTURBINE_, Me%ObjTurbine)
+                if (nUsers == 0) stop 'Kill_Sub_Modules - ModuleHydrodynamic - ERR13'
+               
+            else
+            
+                stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR14'  
+
+            endif
+            
+        endif 
+                
 
     end subroutine Kill_Sub_Modules   
 
