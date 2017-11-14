@@ -431,6 +431,8 @@ Module ModuleGlobalData
     integer, parameter :: WaterColumn_                      = 910
     integer, parameter :: ZonalVelocity_                    = 920
     integer, parameter :: MeridionalVelocity_               = 930
+    !1 - low tide, 2 - flood, 3 - high tide, 4 - ebb 
+    integer, parameter :: TideState_                        = 940
     
     !Assimilation Properties        guillaume nogueira
     integer, parameter :: AltimLevelAnalyzed_               = 4000
@@ -1266,6 +1268,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WaterColumn_         = 'water column'    
     character(StringLength), private, parameter :: Char_MeridionalVelocity_  = 'meridional velocity'
     character(StringLength), private, parameter :: Char_ZonalVelocity_       = 'zonal velocity'
+    character(StringLength), private, parameter :: Char_TideState_           = 'tide state'
 
 
 
@@ -1721,6 +1724,9 @@ Module ModuleGlobalData
     real(8), parameter  :: Pi               = 3.1415926535897932384626433832795
     ! ARC RADIAN OF 1 DEGREE
     real(8), parameter  :: RAD_DEG          = 0.01745329252
+    !Angle units
+    integer, parameter  :: Degree_          = 1
+    integer, parameter  :: Radian_          = 2
     
 
     !Zero Degrees Kelvin
@@ -1755,6 +1761,10 @@ Module ModuleGlobalData
     !Transport Parameters
     integer, parameter :: velocityX = 1, velocityY = 2, velocityZ = 3, massProperty = 4
     integer, parameter :: NearestNeighbour = 1, centered = 2 !other interpolation methods here 
+    
+    !Interpolation 2D
+    integer, parameter                                      :: Bilinear2D_         = 1
+    integer, parameter                                      :: NearestNeighbor2D_  = 2
     
     !Extrapolation parameters
     integer, parameter :: ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2, ExtrapolConstant_ = 3
@@ -2832,7 +2842,8 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (WaterColumn_,             Char_WaterColumn_,              ListNumber)
             call AddPropList (MeridionalVelocity_,      Char_MeridionalVelocity_,       ListNumber)
             call AddPropList (ZonalVelocity_,           Char_ZonalVelocity_,            ListNumber)
-            
+            call AddPropList (TideState_,               Char_TideState_,                ListNumber)            
+           
             !seagrasses rates and limiting functions
             call AddPropList (LeavesUptakeN_ ,          Char_LeavesUptakeN ,            ListNumber)  !Isabella
             call AddPropList (LeavesUptakeP_ ,          Char_LeavesUptakeP ,            ListNumber)
@@ -3442,7 +3453,13 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
 
         !----------------------------------------------------------------------
 
-cd1 :   if ((Property == WindDirection_) .OR. (Property == MeanWaveDirection_)) then
+cd1 :   if (Property == WindDirection_           .OR.                                   &
+            Property == MeanWaveDirection_       .OR.                                   &
+            Property == VelocityDirection_       .OR.                                   &
+            Property == WaveDirection_           .OR.                                   &
+            Property == MeanDirectionalSpread_   .OR.                                   &
+            Property == PeakDirection_           .OR.                                   &
+            Property == WindSeaPeakDirection_) then
 
             Check_Angle_Property = .TRUE. 
                 

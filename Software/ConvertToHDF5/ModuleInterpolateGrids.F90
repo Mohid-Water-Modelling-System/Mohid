@@ -94,9 +94,14 @@ Module ModuleInterpolateGrids
         character(len=StringLength)                         :: Name
         character(len=StringLength)                         :: Units
         integer                                             :: IDNumber
+        logical                                             :: Angle_Property
         type(T_Time)                                        :: Date
         real, dimension(:,:  ),     pointer                 :: Values2D
         real, dimension(:,:,:),     pointer                 :: Values3D
+        real, dimension(:,:  ),     pointer                 :: Values2DReal
+        real, dimension(:,:  ),     pointer                 :: Values2DImag        
+        real, dimension(:,:,:),     pointer                 :: Values3DReal
+        real, dimension(:,:,:),     pointer                 :: Values3DImag        
         type(T_Field),              pointer                 :: Next
     end type  T_Field
 
@@ -164,6 +169,8 @@ Module ModuleInterpolateGrids
         integer                                             :: ConstantDepthsValues
         
         logical                                             :: NullPrecipitation
+        
+        logical                                             :: InterpolateUnknownProperties
         
         real                                                :: ExtrapolateValue
         type (T_StationaryMap)                              :: StationaryMap
@@ -706,6 +713,16 @@ Module ModuleInterpolateGrids
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR240'
         
 
+        call GetData(Me%InterpolateUnknownProperties,                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'INTERPOL_UNKNOWN_PROP',                            &
+                     default      =  .false.,                                           &
+                     ClientModule = 'ConvertToHDF5',                                    &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleInterpolateGrids - ERR250'
+        
+
         
         call ReadFieldsToConvert(ClientNumber)
         
@@ -1024,8 +1041,12 @@ prop:   do CurrentProperty = 1, Me%New%NumberOfProperties
 
             if (PropertyName =='VolumeCreated') cycle prop
             
-            if (GetPropertyIDNumber(PropertyName, StopActive = .false.) == UNKNOWN_) cycle prop
-
+            if (GetPropertyIDNumber(PropertyName, StopActive = .false.) == UNKNOWN_) then
+                if(.not.Me%InterpolateUnknownProperties) then
+                    cycle prop
+                endif                
+            endif
+            
             if(.not. Me%ConvertAllFields)then
 
                 ConvertThisField = .false.
@@ -1152,6 +1173,8 @@ doSS:               do n = 1,Me%NumberSubSubGroups
         integer                                 :: i,j,k, WetFace, kin, IDaux
         real,    dimension(:,:  ), pointer      :: SurfaceElevation, InValues2D, OutValues2D
         type(T_Field), pointer                  :: AuxSZZ, NewFatherSZZ        
+        integer                                 :: PropertyID
+        
 
 
         !Begin ----------------------------------------------------------------
@@ -1174,6 +1197,8 @@ doSS:               do n = 1,Me%NumberSubSubGroups
             allocate(OutValues2D(Me%Aux%Size2D%ILB   :Me%Aux%Size2D%IUB   ,Me%Aux%Size2D%JLB   :Me%Aux%Size2D%JUB))
 
         end if
+        
+        
 
         !Construct new fields for father and son
         NewFatherField%IDNumber = Count
@@ -1184,6 +1209,9 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
         AuxField%IDNumber       = NewFatherField%IDNumber
         !AuxField%Name           = trim(PropertyName)
+        
+        PropertyID                    = GetPropertyIDNumber (trim(PropertyName))
+        NewFatherField%Angle_Property = Check_Angle_Property(Property = PropertyID)        
 
         !Get field ID
         if (Me%DoNotBelieveTime) then
@@ -1197,7 +1225,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                             GroupPosition, NewFatherField%Name,         &
                             NewFatherField%Units, Rank, Dimensions,     &
                             STAT = STAT_CALL)                                
-        if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR140'
+        if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR10'
    
    
         NewField%Name  = trim(NewFatherField%Name)
@@ -1207,6 +1235,9 @@ doSS:               do n = 1,Me%NumberSubSubGroups
         AuxField%Name  = trim(NewFatherField%Name)
         AuxField%Units = trim(NewFatherField%Units)
         AuxField%Date  = Me%New%InstantsArray(NewCurrentInstant)
+        
+        NewField%Angle_Property = NewFatherField%Angle_Property        
+        AuxField%Angle_Property = NewFatherField%Angle_Property
 
         select case (Rank)
 
@@ -1221,12 +1252,12 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                 !check dimensions
                 if(Dimensions(1) .ne. Me%Father%WorkSize2D%IUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR150'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR20'
                 end if
 
                 if(Dimensions(2) .ne. Me%Father%WorkSize2D%JUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR160'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR30'
                 end if 
             
                 !allocate field
@@ -1236,6 +1267,25 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                 nullify (NewField%Values2D)
                 allocate(NewField%Values2D(AuxGrid%Size2D%ILB:AuxGrid%Size2D%IUB,           &
                                            AuxGrid%Size2D%JLB:AuxGrid%Size2D%JUB))
+                                           
+                if (NewFatherField%Angle_Property) then
+
+                    nullify (NewFatherField%Values2DReal)
+                    allocate(NewFatherField%Values2DReal(Me%Father%Size2D%ILB:Me%Father%Size2D%IUB, &
+                                                         Me%Father%Size2D%JLB:Me%Father%Size2D%JUB))
+                    nullify (NewField%Values2DReal)
+                    allocate(NewField%Values2DReal(AuxGrid%Size2D%ILB:AuxGrid%Size2D%IUB,           &
+                                                   AuxGrid%Size2D%JLB:AuxGrid%Size2D%JUB))
+
+                    nullify (NewFatherField%Values2DImag)
+                    allocate(NewFatherField%Values2DImag(Me%Father%Size2D%ILB:Me%Father%Size2D%IUB, &
+                                                         Me%Father%Size2D%JLB:Me%Father%Size2D%JUB))
+                    nullify (NewField%Values2DImag)
+                    allocate(NewField%Values2DImag(AuxGrid%Size2D%ILB:AuxGrid%Size2D%IUB,           &
+                                                   AuxGrid%Size2D%JLB:AuxGrid%Size2D%JUB))
+
+                
+                endif
 
                 NewField%Values2D(:,:) = FillValueReal
             
@@ -1245,7 +1295,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                     Me%Father%WorkSize2D%JLB,                   &
                                     Me%Father%WorkSize2D%JUB,                   &
                                     STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR170'
+                if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR40'
 
                 !read field
                 call HDF5ReadData(Me%Father%ObjHDF5, RootGroup,                         &
@@ -1254,10 +1304,12 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                   Array2D      = NewFatherField%Values2D,               &
                                   OutputNumber = CurrentInstant,                        &
                                   STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR180'
+                if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR50'
                 
                 if (Me%NullPrecipitation) then
-                    IDaux = GetPropertyIDNumber(trim(PropertyName))
+
+                    IDaux = GetPropertyIDNumber(trim(PropertyName), StopActive = .false.)
+                    
                     if (IDaux == Precipitation_) then
                         do j = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB
                         do i = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB
@@ -1271,12 +1323,12 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                     call FieldMapping (Me%Father, Values2D = NewFatherField%Values2D)
                 else
                     call GetWaterPoints2D(Me%Father%ObjHorizontalMap, FatherWP2D, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR184'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR60'
 
                     Me%Father%WaterPoints2D(:,:) = FatherWP2D(:,:)
 
                     call UnGetHorizontalMap(Me%Father%ObjHorizontalMap, FatherWP2D, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR188'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR70'
                 endif
 
                 if (Me%Extrapolate2DFields == NearestCell) then
@@ -1288,13 +1340,17 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
                     !call ModifyInterpolator(Me%ObjInterpolation, NewField%Values2D, &
                     !                        NewFatherField%Values2D, STAT = STAT_CALL)
-                    !if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR1880'
+                    !if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR80'
 
                 else
 
                     if(Me%TypeOfInterpolation == Bilinear)then
 
-                        call BilinearInterpolation(NewFatherField, NewField, AuxGrid)
+                        if (NewFatherField%Angle_Property) then
+                            call BilinearInterpolationAngularProp(NewFatherField, NewField, AuxGrid)
+                        else
+                            call BilinearInterpolation           (NewFatherField, NewField, AuxGrid)
+                        endif
 
                     elseif(Me%TypeOfInterpolation == Spline2D) then
 
@@ -1303,7 +1359,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                     elseif(Me%TypeOfInterpolation == Triangulation) then
 
                         call GetWaterPoints2D(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR183'
+                        if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR90'
 
                         if(Me%Interpolation3D) then     
                             Me%Aux%WaterPoints2D(:,:) = AuxWP2D(:,:)
@@ -1314,12 +1370,12 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                         call Triangulator               (NewFatherField, NewField, AuxGrid)
 
                         call UnGetHorizontalMap(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR186'
+                        if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR100'
 
                     elseif(Me%TypeOfInterpolation == AverageInCells)then
 
                         call GetWaterPoints2D(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR187'                    
+                        if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR110'                    
 
                         if(Me%Interpolation3D) then     
                             Me%Aux%WaterPoints2D(:,:) = AuxWP2D(:,:)
@@ -1330,12 +1386,12 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                         call AveragePointsInCells (NewFatherField, NewField, AuxGrid)
 
                         call UnGetHorizontalMap(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR188'
+                        if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR120'
 
                     else
 
                         write(*,*) 'Unknown type of interpolation'
-                        stop       'StartInterpolateGrids - ModuleInterpolateGrids - ERR190' 
+                        stop       'InterpolateGrids - ModuleInterpolateGrids - ERR130' 
 
                     end if
 
@@ -1348,7 +1404,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                 if (Me%Extrapolate2DFields /= Null_) then
 
                     call GetWaterPoints2D(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR193'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR140'
 
 
                     if(Me%Interpolation3D) then     
@@ -1383,7 +1439,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                     endif
 
                     call UnGetHorizontalMap(AuxGrid%ObjHorizontalMap, AuxWP2D, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR196'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR150'
 
                     if (Me%DoNotBelieveMap) then                             
                         call FieldMapping (AuxGrid, Values2D = NewField%Values2D)
@@ -1402,17 +1458,17 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                 !check dimensions
                 if(Dimensions(1) .ne. Me%Father%WorkSize3D%IUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR200'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR160'
                 end if
 
                 if(Dimensions(2) .ne. Me%Father%WorkSize3D%JUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR210'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR170'
                 end if 
 
                 if(Dimensions(3) .ne. Me%Father%WorkSize3D%KUB) then
                     write(*,*)'Fields size is not consistent with grid size : '//trim(Me%Father%FileName)
-                    stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR220'
+                    stop 'InterpolateGrids - ModuleInterpolateGrids - ERR180'
                 end if 
             
                 !allocate field
@@ -1462,7 +1518,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                     Me%Father%WorkSize3D%KLB,                   &
                                     Me%Father%WorkSize3D%KUB,                   &
                                     STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR230'
+                if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR190'
 
                 !read field
                 call HDF5ReadData(Me%Father%ObjHDF5, RootGroup,                     &
@@ -1470,7 +1526,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                                   Array3D      = NewFatherField%Values3D,           &
 !                                  OutputNumber = CurrentInstant,                   &
                                   STAT = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR240'
+                if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR200'
 
                 if (Me%DoNotBelieveMap) then 
                     call FieldMapping (Me%Father, Values3D = NewFatherField%Values3D)
@@ -1482,7 +1538,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
                     call ModifyInterpolator(Me%ObjInterpolation, NewField%Values3D, &
                                             NewFatherField%Values3D, STAT = STAT_CALl)
-                    if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_OutPut_File - ModuleInterpolateGrids - ERR1880'
+                    if (STAT_CALL /= SUCCESS_)stop 'InterpolateGrids - ModuleInterpolateGrids - ERR210'
 
                 else
 
@@ -1502,7 +1558,12 @@ doSS:               do n = 1,Me%NumberSubSubGroups
 
                         if(Me%TypeOfInterpolation == Bilinear)then
 
-                            call BilinearInterpolation(NewFatherField, AuxField, Me%Aux, k)
+
+                            if (NewFatherField%Angle_Property) then
+                                call BilinearInterpolationAngularProp(NewFatherField, AuxField, Me%Aux, k)
+                            else                        
+                                call BilinearInterpolation           (NewFatherField, AuxField, Me%Aux, k)
+                            endif                                
 
                         elseif(Me%TypeOfInterpolation == Spline2D)then
 
@@ -1519,7 +1580,7 @@ doSS:               do n = 1,Me%NumberSubSubGroups
                         else
 
                             write(*,*) 'Unknown type of interpolation'
-                            stop       'StartInterpolateGrids - ModuleInterpolateGrids - ERR250' 
+                            stop       'InterpolateGrids - ModuleInterpolateGrids - ERR220' 
 
                         end if
 
@@ -1623,7 +1684,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                          Me%Father%WorkSize3D%KLB-1,            &
                                          Me%Father%WorkSize3D%KUB,              &
                                          STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR270'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR230'
 
 
     
@@ -1633,7 +1694,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                       Array3D      = NewFatherSZZ%Values3D,     &
                                       OutputNumber = CurrentInstant,            &
                                       STAT         = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR280'
+                    if (STAT_CALL .NE. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR240'
 
                     do k=Me%Father%WorkSize3D%KLB-1,Me%Father%WorkSize3D%KUB
 
@@ -1680,8 +1741,12 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
                             kin = k
                             if (k==0) kin = 1
-
-                            call BilinearInterpolation(NewFatherSZZ, AuxSZZ, Me%Aux, kin)
+                            
+                            if (NewFatherField%Angle_Property) then
+                                call BilinearInterpolationAngularProp(NewFatherSZZ, AuxSZZ, Me%Aux, kin)
+                            else                             
+                                call BilinearInterpolation           (NewFatherSZZ, AuxSZZ, Me%Aux, kin)
+                            endif                                
 
                         elseif(Me%TypeOfInterpolation == Spline2D)then
 
@@ -1698,7 +1763,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                         else
 
                             write(*,*) 'Unknown type of interpolation'
-                            stop       'StartInterpolateGrids - ModuleInterpolateGrids - ERR290' 
+                            stop       'InterpolateGrids - ModuleInterpolateGrids - ERR250'
 
                         end if
 
@@ -1730,7 +1795,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                                 ActualTime       = Me%Father%InstantsArray(CurrentInstant), &
                                                 SZZ              = AuxSZZ%Values3D,         &
                                                 STAT             = STAT_CALL )
-                    if(STAT_CALL .ne. SUCCESS_) stop 'OpenAndReadFatherHDF5File -  ModuleInterpolateGrids - ERR300'
+                    if(STAT_CALL .ne. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR260'
 
                     deallocate(SurfaceElevation)
 
@@ -1759,7 +1824,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                                 SurfaceElevation = SurfaceElevation,     &
                                                 ActualTime       = Me%BeginTime,         &
                                                 STAT             = STAT_CALL )
-                    if(STAT_CALL .ne. SUCCESS_) stop 'OpenAndReadFatherHDF5File -  ModuleInterpolateGrids - ERR260'
+                    if(STAT_CALL .ne. SUCCESS_) stop 'InterpolateGrids - ModuleInterpolateGrids - ERR270'
 
                     deallocate(SurfaceElevation)
 
@@ -1781,7 +1846,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
             case default 
         
 !                        write(*,*)'Interpolation only available for 2D fields.'
-                stop 'OpenAndReadFatherHDF5File - ModuleInterpolateGrids - ERR310'
+                stop 'InterpolateGrids - ModuleInterpolateGrids - ERR280'
         
             end select
 
@@ -2836,7 +2901,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleInterpolateGrids - ERR05'
         
-        if (NonNegativeProperty(GetPropertyIDNumber(PropertyName))) then
+        if (NonNegativeProperty(GetPropertyIDNumber(PropertyName, StopActive = .false.))) then
         
             do j=Me%New%WorkSize2D%JLB, Me%New%WorkSize2D%JUB
             do i=Me%New%WorkSize2D%ILB, Me%New%WorkSize2D%IUB
@@ -2885,7 +2950,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                              STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields3D - ModuleInterpolateGrids - ERR10'
 
-        if (NonNegativeProperty(GetPropertyIDNumber(PropertyName))) then
+        if (NonNegativeProperty(GetPropertyIDNumber(PropertyName, StopActive = .false.))) then
         
             do k=Me%New%WorkSize3D%KLB, Me%New%WorkSize3D%KUB
             do j=Me%New%WorkSize3D%JLB, Me%New%WorkSize3D%JUB
@@ -3107,7 +3172,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                      ComputeFather = Me%Father%WaterPoints3D, &
                                      STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)stop 'BilinearInterpolation - ModuleInterpolateGrids - ERR01'
+            if (STAT_CALL /= SUCCESS_)stop 'BilinearInterpolation - ModuleInterpolateGrids - ERR10'
 
         else
 
@@ -3119,7 +3184,7 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
                                      KUBFather = k_,                          &
                                      STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)stop 'BilinearInterpolation - ModuleInterpolateGrids - ERR01'
+            if (STAT_CALL /= SUCCESS_)stop 'BilinearInterpolation - ModuleInterpolateGrids - ERR20'
 
         end if
 
@@ -3128,6 +3193,115 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
 
     
     !------------------------------------------------------------------------
+    !------------------------------------------------------------------------
+
+
+    subroutine BilinearInterpolationAngularProp(FatherField, NewField, NewGrid, k)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Field), pointer                  :: FatherField, NewField
+        type (T_Grid)                           :: NewGrid
+        integer, optional                       :: k
+
+        !Local-----------------------------------------------------------------
+        real                                    :: Dummy
+        integer                                 :: STAT_CALL
+        integer                                 :: ComputeZ, k_, i, j 
+
+        !----------------------------------------------------------------------
+
+        write(*,*)'Interpolating : '//trim(FatherField%Name), FatherField%IDNumber
+
+        call GetComputeZUV(NewGrid%ObjHorizontalGrid, ComputeZ = ComputeZ, STAT = STAT_CALL)
+
+        if (present(k)) then
+
+            k_ = k
+
+        else
+
+            !k_ = 1
+            k_ = Me%Father%Worksize3D%KUB
+
+        endif
+        
+        do i = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB
+        do j = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB
+                call AmpPhase_To_Complex(Amplitude = 1.,                                &
+                                         Phase     = FatherField%Values2D(i,j)/360.,    &
+                                         Sreal     = FatherField%Values2DReal(i,j),     &
+                                         Simag     = FatherField%Values2DImag(i,j))
+        enddo
+        enddo            
+        
+        if(Me%Interpolation3D)then
+
+            call InterpolRegularGrid(NewGrid%ObjHorizontalGrid,                         &
+                                     Me%Father%ObjHorizontalGrid,                       &
+                                     FatherField%Values2DReal,                          &
+                                     NewField%Values2DReal,                             &
+                                     Compute = ComputeZ,                                &
+                                     KUBFather = k_,                                    &
+                                     ComputeFather = Me%Father%WaterPoints3D,           &
+                                     STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)stop 'BilinearInterpolationAngularProp - ModuleInterpolateGrids - ERR10'
+
+            call InterpolRegularGrid(NewGrid%ObjHorizontalGrid,                         &
+                                     Me%Father%ObjHorizontalGrid,                       &
+                                     FatherField%Values2DImag,                          &
+                                     NewField%Values2DImag,                             &
+                                     Compute = ComputeZ,                                &
+                                     KUBFather = k_,                                    &
+                                     ComputeFather = Me%Father%WaterPoints3D,           &
+                                     STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)stop 'BilinearInterpolationAngularProp - ModuleInterpolateGrids - ERR20'
+            
+
+        else
+
+            call InterpolRegularGrid(NewGrid%ObjHorizontalGrid,                         &
+                                     Me%Father%ObjHorizontalGrid,                       &
+                                     FatherField%Values2DReal,                          &
+                                     NewField%Values2DReal,                             &
+                                     Compute = ComputeZ,                                &
+                                     KUBFather = k_,                                    &
+                                     STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)stop 'BilinearInterpolationAngularProp - ModuleInterpolateGrids - ERR30'
+
+            call InterpolRegularGrid(NewGrid%ObjHorizontalGrid,                         &
+                                     Me%Father%ObjHorizontalGrid,                       &
+                                     FatherField%Values2DImag,                          &
+                                     NewField%Values2DImag,                             &
+                                     Compute = ComputeZ,                                &
+                                     KUBFather = k_,                                    &
+                                     STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_)stop 'BilinearInterpolationAngularProp - ModuleInterpolateGrids - ERR40'
+
+
+        end if
+        
+        do j = NewGrid%WorkSize2D%JLB, NewGrid%WorkSize2D%JUB
+        do i = NewGrid%WorkSize2D%ILB, NewGrid%WorkSize2D%IUB
+
+            call Complex_To_AmpPhase(Sreal     = NewField%Values2DReal(i,j),            &
+                                     Simag     = NewField%Values2DImag(i,j),            &
+                                     Amplitude = Dummy,                                 &
+                                     Phase     = NewField%Values2D(i,j))
+
+            NewField%Values2D(i,j) = NewField%Values2D(i,j) * 360.
+            
+        enddo
+        enddo                
+
+
+    end subroutine BilinearInterpolationAngularProp
+
+    
+    !------------------------------------------------------------------------    
 
 
     subroutine Spline2DInterpolation(FatherField, NewField, NewGrid)

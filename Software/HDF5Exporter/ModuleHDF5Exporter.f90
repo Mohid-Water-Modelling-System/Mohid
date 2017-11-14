@@ -54,6 +54,7 @@
 !   WATERPOINTS_NAME        : char                  [-]         !Name of HDF5 item containing water points
 !
 !   GRID_FILENAME           : char                  [-]         !Name of the grid file name 
+!   BEST_TIME_SERIE_OUT     : logical               [0]         !Allow overlap between hdf5 files. Give priority to hdf5 define in last.    
 
 
 Module ModuleExportHDF5ToTimeSerie
@@ -131,8 +132,8 @@ Module ModuleExportHDF5ToTimeSerie
     !Interfaces----------------------------------------------------------------
 
     !Parameters----------------------------------------------------------------
-    integer, parameter :: ExportCellToTimeseries = 1
-    integer, parameter :: ExportAreaToTimeseries = 2
+    integer, parameter :: ExportCellToTimeseries     = 1
+    integer, parameter :: ExportAreaToTimeseries     = 2
     
     !Types---------------------------------------------------------------------
 
@@ -229,7 +230,6 @@ Module ModuleExportHDF5ToTimeSerie
         integer                                     :: ObjMaskGrid           = 0
         type(T_TimeSeriesData), pointer             :: FirstTimeSeriesData   => null()
         integer                                     :: TimeSeriesDataNumber  = 0
-        type(T_Time)                                :: CurrentTime
         character(PathLength)                       :: DataFile
         character(PathLength)                       :: GridFileName
         logical                                     :: GridFileNameON
@@ -253,6 +253,7 @@ Module ModuleExportHDF5ToTimeSerie
         integer                                     :: ExportType            = ExportCellToTimeseries
         logical                                     :: CheckPropertyName = .true.
         logical                                     :: UsePointsMatrix   = .true.
+        logical                                     :: BestTimeSerieOut  = .false.      
         type(T_ExportHDF5ToTimeSerie), pointer      :: Next   => null()
     end type  T_ExportHDF5ToTimeSerie
 
@@ -397,7 +398,7 @@ Module ModuleExportHDF5ToTimeSerie
                 call GetHorizontalGridSize(Me%ObjHorizontalGrid, Size = Size2D,         &
                                            WorkSize = WorkSize2D, STAT = STAT_CALL)           
                 if (STAT_CALL /= SUCCESS_) &
-                   stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR050'            
+                   stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR040'
             
                 Me%MaskIs3D = .false. 
                 
@@ -411,7 +412,7 @@ Module ModuleExportHDF5ToTimeSerie
                 
                 call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY, STAT= STAT_CALL)           
                 if (STAT_CALL /= SUCCESS_) &
-                   stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR060'   
+                   stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR050'
                    
                 allocate(Point)                   
                 
@@ -434,11 +435,11 @@ Module ModuleExportHDF5ToTimeSerie
 
                 call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR070'                 
+                    stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR060'
 
                 call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR080'                 
+                    stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR070'                 
 
             
             else
@@ -450,24 +451,24 @@ Module ModuleExportHDF5ToTimeSerie
                              ClientModule = 'ExportToTimeSerie',          &
                              STAT         = STAT_CALL)
                 if ((STAT_CALL /= SUCCESS_) .or. (iflag < 1)) &
-                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR020'
+                    stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR080'
                     
                 call ConstructHorizontalGrid(Me%ObjMaskHorizontalGrid, &
                                              mask_grid_filename,       &
                                              STAT = STAT_CALL)           
                 if (STAT_CALL /= SUCCESS_) &
-                   stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR030'            
+                   stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR090'            
             
                 call ConstructGridData (Me%ObjMaskGrid,                 &
                                         Me%ObjMaskHorizontalGrid,       &
                                         FileName = mask_grid_filename,  &
                                         STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR090'            
+                    stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR100'            
                     
                 call GetIsGridData3D(Me%ObjMaskGrid, Me%MaskIs3D, STAT = STAT_CALL)            
                 if (STAT_CALL /= SUCCESS_) &
-                    stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR100'              
+                    stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR110'              
 
             endif
                             
@@ -479,7 +480,7 @@ Module ModuleExportHDF5ToTimeSerie
                          ClientModule = 'ExportToTimeSerie',          &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR051'                                     
+                stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR120'                                     
             if (iflag == 1) then
                 Me%UseAreaFillValue = .true.                
             else
@@ -495,7 +496,7 @@ Module ModuleExportHDF5ToTimeSerie
                      Default      = .true.,                     &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)          &
-        stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR52' 
+        stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR130' 
 
         call GetData(Me%EndTSPerParameter,                      &
                      Me%ObjEnterData, iflag,                    &
@@ -505,7 +506,7 @@ Module ModuleExportHDF5ToTimeSerie
                      Default      = .false.,                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                            &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR60' 
+            stop 'ReadMaskData - ModuleExportHDF5ToTimeSerie - ERR140' 
         
         
 
@@ -683,9 +684,13 @@ Module ModuleExportHDF5ToTimeSerie
 
         !Allocates Parameter list and Parameter group list
         if (Me%ExportType == ExportCellToTimeSeries) then
+            
             allocate(Me%ParameterList(Me%ParameterNumber))
-        else
+            
+        elseif (Me%ExportType == ExportAreaToTimeseries) then
+        
             allocate(Me%ParameterList(Me%ParameterNumber * 7))
+            
         endif
 
         !Fills up ParameterList
@@ -694,10 +699,10 @@ Module ModuleExportHDF5ToTimeSerie
 
         do while (associated(ParameterX))
         
-            if (Me%ExportType == ExportCellToTimeSeries) then
+        if (Me%ExportType == ExportCellToTimeSeries) then
                 nParameters = nParameters + 1
                 Me%ParameterList(nParameters) = trim(adjustl(ParameterX%Name))
-            else
+        elseif (Me%ExportType == ExportAreaToTimeseries) then
                 nParameters = nParameters + 1
                 Me%ParameterList(nParameters) = trim(adjustl(ParameterX%Name))//'_sum'
                 nParameters = nParameters + 1
@@ -990,7 +995,7 @@ Module ModuleExportHDF5ToTimeSerie
                      ClientModule = 'ExportToTimeSerie',                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR060'   
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR020'   
         if (iflag == 0) then
             Me%UseStartTSTime = .false.
         else
@@ -1004,7 +1009,7 @@ Module ModuleExportHDF5ToTimeSerie
                      ClientModule = 'ExportToTimeSerie',                    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR070'   
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR030'   
         if (iflag == 0) then
             Me%UseEndTSTime = .false.
         else
@@ -1016,13 +1021,13 @@ Module ModuleExportHDF5ToTimeSerie
             if (Me%EndTSTime .lt. Me%StartTSTime) then
                 write (*,*) 'Time Serie End Time is BEFORE Time Serie Start Time'
                 write (*,*) 'Module :','ExportHDF5ToTimeSerie'
-                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR080'
+                stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR040'
             endif
 
             if (Me%EndTSTime .eq. Me%StartTSTime) then
                 write (*,*) 'Time Serie End Time is EQUAL Time Serie Start Time'
                 write (*,*) 'Module :','ExportHDF5ToTimeSerie'
-                write (*,*) 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR090'
+                write (*,*) 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR050'
             endif
         endif
             
@@ -1033,7 +1038,7 @@ Module ModuleExportHDF5ToTimeSerie
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR150'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR060'
             
         call GetData(Me%GridFileName,                                       &
                      Me%ObjEnterData, iflag,                                &
@@ -1042,7 +1047,7 @@ Module ModuleExportHDF5ToTimeSerie
                      ClientModule = 'ConvertToHDF5',                        &
                      STAT         = STAT_CALL)                                          
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR180'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR070'
 
         Me%GridFileNameON = .false.
 
@@ -1055,7 +1060,7 @@ Module ModuleExportHDF5ToTimeSerie
                 
             else
                 call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%GridFileName, STAT = STAT_CALL)
-                if(STAT_CALL .ne. SUCCESS_) stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR200'
+                if(STAT_CALL .ne. SUCCESS_) stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR080'
 
                 Me%GridFileNameON = .true.
 
@@ -1070,7 +1075,7 @@ Module ModuleExportHDF5ToTimeSerie
                      Default      = "Time",                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_ )                                         &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR210'   
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR090'   
 
 
         ! Get decimation factor
@@ -1082,7 +1087,20 @@ Module ModuleExportHDF5ToTimeSerie
                      ClientModule = 'ExportToTimeSerie',                    &
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR220'
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR100'
+            
+            
+        !Allow overlap between hdf5 files. Give priority to hdf5 define in last.
+        call GetData(Me%BestTimeSerieOut,                                   &
+                     Me%ObjEnterData, iflag,                                &
+                     SearchType = FromFile,                                 &
+                     keyword    = 'BEST_TIME_SERIE_OUT',                    &
+                     Default    = .false.,                                  &
+                     ClientModule = 'ExportToTimeSerie',                    &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                          &
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR110'
+
             
     end subroutine ReadGlobalData
 
@@ -1797,16 +1815,24 @@ cd2 :           if (BlockFound) then
         !Begin-----------------------------------------------------------------
 
         Relevant = .FALSE.
+        
+        if (.not. Me%BestTimeSerieOut) then
 
-        !Check if there is a file with same period
-        call SamePeriodHDF5(HDF5FileX, OtherFile, STAT_CALL)
+            !Check if there is a file with same period
+            call SamePeriodHDF5(HDF5FileX, OtherFile, STAT_CALL)
 
-        if (STAT_CALL .EQ. SUCCESS_) then 
-            write(*,*)'Same period is contained in two HDF5 files:'
-            write(*,*) HDF5FileX%Name
-            write(*,*) OtherFile%Name
-            stop 'HDF5Evaluator - ModuleExportHDF5ToTimeSerie - ERR10'
-        end if
+            if (STAT_CALL .EQ. SUCCESS_) then 
+                write(*,*)'Same period is contained in two HDF5 files:'
+                write(*,*) HDF5FileX%Name
+                if (associated(OtherFile))  then
+                    write(*,*) OtherFile%Name
+                else
+                    write(*,*) "Other file unknown"
+                endif                    
+                stop 'HDF5Evaluator - ModuleExportHDF5ToTimeSerie - ERR10'
+            end if
+            
+        endif            
 
         if (.not. Me%UseEndTSTime) then
             Me%EndTSTime = HDF5FileX%EndTime
@@ -2359,11 +2385,12 @@ cd2 :           if (BlockFound) then
         
             call ModifyExportHDF5CellToTimeSerie
         
-        else
+        elseif (Me%ExportType == ExportAreaToTimeseries) then
         
             call ModifyExportHDF5AreaToTimeSerie
-        
+
         endif
+        
 
     end subroutine ModifyExportHDF5ToTimeSerie
 
@@ -2380,8 +2407,10 @@ cd2 :           if (BlockFound) then
         integer                                     :: Count = 0
         logical                                     :: FirstFile
         type(T_HDF5File), pointer                   :: ObjHDF5File
-        type(T_Time)                                :: LastStartTime
+        type(T_Time)                                :: LastStartTime, Now
+        type(T_Time)                                :: NextTime, PreviousTime
         real                                        :: LastDT
+        logical                                     :: RunningExit
 
         !Begin-----------------------------------------------------------------
 
@@ -2411,8 +2440,8 @@ cd2 :           if (BlockFound) then
             !Cycle each parameter
             !For each parameter write Time Serie
             Running      = .true.
-
-            Me%CurrentTime  = ObjTimeSerieTime%Time
+            
+            RunningExit  = .false.             
 
             write(*,*)     
             write(*,*)'Writing time serie files...'
@@ -2431,6 +2460,18 @@ cd2 :           if (BlockFound) then
                 end if
 
                 do while(associated(ObjParameter))
+                
+                    if (.not.(associated(ObjParameter%CurrentField))) then
+                        RunningExit = .true. 
+                        exit
+                    endif                        
+                
+                    call GetComputeCurrentTime(TimeID = Me%ObjTime, CurrentTime = Now)
+                    
+                    if (Now/= ObjParameter%CurrentField%Date) then
+                        stop 'ModifyExportHDF5ToTimeSerie - ModifyExportHDF5CellToTimeSerie - ERR00'                        
+                    endif
+                    
 
                     if (.not. Me%VariableGrid) then
 
@@ -2495,30 +2536,69 @@ cd2 :           if (BlockFound) then
                     ObjParameter              => ObjParameter%Next               
 
                 end do
+                
+                if (RunningExit) exit
 
                 if (associated(ObjTimeSerieTime%Next)) then
-
-                    DT = ObjTimeSerieTime%Next%Time - Me%CurrentTime
-
+                    PreviousTime = ObjTimeSerieTime%Time
+                    NextTime     = ObjTimeSerieTime%Next%Time
                     ObjTimeSerieTime => ObjTimeSerieTime%Next
 
                 end if
 
-                !Actualization of time            
-                Me%CurrentTime = Me%CurrentTime + DT
 
-                call ActualizeCurrentTime(Me%ObjTime, DT, STAT = STAT_CALL)
-                if(STAT_CALL .ne. SUCCESS_)                                         &
-                stop 'ModifyExportHDF5ToTimeSerie - ModifyExportHDF5CellToTimeSerie - ERR030'
+!                !Running dependent of the last time of file
+!                if (ObjTimeSerieTime%Time <= ObjHDF5File%EndFieldTime .and. NextTime /= PreviousTime) then
+!                !(if DT = 0 then Running = .false. because is the linking instant between
+!                !continuous run adjacent files)
+!                    Running = .true.
+!                    if (Me%BestTimeSerieOut) then
+!                        if (associated(ObjHDF5File%Next)) then
+!                            if (ObjTimeSerieTime%Time >= ObjHDF5File%Next%StartFieldTime) then
+!                                ObjTimeSerieTime => ObjHDF5File%Next%FirstInstantTime                        
+!                                Running = .false.
+!                            endif                     
+!                        endif
+!                    endif                        
+!                else
+!                    Running = .false.
+!                    if (Me%BestTimeSerieOut) then
+!                        if (associated(ObjHDF5File%Next)) then                                        
+!                            if (ObjTimeSerieTime%Time < ObjHDF5File%Next%StartFieldTime) then
+!                                ObjTimeSerieTime => ObjHDF5File%Next%FirstInstantTime 
+!                            endif
+!                        endif                            
+!                    endif
+!                endif
 
                 !Running dependent of the last time of file
-                if ((Me%CurrentTime <= ObjHDF5File%EndFieldTime) .and. (DT .ne. 0)) then
+                if (ObjTimeSerieTime%Time <= ObjHDF5File%EndFieldTime) then
                 !(if DT = 0 then Running = .false. because is the linking instant between
                 !continuous run adjacent files)
                     Running = .true.
+                    if (Me%BestTimeSerieOut) then
+                        if (associated(ObjHDF5File%Next)) then
+                            if (ObjTimeSerieTime%Time >= ObjHDF5File%Next%StartFieldTime) then
+                                ObjTimeSerieTime => ObjHDF5File%Next%FirstInstantTime                        
+                                Running = .false.
+                            endif                     
+                        endif
+                    endif                        
                 else
                     Running = .false.
-                end if
+                    if (Me%BestTimeSerieOut) then
+                        if (associated(ObjHDF5File%Next)) then                                        
+                            if (ObjTimeSerieTime%Time < ObjHDF5File%Next%StartFieldTime) then
+                                ObjTimeSerieTime => ObjHDF5File%Next%FirstInstantTime 
+                            endif
+                        endif                            
+                    endif
+                endif 
+
+                call ActualizeCurrentTime(Me%ObjTime, DT_Global = -99., Current = ObjTimeSerieTime%Time, STAT = STAT_CALL)
+                if(STAT_CALL .ne. SUCCESS_)                                         &
+                stop 'ModifyExportHDF5ToTimeSerie - ModifyExportHDF5CellToTimeSerie - ERR030'
+                
 
             end do
 
@@ -2546,6 +2626,7 @@ cd2 :           if (BlockFound) then
     end subroutine ModifyExportHDF5CellToTimeSerie
     
     !--------------------------------------------------------------------------
+   
     
     subroutine ModifyExportHDF5AreaToTimeSerie
     
@@ -2554,11 +2635,11 @@ cd2 :           if (BlockFound) then
         type (T_Parameter), pointer                 :: ObjParameter, ParameterToKill
         type (T_TimeSerieTime), pointer             :: ObjTimeSerieTime
         integer                                     :: STAT_CALL
-        real                                        :: DT
         integer                                     :: Count = 0
         logical                                     :: FirstFile
         type(T_HDF5File), pointer                   :: ObjHDF5File
-        type(T_Time)                                :: LastStartTime
+        type(T_Time)                                :: LastStartTime, Now
+        type(T_Time)                                :: NextTime, PreviousTime        
         real                                        :: LastDT
         
         real, dimension(:,:), pointer               :: mask_2d
@@ -2566,7 +2647,7 @@ cd2 :           if (BlockFound) then
         type (T_TimeSeriesData), pointer            :: TS
         integer                                     :: i, j, k
         integer                                     :: parameter_index, ts_index, p_index
-        real                                        :: val   
+        real                                        :: val, NextDT   
 
         !Begin-----------------------------------------------------------------
 
@@ -2610,10 +2691,10 @@ cd2 :           if (BlockFound) then
         
             if (Me%MaskIs3D) then
                 call GetGridData (Me%ObjMaskGrid, mask_3d, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR010'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5AreaToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR010'
             else
                 call GetGridData (Me%ObjMaskGrid, mask_2d, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR020'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5AreaToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR020'
             endif
 
         endif
@@ -2630,8 +2711,6 @@ cd2 :           if (BlockFound) then
             !Cycle each parameter
             !For each parameter write Time Serie
             Running      = .true.
-
-            Me%CurrentTime  = ObjTimeSerieTime%Time
 
             write(*,*)     
             write(*,*)'Writing time serie files...'
@@ -2659,13 +2738,19 @@ cd2 :           if (BlockFound) then
                     TS            => TS%Next
                 enddo                
                 
-                do while(associated(ObjParameter))               
+                do while(associated(ObjParameter))
+
+                    call GetComputeCurrentTime(TimeID = Me%ObjTime, CurrentTime = Now)                
+                
+                    if (Now/= ObjParameter%CurrentField%Date) then
+                        stop 'ModifyExportHDF5AreaToTimeSerie - ModifyExportHDF5CellToTimeSerie - ERR1000'                        
+                    endif                
                               
                     !Create a timeseries for an area, instead of a point, doing the sum, mean, max, min, number of points and standard deviation                        
                     select case (ObjParameter%Rank)
                     case (2)
                         if (Me%MaskIs3D) &
-                            stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR00'
+                            stop 'ModifyExportHDF5AreaToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR00'
                     
                         !First do the sum of the values, by ID of TimeSeries
                         do i = 1, Me%Size2D%IUB
@@ -2996,13 +3081,29 @@ do_ts4:                         do while (associated(TS))
                     parameter_index = parameter_index + 1
                                                                    
                 enddo
+                
+                if (associated(ObjTimeSerieTime%Next)) then
+                    NextDT = ObjTimeSerieTime%Next%Time - ObjTimeSerieTime%Time
+                else
+                    if (Me%BestTimeSerieOut) then
+                        if (associated(ObjHDF5File%Next)) then
+                            NextDT =  ObjHDF5File%Next%StartFieldTime - ObjTimeSerieTime%Time
+                        endif
+                    endif                                      
+                end if                
 
                 TS       => Me%FirstTimeSeriesData                
                 ts_index = 1
                 do while (associated(TS))
-                    call WriteSpecificTimeSerieLine(Me%ObjTimeSerie, ts_index, TS%ParamsData, CheckTime = .false., STAT = STAT_CALL)
+
+                    call WriteSpecificTimeSerieLine(TimeSerieID = Me%ObjTimeSerie,      &
+                                                    iTimeSerie  = ts_index,             &
+                                                    DataLine    = TS%ParamsData,        &
+                                                    CheckTime   = .false.,              &
+                                                    NextDT      = NextDT,               &
+                                                    STAT        = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
-                        stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR030'
+                        stop 'ModifyExportHDF5AreaToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR030'
                         
                     TS%ParamsDataFinal = TS%ParamsData
                     TS%ParamsData      = 0.0
@@ -3012,25 +3113,51 @@ do_ts4:                         do while (associated(TS))
                 enddo                
 
                 if (associated(ObjTimeSerieTime%Next)) then
-                    DT               = ObjTimeSerieTime%Next%Time - Me%CurrentTime
                     ObjTimeSerieTime => ObjTimeSerieTime%Next
+                else
+                    if (Me%BestTimeSerieOut) then
+                        if (associated(ObjHDF5File%Next)) then
+                            ObjTimeSerieTime => ObjHDF5File%Next%FirstInstantTime 
+                            !Actualization of time            
+                            call ActualizeCurrentTime(Me%ObjTime, DT_Global = -99., Current = ObjTimeSerieTime%Time, STAT = STAT_CALL)
+                            if(STAT_CALL .ne. SUCCESS_)                                         &
+                            stop 'ModifyExportHDF5AreaToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR40'
+                            
+                        endif
+                    endif                    
+                    write(*,*) 'Finish file'
+                    exit                    
                 end if
 
-                !Actualization of time            
-                Me%CurrentTime = Me%CurrentTime + DT
-
-                call ActualizeCurrentTime(Me%ObjTime, DT, STAT = STAT_CALL)
-                if(STAT_CALL .ne. SUCCESS_)                                         &
-                stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR40'
-
                 !Running dependent of the last time of file
-                if ((Me%CurrentTime <= ObjHDF5File%EndFieldTime) .and. (DT .ne. 0)) then
+                if (ObjTimeSerieTime%Time <= ObjHDF5File%EndFieldTime) then
                 !(if DT = 0 then Running = .false. because is the linking instant between
                 !continuous run adjacent files)
                     Running = .true.
+                    if (Me%BestTimeSerieOut) then
+                        if (associated(ObjHDF5File%Next)) then
+                            if (ObjTimeSerieTime%Time >= ObjHDF5File%Next%StartFieldTime) then
+                                ObjTimeSerieTime => ObjHDF5File%Next%FirstInstantTime                        
+                                Running = .false.
+                            endif                     
+                        endif
+                    endif                        
                 else
                     Running = .false.
+                    if (Me%BestTimeSerieOut) then
+                        if (associated(ObjHDF5File%Next)) then                                        
+                            if (ObjTimeSerieTime%Time < ObjHDF5File%Next%StartFieldTime) then
+                                ObjTimeSerieTime => ObjHDF5File%Next%FirstInstantTime 
+                            endif
+                        endif                            
+                    endif
                 endif                    
+                
+                !Actualization of time            
+                call ActualizeCurrentTime(Me%ObjTime, DT_Global = -99., Current = ObjTimeSerieTime%Time, STAT = STAT_CALL)
+                if(STAT_CALL .ne. SUCCESS_)                                         &
+                stop 'ModifyExportHDF5AreaToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR40'
+                
 
             end do
             
@@ -3063,10 +3190,10 @@ do_ts4:                         do while (associated(TS))
 
             if (Me%MaskIs3D) then
                 call UngetGridData  (Me%ObjMaskGrid, mask_3d, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR050'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5AreaToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR050'
             else
                 call UngetGridData  (Me%ObjMaskGrid, mask_2d, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR060'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyExportHDF5AreaToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR060'
             endif
 
         endif
@@ -3080,7 +3207,7 @@ do_ts4:                         do while (associated(TS))
 
         call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
         if(STAT_CALL .ne. SUCCESS_)                                                 &
-            stop 'ModifyExportHDF5ToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR070'   
+            stop 'ModifyExportHDF5AreaToTimeSerie - ModuleExportHDF5ToTimeSerie - ERR070'   
     
     end subroutine ModifyExportHDF5AreaToTimeSerie    
     

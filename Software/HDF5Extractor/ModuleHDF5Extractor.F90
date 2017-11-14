@@ -254,6 +254,9 @@ Module ModuleHDF5Extractor
 
         ! Read keywords file
         call ReadKeywords
+        
+        !Construct input and output hdf5 file
+        call ConstructInAndOut
 
         ! Open supplied HDF5 file
         call OpenAndDateHDF5File
@@ -266,6 +269,41 @@ Module ModuleHDF5Extractor
 
     end subroutine ConstructExtractHDF5
 
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructInAndOut
+    
+        !Arguments---------------------------------------------------------------
+
+    
+        !Local-------------------------------------------------------------------
+        integer                                     :: HDF5_READ, STAT_CALL
+        logical                                     :: exist
+                
+        !Begin-------------------------------------------------------------------        
+    
+       !Verifies if file exists
+        inquire(FILE = Me%HDF5File, EXIST = exist)
+        if (.not. exist) then
+            write(*,*)
+            write(*,*)'HDF5 file does not exist:'//trim(Me%HDF5File)
+            stop 'ConstructInAndOut - ModuleHDF5Extractor - ERR10'
+        endif
+
+        !(there has been a kill of this file before)
+        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+        !Open HDF5 file
+        call ConstructHDF5 (Me%ObjHDF5File, trim(Me%HDF5File),                  & 
+                            HDF5_READ, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) then
+            write(*,*) 'HDF5 file cannot be opened'//Me%HDF5File                
+            stop 'ConstructInAndOut - ModuleHDF5Extractor - ERR20'
+        end if
+
+    
+    end subroutine ConstructInAndOut
+    
     !--------------------------------------------------------------------------
   
     subroutine ReadKeywords
@@ -640,8 +678,8 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
           
         !Local-----------------------------------------------------------------
-        logical                                     :: exist
-        integer                                     :: HDF5_READ
+!        logical                                     :: exist
+!        integer                                     :: HDF5_READ
         integer                                     :: STAT_CALL
         real                                        :: Year, Month, Day, Hour 
         real                                        :: Minute, Second
@@ -656,21 +694,21 @@ cd2 :           if (BlockFound) then
 
         !Begin-----------------------------------------------------------------
 
-        !Verifies if file exists
-        inquire(FILE = Me%HDF5File, EXIST = exist)
-        if (.not. exist) then
-            write(*,*)
-            write(*,*)'HDF5 file does not exist:'//trim(Me%HDF5File)
-            stop 'OpenAndDateHDF5File - ModuleHDF5Extractor - ERR10'
-        endif
-
-        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
-
-        !Open HDF5 file
-        call ConstructHDF5 (Me%ObjHDF5File, trim(Me%HDF5File),                  &
-                            HDF5_READ, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                            &
-        stop 'OpenAndDateHDF5File - ModuleHDF5Extractor - ERR20'
+!        !Verifies if file exists
+!        inquire(FILE = Me%HDF5File, EXIST = exist)
+!        if (.not. exist) then
+!            write(*,*)
+!            write(*,*)'HDF5 file does not exist:'//trim(Me%HDF5File)
+!            stop 'OpenAndDateHDF5File - ModuleHDF5Extractor - ERR10'
+!        endif
+!
+!        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+!
+!        !Open HDF5 file
+!        call ConstructHDF5 (Me%ObjHDF5File, trim(Me%HDF5File),                  &
+!                            HDF5_READ, STAT = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_)                                            &
+!        stop 'OpenAndDateHDF5File - ModuleHDF5Extractor - ERR20'
 
         !Obtain start and end times of HDF5 file
         !(obtain number of instants) 
@@ -925,7 +963,7 @@ cd2 :           if (BlockFound) then
             endif                
         endif     
 
-        call KillHDF5(Me%ObjHDF5File)           
+        !call KillHDF5(Me%ObjHDF5File)
         
     end subroutine OpenAndDateHDF5File
 
@@ -1936,17 +1974,17 @@ cd2 :           if (BlockFound) then
         integer                                     :: ObjEnterData
 
         !Begin-----------------------------------------------------------------
-
-        !(there has been a kill of this file before)
-        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
-
-        !Open HDF5 file
-        call ConstructHDF5 (Me%ObjHDF5File, trim(Me%HDF5File),                  & 
-                            HDF5_READ, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) then
-            write(*,*) 'HDF5 file cannot be opened'//Me%HDF5File                
-            stop 'OpenAndReadHDF5File - ModuleHDF5Extractor - ERR10'
-        end if
+!
+!        !(there has been a kill of this file before)
+!        call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+!
+!        !Open HDF5 file
+!        call ConstructHDF5 (Me%ObjHDF5File, trim(Me%HDF5File),                  & 
+!                            HDF5_READ, STAT = STAT_CALL)
+!        if (STAT_CALL .NE. SUCCESS_) then
+!            write(*,*) 'HDF5 file cannot be opened'//Me%HDF5File                
+!            stop 'OpenAndReadHDF5File - ModuleHDF5Extractor - ERR10'
+!        end if
 
         !Read fields data
         write(*,*)
@@ -2042,7 +2080,7 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL /= SUCCESS_)                                              &
             stop 'OpenAndReadHDF5File - ModuleHDF5Extractor - ERR30'
 
-        call killhdf5(Me%ObjHDF5File)
+        !call killhdf5(Me%ObjHDF5File)
 
     end subroutine OpenAndReadHDF5File
 
@@ -2593,6 +2631,8 @@ do3:            do while(associated(CurrentField))
         type(T_IntervalHDF5), pointer               :: HDF5FileX, HDF5FileToKill
 
         !------------------------------------------------------------------------
+        
+        call KillHDF5(Me%ObjHDF5File)
 
         !Deallocate the InstantsArray
         if (associated(Me%InstantsArray)) then 

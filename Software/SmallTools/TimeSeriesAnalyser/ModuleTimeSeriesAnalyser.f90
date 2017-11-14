@@ -145,6 +145,9 @@ Module ModuleTimeSeriesAnalyser
         real                                                    :: FilterFlagLimit
         logical                                                 :: FilterFlagLimitAbove
         logical                                                 :: CompareTimeSerieOn
+        logical                                                 :: CompareAngles        
+        integer                                                 :: AngleUnits        
+        integer                                                 :: AngleReferential
         integer                                                 :: CompareColumn
         logical                                                 :: CompareObservations
         !Files Units
@@ -159,6 +162,8 @@ Module ModuleTimeSeriesAnalyser
         real                                                    :: NoisyPeriodAnalysis, NoisyRacioStdevAverage
         real                                                    :: SmoothPeriodAnalysis
         integer                                                 :: NoisyPeriodMinSample
+        
+        logical                                                 :: RemoveConstantValues        
                 
         integer                                                 :: InterpolInTime = FillValueInt
         
@@ -383,7 +388,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%PercentileEvolution .and. .not. Me%PercentileAnalysis) then
             write(*,*) 'PERCENTILE_EVOLUTION can not be true'
             write(*,*) 'if PERCENTILE_ANALYSIS is false'
-            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR165'
+            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR170'
         endif
 
         call GetData(Me%InterpolInTime,                                                 &
@@ -394,10 +399,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = LinearTS_,                                          &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR170'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR180'
 
         if (Me%InterpolInTime /= LinearTS_ .and. Me%InterpolInTime /= BackwardTS_) then
-            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR180'
+            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR190'
         endif
 
 
@@ -409,7 +414,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = -FillValueReal,                                     &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR190'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR200'
         
         call GetData(Me%FilterTimeSerie,                                                &
                      Me%ObjEnterData,                                                   &
@@ -419,7 +424,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .true.,                                             &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR200'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR210'
         
         if (Me%FilterTimeSerie) then
         
@@ -431,7 +436,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = FillValueReal,                                  &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR210'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR220'
 
             call GetData(Me%FilterMaxValue,                                             &
                          Me%ObjEnterData,                                               &
@@ -441,7 +446,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = - FillValueReal,                                &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR220'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR230'
 
 
             call GetData(Me%FilterMaxRateValue,                                         &
@@ -452,7 +457,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = - FillValueReal,                                &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR230'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR240'
             
 !            if (flag == 1) then
 !                if (flag_min == 1 .and. flag_max == 1) then
@@ -468,7 +473,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = FillValueReal,                                  &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR235'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR250'
 
 !            if (flag == 1) then
 !                if (flag_min == 1 .and. flag_max == 1) then
@@ -485,7 +490,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword      ='INPUT_FILTER_FILE',                             &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR240'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR260'
 
             if (flag == 0) Me%TimeSerieFilterInON = .false.
             
@@ -499,7 +504,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              default      = 2,                                          &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR250'
+                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR270'
 
                 call GetData(Me%FilterFlagLimit,                                        &
                              Me%ObjEnterData,                                           &
@@ -509,7 +514,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              default      = 0.5,                                        &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR260'
+                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
 
                 call GetData(Me%FilterFlagLimitAbove,                                   &
                              Me%ObjEnterData,                                           &
@@ -519,7 +524,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              default      = .true.,                                     &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR270'
+                if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR290'
 
             endif         
             
@@ -531,7 +536,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = .false.,                                        &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR300'
             
             if (Me%RemoveNoisyPeriods) then
 
@@ -543,7 +548,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              Default      = 86400.,                                     &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR310'
             
                 call GetData(Me%NoisyPeriodMinSample,                                   &
                              Me%ObjEnterData,                                           &
@@ -553,7 +558,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              Default      = 10,                                         &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR320'
                 
                 call GetData(Me%NoisyRacioStdevAverage,                                 &
                              Me%ObjEnterData,                                           &
@@ -563,10 +568,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              Default      = 0.5,                                        &
                              ClientModule ='ModuleTimeSeriesAnalyser',                  &
                              STAT         = STAT_CALL)        
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR330'
                 
-            
             endif
+            
+            call GetData(Me%RemoveConstantValues,                                       &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='REMOVE_CONSTANT_VALUES',                        &
+                         Default      = .true.,                                         &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR340'            
 
 
         endif
@@ -579,7 +593,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = FillValueReal,                                      &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR280'
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR350'
         
         
         call GetData(Me%CompareTimeSerieOn,                                             &
@@ -590,7 +604,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default      = .false.,                                            &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR290'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR360'
         
         if (Me%CompareTimeSerieOn) then
         
@@ -601,8 +615,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          keyword      ='COMPARE_FILE',                                  &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR300'
-            if (flag == 0)             stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR310'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR370'
+            if (flag == 0)             stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR380'
 
             call GetData(Me%CompareColumn,                                              &
                          Me%ObjEnterData,                                               &
@@ -612,7 +626,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = 2,                                              &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR310'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR390'
             
 
             call GetData(Me%CompareObservations,                                        &
@@ -623,8 +637,41 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default      = .true.,                                         &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR400'
             
+
+            call GetData(Me%CompareAngles,                                              &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='COMPARE_ANGLES',                                &
+                         default      = .false.,                                        &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR405'
+            
+            call GetData(Me%AngleUnits,                                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='ANGLE_UNITS',                                   &
+                         default      = Degree_,                                        &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR407'
+            
+            
+
+            call GetData(Me%AngleReferential,                                           &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='ANGLE_REFERENTIAL',                             &
+                         default      = NauticalReferential_,                           &
+                         ClientModule ='ModuleTimeSeriesAnalyser',                      &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR408'
+
            
         endif
         
@@ -637,10 +684,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = stdv4_,                                             &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR330'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR410'
 
         if (Me%ErrorNormalization /= stdv4_ .and. Me%ErrorNormalization /= Average_) then
-            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR340'
+            stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR420'
         endif
 
         call GetData(Me%MovAverageBackward%ON,                                          &
@@ -651,7 +698,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                            &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR350'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR430'
         
 
         call GetData(Me%StartNightHour,                                                 &
@@ -662,7 +709,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      default      = 0.,                                                 &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR360'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR440'
 
         call GetData(Me%EndNightHour,                                                   &
                      Me%ObjEnterData,                                                   &
@@ -672,7 +719,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      default      = 4.,                                                 &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR370'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR450'
 
         
         if (Me%StartNightHour >= Me%EndNightHour) then
@@ -687,7 +734,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      default      = 0.75,                                               &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR380'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR460'
         
 
         
@@ -699,7 +746,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                            &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)        
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR390'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR470'
         
         if (Me%SmoothTimeSerie) then
         
@@ -711,10 +758,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          Default      = FillValueReal,                                  &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
-            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR400'
+            if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR480'
             
             if (flag == 0) then
-                stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR410'
+                stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR490'
             endif
 
         endif
@@ -727,7 +774,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      keyword      ='START',                                             &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR420'
+        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR500'
         
         if (flag == 0) then
                 call null_time(Me%BeginTime)
@@ -741,14 +788,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      keyword      ='END',                                               &
                      ClientModule ='ModuleTimeSeriesAnalyser',                          &
                      STAT         = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR430'
+        if (STAT_CALL /= SUCCESS_ .and. flag/=0) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR510'
 
         if (flag == 0) then
                 call null_time(Me%EndTime)
         endif
 
         call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR440'
+        if(STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR520'
 
     
     end subroutine ReadKeywords
@@ -1332,7 +1379,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             call ModifyTimeSeriesPatterns
             
-            call ModifyTimeSeriesCompare          
+            if (Me%CompareAngles) then
+                call ModifyTimeSeriesCompareAngle
+            else
+                call ModifyTimeSeriesCompare                      
+            endif                
             
             call ModifyTimeSeriesMovAveBack
             
@@ -1891,15 +1942,16 @@ d2:     do i=1, Me%DataValues
             endif
 
             !Filter persistent constant values
-            if (i < Me%DataValues-3) then
-                if (Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+1,Me%DataColumn) .and. &
-                    Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+2,Me%DataColumn)) then 
-                    Me%FlagFilter(i  ) = 0
-                    Me%FlagFilter(i+1) = 0
-                    Me%FlagFilter(i+2) = 0
+            if (Me%RemoveConstantValues) then
+                if (i < Me%DataValues-3) then
+                    if (Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+1,Me%DataColumn) .and. &
+                        Me%DataMatrix(i,Me%DataColumn) == Me%DataMatrix(i+2,Me%DataColumn)) then 
+                        Me%FlagFilter(i  ) = 0
+                        Me%FlagFilter(i+1) = 0
+                        Me%FlagFilter(i+2) = 0
+                    endif
                 endif
             endif
-            
         enddo d2
         
         
@@ -2053,8 +2105,8 @@ d3:         do i=1, Me%DataValues
                 
                 !Interpolates Value for current instant
                 if      (Me%InterpolInTime == LinearTS_) then
-                    call InterpolateValueInTime(Me%TimeTSOutPut(i), Time1, Value1, Time2,  &
-                                                Value2, NewValue)
+                    call InterpolateValueInTimeAngleProof(Me%TimeTSOutPut(i), Time1, Value1, Time2,  &
+                                                          Value2, NewValue)
                 else if (Me%InterpolInTime == BackwardTS_) then
                     NewValue = Value1
                 endif                                                
@@ -2107,8 +2159,8 @@ d3:         do i=1, Me%DataValues
                 
                     !Interpolates Value for current instant
                     if      (Me%InterpolInTime == LinearTS_) then
-                        call InterpolateValueInTime(Me%TimeTSOutPut(i), Time1, Value1,     &
-                                                    Time2, Value2, NewValue)     
+                        call InterpolateValueInTimeAngleProof(Me%TimeTSOutPut(i), Time1, Value1,  &
+                                                              Time2, Value2, NewValue)     
                     else if (Me%InterpolInTime == BackwardTS_) then
                         NewValue = Value1
                     endif                                                                
@@ -2139,7 +2191,7 @@ d3:         do i=1, Me%DataValues
         if (.not. Me%NoValidPoints) then
         
             !compute the global statiscal paramters of the time serie
-            call moment(Me%TimeSerie,Me%ave,Me%adev,Me%sdev,Me%var,Me%skew,Me%curt)            
+            call moment(Me%TimeSerie,Me%ave,Me%adev,Me%sdev,Me%var,Me%skew,Me%curt)
         
         
         endif
@@ -2232,6 +2284,89 @@ d3:         do i=1, Me%DataValues
         
         
     end subroutine ModifyInterpolTimeSeries
+    
+    !--------------------------------------------------------------------------    
+    
+    subroutine InterpolateValueInTimeAngleProof(ActualTime, Time1, Value1, Time2,  &
+                                                Value2, NewValue)
+    
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Time),      intent(IN)               :: ActualTime
+        type(T_Time),      intent(IN)               :: Time1
+        real,              intent(IN)               :: Value1
+        type(T_Time),      intent(IN)               :: Time2
+        real,              intent(IN)               :: Value2
+        
+        real,              intent(OUT)              :: NewValue
+
+        !Local-----------------------------------------------------------------
+        real                                        :: Aux1   , Aux2
+        real                                        :: XValue1, XValue2
+        real                                        :: YValue1, YValue2        
+        real                                        :: XNewValue, YNewValue
+        real                                        :: aux
+    
+        !Begin-----------------------------------------------------------------    
+        
+   
+        if (Me%CompareAngles) then
+   
+            if (Me%AngleUnits == Degree_) then
+
+                call AngleFromFieldToGrid (AngleInReferential = Value1,                 &
+                                           Referential        = Me%AngleReferential,    &
+                                           GridAngle          = 0.,                     &
+                                           AngleOutGrid       = Aux1)
+
+                call AngleFromFieldToGrid (AngleInReferential = Value2,                 &
+                                           Referential        = Me%AngleReferential,    &
+                                           GridAngle          = 0.,                     &
+                                           AngleOutGrid       = Aux2)            
+            
+                Aux1 = Aux1 * Pi_ / 180.
+                Aux2 = Aux2 * Pi_ / 180.
+                
+            else
+                Aux1 = Value1
+                Aux2 = Value2
+            endif                    
+            
+            !X component
+            XValue1 = cos(Aux1)
+            XValue2 = cos(Aux2)
+
+            !Y component
+            YValue1 = sin(Aux1)
+            YValue2 = sin(Aux2)                
+        
+            !X component
+            call InterpolateValueInTime(ActualTime, Time1, XValue1, Time2,  &
+                                        XValue2, XNewValue)
+            !Y component
+            call InterpolateValueInTime(ActualTime, Time1, YValue1, Time2,  &
+                                        YValue2, YNewValue)
+                                        
+            NewValue = atan2(YNewValue, XNewValue)
+            
+            if (Me%AngleUnits == Degree_) then
+
+                aux =  NewValue * 180. / Pi_
+            
+                call AngleFromGridToField (AngleInGrid        = aux,               &
+                                           Referential        = Me%AngleReferential,&
+                                           GridAngle          = 0.,                 &
+                                           AngleOutReferential= NewValue)             
+            endif
+            
+        else                                        
+
+        
+            call InterpolateValueInTime(ActualTime, Time1, Value1, Time2,  &
+                                        Value2, NewValue)                  
+        endif
+                                            
+    end subroutine InterpolateValueInTimeAngleProof
     
     !--------------------------------------------------------------------------
     
@@ -2462,7 +2597,266 @@ i1:     if (Me%CompareTimeSerieOn) then
     
     !--------------------------------------------------------------------------    
     
-    !---------------------------------------------------------------------------    
+    subroutine ModifyTimeSeriesCompareAngle
+    
+        !Local-------------------------------------------------------------------------            
+    
+        real    (SP), dimension(:), allocatable :: TimeCompareTS,   CompareTS,   DifTS,   TS
+        real    (SP), dimension(:), allocatable :: X_CompareTS, Y_TS
+        real    (SP), dimension(:), allocatable :: Y_CompareTS, X_TS                
+        real                                    :: Bias, rmse
+        type (T_Time)                           :: Time1, Time2, BeginCompare, EndCompare
+        real                                    :: Value1, Value2, NewValue
+        real                                    :: AverageObs
+        real                                    :: Year, Month, Day, hour, minute, second
+        logical                                 :: TimeCycle
+        integer                                 :: i, c, STAT_CALL, Ncompare
+        real                                    :: rcorr, rcorr_quad, z_fisher, alfa, beta_1, Am, Bm, dtGap
+        real                                    :: x_Am, x_Bm        
+        real                                    :: y_Am, y_Bm
+        real                                    :: aux, TS_aux
+        real                                    :: AmBm, AmM, BmM
+        
+        !Begin-------------------------------------------------------------------------        
+             
+i1:     if (Me%CompareTimeSerieOn) then
+
+            allocate(  TimeCompareTS(1: Me%nValues),   TS(1:Me%nValues),   CompareTS (1:Me%nValues),   DifTS(1:Me%nValues))   
+            allocate(X_TS(1:Me%nValues), X_CompareTS (1:Me%nValues))   
+            allocate(Y_TS(1:Me%nValues), Y_CompareTS (1:Me%nValues))                           
+            
+            call GetTimeSerieTimeLimits(TimeSerieID = Me%ObjTimeSerieCompare,           &
+                                        StartTime   = BeginCompare,                     &
+                                        EndTime     = EndCompare,                       &
+                                        STAT        = STAT_CALL) 
+            c = 0
+          
+
+            do i=1, Me%nValues        
+
+                if (Me%FlagTimeSerie(i) == 0) cycle
+                
+                call GetTimeSerieValue(Me%ObjTimeSerieCompare, Me%TimeTSOutPut(i), Me%CompareColumn, Time1, Value1,   &
+                                       Time2, Value2, TimeCycle, STAT= STAT_CALL) 
+                                       
+                if (Me%TimeTSOutPut(i) < BeginCompare) cycle
+                
+                if (Me%TimeTSOutPut(i) > EndCompare  ) cycle                
+                                       
+                dtGap = Time2 - Time1                                       
+                                       
+                if (dtGap > Me%GapLimit) cycle
+                
+                if (Value1 == Me%FilterValue .or. Value2 == Me%FilterValue) cycle
+
+                !Interpolates Value for current instant
+                if      (Me%InterpolInTime == LinearTS_) then
+                    call InterpolateValueInTimeAngleProof(Me%TimeTSOutPut(i), Time1, Value1, Time2,  &
+                                                Value2, NewValue)
+                else if (Me%InterpolInTime == BackwardTS_) then
+                    NewValue = Value1
+                endif   
+                
+                if (Me%AngleUnits == Degree_) then
+                
+                    aux = NewValue
+
+                    call AngleFromFieldToGrid (AngleInReferential = aux,                    &
+                                               Referential        = Me%AngleReferential,    &
+                                               GridAngle          = 0.,                     &
+                                               AngleOutGrid       = NewValue)
+                                               
+                    aux = Me%TimeSerie(i)                                               
+
+                    call AngleFromFieldToGrid (AngleInReferential = aux,                    &
+                                               Referential        = Me%AngleReferential,    &
+                                               GridAngle          = 0.,                     &
+                                               AngleOutGrid       = TS_aux)            
+                
+                    NewValue = NewValue * Pi_ / 180.
+                    TS_aux   = TS_aux   * Pi_ / 180.   
+                    
+                else
+                
+                    TS_aux = Me%TimeSerie(i)
+                    
+                endif
+                    
+                
+                c = c + 1                
+                
+                TimeCompareTS(c) =  Me%TimeTSOutPut(i) - Me%BeginTime
+                
+                !X component
+                X_CompareTS    (c) =  cos(NewValue)
+                X_TS           (c) =  cos(TS_aux)
+
+
+                !Y component
+                Y_CompareTS    (c) =  sin(NewValue)
+                Y_TS           (c) =  sin(TS_aux)
+
+                DifTS          (c) =  acos(X_TS(c)* X_CompareTS(c) + Y_TS(c)*Y_CompareTS(c))
+
+                TS             (c) =  TS_aux
+                CompareTS      (c) =  NewValue
+                
+            enddo                        
+
+            Ncompare = c        
+
+            if (Ncompare > 0) then
+                                 
+                rcorr      =  FillValueReal
+                rcorr_quad =  FillValueReal
+                z_fisher   =  FillValueReal
+                alfa       =  FillValueReal
+                beta_1     =  FillValueReal
+                rmse       =  FillValueReal
+                
+                bias   =  0.
+                
+                x_Am   =  0.
+                x_Bm   =  0.
+                y_Am   =  0.
+                y_Bm   =  0.
+                
+                do i = 1, Ncompare 
+                    x_Am   = x_Am   + X_TS       (i) / real(Ncompare) 
+                    x_Bm   = x_Bm   + X_CompareTS(i) / real(Ncompare) 
+
+                    y_Am   = y_Am   + Y_TS       (i) / real(Ncompare) 
+                    y_Bm   = y_Bm   + Y_CompareTS(i) / real(Ncompare) 
+                    
+                enddo
+               
+                AmBm  = x_Am * x_Bm + y_Am *y_Bm
+                AmM   = sqrt(x_Am**2. + y_Am**2.)
+                BmM   = sqrt(x_Bm**2. + y_Bm**2.)               
+            
+                bias = acos(AmBm/AmM/BmM)
+
+                Am   =  atan2(y_Am, x_Am)
+                Bm   =  atan2(y_Bm, x_Bm)
+                
+                
+                if (Me%AngleUnits == Degree_) then
+
+                    bias =  bias * 180. / Pi_
+                    
+                    aux = Am * 180. / Pi_
+                    
+                    call AngleFromGridToField (AngleInGrid        = aux,                &
+                                               Referential        = Me%AngleReferential,&
+                                               GridAngle          = 0.,                 &
+                                               AngleOutReferential= Am)
+
+                    aux = Bm * 180. / Pi_                                               
+                    
+                    call AngleFromGridToField (AngleInGrid        = aux,                 &
+                                               Referential        = Me%AngleReferential,&
+                                               GridAngle          = 0.,                 &
+                                               AngleOutReferential= Bm)                     
+                    
+                endif                
+                
+                if (Me%CompareObservations) then                
+                    AverageObs = Bm
+                else
+                    AverageObs = Am                    
+                endif                
+                                
+                
+                                 
+            else
+                rcorr      = FillValueReal
+                rcorr_quad = FillValueReal
+                bias       = FillValueReal
+                rmse       = FillValueReal
+                z_fisher   = FillValueReal
+                alfa       = FillValueReal
+                beta_1     = FillValueReal
+                Am         = FillValueReal
+                Bm         = FillValueReal
+            endif
+            
+            do c=1, NCompare 
+                   
+                if (Me%AngleUnits == Degree_) then            
+                    aux =  TS(c) * 180. / Pi_                                                   
+                    call AngleFromGridToField (AngleInGrid        = aux,                &
+                                               Referential        = Me%AngleReferential,&
+                                               GridAngle          = 0.,                 &
+                                               AngleOutReferential= TS(c))                       
+
+                    aux =  CompareTS(c) * 180. / Pi_                                                   
+                    call AngleFromGridToField (AngleInGrid        = aux,                &
+                                               Referential        = Me%AngleReferential,&
+                                               GridAngle          = 0.,                 &
+                                               AngleOutReferential= CompareTS(c))                       
+
+                    DifTS(c)  =  DifTS(c) * 180. / Pi_                                                   
+                    
+
+                endif                    
+            enddo            
+            
+            write(Me%iCompare,*) "NAME                    : ", trim(Me%TimeSerieName)
+            write(Me%iCompare,*) "LOCALIZATION_I          : -999999"
+            write(Me%iCompare,*) "LOCALIZATION_J          : -999999"
+            write(Me%iCompare,*) "LOCALIZATION_K          : -999999"
+            
+            call ExtractDate(Me%BeginTime, Year, Month, Day, hour, minute, second)
+            
+            write(Me%iCompare,'(A26,5F6.0,1f8.2)')                                          &
+                                 "SERIE_INITIAL_DATA      : ", Year, Month, Day, hour, minute, second
+            write(Me%iCompare,*) "TIME_UNITS              : SECONDS"
+            write(Me%iCompare,*) "COORD_X                 : ", Me%CoordX
+            write(Me%iCompare,*) "COORD_Y                 : ", Me%CoordY
+            
+            write(Me%iCompare,*) "STDEV_OBS               : -999999" !, StdevObs
+            write(Me%iCompare,*) "AVERAGE_OBS             : ", AverageObs            
+            
+            write(Me%iCompare,*) "BIAS                    : ",Bias
+            write(Me%iCompare,*) "RMSE                    : -999999" !,RMSE
+            write(Me%iCompare,*) "Normalise RMSE [%]      : -999999" !,NRMSE            
+            write(Me%iCompare,*) "Unbias RMSE             : -999999" !",UB_RMSE
+            write(Me%iCompare,*) "Normalise unbias RMSE[%]: -999999" !",NUB_RMSE            
+            write(Me%iCompare,*) "rcorr                   : -999999" !",rcorr      
+            write(Me%iCompare,*) "NASH–SUTCLIFFE          : -999999" !",NashS
+            write(Me%iCompare,*) "SKILL                   : -999999" !",Skill         
+            
+            write(Me%iCompare,*) "rcorr_quad              : -999999" !",rcorr_quad 
+            write(Me%iCompare,*) "z_fisher                : -999999" !",z_fisher   
+            write(Me%iCompare,*) "alfa                    : -999999" !",alfa       
+            write(Me%iCompare,*) "beta_1                  : -999999" !",beta_1     
+            write(Me%iCompare,*) "Am                      : ",Am         
+            write(Me%iCompare,*) "Bm                      : ",Bm   
+            
+            write(Me%iCompare,*) "Total values compare    : ",Ncompare     
+            
+            
+            write(Me%iCompare,'(A35)') "Time TimeSerie CompareTimeSerie Dif"
+            
+            write(Me%iCompare,*) "<BeginTimeSerie>"         
+            
+            do c=1, NCompare        
+                write(Me%iCompare,*) TimeCompareTS(c), TS(c), CompareTS(c), DifTS(c)
+            enddo
+            
+            write(Me%iCompare,*) "<EndTimeSerie>"      
+            
+            deallocate(TimeCompareTS, CompareTS, DifTS, TS)   
+            
+            !Close Output files
+            call UnitsManager(Me%iCompare, FileClose, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop "TimeSeriesAnalyser - ModifyTimeSeriesCompare - ERR10"        
+
+        endif i1
+    
+    end subroutine ModifyTimeSeriesCompareAngle
+    
+    !--------------------------------------------------------------------------    
 
 
     subroutine estatistica(A, B, npt, rcorr, rcorr_quad, bias, rmse,z_fisher, alfa, beta_1,Am,Bm)
