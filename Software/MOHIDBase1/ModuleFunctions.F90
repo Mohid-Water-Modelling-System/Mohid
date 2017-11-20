@@ -5605,11 +5605,11 @@ d5:     do k = klast + 1,KUB
     
     subroutine TwoWayAssimilation2D(FatherProperty, SonProperty, Open3DFather, Open3DSon, KUBFather,        &
                                     IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, IConnect, Jconnect, DecayTime,  &
-                                    DT, TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon)
+                                    DT, TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather)
     !Arguments---------------------------------------------------------------------------------
     real,    dimension(:,:), pointer, intent(IN)        :: SonProperty
     integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
-    real,    dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon
+    real,    dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
     real,    dimension(:,:), pointer, intent(INOUT)     :: FatherProperty
     integer, dimension(:,:), pointer, intent(IN)        :: IConnect, Jconnect
     integer, intent(IN)                                 :: KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
@@ -5644,7 +5644,8 @@ d5:     do k = klast + 1,KUB
                 if (Open3DFather(i, j, KUBFather) == 1 .and. TotSonVolInFather(i, j, KUBFather) > 0 )then
                     FatherProperty(i, j) = FatherProperty(i, j) + (AuxMatrix(i, j) /                      &
                                            TotSonVolInFather(i, j, KUBFather) - FatherProperty(i, j)) *   &
-                                           (DT / DecayTime)
+                                           (DT / DecayTime) * (TotSonVolInFather(i, j, KUBFather) /       &
+                                           VolumeZFather(i, j, KUBFather))
                 endif
             enddo
         enddo
@@ -5664,9 +5665,9 @@ d5:     do k = klast + 1,KUB
     subroutine TwoWayAssimilation3D(FatherProperty,SonProperty, Open3DFather, Open3DSon,  &
                                     KUBFather, KLBFather, IUBSon, ILBSon, JUBSon, JLBSon, &
                                     KUBSon, KLBSon, IConnect, Jconnect, DecayTime, DT,    &
-                                    TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon) 
+                                    TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather) 
     !Arguments---------------------------------------------------------------------------------
-    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty, VolumeZSon
+    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty, VolumeZSon, VolumeZFather
     real,    dimension(:,:,:), pointer, intent(INOUT)   :: FatherProperty
     integer, dimension(:,:),   pointer, intent(IN)      :: IConnect, Jconnect
     integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
@@ -5692,25 +5693,26 @@ d5:     do k = klast + 1,KUB
         !Right upper corner
         FatherCopyCorners(4, k) = FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1, k)
     enddo
-    
+    !Paralelizar! João Sobrinho
     do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
             do i = ILBSon, IUBSon
-                if (Open3DSon(i, j, k) == 1)then      
+                if (Open3DSon(i, j, k) == 1)then
+                    !For each Parent cell, add all son cells located inside (sonProp * sonVol)
                     AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) = AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) + &
                                                                       SonProperty(i, j, k) * VolumeZSon(i, j, k)
                 endif
             enddo        
         enddo
     enddo
-
+    !Paralelizar! João Sobrinho
     do k = KLBFather, KUBFather
         do j = Jconnect(1, 1)+1, Jconnect(IUBSon, JUBSon)+1
             do i = IConnect(1, 1)+1, IConnect(IUBSon, JUBSon)+1
                 if (Open3DFather(i, j, k) == 1 .and. TotSonVolInFather(i, j, k) > 0. )then
                     FatherProperty(i, j, k) = FatherProperty(i, j, k) + &
                                               (AuxMatrix(i, j, k) / TotSonVolInFather(i, j, k) - FatherProperty(i, j, k)) * &
-                                              (DT / DecayTime)
+                                              (DT / DecayTime) * (TotSonVolInFather(i, j, k) / VolumeZFather(i, j, k))
                 endif
                 
             enddo

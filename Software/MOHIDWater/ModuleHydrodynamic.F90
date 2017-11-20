@@ -7873,7 +7873,7 @@ cd21:   if (Baroclinic) then
             if (STAT_CALL /= SUCCESS_)                                                      &
                 call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1250')
         endif
-
+        ! Increases the water level provided by the parent domain.
         if (Me%SubModel%ON) then
             call GetData(Me%Submodel%WaterLevelIncrease,                                   &
                         Me%ObjEnterData, iflag,                                            &
@@ -21275,7 +21275,7 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
 					          Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
 	        stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'			  
-    
+        !Paralelizar! João Sobrinho
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%External_Var%WaterPoints2D(i, j) == 1)then
@@ -48938,7 +48938,6 @@ do5:            do i = ILB, IUB
             ready_ = OFF_ERR_
         end if
     
-    
     end subroutine ReadySon
     
     !João Sobrinho - takes submodel variables and updates father domain
@@ -48949,7 +48948,7 @@ do5:            do i = ILB, IUB
         integer, intent(IN)                               :: SonHydrodynamicID
         integer, dimension(:,:), pointer                  :: IV, JV
         integer, dimension(:,:,:), pointer                :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer                :: VolumeZSon
+        real,    dimension(:,:,:), pointer                :: VolumeZSon, VolumeZFather !João Sobrinho
         type (T_Hydrodynamic), pointer                    :: ObjHydrodynamicSon
         integer                                           :: status, STAT_, ready_son, i, j, k
         integer, optional, intent(OUT)                    :: STAT
@@ -48997,9 +48996,14 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
             AuxHydrodynamicID = Me%InstanceID         ! Change ID to Father
             
             call GetOpenPoints3D(AuxHydrodynamicID, Open3DFather, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR05")
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR05")
+
+            call GetGeometryVolumes(AuxHydrodynamicID, VolumeZ = VolumeZFather,                  &
+                        STAT = status)
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR06")!João Sobrinho
             
             call SetMatrixValue( Me%TotSonVolInFather, Me%WorkSize, 0.0)
+            !paralelizar! João Sobrinho
             do k = KLBSon, KUBSon
                 do j = JLBSon, JUBSon
                     do i = ILBSon, IUBSon
@@ -49017,49 +49021,50 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
             call TwoWayAssimilation(Me%Velocity%Horizontal%U%New, ObjHydrodynamicSon%Velocity%Horizontal%U%New,       &
                                     Open3DFather, Open3DSon, KUB, KLB, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon,        &
                                     KLBSon, IV, JV, ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,    &
-                                    Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon)
+                                    Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon, VolumeZFather)
             
             call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
            
             call TwoWayAssimilation(Me%Velocity%Horizontal%V%New, ObjHydrodynamicSon%Velocity%Horizontal%V%New,       &
                                     Open3DFather, Open3DSon, KUB, KLB, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, KLBSon,&
                                     IV, JV, ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,            &
-                                    Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon)
+                                    Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon, VolumeZFather)
             
             call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
            
             call TwoWayAssimilation(Me%Velocity%Vertical%Cartesian, ObjHydrodynamicSon%Velocity%Vertical%Cartesian,   &
                                     Open3DFather, Open3DSon, KUB, KLB, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, KLBSon,&
                                     IV, JV, ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,             &
-                                    Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon)
+                                    Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon, VolumeZFather)
             
-            call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
+            call SetMatrixValue( Me%AuxWaterLevel, Me%WorkSize2D, 0.0)
            
             call TwoWayAssimilation(Me%WaterLevel%New, ObjHydrodynamicSon%WaterLevel%New, Open3DFather, Open3DSon,    &
                                 KUB, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, IV, JV,                                  &
                                 ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT, Me%TotSonVolInFather,  &
-                                Me%AuxWaterLevel, Me%Corners, VolumeZSon)
-            
-            call SetMatrixValue( Me%AuxWaterLevel, Me%WorkSize2D, 0.0)
+                                Me%AuxWaterLevel, Me%Corners, VolumeZSon, VolumeZFather)     
            
             AuxHydrodynamicID = SonHydrodynamicID        ! Change ID to Son
            
             call UngetHorizontalGrid(AuxHydrodynamicID, IV, STAT = status)
-             if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR06")
+             if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR07")
             
             call UngetHorizontalGrid(AuxHydrodynamicID, JV, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR07")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR08")
             
             call UnGetGeometry(AuxHydrodynamicID, VolumeZSon, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR08")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR09")
      
             call UnGetMap(AuxHydrodynamicID, Open3DSon, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR09")            
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR10")            
             
             AuxHydrodynamicID = Me%InstanceID  ! Change ID to Father
             
             call UnGetMap(AuxHydrodynamicID, Open3DFather, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR10")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR11")
+
+            call UnGetGeometry(AuxHydrodynamicID, VolumeZFather, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UpdateFatherModel - Hydrodynamic - ERR12")
 
             if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")           
            

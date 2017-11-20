@@ -18986,7 +18986,7 @@ do1 :   do while (associated(PropertyX))
         integer                                 :: KLBSon, SonWaterPropertiesID, STAT_CALL, FatherWaterPropertiesID
         integer, dimension(:,:), pointer        :: IV, JV
         integer, dimension(:,:,:), pointer      :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer      :: VolumeZSon
+        real,    dimension(:,:,:), pointer      :: VolumeZSon, VolumeZFather
         type (T_WaterProperties), pointer       :: ObjWaterPropertiesSon
         type (T_Property), pointer              :: PropertyX, PropertySon
         
@@ -19015,7 +19015,10 @@ do1 :   do while (associated(PropertyX))
         call GetMapInformation(SonWaterPropertiesID, FatherWaterPropertiesID, IV, JV, Open3DFather, Open3DSon)
 
         call GetGeometryVolumes(SonWaterPropertiesID, VolumeZ = VolumeZSon, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) call CloseAllAndStop ('CalcNewDT - ModuleWaterProperties - ERR30') 
+            if (STAT_CALL .NE. SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR01')
+
+        call GetGeometryVolumes(FatherWaterPropertiesID, VolumeZ = VolumeZFather, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR02') 
         
         call Get2WayAuxVariables(FatherWaterPropertiesID,                      & 
                             SonVolumeInFatherCell   = Me%ExternalVar%TotSonVolInFather,    &
@@ -19024,7 +19027,7 @@ do1 :   do while (associated(PropertyX))
                             STAT                    = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)then
             write(*,*) 'Error getting auxiliar Matrixes from hydrodynamic to waterproperties, for 2way'
-            call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR01')
+            call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR03')
         endif
               
         !Assimilates all the properties with twoway option ON
@@ -19041,13 +19044,14 @@ do1 :   do while (associated(PropertyX))
                                                 Open3DFather, Open3DSon, KUB, KLB, IUBSon, ILBSon, JUBSon, JLBSon,   &
                                                 KUBSon, KLBSon, IV, JV, PropertySon%Submodel%TwoWayAssimCoef,        &
                                                 PropertyX%Evolution%DtInterval, Me%ExternalVar%TotSonVolInFather,    &
-                                                Me%ExternalVar%Aux2Way, Me%ExternalVar%Corners, VolumeZSon)          
+                                                Me%ExternalVar%Aux2Way, Me%ExternalVar%Corners, VolumeZSon,          &
+                                                VolumeZFather)          
                     endif  
                 endif   
             else   
                 write(*,*)'Cant find property in submodel for the 2way algorithm'
                 write(*,*)'Property missing = ', trim(PropertySon%ID%Name)
-                call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR02')
+                call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR04')
             endif
                 
             nullify (PropertySon) 
@@ -19058,18 +19062,21 @@ do1 :   do while (associated(PropertyX))
         nullify (PropertyX)
         
         call UngetHydrodynamic(FatherWaterPropertiesID, Me%ExternalVar%TotSonVolInFather, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR03')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR05')
         
         call UngetHydrodynamic(FatherWaterPropertiesID, Me%ExternalVar%Aux2Way, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR04')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR06')
         
         call UngetHydrodynamic(FatherWaterPropertiesID, Me%ExternalVar%Corners, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR05')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR07')
                    
         call UngetMapInformation(SonWaterPropertiesID, FatherWaterPropertiesID, IV, JV, Open3DFather, Open3DSon)
         
         call UnGetGeometry(SonWaterPropertiesID, VolumeZSon, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Subroutine UpdateFatherModelWP - ModuleWaterProperties. ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine UpdateFatherModelWP - ModuleWaterProperties. ERR08'
+        
+        call UnGetGeometry(SonWaterPropertiesID, VolumeZSon, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine UpdateFatherModelWP - ModuleWaterProperties. ERR09'
                    
     if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
     
