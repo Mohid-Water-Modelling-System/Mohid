@@ -160,9 +160,9 @@ Module ModuleHDF5ToASCIIandBIN
         !Local-------------------------------------------------------------------
         real, dimension(:  ), pointer                   :: AuxTime
         real, dimension(:,:), pointer                   :: Aux2DNext, Aux2DPrev, Aux2D
-        integer                                         :: l, p, STAT_CALL, FirstInstant
+        integer                                         :: ninst, p, STAT_CALL, FirstInstant
         type (T_Time)                                   :: NextTime, PrevTime, NowTime
-        logical                                         :: FirstProp
+        logical                                         :: FirstProp, FirstInstantSet
         !------------------------------------------------------------------------
 
         STAT = UNKNOWN_
@@ -230,7 +230,7 @@ i11:    if (Me%OutPutOption == WW3_) then
 
 i12:        if (Me%StartEndWaveWatch3 == 1) then
 
-d13:            do l = 1, Me%TotalDates
+d13:            do ninst = 1, Me%TotalDates
 
                     call HDF5SetLimits(Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
                     
@@ -239,17 +239,18 @@ d13:            do l = 1, Me%TotalDates
                                            "/Time",                                                 &
                                            "Time",                                                  &
                                            Array1D      = AuxTime,                                  &
-                                           OutputNumber = l,                                        &
+                                           OutputNumber = ninst,                                        &
                                            STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR40'
 
                         call SetDate(NowTime, AuxTime(1), AuxTime(2), AuxTime(3), AuxTime(4), AuxTime(5), AuxTime(6))
                         
 i13:                    if (NowTime.EQ.Me%StartTime) then
-                            FirstInstant = l 
+                            FirstInstant = ninst 
+                            FirstInstantSet = .TRUE. 
 !                            Me%TotalDates = Me%OutPut%Number                       
 !                            exit
-                        else
+                        elseif (FirstInstantSet == .FALSE.) then
                         
                             FirstInstant = 1
                         
@@ -257,7 +258,7 @@ i13:                    if (NowTime.EQ.Me%StartTime) then
                         
 i14:                    if (NowTime.EQ.Me%EndTime) then
 !                            FirstInstant = l 
-                            Me%TotalDates = l                       
+                            Me%TotalDates = ninst                       
                             exit
                         endif i14
                     
@@ -269,7 +270,7 @@ i14:                    if (NowTime.EQ.Me%EndTime) then
 
             endif i12
 
-d11:        do l = FirstInstant, Me%TotalDates
+d11:        do ninst = FirstInstant, Me%TotalDates
 
                 call HDF5SetLimits(Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR50'
@@ -279,7 +280,7 @@ d11:        do l = FirstInstant, Me%TotalDates
                                    "/Time",                                                 &
                                    "Time",                                                  &
                                    Array1D      = AuxTime,                                  &
-                                   OutputNumber = l,                                        &
+                                   OutputNumber = ninst,                                    &
                                    STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR60'
 
@@ -297,7 +298,7 @@ d11:        do l = FirstInstant, Me%TotalDates
                                            "/Results/"//trim(Me%PropsName(p)),                          &
                                            trim(Me%PropsName(p)),                                       &
                                            Array2D      = Aux2D,                                        &
-                                           OutputNumber = l,                                            &
+                                           OutputNumber = ninst,                                            &
                                            STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)stop 'OutputWW3ASCII - ModuleHDF5ToASCIIandBIN - ERR80'
 
@@ -314,18 +315,18 @@ d11:        do l = FirstInstant, Me%TotalDates
         else 
                     
             
-    d1:     do l = 1, Me%TotalDates - 1
+    d1:     do ninst = 1, Me%TotalDates - 1
 
                 call HDF5SetLimits(Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ConvertHDF5ToASCIIandBIN - ModuleHDF5ToASCIIandBIN - ERR10'
 
-                if (l==1) then
+                if (ninst==1) then
 
                     call HDF5ReadData(Me%ObjHDF5,                                               &
                                        "/Time",                                                 &
                                        "Time",                                                  &
                                        Array1D      = AuxTime,                                  &
-                                       OutputNumber = l,                                        &
+                                       OutputNumber = ninst,                                        &
                                        STAT         = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)stop 'ConvertHDF5ToASCIIandBIN - ModuleHDF5ToASCIIandBIN - ERR20'
 
@@ -343,7 +344,7 @@ d11:        do l = FirstInstant, Me%TotalDates
                                    "/Time",                                                 &
                                    "Time",                                                  &
                                    Array1D      = AuxTime,                                  &
-                                   OutputNumber = l+1,                                       &
+                                   OutputNumber = ninst+1,                                       &
                                    STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConvertHDF5ToASCIIandBIN - ModuleHDF5ToASCIIandBIN - ERR30'
 
@@ -359,10 +360,10 @@ d11:        do l = FirstInstant, Me%TotalDates
                         !shortcut to process files
                         if (Me%JoinVectorialProp .and. p == Me%NumberProps) then
                             if (Me%OutPutOption < Mohid_) then
-                                call OutputSwanASCIIVectorial (trim(Me%PropsName(p)), NextTime, l, p) 
+                                call OutputSwanASCIIVectorial (trim(Me%PropsName(p)), NextTime, ninst, p) 
                             endif
                         else
-                            call OutputFields     (Aux2D, Aux2DNext, Aux2DPrev, NextTime, PrevTime, l, p)
+                            call OutputFields     (Aux2D, Aux2DNext, Aux2DPrev, NextTime, PrevTime, ninst, p)
                         endif
                 
 

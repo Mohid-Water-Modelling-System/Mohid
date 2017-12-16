@@ -127,10 +127,10 @@ Module ModuleStatistic
         real, dimension(:, :   ), pointer           :: GeomAverage2D        => null() !inicialization: Carina
         real, dimension(:, :   ), pointer           :: SquareGeomAverage2D  => null() !inicialization: Carina
         real, dimension(:, :   ), pointer           :: GeomStandardDeviation2D => null() !inicialization: Carina
-        real, dimension(:, :   ), pointer           :: Accumulated2D       => null() !inicialization: Carina
+        real, dimension(:, :   ), pointer           :: Accumulated2D         => null() !inicialization: Carina
         !guillaume juan
         real, dimension(:, :   ), pointer           :: PercentBelowCriticalValue2D => null() !inicialization: Carina
-
+        
         real                                        :: RunPeriod    = null_real !inicialization: Carina
         integer                                     :: OutputNumber = null_int !inicialization: Carina
         type (T_Time)                               :: LastCalculation
@@ -154,7 +154,7 @@ Module ModuleStatistic
         real,    dimension(:,:,: ), pointer         :: LowerLayer  => null() !inicialization: Carina
 
         !The average value in the layer
-        real,    dimension(:,:,: ), pointer         :: Value  => null() !inicialization: Carina
+        real,    dimension(:,:,: ), pointer         :: Value     => null() !inicialization: Carina
 
         !if exist one water point between the layer limits than WaterPoints2D (i, j) = 1
         integer, dimension(:,:,: ), pointer         :: WaterPoints  => null() !inicialization: Carina
@@ -170,8 +170,8 @@ Module ModuleStatistic
         type (T_Time    )                           :: Now
         type (T_Size3D  )                           :: Size
         type (T_Size3D  )                           :: WorkSize
-        real,    dimension(:, :, :), pointer        :: Value3D  => null() !inicialization: Carina
-        real,    dimension(:, :   ), pointer        :: Value2D  => null() !inicialization: Carina
+        real,    dimension(:, :, :), pointer        :: Value3D     => null() !inicialization: Carina
+        real,    dimension(:, :   ), pointer        :: Value2D     => null() !inicialization: Carina
     end type T_ExternalVar
 
 
@@ -221,9 +221,9 @@ Module ModuleStatistic
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructStatistic (StatisticID, ObjTime, ObjHDF5,                        &
-                                   Size, WorkSize, DataFile, Name, GroupName, Rank, STAT)
-
+    subroutine ConstructStatistic (StatisticID, ObjTime, ObjHDF5,                              &
+                                   Size, WorkSize, DataFile, Name, GroupName, Rank,            &
+                                   STAT)
         !Arguments-------------------------------------------------------------
         integer                                     :: StatisticID
         integer                                     :: ObjTime
@@ -297,7 +297,7 @@ Module ModuleStatistic
             
             endif
             
-
+!João Sobrinho
             if (Me%Methodology == Value3DStatLayers_) then
                 call AllocateLayerMatrixes
             endif
@@ -569,7 +569,9 @@ Module ModuleStatistic
         
         Me%Classification%On = .false.
         nullify (Me%Classification%Classes)
-        nullify (Me%Classification%Frequency  )
+        
+            nullify (Me%Classification%Frequency)            
+        
         nullify (Me%Classification%Frequency2D)
 
 
@@ -653,7 +655,6 @@ cd1:    if (BlockFound) then
     subroutine AllocateLayerMatrixes
 
         !Arguments-------------------------------------------------------------
-
         !Local-----------------------------------------------------------------
         integer                                     :: ILB, IUB, i    
         integer                                     :: JLB, JUB    
@@ -664,12 +665,12 @@ cd1:    if (BlockFound) then
         JLB = Me%ExternalVar%Size%JLB
         JUB = Me%ExternalVar%Size%JUB
 
- 
         allocate (Me%Layers%Value      (ILB:IUB, JLB:JUB, 1:Me%Layers%Number))
-        allocate (Me%Layers%WaterPoints(ILB:IUB, JLB:JUB, 1:Me%Layers%Number))
+            
+        Me%Layers%Value(:,:,:) = FillValueReal      
         
+        allocate (Me%Layers%WaterPoints(ILB:IUB, JLB:JUB, 1:Me%Layers%Number))
 
-        Me%Layers%Value        (:,:,:) = FillValueReal
         Me%Layers%WaterPoints  (:,:,:) = FillValueInt
 
         allocate (Me%Layers%UpperDepth(ILB:IUB, JLB:JUB, 1:Me%Layers%Number))
@@ -718,7 +719,7 @@ cd1:    if (BlockFound) then
 
 
         if   (Me%Methodology == Value3DStat3D_) then
-
+      
             allocate (Statistic%Minimum          (ILB:IUB, JLB:JUB, KLB:KUB))
             allocate (Statistic%Maximum          (ILB:IUB, JLB:JUB, KLB:KUB))
             allocate (Statistic%Average          (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -750,10 +751,9 @@ cd1:    if (BlockFound) then
             if (Me%Critical) then           
                 allocate (Statistic%PercentBelowCriticalValue (ILB:IUB, JLB:JUB, KLB:KUB))  
                 Statistic%PercentBelowCriticalValue = + FillValueReal
-            endif
+            endif                
 
         else if   (Me%Methodology == Value3DStatLayers_) then
-
 
             allocate (Statistic%Minimum          (ILB:IUB, JLB:JUB, 1:Me%Layers%Number))
             allocate (Statistic%Maximum          (ILB:IUB, JLB:JUB, 1:Me%Layers%Number))
@@ -786,7 +786,7 @@ cd1:    if (BlockFound) then
             if (Me%Critical) then           
                 allocate (Statistic%PercentBelowCriticalValue (ILB:IUB, JLB:JUB, 1:Me%Layers%Number))  
                 Statistic%PercentBelowCriticalValue = + FillValueReal
-            endif
+            endif      
 
         else if   (Me%Methodology == Value2DStat2D_) then
 
@@ -854,20 +854,19 @@ cd1:    if (BlockFound) then
 
 
         if   (Me%Methodology == Value3DStat3D_) then
+            
 
             allocate (Me%Classification%Frequency  (ILB:IUB, JLB:JUB, KLB:KUB, 1:nClasses))
                                                              
-
             Me%Classification%Frequency(:,:,:,:) = 0.
 
 
         else if   (Me%Methodology == Value3DStatLayers_) then
 
-
             allocate (Me%Classification%Frequency  (ILB:IUB, JLB:JUB, 1:Me%Layers%Number, 1:nClasses))
-                                     
-
+                                                             
             Me%Classification%Frequency(:,:,:,:) = 0.
+
 
         else if   (Me%Methodology == Value2DStat2D_) then
 
@@ -1092,13 +1091,13 @@ cd2 :            if (BlockFound) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyStatistic (StatisticID, Value2D, Value3D, WaterPoints2D,            &
+    subroutine ModifyStatistic (StatisticID, Value2D, Value3D, WaterPoints2D,   &
                                 WaterPoints3D, Now, STAT)
-
         !Arguments---------------------------------------------------------------
         integer                                        :: StatisticID
         real,    dimension(:, :   ), pointer, optional :: Value2D
         real,    dimension(:, :, :), pointer, optional :: Value3D
+        !real(4), dimension(:, :, :), pointer, optional :: Value3D_R4
         integer, dimension(:, :   ), pointer, optional :: WaterPoints2D
         integer, dimension(:, :, :), pointer, optional :: WaterPoints3D
         type (T_Time    ),                    optional :: Now
@@ -1140,7 +1139,7 @@ cd2 :            if (BlockFound) then
             endif
 
             if (Me%Methodology == Value3DStat3D_) then
-            
+
                 if (present(Value3D)) then
 
                     Me%ExternalVar%Value3D => Value3D
@@ -1149,30 +1148,31 @@ cd2 :            if (BlockFound) then
 
                     nullify(Me%ExternalVar%Value3D)
 
-                    STAT_ = SUCCESS_
+                    STAT_ = SUCCESS_                  
+                    
                 else
 
                     STAT_ = UNKNOWN_
 
                 endif
-
+                
             endif
 
 
             if (Me%Methodology == Value3DStatLayers_) then
-            
+            !João Sobrinho------------------------------------------------------------
                 if (present(Value3D)) then
                 
                     call StatisticAnalysis3D (WaterPoints3D)
 
                     STAT_ = SUCCESS_
+                    
                 else
 
                     STAT_ = UNKNOWN_
 
                 endif
 
-                
             endif
 
         else
@@ -1189,13 +1189,12 @@ cd2 :            if (BlockFound) then
 
     !--------------------------------------------------------------------------
             
-    subroutine AddStatisticLayers (StatisticID, Value3D, WaterPoints3D, DZ3D,            &
+    subroutine AddStatisticLayers (StatisticID, Value3D, WaterPoints3D, DZ3D,          &
                                    LayerNumber, UpperDepth, LowerDepth, UpperLayer,      &
                                    LowerLayer, Now, STAT)
-
         !Arguments---------------------------------------------------------------
         integer                                         :: StatisticID
-        real,    dimension(:, :, :), pointer            :: Value3D
+        real,    dimension(:, :, :), pointer, optional  :: Value3D
         integer, dimension(:, :, :), pointer            :: WaterPoints3D
         real,    dimension(:, :, :), pointer            :: DZ3D
         integer                                         :: LayerNumber
@@ -1231,9 +1230,12 @@ cd2 :            if (BlockFound) then
                         if (present(UpperDepth))                                         &
                             Me%Layers%UpperDepth(:,:, LayerNumber) = UpperDepth(:,:)
                         if (present(LowerDepth))                                         &
-                            Me%Layers%LowerDepth(:,:, LayerNumber) = LowerDepth(:,:) 
+                            Me%Layers%LowerDepth(:,:, LayerNumber) = LowerDepth(:,:)
 
-                        call AverageValueBetweenDepths(Value3D, WaterPoints3D, DZ3D, LayerNumber)
+
+                        call AverageValueBetweenDepths(Value3D = Value3D, WaterPoints3D = WaterPoints3D,       &
+                                                        DZ3D = DZ3D, LayerNumber = LayerNumber)
+
 
                     else if (Me%Layers%Definition(LayerNumber) == Layer_) then
 
@@ -1241,8 +1243,10 @@ cd2 :            if (BlockFound) then
                             Me%Layers%UpperLayer(:,:, LayerNumber) = UpperLayer(:,:)
                         if (present(LowerLayer))                                         &
                             Me%Layers%LowerLayer(:,:, LayerNumber) = LowerLayer(:,:) 
+                        
 
-                        call AverageValueBetweenLayers(Value3D, WaterPoints3D, DZ3D, LayerNumber)
+                        call AverageValueBetweenLayers(Value3D = Value3D, WaterPoints3D = WaterPoints3D,       &
+                                                        DZ3D = DZ3D, LayerNumber = LayerNumber)
 
                     endif
 
@@ -1270,12 +1274,12 @@ cd2 :            if (BlockFound) then
     !--------------------------------------------------------------------------
             
     subroutine AverageValueBetweenDepths(Value3D, WaterPoints3D, DZ3D, LayerNumber)
-
+    
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), pointer           :: Value3D
-        integer, dimension(:, :, :), pointer        :: WaterPoints3D
-        real, dimension(:, :, :), pointer           :: DZ3D
-        integer                                     :: LayerNumber
+        real,    dimension(:, :, :), pointer           :: Value3D
+        integer, dimension(:, :, :), pointer           :: WaterPoints3D
+        real,    dimension(:, :, :), pointer           :: DZ3D
+        integer                                        :: LayerNumber
 
         !Local-----------------------------------------------------------------
         real                                        :: DepthTopLayer, DepthBottomLayer,  &
@@ -1329,9 +1333,9 @@ cd2 :            if (BlockFound) then
 
                     if ((DZ_Total + DZ)>0 ) then
 
-                         Me%Layers%Value(i, j, LayerNumber) =                   &
+                            Me%Layers%Value(i, j, LayerNumber) =                   &
                         (Me%Layers%Value(i, j, LayerNumber) * DZ_Total +        &
-                         Value3D(i, j, k) * DZ) / (DZ_Total + DZ)
+                            Value3D(i, j, k) * DZ) / (DZ_Total + DZ)
 
                     else
 
@@ -1349,8 +1353,7 @@ cd2 :            if (BlockFound) then
             enddo
 
         enddo
-        enddo
-
+        enddo            
 
     end subroutine AverageValueBetweenDepths
 
@@ -1359,10 +1362,10 @@ cd2 :            if (BlockFound) then
     subroutine AverageValueBetweenLayers(Value3D, WaterPoints3D, DZ3D, LayerNumber)
 
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), pointer           :: Value3D
-        integer, dimension(:, :, :), pointer        :: WaterPoints3D
-        real, dimension(:, :, :), pointer           :: DZ3D
-        integer                                     :: LayerNumber
+        real,    dimension(:, :, :), pointer           :: Value3D
+        integer, dimension(:, :, :), pointer           :: WaterPoints3D
+        real,    dimension(:, :, :), pointer           :: DZ3D
+        integer                                        :: LayerNumber
 
         !Local-----------------------------------------------------------------
         real                                        :: DepthTopLayer, DepthBottomLayer,  &
@@ -1379,7 +1382,7 @@ cd2 :            if (BlockFound) then
         JLB = Me%ExternalVar%WorkSize%JLB
         JUB = Me%ExternalVar%WorkSize%JUB
         KUB = Me%ExternalVar%WorkSize%KUB
-
+        
 
         do j = JLB, JUB
         do i = ILB, IUB
@@ -1403,7 +1406,7 @@ cd2 :            if (BlockFound) then
 
                     Me%Layers%Value(i, j, LayerNumber) =                           &
                         (Me%Layers%Value(i, j, LayerNumber) * DZ_Total +           &
-                         Value3D(i, j, k) * DZ3D(i, j, k)) / (DZ_Total + DZ3D(i, j, k))
+                            Value3D(i, j, k) * DZ3D(i, j, k)) / (DZ_Total + DZ3D(i, j, k))
 
             
                     DZ_Total = DZ_Total + DZ3D(i, j, k)
@@ -1416,7 +1419,7 @@ cd2 :            if (BlockFound) then
 
         enddo
         enddo
-
+        
     end subroutine AverageValueBetweenLayers
 
     !--------------------------------------------------------------------------
@@ -1478,7 +1481,64 @@ cd2 :            if (BlockFound) then
             nullify(lWaterPoints3D)
 
     end subroutine StatisticAnalysis3D
-
+!------------------------------------------------------------------------------------------------------
+    !subroutine StatisticAnalysis3D_R4 (WaterPoints3D)
+    !
+    !    !Arguments-------------------------------------------------------------
+    !    integer, dimension(:, :, :), pointer        :: WaterPoints3D
+    !
+    !    !Local-----------------------------------------------------------------
+    !    real(4), dimension(:, :, :), pointer        :: Value3D_R4
+    !    integer                                     :: KLB, KUB
+    !    integer, dimension(:, :, :), pointer        :: lWaterPoints3D
+    !
+    !    !Begin-----------------------------------------------------------------
+    !
+    !        if (Me%Methodology == Value3DStat3D_) then
+    !
+    !            Value3D_R4     => Me%ExternalVar%Value3D_R4
+    !            lWaterPoints3D => WaterPoints3D
+    !            KLB            =  Me%ExternalVar%WorkSize%KLB
+    !            KUB            =  Me%ExternalVar%WorkSize%KUB
+    !
+    !        else if (Me%Methodology == Value3DStatLayers_) then
+    !
+    !            Value3D_R4     => Me%Layers%Value_R4
+    !            lWaterPoints3D => Me%Layers%WaterPoints
+    !            KLB            =  1
+    !            KUB            =  Me%Layers%Number
+    !
+    !        endif
+    !
+    !        !Global
+    !        if (Me%Global%On) then
+    !            call ModifyGlobalStatistic_R4  (Value3D_R4, lWaterPoints3D, KLB, KUB)
+    !        endif
+    !
+    !        !Daily
+    !        if (Me%Daily%On) then
+    !            call ModifyDailyStatistic_R4   (Value3D_R4, lWaterPoints3D, KLB, KUB)
+    !        endif
+    !        
+    !        !Monthly
+    !        if (Me%Monthly%On) then
+    !            call ModifyMonthlyStatistic_R4 (Value3D_R4, lWaterPoints3D, KLB, KUB)
+    !        endif
+    !
+    !       !SpecificHour
+    !        if (Me%SpecificHour%On) then
+    !            call ModifySpecificHourStatistic_R4 (Value3D_R4, lWaterPoints3D, KLB, KUB)
+    !        endif
+    !
+    !        !Classification
+    !        if (Me%Classification%On) then
+    !            call ModifyClassification_R4   (Value3D_R4, lWaterPoints3D, KLB, KUB)
+    !        endif
+    !
+    !        nullify(Value3D_R4)
+    !        nullify(lWaterPoints3D)
+    !
+    !end subroutine StatisticAnalysis3D_R4
     !--------------------------------------------------------------------------
 
     subroutine StatisticAnalysis2D (Value2D, WaterPoints2D)
@@ -1640,7 +1700,130 @@ cd1:    if (DT>0) then
     end subroutine ModifyGlobalStatistic
 
     !--------------------------------------------------------------------------
-
+!    subroutine ModifyGlobalStatistic_R4 (Value_R4, WaterPoints3D, KLB, KUB)
+!
+!        !Arguments-------------------------------------------------------------
+!        real(4),    dimension(:, :, :), pointer     :: Value_R4
+!        integer, dimension(:, :, :), pointer        :: WaterPoints3D
+!        integer                                     :: KLB, KUB
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: ILB, IUB, i
+!        integer                                     :: JLB, JUB, j
+!        integer                                     :: k
+!        real                                        :: DT 
+!        real(4)                                     :: AuxValue, DX
+!
+!        !Shorten
+!        ILB = Me%ExternalVar%WorkSize%ILB
+!        IUB = Me%ExternalVar%WorkSize%IUB
+!        JLB = Me%ExternalVar%WorkSize%JLB
+!        JUB = Me%ExternalVar%WorkSize%JUB
+!
+!
+!        !Time since last calculation 
+!        DT  = Me%ExternalVar%Now - Me%Global%LastCalculation
+!
+!cd1:    if (DT>0) then
+!
+!        !Loops
+!        do k = KLB, KUB
+!        do j = JLB, JUB
+!        do i = ILB, IUB
+!            if (WaterPoints3D(i, j, k) == WaterPoint) then
+!
+!                !Minimum Value
+!                if (Value_R4 (i, j, k) < Me%Global%Minimum_R4 (i, j, k))          &
+!                    Me%Global%Minimum_R4 (i, j, k) = Value_R4 (i, j, k)
+!
+!                !Maximum Value
+!                if (Value_R4 (i, j, k) > Me%Global%Maximum_R4 (i, j, k))          &
+!                    Me%Global%Maximum_R4 (i, j, k) = Value_R4 (i, j, k)
+!
+!                !Average
+!                Me%Global%Average_R4 (i, j, k) =                               &
+!                    (Me%Global%Average_R4 (i, j, k) *                          &
+!                     Me%Global%RunPeriod      +                             &
+!                     Value_R4 (i, j, k) * DT) / (Me%Global%RunPeriod + DT)
+!
+!                !Square Average
+!                Me%Global%SquareAverage_R4 (i, j, k) =                         &
+!                    (Me%Global%SquareAverage_R4 (i, j, k) *                    &
+!                     Me%Global%RunPeriod      +                             &
+!                     Value_R4 (i, j, k)**2 * DT) / (Me%Global%RunPeriod + DT)
+!
+!                !Standard deviation
+!                DX = Me%Global%SquareAverage_R4 (i, j, k) -                    &
+!                     Me%Global%Average_R4       (i, j, k) ** 2
+!
+!                DX = abs(DX) 
+!
+!                Me%Global%StandardDeviation_R4(i, j, k) = sqrt(DX)
+!
+!                !Accumulated Values
+!                if (Me%Accumulated)                                                     &
+!                    Me%Global%Accumulated_R4 (i,j,k) = Me%Global%Accumulated_R4 (i,j,k)       &
+!                                                  + Value_R4 (i, j, k) 
+!
+!                if (Me%GeomMean) then !Geometric Average to calculate
+!                    !Geometric Average
+!                    AuxValue = Value_R4 (i, j, k)
+!                    if (AuxValue == 0.0) then
+!                        AuxValue = 1.0                   
+!                    elseif (AuxValue .lt. 0.0) then                   
+!                        write(*,*) 'Negative valued property.'
+!                        write(*,*) 'Geometric Average cannot be calculated.'
+!                        stop 'ModifyGlobalStatistic_R4 - ModuleStatistic - ERR01'
+!                    endif
+!                 
+!                    Me%Global%GeomAverage_R4 (i, j, k) = 10**                  &
+!                        ((LOG10(Me%Global%GeomAverage_R4 (i, j, k)) *          &
+!                        Me%Global%RunPeriod      +                          &
+!                        LOG10(AuxValue) * DT) / (Me%Global%RunPeriod + DT))
+!
+!                    !Squared Geometric Average
+!                    Me%Global%SquareGeomAverage_R4 (i, j, k) =                 &
+!                        (Me%Global%SquareGeomAverage_R4 (i, j, k) *            &
+!                        Me%Global%RunPeriod      +                          &
+!                        AuxValue**2 * DT) / (Me%Global%RunPeriod + DT)
+!
+!                    !Geometric Standard Deviation
+!                    DX = Me%Global%SquareGeomAverage_R4 (i, j, k) -            &
+!                         Me%Global%GeomAverage_R4       (i, j, k) ** 2
+!
+!                    DX = abs(DX) 
+!
+!                    Me%Global%GeomStandardDeviation_R4(i, j, k) = sqrt(DX)
+!
+!                endif
+!
+!                !guillaume juan
+!                if (Me%Critical .and. (Value_R4 (i, j, k) > FillValueReal / 2.)) then
+!                    if (Value_R4 (i, j, k) < Me%CriticalValue) then
+!                        Me%Global%PercentBelowCriticalValue_R4 (i, j, k) =                               &
+!                            (Me%Global%PercentBelowCriticalValue_R4 (i, j, k) *                          &
+!                             Me%Global%RunPeriod + DT) / (Me%Global%RunPeriod + DT)
+!                    else
+!                        Me%Global%PercentBelowCriticalValue_R4 (i, j, k) =                               &
+!                            (Me%Global%PercentBelowCriticalValue_R4 (i, j, k) *                          &
+!                             Me%Global%RunPeriod + 0.) / (Me%Global%RunPeriod + DT)
+!                    endif
+!                endif
+!
+!            endif
+!        enddo
+!        enddo
+!        enddo
+!
+!        !Updates Time
+!        Me%Global%RunPeriod     = Me%Global%RunPeriod + DT
+!        Me%Global%LastCalculation = Me%ExternalVar%Now
+!
+!        endif cd1
+!
+!    end subroutine ModifyGlobalStatistic_R4
+    
+    !-------------------------------------------------------------------------------
     subroutine ModifyDailyStatistic (Value, WaterPoints3D, KLB, KUB)
 
         !Arguments-------------------------------------------------------------
@@ -1809,6 +1992,177 @@ cd1:    if (DT>0) then
 
 
     end subroutine ModifyDailyStatistic
+
+    !--------------------------------------------------------------------------
+!    subroutine ModifyDailyStatistic_R4 (Value_R4, WaterPoints3D, KLB, KUB)
+!
+!        !Arguments-------------------------------------------------------------
+!        real(4), dimension(:, :, :), pointer        :: Value_R4
+!        integer, dimension(:, :, :), pointer        :: WaterPoints3D
+!        integer                                     :: KLB, KUB
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: ILB, IUB, i
+!        integer                                     :: JLB, JUB, j
+!        integer                                     :: k
+!        real                                        :: DT
+!        real(4)                                     :: DX, AuxValue
+!        real                                        :: OldDay, PresentDay    
+!
+!        !Shorten
+!        ILB = Me%ExternalVar%WorkSize%ILB
+!        IUB = Me%ExternalVar%WorkSize%IUB
+!        JLB = Me%ExternalVar%WorkSize%JLB
+!        JUB = Me%ExternalVar%WorkSize%JUB
+!
+!
+!        !Time since last calculation 
+!        DT  = Me%ExternalVar%Now - Me%Daily%LastCalculation
+!
+!cd1:    if (DT>0) then
+!
+!        !Loops
+!        do k = KLB, KUB
+!        do j = JLB, JUB
+!        do i = ILB, IUB
+!            if (WaterPoints3D(i, j, k) == WaterPoint) then
+!
+!                !Minimum Value
+!                if (Value_R4 (i, j, k) < Me%Daily%Minimum_R4 (i, j, k))           &
+!                    Me%Daily%Minimum_R4 (i, j, k) = Value_R4 (i, j, k)
+!
+!                !Maximum Value_R4
+!                if (Value_R4 (i, j, k) > Me%Daily%Maximum_R4 (i, j, k))           &
+!                    Me%Daily%Maximum_R4 (i, j, k) = Value_R4 (i, j, k)
+!
+!                !Average
+!                Me%Daily%Average_R4 (i, j, k) =                                &
+!                    (Me%Daily%Average_R4 (i, j, k) *                           &
+!                     Me%Daily%RunPeriod      +                              &
+!                     Value_R4 (i, j, k) * DT) / (Me%Daily%RunPeriod + DT)
+!
+!                !Square Average
+!                Me%Daily%SquareAverage_R4 (i, j, k) =                          &
+!                    (Me%Daily%SquareAverage_R4 (i, j, k) *                     &
+!                     Me%Daily%RunPeriod      +                              &
+!                     Value_R4 (i, j, k)**2 * DT) / (Me%Daily%RunPeriod + DT)
+!
+!                !Standard deviation
+!                DX = Me%Daily%SquareAverage_R4 (i, j, k) -                     &
+!                     Me%Daily%Average_R4       (i, j, k) ** 2
+!
+!                DX = abs(DX) 
+!
+!                Me%Daily%StandardDeviation_R4(i, j, k) = sqrt(DX)
+!
+!                !Accumulated Values
+!                if (Me%Accumulated)                                                     &
+!                    Me%Daily%Accumulated_R4 (i,j,k) = Me%Daily%Accumulated_R4 (i,j,k)         &
+!                                                  + Value_R4 (i, j, k) 
+!
+!                if (Me%GeomMean) then !Geometric Average to calculate
+!                    !Geometric Average
+!                    AuxValue = Value_R4 (i, j, k)
+!                    if (AuxValue == 0.0) then
+!                        AuxValue = 1.0                   
+!                    elseif (AuxValue .lt. 0.0) then                   
+!                        write(*,*) 'Negative valued property.'
+!                        write(*,*) 'Geometric Average cannot be calculated.'
+!                        stop 'ModifyDailyStatistic_R4 - ModuleStatistic - ERR01'
+!                    endif
+!                  
+!                    if (Me%Daily%GeomAverage_R4 (i, j, k) == 0.0) then
+!                        Me%Daily%GeomAverage_R4 (i, j, k) = 1.0
+!                    endif
+!
+!                    Me%Daily%GeomAverage_R4 (i, j, k) = 10**                   &
+!                        ((LOG10(Me%Daily%GeomAverage_R4 (i, j, k)) *           &
+!                        Me%Daily%RunPeriod      +                           &
+!                        LOG10(AuxValue) * DT) / (Me%Daily%RunPeriod + DT))
+!
+!                    !Squared Geometric Average
+!                    Me%Daily%SquareGeomAverage_R4 (i, j, k) =                  &
+!                        (Me%Daily%SquareGeomAverage_R4 (i, j, k) *             &
+!                        Me%Daily%RunPeriod      +                           &
+!                        AuxValue**2 * DT) / (Me%Daily%RunPeriod + DT)
+!
+!                    !Geometric Standard Deviation
+!                    DX = Me%Daily%SquareGeomAverage_R4 (i, j, k) -             &
+!                         Me%Daily%GeomAverage_R4       (i, j, k) ** 2
+!
+!                    DX = abs(DX) 
+!
+!                    Me%Daily%GeomStandardDeviation_R4(i, j, k) = sqrt(DX)
+!
+!                endif
+!
+!                !guillaume juan
+!                if (Me%Critical .and. (Value_R4 (i, j, k) > FillValueReal / 2.)) then
+!                    if (Value_R4 (i, j, k) < Me%CriticalValue) then
+!                        Me%Daily%PercentBelowCriticalValue_R4 (i, j, k) =                               &
+!                            (Me%Daily%PercentBelowCriticalValue_R4 (i, j, k) *                          &
+!                             Me%Daily%RunPeriod + DT) / (Me%Daily%RunPeriod + DT)
+!                    else
+!                        Me%Daily%PercentBelowCriticalValue_R4 (i, j, k) =                               &
+!                            (Me%Daily%PercentBelowCriticalValue_R4 (i, j, k) *                          &
+!                             Me%Daily%RunPeriod + 0.) / (Me%Daily%RunPeriod + DT)
+!                    endif
+!                endif
+!
+!            endif
+!        enddo
+!        enddo
+!        enddo
+!
+!        !Verifies if the present time is a new output
+!        call ExtractDate (Time1=Me%ExternalVar%Now,       Day = PresentDay)
+!        call ExtractDate (Time1=Me%Daily%LastCalculation, Day = OldDay)
+!        if (int(PresentDay) /= int(OldDay)) then
+!            call WriteValuesToFileHDF5_R4 (.false., .true., .false., .false., .false.)
+!            Me%Daily%Minimum_R4           = Value_R4
+!            Me%Daily%Maximum_R4           = Value_R4
+!            Me%Daily%Average_R4           = Value_R4
+!            Me%Daily%SquareAverage_R4     = Value_R4
+!            Me%Daily%StandardDeviation_R4 = Value_R4
+!  
+!            if (Me%Accumulated) Me%Daily%Accumulated_R4 = 0.0
+!            
+!            if (Me%GeomMean) then !Geometric Average to calculate
+!                Me%Daily%GeomAverage_R4           = Value_R4
+!                Me%Daily%SquareGeomAverage_R4     = Value_R4
+!                Me%Daily%GeomStandardDeviation_R4 = Value_R4
+!            endif
+!
+!            !guillaume juan
+!            if (Me%Critical) then
+!                do k = KLB, KUB
+!                do j = JLB, JUB
+!                do i = ILB, IUB
+!                    if ( (WaterPoints3D(i, j, k) == WaterPoint) .and. (Value_R4 (i, j, k) > FillValueReal / 2.)) then
+!                        if(Value_R4(i, j, k) < Me%CriticalValue) then
+!                            Me%Daily%PercentBelowCriticalValue_R4 (i, j, k) = 1.
+!                        else
+!                            Me%Daily%PercentBelowCriticalValue_R4 (i, j, k) = 0.
+!                        endif
+!                    endif
+!                enddo
+!                enddo
+!                enddo
+!            endif
+!
+!            Me%Daily%RunPeriod  = 0.
+!        else
+!            Me%Daily%RunPeriod  = Me%Daily%RunPeriod + DT
+!        endif
+!
+!        !Updates Time
+!        Me%Daily%LastCalculation  = Me%ExternalVar%Now
+!
+!
+!        endif cd1
+!
+!
+!    end subroutine ModifyDailyStatistic_R4
 
     !--------------------------------------------------------------------------
 
@@ -1984,6 +2338,179 @@ cd1:    if (DT>0) then
     end subroutine ModifyMonthlyStatistic
 
     !--------------------------------------------------------------------------
+!    subroutine ModifyMonthlyStatistic_R4 (Value_R4, WaterPoints3D, KLB, KUB)
+!
+!        !Arguments-------------------------------------------------------------
+!        real(4), dimension(:, :, :), pointer        :: Value_R4
+!        integer, dimension(:, :, :), pointer        :: WaterPoints3D
+!        integer                                     :: KLB, KUB
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: ILB, IUB, i
+!        integer                                     :: JLB, JUB, j
+!        integer                                     :: k
+!        real                                        :: DT
+!        real(4)                                     :: DX, AuxValue
+!        real                                        :: OldMonth, PresentMonth
+!
+!        !Shorten
+!        ILB = Me%ExternalVar%WorkSize%ILB
+!        IUB = Me%ExternalVar%WorkSize%IUB
+!        JLB = Me%ExternalVar%WorkSize%JLB
+!        JUB = Me%ExternalVar%WorkSize%JUB
+!
+!
+!        !Time since last calculation 
+!        DT  = Me%ExternalVar%Now - Me%Monthly%LastCalculation
+!
+!cd1:    if (DT>0) then
+!
+!        !Loops
+!        do k = KLB, KUB
+!        do j = JLB, JUB
+!        do i = ILB, IUB
+!            if (WaterPoints3D(i, j, k) == WaterPoint) then
+!
+!                !Minimum Value
+!                if (Value_R4 (i, j, k) < Me%Monthly%Minimum_R4 (i, j, k))         &
+!                    Me%Monthly%Minimum_R4 (i, j, k) = Value_R4 (i, j, k)
+!
+!                !Maximum Value
+!                if (Value_R4 (i, j, k) > Me%Monthly%Maximum_R4 (i, j, k))         &
+!                    Me%Monthly%Maximum_R4 (i, j, k) = Value_R4 (i, j, k)
+!
+!                !Average
+!                Me%Monthly%Average_R4 (i, j, k) =                              &
+!                    (Me%Monthly%Average_R4 (i, j, k) *                         &
+!                     Me%Monthly%RunPeriod      +                            &
+!                     Value_R4 (i, j, k) * DT) / (Me%Monthly%RunPeriod + DT)
+!
+!                !Square Average
+!                Me%Monthly%SquareAverage_R4 (i, j, k) =                        &
+!                    (Me%Monthly%SquareAverage_R4 (i, j, k) *                   &
+!                     Me%Monthly%RunPeriod      +                            &
+!                     Value_R4 (i, j, k)**2 * DT) / (Me%Monthly%RunPeriod + DT)
+!
+!                !Standard deviation
+!                DX = Me%Monthly%SquareAverage_R4 (i, j, k) -                   &
+!                     Me%Monthly%Average_R4       (i, j, k) ** 2
+!
+!                DX = abs(DX) 
+!
+!
+!                Me%Monthly%StandardDeviation_R4(i, j, k) = sqrt(DX)
+!   
+!   
+!                !Accumulated Values
+!                if (Me%Accumulated)                                                     &
+!                    Me%Monthly%Accumulated_R4 (i,j,k) = Me%Monthly%Accumulated_R4 (i,j,k)     &
+!                                                   + Value_R4 (i, j, k) 
+!
+!
+!                if (Me%GeomMean) then !Geometric Average to calculate
+!                    !Geometric Average
+!                    AuxValue = Value_R4 (i, j, k)
+!                    if (AuxValue == 0.0) then
+!                        AuxValue = 1.0                   
+!                    elseif (AuxValue .lt. 0.0) then                   
+!                        write(*,*) 'Negative valued property.'
+!                        write(*,*) 'Geometric Average cannot be calculated.'
+!                        stop 'ModifyMonthlyStatistic_R4 - ModuleStatistic - ERR01'
+!                    endif
+!
+!                    if (Me%Monthly%GeomAverage_R4 (i, j, k) == 0.0) then
+!                        Me%Monthly%GeomAverage_R4 (i, j, k) = 1.0
+!                    endif
+!                  
+!                    Me%Monthly%GeomAverage_R4 (i, j, k) = 10**                 &
+!                        ((LOG10(Me%Monthly%GeomAverage_R4 (i, j, k)) *         &
+!                        Me%Monthly%RunPeriod      +                         &
+!                        LOG10(AuxValue) * DT) / (Me%Monthly%RunPeriod + DT))
+!
+!                    !Squared Geometric Average
+!                    Me%Monthly%SquareGeomAverage_R4 (i, j, k) =                &
+!                        (Me%Monthly%SquareGeomAverage_R4 (i, j, k) *           &
+!                        Me%Monthly%RunPeriod      +                         &
+!                        AuxValue**2 * DT) / (Me%Monthly%RunPeriod + DT)
+!
+!                    !Geometric Standard Deviation
+!                    DX = Me%Monthly%SquareGeomAverage_R4 (i, j, k) -           &
+!                         Me%Monthly%GeomAverage_R4       (i, j, k) ** 2
+!
+!                    DX = abs(DX) 
+!
+!                    Me%Monthly%GeomStandardDeviation_R4(i, j, k) = sqrt(DX)
+!
+!                endif
+!
+!                !guillaume juan
+!                if (Me%Critical .and. (Value_R4 (i, j, k) > FillValueReal / 2.)) then
+!                    if (Value_R4 (i, j, k) < Me%CriticalValue) then
+!                        Me%Monthly%PercentBelowCriticalValue_R4 (i, j, k) =                               &
+!                            (Me%Monthly%PercentBelowCriticalValue_R4 (i, j, k) *                          &
+!                             Me%Monthly%RunPeriod + DT) / (Me%Monthly%RunPeriod + DT)
+!                    else
+!                        Me%Monthly%PercentBelowCriticalValue_R4 (i, j, k) =                               &
+!                            (Me%Monthly%PercentBelowCriticalValue_R4 (i, j, k) *                          &
+!                             Me%Monthly%RunPeriod + 0.) / (Me%Monthly%RunPeriod + DT)
+!                    endif
+!                endif
+!
+!            endif
+!        enddo
+!        enddo
+!        enddo
+!
+!        !Verifies if the present time is a new output
+!        call ExtractDate (Time1=Me%ExternalVar%Now,         Month = PresentMonth)
+!        call ExtractDate (Time1=Me%Monthly%LastCalculation, Month = OldMonth)
+!        if (int(PresentMonth) /= int(OldMonth)) then
+!            call WriteValuesToFileHDF5_R4 (.false., .false., .true., .false., .false.)
+!            Me%Monthly%Minimum_R4           = Value_R4
+!            Me%Monthly%Maximum_R4           = Value_R4
+!            Me%Monthly%Average_R4           = Value_R4
+!            Me%Monthly%SquareAverage_R4     = Value_R4
+!            Me%Monthly%StandardDeviation_R4 = Value_R4
+!
+!            if (Me%Accumulated) Me%Monthly%Accumulated_R4 = 0.0
+!
+!            if (Me%GeomMean) then !Geometric Average to calculate
+!                Me%Monthly%GeomAverage_R4           = Value_R4
+!                Me%Monthly%SquareGeomAverage_R4     = Value_R4
+!                Me%Monthly%GeomStandardDeviation_R4 = Value_R4
+!            endif
+!
+!            !guillaume juan
+!            if (Me%Critical) then
+!                do k = KLB, KUB
+!                do j = JLB, JUB
+!                do i = ILB, IUB
+!                    if ((WaterPoints3D(i, j, k) == WaterPoint) .and. (Value_R4 (i, j, k) > FillValueReal / 2.)) then
+!                        if(Value_R4(i, j, k) < Me%CriticalValue) then
+!                            Me%Monthly%PercentBelowCriticalValue_R4 (i, j, k) = 1.
+!                        else
+!                            Me%Monthly%PercentBelowCriticalValue_R4 (i, j, k) = 0.
+!                        endif
+!                    endif
+!                enddo
+!                enddo
+!                enddo
+!            endif
+!
+!            Me%Monthly%RunPeriod  = 0.
+!        else
+!            Me%Monthly%RunPeriod  = Me%Monthly%RunPeriod + DT
+!        endif
+!
+!        !Updates Time
+!        Me%Monthly%LastCalculation  = Me%ExternalVar%Now
+!
+!        endif cd1
+!
+!
+!    end subroutine ModifyMonthlyStatistic_R4
+
+    !--------------------------------------------------------------------------
 
     subroutine ModifySpecificHourStatistic (Value, WaterPoints3D, KLB, KUB)
 
@@ -2120,6 +2647,143 @@ cd1:        if (DT>0) then
     end subroutine ModifySpecificHourStatistic
 
     !--------------------------------------------------------------------------
+    
+!    subroutine ModifySpecificHourStatistic_R4 (Value_R4, WaterPoints3D, KLB, KUB)
+!
+!        !Arguments-------------------------------------------------------------
+!        real(4),    dimension(:, :, :), pointer     :: Value_R4
+!        integer, dimension(:, :, :), pointer        :: WaterPoints3D
+!        integer                                     :: KLB, KUB
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: ILB, IUB, i
+!        integer                                     :: JLB, JUB, j
+!        integer                                     :: k
+!        real                                        :: DT
+!        real(4)                                     :: DX, AuxValue
+!        real                                        :: PresentHour
+!
+!        !Shorten
+!        ILB = Me%ExternalVar%WorkSize%ILB
+!        IUB = Me%ExternalVar%WorkSize%IUB
+!        JLB = Me%ExternalVar%WorkSize%JLB
+!        JUB = Me%ExternalVar%WorkSize%JUB
+!
+!        call ExtractDate (Time1=Me%ExternalVar%Now, Hour = PresentHour)
+!        
+!if1:    if (int(PresentHour) == int(Me%SpecificHourValue)) then
+!
+!            !Time since last calculation 
+!            DT  = Me%ExternalVar%Now - Me%SpecificHour%LastCalculation
+!
+!cd1:        if (DT>0) then
+!
+!            !Loops
+!            do k = KLB, KUB
+!            do j = JLB, JUB
+!            do i = ILB, IUB
+!                if (WaterPoints3D(i, j, k) == WaterPoint) then
+!
+!                    !Minimum Value
+!                    if (Value_R4 (i, j, k) < Me%SpecificHour%Minimum_R4 (i, j, k))         &
+!                        Me%SpecificHour%Minimum_R4 (i, j, k) = Value_R4 (i, j, k)
+!
+!                    !Maximum Value
+!                    if (Value_R4 (i, j, k) > Me%SpecificHour%Maximum_R4 (i, j, k))         &
+!                        Me%SpecificHour%Maximum_R4 (i, j, k) = Value_R4 (i, j, k)
+!
+!                    !Average
+!                    Me%SpecificHour%Average_R4 (i, j, k) =                              &
+!                        (Me%SpecificHour%Average_R4 (i, j, k) *                         &
+!                         Me%SpecificHour%RunPeriod      +                            &
+!                         Value_R4 (i, j, k) * DT) / (Me%SpecificHour%RunPeriod + DT)
+!
+!                    !Square Average
+!                    Me%SpecificHour%SquareAverage_R4 (i, j, k) =                        &
+!                        (Me%SpecificHour%SquareAverage_R4 (i, j, k) *                   &
+!                         Me%SpecificHour%RunPeriod      +                            &
+!                         Value_R4 (i, j, k)**2 * DT) / (Me%SpecificHour%RunPeriod + DT)
+!
+!                    !Standard deviation
+!                    DX = Me%SpecificHour%SquareAverage_R4 (i, j, k) -                   &
+!                         Me%SpecificHour%Average_R4       (i, j, k) ** 2
+!
+!                    DX = abs(DX) 
+!
+!
+!                    Me%SpecificHour%StandardDeviation_R4(i, j, k) = sqrt(DX)
+!
+!                    !Accumulated Values
+!                    if (Me%Accumulated)                                                             &
+!                        Me%SpecificHour%Accumulated_R4 (i,j,k) = Me%SpecificHour%Accumulated_R4 (i,j,k)   &
+!                                                            + Value_R4 (i, j, k) 
+!
+!                    if (Me%GeomMean) then !Geometric Average to calculate
+!                        !Geometric Average
+!                        AuxValue = Value_R4 (i, j, k)
+!                        if (AuxValue == 0.0) then
+!                            AuxValue = 1.0                   
+!                        elseif (AuxValue .lt. 0.0) then                   
+!                            write(*,*) 'Negative valued property.'
+!                            write(*,*) 'Geometric Average cannot be calculated.'
+!                            stop 'ModifySpecificHourStatistic_R4 - ModuleStatistic - ERR01'
+!                        endif
+!
+!                        if (Me%SpecificHour%GeomAverage_R4 (i, j, k) == 0.0) then
+!                            Me%SpecificHour%GeomAverage_R4 (i, j, k) = 1.0
+!                        endif
+!                  
+!                        Me%SpecificHour%GeomAverage_R4 (i, j, k) = 10**                 &
+!                            ((LOG10(Me%SpecificHour%GeomAverage_R4 (i, j, k)) *         &
+!                            Me%SpecificHour%RunPeriod      +                         &
+!                            LOG10(AuxValue) * DT) / (Me%SpecificHour%RunPeriod + DT))
+!
+!                        !Squared Geometric Average
+!                        Me%SpecificHour%SquareGeomAverage_R4 (i, j, k) =                &
+!                            (Me%SpecificHour%SquareGeomAverage_R4 (i, j, k) *           &
+!                            Me%SpecificHour%RunPeriod      +                         &
+!                            AuxValue**2 * DT) / (Me%SpecificHour%RunPeriod + DT)
+!
+!                        !Geometric Standard Deviation
+!                        DX = Me%SpecificHour%SquareGeomAverage_R4 (i, j, k) -           &
+!                             Me%SpecificHour%GeomAverage_R4       (i, j, k) ** 2
+!
+!                        DX = abs(DX) 
+!
+!                        Me%SpecificHour%GeomStandardDeviation_R4(i, j, k) = sqrt(DX)
+!
+!                    endif
+!
+!                    !guillaume juan
+!                    if (Me%Critical  .and. (Value_R4 (i, j, k) > FillValueReal / 2.)) then
+!                        if (Value_R4 (i, j, k) < Me%CriticalValue) then
+!                            Me%SpecificHour%PercentBelowCriticalValue_R4 (i, j, k) =                               &
+!                                (Me%SpecificHour%PercentBelowCriticalValue_R4 (i, j, k) *                          &
+!                                 Me%SpecificHour%RunPeriod + DT) / (Me%SpecificHour%RunPeriod + DT)
+!                        else
+!                            Me%SpecificHour%PercentBelowCriticalValue_R4 (i, j, k) =                               &
+!                                (Me%SpecificHour%PercentBelowCriticalValue_R4 (i, j, k) *                          &
+!                                 Me%SpecificHour%RunPeriod + 0.) / (Me%SpecificHour%RunPeriod + DT)
+!                        endif
+!                    endif
+!
+!                endif
+!            enddo
+!            enddo
+!            enddo
+!
+!            
+!            !Updates Time
+!            Me%SpecificHour%RunPeriod       = Me%SpecificHour%RunPeriod + DT          
+!            Me%SpecificHour%LastCalculation = Me%ExternalVar%Now
+!
+!        endif cd1
+!
+!    endif if1
+!
+!    end subroutine ModifySpecificHourStatistic_R4
+
+    !--------------------------------------------------------------------------
 
     subroutine ModifyClassification (Value, WaterPoints3D, KLB, KUB)
 
@@ -2179,6 +2843,67 @@ doClass:        do iClass = 1, Me%Classification%nClasses
         endif cd1
 
     end subroutine ModifyClassification
+
+    !--------------------------------------------------------------------------
+!    subroutine ModifyClassification_R4 (Value_R4, WaterPoints3D, KLB, KUB)
+!
+!        !Arguments-------------------------------------------------------------
+!        real(4),    dimension(:, :, :), pointer     :: Value_R4
+!        integer, dimension(:, :, :), pointer        :: WaterPoints3D
+!        integer                                     :: KLB, KUB
+!
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: ILB, IUB, i
+!        integer                                     :: JLB, JUB, j
+!        integer                                     :: k
+!        integer                                     :: iClass   
+!        real                                        :: DT
+!        real(4)                                     :: Aux
+!
+!        !Shorten
+!        ILB = Me%ExternalVar%WorkSize%ILB
+!        IUB = Me%ExternalVar%WorkSize%IUB
+!        JLB = Me%ExternalVar%WorkSize%JLB
+!        JUB = Me%ExternalVar%WorkSize%JUB
+!
+!
+!        !Time since last calculation 
+!        DT  = Me%ExternalVar%Now - Me%Classification%LastCalculation
+!
+!cd1:    if (DT>0) then
+!        
+!        !Loops
+!        do k = KLB, KUB
+!        do j = JLB, JUB
+!        do i = ILB, IUB
+!            if (WaterPoints3D(i, j, k) == WaterPoint) then
+!doClass:        do iClass = 1, Me%Classification%nClasses
+!                    if (Value_R4(i, j, k) >= Me%Classification%Classes(iClass, 1) .and.    &
+!                        Value_R4(i, j, k)  < Me%Classification%Classes(iClass, 2)) then
+!                        Aux = DT
+!                    else
+!                        Aux = 0
+!                    endif
+!                    
+!                    Me%Classification%Frequency_R4     (i, j, k, iClass) =                 &
+!                        (Me%Classification%Frequency_R4(i, j, k, iClass) *                 &
+!                         Me%Classification%RunPeriod + Aux          ) /                 &
+!                        (Me%Classification%RunPeriod + DT)
+!                enddo doClass
+!            endif
+!        enddo
+!        enddo
+!        enddo
+!
+!
+!        Me%Classification%RunPeriod       = Me%Classification%RunPeriod + DT
+!
+!        Me%Classification%LastCalculation = Me%ExternalVar%Now
+!
+!        endif cd1
+!
+!    end subroutine ModifyClassification_R4
 
     !--------------------------------------------------------------------------
 
@@ -3938,18 +4663,18 @@ doClass2:           do iClass = 1, nc
         if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFile - ModuleStatistic - ERR99'
 
     end subroutine WriteValuesToFileHDF5
-
-
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SE
-
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-    !--------------------------------------------------------------------------
-
+!
+!
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+!    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SE
+!
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+!
+!    !--------------------------------------------------------------------------
+!
     subroutine GetStatisticParameters(StatisticID, Value3DStat3D, Value3DStatLayers,     &
                                       Value2DStat2D, Depth, Layer, STAT)
 
@@ -4244,7 +4969,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (nUsers == 0) then
                 
                 !Writes the final values to the HDF file
-                call WriteValuesToFileHDF5 (.true., .true., .true., .true., .true.)
+                call WriteValuesToFileHDF5 (.true., .true., .true., .true., .true.)    
 
                 !Associates External Instances
                 nUsers = DeassociateInstance (mTIME_,          Me%ObjTime         )
@@ -4271,7 +4996,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     if (Me%Methodology==Value3DStat3D_ .or.                         &
                         Me%Methodology==Value3DStatLayers_) then
 
-                        deallocate (Me%Classification%Frequency)
+                        deallocate (Me%Classification%Frequency)                            
 
                     else if (Me%Methodology==Value2DStat2D_) then
 
@@ -4371,7 +5096,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             !guillaume juan
             if (Me%Critical) then
                 deallocate (Statistic%PercentBelowCriticalValue) 
-            endif
+            endif        
 
         else if (Me%Methodology==Value2DStat2D_) then
 
@@ -4408,20 +5133,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-
- 
-        deallocate (Me%Layers%Value)
+        deallocate (Me%Layers%Value)            
         deallocate (Me%Layers%WaterPoints)
-
-
         deallocate (Me%Layers%UpperDepth)
         deallocate (Me%Layers%LowerDepth)
-
         deallocate (Me%Layers%UpperLayer)
         deallocate (Me%Layers%LowerLayer)
 
     end subroutine DeallocateLayerMatrixes
-
 
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

@@ -3579,7 +3579,7 @@ cd2 :           if (BlockFound) then
         !Properties inherited from Runoff Properties - needed for mass balance and for vegetation conc
         if (Me%Coupled%RunoffProperties) then
         
-            if (Me%VerifyGloBalMass .or. Me%Coupled%Vegetation ) then
+            !if (Me%VerifyGloBalMass .or. Me%Coupled%Vegetation ) then
                 call GetRPnProperties (Me%ObjRunoffProperties, nProperties, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyList - ModuleBasin - ERR010'
 
@@ -3630,7 +3630,7 @@ cd2 :           if (BlockFound) then
                         
 !                    endif
                 enddo
-           endif
+           !endif
         endif
                     
         

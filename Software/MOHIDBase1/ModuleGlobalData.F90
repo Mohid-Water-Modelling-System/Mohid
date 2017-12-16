@@ -76,7 +76,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  94
+    integer, parameter  :: MaxModules           =  95
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -382,7 +382,8 @@ Module ModuleGlobalData
     integer, parameter :: NaturalMort_                      = 812
     integer, parameter :: Grazing_                          = 813
     integer, parameter :: MACondition_                      = 814
-
+    integer, parameter :: CarrCapLim_                       = 815
+    
     !Drifting macroalgae
     integer, parameter :: DriftingMacroAlgae_               = 850
 
@@ -430,6 +431,8 @@ Module ModuleGlobalData
     integer, parameter :: WaterColumn_                      = 910
     integer, parameter :: ZonalVelocity_                    = 920
     integer, parameter :: MeridionalVelocity_               = 930
+    !1 - low tide, 2 - flood, 3 - high tide, 4 - ebb 
+    integer, parameter :: TideState_                        = 940
     
     !Assimilation Properties        guillaume nogueira
     integer, parameter :: AltimLevelAnalyzed_               = 4000
@@ -804,7 +807,7 @@ Module ModuleGlobalData
     integer, parameter :: MA_NaturalMort_                   = 10
     integer, parameter :: MA_Grazing_                       = 11
     integer, parameter :: MA_Condition_                     = 12
-
+    integer, parameter :: MA_CarrCapFact_                   = 13
 
     integer, parameter :: ConsolidationFlux_                = 9000
     integer, parameter :: Porosity_                         = 9001
@@ -1206,6 +1209,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_NaturalMort          = 'naturalmort'
     character(StringLength), private, parameter :: Char_Grazing              = 'grazing'
     character(StringLength), private, parameter :: Char_MACondition          = 'macondition'
+    character(StringLength), private, parameter :: Char_CarrCapLim           = 'carrcaplim'
     
     character(StringLength), private, parameter :: Char_DiaGrossProd         = 'diagrossprod'      
     character(StringLength), private, parameter :: Char_DiaNutrientLim       = 'dianutrientlim'    
@@ -1264,6 +1268,7 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WaterColumn_         = 'water column'    
     character(StringLength), private, parameter :: Char_MeridionalVelocity_  = 'meridional velocity'
     character(StringLength), private, parameter :: Char_ZonalVelocity_       = 'zonal velocity'
+    character(StringLength), private, parameter :: Char_TideState_           = 'tide state'
 
 
 
@@ -1719,6 +1724,9 @@ Module ModuleGlobalData
     real(8), parameter  :: Pi               = 3.1415926535897932384626433832795
     ! ARC RADIAN OF 1 DEGREE
     real(8), parameter  :: RAD_DEG          = 0.01745329252
+    !Angle units
+    integer, parameter  :: Degree_          = 1
+    integer, parameter  :: Radian_          = 2
     
 
     !Zero Degrees Kelvin
@@ -1753,6 +1761,10 @@ Module ModuleGlobalData
     !Transport Parameters
     integer, parameter :: velocityX = 1, velocityY = 2, velocityZ = 3, massProperty = 4
     integer, parameter :: NearestNeighbour = 1, centered = 2 !other interpolation methods here 
+    
+    !Interpolation 2D
+    integer, parameter                                      :: Bilinear2D_         = 1
+    integer, parameter                                      :: NearestNeighbor2D_  = 2
     
     !Extrapolation parameters
     integer, parameter :: ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2, ExtrapolConstant_ = 3
@@ -1927,6 +1939,7 @@ Module ModuleGlobalData
     integer, parameter ::  mSediment_               = 92
     integer, parameter ::  mReservoirs_             = 93
     integer, parameter ::  mIrrigation_             = 94
+    integer, parameter ::  mTURBINE_                = 95
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -2047,7 +2060,7 @@ Module ModuleGlobalData
         T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS"           ),        &
         T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"),           T_Module(mSnow_                   , "Snow"          ),        &
         T_Module(mSediment_              , "Sediment"           ),   T_Module(mReservoirs_             , "Reservoirs"    ),        &
-        T_Module(mIrrigation_            , "Irrigation")/)
+        T_Module(mIrrigation_            , "Irrigation"),            T_Module(mTURBINE_                , "Turbine")/)
         
 
     !Variables
@@ -2797,6 +2810,7 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (LightLim_ ,               Char_LightLim ,                 ListNumber)
             call AddPropList (TemperatureLim_,          Char_TemperatureLim,            ListNumber)
             call AddPropList (SalinityLim_,             Char_SalinityLim,               ListNumber)
+            call AddPropList (CarrCapLim_,              Char_CarrCapLim,                ListNumber)
             call AddPropList (DiaGrossProd_,            Char_DiaGrossProd,              ListNumber)
             call AddPropList (DiaNutrientLim_,          Char_DiaNutrientLim,            ListNumber)
             call AddPropList (DiaNLim_,                 Char_DiaNLim,                   ListNumber)
@@ -2828,7 +2842,8 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (WaterColumn_,             Char_WaterColumn_,              ListNumber)
             call AddPropList (MeridionalVelocity_,      Char_MeridionalVelocity_,       ListNumber)
             call AddPropList (ZonalVelocity_,           Char_ZonalVelocity_,            ListNumber)
-            
+            call AddPropList (TideState_,               Char_TideState_,                ListNumber)            
+           
             !seagrasses rates and limiting functions
             call AddPropList (LeavesUptakeN_ ,          Char_LeavesUptakeN ,            ListNumber)  !Isabella
             call AddPropList (LeavesUptakeP_ ,          Char_LeavesUptakeP ,            ListNumber)
@@ -3438,7 +3453,13 @@ cd1 :   if ((Property == POC_                   ) .OR.  (Property == PON_       
 
         !----------------------------------------------------------------------
 
-cd1 :   if ((Property == WindDirection_) .OR. (Property == MeanWaveDirection_)) then
+cd1 :   if (Property == WindDirection_           .OR.                                   &
+            Property == MeanWaveDirection_       .OR.                                   &
+            Property == VelocityDirection_       .OR.                                   &
+            Property == WaveDirection_           .OR.                                   &
+            Property == MeanDirectionalSpread_   .OR.                                   &
+            Property == PeakDirection_           .OR.                                   &
+            Property == WindSeaPeakDirection_) then
 
             Check_Angle_Property = .TRUE. 
                 

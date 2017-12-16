@@ -34,11 +34,13 @@ Module ModuleGauge
     use ModuleEnterData
     use ModuleToga               
     use ModuleDrawing
+    use ModuleHDF5
     use ModuleHorizontalGrid,   only : GetGridAngle, GetGridOrigin, GetHorizontalGrid,  &
                                        GetXYCellZ, GetXYCellZ_ThreadSafe,               &
                                        GetGridBorderLimits, GetLatitudeLongitude,       &
                                        GetHorizontalGridSize, GetZCoordinates,          &
-                                       UnGetHorizontalGrid
+                                       WriteHorizontalGrid, UnGetHorizontalGrid,        &
+                                       GetDDecompMPI_ID, GetDDecompON    
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue, KillTimeSerie
     use ModuleFunctions,        only : RodaXY, AmpPhase_To_Complex, Complex_to_AmpPhase
     use ModuleTask2000,         only : Task2000Level, NTask2000          
@@ -46,7 +48,7 @@ Module ModuleGauge
                                        GetField4DHarmonicsON, GetField4DHarmonicsNumber,&
                                        GetField4DHarmonicsName
                                        
-    use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap
+    use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap, GetWaterPoints2D
 
 
     implicit none
@@ -170,10 +172,13 @@ Module ModuleGauge
         integer                             :: UnitGauge                = FillValueInt
         character(LEN = StringLength)       :: FileName                 = null_str
         character(LEN = StringLength)       :: HDFFileTidalComponents   = null_str
+        character(LEN = StringLength)       :: HDFFileTidalComponentsOut= null_str        
         
         type(T_XYZPoints),       pointer    :: GaugesLocation            => null() 
         
         logical                             :: HDFFileTidalON           = .false.
+        
+        logical                             :: HDFFileTidalOutON        = .false. 
         
         !Instance of ModuleField4D
         integer                             :: ObjField4D               = 0
@@ -378,6 +383,32 @@ Module ModuleGauge
                 call ReadGaugeDataASCII
             endif
             
+            if (Me%HDFFileTidalON) then
+            
+                call GetData(Me%HDFFileTidalComponentsOut,                              &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType = FromFile,                                     &
+                             keyword    = 'FILE_TIDAL_COMPONENTS_OUTPUT',               &
+                             Default    = null_str,                                     &
+                             ClientModule ='ModuleGauge',                               &
+                             STAT       = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR180'            
+                
+                if (iflag/=0) then
+                    Me%HDFFileTidalOutON = .true.
+                else
+                    Me%HDFFileTidalOutON = .false.
+                endif
+                
+
+                if (Me%HDFFileTidalOutON) then
+            
+                    call WriteGaugeDataHDF
+                
+                endif
+                        
+            endif
+            
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGauges - ModuleGauges - ERR110' 
 
@@ -502,12 +533,15 @@ if6 :           if (BlockFound) then
         real,       dimension(:,:), pointer                     :: CoordX, CoordY 
         integer,    dimension(:,:), pointer                     :: BoundaryPoints2D        
         real,       dimension(:  ), pointer                     :: X, Y, Amplitude, Phase
+        real,       dimension(:  ), pointer                     :: PhaseReal, PhaseImag
         real,       dimension(:  ), pointer                     :: AuxX, AuxY
         integer,    dimension(:  ), pointer                     :: Icell, Jcell
-        logical,    dimension(:  ), pointer                     :: NoAmplitude, NoPhase
+        logical,    dimension(:  ), pointer                     :: NoAmplitude
+        logical,    dimension(:  ), pointer                     :: NoPhaseReal, NoPhaseImag
         type (T_Size2D)                                         :: WorkSize
         real                                                    :: West, East, South, North
         real                                                    :: LatDefault, LongDefault
+        real                                                    :: Aux
         integer                                                 :: STAT_CALL
         logical                                                 :: BlockFound, Field4DHarmonicsON
         type(T_TideGauge), pointer                              :: PresentGauge
@@ -714,11 +748,15 @@ if6 :           if (BlockFound) then
             
         endif
         
-        allocate(Amplitude  (1:NP), Phase  (1:NP))
-        allocate(NoAmplitude(1:NP), NoPhase(1:NP))     
+        allocate(Amplitude  (1:NP), Phase      (1:NP))
+        allocate(PhaseReal  (1:NP), PhaseImag  (1:NP))   
+        allocate(NoAmplitude(1:NP)                   )     
+        allocate(NoPhaseReal(1:NP), NoPhaseImag(1:NP))        
         
         Amplitude   (:) = FillValueReal
         Phase       (:) = FillValueReal
+        PhaseReal   (:) = FillValueReal
+        PhaseImag   (:) = FillValueReal        
                 
         do n = 1, HarmonicsNumber
         
@@ -735,18 +773,33 @@ if6 :           if (BlockFound) then
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR160' 
             
-            NoPhase    (:) = .true.             
+            NoPhaseReal(:) = .true.             
 
             call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
                                   PropertyIDNumber  = WaterLevel_,                      &
                                   X                 = X,                                & 
                                   Y                 = Y,                                &
-                                  Field             = Phase,                            & 
-                                  NoData            = NoPhase,                          &
+                                  Field             = PhaseReal,                        & 
+                                  NoData            = NoPhaseReal,                      &
                                   WaveName          = HarmonicsName(n),                 &    
                                   ExtractAmplitudes = .false.,                          &
+                                  ExtractPhaseReal  = .true.,                           & 
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR170' 
+            
+            NoPhaseImag(:) = .true.
+            
+            call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
+                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  X                 = X,                                & 
+                                  Y                 = Y,                                &
+                                  Field             = PhaseImag,                        & 
+                                  NoData            = NoPhaseImag,                      &
+                                  WaveName          = HarmonicsName(n),                 &    
+                                  ExtractAmplitudes = .false.,                          &
+                                  ExtractPhaseReal  = .false.,                          & 
+                                  STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadGaugeDataHDF - ModuleGauges - ERR180'             
             
             do ni = 1, NP 
             
@@ -756,10 +809,16 @@ if6 :           if (BlockFound) then
                     stop 'ReadGaugeDataHDF - ModuleGauges - ERR190' 
                 endif
                 
-                if (NoPhase(ni)    .and. .not. Me%Triangulation) then
-                    write(*,*) 'Tidal phase missing in the open boundary'
+                if (NoPhaseReal(ni)    .and. .not. Me%Triangulation) then
+                    write(*,*) 'Tidal phase (real component) missing in the open boundary'
                     write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
                     stop 'ReadGaugeDataHDF - ModuleGauges - ERR200' 
+                endif                    
+
+                if (NoPhaseImag(ni)    .and. .not. Me%Triangulation) then
+                    write(*,*) 'Tidal phase (imaginary component) missing in the open boundary'
+                    write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
+                    stop 'ReadGaugeDataHDF - ModuleGauges - ERR210' 
                 endif                    
 
             enddo
@@ -767,7 +826,7 @@ if6 :           if (BlockFound) then
                             
             if (n== 1) then
                 do ni = 1, NP 
-                    if (.not. NoAmplitude(ni) .and. .not. NoPhase(ni)) then
+                    if (.not. NoAmplitude(ni) .and. .not. NoPhaseReal(ni) .and. .not. NoPhaseImag(ni)) then
                         if(Me%Triangulation) then
                             i = FillValueInt
                             j = FillValueInt
@@ -786,9 +845,8 @@ if6 :           if (BlockFound) then
             PresentGauge => Me%FirstGauge
 
             do ni = 1, NP 
-                if (.not. NoAmplitude(ni) .and. .not. NoPhase(ni)) then            
-                    !no need to divide by 360º already done in the ModuleField4D
-                    Phase(ni)     = Phase(ni) 
+                if (.not. NoAmplitude(ni) .and. .not. NoPhaseReal(ni) .and. .not. NoPhaseImag(ni)) then            
+                    call Complex_to_AmpPhase(PhaseReal(ni), PhaseImag(ni), Aux, Phase(ni))
                     call NewWave(PresentGauge, HarmonicsName(n), Amplitude(ni), Phase(ni))                
                     PresentGauge => PresentGauge%Next
                 endif                
@@ -797,8 +855,10 @@ if6 :           if (BlockFound) then
                                     
         enddo
 
-        deallocate(Amplitude  , Phase  )
-        deallocate(NoAmplitude, NoPhase)       
+        deallocate(Amplitude  , Phase      )
+        deallocate(PhaseReal  , PhaseImag  )   
+        deallocate(NoAmplitude             )     
+        deallocate(NoPhaseReal, NoPhaseImag)        
         deallocate(HarmonicsName) 
         if (.not. Me%Triangulation) then
             deallocate(X, Y)
@@ -811,6 +871,458 @@ if6 :           if (BlockFound) then
     end subroutine ReadGaugeDataHDF
     
     !--------------------------------------------------------------------------    
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine WriteGaugeDataHDF
+
+        !Local-----------------------------------------------------------------
+        real,       dimension(:,:,:), pointer                   :: AmplitudeOut
+        real,       dimension(:,:,:), pointer                   :: PhaseOut        
+        real,       dimension(:,:), pointer                     :: CoordX, CoordY 
+        integer,    dimension(:,:), pointer                     :: WaterPoints2D        
+        real,       dimension(:  ), pointer                     :: X, Y, Amplitude, Phase
+        real,       dimension(:  ), pointer                     :: PhaseReal, PhaseImag
+        real,       dimension(:  ), pointer                     :: AuxX, AuxY
+        logical,    dimension(:  ), pointer                     :: NoAmplitude
+        logical,    dimension(:  ), pointer                     :: NoPhaseReal, NoPhaseImag
+        type (T_Size2D)                                         :: WorkSize
+        real                                                    :: West, East, South, North
+        real                                                    :: LatDefault, LongDefault
+        real                                                    :: Dummy
+        integer                                                 :: STAT_CALL
+        logical                                                 :: BlockFound, Field4DHarmonicsON
+        integer                                                 :: ClientNumber, FromBlock
+        real, dimension(1:2,1:2)                                :: WindowLimitsXY        
+        character(LEN = StringLength   ), parameter             :: block_begin = '<beginHDFgauges>'
+        character(LEN = StringLength   ), parameter             :: block_end   = '<endHDFgauges>'
+        character(LEN = WaveNameLength ), dimension(:), pointer :: HarmonicsName
+        character(LEN = PathLength     )                        :: Message 
+        integer                                                 :: n, ni, NP, HarmonicsNumber
+        integer                                                 :: ILB, IUB, JLB, JUB, i, j, Nmax   
+        integer, parameter                                      :: AdmitMax = 18
+        integer                                                 :: Naux, AdmitNWaves
+        real,   pointer, dimension(:)                           :: WaveAmplitude
+        real,   pointer, dimension(:)                           :: WavePhase
+        character(LEN=WaveNameLength), pointer, dimension(:)    :: WaveName
+        character(LEN = StringLength   )                        :: AuxName 
+        real,       dimension(:,:), pointer                     :: Array2D, Bathymetry 
+        integer                                                 :: HDF5_CREATE, ObjHDF5
+        type (T_Size2D)                                         :: WorkSize2D
+        logical                                                 :: FirstTime    
+        
+
+        !----------------------------------------------------------------------
+        
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR05'
+        
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                      &
+                                    block_begin, block_end, BlockFound,                 &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR10'  
+        if (.not. BlockFound     ) stop 'WriteGaugeDataHDF - ModuleGauge - ERR20' 
+        
+        call GetGridBorderLimits(Me%ObjHorizontalGrid,                                  &
+                                 West, East, South, North, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR30' 
+        
+        WindowLimitsXY(2,1) = South
+        WindowLimitsXY(2,2) = North
+        WindowLimitsXY(1,1) = West
+        WindowLimitsXY(1,2) = East
+        
+        call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault,         &
+                                                        Longitude = LongDefault,        & 
+                                                        STAT      = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR40' 
+
+        
+        call GetExtractType(FromBlock = FromBlock)
+
+        call ConstructField4D(Field4DID         = Me%ObjField4D,                        &
+                              EnterDataID       = Me%ObjEnterData,                      &
+                              ExtractType       = FromBlock,                            &
+                              TimeID            = Me%ObjTime,                           &   
+                              FileName          = Me%HDFFileTidalComponents,            &
+                              MaskDim           = 2,                                    &
+                              LatReference      = LatDefault,                           &
+                              LonReference      = LongDefault,                          & 
+                              WindowLimitsXY    = WindowLimitsXY,                       &
+                              Extrapolate       = .true.,                               & 
+                              ClientID          = ClientNumber,                         &
+                              STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR50' 
+        
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR60'
+        
+        call GetField4DHarmonicsON(Field4DID        = Me%ObjField4D,                    &
+                                   PropertyIDNumber = WaterLevel_,                      &
+                                   HarmonicsON      = Field4DHarmonicsON,               &
+                                   STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)      then
+            stop 'WriteGaugeDataHDF - ModuleGauge - ERR70' 
+        endif            
+        
+        if (.not. Field4DHarmonicsON)   then
+            write(*,*) 'No tidal components defined in Field4D'
+            stop 'WriteGaugeDataHDF - ModuleGauge - ERR80'
+        endif            
+        
+        call GetField4DHarmonicsNumber(Field4DID        = Me%ObjField4D,                &
+                                       PropertyIDNumber = WaterLevel_,                  &
+                                       HarmonicsNumber  = HarmonicsNumber,              &
+                                       STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)      then
+            stop 'WriteGaugeDataHDF - ModuleGauge - ERR90' 
+        endif            
+        
+        allocate(HarmonicsName(HarmonicsNumber))
+        
+        call GetField4DHarmonicsName  (Field4DID        = Me%ObjField4D,                &
+                                       PropertyIDNumber = WaterLevel_,                  &
+                                       HarmonicsName    = HarmonicsName,                &
+                                       STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)      then
+            stop 'WriteGaugeDataHDF - ModuleGauge - ERR100' 
+        endif           
+        
+        
+        call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                &
+                                   WorkSize = WorkSize,                                 &
+                                   STAT     = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR110' 
+        
+        ILB = WorkSize%ILB
+        IUB = WorkSize%IUB
+        JLB = WorkSize%JLB
+        JUB = WorkSize%JUB
+
+        !Gets WaterPoints from the HorizontalMap
+        call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR120' 
+        
+        !Gets Center cell coordinates            
+        call GetZCoordinates(Me%ObjHorizontalGrid,  CoordX = CoordX, CoordY = CoordY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR130' 
+        
+        Nmax = (IUB - ILB + 1) * (JUB - JLB + 1) 
+        
+        allocate(AuxX(Nmax), AuxY(Nmax)) 
+        
+        ni = 0
+
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (WaterPoints2D(i, j) == WaterPoint ) then
+                ni = ni + 1
+                AuxX(ni) = CoordX(i, j)                            
+                AuxY(ni) = CoordY(i, j)
+            endif
+        enddo
+        enddo
+        
+        NP = ni
+
+        allocate(X    (1:NP), Y    (1:NP))
+       
+        X  (1:NP) = AuxX  (1:NP)
+        Y  (1:NP) = AuxY  (1:NP)
+        
+        deallocate(AuxX, AuxY) 
+
+        !UnGets Center cell coordinates            
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,  CoordX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR150' 
+                    
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,  CoordY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR160' 
+
+        
+        allocate(Amplitude  (1:NP), Phase      (1:NP))
+        allocate(PhaseReal  (1:NP), PhaseImag  (1:NP))   
+        allocate(NoAmplitude(1:NP)                   )     
+        allocate(NoPhaseReal(1:NP), NoPhaseImag(1:NP))        
+        
+        if (Me%ComputeAdmittance) then        
+            allocate(AmplitudeOut  (ILB:IUB, JLB:JUB, 1:HarmonicsNumber+AdmitMax))
+            allocate(PhaseOut      (ILB:IUB, JLB:JUB, 1:HarmonicsNumber+AdmitMax))        
+        else
+            allocate(AmplitudeOut  (ILB:IUB, JLB:JUB, 1:NP          ))
+            allocate(PhaseOut      (ILB:IUB, JLB:JUB, 1:NP          ))        
+        endif
+        
+        Amplitude   (:)     = FillValueReal
+        Phase       (:)     = FillValueReal
+        PhaseReal   (:)     = FillValueReal
+        PhaseImag   (:)     = FillValueReal        
+        AmplitudeOut(:,:,:) = FillValueReal
+        PhaseOut    (:,:,:) = FillValueReal
+        
+        do n = 1, HarmonicsNumber
+        
+            NoAmplitude (:) = .true. 
+            
+            call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
+                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  X                 = X,                                & 
+                                  Y                 = Y,                                &
+                                  Field             = Amplitude,                        & 
+                                  NoData            = NoAmplitude,                      &
+                                  WaveName          = HarmonicsName(n),                 &    
+                                  ExtractAmplitudes = .true.,                           &
+                                  STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR170' 
+            
+            NoPhaseReal(:) = .true.             
+
+            call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
+                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  X                 = X,                                & 
+                                  Y                 = Y,                                &
+                                  Field             = PhaseReal,                        & 
+                                  NoData            = NoPhaseReal,                      &
+                                  WaveName          = HarmonicsName(n),                 &    
+                                  ExtractAmplitudes = .false.,                          &
+                                  ExtractPhaseReal  = .true.,                           & 
+                                  STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR180' 
+            
+            NoPhaseImag(:) = .true.
+            
+            call ModifyField4DXYZ(Field4DID         = Me%ObjField4D,                    &
+                                  PropertyIDNumber  = WaterLevel_,                      &
+                                  X                 = X,                                & 
+                                  Y                 = Y,                                &
+                                  Field             = PhaseImag,                        & 
+                                  NoData            = NoPhaseImag,                      &
+                                  WaveName          = HarmonicsName(n),                 &    
+                                  ExtractAmplitudes = .false.,                          &
+                                  ExtractPhaseReal  = .false.,                          & 
+                                  STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR190' 
+            
+            do ni = 1, NP 
+            
+                if (NoAmplitude(ni)) then
+                    write(*,*) 'Tidal amplitudes missing in the open boundary'  
+                    write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
+                endif
+                
+                if (NoPhaseReal(ni)) then
+                    write(*,*) 'Tidal phase (real component) missing in the open boundary'
+                    write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
+                endif                    
+
+                if (NoPhaseImag(ni)) then
+                    write(*,*) 'Tidal phase (imaginary component) missing in the open boundary'
+                    write(*,*) 'cell located in the follow X, Y coordinates', X(ni), Y(ni)
+                endif                    
+
+            enddo
+             
+            do ni = 1, NP 
+                if (.not. NoAmplitude(ni) .and. .not. NoPhaseReal(ni) .and. .not. NoPhaseImag(ni)) then            
+                    !Only converts Real,Imag => Phase. Do no not converts amplitude. 
+                    call Complex_to_AmpPhase(PhaseReal(ni), PhaseImag(ni), Dummy, Phase(ni))
+                endif                
+            enddo
+
+
+            ni = 0
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (WaterPoints2D(i, j) == WaterPoint ) then
+                    ni = ni + 1
+                    AmplitudeOut(i, j, n) = Amplitude(ni)
+                    PhaseOut    (i, j, n) = Phase    (ni) 
+                endif
+            enddo
+            enddo
+                                    
+        enddo
+
+        deallocate(Amplitude  , Phase      )
+        deallocate(PhaseReal  , PhaseImag  )   
+        deallocate(NoAmplitude             )     
+        deallocate(NoPhaseReal, NoPhaseImag)        
+
+        deallocate(X, Y)
+        
+        call KillField4D(Me%ObjField4D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR200' 
+        
+        
+        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR210' 
+        
+        
+        Naux = HarmonicsNumber
+
+        allocate(WaveName     (1:HarmonicsNumber+AdmitMax)) 
+        
+        WaveName(1:HarmonicsNumber) = HarmonicsName(1:HarmonicsNumber)        
+
+        if (Me%ComputeAdmittance) then
+        
+            allocate(WaveAmplitude(1:HarmonicsNumber+AdmitMax))
+            allocate(WavePhase    (1:HarmonicsNumber+AdmitMax))
+            
+            FirstTime = .true.
+            
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (WaterPoints2D(i, j) == WaterPoint ) then
+                
+                    WaveAmplitude(1:HarmonicsNumber) = AmplitudeOut(i, j, 1:HarmonicsNumber) 
+                    WavePhase    (1:HarmonicsNumber) = PhaseOut    (i, j, 1:HarmonicsNumber) 
+                    
+                    WaveName     (HarmonicsNumber+1:Naux) = '****'
+                    
+                    call NewComponentsByAdmittanceV2(HarmonicsNumber, WaveAmplitude, WavePhase, WaveName, AdmitNWaves)
+
+                    if (FirstTime) then
+                        Naux      = HarmonicsNumber + AdmitNWaves
+                        FirstTime = .false.
+                    endif                        
+                    
+                    if (Naux > HarmonicsNumber) then
+
+                        AmplitudeOut(i, j, HarmonicsNumber+1:Naux) = WaveAmplitude(HarmonicsNumber+1:Naux)
+                        PhaseOut    (i, j, HarmonicsNumber+1:Naux) = WavePhase    (HarmonicsNumber+1:Naux) 
+                    
+                    endif
+                    
+                endif
+            enddo
+            enddo
+            
+        
+            deallocate(WaveAmplitude)
+            deallocate(WavePhase    )
+            
+        
+        endif
+        
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (WaterPoints2D(i, j) == WaterPoint ) then
+                PhaseOut(i, j, 1:Naux) = PhaseOut(i, j, 1:Naux) * 360. 
+            endif
+        enddo
+        enddo        
+        
+
+        ! ---> File in HDF format where is written the interpolated tidal components
+        Message   ='File in HDF format where is written the interpolated tidal components.'
+        Message   = trim(Message)
+
+        call ReadFileName(KEYWORD       = 'FILE_TIDAL_COMPONENTS_OUTPUT',               &
+                          FILE_NAME     = Me%HDFFileTidalComponentsOut,                 &
+                          Message       = Message,                                      &
+                          FilesInput    = Me%FileName,                                  &
+                          MPI_ID        = GetDDecompMPI_ID(Me%ObjHorizontalGrid),       &
+                          DD_ON         = GetDDecompON    (Me%ObjHorizontalGrid),       &
+                          STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR230' 
+        
+
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        ObjHDF5 = 0
+
+        !Opens HDF File
+        call ConstructHDF5      (ObjHDF5,                                               &
+                                 trim(Me%HDFFileTidalComponentsOut),                    &
+                                 HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR230' 
+        
+        WorkSize2D%ILB = ILB
+        WorkSize2D%IUB = IUB        
+        WorkSize2D%JLB = JLB
+        WorkSize2D%JUB = JUB        
+
+        !Write the Horizontal Grid
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                         &
+                                 WorkSize = WorkSize2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR240' 
+
+
+        !Sets limits for next write operations
+        call HDF5SetLimits   (ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR250' 
+
+        allocate(Bathymetry(ILB:IUB,JLB:JUB))
+        allocate(Array2D   (ILB:IUB,JLB:JUB))
+        
+        Bathymetry(:,:) = 0.
+        
+        !Writes the Grid
+        call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
+                              Array2D = Bathymetry,                                     &
+                              STAT    = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'WriteGaugeDataHDF - ModuleGauge - ERR260' 
+        
+        deallocate(Bathymetry)
+
+        call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints2D", "-",                   &  
+                              Array2D = WaterPoints2D,                                  &
+                              STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR270' 
+        
+        
+        do n=1, Naux
+        
+            AuxName = "/Results/water level/"//trim(WaveName(n))
+            
+            
+            Array2D(ILB:IUB,JLB:JUB) = AmplitudeOut(ILB:IUB,JLB:JUB, n)
+            
+            call HDF5WriteData  (HDF5ID     = ObjHDF5,                                  &
+                                 GroupName  = trim(AuxName),                            &
+                                 Name       = "amplitude",                              &
+                                 Units      = "m",                                      &       
+                                 Array2D    = Array2D,                                  &
+                                 STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR280' 
+
+
+            Array2D(ILB:IUB,JLB:JUB) = PhaseOut(ILB:IUB,JLB:JUB, n)
+
+            call HDF5WriteData  (HDF5ID     = ObjHDF5,                                  &
+                                 GroupName  = trim(AuxName),                            &
+                                 Name       = "phase",                                  &
+                                 Units      = "º",                                      &       
+                                 Array2D    = Array2D,                                  &
+                                 STAT       = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR290' 
+ 
+        enddo
+
+
+        !Writes everything to disk
+        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR300' 
+
+        deallocate(Array2D     )
+        deallocate(AmplitudeOut)
+        deallocate(PhaseOut    )           
+        deallocate(HarmonicsName)         
+        deallocate(WaveName     ) 
+ 
+        !UnGets WaterPoints2D from the HorizontalMap
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteGaugeDataHDF - ModuleGauge - ERR310' 
+        
+        
+
+    end subroutine WriteGaugeDataHDF
+    
+    !--------------------------------------------------------------------------      
     
     subroutine CreateGaugeFromHDFData(X, Y, n, i, j)
 
@@ -2030,6 +2542,37 @@ do2 :   do while (associated(WaveOut))
     end subroutine GetWave
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetWaveI(WaveNameList, NWaves, WaveName, WaveExists, WaveOut)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*), pointer, dimension(:)               :: WaveNameList 
+        integer,                                 intent (IN ) :: NWaves
+        character(len=*),                        intent (IN ) :: WaveName
+        logical,                                 intent (OUT) :: WaveExists        
+        integer,                                 intent (OUT) :: WaveOut
+
+        !Local-----------------------------------------------------------------
+        integer                                               :: n
+        !----------------------------------------------------------------------
+        
+        WaveExists = .false.        
+
+do1 :   do n = 1,NWaves 
+            if (trim(WaveName)==trim(WaveNameList(n))) then
+                WaveExists = .true.
+                WaveOut    = n
+                exit
+            endif
+        end do do1
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetWaveI
+
+    !--------------------------------------------------------------------------    
 
     subroutine GetNGauges(GaugeID, NGauges, STAT)
 
@@ -4129,7 +4672,394 @@ K2N2M2: if (K2 .and. N2 .and. M2) then
         endif K2N2M2
 
 
-end subroutine NewComponentsByAdmittance
+    end subroutine NewComponentsByAdmittance
+
+!------------------------------------------------------------------------------
+
+    !Add new components to the tidal gauge by atmittance
+    subroutine NewComponentsByAdmittanceV2(NWaves, WaveAmplitude, WavePhase, WaveName, AdmitNWaves)
+
+        !Arguments------------------------------------------------
+        integer,            intent(IN)                  :: NWaves
+        real,   pointer, dimension(:)                   :: WaveAmplitude
+        real,   pointer, dimension(:)                   :: WavePhase
+        character(LEN=*), pointer, dimension(:)         :: WaveName
+        integer,            intent(OUT)                 :: AdmitNWaves
+       
+        !Local----------------------------------------------------        
+        real                                            :: RealNew, ImagNew
+        integer                                         :: n
+        real                                            :: realQ1, realO1, realK1, real2N2, realN2, realM2, realK2
+        real                                            :: ImagQ1, ImagO1, ImagK1, Imag2N2, ImagN2, ImagM2, ImagK2
+        logical                                         :: Q1, O1, K1, var_2N2, N2, M2, K2, ExistComp
+        integer                                         :: WaveOut
+ 
+        !Begin----------------------------------------------------        
+
+        !call GetWave(PresentGauge, 'Q1', Q1, WaveOut)
+        
+        call GetWaveI(WaveName, NWaves, 'Q1', Q1, WaveOut)
+        if (Q1) then
+            call AmpPhase_To_Complex (WaveAmplitude(WaveOut), WavePhase(WaveOut), realQ1, ImagQ1)
+        else
+            realQ1 = FillValueReal
+            ImagQ1 = FillValueReal
+        endif
+
+        call GetWaveI(WaveName, NWaves, 'O1', O1, WaveOut)
+        if (O1) then
+            call AmpPhase_To_Complex (WaveAmplitude(WaveOut), WavePhase(WaveOut), realO1, ImagO1)
+        else
+            realO1 = FillValueReal
+            ImagO1 = FillValueReal
+        endif
+
+        call GetWaveI(WaveName, NWaves, 'K1', K1, WaveOut)
+        if (K1) then
+            call AmpPhase_To_Complex (WaveAmplitude(WaveOut), WavePhase(WaveOut), realK1, ImagK1)
+        else
+            realK1 = FillValueReal
+            ImagK1 = FillValueReal
+        endif
+
+        call GetWaveI(WaveName, NWaves, '2N2', var_2N2, WaveOut)
+        if (var_2N2) then
+            call AmpPhase_To_Complex (WaveAmplitude(WaveOut), WavePhase(WaveOut), real2N2, Imag2N2)
+        else
+            real2N2 = FillValueReal
+            Imag2N2 = FillValueReal
+        endif
+
+        call GetWaveI(WaveName, NWaves, 'N2', N2, WaveOut)
+        if (N2) then
+            call AmpPhase_To_Complex (WaveAmplitude(WaveOut), WavePhase(WaveOut), realN2, ImagN2)
+        else
+            realN2 = FillValueReal
+            ImagN2 = FillValueReal
+        endif
+
+        call GetWaveI(WaveName, NWaves, 'K2', K2, WaveOut)
+        if (K2) then
+            call AmpPhase_To_Complex (WaveAmplitude(WaveOut), WavePhase(WaveOut), realK2, ImagK2)
+        else
+            realK2 = FillValueReal
+            ImagK2 = FillValueReal
+        endif
+
+        call GetWaveI(WaveName, NWaves, 'M2', M2, WaveOut)
+        if (M2) then
+            call AmpPhase_To_Complex (WaveAmplitude(WaveOut), WavePhase(WaveOut), realM2, ImagM2)
+        else
+            realM2 = FillValueReal
+            ImagM2 = FillValueReal
+        endif
+        
+       
+        AdmitNWaves = 0
+        
+Q1O1:   if (Q1 .and. O1) then
+            call GetWaveI(WaveName, NWaves, '2Q1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component 2Q1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = Real2Q1_Comp (realQ1,realO1)
+                ImagNew = Imag2Q1_Comp (ImagQ1,ImagO1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = '2Q1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+
+            call GetWaveI(WaveName, NWaves, 'SIG1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component SIG1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realSigma1_Comp (realQ1,realO1)
+                ImagNew = ImagSigma1_Comp (ImagQ1,ImagO1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'SIG1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+            
+            call GetWaveI(WaveName, NWaves, 'RHO1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component RHO1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realrho1_Comp (realQ1,realO1)
+                ImagNew = Imagrho1_Comp (ImagQ1,ImagO1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'RHO1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+            
+        endif Q1O1
+        
+O1K1:   if (O1 .and. K1) then
+
+            call GetWaveI(WaveName, NWaves, 'CHI1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component CHI1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realchi1_Comp (realO1,realK1)
+                ImagNew = Imagchi1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'CHI1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+
+            call GetWaveI(WaveName, NWaves, 'PI1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component PI1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realpi1_Comp (realO1,realK1)
+                ImagNew = Imagpi1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'PI1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif
+            
+            call GetWaveI(WaveName, NWaves, 'PHI1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component PHI1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realphi1_Comp (realO1,realK1)
+                ImagNew = Imagphi1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'PHI1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif            
+            
+            call GetWaveI(WaveName, NWaves, 'THE1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component THE1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realtheta1_Comp (realO1,realK1)
+                ImagNew = Imagtheta1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'THE1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif            
+
+            call GetWaveI(WaveName, NWaves, 'J1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component J1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realJ1_Comp (realO1,realK1)
+                ImagNew = ImagJ1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'J1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif           
+
+            call GetWaveI(WaveName, NWaves, 'OO1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component OO1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realOO1_Comp (realO1,realK1)
+                ImagNew = ImagOO1_Comp (ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'OO1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif    
+
+            if (Me%TidePREDICTION == Toga_) then
+                !M12 component not recognized by task2000
+                call GetWaveI(WaveName, NWaves, 'M12', ExistComp, WaveOut)
+                if (.not. ExistComp) then
+                !Add component M12 -----------------------------------
+                    AdmitNWaves = AdmitNWaves + 1
+                    
+                    RealNew = realm12_Comp (realO1,realK1)
+                    ImagNew = Imagm12_Comp (ImagO1,ImagK1)
+                    
+                    n       = NWaves + AdmitNWaves
+
+                    WaveName(n) = 'M12'
+                    
+                    call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+                endif                
+            endif
+                                    
+        endif O1K1
+
+N22N2:  if (Var_2N2 .and. N2) then
+
+            call GetWaveI(WaveName, NWaves, 'EPS2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component EPS2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realEpsilon2_Comp (real2N2,realN2)
+                ImagNew = ImagEpsilon2_Comp (Imag2N2,ImagN2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'EPS2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+        endif N22N2
+
+
+M2K2:   if (M2 .and. K2) then
+
+            call GetWaveI(WaveName, NWaves, 'ETA2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component ETA2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realEta2_Comp (realM2,realK2)
+                ImagNew = ImagEta2_Comp (ImagM2,ImagK2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'ETA2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+        endif M2K2
+
+
+Q1O1K1: if (Q1 .and. O1 .and. K1) then
+
+            call GetWaveI(WaveName, NWaves, 'P1', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component P1 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realP1_Comp (realQ1,realO1,realK1)
+                ImagNew = ImagP1_Comp (ImagQ1,ImagO1,ImagK1)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'P1'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+        endif Q1O1K1
+
+
+K2N2M2: if (K2 .and. N2 .and. M2) then
+
+            call GetWaveI(WaveName, NWaves, 'MU2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component MU2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realMu2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagMu2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'MU2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+            call GetWaveI(WaveName, NWaves, 'NU2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component NU2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realNu2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagNu2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'NU2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif   
+
+            call GetWaveI(WaveName, NWaves, 'LDA2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component LDA2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realLda2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagLda2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'LDA2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif               
+
+            call GetWaveI(WaveName, NWaves, 'L2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component L2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realL2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagL2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'L2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif 
+
+            call GetWaveI(WaveName, NWaves, 'T2', ExistComp, WaveOut)
+            if (.not. ExistComp) then
+            !Add component T2 -----------------------------------
+                AdmitNWaves = AdmitNWaves + 1
+                
+                RealNew = realT2_Comp (realK2,realN2,realM2)
+                ImagNew = ImagT2_Comp (ImagK2,ImagN2,ImagM2)
+                
+                n       = NWaves + AdmitNWaves
+
+                WaveName(n) = 'T2'
+                
+                call Complex_To_AmpPhase(RealNew, ImagNew, WaveAmplitude(n), WavePhase(n))
+            endif 
+            
+        endif K2N2M2
+
+
+    end subroutine NewComponentsByAdmittanceV2
+
+
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

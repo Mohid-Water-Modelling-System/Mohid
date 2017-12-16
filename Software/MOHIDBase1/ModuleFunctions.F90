@@ -160,6 +160,8 @@ Module ModuleFunctions
     public  :: InterpolateValueInTime
     public  :: InterpolateMatrix2DInTime
     public  :: InterpolateMatrix3DInTime
+    public  :: InterpolateAngle2DInTime
+    public  :: InterpolateAngle3DInTime
 
     public  :: LinearInterpolation
     public  :: InterpolateLinearyMatrix2D
@@ -175,6 +177,14 @@ Module ModuleFunctions
     private :: FillMatrix2DConstant    
     public  :: FillMatrix2D  
     public  :: FillMatrix3D
+    
+    !Assimilation - TwoWay   João Sobrinho
+    public  :: TwoWayAssimilation
+    
+    interface  TwoWayAssimilation
+        module procedure TwoWayAssimilation2D
+        module procedure TwoWayAssimilation3D
+    end interface  TwoWayAssimilation
     
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
@@ -380,6 +390,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues1D_R8_Constant
         module procedure SetMatrixValues2D_I4_Constant
         module procedure SetMatrixValues2D_R4_Constant
+        module procedure SetMatrixValues2D_R8ToR4_FromMatrix
         module procedure SetMatrixValues2D_R8_Constant
         module procedure SetMatrixValues2D_R4_FromMatrix
         module procedure SetMatrixValues2D_R8_FromMatrix
@@ -388,6 +399,7 @@ Module ModuleFunctions
         module procedure SetMatrixValues3D_R4_Constant
         module procedure SetMatrixValues3D_R8_Constant
         module procedure SetMatrixValues3D_R4_FromMatrix
+        module procedure SetMatrixValues3D_R8ToR4_FromMatrix
         module procedure SetMatrixValues3D_R8_FromMatrix
         module procedure SetMatrixValues3D_I4_FromMatrix
     end interface SetMatrixValue
@@ -1178,7 +1190,48 @@ Module ModuleFunctions
     end subroutine SetMatrixValues2D_R8_FromMatrix
     
     !--------------------------------------------------------------------------
+    subroutine SetMatrixValues2D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
 
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:, :), pointer               :: Matrix
+        type (T_Size2D)                                 :: Size
+        real(8), dimension(:, :), pointer               :: InMatrix
+        integer, dimension(:, :), pointer, optional     :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j
+        integer                                         :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_J(Size%JLB, Size%JUB)
+        
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j) == 1) then
+                    Matrix (i, j) = InMatrix(i, j)
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j) = InMatrix(i, j)
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif    
+
+    end subroutine SetMatrixValues2D_R8ToR4_FromMatrix    
+    !--------------------------------------------------------------------------    
     subroutine SetMatrixValues2D_R8_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
@@ -1556,6 +1609,51 @@ Module ModuleFunctions
         endif    
 
     end subroutine SetMatrixValues3D_R4_FromMatrix
+    
+    subroutine SetMatrixValues3D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
+    
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:, :, :), pointer            :: Matrix
+        type (T_Size3D)                                 :: Size
+        real(8), dimension(:, :, :), pointer            :: InMatrix
+        integer, dimension(:, :, :), pointer, optional  :: MapMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j, k
+        integer                                         :: CHUNK
+        
+        !Begin-----------------------------------------------------------------
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J, K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Matrix (i, j, k) = InMatrix(i, j, k)
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J, K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j, k) = InMatrix(i, j, k)
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        endif        
+    end subroutine SetMatrixValues3D_R8ToR4_FromMatrix
 
     !--------------------------------------------------------------------------
 
@@ -4353,6 +4451,255 @@ end function
 
     !--------------------------------------------------------------------------
 
+    subroutine InterpolateAngle2DInTime(ActualTime, Size, Time1, Matrix1, &
+                                         Time2, Matrix2, MatrixOUT, PointsToFill2D)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time),      intent(IN)                   :: ActualTime
+        type(T_Size2D)                                  :: Size
+        type(T_Time),      intent(IN)                   :: Time1
+        real, dimension(:,:), pointer                   :: Matrix1
+        type(T_Time),      intent(IN)                   :: Time2
+        real, dimension(:,:), pointer                   :: Matrix2
+        real, dimension(:,:), pointer                   :: MatrixOUT
+        integer, dimension(:, :), pointer, optional     :: PointsToFill2D
+
+        !Local-----------------------------------------------------------------
+        real                                            :: X1, X, X2
+
+        !Begin-----------------------------------------------------------------
+
+        !Time1 = 0
+        X1       = 0.
+        X        = ActualTime - Time1
+        X2       = Time2      - Time1
+
+        call InterpolateLinearyAngle2D(X, Size, X1, Matrix1,                            &
+                                       X2, Matrix2, MatrixOUT, PointsToFill2D)
+
+    end subroutine InterpolateAngle2DInTime
+
+    !--------------------------------------------------------------------------
+
+    subroutine InterpolateAngle3DInTime(ActualTime, Size, Time1, Matrix1,               &
+                                        Time2, Matrix2, MatrixOUT, PointsToFill3D)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Time),      intent(IN)                   :: ActualTime
+        type(T_Size3D)                                  :: Size
+        type(T_Time),      intent(IN)                   :: Time1
+        real, dimension(:,:,:), pointer                 :: Matrix1
+        type(T_Time),      intent(IN)                   :: Time2
+        real, dimension(:,:,:), pointer                 :: Matrix2
+        real, dimension(:,:,:), pointer                 :: MatrixOUT
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+
+        !Local-----------------------------------------------------------------
+        real                                            :: X1, X, X2
+        
+        !Begin-----------------------------------------------------------------
+
+        !Time1 = 0
+        X1       = 0.
+        X        = ActualTime - Time1
+        X2       = Time2 - Time1
+
+        call InterpolateLinearyAngle3D(X, Size, X1, Matrix1,                            &
+                                       X2, Matrix2, MatrixOUT, PointsToFill3D)
+
+    end subroutine InterpolateAngle3DInTime
+
+    !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+
+    subroutine InterpolateLinearyAngle2D(X, Size, X1, Matrix1, &
+                                         X2, Matrix2, MatrixOUT, PointsToFill2D)
+
+        !Arguments-------------------------------------------------------------
+        real                                            :: X1, X2, X
+        type(T_Size2D)                                  :: Size
+        real, dimension(:,:), pointer                   :: Matrix1
+        real, dimension(:,:), pointer                   :: Matrix2
+        real, dimension(:,:), pointer                   :: MatrixOUT
+        integer, dimension(:, :), pointer, optional     :: PointsToFill2D
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j
+        real                                            :: DT1, DT2, DTtotal
+        real                                            :: RealOut, Real1, Real2
+        real                                            :: ImagOut, Imag1, Imag2 
+        real                                            :: Amp       
+        integer                                         :: CHUNK 
+
+        !Begin-----------------------------------------------------------------
+
+        DT1      = X - X1
+        DT2      = X2 - X
+        DTtotal  = DT1 + DT2
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "InterpolateLinearyMatrix2D")
+       
+        CHUNK = CHUNK_J(Size%JLB, Size%JUB)
+
+        if(present(PointsToFill2D))then
+            
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill2D, &
+            !! $OMP Real1, Imag1, Real2, Imag2, RealOut, ImagOut) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+            
+                if(PointsToFill2D(i,j) == 1)then
+                
+                    
+                    call AmpPhase_To_Complex(1., Matrix1(i,j)/360.,Real1, Imag1)
+                    call AmpPhase_To_Complex(1., Matrix2(i,j)/360.,Real2, Imag2)
+
+                    RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
+                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
+                    
+                    call Complex_to_AmpPhase(RealOut,ImagOut, Amp, MatrixOUT(i,j))
+                    
+                    MatrixOUT(i,j) = MatrixOUT(i,j) * 360. 
+
+                    !MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal                    
+            
+                endif
+
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        else
+            
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, &
+            !! $OMP Real1, Imag1, Real2, Imag2, RealOut, ImagOut) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+            
+                    call AmpPhase_To_Complex(1., Matrix1(i,j)/360.,Real1, Imag1)
+                    call AmpPhase_To_Complex(1., Matrix2(i,j)/360.,Real2, Imag2)
+
+                    RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
+                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
+                    
+                    call Complex_to_AmpPhase(RealOut,ImagOut, 1., MatrixOUT(i,j))
+                    
+                    MatrixOUT(i,j) = MatrixOUT(i,j) * 360.     
+                    
+                    !MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal 
+
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "InterpolateLinearyMatrix2D")
+
+    end subroutine InterpolateLinearyAngle2D
+
+    !--------------------------------------------------------------------------
+
+    subroutine InterpolateLinearyAngle3D(X, Size, X1, Matrix1, &
+                                         X2, Matrix2, MatrixOUT, PointsToFill3D)
+
+        !Arguments-------------------------------------------------------------
+        real                                            :: X1, X2, X
+        type(T_Size3D)                                  :: Size
+        real, dimension(:,:,:), pointer                 :: Matrix1
+        real, dimension(:,:,:), pointer                 :: Matrix2
+        real, dimension(:,:,:), pointer                 :: MatrixOUT
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: i, j, k
+        real                                            :: DT1, DT2, DTtotal
+        real                                            :: RealOut, Real1, Real2
+        real                                            :: ImagOut, Imag1, Imag2 
+        real                                            :: Amp                      
+        integer                                         :: CHUNK 
+        
+        !Begin-----------------------------------------------------------------
+
+
+        DT1      = X - X1
+        DT2      = X2 - X
+        DTtotal  = DT1 + DT2
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "InterpolateLinearyMatrix3D")
+
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
+        if(present(PointsToFill3D))then
+
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+
+                if(PointsToFill3D(i,j,k) == 1)then
+
+                    call AmpPhase_To_Complex(1., Matrix1(i,j,k)/360.,Real1, Imag1)
+                    call AmpPhase_To_Complex(1., Matrix2(i,j,k)/360.,Real2, Imag2)
+
+                    RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
+                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
+                    
+                    call Complex_to_AmpPhase(RealOut,ImagOut, Amp, MatrixOUT(i,j,k))
+                    
+                    MatrixOUT(i,j,k) = MatrixOUT(i,j,k) * 360.                     
+                    
+                    !MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal 
+
+
+                endif
+
+            enddo
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        else
+            
+            !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
+            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+
+                call AmpPhase_To_Complex(1., Matrix1(i,j,k)/360.,Real1, Imag1)
+                call AmpPhase_To_Complex(1., Matrix2(i,j,k)/360.,Real2, Imag2)
+
+                RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
+                ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
+                
+                call Complex_to_AmpPhase(RealOut,ImagOut, 1., MatrixOUT(i,j,k))
+                
+                MatrixOUT(i,j,k) = MatrixOUT(i,j,k) * 360.         
+                
+                !MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal 
+
+            enddo
+            enddo
+            enddo
+            !! $OMP END DO NOWAIT
+            !! $OMP END PARALLEL
+
+        end if
+
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "InterpolateLinearyMatrix3D")
+
+    end subroutine InterpolateLinearyAngle3D
+
+    !--------------------------------------------------------------------------
+
+
     subroutine InterpolateMatrix2DInTime(ActualTime, Size, Time1, Matrix1, &
                                          Time2, Matrix2, MatrixOUT, PointsToFill2D)
 
@@ -5254,9 +5601,136 @@ d5:     do k = klast + 1,KUB
         deallocate(Map2D, Value2D)        
 
     end subroutine FillMatrix3D
+    !-----------------------------------------------------------------------------------------------------------------
+    
+    subroutine TwoWayAssimilation2D(FatherProperty, SonProperty, Open3DFather, Open3DSon, KUBFather,        &
+                                    IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, IConnect, Jconnect, DecayTime,  &
+                                    DT, TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather)
+    !Arguments---------------------------------------------------------------------------------
+    real,    dimension(:,:), pointer, intent(IN)        :: SonProperty
+    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
+    real,    dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
+    real,    dimension(:,:), pointer, intent(INOUT)     :: FatherProperty
+    integer, dimension(:,:), pointer, intent(IN)        :: IConnect, Jconnect
+    integer, intent(IN)                                 :: KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
+    real, intent(IN)                                    :: DecayTime, DT
+    !Aux variables --------------------------------------------------------------------------------
+    integer                                             :: i, j
+    real,    dimension(:,:), pointer                    :: AuxMatrix
+    real,    dimension(:,:,:), pointer                  :: TotSonVolInFather
+    real,    dimension(:,:), pointer                    :: FatherCopyCorners
+    !Begin-------------------------------------------------------------------------------------
 
-    !-------------------------------------------------------------------------------------
+    !left lower corner
+    FatherCopyCorners(1, KUBFather) = FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1)
+    !left upper corner
+    FatherCopyCorners(2, KUBFather) = FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1)
+    !Right lower corner
+    FatherCopyCorners(3, KUBFather) = FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1)
+    !Right upper corner
+    FatherCopyCorners(4, KUBFather) = FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1)
+    
+        do j = JLBSon, JUBSon
+            do i = ILBSon, IUBSon
+                if (Open3DSon(i, j, KUBSon) == 1)then                     
+                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1) = &
+                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1) + SonProperty(i, j) * VolumeZSon(i, j, KUBFather)
+                endif
+            enddo        
+        enddo
+    
+        do j = Jconnect(1, 1)+1, Jconnect(IUBSon, JUBSon)+1
+            do i = IConnect(1, 1)+1, IConnect(IUBSon, JUBSon)+1  
+                if (Open3DFather(i, j, KUBFather) == 1 .and. TotSonVolInFather(i, j, KUBFather) > 0 )then
+                    FatherProperty(i, j) = FatherProperty(i, j) + (AuxMatrix(i, j) /                      &
+                                           TotSonVolInFather(i, j, KUBFather) - FatherProperty(i, j)) *   &
+                                           (DT / DecayTime) * (TotSonVolInFather(i, j, KUBFather) /       &
+                                           VolumeZFather(i, j, KUBFather))
+                endif
+            enddo
+        enddo
+        
+        !left lower corner
+        FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1) = FatherCopyCorners(1,KUBFather) 
+        !left upper corner, KUBFather
+        FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1) = FatherCopyCorners(2,KUBFather)
+        !Right lower corner
+        FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1) = FatherCopyCorners(3,KUBFather)
+        !Right upper corner
+        FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1) = FatherCopyCorners(4,KUBFather)
+    
+    end subroutine TwoWayAssimilation2D
+    !------------------------------------------------------------------------------------------------------------------
 
+    subroutine TwoWayAssimilation3D(FatherProperty,SonProperty, Open3DFather, Open3DSon,  &
+                                    KUBFather, KLBFather, IUBSon, ILBSon, JUBSon, JLBSon, &
+                                    KUBSon, KLBSon, IConnect, Jconnect, DecayTime, DT,    &
+                                    TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather) 
+    !Arguments---------------------------------------------------------------------------------
+    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty, VolumeZSon, VolumeZFather
+    real,    dimension(:,:,:), pointer, intent(INOUT)   :: FatherProperty
+    integer, dimension(:,:),   pointer, intent(IN)      :: IConnect, Jconnect
+    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
+    integer, intent(IN)                                 :: KUBFather, KLBFather, IUBSon, ILBSon, JUBSon, JLBSon
+    integer, intent(IN)                                 :: KUBSon, KLBSon
+    real,    intent (IN)                                :: DecayTime, DT
+    !Aux variables -----------------------------------------------------------------------------
+    integer                                             :: i, j, k
+    real, dimension(:,:,:), pointer                     :: AuxMatrix
+    real, dimension(:,:,:), pointer                     :: TotSonVolInFather
+    real, dimension(:,:), pointer                       :: FatherCopyCorners
+    !Begin----------------------------------------------------------------------------------------
+    
+    !Copies Values of FatherProperty coincident with the corners of the Son domain (because the son domain does
+    ! not compute them).
+    do k = KLBFather, KUBFather
+        !left lower corner
+        FatherCopyCorners(1, k) = FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1, k)
+        !left upper corner
+        FatherCopyCorners(2, k) = FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1, k)
+        !Right lower corner
+        FatherCopyCorners(3, k) = FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1, k)
+        !Right upper corner
+        FatherCopyCorners(4, k) = FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1, k)
+    enddo
+    !Paralelizar! João Sobrinho
+    do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+            do i = ILBSon, IUBSon
+                if (Open3DSon(i, j, k) == 1)then
+                    !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) = AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) + &
+                                                                      SonProperty(i, j, k) * VolumeZSon(i, j, k)
+                endif
+            enddo        
+        enddo
+    enddo
+    !Paralelizar! João Sobrinho
+    do k = KLBFather, KUBFather
+        do j = Jconnect(1, 1)+1, Jconnect(IUBSon, JUBSon)+1
+            do i = IConnect(1, 1)+1, IConnect(IUBSon, JUBSon)+1
+                if (Open3DFather(i, j, k) == 1 .and. TotSonVolInFather(i, j, k) > 0. )then
+                    FatherProperty(i, j, k) = FatherProperty(i, j, k) + &
+                                              (AuxMatrix(i, j, k) / TotSonVolInFather(i, j, k) - FatherProperty(i, j, k)) * &
+                                              (DT / DecayTime) * (TotSonVolInFather(i, j, k) / VolumeZFather(i, j, k))
+                endif
+                
+            enddo
+        enddo
+    enddo
+    
+    do k = KLBFather, KUBFather
+        !left lower corner
+        FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1, k) = FatherCopyCorners(1, k) 
+        !left upper corner
+        FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1, k) = FatherCopyCorners(2, k)
+        !Right lower corner
+        FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1, k) = FatherCopyCorners(3, k)
+        !Right upper corner
+        FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1, k) = FatherCopyCorners(4, k)
+    enddo
+    
+    end subroutine TwoWayAssimilation3D
    
     !-------------------------------------------------------------------------------------    
     subroutine ReadTimeKeyWords(ObjEnterData, ExtractTime, BeginTime, EndTime, DT,       &
@@ -5275,9 +5749,10 @@ d5:     do k = klast + 1,KUB
         real, optional                              :: DTPredictionInterval
 
         !Local-----------------------------------------------------------------
-        real(8)                                     :: aux
-        real                                        :: MinError
-        integer                                     :: STAT_CALL, iflag
+        real(8)                                     :: aux, aux1, DTD
+        real(8)                                     :: MinError
+        integer                                     :: STAT_CALL, iflag, i
+        character(len = 256)                        :: AuxChar
 
         !Reads Begin Time
         call GetData(BeginTime, ObjEnterData, iflag, keyword = 'START',                  &
@@ -5386,17 +5861,28 @@ d5:     do k = klast + 1,KUB
 
             !Run period in seconds
             aux  = EndTime - BeginTime
-        
+            
+            !when real is real(4) by default if DT = 0.2
+            !DTD = dble(DT) = 0.200000002980232
+            DTD  = dble(DT)
+            
+            !after many attempts this was the only way to clear the spurious values 
+            !added by the dble function after the 6 decimal place
+            
+            write(AuxChar,*)  DTD
+            i = scan(AuxChar,".")
+            read (AuxChar(1:i+7),*) DTD 
+            
             !The run period must be a multiple of the model DT
             !The abs function is used, to avoid rounding erros
-            !The old way was removed, to be able to run with Timesteps lower then 1 sec
-            !Frank Dec - 2000
-            MinError = min (abs(mod (aux, dble(DT))), abs(dble(DT) - mod (aux, dble(DT))))
+            
+            aux1 = dmod (aux, DTD)
+            MinError = min (dabs(aux1), dabs(DTD - aux1))
             if (MinError >= 1.e-5.and.(.not.VariableDT)) then
                 write(*,*) 
                 write(*,*)' Time step error - Run period must be a multiple of DT'
-                write(*,*)' Shorten the run time by ', mod (aux, dble(DT))
-                write(*,*)' or increase the run time by ', DT - mod (aux, dble(DT))
+                write(*,*)' Shorten the run time by ', aux1
+                write(*,*)' or increase the run time by ', DTD - aux1
                 stop 'ReadTimeKeyWords - ModuleFunctions - ERR08'
             endif
         endif
@@ -5557,10 +6043,10 @@ d5:     do k = klast + 1,KUB
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyID - ModuleFunctions - ERR03.1.3'
         else
-            PropertyID%IDNumber = GetPropertyIDNumber (PropertyID%Name)
-            PropertyID%IsAngle = Check_Angle_Property(PropertyID%IDNumber)
+            PropertyID%IDNumber      = GetPropertyIDNumber       (PropertyID%Name    )
+            PropertyID%IsAngle       = Check_Angle_Property      (PropertyID%IDNumber)
             PropertyID%IsParticulate = Check_Particulate_Property(PropertyID%IDNumber)
-            PropertyID%IsVectorial = Check_Vectorial_Property(PropertyID%IDNumber)
+            PropertyID%IsVectorial   = Check_Vectorial_Property  (PropertyID%IDNumber)
         endif
         
         if (present(CheckProperty)) then
@@ -11230,17 +11716,22 @@ D2:     do I=imax-1,2,-1
 
         !Begin-----------------------------------------------------------------    
         Amplitude = sqrt(Sreal**2.+Simag**2.)
-        Phase = Atan (Simag/Sreal)
-
-        if(Sreal < 0 .And. Simag < 0)Then
-           Phase = Phase + Pi
-        end If
-
-        if(Sreal < 0 .And. Simag > 0)Then
-          Phase = Phase - Pi
-        end If
+        if (abs(Sreal)>0.) then
+            Phase = Atan2 (Simag,Sreal)
+        else
         
+            if (Simag > 0) then
+                Phase =  Pi/2.
+            else
+                Phase = -Pi/2.            
+            endif
+            
+        endif            
+
         Phase = Phase / (2 * Pi)
+
+        if (Phase >= 1.) Phase = Phase - 1.
+        if (Phase <  0.) Phase = Phase + 1.            
 
     end subroutine Complex_to_AmpPhase
 

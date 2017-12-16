@@ -124,6 +124,7 @@ Module ModuleModel
     !$ use omp_lib
 
 
+
     implicit none
 
     private
@@ -288,6 +289,7 @@ Module ModuleModel
         integer                                 :: ObjSedimentProperties        = 0
         integer                                 :: ObjConsolidation             = 0
         integer                                 :: ObjFreeVerticalMovement      = 0
+       
 #ifdef _USE_SEQASSIMILATION
         integer                                 :: ObjSeqAssimilation           = 0
 #endif _USE_SEQASSIMILATION
@@ -627,7 +629,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !!$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
             !!$    endif
             !$ endif
-
+                  
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR150'
 
@@ -1593,8 +1595,9 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
             DoNextStep = .false.
 
 if9:        if (Me%CurrentTime .LT. Me%EndTime) then      
-
-if2:            if (Global_CurrentTime .GE. Me%CurrentTime) then
+                !João Sobrinho - Changed from GE to GT so that all domains sincronize with the First domain
+if2:            if (Global_CurrentTime .GT. Me%CurrentTime) then
+                !if (Global_CurrentTime .GE. Me%CurrentTime) then
 
                     call GetComputeTimeStep (Me%ObjTime, Me%DT, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'UpdateTimeAndMapping - ModuleModel - ERR03'

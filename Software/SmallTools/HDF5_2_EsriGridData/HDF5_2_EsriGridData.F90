@@ -639,8 +639,8 @@ d11:    do l = 1, Me%FieldNumber
                 if (STAT_CALL /= SUCCESS_) stop 'OutputMohidBin - ModuleTecnoceanAscii - ERR20'
                 
 
-                write(Unit,'(A14,I6)'   ) 'ncols         ', JUB - JLB + 1
-                write(Unit,'(A14,I6)'   ) 'nrows         ', IUB - ILB + 1
+                write(Unit,'(A14,I6)'   ) 'ncols         ', JUBout - JLBout + 1
+                write(Unit,'(A14,I6)'   ) 'nrows         ', IUBout - ILBout + 1
                 write(Unit,'(A14,A30)')     'xllcorner     ', trim(adjustl(Me%Origin(1)))
                 write(Unit,'(A14,A30)')     'yllcorner     ', trim(adjustl(Me%Origin(2)))
                 write(Unit,'(A14,A30)')     'cellsize      ', trim(adjustl(Me%DX))
@@ -672,9 +672,9 @@ d11:    do l = 1, Me%FieldNumber
                 
                 do i = IUBout, ILBout, -1
                     do j = JLBout, JUBout
-                        if (abs(Aux3DOut(i,j,k)) > abs(Me%FillValue)) Aux3DOut(i,j,k) = Me%FillValue
+                        if (Aux3DOut(i,j,k) <=Me%FillValue) Aux3DOut(i,j,k) = Me%FillValue
                     enddo
-                    write(Line,'(4000(f12.6,1x))') Aux3Dout(i,JLB:JUB,k)
+                    write(Line,'(4000(f12.6,1x))') Aux3Dout(i,JLBout:JUBout,k)
                     Line = adjustl(Line)
                     Found2Blanks = .true.
 

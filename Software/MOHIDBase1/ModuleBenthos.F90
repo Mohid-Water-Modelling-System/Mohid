@@ -85,6 +85,12 @@ Module ModuleBenthos
     private ::          LocateObjBenthos 
     
     !Interfaces----------------------------------------------------------------
+    
+    !Parameters----------------------------------------------------------------
+    ! Oxygen limitation type
+    integer, parameter                          :: Default_             = 1
+    integer, parameter                          :: Monod_               = 2
+    integer, parameter                          :: Exponential_         = 3    
 
     !Types---------------------------------------------------------------------
     type      T_External
@@ -156,6 +162,10 @@ Module ModuleBenthos
     
     type     T_Oxygen
         real                                        :: Minimum          = null_real 
+        real                                        :: O2Lim            = null_real 
+        real                                        :: O2K1             = null_real
+        real                                        :: O2K2             = null_real    
+        integer                                     :: O2Method         = null_int
     end type T_Oxygen
 
     type     T_Silica
@@ -959,7 +969,48 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = 1e-5,                                               &
                      ClientModule = 'ModuleBenthos',                                    &
                      STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_) stop 'ReadOxygenParameters - ModuleBenthos - ERR01'
+        if(STAT_CALL .NE. SUCCESS_) stop 'ReadOxygenParameters - ModuleBenthos - ERR00'
+        
+        !O2LIM - Dissolved oxygen concentration at which anaerobic processes begin [g m^-3]
+        call GetData(Me%Oxygen%O2LIM,                                              &
+                        Me%ObjEnterData, iflag,                                    &
+                        SearchType    =  FromFile,                                 &
+                        keyword       = 'O2LIM',                                   &
+                        default       =  0.1000,                                   &
+                        ClientModule  =  MohidModules(mCEQUALW2_)%Name,            &
+                        STAT          =  STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleBenthos - ERR01"        
+        
+        call GetData(Me%Oxygen%O2Method,                                           &
+                        Me%ObjEnterData, iflag,                                    &
+                        SearchType    =  FromFile,                                 &
+                        keyword       = 'O2_METHOD',                               &
+                        default       =  Default_,                                 &
+                        ClientModule  =  MohidModules(mCEQUALW2_)%Name,            &
+                        STAT          =  STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleBenthos - ERR02"
+                        
+        !Oxygen rate multiplier for oxygen consuming processes
+                        
+        call GetData(Me%Oxygen%O2K1,                                               &
+                        Me%ObjEnterData, iflag,                                    &
+                        SearchType    =  FromFile,                                 &
+                        keyword       = 'O2_K1',                                   &
+                        default       =  2.5,                                      &
+                        ClientModule  =  MohidModules(mCEQUALW2_)%Name,            &
+                        STAT          =  STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleBenthos - ERR03"
+                        
+        call GetData(Me%Oxygen%O2K2,                                               &
+                        Me%ObjEnterData, iflag,                                    &
+                        SearchType    =  FromFile,                                 &
+                        keyword       = 'O2_K2',                                   &
+                        default       =  7.0,                                      &
+                        ClientModule  =  MohidModules(mCEQUALW2_)%Name,            &
+                        STAT          =  STAT_CALL)
+        if(STAT_CALL .ne. SUCCESS_) stop "ReadOxygenParameters - ModuleBenthos - ERR04"
+                        
+                                
 
 
     end subroutine ReadOxygenParameters
@@ -1568,12 +1619,30 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             PON5 = Me%PropIndex%PON5        
         end if
 
+        if (Me%Oxygen%O2Method == Default_) then
         !Multiplication by 1000 because oxygen units are given in g/l
-        OxygenLimitation = max(Me%ExternalVar%Oxygen(Index)*1000., Me%Oxygen%Minimum)
+        !OxygenLimitation = max(Me%ExternalVar%Oxygen(Index)*1000., Me%Oxygen%Minimum)
+            !all other modules have this in mg/L keep it consistent
+            OxygenLimitation = max(Me%ExternalVar%Oxygen(Index), Me%Oxygen%Minimum)
+            
+            !OxygenLimitation = 1 when Oxygen levels are high 
+            !OxygenLimitation = 0 when Oxygen levels are low 
+            OxygenLimitation = OxygenLimitation / (OxygenLimitation + 0.5)            
+            
+        else if (Me%Oxygen%O2Method == Monod_) then
+            
+            !all other modules have this in mg/L keep it consistent
+            OxygenLimitation = max(Me%ExternalVar%Oxygen(Index), Me%Oxygen%Minimum)            
+            
+            OxygenLimitation = OxygenLimitation / ( OxygenLimitation + Me%Oxygen%O2Lim)
+            
+        else if (Me%Oxygen%O2Method == Exponential_) then
+            
+            OxygenLimitation = 1./(1.0 + (Me%Oxygen%O2K1/(Me%ExternalVar%Oxygen(index)))**Me%Oxygen%O2K2)
+            
+        endif
 
-        !OxygenLimitation = 1 when Oxygen levels are high 
-        !OxygenLimitation = 0 when Oxygen levels are low 
-        OxygenLimitation = OxygenLimitation / (OxygenLimitation + 0.5)
+
 
         if(Me%ComputeOptions%Mineralization) then
             !day-1
@@ -1691,12 +1760,25 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         end if
         
         
+        if (Me%Oxygen%O2Method == Default_) then
         !Multiplication by 1000 because oxygen units are given in g/l
-        OxygenLimitation = max(Me%ExternalVar%Oxygen(Index)*1000., Me%Oxygen%Minimum)
-
-        !OxygenLimitation = 1 when Oxygen levels are high 
-        !OxygenLimitation = 0 when Oxygen levels are low 
-        OxygenLimitation = OxygenLimitation / (OxygenLimitation + 0.5)
+        !OxygenLimitation = max(Me%ExternalVar%Oxygen(Index)*1000., Me%Oxygen%Minimum)
+            !all other modules have this in mg/L keep it consistent
+            OxygenLimitation = max(Me%ExternalVar%Oxygen(Index), Me%Oxygen%Minimum)
+            
+            !OxygenLimitation = 1 when Oxygen levels are high 
+            !OxygenLimitation = 0 when Oxygen levels are low 
+            OxygenLimitation = OxygenLimitation / (OxygenLimitation + 0.5)            
+            
+        else if (Me%Oxygen%O2Method == Monod_) then
+            
+            OxygenLimitation = Me%ExternalVar%Oxygen(Index) / ( Me%ExternalVar%Oxygen(Index) + Me%Oxygen%Minimum)
+            
+        else if (Me%Oxygen%O2Method == Exponential_) then
+            
+            OxygenLimitation = 1./(1.0 + (Me%Oxygen%O2K1/(Me%ExternalVar%Oxygen(index)))**Me%Oxygen%O2K2)
+            
+        endif
 
         if(Me%ComputeOptions%Mineralization) then        
             !day-1

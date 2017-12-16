@@ -6993,7 +6993,7 @@ do1 :   do while (associated(PropertyX))
         
         !Set SOD in Interface in kg.m-2.day-1
         !After construct so that matrixes are allocated for benthos
-        call SetSOD(Me%SODRate, Me%OpenPointsProcess, Me%RiverPoints)        
+        if (Me%UseSOD) call SetSOD(Me%SODRate, Me%OpenPointsProcess, Me%RiverPoints)        
 
     end subroutine CoupleBenthos
         
@@ -7135,8 +7135,8 @@ do1 :   do while (associated(PropertyX))
         
         endif
         
-        !allocate(Me%MacroAlgae%Distribution  (1: Me%TotalNodes)) !gC/m2
-        !Me%MacroAlgae%Distribution   (:) = Me%MacroAlgae%DefaultValue
+        allocate(Me%MacroAlgae%Distribution  (1: Me%TotalNodes)) !gC/m2
+        Me%MacroAlgae%Distribution   (:) = Me%MacroAlgae%DefaultValue
         !
         !allocate(Me%MacroAlgae%ShearStress3D (ILB:IUB, JLB:JUB, KLB:KUB)) 
         !Me%MacroAlgae%ShearStress3D  (:,:,:) = FillValueReal
@@ -7178,7 +7178,7 @@ do1 :   do while (associated(PropertyX))
                 call UpdateNodesDWZ
 
                 if(Me%PropertyContinuous)then
-                    !call IntegrateMacroAlgae(PropertyX)
+                    call IntegrateMacroAlgae(PropertyX)
                 else                    
                     call ComputeMacroAlgaeOccupation
                     !call DistributeMacroAlgae
@@ -7597,6 +7597,11 @@ do1:        do
             endif            
             
         end if
+        
+        !MacroAlgae distribution gC/m2
+        if (Me%ComputeOptions%MacroAlgae) then
+            Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+        endif
 
         !Shear Stress
         if (Me%ComputeOptions%BottomFluxes  ) Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
@@ -7950,6 +7955,11 @@ if0:    if (Me%HasProperties) then
                     i = i + 1
                     WQRateX => WQRateX%Next
                 end do
+            endif
+            
+            if (Me%ComputeOptions%MacroAlgae) then
+                PropVector (i) = 'macroalgae occupation'   
+                i = i + 1                
             endif
 
             if (Me%ComputeOptions%BottomFluxes) then
@@ -14886,7 +14896,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         real(8),dimension(:),pointer                :: WaterVolume
         real   ,dimension(:),pointer                :: CellArea
         real                                        :: DT
-                
+        type(T_WQRate  ), pointer                   :: WQRateX  
 
         !Begin-----------------------------------------------------------------
 
@@ -14982,6 +14992,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
             
         end if
 
+            
         PropertyX => Me%FirstProperty
 
         do while (associated(PropertyX))
@@ -14989,13 +15000,12 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
             if (PropertyX%ComputeOptions%Benthos) then
                 
                                 
-                allocate (WaterVolume (1:Me%TotalNodes))
-                allocate (CellArea (1:Me%TotalNodes))
-                do NodeID = 1, Me%TotalNodes
-                        CurrNode => Me%Nodes (NodeID)
-                        WaterVolume(NodeID) = CurrNode%VolumeNew
-                        CellArea(NodeID) = CurrNode%Length * CurrNode%CrossSection%BottomWidth
-                enddo                
+
+                !do NodeID = 1, Me%TotalNodes
+                !        CurrNode => Me%Nodes (NodeID)
+                !        WaterVolume(NodeID) = CurrNode%VolumeNew
+                !        CellArea(NodeID) = CurrNode%Length * CurrNode%CrossSection%BottomWidth
+                !enddo                
 
                 if(PropertyX%ComputeOptions%BottomFluxes)then
                     do NodeID = 1, Me%TotalNodes
@@ -15079,6 +15089,55 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         deallocate(WaterVolume)
         deallocate(CellArea)        
         
+        
+        !to compute rates. ModuleWaterQuality rates do not change in between computations but since
+        !some need volume to be multiplied, internally they can change in between computations
+        if (Me%Output%Rates) then
+
+            !allocate(WaterVolume(1:Me%TotalNodes))
+            !do NodePos = 1, Me%TotalNodes
+            !    CurrNode => Me%Nodes (NodePos)
+            !    WaterVolume(NodePos) = CurrNode%VolumeNew
+            !enddo
+                       
+            !Get rate fluxes
+            WqRateX => Me%FirstWQRate
+
+            do while (associated(WQRateX))
+
+                if(WQRateX%Model == BenthosModel)then
+                    
+                    call GetRateFlux(InterfaceID    = Me%ObjBenthicInterface,                   &
+                                     FirstProp      = WQRateX%FirstProp%IDNumber,               &
+                                     SecondProp     = WQRateX%SecondProp%IDNumber,              &
+                                     RateFlux1D     = WQRateX%Field,                            &
+                                     RiverPoints1D  = Me%RiverPoints,                           &
+                                     STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'ModifyBenthos - ModuleDrainageNetwork - ERR04'
+
+                    
+                    !Rates in Benthos are kg just as the result mass
+  
+                    ![g/s] = [kg]  / [s] / 1e-3 kg/g
+                        where (Me%RiverPoints == WaterPoint)                 &
+                            WQRateX%Field = WQRateX%Field                    &
+                                / Me%Coupled%Benthos%DT_Compute              &
+                             / 1E-3
+                 
+                   
+                end if
+
+                WQRateX=>WQRateX%Next
+
+            enddo   
+            
+            !deallocate(WaterVolume)
+            nullify(WQRateX)
+        
+        endif        
+        
+        
         !Set MinimumConcentration of Properties - This will create Mass
         if (Me%ComputeOptions%MinConcentration)     call SetLimitsConcentration 
         if (Me%ComputeOptions%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Benthos')
@@ -15102,11 +15161,20 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         real(8),dimension(:), pointer           :: WaterVolume    
         real                                    :: DT
         type (T_Node    ) , pointer             :: CurrNode
+        real   ,dimension(:),pointer            :: CellArea
+        integer                                 :: NodeID  
         !Begin----------------------------------------------------------------- 
 
         Size1D%ILB = 1
         !Size1D%IUB = Me%TotalReaches
         Size1D%IUB = Me%TotalNodes        
+        
+        
+        !allocate (CellArea (1:Me%TotalNodes))
+        !do NodeID = 1, Me%TotalNodes
+        !        CurrNode => Me%Nodes (NodeID)
+        !        CellArea(NodeID) = CurrNode%Length * CurrNode%CrossSection%BottomWidth
+        !enddo           
         
         !Short wave light extinction coefficient
         call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
@@ -15145,7 +15213,8 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
                                       DWZ               = Me%NodesDWZ,                  &
                                       ShearStress       = Me%MacroAlgae%ShearStress,    &
                                       SPMFlux           = Me%MacroAlgae%SPMDepFlux,     &
-                                      MacrOccupation    = Me%Macroalgae%Occupation,     & 
+                                      MacrOccupation    = Me%Macroalgae%Occupation,     &
+                                      !CellArea          = CellArea,                     &
                                       STAT              = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
                     stop 'ModifyMacroAlgae - ModuleDrainageNetwork - ERR02'
@@ -15186,12 +15255,12 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         stop 'ModifyMacroAlgae - ModuleDrainageNetwork - ERR03'
 
-                    !if(PropertyX%ID%IDNumber == MacroAlgae_)then
+                    if(PropertyX%ID%IDNumber == MacroAlgae_)then
                         
                         !Integrate macroalgae distribution in the water column in to kgC/m2
-                        !call IntegrateMacroAlgae(PropertyX)
+                        call IntegrateMacroAlgae(PropertyX)
 
-                    !end if
+                    end if
                 endif
 
             endif
@@ -15200,6 +15269,7 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
 
         enddo
 
+        !deallocate(CellArea)           
 
         !to compute rates. ModuleWaterQuality rates do not change in between computations but since
         !some need volume to be multiplied, internally they can change in between computations
@@ -15236,7 +15306,8 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
                             WQRateX%FirstProp%name == 'nitrogenlim'        .or.   &
                             WQRateX%FirstProp%name == 'phosphoruslim'      .or.   &
                             WQRateX%FirstProp%name == 'salinitylim'        .or.   &
-                            WQRateX%FirstProp%name == 'lightlim') then
+                            WQRateX%FirstProp%name == 'lightlim'           .or.   &
+                            WQRateX%FirstProp%name == 'carrcaplim') then
                         
                             ![0-1] = [0-1] * [s] / [s]
                             !WQRateX%Field(NodePos) = WQRateX%Field(NodePos) / Me%Coupled%MacroAlgae%DT_Compute
@@ -15292,6 +15363,10 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         endif
         
         nullify(PropertyX)
+        
+        !Set MinimumConcentration of Properties - This will create Mass
+        if (Me%ComputeOptions%MinConcentration)     call SetLimitsConcentration 
+        if (Me%ComputeOptions%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Macroalgae')        
          
         call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyMacroAlgae - ModuleDrainageNetwork - ERR06'
@@ -15361,43 +15436,44 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
     !--------------------------------------------------------------------------
 
 
-    !subroutine IntegrateMacroAlgae(MacroAlgae)
-    !
-    !    !Arguments------------------------------------------------------------- 
-    !    type (T_Property),      pointer         :: MacroAlgae
-    !
-    !    !Local----------------------------------------------------------------- 
-    !    integer                                 :: NodePos
-    !    real                                    :: MacroAlgaeMass, AvrageArea
-    !    type (T_Size1D)                         :: Size1D
-    !    !Begin----------------------------------------------------------------- 
-    !
-    !    Size1D%ILB = 1
-    !    !Size1D%IUB = Me%TotalReaches
-    !    Size1D%IUB = Me%TotalNodes              
-    !
-    !    call SetMatrixValue(Me%MacroAlgae%Distribution, Size1D, 0.)        
-    !
-    !    do NodePos = 1, Me%TotalNodes
-    !        
-    !        if (Me%OpenPointsProcess (NodePos) == OpenPoint .and. Me%NodesDWZ(NodePos) .gt. 0.0) then
-    !
-    !            !gC = gC/m3 * m3
-    !            MacroAlgaeMass = Me%Nodes(NodePos)%VolumeNew * &
-    !                            max(MacroAlgae%MinValue, MacroAlgae%Concentration(NodePos))
-    !            
-    !            !m2 =  m3 / m
-    !            AvrageArea = Me%Nodes(NodePos)%VolumeNew / Me%NodesDWZ(NodePos)
-    !            
-    !            !gC/m2 = g / m2
-    !            Me%MacroAlgae%Distribution(NodePos) = MacroAlgaeMass / AvrageArea
-    !                                              
-    !
-    !        endif
-    !
-    !    enddo
-    !
-    !end subroutine IntegrateMacroAlgae
+    subroutine IntegrateMacroAlgae(MacroAlgae)
+    
+        !Arguments------------------------------------------------------------- 
+        type (T_Property),      pointer         :: MacroAlgae
+    
+        !Local----------------------------------------------------------------- 
+        integer                                 :: NodePos
+        real                                    :: MacroAlgaeMass, AvrageArea
+        type (T_Size1D)                         :: Size1D
+        !Begin----------------------------------------------------------------- 
+    
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes              
+    
+        call SetMatrixValue(Me%MacroAlgae%Distribution, Size1D, 0.)        
+    
+        do NodePos = 1, Me%TotalNodes
+            
+            if (Me%OpenPointsProcess (NodePos) == OpenPoint .and. Me%NodesDWZ(NodePos) .gt. 0.0) then
+    
+                !gC = gC/m3 * m3
+                MacroAlgaeMass = Me%Nodes(NodePos)%VolumeNew * &
+                                max(MacroAlgae%MinValue, MacroAlgae%Concentration(NodePos))
+                
+                !m2 =  m3 / m
+                AvrageArea = Me%Nodes(NodePos)%VolumeNew / Me%NodesDWZ(NodePos)
+                !AvrageArea = Me%Nodes(NodePos)%CrossSection%BottomWidth * Me%Nodes(NodePos)%Length
+                
+                !gC/m2 = g / m2
+                Me%MacroAlgae%Distribution(NodePos) = MacroAlgaeMass / AvrageArea
+                                                  
+    
+            endif
+    
+        enddo
+    
+    end subroutine IntegrateMacroAlgae
     
     !--------------------------------------------------------------------------    
 
@@ -16041,6 +16117,12 @@ if2:            if (Me%HasProperties) then
                             WQRateX => WQRateX%Next
                         end do
                     endif  
+                    
+                    !macroalgae distribution gC/m2
+                    if (Me%ComputeOptions%Macroalgae) then
+                            Me%TimeSerie%DataLine (j) = Me%MacroAlgae%Distribution (NodePos)                    
+                            j = j + 1                    
+                    endif                    
 
                    if (Me%ComputeOptions%BottomFluxes) then                       
                        Me%TimeSerie%DataLine (j) = Me%ShearStress (CurrNode%DownstreamReaches(1))                    
@@ -16505,6 +16587,31 @@ ifTox:              if (Property%ComputeOptions%Toxicity) then
                 end do
             endif 
 
+            
+            !macroalgae distribution gC/m2
+            if (Me%ComputeOptions%Macroalgae) then 
+                    
+                nNodes = 1      
+                nullify (CurrNode)
+            
+                do NodeID = 1, Me%TotalNodes                
+       
+                    if (Me%Nodes(NodeID)%TimeSerie) then
+                        Me%TimeSerie%DataLine  (nNodes) = Me%MacroAlgae%Distribution (NodeID)
+                        nNodes = nNodes + 1                
+                    endif
+                enddo                            
+                 
+                call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),                      &
+                                        DataLine = Me%TimeSerie%DataLine,                  &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR010'  
+                
+                i = i + 1                    
+            endif            
+            
+            
+            
 ifB2:     if (Me%ComputeOptions%BottomFluxes) then
 
                 nNodes = 1      

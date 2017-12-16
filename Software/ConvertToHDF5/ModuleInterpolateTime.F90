@@ -647,6 +647,7 @@ do1:    do while (BlockFound)
 
         
  do1:    do iD = 1, Me%NumberDataSources
+ 
             call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                  &
                                        prop_block_begin, prop_block_end, BlockFound,   &
                                        STAT = STAT_CALL)
@@ -655,8 +656,8 @@ do1:    do while (BlockFound)
             
             if (.not. BlockFound     ) stop 'ReadDataSourcesID - ModuleInterpolateTime - ERR20'
                                        
-            call ConstructPropertyID (Me%DataSource(iD)%ID, Me%ObjEnterData, FromBlockInBlock)                                      
-
+            call ConstructPropertyID (Me%DataSource(iD)%ID, Me%ObjEnterData, FromBlockInBlock)       
+            
         enddo do1
         
         call RewindBlock  (Me%ObjEnterData, ClientNumber) 
@@ -747,7 +748,8 @@ do1:    do while (BlockFound)
                                            PointsToFill3D       = Me%WaterPoints3D,      &
                                            Matrix3D             = Me%DataSource(iD)%Values3D,&
                                            TypeZUV              = TypeZ_,                &
-                                           FillMatrix           = 0.,                    &             
+                                           FillMatrix           = 0.,                    &        
+                                           RotateAngleToGrid    = .false.,               &     
                                            STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadFieldsToInterpolate - ModuleInterpolateTime - ERR50'
                 
@@ -772,6 +774,7 @@ do1:    do while (BlockFound)
                                            PointsToFill2D       = Me%WaterPoints2D,      &
                                            Matrix2D             = Me%DataSource(iD)%Values2D,&
                                            TypeZUV              = TypeZ_,                &
+                                           RotateAngleToGrid    = .false.,               &                                                
                                            STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadFieldsToInterpolate - ModuleInterpolateTime - ERR60'
                                         

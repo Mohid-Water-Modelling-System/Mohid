@@ -128,6 +128,7 @@ Module ModuleMacroAlgae
         real,       pointer, dimension(:,:)         :: Mass
         integer,    pointer, dimension(:  )         :: OpenPoints
         real,       pointer, dimension(:  )         :: Occupation
+        !real,       pointer, dimension(:  )         :: CellArea
     end type T_External
 
     type      T_PropIndex
@@ -200,6 +201,7 @@ Module ModuleMacroAlgae
         real                                        :: MinimumOxygen        = null_real
         real                                        :: BeachedMortalityRate = null_real
         logical                                     :: SalinityEffect       = .false.
+        real                                        :: CarryingCapacity     = null_real
     end type T_Parameters
 
     
@@ -208,6 +210,7 @@ Module ModuleMacroAlgae
         logical                                     :: Phosphorus           = .false.
         logical                                     :: OxygenReleaseInorganicAssimilation = .true.
         logical                                     :: OxygenEscapeAtSurface = .false.
+        logical                                     :: CarryingCapacity      = .false.
     end type T_ComputeOptions
 
     type       T_MacroAlgae
@@ -495,6 +498,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR04'
         
+        call GetData(Me%ComputeOptions%CarryingCapacity,                                &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'CARRYING_CAPACITY',                                &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleMacroAlgae',                                 &
+                     STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalVariables - ModuleMacroAlgae - ERR04.2'        
+        
         !If the plant is not submeged (occupation = 1) do not put oxygen in water
         !it will be lost to atmosphere
         call GetData(Me%ComputeOptions%OxygenEscapeAtSurface,                           &
@@ -531,6 +543,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Begin-----------------------------------------------------------------
 
+        !Carring capcity
+        if (Me%ComputeOptions%CarryingCapacity) then
+            !g/m2
+            call GetData(Parameters%CarryingCapacity,                                       &
+                         Me%ObjEnterData, iflag,                                            &
+                         SearchType   = FromBlock,                                          &
+                         keyword      = 'CARRCAP',                                          &
+                         Default      = 2000.0,                                             &
+                         ClientModule = 'ModuleMacroAlgae',                                 &
+                         STAT         = STAT_CALL)
+            if(STAT_CALL .NE. SUCCESS_) stop 'ReadMacroAlgaeParameters - ModuleMacroAlgae - ERR01'         
+        endif
+        
         call GetData(Parameters%GrowthMaxRate,                                          &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType   = FromBlock,                                          &
@@ -965,12 +990,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Salinity    limiting factor for each macro algae type    : +1
         !Nitrogen    limiting factor for each macro algae type    : +1
         !Phosphorus  limiting factor for each macro algae type    : +1
+        !carr cap limitation
         !respiration
         !excretion
         !natural mortality
         !grazing
         !zone
-        nParameters = 12
+        nParameters = 13
 
         !Allocates with 2nd dimension size = 2
         !if J = 1 Attached Macroalgae
@@ -1268,6 +1294,10 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 case(PLim_)
 
                     RateFlux => Me%Parameters(:, SecondProp, MA_PLimFact_   )
+                    
+                case(CarrCapLim_)
+
+                    RateFlux => Me%Parameters(:, SecondProp, MA_CarrCapFact_   )                    
 
                 case default
 
@@ -1370,6 +1400,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real,    dimension(:  ), pointer, optional  :: SWLightExctintionCoef
         real,    dimension(:  ), pointer, optional  :: Thickness
         real,    dimension(:  ), pointer, optional  :: Occupation
+        !real,    dimension(:  ), pointer, optional  :: CellArea
         integer, dimension(:  ), pointer, optional  :: OpenPoints
         real,    dimension(:,:), pointer            :: Mass
         integer, intent(OUT), optional              :: STAT
@@ -1434,7 +1465,13 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 Me%ExternalVar%Occupation  => Occupation
                 if (.not. associated(Me%ExternalVar%Occupation)) &
                     stop 'ModifyMacroAlgae - ModuleMacroAlgae - ERR08'
-            end if
+           end if
+           
+           !if(present(CellArea))then
+           !     Me%ExternalVar%CellArea  => CellArea
+           !     if (Me%ComputeOptions%CarryingCapacity .and. .not. associated(Me%ExternalVar%CellArea)) &
+           !         stop 'ModifyMacroAlgae - ModuleMacroAlgae - ERR08.5'
+           ! end if           
             
             if(present(OpenPoints))then
                 Me%ExternalVar%OpenPoints  => OpenPoints
@@ -1462,6 +1499,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             nullify(Me%ExternalVar%SWLightExctintionCoef)
             nullify(Me%ExternalVar%Thickness            )
             nullify(Me%ExternalVar%Occupation           )
+            !nullify(Me%ExternalVar%CellArea             )
 
             STAT_ = SUCCESS_
         else               
@@ -1492,6 +1530,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real                                        :: NitrogenLimitFactor  
         real                                        :: PhosphorusLimitFactor
         real                                        :: SaltLimitingFactor 
+        real                                        :: CarrCapacityLimitingFactor, MacroDensity
         real                                        :: MacAlgGrossGrowRate        
         real                                        :: s1,s2, ya, yb, xa, xb
         real                                        :: sx, exp_salt
@@ -1666,22 +1705,38 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
                 end if
  
+                !carrying capacity as logistic growth
+                if (Me%ComputeOptions%CarryingCapacity) then
+                    !g/m2 = g / m3 * m3 / m3 / m (volume cancels itslf and is not needed only dwz
+                    MacroDensity = Me%ExternalVar%Mass(MA, Index) * Me%ExternalVar%Thickness(index)
+                    CarrCapacityLimitingFactor = max(1.0 - (MacroDensity / Parameters%CarryingCapacity), 0.0)
+                else
+                    CarrCapacityLimitingFactor = 1.0
+                endif
+                
                 !Compute gross growth rate 
                 MacAlgGrossGrowRate = Parameters%GrowthMaxRate  * &
                                       TempLimitingFactor        * &
                                       NutLimitingFactor         * &
                                       LightLimitingFactor       * &
-                                      SaltLimitingFactor
-
+                                      SaltLimitingFactor        * &
+                                      CarrCapacityLimitingFactor
 
                 if    (MacAlgGrossGrowRate  < 0.0)then
-
+                    
+                    write(*,*)
                     write(*,*)'Negative macroalgae gross growth rate.'
                     write(*,*)"TempLimitingFactor", TempLimitingFactor 
                     write(*,*)"NutLimitingFactor",  NutLimitingFactor  
                     write(*,*)"LightLimitingFactor",LightLimitingFactor
                     write(*,*)"SaltLimitingFactor", SaltLimitingFactor
-
+                    write(*,*)"CarrCapLimitingFactor", CarrCapacityLimitingFactor
+                    write(*,*)"Amonia Mass", Me%ExternalVar%Mass(NH4, Index)
+                    write(*,*)"Nitrate Mass", Me%ExternalVar%Mass(NO3, Index)
+                    write(*,*)"Inorganic Phosphorus Mass", Me%ExternalVar%Mass(IP, Index)
+                    write(*,*)"Index", Index
+                    write(*,*)
+                    
                     MacAlgGrossGrowRate = -1.0 / null_real  !Avoid division by zero below
 
                 elseif(MacAlgGrossGrowRate == 0.0)then
@@ -1707,7 +1762,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 MacAlgExcretionRate = Parameters%ExcretionCons * MacAlgGrossGrowRate    * &
                                      (1.0 - LightLimitingFactor)
 
-
+                
                 !Macroalgae endogenous respiration
                 MacAlgEndResp = Parameters%EndogRespCons * &
                                 exp(0.069 * Me%ExternalVar%Temperature(Index))
@@ -1808,6 +1863,7 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 Me%Parameters(Index, MA, MA_NutLimFact_ ) = NutLimitingFactor       * Me%DT
                 Me%Parameters(Index, MA, MA_LLimFact_   ) = LightLimitingFactor     * Me%DT
                 Me%Parameters(Index, MA, MA_SLimFact_   ) = SaltLimitingFactor      * Me%DT
+                Me%Parameters(Index, MA, MA_CarrCapFact_) = CarrCapacityLimitingFactor  * Me%DT
 
 
                 !New macroalgae mass (kg = kg + day-1 * kg * day)
@@ -1818,8 +1874,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                                                       MacAlgNonGrazingMortalityRate         - &
                                                       Parameters%GrazCons)                  * &
                                                       MacroAlgaeMassOld                     * &
-                                                      Me%DTDay
-
+                                                      Me%DTDay             
+                
                 if (Me%ComputeOptions%Nitrogen)then
 
                     !what passes from ammonia to macroalgae
