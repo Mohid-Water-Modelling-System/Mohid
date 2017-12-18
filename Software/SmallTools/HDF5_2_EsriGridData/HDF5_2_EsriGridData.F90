@@ -555,6 +555,7 @@ d2:     do l= 1, Me%InstantNumber
         integer                                         :: ILBout, IUBout, JLBout, JUBout, iout, jout
         logical                                         :: Found2Blanks
         real,  dimension(:,:), pointer                  :: CoordX, CoordY
+        logical                                         :: Exist
         
         !------------------------------------------------------------------------
 
@@ -565,13 +566,13 @@ d2:     do l= 1, Me%InstantNumber
 
         !Opens HDF5 File
         call ConstructHDF5(Me%ObjHDF5, Me%InPutFileName, HDF5_READ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR10'
 
         allocate(Aux3D     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB,1: Me%KUB))  
         
         call HDF5SetLimits(Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,                &
                            Me%WorkSize%JLB,Me%WorkSize%JUB, 1, Me%KUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR40'
+        if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR20'
 
 
         if (Me%WindowON) then
@@ -619,16 +620,27 @@ d11:    do l = 1, Me%FieldNumber
                 j = len_trim(Me%FieldName(l))
                 
                 Field  = AuxChar(i+1:j)
+
+                call GetHDF5DataSetExist (Me%ObjHDF5, DataSetName =trim(Me%FieldName(l)),&
+                                          Exist = Exist, STAT= STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR30'
+
+                if (.not.Exist) then
+                    write(*,*) 'The field'
+                    write(*,*) trim(Me%FieldName(l))
+                    write(*,*) 'does not exist'
+                    stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR40'
+                endif      
                 
                 call HDF5ReadData(Me%ObjHDF5,                                           &
                                    trim(Vgroup),                                        &
                                    trim(Field),                                         &
                                    Array3D      = Aux3D,                                &
                                    STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ConstructHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR50'
+                if (STAT_CALL /= SUCCESS_)stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR50'
                 
                 call UnitsManager(Unit, OPEN_FILE, STAT = STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'OutputMohidBin - ModuleTecnoceanAscii - ERR10'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR60'
 
                 open(Unit   = Unit,                                                     &
                      File   = trim(Me%OutputESRI(l)),                                   &
@@ -636,7 +648,7 @@ d11:    do l = 1, Me%FieldNumber
                      STATUS = 'UNKNOWN',                                                &
                      Action = 'WRITE',                                                  &
                      IOSTAT = STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'OutputMohidBin - ModuleTecnoceanAscii - ERR20'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR70'
                 
 
                 write(Unit,'(A14,I6)'   ) 'ncols         ', JUBout - JLBout + 1
@@ -692,7 +704,7 @@ d11:    do l = 1, Me%FieldNumber
                 enddo
                 
                 call UnitsManager(Unit, CLOSE_FILE, STAT = STAT_CALL) 
-                if (STAT_CALL /= SUCCESS_) stop 'OutputMohidBin - ModuleTecnoceanAscii - ERR50'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyHDF5_2_EsriGridData - HDF5_2_EsriGridData - ERR80'
 
         enddo d11
         
