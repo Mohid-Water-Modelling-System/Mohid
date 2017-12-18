@@ -16978,21 +16978,10 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
 
         i       = CurrentPartic%Position%I
         j       = CurrentPartic%Position%J
-        k       = CurrentPartic%Position%K
-
-        emp      = CurrentPartic%Position%ModelID
-
-        CellK   = CurrentPartic%Position%CellK
+        emp     = CurrentPartic%Position%ModelID
         KUB     = Me%EulerModel(emp)%WorkSize%KUB
-        BALZ    = CellK - int(CellK)
-        
-        DT_Vert = Me%DT_Partic / real(Me%Vert_Steps)
 
-        kFloor          =   Me%EulerModel(emp)%kFloor(i, j)
-        BottomDepth     =   Me%EulerModel(emp)%WaterColumn(i, j)
-        SurfaceDepth    =   Me%EulerModel(emp)%SZZ(i, j, KUB)
-        DistSurface     =   CurrentPartic%Position%Z - SurfaceDepth
-        DistBottom      =   Me%EulerModel(emp)%SZZ(i, j, kFloor) - CurrentPartic%Position%Z
+        SurfaceDepth = Me%EulerModel(emp)%SZZ(i, j, KUB)
 
 MD:     if (CurrentOrigin%Position%MaintainDepth) then
             NewPosition%Z = SurfaceDepth + CurrentOrigin%Position%DepthWithWaterLevel
@@ -17002,7 +16991,26 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                 NewPosition%Z = Me%EulerModel(emp)%SZZ(i, j, KUB)
 
             else MF
+            
+                kFloor  = Me%EulerModel(emp)%kFloor(i, j)
+                
+                if (kFloor < 1) then
+                    write(*,*) 'Domain =', emp
+                    write(*,*) 'Cell I =', i
+                    write(*,*) 'Cell J =', j
+                    stop 'MoveParticVertical - ModuleLagrangianGlobal - ERR10'
+                endif            
 
+                BottomDepth     =   Me%EulerModel(emp)%WaterColumn(i, j)
+                DistSurface     =   CurrentPartic%Position%Z - SurfaceDepth
+                DistBottom      =   Me%EulerModel(emp)%SZZ(i, j, kFloor) - CurrentPartic%Position%Z
+
+                k       = CurrentPartic%Position%K
+                CellK   = CurrentPartic%Position%CellK
+                BALZ    = CellK - int(CellK)
+                
+                DT_Vert = Me%DT_Partic / real(Me%Vert_Steps)
+            
     SA:         if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
 
                     CompZ_Up   = Me%EulerModel(emp)%Lupward  (i, j, k)
@@ -17357,7 +17365,7 @@ OIL:            if (CurrentOrigin%State%Oil) then
                                 call GetOilDensityOil(OilID      = CurrentOrigin%ObjOil,&
                                                       OilDensity = CurrentPartic%OilDensity,&
                                                       STAT       = STAT_CALL)
-                                if (STAT_CALL /= SUCCESS_) stop 'MoveParticVertical - ModuleLagrangianGlobal - ERR10'
+                                if (STAT_CALL /= SUCCESS_) stop 'MoveParticVertical - ModuleLagrangianGlobal - ERR20'
                             endif                                
 
                             VELFLOAT = DropletsFloatVel(ParticleDensity = CurrentPartic%OilDensity, &
@@ -17382,7 +17390,7 @@ OIL:            if (CurrentOrigin%State%Oil) then
                     if (CurrentPartic%HNSParticleState .EQ. WaterColumn_Droplet_) then
                         If (CurrentOrigin%MethodFloatVel .EQ. Zheng_) then
                             write(*,*)'Zheng method not available for HNS yet. Change METHOD_FLOAT_VEL to other option.'
-                            stop      'MoveParticVertical - ModuleLagrangianGlobal - ERR15'
+                            stop      'MoveParticVertical - ModuleLagrangianGlobal - ERR30'
                         
                         endif
                         VELHNS = DropletsFloatVel(ParticleDensity = CurrentPartic%HNSDensity, &
