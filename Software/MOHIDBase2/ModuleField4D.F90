@@ -55,7 +55,7 @@ Module ModuleField4D
     use ModuleHorizontalMap 
     use ModuleGeometry,         only : ConstructGeometry, GetGeometrySize,              &
                                        ComputeInitialGeometry, GetGeometryDistances,    &
-                                       UnGetGeometry, KillGeometry
+                                       ComputeVerticalGeometry, UnGetGeometry, KillGeometry
     use ModuleMap 
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadWindow,                   &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
@@ -258,6 +258,10 @@ Module ModuleField4D
         character(StringLength)                         :: MaskName             = null_str
         character(StringLength)                         :: BathymName           = null_str
         type (T_DefaultNames)                           :: DefaultNames        
+        
+        logical                                         :: ReadSZZ              = .false. 
+        integer                                         :: SZZLast              = null_int
+        
     end type T_File
     
     type T_PropField
@@ -1398,6 +1402,8 @@ wwd1:       if (Me%WindowWithData) then
                                     STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR30'
                 
+                Me%File%ReadSZZ = .true.
+                
             else
                 if (KUB==1) then
                     SZZ(:,:,0) = 1.
@@ -1405,6 +1411,9 @@ wwd1:       if (Me%WindowWithData) then
                 else
                     stop 'ReadMap3DFromFile - ModuleField4D - ERR40'
                 endif
+                
+                Me%File%ReadSZZ = .false.
+                
             endif
                             
 #ifndef _NO_NETCDF
@@ -3228,11 +3237,16 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             Field   => NewPropField%NextField3D        
             Instant =  NewPropField%NextInstant
         endif
-
-         ILB = Me%WorkSize3D%ILB
-         IUB = Me%WorkSize3D%IUB
-         JLB = Me%WorkSize3D%JLB
-         JUB = Me%WorkSize3D%JUB
+                    
+        ILB = Me%WorkSize3D%ILB
+        IUB = Me%WorkSize3D%IUB
+        JLB = Me%WorkSize3D%JLB
+        JUB = Me%WorkSize3D%JUB
+         
+        call GetWaterPoints3D(Map_ID            = Me%ObjMap,                            &
+                              WaterPoints3D     = WaterPoints3D,                        &
+                              STAT              = STAT_CALL) 
+        if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR100'          
          
         if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) then
             allocate(Aux3D(Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,1:1))   
@@ -3309,31 +3323,37 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR50'
             
-!            if (NewPropField%From3Dto2D) then
-!
-!                call HDF5ReadWindow(HDF5ID        = Obj,                                &
-!                                    GroupName     = "/Grid",                            &
-!                                    Name          = "WaterPoints3D",                    &
-!                                    Array3D       = WaterPoints3D,                      &
-!                                    STAT          = STAT_CALL)
-!                if (STAT_CALL /= SUCCESS_) then
-!                    stop 'ReadValues3D - ModuleField4D - ERR60'            
-!                endif
-!            
-!                call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
-!                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR70'                
-!                
-!                call HDF5ReadWindow(HDF5ID        = Obj,                                &
-!                                    GroupName     = "/Grid/VerticalZ",                  &
-!                                    Name          = "Vertical",                         &
-!                                    Array3D       = SZZ,                                &
-!                                    OutputNumber  = iaux,                               &
-!                                    STAT          = STAT_CALL)
-!                if (STAT_CALL /= SUCCESS_) then
-!                    stop 'ReadValues3D - ModuleField4D - ERR80'            
-!                endif
-!                
-!            endif            
+            if (Me%File%ReadSZZ .and.  Me%File%SZZLast < iaux) then
+            
+                allocate(SZZ(ILB-1:IUB+1, JLB-1:JUB+1, KLB-1:KUB+1))
+                SZZ(:,:,:) = 0.
+                
+                call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR60'                
+                
+                call HDF5ReadWindow(HDF5ID        = Obj,                                &
+                                    GroupName     = "/Grid/VerticalZ",                  &
+                                    Name          = "Vertical",                         &
+                                    Array3D       = SZZ,                                &
+                                    OutputNumber  = iaux,                               &
+                                    OffSet3       = 0,                                  &                                    
+                                    STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadValues3D - ModuleField4D - ERR70'            
+                endif
+                
+                Me%File%SZZLast = iaux
+                
+                                                        
+                call ComputeVerticalGeometry(GeometryID         = Me%ObjGeometry,       &
+                                             WaterPoints3D      = WaterPoints3D,        &
+                                             SZZ                = SZZ,                  &
+                                             STAT               = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR80'
+                
+                deallocate(SZZ)
+                
+            endif            
             
 
 #ifndef _NO_NETCDF                                                   
@@ -3368,11 +3388,6 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
          
         if (NewPropField%From3Dto2D) then   
         
-            call GetWaterPoints3D(Map_ID            = Me%ObjMap,                        &
-                                  WaterPoints3D     = WaterPoints3D,                    &
-                                  STAT              = STAT_CALL) 
-            if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR100' 
-
             call GetGeometryDistances(  GeometryID      = Me%ObjGeometry,               &
                                                 SZZ     = SZZ,                          &
                                         STAT            = STAT_CALL)                                     
@@ -3405,10 +3420,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                         STAT            = STAT_CALL)                                     
             if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleValida4D - ERR120'        
             
-            call UnGetMap(Map_ID            = Me%ObjMap,                                &
-                          Array             = WaterPoints3D,                            &
-                          STAT              = STAT_CALL) 
-            if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR130' 
+
             
             
          endif               
@@ -3466,7 +3478,12 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) then
             deallocate(Aux3D)   
         endif       
-        
+
+
+        call UnGetMap(Map_ID            = Me%ObjMap,                                &
+                      Array             = WaterPoints3D,                            &
+                      STAT              = STAT_CALL) 
+        if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR130'         
 
         nullify(Field)
     end subroutine ReadValues3D
