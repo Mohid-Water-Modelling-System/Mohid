@@ -1179,8 +1179,9 @@ Module ModuleWaterProperties
         integer                                 :: MPI_ID           = FillValueInt
         logical                                 :: ON               = .true.         
         logical                                 :: MasterOrSlave    = .false. 
-        type (T_Size2D)                         :: WindowLimitsJI
+        type (T_Size2D)                         :: HaloMap
         type (T_Size2D)                         :: Mapping
+        type (T_Size2D)                         :: Global
     end type T_DDecomp
     
     type      T_NoFlux
@@ -1626,9 +1627,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         KLB = Me%Size%KLB
         KUB = Me%Size%KUB
 
-        !Keyword: BOXFLUXES     
+        !<BeginKeyword>
+            !Keyword          : BOXFLUXES
+            !<BeginDescription>       
             ! This keyword have two functions if exist fluxes between boxes are compute 
             ! and the value read is the name file where the boxes are defined
+            !
+            !<EndDescription>
+            !Type             : Character 
+            !Default          : Do not have
+            !File keyword     : SEDPROP
+            !Multiple Options : Do not have
+            !Search Type      : From File
+        !<EndKeyword>
         
         call GetData(Me%Files%BoxesFile,                                            &
                      Me%ObjEnterData, iflag,                                       &
@@ -2003,6 +2014,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
                                   MasterOrSlave    = Me%DDecomp%MasterOrSlave,          &
+                                  Global           = Me%DDecomp%Global,                 &                                    
                                   STAT             = STAT_CALL)
                                               
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ConstructDDecomp - ModuleWaterProperties - ERR10')
@@ -2011,7 +2023,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 ifMS:   if (Me%DDecomp%MasterOrSlave) then
             
             call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,          &
-                                      WorkSize         = Me%DDecomp%WindowLimitsJI,     &
+                                      WorkSize         = Me%DDecomp%HaloMap,            &
                                       STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ConstructDDecomp - ModuleWaterProperties - ERR20')
             
@@ -10214,10 +10226,23 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                      SearchType     = ExtractType,                                      &
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR02a')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR02')
 
-        !Keyword OUTPUT_PROFILE   
+        !<BeginKeyword>
+            !Keyword          : OUTPUT_PROFILE
+            !<BeginDescription>       
+               ! 
                ! Checks out if the user pretends to write a profile output for this property
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
         call GetData(NewProperty%OutputProfile,                                         &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'OUTPUT_PROFILE',                                 &
@@ -10226,9 +10251,19 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR03')
-
-            !Keyword: BOX_TIME_SERIE      
+        !<BeginKeyword>
+            !Keyword          : BOX_TIME_SERIE
+            !<BeginDescription>       
                 ! Checks out if the user pretends to write a time serie inside each box for this property
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : 1 (.true.) , 0 (.false.) 
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
         call GetData(NewProperty%BoxTimeSerie,                                           &
                      Me%ObjEnterData, iflag,                                             &
                      Keyword        = 'BOX_TIME_SERIE',                                  &
@@ -10251,8 +10286,21 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
             
         endif
         
-            !Keyword: STATISTICS
+        !<BeginKeyword>
+            !Keyword          : STATISTICS
+            !<BeginDescription>       
+               ! 
                ! Checks out if the user pretends the statistics of this property
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
         call GetData(NewProperty%Statistics,                                            &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword    = 'STATISTICS',                                         &
@@ -10265,8 +10313,21 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
         
         if (NewProperty%Statistics) then
 
-                !Keyword: STATISTICS_FILE   
+            !<BeginKeyword>
+                !Keyword          : STATISTICS_FILE
+                !<BeginDescription>       
+                   ! 
                    ! The statistics definition file of this property
+                   ! 
+                !<EndDescription>
+                !Type             : Character
+                !Default          : Do not have
+                !File keyword     : DISPQUAL
+                !Multiple Options : Do not have
+                !Search Type      : FromBlock
+                !Begin Block      : <beginproperty>
+                !End Block        : <endproperty>
+            !<EndKeyword>
             call GetData(NewProperty%StatisticsFile,                                    &
                  Me%ObjEnterData, iflag,                                                &
                  Keyword        = 'STATISTICS_FILE',                                    &
@@ -10278,9 +10339,22 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
 
         endif    
 
-        !Keyword: OUTPUT_HDF_SEDVEL
+        !<BeginKeyword>
+            !Keyword          : OUTPUT_HDF_SEDVEL
+            !<BeginDescription>       
+               ! 
                ! Checks out if the user pretends to write a HDF format file for this property
                ! at the surface layer
+               ! 
+            !<EndDescription>
+            !Type             : Boolean 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromBlock
+            !Begin Block      : <beginproperty>
+            !End Block        : <endproperty>
+        !<EndKeyword>
         call GetData(NewProperty%OutputHDFSedVel,                                       &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'OUTPUT_HDF_SEDVEL',                              &
@@ -10341,11 +10415,11 @@ cd0:    if (EXIST) then
                 
 ifMS:       if (Me%DDecomp%MasterOrSlave) then
                     
-                ILW = Me%DDecomp%WindowLimitsJI%ILB
-                IUW = Me%DDecomp%WindowLimitsJI%IUB
+                ILW = Me%DDecomp%HaloMap%ILB
+                IUW = Me%DDecomp%HaloMap%IUB
 
-                JLW = Me%DDecomp%WindowLimitsJI%JLB
-                JUW = Me%DDecomp%WindowLimitsJI%JUB
+                JLW = Me%DDecomp%HaloMap%JLB
+                JUW = Me%DDecomp%HaloMap%JUB
                                                       
             else ifMS
 
@@ -10640,6 +10714,20 @@ cd2 :       if (BlockFound) then
 
         !----------------------------------------------------------------------
 
+        !<BeginKeyword>
+            !Keyword          : REFERENCE_DENSITY
+            !<BeginDescription>       
+               ! 
+               ! Do not have
+               ! 
+            !<EndDescription>
+            !Type             : Real 
+            !Default          : 1026.0
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+        
         call GetData(Me%Density%Reference,                                              &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
@@ -10649,6 +10737,20 @@ cd2 :       if (BlockFound) then
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)call CloseAllAndStop ('ConstructDensity - ModuleWaterProperties - ERR10')
 
+        !<BeginKeyword>
+            !Keyword          : DENSITY_METHOD
+            !<BeginDescription>       
+               ! 
+               ! Do not have
+               ! 
+            !<EndDescription>
+            !Type             : integer 
+            !Default          : UNESCOState_
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+        
         call GetData(Me%Density%Method,                                                 &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
@@ -11058,6 +11160,20 @@ temp:          if (STAT_CALL == SUCCESS_)then
 
         !----------------------------------------------------------------------
 
+        !<BeginKeyword>
+            !Keyword          : REFERENCE_SPECIFICHEAT
+            !<BeginDescription>       
+               ! 
+               ! Do not have
+               ! 
+            !<EndDescription>
+            !Type             : Real 
+            !Default          : 4200.0
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+        
         call GetData(Me%SpecificHeat%Reference,                                               &
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                              &
@@ -11067,6 +11183,20 @@ temp:          if (STAT_CALL == SUCCESS_)then
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ConstructSpecificHeat - ModuleWaterProperties - ERR01')
 
+        !<BeginKeyword>
+            !Keyword          : SPECIFICHEAT_METHOD
+            !<BeginDescription>       
+               ! 
+               ! Do not have
+               ! 
+            !<EndDescription>
+            !Type             : integer 
+            !Default          : 1
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+        
         call GetData(Me%SpecificHeat%Method,                                &
                      Me%ObjEnterData, iflag,                                &
                      SearchType = FromFile,                                 &
@@ -11252,8 +11382,22 @@ cd2 :       if (BlockFound) then
 
         Me%SmallDepths%ON (:,:) = .false.
 
-        !Keyword: SMALLDEPTH_LIMIT
+
+
+        !<BeginKeyword>
+            !Keyword          : SMALLDEPTH_LIMIT
+            !<BeginDescription>       
+               ! 
                ! Water column thickness below which homogeneous water properties is assumed. 
+               ! 
+            !<EndDescription>
+            !Type             : Real 
+            !Default          : FillValueReal
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+        
         call GetData(Me%SmallDepths%Limit,                                              &
                      Me%ObjEnterData,                                                   &
                      iflag,                                                             &
@@ -11270,8 +11414,21 @@ cd2 :       if (BlockFound) then
             call SetError(FATAL_, KEYWORD_, "ConstructConvection - WaterProperties - ERR04")
         end if
 
-        !Keyword: FREE_CONVECTION   
+
+        !<BeginKeyword>
+            !Keyword          : FREE_CONVECTION
+            !<BeginDescription>       
+               ! 
                ! This option tend to mixe instable density profiles 
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .false.
+            !File keyword     : DISPQUAL
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+        
         call GetData(Me%FreeConvection,                                                 &
                      Me%ObjEnterData,                                                   &
                      iflag,                                                             &
@@ -11378,11 +11535,11 @@ cd2 :       if (BlockFound) then
         
 ifMS:   if (Me%DDecomp%MasterOrSlave) then    
 
-            ILW = Me%DDecomp%WindowLimitsJI%ILB
-            IUW = Me%DDecomp%WindowLimitsJI%IUB
+            ILW = Me%DDecomp%HaloMap%ILB
+            IUW = Me%DDecomp%HaloMap%IUB
 
-            JLW = Me%DDecomp%WindowLimitsJI%JLB
-            JUW = Me%DDecomp%WindowLimitsJI%JUB
+            JLW = Me%DDecomp%HaloMap%JLB
+            JUW = Me%DDecomp%HaloMap%JUB
             
         else ifMS
 
@@ -11518,7 +11675,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                            OutPutsOn   = Me%OutPut%WriteRestartFile,                &
                            STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
-            call CloseAllAndStop ('ConstructGlobalOutput - WaterProperties - ERR03') 
+            call CloseAllAndStop ('ConstructGlobalOutput - WaterProperties - ERR30') 
 
         if(Me%OutPut%WriteRestartFile)then
 
@@ -11526,8 +11683,19 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
 
         end if
 
-        !Keyword: RESTART_FILE_OVERWRITE
+        !<BeginKeyword>
+            !Keyword          : RESTART_FILE_OVERWRITE
+            !<BeginDescription>       
+               ! 
                ! This option checks wether the restart file is to be overwritten or not
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .true.
+            !Multiple Options : Do not have
+            !Search Type      : FromFile
+        !<EndKeyword>
+        
         call GetData(Me%OutPut%RestartOverwrite,                                        &
                      Me%ObjEnterData,                                                   &
                      iflag,                                                             &
@@ -11577,6 +11745,32 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
             allocate(Me%OutW%OriginalCorners(Me%OutW%WindowsNumber))
             
             do iW = 1, Me%OutW%WindowsNumber
+            
+                if (Me%DDecomp%MasterOrSlave) then
+                    
+                    ILB = Me%DDecomp%Global%ILB
+                    IUB = Me%DDecomp%Global%IUB
+                    JLB = Me%DDecomp%Global%JLB
+                    JUB = Me%DDecomp%Global%JUB
+                
+                else
+                
+                    ILB = Me%WorkSize%ILB
+                    IUB = Me%WorkSize%IUB
+                    JLB = Me%WorkSize%JLB
+                    JUB = Me%WorkSize%JUB
+                
+                endif
+                
+                if (Me%OutW%OutPutWindows(iW)%ILB < ILB .or.                            &
+                    Me%OutW%OutPutWindows(iW)%ILB > IUB .or.                            & 
+                    Me%OutW%OutPutWindows(iW)%JLB < JLB .or.                            & 
+                    Me%OutW%OutPutWindows(iW)%JUB > JUB) then
+                    
+                    write(*,*) 'cell corners out of the model domain for the output window number',iW
+                    stop 'ConstructGlobalOutput - WaterProperties - ERR70'
+                    
+                endif               
 
                 Me%OutW%OutPutWindows%NextOutPut = 1
 
@@ -11627,7 +11821,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR70")
+            call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR80")
            
         call GetData(Me%OutPut%Simple,                                                  &
                      Me%ObjEnterData,                                                   &
@@ -11638,7 +11832,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR80")
+            call SetError(FATAL_, KEYWORD_, "ConstructGlobalOutput - WaterProperties - ERR90")
            
     end subroutine ConstructGlobalOutput
 
@@ -20834,8 +21028,8 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                 write(ModelName,*) 'ModelName =', trim(Me%ModelName),' - MPI ID =', Me%DDecomp%MPI_ID, &
                 ' - domain corners(imin, imax, jmin, jmax)=',icILB, icIUB, icJLB, icJUB
                 
-                di_out = Me%DDecomp%WindowLimitsJI%ILB - 1
-                dj_out = Me%DDecomp%WindowLimitsJI%JLB - 1
+                di_out = Me%DDecomp%HaloMap%ILB - 1
+                dj_out = Me%DDecomp%HaloMap%JLB - 1
                 
             else
                 write(ModelName,*) 'ModelName =', trim(Me%ModelName)
@@ -20843,6 +21037,8 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                 dj_out = 0
             endif                                    
 
+
+           
             ILB = Me%WorkSize%ILB 
             IUB = Me%WorkSize%IUB 
             JLB = Me%WorkSize%JLB 
@@ -20938,7 +21134,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                                 WriteNumber = WriteNumber + 1
                             
                             endif
-
+                            
                             if (WriteNumber > WriteNumberMax) then
                                 write(*,*) 'Too much temperature and/or salinity anomalous values >', WriteNumberMax
                                 call CloseAllAndStop (' ModifyDensity - ModuleWaterProperties - ERR60')

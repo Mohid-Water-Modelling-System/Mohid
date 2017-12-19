@@ -2961,10 +2961,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !It is necessary for the Soil model
             call ComputeZCellCenter
 
-            !Computes the WaterColumn
-            if (Me%FirstDomain%DomainType /= FixSediment) then
-                call ComputeWaterColumn(SurfaceElevation)
-            endif
+            if (present(SurfaceElevation)) then
+                !Computes the WaterColumn
+                if (Me%FirstDomain%DomainType /= FixSediment) then
+                    call ComputeWaterColumn(SurfaceElevation)
+                endif
+            endif                
 
             nullify(Me%Externalvar%DecayTime)
 

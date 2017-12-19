@@ -208,6 +208,9 @@ Module ModuleWaves
     type       T_External                               
         real,    dimension(:,:),  pointer                    :: WindVelocityU       => null()
         real,    dimension(:,:),  pointer                    :: WindVelocityV       => null()
+        real,    dimension(:,:),  pointer                    :: VelocityU           => null()
+        real,    dimension(:,:),  pointer                    :: VelocityV           => null()
+        real,    dimension(:,:),  pointer                    :: SeaLevel            => null()        
         integer, dimension(:,:),  pointer                    :: WaterPoints2D       => null()
         integer, dimension(:,:),  pointer                    :: OpenPoints2D        => null()
         real,    dimension(:,:),  pointer                    :: WaterColumn         => null()
@@ -3463,11 +3466,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine SetWavesSeaLevelVel2DSwan(WavesID, WindU, WindV, STAT)
+    subroutine SetWavesSeaLevelVel2DSwan(WavesID, SeaLevel, VelU, VelV, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                     :: WavesID
-        real, pointer, dimension(:,:)               :: WindU, WindV
+        real, pointer, dimension(:,:)               :: SeaLevel
+        real, pointer, dimension(:,:)               :: VelU, VelV
         integer,            optional, intent(OUT)   :: STAT
 
         !Local-------------------------------------------------------------------
@@ -3482,8 +3486,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (ready_ .EQ. IDLE_ERR_)then
 
-            if (associated(WindU))         Me%ExternalVar%WindVelocityU => WindU
-            if (associated(WindV))         Me%ExternalVar%WindVelocityV => WindV
+            if (associated(VelU))         Me%ExternalVar%VelocityU => VelU
+            if (associated(VelV))         Me%ExternalVar%VelocityV => VelV
             
             STAT_ = SUCCESS_  
 

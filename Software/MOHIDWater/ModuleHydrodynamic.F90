@@ -2263,8 +2263,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Construct the Time Serie Obj
         if (Me%OutPut%TimeSerieON) call Construct_Time_Serie
 
-        if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or. Me%OutPut%ProfileON)       &
+        if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
+            Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
+            Me%OutW%OutPutWindowsON) then
             call ConstructMatrixesOutput
+        endif            
 
         if (Me%OutPut%ProfileON) call Construct_Output_Profile
         
@@ -5999,7 +6002,7 @@ cd21:   if (Baroclinic) then
 
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR501')
-
+            
         !<BeginKeyword>
             !Keyword          : INVERTED_BAROMETER_COEF
             !<BeginDescription>       
@@ -6838,7 +6841,20 @@ cd21:   if (Baroclinic) then
                 call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR730') 
         endif
 
+        !<BeginKeyword>
+            !Keyword          : SUBMODEL
+            !<BeginDescription>       
+               ! 
                ! Check if the user wants to run this model as a submodel
+               !  
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .false.
+            !File keyword     : IN_DAD3D
+            !Search Type      : From File
+        !<EndKeyword>
+
         call GetData(Me%SubModel%ON,                                        & 
                      Me%ObjEnterData, iflag,                                &
                      keyword    = 'SUBMODEL',                                            & 
@@ -6850,8 +6866,20 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR740') 
 
-
+        !<BeginKeyword>
+            !Keyword          : SUBMODEL_FATHER_HOT_START
+            !<BeginDescription>       
+               ! 
                ! Check if the user wants to the submodel with a father hot start
+               !  
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .false.
+            !File keyword     : IN_DAD3D
+            !Search Type      : From File
+        !<EndKeyword>
+
         call GetData(Me%SubModel%FatherHotStart,                                        & 
                      Me%ObjEnterData, iflag,                                            &
                      keyword    = 'SUBMODEL_FATHER_HOT_START',                          & 
@@ -6863,7 +6891,22 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR745') 
 
+
+
+        !<BeginKeyword>
+            !Keyword          : MISSING_NULL
+            !<BeginDescription>       
+               ! 
                ! Check if the user wants to replace the missing values by zero 
+               !  
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .false.
+            !File keyword     : IN_DAD3D
+            !Search Type      : From File
+        !<EndKeyword>
+
         call GetData(Me%SubModel%MissingNull,                               & 
                      Me%ObjEnterData, iflag,                                &
                      keyword    = 'MISSING_NULL',                                        & 
@@ -6875,7 +6918,21 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR750') 
 
+
+        !<BeginKeyword>
+            !Keyword          : SUBMODEL_EXTRAPOLATE
+            !<BeginDescription>       
+               ! 
                ! Check if the user wants to extrapolate the father velocities and water levels  
+               !  
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .false.
+            !File keyword     : IN_DAD3D
+            !Search Type      : From File
+        !<EndKeyword>
+
         call GetData(Me%SubModel%Extrapolate,                                           & 
                      Me%ObjEnterData, iflag,                                            &
                      keyword    = 'SUBMODEL_EXTRAPOLATE',                               & 
@@ -6885,11 +6942,25 @@ cd21:   if (Baroclinic) then
                      STAT       = STAT_CALL)            
         
         if (STAT_CALL /= SUCCESS_)                                                       &
-            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR751') 
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR750') 
 
 
+
+        !<BeginKeyword>
+            !Keyword          : DEADZONE
+            !<BeginDescription>       
+               ! 
                ! Check if the user wants to define a dead zone where the submodel do not 
                ! look for information in the father model
+               !  
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .false.
+            !File keyword     : IN_DAD3D
+            !Search Type      : From File
+        !<EndKeyword>
+
         call GetData(Me%SubModel%DeadZone,                                  & 
                      Me%ObjEnterData, iflag,                                &
                      keyword    = 'DEADZONE',                                            & 
@@ -6901,7 +6972,20 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR760') 
 
+        !<BeginKeyword>
+            !Keyword          : DEADZONE_FILE
+            !<BeginDescription>       
+               ! 
                ! file name where the dead zone is defined was polygon 
+               !  
+               ! 
+            !<EndDescription>
+            !Type             : logical 
+            !Default          : .false.
+            !File keyword     : IN_DAD3D
+            !Search Type      : From File
+        !<EndKeyword>
+
         call GetData(Me%SubModel%DeadZoneFile,                              & 
                      Me%ObjEnterData, iflag,                                &
                      keyword    = 'DEADZONE_FILE',                                       & 
@@ -7376,8 +7460,7 @@ cd21:   if (Baroclinic) then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         !<BeginKeyword>
-            !Keyword          : 
-    
+            !Keyword          : OBSTACLE
             !<BeginDescription>       
                ! 
                !Checks if the user want to parameteriza the influence of an
@@ -8641,8 +8724,8 @@ cd43:   if (.NOT. BlockFound) then
                 if (ii < ILBWork .or. ii > IUBWork)                                     &          
                     call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR100") 
                 
-                endif                    
-                
+            endif    
+                    
             if (Me%DDecomp%MasterOrSlave) then
                 if (j>= Me%DDecomp%HaloMap%JLB .and. j<= Me%DDecomp%HaloMap%JUB+1) then
                     jj = j + 1 - Me%DDecomp%HaloMap%JLB
@@ -8653,7 +8736,7 @@ cd43:   if (.NOT. BlockFound) then
                 jj = j
                 if (jj < JLBWork .or. jj > JUBWork)                                     &          
                     call SetError(FATAL_, INTERNAL_, "ConstructBlumbergKantha - Hydrodynamic - ERR110") 
-            endif
+            endif                
 
             Me%ComputeOptions%Tlag(ii, jj) = AuxVector(3)
 
@@ -10072,6 +10155,7 @@ cd5 :           if (opened) then
 !       Local ------------------------------------------------------------------------------
         integer                             :: STAT_CALL
         integer                             :: iflag, iW
+        integer                             :: ILB, IUB, JLB, JUB
        
         !Begin----------------------------------------------------------------------------
 
@@ -10191,6 +10275,32 @@ cd5 :           if (opened) then
             allocate(Me%OutW%OriginalCorners(Me%OutW%WindowsNumber))
             
             do iW = 1, Me%OutW%WindowsNumber
+            
+                if (Me%DDecomp%MasterOrSlave) then
+                    
+                    ILB = Me%DDecomp%Global%ILB
+                    IUB = Me%DDecomp%Global%IUB
+                    JLB = Me%DDecomp%Global%JLB
+                    JUB = Me%DDecomp%Global%JUB
+                
+                else
+                
+                    ILB = Me%WorkSize%ILB
+                    IUB = Me%WorkSize%IUB
+                    JLB = Me%WorkSize%JLB
+                    JUB = Me%WorkSize%JUB
+                
+                endif
+                
+                if (Me%OutW%OutPutWindows(iW)%ILB < ILB .or.                            &
+                    Me%OutW%OutPutWindows(iW)%ILB > IUB .or.                            & 
+                    Me%OutW%OutPutWindows(iW)%JLB < JLB .or.                            & 
+                    Me%OutW%OutPutWindows(iW)%JUB > JUB) then
+                    
+                    write(*,*) 'cell corners out of the model domain for the output window number',iW
+                    stop 'Construct_OutPutTime - Hydrodynamic - ERR75'
+                    
+                endif                    
                 
                 Me%OutW%OutPutWindows%NextOutPut = 1
                 
@@ -10254,6 +10364,11 @@ cd5 :           if (opened) then
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, KEYWORD_, "Construct_OutPutTime - Hydrodynamic - ERR90")
     
+        !Override to allow the output of fields associated with the option WaterLevelMaxMin
+        if (Me%ComputeOptions%WaterLevelMaxMin) then
+            Me%OutPut%Simple = .false. 
+        endif
+
         !João Sobrinho
         call GetData(Me%Output%Real4,                                                   &
                      Me%ObjEnterData,                                                   &
@@ -11138,6 +11253,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
                                           
                     
                 else
+                
                     Me%OutW%OutPutWindows(iW)%ON = .false. 
                     OutputOk                     = .false.               
                 endif                    
@@ -11187,7 +11303,7 @@ iStart: if (OutputOk) then
 
             !Gets File Access Code
             call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
-
+            
             ObjHDF5 = 0
 
             !Opens HDF File
@@ -27170,7 +27286,7 @@ cd5:                if (Me%External_Var%OpenPoints3D(i, j, KUB) .ne. OpenPoint .
 
         integer                             :: i, j
         integer                             :: IUB, ILB, JUB, JLB, KUB
-        integer, pointer, dimension (:,:,:) :: WaterPoints3D
+        integer, pointer, dimension (:,:,:) :: OpenPoints3D
 
         real,    dimension(:,:), pointer    :: WaterLevel_New
 
@@ -27188,7 +27304,7 @@ cd5:                if (Me%External_Var%OpenPoints3D(i, j, KUB) .ne. OpenPoint .
         KUB = Me%WorkSize%KUB
 
         WaterLevel_New    => Me%WaterLevel%New
-        WaterPoints3D     => Me%External_Var%WaterPoints3D
+        OpenPoints3D      => Me%External_Var%OpenPoints3D
 
         !End   - Shorten variables name
 
@@ -27203,7 +27319,7 @@ cd5:                if (Me%External_Var%OpenPoints3D(i, j, KUB) .ne. OpenPoint .
 do1:    do  j = JLB, JUB
 do2:    do  i = ILB, IUB
 
-cd1:        if (WaterPoints3D(i, j, KUB) == OpenPoint) then
+cd1:        if (OpenPoints3D(i, j, KUB) == OpenPoint) then
 
                 !Do we have a new record water level?
                 if (WaterLevel_Max(i,j) < WaterLevel_New(i,j)) then
@@ -27227,7 +27343,7 @@ cd1:        if (WaterPoints3D(i, j, KUB) == OpenPoint) then
         endif
 
         nullify (WaterLevel_New)
-        nullify (WaterPoints3D )
+        nullify (OpenPoints3D )
 
         !----------------------------------------------------------------------
 
@@ -31274,7 +31390,8 @@ cd1:        if  (BoundaryFacesUV  (i, j     )  == Boundary     .and.            
 
                     if (LocalAssimila) then
 
-                        Aux1 = dble(Bathymetry(i_int, j_int) + SlowCoef * AssimilaWaterLevel(i_int, j_int))
+                        Aux1 = dble(Bathymetry(i_int, j_int) + SlowCoef * AssimilaWaterLevel(i_int, j_int) &
+                                                      + (1. - SlowCoef) * WaterLevel_New(i_int, j_int)) 
 
                     else
 
@@ -31433,8 +31550,10 @@ cd15:           if (LocalSolution) then
                     endif
 
                     if (LocalAssimila) then
-                        LocalWLa = LocalWLa + SlowCoef * AssimilaWaterLevel(ib   , jb   )
-                        LocalWLb = LocalWLb + SlowCoef * AssimilaWaterLevel(i_int, j_int)
+                        LocalWLa = LocalWLa +       SlowCoef  * AssimilaWaterLevel(ib   , jb   )
+                        LocalWLa = LocalWLa + (1. - SlowCoef) * WaterLevel_New    (ib   , jb   )
+                        LocalWLb = LocalWLb +       SlowCoef  * AssimilaWaterLevel(i_int, j_int)
+                        LocalWLb = LocalWLb + (1. - SlowCoef) * WaterLevel_New    (i_int, j_int)
                     endif
 
 
@@ -50337,8 +50456,8 @@ sp:     if (.not. SimpleOutPut) then
             
             if (Me%ComputeOptions%WaterLevelMaxMin) then        
 
-                Me%OutPut%WaterLevelMax(:, :) = Me%WaterLevel%Maxi(:,:) * Me%OutPut%WaterLevelUnits
-                Me%OutPut%WaterLevelMin(:, :) = Me%WaterLevel%Mini(:,:) * Me%OutPut%WaterLevelUnits
+                Me%OutPut%WaterLevelMax(:, :) = Me%WaterLevel%Maxi     (:, :) * Me%OutPut%WaterLevelUnits
+                Me%OutPut%WaterLevelMin(:, :) = Me%WaterLevel%Mini     (:, :) * Me%OutPut%WaterLevelUnits
                 Me%OutPut%WaterLevelDif(:, :) = Me%OutPut%WaterLevelMax(:, :) - Me%OutPut%WaterLevelMin(:, :) 
 
                 AuxProp = trim(GetPropertyName (WaterLevel_))//"_Max"
@@ -50885,7 +51004,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         call HDF5WriteData  (Me%ObjSurfaceHDF5,                                         &
                              "/Grid/VerticalZ",                                         &
-                             "VerticalZ", "m",                                          &
+                             "Vertical", "m",                                           &
                              Array3D        = Me%External_Var%SZZ,                      &
                              OutputNumber   = NextSurfaceOutPut,                        &
                              STAT           = STAT_CALL)
@@ -51654,26 +51773,26 @@ cd3:        if (Me%ComputeOptions%Residual) then
                           Me%OutPut%CenterU,                                    &
                           SZZ    = Me%External_Var%SZZ,                         &
                           STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR05'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR01'
             
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%CenterV,                                    &
                           SZZ    = Me%External_Var%SZZ,                         &
                           STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR06'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR02'
 
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%CenterW,                                    &
                           SZZ    = Me%External_Var%SZZ,                         &
                           STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR07'
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR03'
 
 
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%ModulusH,                                   &
                           SZZ    = Me%External_Var%SZZ,                         &
                           STAT   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR08'         
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR04'
 
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%DirectionH,                                 &
@@ -51993,7 +52112,7 @@ cd3:            if (Me%OutPut%hdf5ON) then
                         call KillFillMatrix(Me%WaterLevel%ID%ObjFillMatrix, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR30'
                     end if
-    
+                    
                     if (Me%ComputeOptions%TideStateON) then
                         if (Me%WaterLevel%TideStateID%SolutionFromFile) then
                             call KillFillMatrix(Me%WaterLevel%TideStateID%ObjFillMatrix, STAT = STAT_CALL)
@@ -55504,9 +55623,11 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
         end if        
 
-        if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or. Me%OutPut%ProfileON) &
+        if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
+            Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
+            Me%OutW%OutPutWindowsON) then
             call KillMatrixesOutput
-            
+        endif            
 
         if (Me%ComputeOptions%InvertBaromSomeBound)                                     &
             deallocate(Me%ComputeOptions%InvertBarometerCells)            
@@ -56168,29 +56289,33 @@ cd1:    if (HydrodynamicID > 0) then
 
         !Begin------------------------------------------------------------------
         
-        if (Me%WaveStress%ON)then
+        if (Me%Generic4D%ON) then
+        
             call SetGeneric4DValues(Me%ObjWaves, Me%Generic4D%CurrentValue, STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR10.'
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ReadLock_ModuleWaves - ModuleHydrodynamic - ERR10'
 
+        endif                
+        
+        if (Me%WaveStress%ON)then
 
-            call GetWavesStress    (Me%ObjWaves,                                            &
-                                    Me%External_Var%TauWavesU,                              &
-                                    Me%External_Var%TauWavesV,                              &
+            call GetWavesStress    (Me%ObjWaves,                                        &
+                                    Me%External_Var%TauWavesU,                          &
+                                    Me%External_Var%TauWavesV,                          &
                                     STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)                                                      &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR20.'
         endif
         
         if (Me%ComputeOptions%WaveShearStress)then
             
-            call GetWaves (WavesID       = Me%ObjWaves,                                     &
-                           Abw           = Me%External_Var%Abw,                             &
-                           Ubw           = Me%External_Var%Ubw,                             &
+            call GetWaves (WavesID       = Me%ObjWaves,                                 &
+                           Abw           = Me%External_Var%Abw,                         &
+                           Ubw           = Me%External_Var%Ubw,                         &
                            STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
+            if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR30.'
         endif
 
@@ -56212,14 +56337,14 @@ cd1:    if (HydrodynamicID > 0) then
                                     STAT = STAT_CALL)
         
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR20a.'
+                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR40.'
 
 
             call GetWaves (WavesID     = Me%ObjWaves,                                   &
                           WaveHeight   = Me%External_Var%WaveHeight,                    &
                           STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR20b.'
+                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR50.'
 
         
         endif
@@ -56231,7 +56356,7 @@ cd1:    if (HydrodynamicID > 0) then
                           WaveLength   = Me%External_Var%WaveLength,                    &
                           STAT         = STAT_CALL)
            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR20c.'
+                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR60.'
            
 
            call GetWavesStress    (Me%ObjWaves,                                         &
@@ -56240,7 +56365,7 @@ cd1:    if (HydrodynamicID > 0) then
                                     STAT = STAT_CALL)
         
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR20d.'
+                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR70.'
         
         endif
 

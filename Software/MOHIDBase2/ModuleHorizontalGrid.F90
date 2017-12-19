@@ -10536,28 +10536,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         
         !Begin-----------------------------------------------------------------
         
-        LineInterSection        = .false. 
-        ColumnInterSection      = .false. 
+        LineInterSection        = .true. 
+        ColumnInterSection      = .true. 
         
-        if ((WorkSizeA%ILB >= WorkSizeB%ILB .and. WorkSizeA%ILB <= WorkSizeB%IUB) .or. &
-            (WorkSizeA%IUB >= WorkSizeB%ILB .and. WorkSizeA%IUB <= WorkSizeB%IUB)) then
-            LineInterSection = .true.                
+        if (WorkSizeA%ILB < WorkSizeB%ILB .and. WorkSizeA%IUB < WorkSizeB%ILB) then
+            LineInterSection   = .false.                
         endif            
 
-        if ((WorkSizeB%ILB >= WorkSizeA%ILB .and. WorkSizeB%ILB <= WorkSizeA%IUB) .or. &
-            (WorkSizeB%IUB >= WorkSizeA%ILB .and. WorkSizeB%IUB <= WorkSizeA%IUB)) then
-            LineInterSection = .true.                
+        if (WorkSizeA%ILB > WorkSizeB%IUB .and. WorkSizeA%IUB > WorkSizeB%IUB) then
+            LineInterSection   = .false.                
         endif            
         
-
-        if ((WorkSizeA%JLB >= WorkSizeB%JLB .and. WorkSizeA%JLB >= WorkSizeB%JUB) .or. &
-            (WorkSizeA%JUB >= WorkSizeB%JLB .and. WorkSizeA%JUB <= WorkSizeB%JUB)) then
-            ColumnInterSection = .true.                
+        if (WorkSizeA%JLB < WorkSizeB%JLB .and. WorkSizeA%JUB < WorkSizeB%JLB) then
+            ColumnInterSection = .false.                
         endif            
 
-        if ((WorkSizeB%JLB >= WorkSizeA%JLB .and. WorkSizeB%JLB >= WorkSizeA%JUB) .or. &
-            (WorkSizeB%JUB >= WorkSizeA%JLB .and. WorkSizeB%JUB <= WorkSizeA%JUB)) then
-            ColumnInterSection = .true.                
+        if (WorkSizeA%JLB > WorkSizeB%JUB .and. WorkSizeA%JUB > WorkSizeB%JUB) then
+            ColumnInterSection = .false.                
         endif            
         
         if (LineInterSection .and. ColumnInterSection) then
