@@ -577,7 +577,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          flag,                                                          &
                          SearchType   = FromFile,                                       &
                          keyword      ='REMOVE_CONSTANT_VALUES',                        &
-                         Default      = .true.,                                         &
+                         Default      = .false.,                                         &
                          ClientModule ='ModuleTimeSeriesAnalyser',                      &
                          STAT         = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTimeSeriesAnalyser - ReadKeywords - ERR340'            
@@ -2382,6 +2382,8 @@ d3:         do i=1, Me%DataValues
         logical                                 :: TimeCycle
         integer                                 :: i, c, STAT_CALL, Ncompare
         real                                    :: rcorr, rcorr_quad, z_fisher, alfa, beta_1, Am, Bm, dtGap
+        real                                    :: bias_out
+       
         
         !Begin-------------------------------------------------------------------------        
              
@@ -2504,6 +2506,13 @@ i1:     if (Me%CompareTimeSerieOn) then
                 
             enddo
             
+            if (Me%CompareObservations) then
+                bias_out = bias
+            else
+                bias_out = -bias
+            endif            
+            
+            
             UB_RMSE = sqrt(uba/NCompare)   
             
             if (Me%ErrorNormalization == stdv4_) then
@@ -2556,7 +2565,7 @@ i1:     if (Me%CompareTimeSerieOn) then
             write(Me%iCompare,*) "STDEV_OBS               : ", StdevObs
             write(Me%iCompare,*) "AVERAGE_OBS             : ", AverageObs            
             
-            write(Me%iCompare,*) "BIAS                    : ",Bias
+            write(Me%iCompare,*) "BIAS                    : ",bias_out
             write(Me%iCompare,*) "RMSE                    : ",RMSE
             write(Me%iCompare,*) "Normalise RMSE [%]      : ",NRMSE            
             write(Me%iCompare,*) "Unbias RMSE             : ",UB_RMSE
