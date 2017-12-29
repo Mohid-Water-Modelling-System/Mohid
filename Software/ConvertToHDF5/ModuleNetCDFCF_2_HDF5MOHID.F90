@@ -251,6 +251,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type(T_Bathym)                          :: Bathym
         logical                                 :: OutHDF5, OutNetcdf, ReadInvertXY
         logical                                 :: ReadInvertLat
+        logical                                 :: Nan_2_Null
         integer                                 :: OutCountProp = 0
         type(T_WindowOut)                       :: WindowOut
         logical                                 :: MeridionalSplit
@@ -1634,6 +1635,16 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         else            
             Me%WindowOut%ON  = .false.
         endif
+        
+        call GetData(Me%NaN_2_Null,                                                     &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'NAN_2_NULL',                                       &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR140'
+                
 
         if (Me%OutNetCDF) then
         
@@ -6437,7 +6448,13 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             stop 'GetNetCDFValue - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
         endif
         
-        if (ISNAN(GetNetCDFValue)) GetNetCDFValue = FillValueReal
+        if (ISNAN(GetNetCDFValue)) then
+            if (Me%NaN_2_Null) then
+                GetNetCDFValue = 0.
+            else
+                GetNetCDFValue = FillValueReal            
+            endif
+        endif
         
     end function GetNetCDFValue
 
