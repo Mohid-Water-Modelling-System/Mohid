@@ -216,7 +216,8 @@ if0 :   if (ready_.EQ. OFF_ERR_) then
                 
 DOPROP:         do   
                     
-                    call ExtractBlockFromBlock (Me%ObjEnterData, ClientNumber, turbine_begin, turbine_end, BlockInBlockFound, STAT = STAT_CALL)
+                    call ExtractBlockFromBlock (Me%ObjEnterData, ClientNumber,          &
+                        turbine_begin, turbine_end, BlockInBlockFound, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbine - ModuleTurbine - ERR05' 
                     
 if1:                if (BlockInBlockFound) then
@@ -683,7 +684,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                Me%TurbineVelocity(Turbine%ID)   = VelocityModulTurbine
                   
                !Parametrisation of CP and CT coefficients
-               if (VelocityModulTurbine .GE. (0.75*Turbine%LowerVelocity) .and. START .and. VelocityModulTurbine .LE. Turbine%UpperVelocity) then
+               if (VelocityModulTurbine .GE. (0.75*Turbine%LowerVelocity) .and. START &
+                   .and. VelocityModulTurbine .LE. Turbine%UpperVelocity) then
                    CT = Turbine%CT
                    CP = Turbine%CP
                
@@ -704,7 +706,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                
                !Compute the forces of the turbine
                do K=Kbottom, KUB
-                   Me%TurbineAcceleration(I,J,K) = Me%TurbineAcceleration(I,J,K) - (0.5*CT*T_Area(K)*(VelocityModul*VelocityUV(I,J,K))/VolumeUV(I,J,K))
+                   Me%TurbineAcceleration(I,J,K) = Me%TurbineAcceleration(I,J,K) -      &
+                    (0.5*CT*T_Area(K)*(VelocityModul*VelocityUV(I,J,K))/VolumeUV(I,J,K))
                    DensityAv = DensityAv + Density(I,J,K)*T_Area(K)/TotalAreaTurbine
                enddo
                               

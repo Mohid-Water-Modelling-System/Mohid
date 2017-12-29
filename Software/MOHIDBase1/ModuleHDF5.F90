@@ -2262,7 +2262,11 @@ Module ModuleHDF5
 
             !Creates a new group with a given name
             call h5gcreate_f(FileID, GroupName, gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckGroupExistence - ModuleHDF5 - ERR01'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'FileName  = ', trim(Me%FileName)            
+                write(*,*) 'GroupName =',  trim(GroupName)
+                stop 'CheckGroupExistence - ModuleHDF5 - ERR01'
+            endif                
 
             !write(*,*)'Created Group: ', trim(GroupName)
             if(lCreateMinMaxAttributes)then
