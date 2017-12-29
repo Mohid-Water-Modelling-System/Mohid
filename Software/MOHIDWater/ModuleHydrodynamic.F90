@@ -15383,8 +15383,8 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
         !External--------------------------------------------------------------
 
-        integer :: ready_, readyFather_
-        type (T_Hydrodynamic), pointer              :: ObjHydrodynamicFather
+        integer :: ready_ !, readyFather_
+        !type (T_Hydrodynamic), pointer              :: ObjHydrodynamicFather
         !Local-----------------------------------------------------------------
 
         integer :: STAT_, STAT_CALL, AuxHydrodynamicID            !Auxiliar local variable  João Sobrinho
@@ -30751,7 +30751,7 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
 
                 endif
 
- 				![m/s]    = [m/s] - [m/s] * [-]               
+                ![m/s]    = [m/s] - [m/s] * [-]               
                 T3            = T3 - ImposedVelocity(ib, jb) * XY_Component_Cart_E
 
                 
@@ -49207,7 +49207,8 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
         type (T_Hydrodynamic), pointer                    :: ObjHydrodynamicFather
     !Locals----------------------------------------------------------------
         integer, intent(IN)                               :: HydrodynamicID
-        integer                                           :: ready_, readyFather_, STAT_, STAT_CALL, i, AuxHydrodynamicID
+        integer                                           :: ready_, readyFather_, STAT_CALL, i, AuxHydrodynamicID
+        !integer                                           :: STAT_                                          
         
     !Begin------------------------------------------------------------------------------
         
