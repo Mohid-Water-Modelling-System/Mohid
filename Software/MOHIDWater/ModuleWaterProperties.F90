@@ -13076,8 +13076,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    !---------------------------------------------------------------------------------------------------
-
     subroutine ConstructTimeInterpolation(PropertySon, PropFatherVariable, DT_Father)
                                           
         !Arguments-------------------------------------------------------------
@@ -22414,7 +22412,7 @@ AO:     if (Actual >= SurfaceOutTime) then
 
                         call HDF5WriteData  (Me%ObjSurfaceHDF5,                         &
                                              "/Grid/VerticalZ",                         &
-                                             "VerticalZ", "m",                          &
+                                             "Vertical", "m",                           &
                                              Array3D        = Me%ExternalVar%SZZ,       &
                                              OutputNumber   = SurfaceOutPutNumber,      &
                                              STAT           = STAT_CALL)

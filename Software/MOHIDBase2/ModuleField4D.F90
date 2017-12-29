@@ -257,6 +257,7 @@ Module ModuleField4D
         character(StringLength)                         :: DepthStagName        = null_str
         character(StringLength)                         :: MaskName             = null_str
         character(StringLength)                         :: BathymName           = null_str
+        character(StringLength)                         :: DataSetVert          = "Vertical"
         type (T_DefaultNames)                           :: DefaultNames        
         
         logical                                         :: ReadSZZ              = .false. 
@@ -1362,8 +1363,9 @@ wwd1:       if (Me%WindowWithData) then
          integer,   pointer, dimension(:,:,:)    :: mask
          integer,   pointer, dimension(:,:  )    :: Array2D    
          integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL 
-         logical                                 :: Exist
+         logical                                 :: Exist, Exist1, Exist2
          integer                                 :: ArrayHDF_Dim, k  
+         character(len=StringLength)             :: DataSetNameVert
          
 
         !Begin-----------------------------------------------------------------
@@ -1388,15 +1390,40 @@ wwd1:       if (Me%WindowWithData) then
                                  
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR10'
             
-            call GetHDF5GroupExist (HDF5ID = Me%File%Obj, GroupName = "/Grid/VerticalZ",&
-                                    Exist  = Exist, STAT = STAT_CALL)                                
+            call GetHDF5DataSetExist (HDF5ID = Me%File%Obj, DataSetName = "/Grid/VerticalZ/Vertical_00001",&
+                                      Exist  = Exist1, STAT = STAT_CALL)                                
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR20'
+            
+
+            call GetHDF5DataSetExist (HDF5ID = Me%File%Obj, DataSetName = "/Grid/VerticalZ/VerticalZ_00001",&
+                                      Exist  = Exist2, STAT = STAT_CALL)                                
+            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR25'
+            
+            Me%File%DataSetVert = "Vertical"            
+            
+            if (Exist1) then
+                
+                Exist = .true. 
+                
+            else
+            
+                if (Exist2) then
+
+                    Me%File%DataSetVert = "VerticalZ"
+                    Exist = .true. 
+                
+                else
+                    Exist = .false. 
+                endif
+
+            endif
+
             
             if (Exist) then
                                         
                 call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
                                     GroupName     = "/Grid/VerticalZ",                  &
-                                    Name          = "Vertical_00001",                   &
+                                    Name          = trim(Me%File%DataSetVert)//"_00001", &
                                     Array3D       = SZZ,                                &
                                     OffSet3       = 0,                                  &       
                                     STAT          = STAT_CALL)
@@ -3333,7 +3360,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                 
                 call HDF5ReadWindow(HDF5ID        = Obj,                                &
                                     GroupName     = "/Grid/VerticalZ",                  &
-                                    Name          = "Vertical",                         &
+                                    Name          = trim(Me%File%DataSetVert),          &
                                     Array3D       = SZZ,                                &
                                     OutputNumber  = iaux,                               &
                                     OffSet3       = 0,                                  &                                    
@@ -4852,7 +4879,7 @@ d2:     do N =1, NW
                 if (STAT_CALL /= SUCCESS_) stop 'WriteOutput - ModuleField4D - ERR40'
 
 
-                call HDF5WriteData  (Me%ObjHDF5Out, "/Grid/VerticalZ", "Vertical",      &
+                call HDF5WriteData  (Me%ObjHDF5Out, "/Grid/VerticalZ", trim(Me%File%DataSetVert),   &
                                      "m", Array3D =    SZZ,                             &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteOutput - ModuleField4D - ERR50'
