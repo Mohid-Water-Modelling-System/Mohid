@@ -8884,6 +8884,8 @@ CurrOr: do while (associated(CurrentOrigin))
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Origin), pointer                    :: CurrentOldOrigin
         logical                                     :: Equal
+        integer                                     :: ObjAux
+        
 
         CurrentOrigin => Me%FirstOrigin
         do while (associated(CurrentOrigin))
@@ -8901,12 +8903,16 @@ OldOrigin:      do while (associated(CurrentOldOrigin))
                         if (.not. Equal) then
                             write (*,*) 'The Properties from the Old and Current Origin are different'
                             write (*,*) 'Old Origin Name: ',trim(CurrentOldOrigin%Name)
-                            stop 'MergeOldWithNewOrigins - ModuleLagrangianGlobal - ERR02'
+                            stop 'MergeOldWithNewOrigins - ModuleLagrangianGlobal - ERR10'
                         endif
 
                         CurrentOrigin%nParticle    =  CurrentOldOrigin%nParticle
                         CurrentOrigin%FirstPartic  => CurrentOldOrigin%FirstPartic
+                        
+                        ObjAux                     =  CurrentOrigin%ObjOil
                         CurrentOrigin%ObjOil       =  CurrentOldOrigin%ObjOil
+                        CurrentOldOrigin%ObjOil    =  ObjAux                        
+                        
                         CurrentOrigin%NextParticID = CurrentOldOrigin%NextParticID
 
                         nullify (CurrentOldOrigin%FirstPartic)
@@ -10222,7 +10228,8 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
         if (STAT_CALL /= SUCCESS_) stop 'ConstructParticOil - ModuleLagrangianGlobal - ERR10'
 
 
-i1:     if (OilSectionFound .and. .not. NewOrigin%Old) then
+!i1:     if (OilSectionFound .and. .not. NewOrigin%Old) then
+i1:     if (OilSectionFound) then
 
             em = NewOrigin%Position%ModelID
             
@@ -10232,7 +10239,7 @@ i1:     if (OilSectionFound .and. .not. NewOrigin%Old) then
                           TimeID            = Me%EulerModel(em)%ObjTime,            &     
                           EnterDataID       = Me%ObjEnterData,                      &
                           DT                = Me%DT_PARTIC,                         &     
-                          ContCalc          = NewOrigin%Old,                        &
+                          ContCalc          = .false.,                              &
                           ExtractType       = FromBlockInBlock,                     &
                           STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructParticOil - ModuleLagrangianGlobal - ERR10'

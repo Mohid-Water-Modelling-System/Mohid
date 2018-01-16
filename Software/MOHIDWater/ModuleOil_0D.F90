@@ -4896,14 +4896,12 @@ cd3 :           if (Me%State%TimeSerie) then
         if (ready_ .EQ. IDLE_ERR_) then
 
             write (UnitID) Me%Var%Time
-            write (UnitID) Me%Var%DTOilInternalProcesses
             write (UnitID) Me%Var%OilType
             write (UnitID) Me%Var%API
             write (UnitID) Me%Var%PourPoint
 
             write (UnitID) Me%State%FirstStepAP
             write (UnitID) Me%State%FirstStepIP
-            write (UnitID) Me%Var%DTOilInternalProcesses
 
             !Mass
             write (UnitID) Me%Var%MassOil
@@ -5113,14 +5111,13 @@ ifdiss:     if (Me%Var%OilDissolution) then
 
         if (ready_ .EQ. IDLE_ERR_) then
 
-            read (UnitID)  Me%Var%Time
+            read (UnitID) Me%Var%Time
             read (UnitID) Me%Var%OilType
             read (UnitID) Me%Var%API
             read (UnitID) Me%Var%PourPoint
 
             read (UnitID) Me%State%FirstStepAP
             read (UnitID) Me%State%FirstStepIP
-            read (UnitID) Me%Var%DTOilInternalProcesses
 
             !Mass
             read (UnitID) Me%Var%MassOil
