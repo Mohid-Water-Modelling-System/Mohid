@@ -4268,7 +4268,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         
         !Local-----------------------------------------------------------------
         real,    dimension(6), target                   :: AuxTime
-        real(8)                                         :: Aux        
+        real(8)                                         :: Aux, daux        
         real,    dimension(:), pointer                  :: TimePtr
         type(T_Time)                                    :: CurrentTime
         integer                                         :: STAT_CALL, i, io
@@ -4289,9 +4289,21 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
             Aux = Me%Date%ValueInTotal(i)
 
-         
+            CurrentTime = Me%Date%RefDateTimeOut
             
-            CurrentTime = Me%Date%RefDateTimeOut + Aux
+            do while (Aux > 0) 
+         
+                if (Aux > 1e8) then
+                    daux = 1e8
+                else
+                    daux = Aux
+                endif                                        
+                    
+                CurrentTime = CurrentTime + daux
+                
+                Aux = Aux - daux
+            
+            enddo
        
 
 !           Dados para escriver uma soa vez cada date:
