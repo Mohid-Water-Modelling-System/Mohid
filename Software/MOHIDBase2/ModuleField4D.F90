@@ -292,6 +292,7 @@ Module ModuleField4D
         logical                                     :: Extrapolate          = .false.
         integer                                     :: ExtrapolateMethod    = null_int
         integer                                     :: InterpolMethod       = null_int
+        logical                                     :: DiscardFillValues    = .false.        
         logical                                     :: Zdepths              = .false. 
        
         integer                                     :: ValuesType           = null_int
@@ -1365,10 +1366,10 @@ wwd1:       if (Me%WindowWithData) then
          integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL 
          logical                                 :: Exist, Exist1, Exist2
          integer                                 :: ArrayHDF_Dim, k  
-         character(len=StringLength)             :: DataSetNameVert
          
 
         !Begin-----------------------------------------------------------------
+        
         allocate(SZZ  (Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,Me%Size3D%KLB:Me%Size3D%KUB))  
         allocate(mask (Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,Me%Size3D%KLB:Me%Size3D%KUB))  
         
@@ -1919,6 +1920,16 @@ wwd1:       if (Me%WindowWithData) then
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR180'             
+        
+        call GetData(PropField%DiscardFillValues,                                       &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'DISCARD_FILLVALUES',                               &
+                     default      = .true.,                                             &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR190'        
+        
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
@@ -4930,7 +4941,7 @@ d2:     do N =1, NW
     !--------------------------------------------------------------------------
     subroutine ModifyField4DXYZ(Field4DID, PropertyIDNumber, CurrentTime, X, Y, Z,      &
                                 Field, NoData, WaveName, ExtractAmplitudes,             &
-                                ExtractPhaseReal, STAT)
+                                ExtractPhaseReal, InterpolationDT, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                            intent(IN)             :: Field4DID
@@ -4943,6 +4954,7 @@ d2:     do N =1, NW
         character(len=*),                   intent(IN ), optional  :: WaveName
         logical,                            intent(IN ), optional  :: ExtractAmplitudes
         logical,                            intent(IN ), optional  :: ExtractPhaseReal
+        real,                               intent(OUT), optional  :: InterpolationDT        
         integer,                            intent(OUT), optional  :: STAT
                                             
         !Local-----------------------------------------------------------------
@@ -4956,6 +4968,10 @@ d2:     do N =1, NW
         call Ready(Field4DID, ready_)
 
         if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(InterpolationDT)) then                
+                InterpolationDT = - FillValueReal
+            endif                
         
             if (Me%WindowWithData) then
                 if (present(CurrentTime)) then
@@ -5016,6 +5032,10 @@ d2:     do N =1, NW
                         endif
 
                         call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
+                    endif
+
+                    if (present(InterpolationDT)) then                                    
+                        InterpolationDT = PropField%NextTime - PropField%PreviousTime
                     endif
                     
                     if (Me%Output%Yes) then
@@ -5217,7 +5237,7 @@ dnP:    do nP = 1,nPoints
                 MaskNE      = Me%ExternalVar%Waterpoints2D(iN, jE)
                 
 
-                if (PropField%Extrapolate) then
+                if (PropField%Extrapolate .or. .not. PropField%DiscardFillValues) then
                 
                     NoData(nP) = .false.
                 
@@ -5597,7 +5617,8 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                               FillGridMethod = PropField%ExtrapolateMethod)
         endif
         
-        call Interpolater3D(Matrix3D            =  Me%Matrix3D,                         &
+        call Interpolater3D(PropField           =  PropField,                           &
+                            Matrix3D            =  Me%Matrix3D,                         &
                             Depth3D             =  Me%Depth3D,                          &
                             Mask3D              =  Me%ExternalVar%WaterPoints3D,        &
                             HorizontalGrid      =  Me%ObjHorizontalGrid,                &
@@ -5607,8 +5628,7 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                             Y                   =  Y,                                   &
                             Z                   =  Z,                                   &
                             Field               =  Field,                               &
-                            NoData              =  NoData,                              &
-                            Extrapolate         =  PropField%Extrapolate)
+                            NoData              =  NoData)
         
         call UnGetMap(Map_ID          = Me%ObjMap,                                      &
                       Array           = Me%ExternalVar%WaterPoints3D,                   &
@@ -5619,16 +5639,16 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
      
     !----------------------------------------------------------------------
     
-    subroutine Interpolater3D(Matrix3D, Depth3D, Mask3D, HorizontalGrid, &
-                              KLB, KUB, Extrapolate, X, Y, Z, Field, NoData)
+    subroutine Interpolater3D(PropField, Matrix3D, Depth3D, Mask3D, HorizontalGrid,     &
+                              KLB, KUB, X, Y, Z, Field, NoData)
 
         !Arguments------------------------------------------------------------
+        type (T_PropField),         pointer, intent(IN)     :: PropField
         real,   dimension(:,:,:),   pointer, intent(IN)     :: Matrix3D        
         real,   dimension(:,:,:),   pointer, intent(IN)     :: Depth3D 
         integer,dimension(:,:,:),   pointer, intent(IN)     :: Mask3D
         integer                            , intent(IN)     :: HorizontalGrid
         integer                            , intent(IN)     :: KLB, KUB
-        logical                            , intent(IN)     :: Extrapolate
         real,       dimension(:),   pointer, intent(IN)     :: X, Y, Z
         real,       dimension(:),   pointer, intent(OUT)    :: Field
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
@@ -5737,7 +5757,7 @@ dnP:    do nP = 1,nPoints
                     
                 endif
 
-                if (Extrapolate) then
+                if (PropField%Extrapolate .or. .not. PropField%DiscardFillValues) then
                 
                     NoData(nP) = .false.
                 
