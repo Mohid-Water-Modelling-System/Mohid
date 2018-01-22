@@ -6786,7 +6786,10 @@ Module ModuleHDF5
             
             !Opens the Dataset
             call h5dopen_f          (gr_id, ItemName_, dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR20'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'DataSet name not present in the hdf5 input file', ItemName_                        
+                stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR20'            
+            endif 
             
             !Opens data space
             call h5dget_space_f     (dset_id, space_id,  STAT_CALL)

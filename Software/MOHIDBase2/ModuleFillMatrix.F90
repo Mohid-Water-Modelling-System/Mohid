@@ -72,7 +72,7 @@ Module ModuleFillMatrix
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,     &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
-                                       GetHDF5GroupExist
+                                       GetHDF5GroupExist, GetHDF5DataSetExist
                                        
     use ModuleField4D,          only : ConstructField4D, GetField4DNumberOfInstants,    &
                                        GetField4DInstant, ModifyField4D,                &
@@ -7244,6 +7244,8 @@ if4D:   if (CurrentHDF%Field4D) then
         type (T_Time)                           :: CurrentTime
         integer                                 :: Imax, Jmax, Kmax, kbottom
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
+        character(StringLength)                 :: DataSetVert
+        logical                                 :: Exist1, Exist2
 
         !Begin-----------------------------------------------------------------
 
@@ -7298,7 +7300,7 @@ if4D:   if (CurrentHDF%Field4D) then
                 call GetHDF5ArrayDimensions(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),    &
                                   trim(CurrentHDF%FieldName), OutputNumber = Instant,       &
                                   Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR31'                                   
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'                                   
             endif
             
             if (CurrentHDF%From3Dto2D) then
@@ -7309,7 +7311,7 @@ if4D:   if (CurrentHDF%Field4D) then
                     write (*,*) trim(CurrentHDF%VGroupPath)
                     write (*,*) trim(CurrentHDF%FieldName)
                     write (*,*) 'miss match between the HDF5 input file and model domain'
-                    stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'                                   
+                    stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'                                   
                     
                 endif
                 
@@ -7320,7 +7322,7 @@ if4D:   if (CurrentHDF%Field4D) then
                 Field(:,:,:) = 0.
                                 
                 call HDF5SetLimits  (CurrentHDF%ObjHDF5, ILB, IUB, JLB, JUB, 1, Kmax, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'
                 
                 allocate(AuxField     (ILB-1:IUB+1, JLB-1:JUB+1, 0:Kmax+1))
                 allocate(WaterPoints3D(ILB-1:IUB+1, JLB-1:JUB+1, 0:Kmax+1))  
@@ -7329,19 +7331,50 @@ if4D:   if (CurrentHDF%Field4D) then
                 call HDF5ReadData(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),                      &
                                   trim(CurrentHDF%FieldName),                                       &
                                   Array3D = AuxField, OutputNumber = Instant, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'     
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR70'     
                 
                 call HDF5ReadData(CurrentHDF%ObjHDF5, "/Grid", "WaterPoints3D",    &
                                   Array3D = WaterPoints3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'                      
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR80'                      
                 
                 call HDF5SetLimits  (CurrentHDF%ObjHDF5, ILB, IUB, JLB, JUB, 0, Kmax, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR90'
+                
+
+                call GetHDF5DataSetExist (HDF5ID = CurrentHDF%ObjHDF5, DataSetName = "/Grid/VerticalZ/Vertical_00001",&
+                                          Exist  = Exist1, STAT = STAT_CALL)                                
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleField4D - ERR100'
+                
+
+                call GetHDF5DataSetExist (HDF5ID = CurrentHDF%ObjHDF5, DataSetName = "/Grid/VerticalZ/VerticalZ_00001",&
+                                          Exist  = Exist2, STAT = STAT_CALL)                                
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleField4D - ERR110'
+                
+               
+                if (Exist1) then
+
+                    DataSetVert = "Vertical"            
+                else
+                
+                    if (Exist2) then
+
+                        DataSetVert = "VerticalZ"
+                    
+                    else
+                        write(*,*) 'Missing the follow DataSet /Grid/VerticalZ/Vertical_00001'
+                        write(*,*) '                       OR'                            
+                        write(*,*) 'Missing the follow DataSet /Grid/VerticalZ/VerticalZ_00001'                        
+                        stop 'ReadHDF5Values3D - ModuleField4D - ERR120'
+                    endif
+
+                endif
+                
+                    
 
                 
-                call HDF5ReadData(CurrentHDF%ObjHDF5, "/Grid/VerticalZ", "Vertical",    &
+                call HDF5ReadData(CurrentHDF%ObjHDF5, "/Grid/VerticalZ", trim(DataSetVert),&
                                   Array3D = SZZ, OutputNumber = Instant, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'                     
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR130'                     
 
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -7377,20 +7410,20 @@ if4D:   if (CurrentHDF%Field4D) then
                         write (*,*) trim(CurrentHDF%VGroupPath)
                         write (*,*) trim(CurrentHDF%FieldName)
                         write (*,*) 'miss match between the HDF5 input file and model domain'
-                        stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'                                   
+                        stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR140'                                   
                     
                     endif
 
                 endif
                 
                 call HDF5SetLimits  (CurrentHDF%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR150'
                 
                      
                 call HDF5ReadData(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),                      &
                                   trim(CurrentHDF%FieldName),                                       &
                                   Array3D = CurrentHDF%ReadField3D, OutputNumber = Instant, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'                
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR160'                
               
             endif
             
