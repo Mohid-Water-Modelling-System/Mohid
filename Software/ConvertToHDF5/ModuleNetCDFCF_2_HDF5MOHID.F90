@@ -1471,7 +1471,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                     Me%Field(iP)%Value3DOut(i,j,k) = 0.0
                 endif
                 
-                if(Me%Mapping%Value3DOut(i,j,k) == 1)then
+                if (Me%Mapping%Value3DOut(i,j,k) == 1)then
+                !if (Field_UV%Value3DOut  (i,j,k) > FillValueReal/2.) then
                 
                     AngleX = Me%LongLat%RotationX(i, j) 
                     AngleY = Me%LongLat%RotationY(i, j) 
@@ -4803,6 +4804,14 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             HundredDays = 100*86400 
             Aux1        = Aux
             call JulianDateToGregorianDate(Me%Date%RefDateTimeIn, CurrentTime)
+            
+            !~3e7 anos
+            if (Aux1 > 1e15) then  
+                write(*,*) 'error in the time instant =',i
+                
+                stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+            endif                 
+             
 
             if (Aux1 > HundredDays) then            
                 
