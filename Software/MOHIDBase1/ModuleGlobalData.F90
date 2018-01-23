@@ -76,7 +76,7 @@ Module ModuleGlobalData
     end interface SetError
     
     !Parameter-----------------------------------------------------------------
-    integer, parameter  :: MaxModules           =  94
+    integer, parameter  :: MaxModules           =  95
 
 #ifdef _INCREASE_MAXINSTANCES
     integer, parameter  :: MaxInstances         = 2000
@@ -1724,6 +1724,9 @@ Module ModuleGlobalData
     real(8), parameter  :: Pi               = 3.1415926535897932384626433832795
     ! ARC RADIAN OF 1 DEGREE
     real(8), parameter  :: RAD_DEG          = 0.01745329252
+    !Angle units
+    integer, parameter  :: Degree_          = 1
+    integer, parameter  :: Radian_          = 2
     
 
     !Zero Degrees Kelvin
@@ -1936,6 +1939,7 @@ Module ModuleGlobalData
     integer, parameter ::  mSediment_               = 92
     integer, parameter ::  mReservoirs_             = 93
     integer, parameter ::  mIrrigation_             = 94
+    integer, parameter ::  mTURBINE_                = 95
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1
@@ -2056,7 +2060,7 @@ Module ModuleGlobalData
         T_Module(mPressureDifferences_   , "PressureDifferences"),   T_Module(mHNS_                    , "HNS"           ),        &
         T_Module(mGlueWW3_OBC_           , "GlueWW3_OBC"),           T_Module(mSnow_                   , "Snow"          ),        &
         T_Module(mSediment_              , "Sediment"           ),   T_Module(mReservoirs_             , "Reservoirs"    ),        &
-        T_Module(mIrrigation_            , "Irrigation")/)
+        T_Module(mIrrigation_            , "Irrigation"),            T_Module(mTURBINE_                , "Turbine")/)
         
 
     !Variables

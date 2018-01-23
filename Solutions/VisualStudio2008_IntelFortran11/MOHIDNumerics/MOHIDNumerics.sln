@@ -249,7 +249,7 @@ Global
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double MPI|Win32.ActiveCfg = Release Double MPI|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double MPI|x64.ActiveCfg = Release Double MPI|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP|Win32.ActiveCfg = Release|Win32
-		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP|x64.ActiveCfg = Release|x64
+		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double OpenMP|x64.ActiveCfg = Release Double|x64
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double|Win32.ActiveCfg = Release Double|Win32
 		{DD4BF52A-DA2B-49B5-871F-133150FDB18C}.Release Double|x64.ActiveCfg = Release Double|x64
 		{0FCF0362-5F48-4D9B-BBD8-FD2CA58E83F9}.Debug Double|Win32.ActiveCfg = Debug Double|Win32

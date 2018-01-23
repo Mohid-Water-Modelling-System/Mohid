@@ -4535,17 +4535,12 @@ Inp:    if (Me%CornersXYInput) then
 
             if (abs(Me%Grid_Angle) > 0.) then
 
-!                Me%GridBorderCart%Type_      = RotatedRectang_
-!                Me%GridBorderCoord%Type_     = RotatedRectang_
-!                Me%GridOutBorderCoord%Type_  = RotatedRectang_
-!                Me%GridBorderAlongGrid%Type_ = RotatedRectang_
-!                Me%GridOutBorderCart%Type_   = RotatedRectang_    
+                Me%GridBorderCart%Type_      = RotatedRectang_
+                Me%GridBorderCoord%Type_     = RotatedRectang_
+                Me%GridOutBorderCoord%Type_  = RotatedRectang_
+                Me%GridBorderAlongGrid%Type_ = RotatedRectang_
+                Me%GridOutBorderCart%Type_   = RotatedRectang_    
 
-                Me%GridBorderCart%Type_      = ComplexPolygon_
-                Me%GridBorderCoord%Type_     = ComplexPolygon_
-                Me%GridOutBorderCoord%Type_  = ComplexPolygon_
-                Me%GridBorderAlongGrid%Type_ = ComplexPolygon_
-                Me%GridOutBorderCart%Type_   = ComplexPolygon_ 
             
             endif
 
@@ -8281,7 +8276,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     subroutine GetHorizontalGrid(HorizontalGridID, XX_IE, YY_IE, XX_Z, YY_Z,            &
                                  XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross,            &
                                  DXX, DYY, DZX, DZY, DUX, DUY, DVX, DVY, XX, YY,        & 
-                                 XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, STAT)
+                                 XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, IV, JV, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -8290,6 +8285,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
+        integer, dimension(:, :), pointer, optional :: IV, JV     !João Sobrinho
         real, dimension(:   ), pointer, optional    :: XX, YY
         integer, optional,  intent(OUT)             :: STAT    
 
@@ -8448,7 +8444,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 YY2D_V => Me%Compute%YY2D_V
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
-
+            !IV. Father cell inside which is each son cell (row).
+            if (present(IV)) then
+                IV => Me%LastFatherGrid%IV
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(JV)) then
+                JV => Me%LastFatherGrid%JV
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
 
             STAT_ = SUCCESS_
         else 
@@ -10531,28 +10536,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         
         !Begin-----------------------------------------------------------------
         
-        LineInterSection        = .false. 
-        ColumnInterSection      = .false. 
+        LineInterSection        = .true. 
+        ColumnInterSection      = .true. 
         
-        if ((WorkSizeA%ILB >= WorkSizeB%ILB .and. WorkSizeA%ILB <= WorkSizeB%IUB) .or. &
-            (WorkSizeA%IUB >= WorkSizeB%ILB .and. WorkSizeA%IUB <= WorkSizeB%IUB)) then
-            LineInterSection = .true.                
+        if (WorkSizeA%ILB < WorkSizeB%ILB .and. WorkSizeA%IUB < WorkSizeB%ILB) then
+            LineInterSection   = .false.                
         endif            
 
-        if ((WorkSizeB%ILB >= WorkSizeA%ILB .and. WorkSizeB%ILB <= WorkSizeA%IUB) .or. &
-            (WorkSizeB%IUB >= WorkSizeA%ILB .and. WorkSizeB%IUB <= WorkSizeA%IUB)) then
-            LineInterSection = .true.                
+        if (WorkSizeA%ILB > WorkSizeB%IUB .and. WorkSizeA%IUB > WorkSizeB%IUB) then
+            LineInterSection   = .false.                
         endif            
         
-
-        if ((WorkSizeA%JLB >= WorkSizeB%JLB .and. WorkSizeA%JLB >= WorkSizeB%JUB) .or. &
-            (WorkSizeA%JUB >= WorkSizeB%JLB .and. WorkSizeA%JUB <= WorkSizeB%JUB)) then
-            ColumnInterSection = .true.                
+        if (WorkSizeA%JLB < WorkSizeB%JLB .and. WorkSizeA%JUB < WorkSizeB%JLB) then
+            ColumnInterSection = .false.                
         endif            
 
-        if ((WorkSizeB%JLB >= WorkSizeA%JLB .and. WorkSizeB%JLB >= WorkSizeA%JUB) .or. &
-            (WorkSizeB%JUB >= WorkSizeA%JLB .and. WorkSizeB%JUB <= WorkSizeA%JUB)) then
-            ColumnInterSection = .true.                
+        if (WorkSizeA%JLB > WorkSizeB%JUB .and. WorkSizeA%JUB > WorkSizeB%JUB) then
+            ColumnInterSection = .false.                
         endif            
         
         if (LineInterSection .and. ColumnInterSection) then

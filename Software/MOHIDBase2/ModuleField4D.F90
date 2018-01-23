@@ -55,7 +55,7 @@ Module ModuleField4D
     use ModuleHorizontalMap 
     use ModuleGeometry,         only : ConstructGeometry, GetGeometrySize,              &
                                        ComputeInitialGeometry, GetGeometryDistances,    &
-                                       UnGetGeometry, KillGeometry
+                                       ComputeVerticalGeometry, UnGetGeometry, KillGeometry
     use ModuleMap 
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadWindow,                   &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
@@ -257,7 +257,12 @@ Module ModuleField4D
         character(StringLength)                         :: DepthStagName        = null_str
         character(StringLength)                         :: MaskName             = null_str
         character(StringLength)                         :: BathymName           = null_str
+        character(StringLength)                         :: DataSetVert          = "Vertical"
         type (T_DefaultNames)                           :: DefaultNames        
+        
+        logical                                         :: ReadSZZ              = .false. 
+        integer                                         :: SZZLast              = null_int
+        
     end type T_File
     
     type T_PropField
@@ -271,7 +276,8 @@ Module ModuleField4D
         logical                                     :: MinValueON           = .false.
         logical                                     :: MaxValueON           = .false.
         logical                                     :: HasAddingFactor      = .false.
-        logical                                     :: From2Dto3D           = .false.        
+        logical                                     :: From2Dto3D           = .false.
+        logical                                     :: From3Dto2D           = .false.
         type (T_Time)                               :: NextTime
         type (T_Time)                               :: PreviousTime
         type (T_PropertyID)                         :: ID
@@ -286,6 +292,8 @@ Module ModuleField4D
         logical                                     :: Extrapolate          = .false.
         integer                                     :: ExtrapolateMethod    = null_int
         integer                                     :: InterpolMethod       = null_int
+        logical                                     :: DiscardFillValues    = .false.        
+        logical                                     :: Zdepths              = .false. 
        
         integer                                     :: ValuesType           = null_int
         real                                        :: Next4DValue          = null_real
@@ -383,7 +391,7 @@ Module ModuleField4D
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
                                 Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
-                                FileNameList, FieldName, STAT)
+                                FileNameList, FieldName, OnlyReadGridFromFile, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                        intent(INOUT) :: Field4DID
@@ -406,12 +414,14 @@ Module ModuleField4D
         type (T_PropertyID),                  optional, intent(IN )   :: PropertyID
         integer,                              optional, intent(IN )   :: ClientID
         character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList             
-        character(*),                         optional, intent(IN )   :: FieldName                 
+        character(*),                         optional, intent(IN )   :: FieldName             
+        logical,                              optional, intent(IN )   :: OnlyReadGridFromFile    
         integer,                              optional, intent(OUT)   :: STAT     
         
         !Local-------------------------------------------------------------------
         type (T_PropField), pointer                           :: NewPropField        
         integer                                               :: ready_, STAT_, nUsers, STAT_CALL
+        logical                                               :: OnlyReadGridFromFile_
 
         !------------------------------------------------------------------------
 
@@ -540,123 +550,134 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     Me%ReadWindow = .false.
                 endif
                 
+               
                 call ReadGridFromFile()
                 
             endif
+            
+            if (present(OnlyReadGridFromFile)) then
+                OnlyReadGridFromFile_ = OnlyReadGridFromFile
+            else
+                OnlyReadGridFromFile_ = .false.
+            endif                
+                   
+OG:         if (.not. OnlyReadGridFromFile_) then
            
-            if (Me%File%NumberOfInstants == 1) then
-                Me%WindowWithData = .false.
-            endif
-            
-wwd:        if (Me%WindowWithData) then            
-            
-                call GetHorizontalGridSize(HorizontalGridID = Me%ObjHorizontalGrid,         &
-                                           Size             = Me%Size2D,                    &
-                                           WorkSize         = Me%WorkSize2D,                &
-                                           STAT             = STAT_CALL) 
-                if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR60' 
+                if (Me%File%NumberOfInstants == 1) then
+                    Me%WindowWithData = .false.
                 endif
                 
+wwd:            if (Me%WindowWithData) then            
                 
-                if (present(BathymetryID)) then
-                    Me%ObjBathymetry            = AssociateInstance (mGRIDDATA_,       BathymetryID    )
-                    
-                    Me%BuildBathymetry      = .false.
-                else
-                    Me%BuildBathymetry      = .true.
-
-                    call ReadBathymFromFile
-                endif
-
-                if (present(HorizontalMapID)) then
-                    Me%ObjHorizontalMap         = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
-                    
-                    Me%BuildHorizontalMap      = .false.
-                else
-                    Me%BuildHorizontalMap      = .true.
-
-
-                    call ReadMap2DFromFile
-                endif
-                
-                call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
-                                      WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
-                                      STAT              = STAT_CALL) 
-                if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR70' 
-                endif 
-
-                if (Me%MaskDim == Dim3D) then
-
-                    if (present(GeometryID)) then
-                        Me%ObjGeometry          = AssociateInstance (mGEOMETRY_,       GeometryID      )
-                    
-                        Me%BuildGeometry      = .false.
-                    else
-                        Me%BuildGeometry      = .true.
-
-                        call ReadGeometryFromFile
+                    call GetHorizontalGridSize(HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                               Size             = Me%Size2D,                    &
+                                               WorkSize         = Me%WorkSize2D,                &
+                                               STAT             = STAT_CALL) 
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'ConstructField4D - ModuleField4D - ERR60' 
                     endif
                     
-                    if (present(MapID)) then
-                        Me%ObjMap               = AssociateInstance (mMAP_,            MapID           )
+                    
+                    if (present(BathymetryID)) then
+                        Me%ObjBathymetry            = AssociateInstance (mGRIDDATA_,       BathymetryID    )
                         
-                        call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
-                                              WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
-                                              STAT              = STAT_CALL) 
+                        Me%BuildBathymetry      = .false.
+                    else
+                        Me%BuildBathymetry      = .true.
+
+                        call ReadBathymFromFile
+                    endif
+
+                    if (present(HorizontalMapID)) then
+                        Me%ObjHorizontalMap         = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
+                        
+                        Me%BuildHorizontalMap      = .false.
+                    else
+                        Me%BuildHorizontalMap      = .true.
+
+
+                        call ReadMap2DFromFile
+                    endif
+                    
+                    call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
+                                          WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
+                                          STAT              = STAT_CALL) 
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'ConstructField4D - ModuleField4D - ERR70' 
+                    endif 
+
+                    if (Me%MaskDim == Dim3D) then
+
+                        if (present(GeometryID)) then
+                            Me%ObjGeometry          = AssociateInstance (mGEOMETRY_,       GeometryID      )
+                        
+                            Me%BuildGeometry      = .false.
+                        else
+                            Me%BuildGeometry      = .true.
+
+                            call ReadGeometryFromFile
+                        endif
+                        
+                        if (present(MapID)) then
+                            Me%ObjMap               = AssociateInstance (mMAP_,            MapID           )
+                            
+                            call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
+                                                  WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
+                                                  STAT              = STAT_CALL) 
+                            if (STAT_CALL/=SUCCESS_) then
+                                stop 'ConstructField4D - ModuleField4D - ERR80' 
+                            endif 
+                        
+                            Me%BuildMap      = .false.
+                        else
+                            Me%BuildMap      = .true.
+
+                            call ReadMap3DFromFile
+                        endif
+                   
+                    endif
+                    
+                    call AllocatePropertyField  (NewPropField, Me%MaskDim)
+                    
+                    if (present(PropertyID)) then
+                        NewPropField%ID = PropertyID
+                    else
+                        call ConstructPropertyID (NewPropField%ID, Me%ObjEnterData, ExtractType)
+                    endif
+                    
+                    call ReadOptions            (NewPropField, ExtractType)     
+                    
+                    if (NewPropField%Harmonics%ON) then
+                        call ConstructPropertyFieldHarmonics (NewPropField)
+                    else
+                        call ConstructPropertyField          (NewPropField)
+                    endif
+                    
+                    if (Me%OutPut%Yes) then
+                        call Open_HDF5_OutPut_File(NewPropField)
+                    endif
+                    
+                    call UnGetHorizontalMap(HorizontalMapID = Me%ObjHorizontalMap,              &
+                                            Array           = Me%ExternalVar%WaterPoints2D,     &
+                                            STAT            = STAT_CALL) 
+                    if (STAT_CALL/=SUCCESS_) then
+                        stop 'ConstructField4D - ModuleField4D - ERR90' 
+                    endif 
+                    
+                    if (Me%MaskDim == Dim3D) then
+                    
+                        call UnGetMap(Map_ID          = Me%ObjMap,                              &
+                                      Array           = Me%ExternalVar%WaterPoints3D,           &
+                                      STAT            = STAT_CALL) 
                         if (STAT_CALL/=SUCCESS_) then
-                            stop 'ConstructField4D - ModuleField4D - ERR80' 
+                            stop 'ConstructField4D - ModuleField4D - ERR100' 
                         endif 
                     
-                        Me%BuildMap      = .false.
-                    else
-                        Me%BuildMap      = .true.
-
-                        call ReadMap3DFromFile
                     endif
-               
-                endif
                 
-                call AllocatePropertyField  (NewPropField, Me%MaskDim)
+                endif wwd
                 
-                if (present(PropertyID)) then
-                    NewPropField%ID = PropertyID
-                else
-                    call ConstructPropertyID (NewPropField%ID, Me%ObjEnterData, ExtractType)
-                endif
-                
-                call ReadOptions            (NewPropField, ExtractType)     
-                
-                if (NewPropField%Harmonics%ON) then
-                    call ConstructPropertyFieldHarmonics (NewPropField)
-                else
-                    call ConstructPropertyField          (NewPropField)
-                endif
-                
-                if (Me%OutPut%Yes) then
-                    call Open_HDF5_OutPut_File(NewPropField)
-                endif
-                
-                call UnGetHorizontalMap(HorizontalMapID = Me%ObjHorizontalMap,              &
-                                        Array           = Me%ExternalVar%WaterPoints2D,     &
-                                        STAT            = STAT_CALL) 
-                if (STAT_CALL/=SUCCESS_) then
-                    stop 'ConstructField4D - ModuleField4D - ERR90' 
-                endif 
-                
-                if (Me%MaskDim == Dim3D) then
-                
-                    call UnGetMap(Map_ID          = Me%ObjMap,                              &
-                                  Array           = Me%ExternalVar%WaterPoints3D,           &
-                                  STAT            = STAT_CALL) 
-                    if (STAT_CALL/=SUCCESS_) then
-                        stop 'ConstructField4D - ModuleField4D - ERR100' 
-                    endif 
-                
-                endif
-            
-            endif wwd
+            endif OG                
                          
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR110' 
@@ -1343,11 +1364,12 @@ wwd1:       if (Me%WindowWithData) then
          integer,   pointer, dimension(:,:,:)    :: mask
          integer,   pointer, dimension(:,:  )    :: Array2D    
          integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL 
-         logical                                 :: Exist
+         logical                                 :: Exist, Exist1, Exist2
          integer                                 :: ArrayHDF_Dim, k  
          
 
         !Begin-----------------------------------------------------------------
+        
         allocate(SZZ  (Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,Me%Size3D%KLB:Me%Size3D%KUB))  
         allocate(mask (Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,Me%Size3D%KLB:Me%Size3D%KUB))  
         
@@ -1369,19 +1391,46 @@ wwd1:       if (Me%WindowWithData) then
                                  
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR10'
             
-            call GetHDF5GroupExist (HDF5ID = Me%File%Obj, GroupName = "/Grid/VerticalZ",&
-                                    Exist  = Exist, STAT = STAT_CALL)                                
+            call GetHDF5DataSetExist (HDF5ID = Me%File%Obj, DataSetName = "/Grid/VerticalZ/Vertical_00001",&
+                                      Exist  = Exist1, STAT = STAT_CALL)                                
             if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR20'
+            
+
+            call GetHDF5DataSetExist (HDF5ID = Me%File%Obj, DataSetName = "/Grid/VerticalZ/VerticalZ_00001",&
+                                      Exist  = Exist2, STAT = STAT_CALL)                                
+            if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR25'
+            
+            Me%File%DataSetVert = "Vertical"            
+            
+            if (Exist1) then
+                
+                Exist = .true. 
+                
+            else
+            
+                if (Exist2) then
+
+                    Me%File%DataSetVert = "VerticalZ"
+                    Exist = .true. 
+                
+                else
+                    Exist = .false. 
+                endif
+
+            endif
+
             
             if (Exist) then
                                         
                 call HDF5ReadWindow(HDF5ID        = Me%File%Obj,                        &
                                     GroupName     = "/Grid/VerticalZ",                  &
-                                    Name          = "Vertical_00001",                   &
+                                    Name          = trim(Me%File%DataSetVert)//"_00001", &
                                     Array3D       = SZZ,                                &
                                     OffSet3       = 0,                                  &       
                                     STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadMap3DFromFile - ModuleField4D - ERR30'
+                
+                Me%File%ReadSZZ = .true.
                 
             else
                 if (KUB==1) then
@@ -1390,6 +1439,9 @@ wwd1:       if (Me%WindowWithData) then
                 else
                     stop 'ReadMap3DFromFile - ModuleField4D - ERR40'
                 endif
+                
+                Me%File%ReadSZZ = .false.
+                
             endif
                             
 #ifndef _NO_NETCDF
@@ -1660,6 +1712,16 @@ wwd1:       if (Me%WindowWithData) then
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR90'
         
+
+        call GetData(PropField%From3Dto2D,                                              &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'FROM_3D_TO_2D',                                    &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR95'
+
         
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime      = Me%StartTime,                             &
@@ -1848,6 +1910,25 @@ wwd1:       if (Me%WindowWithData) then
             PropField%InterpolMethod /= NearestNeighbor2D_) then
             stop 'ReadOptions - ModuleField4D - ERR180'
         endif            
+        
+        
+        call GetData(PropField%Zdepths,                                                 &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'Z_DEPTHS',                                         &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR180'             
+        
+        call GetData(PropField%DiscardFillValues,                                       &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'DISCARD_FILLVALUES',                               &
+                     default      = .true.,                                             &
+                     ClientModule = 'ModuleField4D',                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR190'        
         
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
@@ -3178,10 +3259,13 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
        
         !Local-----------------------------------------------------------------
         integer                                 :: Instant
-        real, dimension(:,:,:), pointer         :: Field, Aux3D, FieldAux
+        real,    dimension(:,:,:), pointer      :: Field, Aux3D, FieldAux, SZZ
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D     
+        real                                    :: HT   
         integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                 :: Obj, iaux
+        integer                                 :: Obj, iaux, kbottom
+        integer                                 :: nItems, iVert
 
         !Begin-----------------------------------------------------------------
         
@@ -3192,17 +3276,27 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             Field   => NewPropField%NextField3D        
             Instant =  NewPropField%NextInstant
         endif
-
-         ILB = Me%WorkSize3D%ILB
-         IUB = Me%WorkSize3D%IUB
-         JLB = Me%WorkSize3D%JLB
-         JUB = Me%WorkSize3D%JUB
+                    
+        ILB = Me%WorkSize3D%ILB
+        IUB = Me%WorkSize3D%IUB
+        JLB = Me%WorkSize3D%JLB
+        JUB = Me%WorkSize3D%JUB
+         
+        call GetWaterPoints3D(Map_ID            = Me%ObjMap,                            &
+                              WaterPoints3D     = WaterPoints3D,                        &
+                              STAT              = STAT_CALL) 
+        if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR100'          
+         
+        if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) then
+            allocate(Aux3D(Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,1:1))   
+            Aux3D(:,:,:) = 0.      
+        endif            
+            
 
         if (NewPropField%From2Dto3D) then
             KLB = 1
             KUB = 1
-            allocate(Aux3D(Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,1:1))
-            
+           
             FieldAux => Aux3D
         else
             KLB = Me%WorkSize3D%KLB
@@ -3235,7 +3329,9 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         
             call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, KUB = Kmax, STAT = STAT_CALL)
 #endif
-        endif            
+        endif   
+        
+        
 
         if ((Imax < IUB - ILB + 1) .or.                                                &
             (Jmax < JUB - JLB + 1) .or.                                                &
@@ -3243,16 +3339,19 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             
             write (*,*) trim(NewPropField%FieldName)
             write (*,*) 'miss match between the input file and model domain'
-            stop 'ReadValues3D - ModuleField4D - ERR20'                                   
+            stop 'ReadValues3D - ModuleField4D - ERR30'                                   
 
+        endif        
+        
+        if      (.not. Me%File%Form == HDF5_  .and. NewPropField%From3Dto2D) then
+            stop 'ReadValues3D - ModuleField4D - ERR300'                                   
         endif
-          
-
-
+        
+        
         if      (Me%File%Form == HDF5_  ) then
         
             call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR30'
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
             
             
             call HDF5ReadWindow(HDF5ID        = Obj,                                    &
@@ -3261,7 +3360,56 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                 Array3D       = Field,                                  &
                                 OutputNumber  = iaux,                                   &
                                 STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR50'
+            
+            if (Me%File%ReadSZZ .and.  Me%File%SZZLast < iaux) then
+            
+                allocate(SZZ(ILB-1:IUB+1, JLB-1:JUB+1, KLB-1:KUB+1))
+                SZZ(:,:,:) = 0.
+                
+                call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR60'    
+                
+                call GetHDF5GroupNumberOfItems (HDF5ID        = Obj,                    &
+                                                GroupName     = "/Grid/VerticalZ",      &
+                                                nItems        = nItems,                 &
+                                                STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadValues3D - ModuleField4D - ERR70'            
+                endif
+                
+                !Special case where there is only one  "/Grid/VerticalZ/Vertical_00001"
+                !Assumed stationay condition for the grid
+                if (nItems == 1) then
+                    iVert = 1
+                else
+                    iVert = iaux
+                endif
+                
+                call HDF5ReadWindow(HDF5ID        = Obj,                                &
+                                    GroupName     = "/Grid/VerticalZ",                  &
+                                    Name          = trim(Me%File%DataSetVert),          &
+                                    Array3D       = SZZ,                                &
+                                    OutputNumber  = ivert,                              &
+                                    OffSet3       = 0,                                  &                                    
+                                    STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadValues3D - ModuleField4D - ERR70'            
+                endif
+                
+                Me%File%SZZLast = iaux
+                
+                                                        
+                call ComputeVerticalGeometry(GeometryID         = Me%ObjGeometry,       &
+                                             WaterPoints3D      = WaterPoints3D,        &
+                                             SZZ                = SZZ,                  &
+                                             STAT               = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR80'
+                
+                deallocate(SZZ)
+                
+            endif            
+            
 
 #ifndef _NO_NETCDF                                                   
         else if (Me%File%Form == NetCDF_) then
@@ -3277,7 +3425,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                 KLB             = KLB,                                  &
                                 KUB             = KUB,                                  &
                                 STAT            = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR50'            
+            if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR90'            
 #endif            
         endif
 
@@ -3292,6 +3440,45 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             enddo
             enddo
          endif        
+         
+        if (NewPropField%From3Dto2D) then   
+        
+            call GetGeometryDistances(  GeometryID      = Me%ObjGeometry,               &
+                                                SZZ     = SZZ,                          &
+                                        STAT            = STAT_CALL)                                     
+            if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleValida4D - ERR110'
+            
+           
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                kbottom = -99
+                do k = KLB, KUB
+                    if (WaterPoints3D (i,j,k)== 1) then
+                        if (kbottom< 0) then
+                            kbottom = k
+                            HT      = (SZZ(i,j,kbottom-1) - SZZ(i,j,KUB))
+                        endif                            
+                        if (HT > 0) then
+                            Aux3D(i,j,1) = Aux3D(i,j,1) + FieldAux(i,j,k) * (SZZ(i,j,k-1)-SZZ(i,j,k)) / HT
+                        endif                            
+                    endif                        
+                enddo
+            
+            enddo
+            enddo
+            
+            FieldAux(:,:,KUB) = Aux3D(:,:,1)
+            
+            call UnGetGeometry       (  GeometryID      = Me%ObjGeometry,               &
+                                        Array           = SZZ,                          &
+                                        STAT            = STAT_CALL)                                     
+            if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleValida4D - ERR120'        
+            
+
+            
+            
+         endif               
          
          nullify(FieldAux)           
 
@@ -3343,7 +3530,15 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             enddo
         end if        
 
-        
+        if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) then
+            deallocate(Aux3D)   
+        endif       
+
+
+        call UnGetMap(Map_ID            = Me%ObjMap,                                &
+                      Array             = WaterPoints3D,                            &
+                      STAT              = STAT_CALL) 
+        if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR130'         
 
         nullify(Field)
     end subroutine ReadValues3D
@@ -4626,7 +4821,11 @@ d2:     do N =1, NW
                 endif
 
                 if (present(Matrix3D)) then
-                    Matrix3D(:,:,:) = Me%Matrix3D(:,:,:)
+                    if (PropField%From3Dto2D) then
+                        Matrix3D(:,:,1) = Me%Matrix3D(:,:, Me%WorkSize3D%KUB)
+                    else
+                        Matrix3D(:,:,:) = Me%Matrix3D(:,:,:)
+                    endif                        
                 endif
                                 
 
@@ -4708,7 +4907,7 @@ d2:     do N =1, NW
                 if (STAT_CALL /= SUCCESS_) stop 'WriteOutput - ModuleField4D - ERR40'
 
 
-                call HDF5WriteData  (Me%ObjHDF5Out, "/Grid/VerticalZ", "Vertical",      &
+                call HDF5WriteData  (Me%ObjHDF5Out, "/Grid/VerticalZ", trim(Me%File%DataSetVert),   &
                                      "m", Array3D =    SZZ,                             &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteOutput - ModuleField4D - ERR50'
@@ -4759,7 +4958,7 @@ d2:     do N =1, NW
     !--------------------------------------------------------------------------
     subroutine ModifyField4DXYZ(Field4DID, PropertyIDNumber, CurrentTime, X, Y, Z,      &
                                 Field, NoData, WaveName, ExtractAmplitudes,             &
-                                ExtractPhaseReal, STAT)
+                                ExtractPhaseReal, InterpolationDT, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                            intent(IN)             :: Field4DID
@@ -4772,6 +4971,7 @@ d2:     do N =1, NW
         character(len=*),                   intent(IN ), optional  :: WaveName
         logical,                            intent(IN ), optional  :: ExtractAmplitudes
         logical,                            intent(IN ), optional  :: ExtractPhaseReal
+        real,                               intent(OUT), optional  :: InterpolationDT        
         integer,                            intent(OUT), optional  :: STAT
                                             
         !Local-----------------------------------------------------------------
@@ -4785,6 +4985,10 @@ d2:     do N =1, NW
         call Ready(Field4DID, ready_)
 
         if (ready_ .EQ. IDLE_ERR_) then
+        
+            if (present(InterpolationDT)) then                
+                InterpolationDT = - FillValueReal
+            endif                
         
             if (Me%WindowWithData) then
                 if (present(CurrentTime)) then
@@ -4845,6 +5049,10 @@ d2:     do N =1, NW
                         endif
 
                         call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
+                    endif
+
+                    if (present(InterpolationDT)) then                                    
+                        InterpolationDT = PropField%NextTime - PropField%PreviousTime
                     endif
                     
                     if (Me%Output%Yes) then
@@ -5046,7 +5254,7 @@ dnP:    do nP = 1,nPoints
                 MaskNE      = Me%ExternalVar%Waterpoints2D(iN, jE)
                 
 
-                if (PropField%Extrapolate) then
+                if (PropField%Extrapolate .or. .not. PropField%DiscardFillValues) then
                 
                     NoData(nP) = .false.
                 
@@ -5384,6 +5592,7 @@ dnP:    do nP = 1,nPoints
                                     STAT            = STAT_CALL)                                     
         if (STAT_CALL /= SUCCESS_) stop 'Interpolate3DCloud - ModuleValida4D - ERR20'
         
+        
 do1 :   do K = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
 do2 :   do J = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
 do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
@@ -5393,6 +5602,20 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
         end do do3
         end do do2
         end do do1
+            
+        if (PropField%Zdepths) then
+
+    do4 :   do K = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+    do5 :   do J = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+    do6 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+            
+                Me%Depth3D(i,j,k) = Me%Depth3D(i,j,k) - SZZ(i,j,Me%WorkSize3D%KUB)
+
+            end do do6
+            end do do5
+            end do do4        
+        
+        endif            
         
         call UnGetGeometry       (  GeometryID      = Me%ObjGeometry,           &
                                     Array           = SZZ,                      &
@@ -5411,7 +5634,8 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                               FillGridMethod = PropField%ExtrapolateMethod)
         endif
         
-        call Interpolater3D(Matrix3D            =  Me%Matrix3D,                         &
+        call Interpolater3D(PropField           =  PropField,                           &
+                            Matrix3D            =  Me%Matrix3D,                         &
                             Depth3D             =  Me%Depth3D,                          &
                             Mask3D              =  Me%ExternalVar%WaterPoints3D,        &
                             HorizontalGrid      =  Me%ObjHorizontalGrid,                &
@@ -5421,8 +5645,7 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
                             Y                   =  Y,                                   &
                             Z                   =  Z,                                   &
                             Field               =  Field,                               &
-                            NoData              =  NoData,                              &
-                            Extrapolate         =  PropField%Extrapolate)
+                            NoData              =  NoData)
         
         call UnGetMap(Map_ID          = Me%ObjMap,                                      &
                       Array           = Me%ExternalVar%WaterPoints3D,                   &
@@ -5433,16 +5656,16 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
      
     !----------------------------------------------------------------------
     
-    subroutine Interpolater3D(Matrix3D, Depth3D, Mask3D, HorizontalGrid, &
-                              KLB, KUB, Extrapolate, X, Y, Z, Field, NoData)
+    subroutine Interpolater3D(PropField, Matrix3D, Depth3D, Mask3D, HorizontalGrid,     &
+                              KLB, KUB, X, Y, Z, Field, NoData)
 
         !Arguments------------------------------------------------------------
+        type (T_PropField),         pointer, intent(IN)     :: PropField
         real,   dimension(:,:,:),   pointer, intent(IN)     :: Matrix3D        
         real,   dimension(:,:,:),   pointer, intent(IN)     :: Depth3D 
         integer,dimension(:,:,:),   pointer, intent(IN)     :: Mask3D
         integer                            , intent(IN)     :: HorizontalGrid
         integer                            , intent(IN)     :: KLB, KUB
-        logical                            , intent(IN)     :: Extrapolate
         real,       dimension(:),   pointer, intent(IN)     :: X, Y, Z
         real,       dimension(:),   pointer, intent(OUT)    :: Field
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
@@ -5460,8 +5683,8 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
 
         nPoints = size(X)  
         
-        allocate(Depth1D (KLB:KUB))  
-        allocate(Matrix1D(KLB:KUB))
+        allocate(Depth1D (KLB-1:KUB+1))  
+        allocate(Matrix1D(KLB-1:KUB+1))
 
 dnP:    do nP = 1,nPoints      
 
@@ -5505,37 +5728,37 @@ dnP:    do nP = 1,nPoints
                 
                 if (k>1) then
 
-                    Depth1D (:) = Depth3D   (iS, jW, :) 
-                    Matrix1D(:) = Matrix3D  (iS, jW, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iS, jW, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Matrix3D  (iS, jW, KLB:KUB)
                     ValueSW     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
                     
-                    Depth1D (:) = Depth3D   (iS, jE, :) 
-                    Matrix1D(:) = Matrix3D  (iS, jE, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iS, jE, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Matrix3D  (iS, jE, KLB:KUB)
                     ValueSE     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
 
-                    Depth1D (:) = Depth3D   (iN, jW, :) 
-                    Matrix1D(:) = Matrix3D  (iN, jW, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iN, jW, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Matrix3D  (iN, jW, KLB:KUB)
                     ValueNW     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
 
-                    Depth1D (:) = Depth3D   (iN, jE, :) 
-                    Matrix1D(:) = Matrix3D  (iN, jE, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iN, jE, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Matrix3D  (iN, jE, KLB:KUB)
                     ValueNE     = ValueAtDepthZ(Z(nP), KLB, KUB, Depth1D, Matrix1D)
                     
                     
-                    Depth1D (:) = Depth3D   (iS, jW, :) 
-                    Matrix1D(:) = Mask3D    (iS, jW, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iS, jW, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Mask3D    (iS, jW, KLB:KUB)
                     MaskSW      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
 
-                    Depth1D (:) = Depth3D   (iS, jE, :) 
-                    Matrix1D(:) = Mask3D    (iS, jE, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iS, jE, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Mask3D    (iS, jE, KLB:KUB)
                     MaskSE      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
 
-                    Depth1D (:) = Depth3D   (iN, jW, :) 
-                    Matrix1D(:) = Mask3D    (iN, jW, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iN, jW, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Mask3D    (iN, jW, KLB:KUB)
                     MaskNW      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
                     
-                    Depth1D (:) = Depth3D   (iN, jE, :) 
-                    Matrix1D(:) = Mask3D    (iN, jE, :)
+                    Depth1D (KLB:KUB) = Depth3D   (iN, jE, KLB:KUB) 
+                    Matrix1D(KLB:KUB) = Mask3D    (iN, jE, KLB:KUB)
                     MaskNE      = MaskAtDepthZ (Z(nP), KLB, KUB, Depth1D, Matrix1D)
                                             
                 else
@@ -5551,7 +5774,7 @@ dnP:    do nP = 1,nPoints
                     
                 endif
 
-                if (Extrapolate) then
+                if (PropField%Extrapolate .or. .not. PropField%DiscardFillValues) then
                 
                     NoData(nP) = .false.
                 

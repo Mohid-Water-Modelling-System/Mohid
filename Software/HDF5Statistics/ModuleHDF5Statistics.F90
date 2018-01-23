@@ -140,6 +140,7 @@ Module ModuleHDF5Statistics
         integer,    dimension(:,:,:), pointer               :: IntegerValues3D
         integer,    dimension(:,:  ), pointer               :: IntegerValues2D
         integer                                             :: Position        
+        logical                                             :: Exist = .true.
     end type  T_Grid
 
     type       T_Statistics
@@ -1240,18 +1241,25 @@ cd2 :           if (BlockFound) then
         call HDF5SetLimits(Me%ObjStatHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB+1,          &
                            Me%WorkSize%JLB, Me%WorkSize%JUB+1, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR02'
+        
+        if (Me%ConnectionX%Exist) then        
 
-        call HDF5WriteData   (Me%ObjStatHDF5, "/Grid", Me%ConnectionX%Name,             &
-                              Me%ConnectionX%Units,                                     &
-                              Array2D = Me%ConnectionX%RealValues2D,                    &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR03'
+            call HDF5WriteData   (Me%ObjStatHDF5, "/Grid", Me%ConnectionX%Name,         &
+                                  Me%ConnectionX%Units,                                 &
+                                  Array2D = Me%ConnectionX%RealValues2D,                &
+                                  STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR03'
 
-        call HDF5WriteData   (Me%ObjStatHDF5, "/Grid", Me%ConnectionY%Name,             &
-                              Me%ConnectionY%Units,                                     &
-                              Array2D = Me%ConnectionY%RealValues2D,                    &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR04'
+        endif        
+        
+        if (Me%ConnectionY%Exist) then        
+
+            call HDF5WriteData   (Me%ObjStatHDF5, "/Grid", Me%ConnectionY%Name,             &
+                                  Me%ConnectionY%Units,                                     &
+                                  Array2D = Me%ConnectionY%RealValues2D,                    &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR04'
+        endif
 
         call HDF5WriteData   (Me%ObjStatHDF5, "/Grid", Me%Latitude%Name,                &
                               Me%Latitude%Units,                                        &
@@ -1653,10 +1661,10 @@ cd2 :           if (BlockFound) then
         call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
 
         !Open HDF5 file
-        call ConstructHDF5 (HDF5FileX%HDFID, trim(HDF5FileX%Name),                  &
+        call ConstructHDF5 (HDF5FileX%HDFID, trim(HDF5FileX%Name),                      &
                             HDF5_READ, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR01'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR10'
 
         Me%ConnectionX%Name = trim("ConnectionX")
         Me%ConnectionY%Name = trim("ConnectionY")
@@ -1665,15 +1673,15 @@ cd2 :           if (BlockFound) then
         Me%Bathymetry%Name = trim("Bathymetry")
 
         !Get position of grid variables to acess later
-        call GetHDF5GroupNumberOfItems(HDF5FileX%HDFID, "/Grid", GridVarNumber,     & 
+        call GetHDF5GroupNumberOfItems(HDF5FileX%HDFID, "/Grid", GridVarNumber,         & 
                                        STAT = STAT_CALL)
         do n = 1, GridVarNumber
-            call GetHDF5GroupID(HDF5FileX%HDFID, trim("/Grid"),                     &
-                            n, GridVariableName,                                    &
-                            GridVariableUnits,                                      &
+            call GetHDF5GroupID(HDF5FileX%HDFID, trim("/Grid"),                         &
+                            n, GridVariableName,                                        &
+                            GridVariableUnits,                                          &
                             STAT = STAT_CALL)                                
-            if (STAT_CALL .NE. SUCCESS_)                                            &  
-            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR02'
+            if (STAT_CALL .NE. SUCCESS_)                                                &  
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR20'
             if (GridVariableName == trim(Me%Bathymetry%Name)) then
                 Me%Bathymetry%Position = n
                 Me%Bathymetry%Units = GridVariableUnits
@@ -1697,13 +1705,13 @@ cd2 :           if (BlockFound) then
 
         !Get grid:
         !Mapping dimensions and units
-        call GetHDF5GroupID(HDF5FileX%HDFID, trim("/Grid"),                         &
-                            Me%Mapping%Position, Me%Mapping%Name,                   &
-                            Me%Mapping%Units, Rank,                                 &
-                            Dimensions,                                             &
+        call GetHDF5GroupID(HDF5FileX%HDFID, trim("/Grid"),                             &
+                            Me%Mapping%Position, Me%Mapping%Name,                       &
+                            Me%Mapping%Units, Rank,                                     &
+                            Dimensions,                                                 &
                             STAT = STAT_CALL)                                
-        if (STAT_CALL .NE. SUCCESS_)                                                &  
-        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR03'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &  
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR30'
 
         !Get file dimensions
         Me%WorkSize%ILB = 1
@@ -1726,97 +1734,120 @@ cd2 :           if (BlockFound) then
 
         !Allocate variable data matrixes
         nullify(Me%ConnectionX%RealValues2D, Me%ConnectionY%RealValues2D)
-        nullify(Me%Longitude%RealValues2D, Me%Latitude%RealValues2D,                & 
+        nullify(Me%Longitude%RealValues2D, Me%Latitude%RealValues2D,                    & 
                 Me%Bathymetry%RealValues2D)
         
-        allocate(Me%ConnectionX%RealValues2D(Me%Size%ILB:Me%Size%IUB,               &
+        allocate(Me%ConnectionX%RealValues2D(Me%Size%ILB:Me%Size%IUB,                   &
                  Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%ConnectionY%RealValues2D(Me%Size%ILB:Me%Size%IUB,               & 
+        allocate(Me%ConnectionY%RealValues2D(Me%Size%ILB:Me%Size%IUB,                   & 
                  Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%Longitude%RealValues2D(Me%Size%ILB:Me%Size%IUB,                 & 
+        allocate(Me%Longitude%RealValues2D(Me%Size%ILB:Me%Size%IUB,                     & 
                  Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%Latitude%RealValues2D(Me%Size%ILB:Me%Size%IUB,                  & 
+        allocate(Me%Latitude%RealValues2D(Me%Size%ILB:Me%Size%IUB,                      & 
                  Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%Bathymetry%RealValues2D(Me%Size%ILB:Me%Size%IUB,                &   
+        allocate(Me%Bathymetry%RealValues2D(Me%Size%ILB:Me%Size%IUB,                    &   
                  Me%Size%JLB:Me%Size%JUB))
                  !(allocate always with size, but read and write with adequate!)
         
         if (Me%File3D) then 
             nullify(Me%Mapping%IntegerValues3D) 
-            allocate(Me%Mapping%IntegerValues3D(Me%Size%ILB:Me%Size%IUB,            &
+            allocate(Me%Mapping%IntegerValues3D(Me%Size%ILB:Me%Size%IUB,                &
                      Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
         else 
             nullify(Me%Mapping%IntegerValues2D) !, MapPoints2D)
-            allocate(Me%Mapping%IntegerValues2D(Me%Size%ILB:Me%Size%IUB,            &
+            allocate(Me%Mapping%IntegerValues2D(Me%Size%ILB:Me%Size%IUB,                &
                      Me%Size%JLB:Me%Size%JUB))
                      !(allocate always with size!)
         endif
 
         !Read grid values
         !connections and coordinates
-        call HDF5SetLimits (HDF5FileX%HDFID, Me%WorkSize%ILB,                       &
-                            Me%WorkSize%IUB+1, Me%WorkSize%JLB,                     &
+        call HDF5SetLimits (HDF5FileX%HDFID, Me%WorkSize%ILB,                           &
+                            Me%WorkSize%IUB+1, Me%WorkSize%JLB,                         &
                             Me%WorkSize%JUB+1, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                & 
-        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR08'
+        if (STAT_CALL .NE. SUCCESS_)                                                    & 
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR40'
+        
+        call GetHDF5DataSetExist (HDF5FileX%HDFID,                                      &
+                                  DataSetName ="/Grid/"//trim(Me%ConnectionX%Name),     &
+                                  Exist = Me%ConnectionX%Exist, STAT= STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR50'
+        endif            
+        
+        if (Me%ConnectionX%Exist) then
 
-        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
-                          trim(Me%ConnectionX%Name),                                &
-                          Array2D      = Me%ConnectionX%RealValues2D,               &
-                          STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR09'
+            call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
+                              trim(Me%ConnectionX%Name),                                &
+                              Array2D      = Me%ConnectionX%RealValues2D,               &
+                              STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR60'
+            
+        endif   
+        
+        call GetHDF5DataSetExist (HDF5FileX%HDFID,                                      &
+                                  DataSetName ="/Grid/"//trim(Me%ConnectionY%Name),     &
+                                  Exist = Me%ConnectionY%Exist, STAT= STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR70'
+        endif            
+                
+        
+        if (Me%ConnectionY%Exist) then                 
 
-        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
-                          trim(Me%ConnectionY%Name),                                &
-                          Array2D      = Me%ConnectionY%RealValues2D,               &
-                          STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR10'
+            call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
+                              trim(Me%ConnectionY%Name),                                &
+                              Array2D      = Me%ConnectionY%RealValues2D,               &
+                              STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR80'
 
-        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
-                          trim(Me%Latitude%Name),                                   &
-                          Array2D      = Me%Latitude%RealValues2D,                  &
-                          STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR11'
+        endif
 
-        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
-                          trim(Me%Longitude%Name),                                  &
-                          Array2D      = Me%Longitude%RealValues2D,                 &
+        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                     &
+                          trim(Me%Latitude%Name),                                       &
+                          Array2D      = Me%Latitude%RealValues2D,                      &
                           STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR12'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR90'
+
+        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                     &
+                          trim(Me%Longitude%Name),                                      &
+                          Array2D      = Me%Longitude%RealValues2D,                     &
+                          STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR100'
 
         !bathymetry
-        call HDF5SetLimits (HDF5FileX%HDFID, Me%WorkSize%ILB,                       &
-                            Me%WorkSize%IUB, Me%WorkSize%JLB,Me%WorkSize%JUB,       &
+        call HDF5SetLimits (HDF5FileX%HDFID, Me%WorkSize%ILB,                           &
+                            Me%WorkSize%IUB, Me%WorkSize%JLB,Me%WorkSize%JUB,           &
                             STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                & 
-        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR13'
+        if (STAT_CALL .NE. SUCCESS_)                                                    & 
+        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR110'
 
-        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
-                          trim(Me%Bathymetry%Name),                                 &
-                          Array2D      = Me%Bathymetry%RealValues2D,                &
+        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                     &
+                          trim(Me%Bathymetry%Name),                                     &
+                          Array2D      = Me%Bathymetry%RealValues2D,                    &
                           STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                &
-        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR14'
+        if (STAT_CALL .NE. SUCCESS_)                                                    &
+        stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR120'
 
         !mapping
         if (Me%File3D) then 
-            call HDF5SetLimits (HDF5FileX%HDFID, Me%WorkSize%ILB,                   &
-                                Me%WorkSize%IUB, Me%WorkSize%JLB,Me%WorkSize%JUB,   &
-                                Me%WorkSize%KLB,Me%WorkSize%KUB,                    &
+            call HDF5SetLimits (HDF5FileX%HDFID, Me%WorkSize%ILB,                       &
+                                Me%WorkSize%IUB, Me%WorkSize%JLB,Me%WorkSize%JUB,       &
+                                Me%WorkSize%KLB,Me%WorkSize%KUB,                        &
                                 STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            & 
-            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR15'
+            if (STAT_CALL .NE. SUCCESS_)                                                & 
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR130'
             
-            call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                             &
-                              trim(Me%Mapping%Name),                                &
-                              Array3D      = Me%Mapping%IntegerValues3D,            &
+            call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
+                              trim(Me%Mapping%Name),                                    &
+                              Array3D      = Me%Mapping%IntegerValues3D,                &
                               STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR16'
+            if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR140'
 
             !For each parameter calculate statistic 
             ObjParameter => Me%FirstParameter
@@ -1829,12 +1860,12 @@ do2 :       do while(associated(ObjParameter))
                     Me%Mapping%AditionalName = trim("MappingPoints2D")
 
                     nullify(Me%Mapping%IntegerValues2D)
-                    allocate(Me%Mapping%IntegerValues2D(Me%Size%ILB:Me%Size%IUB,    &
+                    allocate(Me%Mapping%IntegerValues2D(Me%Size%ILB:Me%Size%IUB,        &
                              Me%Size%JLB:Me%Size%JUB))
 
-                    Me%Mapping%IntegerValues2D =                                    & 
-                                Me%Mapping%IntegerValues3D(Me%WorkSize%ILB:         &
-                                Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB,    &
+                    Me%Mapping%IntegerValues2D =                                        & 
+                                Me%Mapping%IntegerValues3D(Me%WorkSize%ILB:             &
+                                Me%WorkSize%IUB,Me%WorkSize%JLB:Me%WorkSize%JUB,        &
                                 Me%Size%KUB)
                     !(assume that relevant mapping is for the upper layer)
 
@@ -1858,7 +1889,7 @@ do2 :       do while(associated(ObjParameter))
                               Array2D      = Me%Mapping%IntegerValues2D,            &
                               STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR17'
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR150'
             
         endif
 

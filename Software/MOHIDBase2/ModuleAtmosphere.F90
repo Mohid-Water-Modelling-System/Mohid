@@ -4507,7 +4507,7 @@ First:      if (LastTime.LT.Actual) then
                 if (PropertyX%OutputHDF) then
                     
                     !vectorial property - need to get data in user referential - X and Y
-!~                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
+!                     if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
                     if (PropertyX%ID%IsVectorial) then
                         
                         !get the correct names of the properties

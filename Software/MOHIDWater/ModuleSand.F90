@@ -6468,10 +6468,11 @@ d1:         do dis = 1, DischargesNumber
         logical                            :: FirstTime
         integer                            :: OutPutNumber
         type (T_Time)                      :: Actual
-        integer                            :: ILB, IUB, JLB, JUB
+        integer                            :: ILB, IUB, JLB, JUB, i, j
         real,    dimension(6    ), target  :: AuxTime
         real,    dimension(:    ), pointer :: TimePtr
         integer                            :: WorkILB, WorkIUB, WorkJLB, WorkJUB
+        real,    dimension(:,:  ), pointer :: Array2D
 
         !----------------------------------------------------------------------
 
@@ -6498,36 +6499,38 @@ d1:         do dis = 1, DischargesNumber
 T1:     if (size(Me%OutPut%OutTime) >= OutPutNumber) then
 
 TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
+
+                allocate(Array2D(ILB:IUB,JLB:JUB))
             
                 !Writes current time
-                call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),              &
+                call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),         &
                                     AuxTime(4), AuxTime(5), AuxTime(6))
                 TimePtr => AuxTime
                 call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR10'
 
-                call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",     &
+                call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",&
                                      Array1D = TimePtr, OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR20'
 
                 !Writes OpenPoints
-                call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                  &
+                call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,             &
                                      WorkJUB, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR30'
 
-                call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints",         &
-                                     "-", Array2D = Me%ExternalVar%OpenPoints2D,             &
+                call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints",      &
+                                     "-", Array2D = Me%ExternalVar%OpenPoints2D,        &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR40'
 
-                call HDF5WriteData  (Me%ObjHDF5, "/Results/Bathymetry", "Bathymetry",        &
-                                     "-", Array2D = Me%ExternalVar%Bathymetry,               &
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Bathymetry", "Bathymetry",   &
+                                     "-", Array2D = Me%ExternalVar%Bathymetry,          &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR50'
        
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%DZ%ID%Name), trim(Me%DZ%ID%Name),  &
-                                     trim(Me%DZ%ID%Units), Array2D = Me%DZ%Field2D,                           &
+                                     trim(Me%DZ%ID%Units), Array2D = Me%DZ%Field2D,     &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR60'
 
@@ -6568,7 +6571,21 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                      "m3/s", Array2D = Me%OutFluxY,                     &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR120'
+
+                do j = WorkJLB, Me%WorkSize%JUB
+                do i = WorkILB, Me%WorkSize%IUB
+                    if (Me%ExternalVar%OpenPoints2D(i, j) == 1) then
+                        Array2D(i, j) = sqrt(Me%OutFluxX(i,j)**2. + Me%OutFluxY(i,j)**2.)
+                    else
+                        Array2D(i, j) = 0.
+                    endif                        
+                enddo
+                enddo
                 
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Transport Flux", "Transport Flux",&
+                                     "m3/s", Array2D = Array2D,                         &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR125'
 
                 call RotateVectorGridToField(HorizontalGridID  = Me%ObjHorizontalGrid,  &
                                              VectorInX         = Me%Residual%FluxX,     &
@@ -6581,17 +6598,33 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                              STAT              = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR130'
 
-                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux X", &
-                                     "Residual Transport Flux X",                      &
-                                     "m3/s", Array2D = Me%Residual%OutFluxX,           &
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux X",  &
+                                     "Residual Transport Flux X",                       &
+                                     "m3/s", Array2D = Me%Residual%OutFluxX,            &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR140'
 
-                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux Y", &
-                                     "Residual Transport Flux Y",                      &
-                                     "m3/s", Array2D = Me%Residual%OutFluxY,           &
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux Y",  &
+                                     "Residual Transport Flux Y",                       &
+                                     "m3/s", Array2D = Me%Residual%OutFluxY,            &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR150'
+                
+                do j = WorkJLB, Me%WorkSize%JUB
+                do i = WorkILB, Me%WorkSize%IUB
+                    if (Me%ExternalVar%OpenPoints2D(i, j) == 1) then
+                        Array2D(i, j) = sqrt(Me%OutFluxX(i,j)**2. + Me%OutFluxY(i,j)**2.)
+                    else
+                        Array2D(i, j) = 0.
+                    endif                        
+                enddo
+                enddo
+                
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Residual Transport Flux",    &
+                                     "Residual Transport Flux",                         &
+                                     "m3/s", Array2D = Array2D,                         &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR155'                
                 
                 if (Me%HybridMorph%ON) then
                     
@@ -6646,6 +6679,8 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR230'
 
                 Me%OutPut%NextOutPut = OutPutNumber + 1
+                
+                deallocate(Array2D)
 
             endif  TOut    
 

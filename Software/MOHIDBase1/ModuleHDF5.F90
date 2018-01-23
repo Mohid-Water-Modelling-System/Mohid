@@ -1682,7 +1682,7 @@ Module ModuleHDF5
             !Opens Group, Creates Dset, etc
             call PrepareWrite (Me%FileID, Rank, dims, space_id, prp_id, gr_id,      &
                                dset_id, NumType, GroupName, trim(adjustl(AuxChar)))
-
+                               
             AllocateMatrix = .false.
                                    
             if (.not.Associated(Me%AuxMatrixes%DataR8_2D)) then
@@ -2184,6 +2184,7 @@ Module ModuleHDF5
         !Creates a simple dataspace
         call h5screate_simple_f(Rank, dims, space_id, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
+            write(*,*)trim(Me%FileName)        
             write(*,*) GroupName
             write(*,*) ItemName
             stop 'PrepareWrite - ModuleHDF5 - ERR01'
@@ -2195,8 +2196,12 @@ Module ModuleHDF5
 
         !Sets chunked
         call h5pset_chunk_f(prp_id, Rank, dims, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleHDF5 - ERR03'
-
+        if (STAT_CALL /= SUCCESS_) then
+            write(*,*)trim(Me%FileName)        
+            write(*,*) GroupName
+            write(*,*) ItemName
+            stop 'PrepareWrite - ModuleHDF5 - ERR03'
+        endif
         !Sets the compression
         call h5pset_deflate_f(prp_id, 6, STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'PrepareWrite - ModuleHDF5 - ERR04'
@@ -2257,7 +2262,11 @@ Module ModuleHDF5
 
             !Creates a new group with a given name
             call h5gcreate_f(FileID, GroupName, gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'CheckGroupExistence - ModuleHDF5 - ERR01'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'FileName  = ', trim(Me%FileName)            
+                write(*,*) 'GroupName =',  trim(GroupName)
+                stop 'CheckGroupExistence - ModuleHDF5 - ERR01'
+            endif                
 
             !write(*,*)'Created Group: ', trim(GroupName)
             if(lCreateMinMaxAttributes)then
@@ -4397,7 +4406,12 @@ Module ModuleHDF5
 
             !Opens the Dataset
             call h5dopen_f      (gr_id, trim(adjustl(AuxChar)), dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowR8_3D - ModuleHDF5 - ERR20'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'FileName  = ', trim(Me%FileName)
+                write(*,*) 'GroupName = ', trim(GroupName)
+                write(*,*) 'DataSet   = ', trim(AuxChar)                
+                stop 'HDF5ReadWindowR8_3D - ModuleHDF5 - ERR20'
+            endif                                
 
                 !Gets the data type id
             call h5dget_type_f (dset_id, datatype_id, STAT_CALL)
@@ -6772,7 +6786,10 @@ Module ModuleHDF5
             
             !Opens the Dataset
             call h5dopen_f          (gr_id, ItemName_, dset_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR20'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'DataSet name not present in the hdf5 input file', ItemName_                        
+                stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR20'            
+            endif 
             
             !Opens data space
             call h5dget_space_f     (dset_id, space_id,  STAT_CALL)

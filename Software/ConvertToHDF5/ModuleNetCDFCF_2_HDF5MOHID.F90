@@ -251,6 +251,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type(T_Bathym)                          :: Bathym
         logical                                 :: OutHDF5, OutNetcdf, ReadInvertXY
         logical                                 :: ReadInvertLat
+        logical                                 :: Nan_2_Null
         integer                                 :: OutCountProp = 0
         type(T_WindowOut)                       :: WindowOut
         logical                                 :: MeridionalSplit
@@ -1470,7 +1471,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                     Me%Field(iP)%Value3DOut(i,j,k) = 0.0
                 endif
                 
-                if(Me%Mapping%Value3DOut(i,j,k) == 1)then
+                if (Me%Mapping%Value3DOut(i,j,k) == 1)then
+                !if (Field_UV%Value3DOut  (i,j,k) > FillValueReal/2.) then
                 
                     AngleX = Me%LongLat%RotationX(i, j) 
                     AngleY = Me%LongLat%RotationY(i, j) 
@@ -1634,6 +1636,16 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         else            
             Me%WindowOut%ON  = .false.
         endif
+        
+        call GetData(Me%NaN_2_Null,                                                     &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'NAN_2_NULL',                                       &
+                     default      = .false.,                                            &
+                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR140'
+                
 
         if (Me%OutNetCDF) then
         
@@ -4257,7 +4269,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         
         !Local-----------------------------------------------------------------
         real,    dimension(6), target                   :: AuxTime
-        real(8)                                         :: Aux        
+        real(8)                                         :: Aux, daux        
         real,    dimension(:), pointer                  :: TimePtr
         type(T_Time)                                    :: CurrentTime
         integer                                         :: STAT_CALL, i, io
@@ -4278,9 +4290,21 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
             Aux = Me%Date%ValueInTotal(i)
 
-         
+            CurrentTime = Me%Date%RefDateTimeOut
             
-            CurrentTime = Me%Date%RefDateTimeOut + Aux
+            do while (Aux > 0) 
+         
+                if (Aux > 1e8) then
+                    daux = 1e8
+                else
+                    daux = Aux
+                endif                                        
+                    
+                CurrentTime = CurrentTime + daux
+                
+                Aux = Aux - daux
+            
+            enddo
        
 
 !           Dados para escriver uma soa vez cada date:
@@ -4780,6 +4804,14 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             HundredDays = 100*86400 
             Aux1        = Aux
             call JulianDateToGregorianDate(Me%Date%RefDateTimeIn, CurrentTime)
+            
+            !~3e7 anos
+            if (Aux1 > 1e15) then  
+                write(*,*) 'error in the time instant =',i
+                
+                stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+            endif                 
+             
 
             if (Aux1 > HundredDays) then            
                 
@@ -6437,7 +6469,13 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             stop 'GetNetCDFValue - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
         endif
         
-        if (ISNAN(GetNetCDFValue)) GetNetCDFValue = FillValueReal
+        if (ISNAN(GetNetCDFValue)) then
+            if (Me%NaN_2_Null) then
+                GetNetCDFValue = 0.
+            else
+                GetNetCDFValue = FillValueReal            
+            endif
+        endif
         
     end function GetNetCDFValue
 
