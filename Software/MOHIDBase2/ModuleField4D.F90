@@ -3265,6 +3265,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: Obj, iaux, kbottom
+        integer                                 :: nItems, iVert
 
         !Begin-----------------------------------------------------------------
         
@@ -3367,13 +3368,29 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                 SZZ(:,:,:) = 0.
                 
                 call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR60'                
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR60'    
+                
+                call GetHDF5GroupNumberOfItems (HDF5ID        = Obj,                    &
+                                                GroupName     = "/Grid/VerticalZ",      &
+                                                nItems        = nItems,                 &
+                                                STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadValues3D - ModuleField4D - ERR70'            
+                endif
+                
+                !Special case where there is only one  "/Grid/VerticalZ/Vertical_00001"
+                !Assumed stationay condition for the grid
+                if (nItems == 1) then
+                    iVert = 1
+                else
+                    iVert = iaux
+                endif
                 
                 call HDF5ReadWindow(HDF5ID        = Obj,                                &
                                     GroupName     = "/Grid/VerticalZ",                  &
                                     Name          = trim(Me%File%DataSetVert),          &
                                     Array3D       = SZZ,                                &
-                                    OutputNumber  = iaux,                               &
+                                    OutputNumber  = ivert,                              &
                                     OffSet3       = 0,                                  &                                    
                                     STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) then
