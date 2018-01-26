@@ -609,6 +609,7 @@ Module ModuleDrainageNetwork
         real                                        :: Length                   = null_real        
         real                                        :: SurfaceArea              = null_real
         real                                        :: SurfaceWidth             = null_real
+        logical                                     :: HasGrid                  = .FALSE.
         integer                                     :: GridI                    = null_int
         integer                                     :: GridJ                    = null_int
         integer                                     :: nUpstreamReaches         = 0
@@ -934,7 +935,7 @@ Module ModuleDrainageNetwork
         logical                                     :: CheckNodes            = .false.
         logical                                     :: CheckReaches          = .false.
         integer                                     :: XSCalc                = null_int
-        logical                                     :: HasGrid               = .false.
+        logical                                     :: HasGrid               = .true.
         integer                                     :: CoordType             = null_int
         type (T_OutPut)                             :: OutPut
         type (T_IntegratedOutput)                   :: IntegratedOutput
@@ -2843,6 +2844,15 @@ if2:            if (BlockFound) then
                      default      = null_int,                                   &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR07'
+        
+        if(NewNode%GridI .ne. null_int .AND. NewNode%GridJ .ne. null_int)then
+            NewNode%HasGrid = .TRUE.    
+        endif
+        
+        if(.not. Me%HasGrid)then
+            NewNode%HasGrid = .FALSE. 
+        endif
+        
 
         !TerrainLevel (before InitializeTabularCrossSection)
         call GetData(NewNode%CrossSection%TerrainLevel,                         &
@@ -2933,7 +2943,7 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
             !if DN was imposed over DTM (if associated(Me%ExtVar%Topography)) 
             !meaning that drainage network may have been built from DTM different than currently used (e.g. with depressions removed), 
             !need to check terrain level and height to be consistent with DTM used
-            if (associated(Me%ExtVar%Topography)) then
+            if (associated(Me%ExtVar%Topography) .AND. NewNode%HasGrid) then
                 
                 if (Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) /= NewNode%CrossSection%TerrainLevel) then
                     
@@ -5786,69 +5796,73 @@ if1:    if (Me%HasGrid) then
             
             do NodeID = 1, Me%TotalNodes
 
-                CurrNode => Me%Nodes (NodeID)         
-
-                Me%ChannelsID          (CurrNode%GridI, CurrNode%GridJ) = CurrNode%ID
-                       
-                Me%ChannelsBottomLevel  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomLevel
-                Me%ChannelsNodeLength   (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length
-                Me%ChannelsTopArea      (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length * CurrNode%CrossSection%TopWidth
-
-                Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 0
-                do iUp = 1, CurrNode%nUpStreamReaches
-                    if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
-                        Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
-                    endif
-                enddo
+                CurrNode => Me%Nodes (NodeID)      
                 
-                do iDown = 1, CurrNode%nDownStreamReaches
-                    if (Me%Reaches (CurrNode%DownStreamReaches(iDown))%Active) then
-                        Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
-                    endif
-                enddo
+                if(CurrNode%HasGrid)then
+
+                    Me%ChannelsID          (CurrNode%GridI, CurrNode%GridJ) = CurrNode%ID
+                       
+                    Me%ChannelsBottomLevel  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomLevel
+                    Me%ChannelsNodeLength   (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length
+                    Me%ChannelsTopArea      (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length * CurrNode%CrossSection%TopWidth
+
+                    Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 0
+                    do iUp = 1, CurrNode%nUpStreamReaches
+                        if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
+                            Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
+                        endif
+                    enddo
+                
+                    do iDown = 1, CurrNode%nDownStreamReaches
+                        if (Me%Reaches (CurrNode%DownStreamReaches(iDown))%Active) then
+                            Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
+                        endif
+                    enddo
 
 
-                if (CurrNode%CrossSection%Form == Trapezoidal) then
+                    if (CurrNode%CrossSection%Form == Trapezoidal) then
 
-                    call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
-                                            mR = CurrNode%CrossSection%Slope,       &
-                                            mL = CurrNode%CrossSection%Slope,       &
-                                            h  = CurrNode%CrossSection%Height,      &
-                                            Av = Av,                                &
-                                            P  = P,                                 &
-                                            Sw = Sw)
+                        call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                                mR = CurrNode%CrossSection%Slope,       &
+                                                mL = CurrNode%CrossSection%Slope,       &
+                                                h  = CurrNode%CrossSection%Height,      &
+                                                Av = Av,                                &
+                                                P  = P,                                 &
+                                                Sw = Sw)
 
-                    Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomWidth
-                    Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = Sw
-                    Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%Slope
+                        Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomWidth
+                        Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = Sw
+                        Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%Slope
 
-                elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
+                    elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
 
-                    TopH = CurrNode%CrossSection%Height - CurrNode%CrossSection%MiddleHeight
+                        TopH = CurrNode%CrossSection%Height - CurrNode%CrossSection%MiddleHeight
 
-                    call TrapezoidGeometry (b  = CurrNode%CrossSection%MiddleWidth, &
-                                            mR = CurrNode%CrossSection%SlopeTop,    &
-                                            mL = CurrNode%CrossSection%SlopeTop,    &
-                                            h  = TopH,                              &
-                                            Av = Av,                                &
-                                            P  = P,                                 &
-                                            Sw = Sw)
+                        call TrapezoidGeometry (b  = CurrNode%CrossSection%MiddleWidth, &
+                                                mR = CurrNode%CrossSection%SlopeTop,    &
+                                                mL = CurrNode%CrossSection%SlopeTop,    &
+                                                h  = TopH,                              &
+                                                Av = Av,                                &
+                                                P  = P,                                 &
+                                                Sw = Sw)
 
-                    Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomWidth
-                    Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = Sw
-                    Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%SlopeTop
+                        Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomWidth
+                        Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = Sw
+                        Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%SlopeTop
 
-                elseif (CurrNode%CrossSection%Form == Tabular) then
+                    elseif (CurrNode%CrossSection%Form == Tabular) then
                     
-                    NLevels = CurrNode%CrossSection%NLevels    
+                        NLevels = CurrNode%CrossSection%NLevels    
 
-                    m = 0.5 * ( abs(CurrNode%CrossSection%LevelSlopeLeft(NLevels))  &
-                            +  CurrNode%CrossSection%LevelSlopeRight(NLevels) )
+                        m = 0.5 * ( abs(CurrNode%CrossSection%LevelSlopeLeft(NLevels))  &
+                                +  CurrNode%CrossSection%LevelSlopeRight(NLevels) )
 
-                    Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%LevelWetPerimeter(NLevels)
-                    Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%LevelSurfaceWidth(NLevels)
-                    Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = m
+                        Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%LevelWetPerimeter(NLevels)
+                        Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%LevelSurfaceWidth(NLevels)
+                        Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = m
         
+                    endif
+                    
                 endif
 
             enddo
@@ -9633,11 +9647,15 @@ if0:    if (Me%HasProperties) then
             do NodeID = 1, Me%TotalNodes
                 CurrNode => Me%Nodes(NodeID)
                 
-                if (present(TopRadiation))      Me%TopRadiation     (NodeID) = TopRadiation     (CurrNode%GridI, CurrNode%GridJ)
-                if (present(AirTemperature))    Me%AirTemperature   (NodeID) = AirTemperature   (CurrNode%GridI, CurrNode%GridJ)
-                if (present(CloudCover))        Me%CloudCover       (NodeID) = CloudCover       (CurrNode%GridI, CurrNode%GridJ)    
-                if (present(RelativeHumidity))  Me%RelativeHumidity (NodeID) = RelativeHumidity (CurrNode%GridI, CurrNode%GridJ)
-                if (present(WindSpeed))         Me%WindSpeed        (NodeID) = WindSpeed        (CurrNode%GridI, CurrNode%GridJ)
+                if(CurrNode%HasGrid)then
+                
+                    if (present(TopRadiation))      Me%TopRadiation     (NodeID) = TopRadiation     (CurrNode%GridI, CurrNode%GridJ)
+                    if (present(AirTemperature))    Me%AirTemperature   (NodeID) = AirTemperature   (CurrNode%GridI, CurrNode%GridJ)
+                    if (present(CloudCover))        Me%CloudCover       (NodeID) = CloudCover       (CurrNode%GridI, CurrNode%GridJ)    
+                    if (present(RelativeHumidity))  Me%RelativeHumidity (NodeID) = RelativeHumidity (CurrNode%GridI, CurrNode%GridJ)
+                    if (present(WindSpeed))         Me%WindSpeed        (NodeID) = WindSpeed        (CurrNode%GridI, CurrNode%GridJ)
+                    
+                end if
             enddo
 
             STAT_ = SUCCESS_
@@ -9686,7 +9704,9 @@ if0:    if (Me%HasProperties) then
                     do NodeID = 1, Me%TotalNodes
                         CurrNode => Me%Nodes(NodeID)
                         
-                        PropertyX%GWaterConc (NodeID) = ConcentrationX2D     (CurrNode%GridI, CurrNode%GridJ)
+                        if(CurrNode%HasGrid)then
+                            PropertyX%GWaterConc (NodeID) = ConcentrationX2D     (CurrNode%GridI, CurrNode%GridJ)
+                        endif
 
                     enddo
                 elseif (present(ConcentrationX3D)) then
@@ -9742,8 +9762,10 @@ if0:    if (Me%HasProperties) then
                 do NodeID = 1, Me%TotalNodes
                     CurrNode => Me%Nodes(NodeID)
                     
- !                   PropertyX%ConcentrationRP (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
-                    PropertyX%OverLandConc (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+                    if(CurrNode%HasGrid)then
+ !                      PropertyX%ConcentrationRP (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+                        PropertyX%OverLandConc (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+                    endif
 
                 enddo                
 
@@ -9983,9 +10005,10 @@ do1:        do while (associated (PropertyX))
                 
             do NodeID = 1, Me%TotalNodes
                 CurrNode => Me%Nodes(NodeID)
-                
-                Me%GWFlowTopLayer (NodeID)    = GWFlowTopLayer     (CurrNode%GridI, CurrNode%GridJ)
-                Me%GWFlowBottomLayer (NodeID) = GWFlowBottomLayer  (CurrNode%GridI, CurrNode%GridJ)
+                if(CurrNode%HasGrid)then
+                    Me%GWFlowTopLayer (NodeID)    = GWFlowTopLayer     (CurrNode%GridI, CurrNode%GridJ)
+                    Me%GWFlowBottomLayer (NodeID) = GWFlowBottomLayer  (CurrNode%GridI, CurrNode%GridJ)
+                endif
 
             enddo
             STAT_ = SUCCESS_ 
@@ -10107,19 +10130,22 @@ do2 :   do while (associated(PropertyX))
             !Update RunOff and GW Fluxes
             do NodeID = 1, Me%TotalNodes            
                 CurrNode => Me%Nodes (NodeID)
-                Me%RunOffVector(NodeID) = OLFlowToChannels(CurrNode%GridI, CurrNode%GridJ)
+                if(CurrNode%HasGrid)then
+                     
+                    Me%RunOffVector(NodeID) = OLFlowToChannels(CurrNode%GridI, CurrNode%GridJ)
                 
-                if (associated(GWFlowToChannels)) then             
-                    Me%GroundVector(NodeID) = GWFlowToChannels(CurrNode%GridI, CurrNode%GridJ)
-                endif
+                    if (associated(GWFlowToChannels)) then             
+                        Me%GroundVector(NodeID) = GWFlowToChannels(CurrNode%GridI, CurrNode%GridJ)
+                    endif
                 
-                if (present(GWFlowToChannelsLayer)) then 
-                    Me%GWFlowByLayers     = .true.            
-                    Me%GroundVectorLayers => GWFlowToChannelsLayer
-                endif 
+                    if (present(GWFlowToChannelsLayer)) then 
+                        Me%GWFlowByLayers     = .true.            
+                        Me%GroundVectorLayers => GWFlowToChannelsLayer
+                    endif 
                 
-                if (associated(DiffuseFlow)) then
-                    Me%DiffuseVector(NodeID) = DiffuseFlow(CurrNode%GridI, CurrNode%GridJ)
+                    if (associated(DiffuseFlow)) then
+                        Me%DiffuseVector(NodeID) = DiffuseFlow(CurrNode%GridI, CurrNode%GridJ)
+                    endif
                 endif
             enddo
             
@@ -11540,27 +11566,30 @@ if2:        if (Volume > PoolVolume) then
 !~                                                 Check_Particulate_Property(Property%ID%IDNumber))
                         
                     else
-                        do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+                        if(CurrNode%HasGrid)then
+
+                            do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
                             
-                            !if property particulate and flow going to river, conc matrix value should be zero 
-                            !but this matrix is not allocated in DN because is 3D (only a pointer and exists for dissolved).
-!~                             if (Check_Particulate_Property(Property%ID%IDNumber)) then
-!                            if ((Check_Particulate_Property(Property%ID%IDNumber)) .and.                         &
-!                                (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) .gt. 0.0)) then
-                            if (Property%ID%IsParticulate) then
-                                GWConc = 0.0
-                            else
-                                GWConc = Property%GWaterConcLayers(CurrNode%GridI, CurrNode%GridJ, k)
-                            endif
+                                !if property particulate and flow going to river, conc matrix value should be zero 
+                                !but this matrix is not allocated in DN because is 3D (only a pointer and exists for dissolved).
+    !~                             if (Check_Particulate_Property(Property%ID%IDNumber)) then
+    !                            if ((Check_Particulate_Property(Property%ID%IDNumber)) .and.                         &
+    !                                (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) .gt. 0.0)) then
+                                if (Property%ID%IsParticulate) then
+                                    GWConc = 0.0
+                                else
+                                    GWConc = Property%GWaterConcLayers(CurrNode%GridI, CurrNode%GridJ, k)
+                                endif
                             
-                            call DischargeProperty (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k),    &
-                                                    GWConc,                                                       &
-                                                    NodeID, CurrNode%VolumeNew,   Property,                       &
-                                                    Property%IScoefficient, LocalDT,                              &
-                                                    Property%ID%IsParticulate)
-!~                                                     Check_Particulate_Property(Property%ID%IDNumber)) 
+                                call DischargeProperty (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k),    &
+                                                        GWConc,                                                       &
+                                                        NodeID, CurrNode%VolumeNew,   Property,                       &
+                                                        Property%IScoefficient, LocalDT,                              &
+                                                        Property%ID%IsParticulate)
+    !~                                                     Check_Particulate_Property(Property%ID%IDNumber)) 
                                                     
-                        enddo
+                            enddo
+                        endif
                     endif
                 endif
             enddo
@@ -11570,16 +11599,20 @@ if2:        if (Volume > PoolVolume) then
         !Actualize VolumeNew
         do NodeID = 1, Me%TotalNodes
             CurrNode => Me%Nodes (NodeID)
+            
             if (.not. Me%GWFlowByLayers) then
                 CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%GroundVector (NodeID) * LocalDT)
             else
-                do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+                if(CurrNode%HasGrid)then
+                    do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
                 
-                    CurrNode%VolumeNew = CurrNode%VolumeNew                                               &
-                                         + (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k)     &
-                                         * LocalDT)             
-                enddo
+                        CurrNode%VolumeNew = CurrNode%VolumeNew                                               &
+                                                + (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k)     &
+                                                * LocalDT)             
+                    enddo
+                endif
             endif
+            
             
             !DEBUG Jauch
             !if (CurrNode%VolumeNew < 0.0) then
@@ -11624,13 +11657,15 @@ if2:        if (Volume > PoolVolume) then
                     if (.not. Me%GWFlowByLayers) then
                         NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + Me%GroundVector (NodeID) * LocalDT
                     else
-                        NodeInt%GWFlowVolume = 0.0
-                        do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+                        if(CurrNode%HasGrid)then
+                            NodeInt%GWFlowVolume = 0.0
+                            do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
     
-                            NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + &
-                                                   (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) * &
-                                                    LocalDT)             
-                        enddo
+                                NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + &
+                                                       (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) * &
+                                                        LocalDT)             
+                            enddo
+                        endif
                     endif
                 endif
             enddo            
@@ -13326,14 +13361,14 @@ do2:        do NodeID = 1, Me%TotalNodes
                     hInPool = CurrNode%VolumeNew / (CurrNode%CrossSection%BottomWidth * CurrNode%Length)
                     if (hInPool > Me%MinimumWaterDepthProcess) then
                         Me%OpenPointsProcess(NodeID) = OpenPoint
-                        if (Me%HasGrid) then
+                        if (Me%HasGrid .and. CurrNode%HasGrid) then
                             Me%ChannelsOpenProcess(CurrNode%GridI, CurrNode%GridJ) = OpenPoint
                         endif
                     endif
                 else
                     if (CurrNode%WaterDepth > Me%MinimumWaterDepthProcess) then
                         Me%OpenPointsProcess(NodeID) = OpenPoint
-                        if (Me%HasGrid) then
+                        if (Me%HasGrid .and. CurrNode%HasGrid) then
                             Me%ChannelsOpenProcess(CurrNode%GridI, CurrNode%GridJ) = OpenPoint
                         endif
                     endif
@@ -13361,35 +13396,39 @@ do2:        do NodeID = 1, Me%TotalNodes
        
         do NodeID = 1, Me%TotalNodes
             
-            CurrNode => Me%Nodes (NodeID)                
+            CurrNode => Me%Nodes (NodeID)    
             
-            Me%ChannelsWaterLevel       (CurrNode%GridI, CurrNode%GridJ) = CurrNode%WaterLevel
-            Me%ChannelsVolume           (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeNew
-            Me%ChannelsMaxVolume        (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeMax
+            if(CurrNode%HasGrid)then
+                
+                Me%ChannelsWaterLevel       (CurrNode%GridI, CurrNode%GridJ) = CurrNode%WaterLevel
+                Me%ChannelsVolume           (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeNew
+                Me%ChannelsMaxVolume        (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeMax
             
-            !compute average velocity
-            AvrgVelocity = 0.
-            sumVerticalArea = 0.
-            !go to upstream reaches
-            do i = 1, CurrNode%nUpstreamReaches
-                nullify (UpReach)
-                UpReach => Me%Reaches (CurrNode%UpstreamReaches (i))            
-                if (Me%ComputeFaces(UpReach%ID) == OpenPoint) then
-                    sumVerticalArea = sumVerticalArea + UpReach%VerticalArea
-                    AvrgVelocity = (AvrgVelocity + (UpReach%Velocity * UpReach%VerticalArea))/sumVerticalArea  
-                endif
-            end do
-            !go to downstream reaches
-            do i = 1, CurrNode%nDownstreamReaches
-                nullify (DownReach)
-                DownReach => Me%Reaches (CurrNode%DownstreamReaches (i))            
-                if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
-                    sumVerticalArea = sumVerticalArea + DownReach%VerticalArea
-                    AvrgVelocity = (AvrgVelocity + (DownReach%Velocity * DownReach%VerticalArea))/sumVerticalArea
-                endif
-            end do
+                !compute average velocity
+                AvrgVelocity = 0.
+                sumVerticalArea = 0.
+                !go to upstream reaches
+                do i = 1, CurrNode%nUpstreamReaches
+                    nullify (UpReach)
+                    UpReach => Me%Reaches (CurrNode%UpstreamReaches (i))            
+                    if (Me%ComputeFaces(UpReach%ID) == OpenPoint) then
+                        sumVerticalArea = sumVerticalArea + UpReach%VerticalArea
+                        AvrgVelocity = (AvrgVelocity + (UpReach%Velocity * UpReach%VerticalArea))/sumVerticalArea  
+                    endif
+                end do
+                !go to downstream reaches
+                do i = 1, CurrNode%nDownstreamReaches
+                    nullify (DownReach)
+                    DownReach => Me%Reaches (CurrNode%DownstreamReaches (i))            
+                    if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+                        sumVerticalArea = sumVerticalArea + DownReach%VerticalArea
+                        AvrgVelocity = (AvrgVelocity + (DownReach%Velocity * DownReach%VerticalArea))/sumVerticalArea
+                    endif
+                end do
             
-            Me%ChannelsVelocity        (CurrNode%GridI, CurrNode%GridJ) = AvrgVelocity
+                Me%ChannelsVelocity        (CurrNode%GridI, CurrNode%GridJ) = AvrgVelocity
+            
+            endif
             
         enddo
 
@@ -16704,8 +16743,10 @@ if0:    if (ready_ .EQ. IDLE_ERR_) then
             case (WaterDepth_)
 
                 do NodeID = 1, Me%TotalNodes
-                    CurrNode => Me%Nodes (NodeID)                    
-                    OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = CurrNode%WaterDepth
+                    CurrNode => Me%Nodes (NodeID)   
+                    if(CurrNode%HasGrid)then
+                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = CurrNode%WaterDepth
+                    endif
                 end do
 
             case (WaterLevel_)
@@ -16715,16 +16756,20 @@ if0:    if (ready_ .EQ. IDLE_ERR_) then
             case (Volume_)
 
                 do NodeID = 1, Me%TotalNodes
-                    CurrNode => Me%Nodes (NodeID)         
-                    OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeNew                   
+                    CurrNode => Me%Nodes (NodeID) 
+                    if(CurrNode%HasGrid)then
+                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeNew
+                    endif
                 end do
     
             case (PercentageMaxVolume_)
 
                 do NodeID = 1, Me%TotalNodes
                     CurrNode => Me%Nodes (NodeID)
-                    Value = CurrNode%VolumeNew / CurrNode%VolumeMax * 100.0
-                    OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Value                   
+                    if(CurrNode%HasGrid)then
+                        Value = CurrNode%VolumeNew / CurrNode%VolumeMax * 100.0
+                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Value     
+                    endif
                 end do
 
             case (WaterFluxX_, WaterFluxY_, VelocityU_, VelocityV_)
@@ -16735,52 +16780,55 @@ if0:    if (ready_ .EQ. IDLE_ERR_) then
                     
                     CurrNode => Me%Nodes (NodeID)
                     
-                    Value = 0.0
-
-if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    if(CurrNode%HasGrid)then
                     
-                        ReachID     = CurrNode%DownstreamReaches (1)
-                        OtherNodeID = Me%Reaches(ReachID)%DownstreamNode
-                        FlowValue   = Me%Reaches(ReachID)%FlowNew
-                        Velocity    = Me%Reaches(ReachID)%Velocity
+                        Value = 0.0
+
+if2:                    if (CurrNode%nDownstreamReaches .NE. 0) then
+                    
+                            ReachID     = CurrNode%DownstreamReaches (1)
+                            OtherNodeID = Me%Reaches(ReachID)%DownstreamNode
+                            FlowValue   = Me%Reaches(ReachID)%FlowNew
+                            Velocity    = Me%Reaches(ReachID)%Velocity
                                                                                                                     
-                        OtherNode => Me%Nodes(OtherNodeID)
+                            OtherNode => Me%Nodes(OtherNodeID)
 
-                        dx = OtherNode%X - CurrNode%X
-                        dy = OtherNode%Y - CurrNode%Y
+                            dx = OtherNode%X - CurrNode%X
+                            dy = OtherNode%Y - CurrNode%Y
 
-                        !if (CurrNode%nDownstreamReaches == 0) then                            
-                        !    dx = - dx
-                        !    dy = - dy
-                        !end if
+                            !if (CurrNode%nDownstreamReaches == 0) then                            
+                            !    dx = - dx
+                            !    dy = - dy
+                            !end if
 
-                        if (dx == 0.0) then
-                            angle = Pi / 2.0    
-                        else
-                            angle = atan(dy / dx)                                                                       
-                        end if
+                            if (dx == 0.0) then
+                                angle = Pi / 2.0    
+                            else
+                                angle = atan(dy / dx)                                                                       
+                            end if
 
-                        if (dx <= 0.0 .AND. dy < 0.0) then
-                           angle = Pi + abs(angle)
-                        else if (dx < 0.0 .AND. dy >= 0.0) then
-                           angle = Pi - abs(angle)
-                        else if (dx > 0.0 .AND. dy < 0.0) then
-                           angle = 2.0 * Pi - abs(angle)
-                        end if
+                            if (dx <= 0.0 .AND. dy < 0.0) then
+                               angle = Pi + abs(angle)
+                            else if (dx < 0.0 .AND. dy >= 0.0) then
+                               angle = Pi - abs(angle)
+                            else if (dx > 0.0 .AND. dy < 0.0) then
+                               angle = 2.0 * Pi - abs(angle)
+                            end if
 
-                        if (OutPutResultsType == WaterFluxX_) then
-                            Value = FlowValue * cos (angle)                            
-                        else if (OutPutResultsType == WaterFluxY_) then
-                            Value = FlowValue * sin (angle)                            
-                        else if (OutPutResultsType == VelocityU_) then
-                            Value = Velocity * cos (angle)                           
-                        else if (OutPutResultsType == VelocityV_) then
-                            Value = Velocity * sin (angle)
-                        end if
+                            if (OutPutResultsType == WaterFluxX_) then
+                                Value = FlowValue * cos (angle)                            
+                            else if (OutPutResultsType == WaterFluxY_) then
+                                Value = FlowValue * sin (angle)                            
+                            else if (OutPutResultsType == VelocityU_) then
+                                Value = Velocity * cos (angle)                           
+                            else if (OutPutResultsType == VelocityV_) then
+                                Value = Velocity * sin (angle)
+                            end if
                                                 
-                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Value
+                            OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Value
 
-                    end if if2
+                        end if if2
+                    endif
 
                 end do
 
@@ -16788,13 +16836,17 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
 
                 do NodeID = 1, Me%TotalNodes
                     CurrNode => Me%Nodes (NodeID)
-
-                    if (CurrNode%nDownstreamReaches .NE. 0) then      
-                                      
-                        ReachID = CurrNode%DownstreamReaches (1)
-                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%Reaches(ReachID)%FlowNew
                     
-                    end if
+                    if(CurrNode%HasGrid)then
+
+                        if (CurrNode%nDownstreamReaches .NE. 0) then      
+                                      
+                            ReachID = CurrNode%DownstreamReaches (1)
+                            OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%Reaches(ReachID)%FlowNew
+                    
+                        end if
+                        
+                    endif
                     
                 end do
             
@@ -16803,28 +16855,34 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                 do NodeID = 1, Me%TotalNodes
                     
                     CurrNode => Me%Nodes (NodeID)
-                    if (CurrNode%nDownstreamReaches .NE. 0) then                                            
-                        ReachID = CurrNode%DownstreamReaches (1)
-                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%Reaches(ReachID)%Velocity
-                    end if
+                    if(CurrNode%HasGrid)then
+                        if (CurrNode%nDownstreamReaches .NE. 0) then                                            
+                            ReachID = CurrNode%DownstreamReaches (1)
+                            OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%Reaches(ReachID)%Velocity
+                        end if
+                    endif
                     
                 end do
             
             case (GenericProperty_)
 
                 do NodeID = 1, Me%TotalNodes
-                    CurrNode => Me%Nodes (NodeID)                    
-                    OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%GlobalToxicity (NodeID)
+                    CurrNode => Me%Nodes (NodeID) 
+                    if(CurrNode%HasGrid)then
+                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%GlobalToxicity (NodeID)
+                    endif
                 end do
 
             case (ShearStress_)
 
                 do NodeID = 1, Me%TotalNodes
                     CurrNode => Me%Nodes (NodeID)
-                    if (CurrNode%nDownstreamReaches .NE. 0) then                                            
-                        ReachID = CurrNode%DownstreamReaches (1)
-                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%ShearStress (ReachID)
-                    end if
+                    if(CurrNode%HasGrid)then
+                        if (CurrNode%nDownstreamReaches .NE. 0) then                                            
+                            ReachID = CurrNode%DownstreamReaches (1)
+                            OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%ShearStress (ReachID)
+                        end if
+                    endif
                 end do
 
 
@@ -16841,7 +16899,9 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                             !Fills Matrix
                             do NodeID = 1, Me%TotalNodes                    
                                 CurrNode => Me%Nodes (NodeID)
-                                OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Property%BottomConc (NodeID)
+                                if(CurrNode%HasGrid)then
+                                    OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Property%BottomConc (NodeID)
+                                endif
                             end do
                             exit
                         end if
@@ -16852,7 +16912,9 @@ if2:                if (CurrNode%nDownstreamReaches .NE. 0) then
                             !Fills Matrix
                             do NodeID = 1, Me%TotalNodes                    
                                 CurrNode => Me%Nodes (NodeID)
-                                OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Property%Concentration (NodeID)
+                                if(CurrNode%HasGrid)then
+                                    OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Property%Concentration (NodeID)
+                                endif
                             end do
                             exit
                         end if     

@@ -305,7 +305,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double OpenMI|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2008_IntelFortran11\MOHIDNumerics\MOHIDBase1\Release Double OpenMI;..\..\..\..\ExternalLibs\NetCDF\Include" PreprocessorDefinitions="_USE_PROJ4;_OPENMI_" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\Solutions\VisualStudio2010_IntelFortran12\MOHIDNumerics\MOHIDBase1\Release Double OpenMI;..\..\..\..\ExternalLibs\NetCDF\Include" PreprocessorDefinitions="_OPENMI_" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
@@ -383,14 +383,14 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleMap.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleNETCDF.F90">
 			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="MPI|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="MPI|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStatistic.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
