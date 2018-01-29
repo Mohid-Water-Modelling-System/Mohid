@@ -257,7 +257,7 @@ Module ModuleTimeSerie
         logical, optional, intent(IN )                  :: UseTabulatedData
         logical, optional, intent(IN )                  :: HavePath
         character(len=*), optional, intent(IN )         :: Comment
-        type (T_Polygon), pointer, optional             :: ModelDomain
+        type (T_Polygon), pointer, optional, intent(IN ):: ModelDomain
         integer, optional, intent(OUT)                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -515,7 +515,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                         :: TimeSerieID
         integer                                         :: ObjTime
         integer                                         :: ObjEnterData
-        integer, dimension(:), pointer                  :: TurbineTimeSerieList
+        integer, dimension(:), intent(IN), pointer      :: TurbineTimeSerieList
         character(len=*), dimension(:), pointer         :: PropertyList
         character(len=*), intent(IN )                   :: Extension
         integer, dimension(:,:,:), optional, pointer    :: WaterPoints3D
@@ -529,7 +529,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
         logical, optional, intent(IN )                  :: UseTabulatedData
         logical, optional, intent(IN )                  :: HavePath
         character(len=*), optional, intent(IN )         :: Comment
-        type (T_Polygon), pointer, optional             :: ModelDomain
+        type (T_Polygon), pointer, optional, intent(IN ):: ModelDomain
         integer, optional, intent(OUT)                  :: STAT
 
         !Local-----------------------------------------------------------------

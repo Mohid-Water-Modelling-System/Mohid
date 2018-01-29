@@ -72,7 +72,7 @@ Module ModuleFillMatrix
     use ModuleHDF5,             only : ConstructHDF5, HDF5ReadData, GetHDF5GroupID,     &
                                        GetHDF5FileAccess, GetHDF5GroupNumberOfItems,    &
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
-                                       GetHDF5GroupExist
+                                       GetHDF5GroupExist, GetHDF5DataSetExist
                                        
     use ModuleField4D,          only : ConstructField4D, GetField4DNumberOfInstants,    &
                                        GetField4DInstant, ModifyField4D,                &
@@ -1740,24 +1740,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              ClientModule   = 'ModuleFillMatrix',                      &
                              default        = null_real,                               &
                              STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) then
-                    
-                    if(STAT_CALL == SIZE_ERR_)then 
-                        if(.not. Me%VectorialProp .and. iflag .ne. 1)then
-                            write(*,*) "Property ", trim(Me%PropertyID%Name)
-                            write(*,*) "DEFAULTVALUE must be a scalar"
-                            stop 'ReadOptions - ModuleFillMatrix - ERR99'
-                        elseif(iflag > 3)then
-                            write(*,*) "Property ", trim(Me%PropertyID%Name)
-                            write(*,*) "Too many arguments in keyword "//trim(Me%OverrideValueKeyword)
-                            stop 'ReadOptions - ModuleFillMatrix - ERR98'
-                        endif
-                    else
-                        stop 'ReadOptions - ModuleFillMatrix - ERR100'
-                    endif 
-                    
-                
-                end if
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR100'
                 
                 if(iflag == 0)then
                     
@@ -5915,7 +5898,7 @@ i0:     if(Me%Dim == Dim2D)then
         
         do while (associated(CurrentHDF))         
         
-            call GetData(CurrentHDF%Generic4D%ON,                                               &
+            call GetData(CurrentHDF%Generic4D%ON,                                           &
                          Me%ObjEnterData , iflag,                                           &
                          SearchType   = ExtractType,                                        &
                          keyword      = '4D',                                               &
@@ -6121,7 +6104,7 @@ i0:     if(Me%Dim == Dim2D)then
         type(T_Field4D)                                 :: CurrentHDF
         !Local-----------------------------------------------------------------
         real                                            :: LatDefault, LongDefault
-        type (T_Size2D)                                 :: WindowLimitsJI
+        type (T_Size2D)                                 :: HaloMap
         logical                                         :: MasterOrSlave
         integer                                         :: STAT_CALL
         !Begin-----------------------------------------------------------------           
@@ -6132,35 +6115,35 @@ ifSI:   if (CurrentHDF%SpatialInterpolON) then
 
         else ifSI
         
-            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid, &
-                                                  MasterOrSlave    = MasterOrSlave,        &
-                                                  STAT             = STAT_CALL)
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      MasterOrSlave    = MasterOrSlave,                 &
+                                      STAT             = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'BuildField4D - ModuleFillMatrix - ERR10'        
         
         
 ifMS:       if (MasterOrSlave) then
             
-                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
-                                          WorkSize         = WindowLimitsJI,       &
+                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,      &
+                                          WorkSize         = HaloMap,                   &
                                           STAT             = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_) stop 'BuildField4D - ModuleFillMatrix - ERR20'
                                                       
                 write(*,*) 'With domain decomposition - ILB,IUB, JLB, JUB',             &
-                            WindowLimitsJI%ILB,WindowLimitsJI%IUB, WindowLimitsJI%JLB, WindowLimitsJI%JUB
+                            HaloMap%ILB,HaloMap%IUB, HaloMap%JLB, HaloMap%JUB
                 
             else ifMS
             
                 if(Me%Dim == Dim2D)then
-                    WindowLimitsJI     = Me%WorkSize2D
+                    HaloMap     = Me%WorkSize2D
                 else                    
-                    WindowLimitsJI%ILB = Me%WorkSize3D%ILB
-                    WindowLimitsJI%IUB = Me%WorkSize3D%IUB
-                    WindowLimitsJI%JLB = Me%WorkSize3D%JLB
-                    WindowLimitsJI%JUB = Me%WorkSize3D%JUB
+                    HaloMap%ILB = Me%WorkSize3D%ILB
+                    HaloMap%IUB = Me%WorkSize3D%IUB
+                    HaloMap%JLB = Me%WorkSize3D%JLB
+                    HaloMap%JUB = Me%WorkSize3D%JUB
                 endif
                 
                 write(*,*) 'No domain decomposition - ILB,IUB, JLB, JUB',               &
-                            WindowLimitsJI%ILB,WindowLimitsJI%IUB, WindowLimitsJI%JLB, WindowLimitsJI%JUB
+                            HaloMap%ILB,HaloMap%IUB, HaloMap%JLB, HaloMap%JUB
             
             endif ifMS                
 
@@ -6169,7 +6152,7 @@ ifMS:       if (MasterOrSlave) then
                                                             STAT      = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'BuildField4D - ModuleFillMatrix - ERR30'
 
-            call ConstructField4D(Field4DID         = CurrentHDF%ObjField4D,                &
+            call ConstructField4D(Field4DID         = CurrentHDF%ObjField4D,            &
                                   EnterDataID       = Me%ObjEnterData,                  &
                                   ExtractType       = ExtractType,                      &
                                   FileName          = CurrentHDF%FileName,              &
@@ -6178,7 +6161,7 @@ ifMS:       if (MasterOrSlave) then
                                   MaskDim           = Me%Dim,                           &
                                   LatReference      = LatDefault,                       &
                                   LonReference      = LongDefault,                      & 
-                                  WindowLimitsJI    = WindowLimitsJI,                   &
+                                  WindowLimitsJI    = HaloMap,                          &
                                   Extrapolate       = .false.,                          &    
                                   ExtrapolateMethod = ExtrapolAverage_,                 &
                                   PropertyID        = Me%PropertyID,                    &                                  
@@ -6651,7 +6634,8 @@ d2:      do while(.not. FoundSecondInstant)
         real                                            :: LatDefault, LongDefault
         integer                                         :: STAT_CALL, i, j, k, icount, NCells
         real, dimension(4)                              :: Aux4
-        integer                                         :: iflag
+        integer                                         :: iflag, ObjHorizontalGridAux
+        character(len=PathLength)                       :: BathymetryFile
         
         !Begin--------------------------------------------------------------------------      
 
@@ -6667,9 +6651,25 @@ d2:      do while(.not. FoundSecondInstant)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR10'
         
         if (iflag < 4) then
- 
-            call GetGridBorderLimits(Me%ObjHorizontalGrid, West, East, South, North, STAT = STAT_CALL)
+            
+            call ReadFileName('IN_BATIM', BathymetryFile, "Bathymetry File", STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR20'
+            
+            ObjHorizontalGridAux = 0
+    
+            !Entire grid
+            call ConstructHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,       &
+                                         DataFile         = BathymetryFile,             &
+                                         STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR30'
+            
+ 
+            call GetGridBorderLimits(ObjHorizontalGridAux, West, East, South, North, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR40'
+
+            call KillHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,            &
+                                    STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR50'
 
         elseif (iflag == 4) then
         
@@ -6677,7 +6677,7 @@ d2:      do while(.not. FoundSecondInstant)
         
         else
         
-            stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR30'
+            stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR60'
         
         endif
 
@@ -6728,7 +6728,7 @@ d2:      do while(.not. FoundSecondInstant)
         CurrentHDF%NoData(1:NCells) = .true.
         
         call GetZCoordinates(Me%ObjHorizontalGrid, CoordX, CoordY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR70'
         
         if (Me%Dim == Dim2D) then
             
@@ -6771,15 +6771,15 @@ d2:      do while(.not. FoundSecondInstant)
         endif       
     
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordX, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR80'
 
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR90'
         
         call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault,         &
                                                         Longitude = LongDefault,        & 
                                                         STAT      = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR100'
         
         if (CurrentHDF%InterpolOnlyVertically) then
         
@@ -6797,7 +6797,7 @@ d2:      do while(.not. FoundSecondInstant)
                                   PropertyID        = Me%PropertyID,                    &
                                   ClientID          = ClientID,                         &
                                   STAT              = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR100'        
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR110'        
         
         else
         
@@ -6816,7 +6816,7 @@ d2:      do while(.not. FoundSecondInstant)
                                   PropertyID        = Me%PropertyID,                    &
                                   ClientID          = ClientID,                         &
                                   STAT              = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
         endif
     
     end subroutine ConstructField4DInterpol
@@ -7119,14 +7119,19 @@ d1:         do i=1,6
 
             allocate(AuxVector(1))
 
-            call HDF5ReadData   (HDF5ID         = CurrentHDF%ObjHDF5,                       &
+            call HDF5ReadData   (HDF5ID         = CurrentHDF%ObjHDF5,                   &
                                  GroupName      = "/Generic4D",                         &
                                  Name           = "Generic4D",                          &
                                  Array1D        = AuxVector,                            &
                                  OutputNumber   = Instant,                              &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5Generic4DInstant - ModuleFillMatrix - ERR10'
-
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'ObjHDF5=', CurrentHDF%ObjHDF5 
+                write(*,*) 'FileName=', trim(CurrentHDF%FileName)
+                write(*,*) 'STAT_CALL= ', STAT_CALL
+                stop 'HDF5Generic4DInstant - ModuleFillMatrix - ERR10'
+            endif
+            
             HDF5Generic4DInstant = AuxVector(1)
  
             deallocate(AuxVector)
@@ -7239,6 +7244,8 @@ if4D:   if (CurrentHDF%Field4D) then
         type (T_Time)                           :: CurrentTime
         integer                                 :: Imax, Jmax, Kmax, kbottom
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
+        character(StringLength)                 :: DataSetVert
+        logical                                 :: Exist1, Exist2
 
         !Begin-----------------------------------------------------------------
 
@@ -7293,7 +7300,7 @@ if4D:   if (CurrentHDF%Field4D) then
                 call GetHDF5ArrayDimensions(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),    &
                                   trim(CurrentHDF%FieldName), OutputNumber = Instant,       &
                                   Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR31'                                   
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'                                   
             endif
             
             if (CurrentHDF%From3Dto2D) then
@@ -7304,7 +7311,7 @@ if4D:   if (CurrentHDF%Field4D) then
                     write (*,*) trim(CurrentHDF%VGroupPath)
                     write (*,*) trim(CurrentHDF%FieldName)
                     write (*,*) 'miss match between the HDF5 input file and model domain'
-                    stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'                                   
+                    stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'                                   
                     
                 endif
                 
@@ -7315,7 +7322,7 @@ if4D:   if (CurrentHDF%Field4D) then
                 Field(:,:,:) = 0.
                                 
                 call HDF5SetLimits  (CurrentHDF%ObjHDF5, ILB, IUB, JLB, JUB, 1, Kmax, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'
                 
                 allocate(AuxField     (ILB-1:IUB+1, JLB-1:JUB+1, 0:Kmax+1))
                 allocate(WaterPoints3D(ILB-1:IUB+1, JLB-1:JUB+1, 0:Kmax+1))  
@@ -7324,19 +7331,50 @@ if4D:   if (CurrentHDF%Field4D) then
                 call HDF5ReadData(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),                      &
                                   trim(CurrentHDF%FieldName),                                       &
                                   Array3D = AuxField, OutputNumber = Instant, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'     
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR70'     
                 
                 call HDF5ReadData(CurrentHDF%ObjHDF5, "/Grid", "WaterPoints3D",    &
                                   Array3D = WaterPoints3D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'                      
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR80'                      
                 
                 call HDF5SetLimits  (CurrentHDF%ObjHDF5, ILB, IUB, JLB, JUB, 0, Kmax, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR90'
+                
+
+                call GetHDF5DataSetExist (HDF5ID = CurrentHDF%ObjHDF5, DataSetName = "/Grid/VerticalZ/Vertical_00001",&
+                                          Exist  = Exist1, STAT = STAT_CALL)                                
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleField4D - ERR100'
+                
+
+                call GetHDF5DataSetExist (HDF5ID = CurrentHDF%ObjHDF5, DataSetName = "/Grid/VerticalZ/VerticalZ_00001",&
+                                          Exist  = Exist2, STAT = STAT_CALL)                                
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleField4D - ERR110'
+                
+               
+                if (Exist1) then
+
+                    DataSetVert = "Vertical"            
+                else
+                
+                    if (Exist2) then
+
+                        DataSetVert = "VerticalZ"
+                    
+                    else
+                        write(*,*) 'Missing the follow DataSet /Grid/VerticalZ/Vertical_00001'
+                        write(*,*) '                       OR'                            
+                        write(*,*) 'Missing the follow DataSet /Grid/VerticalZ/VerticalZ_00001'                        
+                        stop 'ReadHDF5Values3D - ModuleField4D - ERR120'
+                    endif
+
+                endif
+                
+                    
 
                 
-                call HDF5ReadData(CurrentHDF%ObjHDF5, "/Grid/VerticalZ", "Vertical",    &
+                call HDF5ReadData(CurrentHDF%ObjHDF5, "/Grid/VerticalZ", trim(DataSetVert),&
                                   Array3D = SZZ, OutputNumber = Instant, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'                     
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR130'                     
 
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -7372,20 +7410,20 @@ if4D:   if (CurrentHDF%Field4D) then
                         write (*,*) trim(CurrentHDF%VGroupPath)
                         write (*,*) trim(CurrentHDF%FieldName)
                         write (*,*) 'miss match between the HDF5 input file and model domain'
-                        stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'                                   
+                        stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR140'                                   
                     
                     endif
 
                 endif
                 
                 call HDF5SetLimits  (CurrentHDF%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR150'
                 
                      
                 call HDF5ReadData(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),                      &
                                   trim(CurrentHDF%FieldName),                                       &
                                   Array3D = CurrentHDF%ReadField3D, OutputNumber = Instant, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR60'                
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR160'                
               
             endif
             
@@ -7444,9 +7482,35 @@ if4D:   if (CurrentHDF%Field4D) then
         real, dimension(:,:,:), pointer             :: ZCellCenter 
         integer                                     :: i, j, k, icount
         integer                                     :: STAT_CALL
+        type (T_Size2D)                             :: HaloMap
+        integer                                     :: di, dj        
+        logical                                     :: MasterOrSlave
         !Begin-----------------------------------------------------------------
 
         CurrentHDF%NoData   (:) = .true.
+        
+        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
+                                  MasterOrSlave    = MasterOrSlave,                     &
+                                  STAT             = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR10' 
+                
+ifMS:   if (MasterOrSlave) then
+        
+            call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid,          &
+                                      WorkSize         = HaloMap,                       &
+                                      STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR20' 
+                                                  
+            di = HaloMap%ILB - 1
+            dj = HaloMap%JLB - 1
+            
+        else ifMS
+        
+            di = 0
+            dj = 0
+        
+        endif ifMS                
+        
 
 if2D:   if (Me%Dim == Dim2D) then
 
@@ -7458,7 +7522,7 @@ if2D:   if (Me%Dim == Dim2D) then
                                   Field                 = CurrentHDF%Prop,                  &
                                   NoData                = CurrentHDF%NoData,                &
                                   STAT                  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR10' 
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR30' 
             
             icount = 0
             
@@ -7473,8 +7537,8 @@ if2D:   if (Me%Dim == Dim2D) then
                             Matrix2D(i, j)   = Me%DefaultValue(1)
                         else
                             write(*,*) GetPropertyName (Me%PropertyID%IDNumber)
-                            write(*,*) 'No data in 2D cell I=',i, 'J=',j
-                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR20' 
+                            write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
+                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR40' 
                         endif                        
                     else                        
                         Matrix2D(i, j)   = CurrentHDF%Prop(icount)
@@ -7488,7 +7552,7 @@ if2D:   if (Me%Dim == Dim2D) then
         else if2D
         
             call GetGeometryDistances(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR30' 
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR50' 
         
             icount = 0
             
@@ -7508,18 +7572,18 @@ if2D:   if (Me%Dim == Dim2D) then
             enddo            
             
             call UnGetGeometry(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR40'             
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60'             
         
             call ModifyField4DXYZ(Field4DID             = CurrentHDF%ObjField4D,            &
-                                  PropertyIDNumber      = Me%PropertyID%IDNumber,       &
-                                  CurrentTime           = CurrentTime,                  &
+                                  PropertyIDNumber      = Me%PropertyID%IDNumber,           &
+                                  CurrentTime           = CurrentTime,                      &
                                   X                     = CurrentHDF%X,                     &
                                   Y                     = CurrentHDF%Y,                     &
                                   Z                     = CurrentHDF%Z,                     &
                                   Field                 = CurrentHDF%Prop,                  &
                                   NoData                = CurrentHDF%NoData,                &
                                   STAT                  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR50' 
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
             
             icount = 0
             
@@ -7531,8 +7595,8 @@ if2D:   if (Me%Dim == Dim2D) then
                     
                     icount           = icount + 1
                     if (CurrentHDF%NoData(icount)) then
-                        write(*,*) 'No data in 3D cell I=',i, 'J=',j, 'K=',k
-                        stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60' 
+                        write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
+                        stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR80' 
                     else                        
                         Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
                     endif
@@ -7547,7 +7611,7 @@ if2D:   if (Me%Dim == Dim2D) then
         endif if2D
         
         if (icount /= CurrentHDF%Ncells) then
-            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
+            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR90' 
         endif         
         
 

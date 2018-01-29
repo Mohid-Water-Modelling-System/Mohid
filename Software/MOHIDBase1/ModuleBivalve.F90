@@ -8,13 +8,13 @@
     ! URL           : http://www.mohid.com
     ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
     ! DATE          : 30 Set 2013
-    ! REVISION      : 26 Jan 2018 bySofia Saraiva
+    ! REVISION      : Sofia Saraiva
     ! DESCRIPTION   : Individual Based Population (or individual) model for one/several bivalve
     !                 species following DED theory 
     !
     !-----------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
-    !
+    ! Sofia
     !DataFile example
     !
     !DT                   : 1800.
@@ -29,7 +29,7 @@
     !MASS_BALANCE         : 1 ! only works with no predation + the same NC ratio food/bivalve (or with life) + complex filtrat
     !MIN_NUMBER           : 1 ! minimum number of organism in a cohort
     !TESTING_PARAMETERS   : 0 ! 0/1, the name of the output file will incude the parameters
-    !MIN_SPAWN_TIME       : 86400 ! seconds, minimum time between spawning events
+    !
     !
     !<begin_species>
     !NAME                 : bivalve1
@@ -110,6 +110,7 @@
     !GSR_MIN              : 0.1      !0.1, molC(gam)/molC(struc), minimum gonado-somatic ratio in the organism (Cardoso et al., 2007)
     !GSR_SPAWN            : 0.2      !0.2, molC(gam)/molC(struc), gonado-somatic ratio to spawn (Saraiva etal., submited)
     !T_SPAWN              : 9.6      !9.6, C, minimum temperature for spawning (Hummel etal., 1989)
+    !MIN_SPAWN_TIME       : 0        !15, d, minimum time between spawning events
     !ME_0                 : 1.49e-10 !1.48e-10, molC(reser), reserves in an embryo at optimal food conditions (Saraiva etal., submite
     !ME_B                 : 6.0e-11  !1.0e-7, molC, reserves in a new born individual at optimal food conditions (Saraiva etal., subm
     !MV_B                 : 7.92e-11 !7.52e-11, molC, structure in a new born individual at optimal food conditions (Saraiva etal., s
@@ -223,7 +224,7 @@
     private ::                  RestoreParticlesList
     private ::                  ConstructParticlesFromLarvae
     private ::              ComputeMortalityByVelocity
-    private ::              ComputeMortalityBySettlement
+    private ::              ComputeMortalityByWrongSettlement
     private ::              ComputeIndividualProcesses
     private ::                  ComputeChemicalIndices
     private ::                  ComputeAuxiliarParameters
@@ -233,7 +234,7 @@
     private ::                      ComputeComplexFiltration
     private ::                          ComputeClearanceRate
     private ::                          ComputeFiltrationRate
-    private ::                          ComputeIngestAssimiRate
+    private ::                          ComputeIngestionAssimilationRate
     private ::                          UpdateLarvaeOnMatrixMass
     private ::                          UpdateMatrixMass
     private ::                  ComputeSomaticMaintenance
@@ -435,6 +436,7 @@
         real                             :: GSR_MIN            = null_real !molCE/molCV, min GSR in the organism
         real                             :: GSR_SPAWN          = null_real !molCE/molCV, gonado-somatic ratio to spawn
         real                             :: T_SPAWN            = null_real !oC, minimum temperature for spawning
+        real                             :: MIN_SPAWN_TIME     = null_real !d, minimum time interval between spawning events
         real                             :: ME_0               = null_real !molC, reserves in an embryo at optimal food
         real                             :: MEb                = null_real !molC, reserves in a new born at optimal food
         real                             :: MVb                = null_real !molC, structure in a new born at optimal food
@@ -656,11 +658,12 @@
         type(T_StateIndex            )   :: StateIndex
         type(T_BivalveCondition      )   :: BivalveCondition
         type(T_Processes             )   :: Processes
-        real,  pointer, dimension(:,:)   :: FeedingOn   => null()  !to store, Columns = Filtered|ingested|assimilated (molC/g.d.ind)
+        real,  pointer, dimension(:,:)   :: FeedingOn   => null()  !to store, Col = Filtered ingested assimilated (molC/g.d.ind)
         type(T_Output                )   :: CohortOutput
         logical                          :: Larvae      = OFF
         integer                          :: Dead        = 0
         integer                          :: GlobalDeath = 1
+        !integer,  pointer, dimension(:)  :: LarvaeState => null()  
         logical                          :: AtLeastOneLarvae         = .false.
         logical                          :: PreviousAtLeastOneLarvae = .false.
         type(T_Cohort ), pointer         :: Next
@@ -745,6 +748,7 @@
         type (T_ComputeOptions)              :: ComputeOptions
         type (T_Species       ), pointer     :: FirstSpecies
         type (T_ExternalVar   )              :: ExternalVar
+        type (T_Bivalve       ), pointer     :: Next
         real                                 :: MassLoss                 = 0.0
         real                                 :: MaxTNField               = 0.0  ! #/m2
         !character(len = PathLength)         :: PathFileName = '/home/saraiva/00_Projects/Parametric/Running/' !biocluster
@@ -756,11 +760,6 @@
         integer                              :: nRestartSpecies
         logical                              :: ComputeThisIndex        = .true.
         logical                              :: OutputThisIndex         = .false.
-        logical                              :: SpawningAllowed         = .true. 
-        type (T_Time)                        :: NextSpawnTime
-        real                                 :: MIN_SPAWN_TIME          = null_real 
-
-        type (T_Bivalve       ), pointer     :: Next
     end type T_Bivalve
 
 
@@ -1139,21 +1138,7 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         allocate(Me%ExternalVar%InitialPhyto (Me%Array%ILB:Me%Array%IUB))
         allocate(Me%ExternalVar%InitialShrimp(Me%Array%ILB:Me%Array%IUB))
 
-        !seconds, minimum time interval between spawning events    
-        call GetData(Me%MIN_SPAWN_TIME                       , &
-                     Me%ObjEnterData, flag                   , &
-                     SearchType   = FromFile                 , &
-                     keyword      = 'MIN_SPAWN_TIME'         , &
-                     default      = 86400.                   , &
-                     ClientModule = 'ModuleBivalve'          , & 
-                     STAT         = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                           &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR160'
-
-        Me%NextSpawnTime   =  Me%InitialDate
-        Me%SpawningAllowed = .true. 
-
+        
     end subroutine ConstructGlobalVariables
 
     !-------------------------------------------------------------------------------
@@ -1273,7 +1258,7 @@ cd2 :           if (BlockFound) then
         !Arguments------------------------------------------------------------------
 
         !Local----------------------------------------------------------------------
-        type (T_Species)           , pointer        :: NewSpecies, Species
+        type (T_Species)           , pointer        :: NewSpecies
         integer                                     :: ClientNumber, STAT_CALL
         logical                                     :: BlockFound
         integer                                     :: iCohort, iSpecies, RestartCohortID
@@ -1346,27 +1331,6 @@ cd2 :           if (BlockFound) then
                 stop 'Subroutine ConstructSpecies - ModuleBivalve - ERR30'
             end if cd1
         end do do1
-
-        if(Me%Old)then
-        
-            iSpecies = 0
-        
-            Species => Me%FirstSpecies
-            do while(associated(Species))
-            
-                iSpecies = iSpecies + 1
-                
-                deallocate(Me%RestartSpecies(iSpecies)%CohortIDs)
-                nullify   (Me%RestartSpecies(iSpecies)%CohortIDs)  
-                
-                Species => Species%Next   
-            enddo 
-            
-            deallocate(Me%RestartSpecies)
-            nullify   (Me%RestartSpecies)
-            
-        endif
-        
 
     end subroutine ConstructSpecies
 
@@ -1605,7 +1569,7 @@ do1:        do while (associated(ObjCohort%Next))
 
                 102 format(A900)
 
-                OuputHeader =   " !Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "                                     // &
+                OuputHeader =   "!Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "                                     // &
                                 "#/m2_8 #_9 molC/m2_10 m3/d.m2_11 m3/d.m2_12 m3/d.m2_13 m3/d.m2_14 molC/m3_15 " // &
                                 "m3/d.m2_16 m3/d.m2_17 m3/d.m2_18 m3/d.m2_19 -_20 "                             // &
                                 "#/d.m2_21 #/d.m2_22 #/d.m2_23 #/d.m2_24 #/d.m2_25 "                            // &
@@ -1621,7 +1585,7 @@ do1:        do while (associated(ObjCohort%Next))
 
                 write(Species%PopulationOutput%Unit(iIndexOutput), 102) OuputHeader
 
-                OuputHeader = " Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "                                        // &
+                OuputHeader = "Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "                                        // &
                               "TN_8 NCoh_9 TBio_10 Cr_11 Fil_12 Ing_13 Ass_14 CO_15 "                           // &
                               "H2O_16 O_17 NH3_18 PO4_19 LackOfFood_20 "                                        // &
                               "m_A_21 m_O_22 m_F_23 m_nat_24 m_shr_25 "                                         // &
@@ -1765,8 +1729,8 @@ do1:        do while (associated(ObjCohort%Next))
 
         101 format(A800)
 
-        OuputHeader =  " !Seconds_1 YY_2    MM_3 DD_4 hh_5 mm_6    ss_7 "                    // &
-                       "#/m2_8 mol_9 mol_10 mol_11 mol_12 cm_13 y_14 m3/d.ind_15 "     // &
+        OuputHeader =  "!Seconds_1 YY_2    MM_3 DD_4 hh_5 mm_6    ss_7 "                    // &
+                       "#/m2_8 mol_9 mol_10 mol_11 mol_12 cm_13y_14 m3/d.ind_15 "     // &
                        "g/d.ind_16 mol/d.ind_17 g/d.ind_18 mol/d.ind_19 g/d.ind_20 "  // &
                        "mol/d.ind_21 mol/d.ind_22 g/d.ind_23 mol/d_24 mol/d_25 "      // &
                        "mol/dm3_26 mol/dm3_27 mol/d_28 mol/d_29 mol/d_30 "            // &
@@ -1778,7 +1742,7 @@ do1:        do while (associated(ObjCohort%Next))
 
         write(Cohort%CohortOutput%Unit(iIndexOutput), 101) OuputHeader
 
-        OuputHeader = " Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "            // &
+        OuputHeader = "Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "            // &
                       "Number_8 ME_9 MV_10 MH_11 MR_12 L_13 A_14 Cr_15 "    // &
                       "FInorg_16 F_17 IInorg_18 I_19 PFInorg_20 "           // &
                       "PF_21 Ass_22 FAEIng_23 FAE_24 JEM_25 "               // &
@@ -1787,7 +1751,7 @@ do1:        do while (associated(ObjCohort%Next))
                       "CO2_36 H2O_37 O2_38 NH3_39 PO4_40 "                  // &
                       "m_A_41 m_O_42 m_F_43 m_nat_44 m_shr_45 "             // &
                       "m_cra_46 m_oys_47 m_duck_48 m_gull_49 m_low_50 "     // &
-                      "m_self_51 m_others_52 m_vel_53 m_settle_54 ScaledE_55"
+                      "m_self_51 m_others_52 m_vel_53 m_settle_54 ScaledE"
         
         write(Cohort%CohortOutput%Unit(iIndexOutput), 101) OuputHeader
         
@@ -2575,6 +2539,20 @@ do1:        do while (associated(ObjCohort%Next))
 
                     if (STAT_CALL .NE. SUCCESS_)              &
                     stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR30'
+
+        !d, minimum time interval between spawning events    
+        call GetData(IndividualParameters%MIN_SPAWN_TIME    , &
+                    Me%ObjEnterData, flag                   , &
+                    SearchType   = FromBlock                , &
+                    keyword      = 'MIN_SPAWN_TIME'         , &
+                    default      = 0.                       , &
+                    ClientModule = 'ModuleBivalve'          , & 
+                    STAT         = STAT_CALL)
+
+                    if (STAT_CALL .NE. SUCCESS_)              &
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR31'
+
+
 
         !molC(reser), reserves in an embryo at optimal food conditions (Saraiva etal., submited)    
         call GetData(IndividualParameters%ME_0              , &
@@ -4141,21 +4119,21 @@ do1:        do while (associated(ObjPredator%Next))
                     Cohort%Dead = 0
                 endif
 
-                Cohort%Processes%DeathByAge                     = 0.0
-                Cohort%Processes%DeathByOxygen                  = 0.0
-                Cohort%Processes%DeathByStarvation              = 0.0
-                Cohort%Processes%DeathByNatural                 = 0.0
-                Cohort%Processes%PredationByShrimps             = 0.0
-                Cohort%Processes%PredationByCrabs               = 0.0
-                Cohort%Processes%PredationByOysterCatchers      = 0.0
-                Cohort%Processes%PredationByEiderDucks          = 0.0
-                Cohort%Processes%PredationByHerringGull         = 0.0
-                Cohort%Processes%DeathByLowNumbers              = 0.0
-                Cohort%Processes%DeathBySelfPredation           = 0.0
+                Cohort%Processes%DeathByAge                   = 0.0
+                Cohort%Processes%DeathByOxygen                = 0.0
+                Cohort%Processes%DeathByStarvation            = 0.0
+                Cohort%Processes%DeathByNatural               = 0.0
+                Cohort%Processes%PredationByShrimps           = 0.0
+                Cohort%Processes%PredationByCrabs             = 0.0
+                Cohort%Processes%PredationByOysterCatchers    = 0.0
+                Cohort%Processes%PredationByEiderDucks        = 0.0
+                Cohort%Processes%PredationByHerringGull       = 0.0
+                Cohort%Processes%DeathByLowNumbers            = 0.0
+                Cohort%Processes%DeathBySelfPredation         = 0.0
                 Cohort%Processes%DeathByLarvaePredationByOthers = 0.0
-                Cohort%Processes%DeathByVelocity                = 0.0
-                Cohort%Processes%DeathByWrongSettlement         = 0.0
-                Cohort%Processes%DeathByDensityLimit            = 0.0
+                Cohort%Processes%DeathByVelocity              = 0.0
+                Cohort%Processes%DeathByWrongSettlement       = 0.0
+                Cohort%Processes%DeathByDensityLimit          = 0.0
                 
                 Species%PopulationProcesses%TNStartTimeStep =  Species%PopulationProcesses%TNStartTimeStep        + &
                                                                Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index)
@@ -4293,8 +4271,6 @@ do1:        do while (associated(ObjPredator%Next))
         !Local-----------------------------------------------------------------
         type (T_Particles), pointer      :: Particles           => null()
         type (T_Particles), pointer      :: PreviousParticles   => null()
-        type (T_Particles), pointer      :: ParticlesToContinue  => null()
-
         !----------------------------------------------------------------------
 
         nullify(Particles, PreviousParticles)
@@ -4314,12 +4290,8 @@ do1:        do while (associated(ObjPredator%Next))
 
                 ObjSpecies%nParticles  = ObjSpecies%nParticles - 1
                 
-                ParticlesToContinue => Particles%Next
-                
-                deallocate(Particles)
-                nullify   (Particles)
+                Particles  => Particles%Next
 
-                Particles => ParticlesToContinue
 
             else
 
@@ -4330,6 +4302,7 @@ do1:        do while (associated(ObjPredator%Next))
         enddo 
 
     end subroutine RestoreParticlesList
+
     !-------------------------------------------------------------------------------
 
     subroutine ConstructParticlesFromLarvae (Species, Cohort, NewParticles, Index)
@@ -4885,7 +4858,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_)then
         !Local----------------------------------------------------------------------
         integer                                         :: STAT_, ready_
         integer                                         :: Index
-        integer                                         :: Chunk
+        !integer                                         :: STAT_CALL
+        integer                                     :: Chunk
         !---------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -4964,13 +4938,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_)then
 
         !Begin-----------------------------------------------------------------
 
-        if(Me%ExternalVar%CurrentTime .ge. Me%NextSpawnTime)then
-            Me%NextSpawnTime   =  Me%NextSpawnTime + Me%MIN_SPAWN_TIME
-            Me%SpawningAllowed = .true.
-        else
-            Me%SpawningAllowed = .false. 
-        endif
-
         Species  => Me%FirstSpecies
 d1:     do while (associated(Species))
 
@@ -4983,7 +4950,18 @@ d2:         do while (associated(Cohort))
                 
                 Cohort%PreviousAtLeastOneLarvae = Cohort%AtLeastOneLarvae
                 
-                Cohort%AtLeastOneLarvae = .false.               
+                Cohort%AtLeastOneLarvae = .false.
+                
+!                if ((Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) .le. Me%ConvertionFactor * 1e-8))then
+!                    
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%L,    Index) = 0.0
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%M_E,  Index) = 0.0
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%M_V,  Index) = 0.0
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%M_H,  Index) = 0.0
+!                    Me%ExternalVar%Mass(Cohort%StateIndex%M_R,  Index) = 0.0
+!                    
+!                endif
+                
             
                 do Index = Me%Array%ILB, Me%Array%IUB
 
@@ -5049,7 +5027,7 @@ d2:         do while (associated(Cohort))
         
             call ComputeMortalityByVelocity (Index)
             
-            call ComputeMortalityBySettlement (Index)
+            call ComputeMortalityByWrongSettlement (Index)
 
             call ComputeIndividualProcesses (Index, CheckIfOpenPoint)
 
@@ -5195,7 +5173,7 @@ d2:         do while (associated(Cohort))
     end subroutine ComputeMortalityByVelocity
    !--------------------------------------------------------------------------
 
-   subroutine ComputeMortalityBySettlement (Index)
+   subroutine ComputeMortalityByWrongSettlement (Index)
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)           :: Index
@@ -5331,7 +5309,7 @@ d2:         do while (associated(Cohort))
             Species => Species%Next
         end do
 
-    end subroutine ComputeMortalityBySettlement
+    end subroutine ComputeMortalityByWrongSettlement
 
     !--------------------------------------------------------------------------
 
@@ -5959,7 +5937,7 @@ d2:         do while(associated(Cohort))
         
             call ComputeFiltrationRate (Species, Index)
 
-            call ComputeIngestAssimiRate (Species)
+            call ComputeIngestionAssimilationRate (Species)
 
             Species => Species%Next
         end do 
@@ -6479,7 +6457,7 @@ d2:         do while(associated(Cohort))
     
     !--------------------------------------------------------------------------
 
-    subroutine ComputeIngestAssimiRate(Species)
+    subroutine ComputeIngestionAssimilationRate(Species)
 
         !Arguments-------------------------------------------------------------
         type(T_Species),      pointer        :: Species
@@ -6576,30 +6554,25 @@ d2:         do while(associated(Cohort))
                                 AssimilatedStructure = IngestedByCohort * (1-Particles%F_E) * YEX
 
                                 !Assimilation: Reserves, Parallel and complementary SU's for three elements, molC/d
-                                if(Particles%F_E .gt. 0.0)then
-                                    r_C = IngestedByCohort * Particles%F_E
+                                r_C = IngestedByCohort * Particles%F_E
 
-                                    r_N = IngestedByCohort * Particles%F_E                    * &
-                                            Particles%Composition%nN                          / &
-                                            Species%SpeciesComposition%ReservesComposition%nN
+                                r_N = IngestedByCohort * Particles%F_E                    * &
+                                        Particles%Composition%nN                          / &
+                                        Species%SpeciesComposition%ReservesComposition%nN
 
-                                    r_P = IngestedByCohort * Particles%F_E                     * &
-                                            Particles%Composition%nP                           / &
-                                            Species%SpeciesComposition%ReservesComposition%nP
-                                            
-                                    
+                                r_P = IngestedByCohort * Particles%F_E                     * &
+                                        Particles%Composition%nP                           / &
+                                        Species%SpeciesComposition%ReservesComposition%nP
 
-                                    AssimilatedReserves = ( 1./r_C                       + &
-                                                            1./r_N                       + &
-                                                            1./r_P                       - &
-                                                            1./(r_C + r_N)               - &
-                                                            1./(r_C + r_P)               - &
-                                                            1./(r_N + r_P)               + &
-                                                            1./(r_C + r_N + r_P))          &
-                                                            **(-1.)
-                                else
-                                    AssimilatedReserves = 0.0
-                                endif
+                                AssimilatedReserves = ( 1/r_C                       + &
+                                                        1/r_N                       + &
+                                                        1/r_P                       - &
+                                                        1/(r_C + r_N)               - &
+                                                        1/(r_C + r_P)               - &
+                                                        1/(r_N + r_P)               + &
+                                                        1/(r_C + r_N + r_P))          &
+                                                        **(-1)
+
                                 !Assimilation: Reserves + Structure, molC/d       
                                 AssimilatedByCohort = AssimilatedStructure + AssimilatedReserves       
 
@@ -6687,8 +6660,8 @@ d2:         do while(associated(Cohort))
             Cohort => Cohort%Next
         end do 
         
-    end subroutine ComputeIngestAssimiRate
-
+    end subroutine ComputeIngestionAssimilationRate
+    
     !--------------------------------------------------------------------------
 
     subroutine UpdateLarvaeOnMatrixMass(Index)
@@ -7180,7 +7153,7 @@ d2:         do while(associated(Cohort))
         v_cond         = Species%IndividualParameters%v_cond 
         kappa          = Species%IndividualParameters%kappa
 
-        if (Vol .eq. 0.0) then
+        if (Vol .eq. 0) then
 
             Cohort%Processes%Mobilization = 0.0
 
@@ -7315,7 +7288,11 @@ d2:         do while(associated(Cohort))
                     
                 end if
                 
-             end if
+                !set the state of the dead cohort to zero
+                !Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
+                !Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
+
+            end if
 
         end if    
 
@@ -7421,7 +7398,10 @@ d2:         do while(associated(Cohort))
                     
                 end if
                 
-  
+                !set the state of the dead cohort to zero
+                !Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
+                !Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
+
             end if
 
         end if
@@ -7473,7 +7453,10 @@ d2:         do while(associated(Cohort))
                     
                 end if
                 
-    
+                !set the state of the dead cohort to zero
+                !Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
+                !Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
+
             end if
 
         end if
@@ -7494,7 +7477,7 @@ d2:         do while(associated(Cohort))
         integer                         :: POC, PON, POP 
         real                            :: T 
         real                            :: kap_R, GSR_MIN, GSR_SPAWN
-        real                            :: T_SPAWN, MEb, MVb
+        real                            :: T_SPAWN,MIN_SPAWN_TIME, MEb, MVb
         real                            :: kJ, GSR 
         !Begin-----------------------------------------------------------------
 
@@ -7514,6 +7497,7 @@ d2:         do while(associated(Cohort))
         GSR_MIN        = Species%IndividualParameters%GSR_MIN
         GSR_SPAWN      = Species%IndividualParameters%GSR_SPAWN 
         T_SPAWN        = Species%IndividualParameters%T_SPAWN 
+        MIN_SPAWN_TIME = Species%IndividualParameters%MIN_SPAWN_TIME 
         
         MEb            = Species%IndividualParameters%MEb
         MVb            = Species%IndividualParameters%MVb
@@ -7521,97 +7505,88 @@ d2:         do while(associated(Cohort))
         kJ             = Species%AuxiliarParameters%kJ 
         GSR            = Cohort%BivalveCondition%GSR 
 
-        if(Me%SpawningAllowed)then
+        !Flux of gametes in the spawning event, molCreserves/d
+        if ((GSR .gt. GSR_SPAWN) .and. (T .ge. T_SPAWN)) then 
 
-            !Flux of gametes in the spawning event, molCreserves/d
-            if ((GSR .gt. GSR_SPAWN) .and. (T .ge. T_SPAWN)) then 
+            !amount of gametes that should remain in the reproduction buffer, molCreserves
+            Cohort%Processes%RemainMRReproduction = GSR_MIN/(1-GSR_MIN) *         &
+                                        (Me%ExternalVar%Mass(M_V,Index) + Me%ExternalVar%Mass(M_E,Index))
 
-                !amount of gametes that should remain in the reproduction buffer, molCreserves
-                Cohort%Processes%RemainMRReproduction = GSR_MIN/(1-GSR_MIN) *         &
-                                            (Me%ExternalVar%Mass(M_V,Index) + Me%ExternalVar%Mass(M_E,Index))
+            !amount of gametes released in the spawning event, molCreserves/d
+            Cohort%Processes%Spawning = kap_R *      &
+                                        (Me%ExternalVar%Mass(M_R,Index) - Cohort%Processes%RemainMRReproduction) &
+                                        / Me%DTDay
 
-                !amount of gametes released in the spawning event, molCreserves/d
-                Cohort%Processes%Spawning = kap_R *      &
-                                            (Me%ExternalVar%Mass(M_R,Index) - Cohort%Processes%RemainMRReproduction) &
-                                            / Me%DTDay
+            !losses in gametes production, just before a spawning event, molCreserves/d
+            Cohort%Processes%SpawningOverhead = (1-kap_R) *        &
+                                        (Me%ExternalVar%Mass(M_R,Index) - Cohort%Processes%RemainMRReproduction)  & 
+                                        / Me%DTDay
 
-                !losses in gametes production, just before a spawning event, molCreserves/d
-                Cohort%Processes%SpawningOverhead = (1-kap_R) *        &
-                                            (Me%ExternalVar%Mass(M_R,Index) - Cohort%Processes%RemainMRReproduction)  & 
-                                            / Me%DTDay
-
-                !number of gametes to be released/d.ind
-                Cohort%Processes%GametesToRelease = Cohort%Processes%Spawning/(MEb + MVb)
-                
-                if (Me%OutputThisIndex) then
-                           
-                    Species%PopulationProcesses%nSpawning = Species%PopulationProcesses%nSpawning + 1
-
-                end if
-                
-                !number of new born/d.ind
-                Cohort%Processes%NewbornsThisCohort = Cohort%Processes%GametesToRelease * & 
-                                                      (1 - Species%IndividualParameters%m_spat)  
-
-                !number of new borns that will not survive/d.m3
-                Cohort%Processes%NONewbornsThisCohort = Cohort%Processes%GametesToRelease * & 
-                                                        Species%IndividualParameters%m_spat 
-
-                !ind/m3
-                Species%PopulationProcesses%nNewborns = Species%PopulationProcesses%nNewborns + &
-                                                        Cohort%Processes%NewbornsThisCohort * Me%DTDay  * &
-                                                        Me%ExternalVar%Mass(Number, Index)
-                
-
-                !update mass, gametes that dont survive are converted into POM g/m3
-                Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                              + &
-                                            Cohort%Processes%NONewbornsThisCohort                            * &
-                                            (MEb * Species%SpeciesComposition%ReservesComposition%nN         + &
-                                             MVb * Species%SpeciesComposition%StructureComposition%nN)       * &
-                                            Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
-                                            Species%AuxiliarParameters%N_AtomicMass
-
-                if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
-
-                    if (Me%ComputeOptions%Phosphorus) then
-
-                    Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                          + &
-                                            Cohort%Processes%NONewbornsThisCohort                            * &
-                                            (MEb * Species%SpeciesComposition%ReservesComposition%nP         + &
-                                             MVb * Species%SpeciesComposition%StructureComposition%nP)       * &
-                                            Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
-                                            Species%AuxiliarParameters%P_AtomicMass
-
-                    end if
-
-                else !(if life)
-
-                    Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)                          + &
-                                            Cohort%Processes%NONewbornsThisCohort * (MEb + MVb)              * &
-                                            Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
-                                            Species%AuxiliarParameters%C_AtomicMass
-                end if !pelagic model
-
-
-            else
-
-                Cohort%Processes%Spawning             = 0.0
-                Cohort%Processes%SpawningOverhead     = 0.0
-                Cohort%Processes%GametesToRelease     = 0.0     
-                Cohort%Processes%NewbornsThisCohort   = 0.0     
-                Cohort%Processes%NONewbornsThisCohort = 0.0     
+            !number of gametes to be released/d.ind
+            Cohort%Processes%GametesToRelease = Cohort%Processes%Spawning/(MEb + MVb)
+            
+            if (Me%OutputThisIndex) then
+                       
+                Species%PopulationProcesses%nSpawning = Species%PopulationProcesses%nSpawning + 1
 
             end if
             
-        else !spawning allowed
-        
+            !number of new born/d.ind
+            Cohort%Processes%NewbornsThisCohort = Cohort%Processes%GametesToRelease * & 
+                                                  (1 - Species%IndividualParameters%m_spat)  
+
+            !number of new borns that will not survive/d.m3
+            Cohort%Processes%NONewbornsThisCohort = Cohort%Processes%GametesToRelease * & 
+                                                    Species%IndividualParameters%m_spat 
+
+            !ind/m3
+            Species%PopulationProcesses%nNewborns = Species%PopulationProcesses%nNewborns + &
+                                                    Cohort%Processes%NewbornsThisCohort * Me%DTDay  * &
+                                                    Me%ExternalVar%Mass(Number, Index)
+            
+
+            !update mass, gametes that dont survive are converted into POM g/m3
+            Me%ExternalVar%Mass(PON,Index) = Me%ExternalVar%Mass(PON,Index)                              + &
+                                        Cohort%Processes%NONewbornsThisCohort                            * &
+                                        (MEb * Species%SpeciesComposition%ReservesComposition%nN         + &
+                                         MVb * Species%SpeciesComposition%StructureComposition%nN)       * &
+                                        Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
+                                        Species%AuxiliarParameters%N_AtomicMass
+
+            if(Me%ComputeOptions%PelagicModel .eq. WaterQualityModel) then
+
+                if (Me%ComputeOptions%Phosphorus) then
+
+                Me%ExternalVar%Mass(POP,Index) = Me%ExternalVar%Mass(POP,Index)                          + &
+                                        Cohort%Processes%NONewbornsThisCohort                            * &
+                                        (MEb * Species%SpeciesComposition%ReservesComposition%nP         + &
+                                         MVb * Species%SpeciesComposition%StructureComposition%nP)       * &
+                                        Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
+                                        Species%AuxiliarParameters%P_AtomicMass
+
+                end if
+
+            else !(if life)
+
+                Me%ExternalVar%Mass(POC,Index) = Me%ExternalVar%Mass(POC,Index)                          + &
+                                        Cohort%Processes%NONewbornsThisCohort * (MEb + MVb)              * &
+                                        Me%ExternalVar%Mass(Number, Index) * Me%DTDay                    * &
+                                        Species%AuxiliarParameters%C_AtomicMass
+            end if !pelagic model
+
+
+        else
+
             Cohort%Processes%Spawning             = 0.0
             Cohort%Processes%SpawningOverhead     = 0.0
             Cohort%Processes%GametesToRelease     = 0.0     
             Cohort%Processes%NewbornsThisCohort   = 0.0     
             Cohort%Processes%NONewbornsThisCohort = 0.0     
-            
-        end if !spawning allowed
+
+        end if
+        
+        
+
     end subroutine ComputeSpawning
 
     !--------------------------------------------------------------------------
@@ -7710,7 +7685,15 @@ d2:         do while(associated(Cohort))
 
         end if !pelagic model
 
-        Me%ExternalVar%Mass(Number,Index)             = 0.0        
+
+        
+        !Me%ExternalVar%Mass(L,Index)                   = 0.0
+        !Me%ExternalVar%Mass(M_V,Index)                 = 0.0
+        !Me%ExternalVar%Mass(M_E,Index)                 = 0.0
+        !Me%ExternalVar%Mass(M_H,Index)                 = 0.0
+        !Me%ExternalVar%Mass(M_R,Index)                 = 0.0
+        !Me%ExternalVar%Mass(Age,Index)                 = 0.0
+        Me%ExternalVar%Mass(Number,Index)              = 0.0        
 
         !Make all the processes zero       
         Cohort%Processes%ClearanceRate                 = 0.0
@@ -8188,6 +8171,9 @@ d2:         do while(associated(Cohort))
 
                         end if
                         
+                        !set the state of the dead cohort to zero
+                        !Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      = 0.0
+                        !Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) = 0.0
                         
                     end if
 
@@ -8817,24 +8803,21 @@ d2:         do while(associated(Cohort))
     subroutine WriteOutput (Index, iIndexOutput)
 
         !Arguments-------------------------------------------------------------
-        type(T_Species),                   pointer  :: Species
-        type(T_Cohort),                    pointer  :: Cohort
-        type(T_PopulationProcesses),       pointer  :: Population
-
-        integer, intent(IN)                         :: Index, iIndexOutput
+        type(T_Species),      pointer   :: Species
+        type(T_Cohort),       pointer   :: Cohort
+        integer, intent(IN)             :: Index, iIndexOutput
 
         !Local-----------------------------------------------------------------
-        integer                                     :: M_V, M_E, M_H, M_R
-        integer                                     :: L, Age, Number 
-        real                                        :: Year, Month, Day, hour, minute, second
-        real                                        :: TotalSeconds, Factor
+        integer                         :: M_V, M_E, M_H, M_R
+        integer                         :: L, Age, Number 
+        real                            :: Year, Month, Day, hour, minute, second
+        real                            :: TotalSeconds
 
         !Begin-----------------------------------------------------------------
 
         call ExtractDate(Me%ExternalVar%CurrentTime, Year, Month, Day, hour, minute, second)
         
         TotalSeconds = Me%ExternalVar%CurrentTime - Me%InitialDate
-        Factor       = Me%ConvertionFactor
                                                                           
         Species => Me%FirstSpecies
 d1:     do while(associated(Species))
@@ -8861,63 +8844,60 @@ d2:             do while(associated(Cohort))
                     !           " m_A40 m_O41 m_F42 m_nat43 m_shr44 m_cra45 m_oys46 m_duck47 m_gull48  m_low49 m_self50
                     !           " m_ others m_vel49 m_settle50"))
 
-                    102 format( F16.2  , 1x, I4   , 1x, I2,    1x, I2,    1x, I2,    1x, I2,    1x, I2, 1x          , &  !7
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                                      , &  !10
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !15
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !20
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !25
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !30
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !35
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !40
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !45
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !50
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x)                                          !54
+                    102 format( F16.2  , 1x, I4   , 1x, I2,    1x, I2,    1x, I2,    1x, I2,    1x, I2, 1x , &  !7
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                                 , &  !10
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                      , &  !15
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                      , &  !20
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                      , &  !25
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                      , &  !30
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                      , &  !35
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                      , &  !40
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                      , &  !45
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, &
+                                E20.13, 1x, E20.13, 1x)!50
 
-                    write(Cohort%CohortOutput%Unit(iIndexOutput), 102) TotalSeconds, int(Year), int(Month), int(Day) ,& !1,2,3
-                                    int(hour), int(minute), int(second)                                              ,& !4,5,6
-                                    Me%ExternalVar%Mass(Number,Index)          /Factor                               ,& !7, #/m2
-                                    Me%ExternalVar%Mass(M_E,Index)                                                   ,& !8
-                                    Me%ExternalVar%Mass(M_V,Index)        , Me%ExternalVar%Mass(M_H,Index)           ,& !9,10    
-                                    Me%ExternalVar%Mass(M_R,Index)        , Me%ExternalVar%Mass(L,Index)             ,& !11,12    
-                                    Me%ExternalVar%Mass(Age,Index)/365.                                                   ,& !13
-                                    Cohort%Processes%ClearanceRate        , Cohort%Processes%FilteredInorganic       ,& !14,15    
-                                    Cohort%Processes%FilteredFood%C       , Cohort%Processes%IngestionInorganic      ,& !16,17
-                                    Cohort%Processes%IngestionFood%C      , Cohort%Processes%PFContributionInorganic ,& !18,19
-                                    Cohort%Processes%PFContributionFood%C , Cohort%Processes%Assimilation%C          ,& !20,21
-                                    Cohort%Processes%FaecesContributionInorganic                                     ,& !22
-                                    Cohort%Processes%FaecesContributionFood%C                                        ,& !23
-                                    Cohort%Processes%SomaticMaintenance   , Cohort%Processes%Mobilization            ,& !24,25    
-                                    Cohort%Processes%ReservesDynamics     , Cohort%Processes%GametesLoss             ,& !26,27    
-                                    Cohort%Processes%StructureLoss        , Cohort%Processes%StructureDynamics       ,& !28,29    
-                                    Cohort%Processes%MaturityDynamics     , Cohort%Processes%MaturityLoss            ,& !30,31    
-                                    Cohort%Processes%Spawning             , Cohort%Processes%GametesToRelease        ,& !32,33    
-                                    Cohort%Processes%ReproductionDynamics , Cohort%Processes%InorganicFluxes%CO2     ,& !34,35
-                                    Cohort%Processes%InorganicFluxes%H2O  , Cohort%Processes%InorganicFluxes%O2      ,& !36,37
-                                    Cohort%Processes%InorganicFluxes%NH3  , Cohort%Processes%InorganicFluxes%PO4     ,& !38,39
-                                    Cohort%Processes%DeathByAge                     /Factor                          ,& !40, #.d/m2
-                                    Cohort%Processes%DeathByOxygen                  /Factor                          ,& !41, #.d/m2   
-                                    Cohort%Processes%DeathByStarvation              /Factor                          ,& !42, #.d/m2
-                                    Cohort%Processes%DeathByNatural                 /Factor                          ,& !43, #.d/m2
-                                    Cohort%Processes%PredationByShrimps             /Factor                          ,& !44, #.d/m2
-                                    Cohort%Processes%PredationByCrabs               /Factor                          ,& !45, #.d/m2
-                                    Cohort%Processes%PredationByOysterCatchers      /Factor                          ,& !46, #.d/m2
-                                    Cohort%Processes%PredationByEiderDucks          /Factor                          ,& !47, #.d/m2
-                                    Cohort%Processes%PredationByHerringGull         /Factor                          ,& !48, #.d/m2
-                                    Cohort%Processes%DeathByLowNumbers              /Factor                          ,& !49, #.d/m2
-                                    Cohort%Processes%DeathBySelfPredation           /Factor                          ,& !50, #.d/m2
-                                    Cohort%Processes%DeathByLarvaePredationByOthers /Factor                          ,& !51, #.d/m2
-                                    Cohort%Processes%DeathByVelocity                /Factor                          ,& !52, #.d/m2
-                                    Cohort%Processes%DeathByWrongSettlement         /Factor                          ,& !53, #.d/m2
-                                    Cohort%BivalveCondition%ScaledE                                                     !54, #.d/m2
+                    write(Cohort%CohortOutput%Unit(iIndexOutput), 102) TotalSeconds, int(Year), int(Month), int(Day),& !1,2,3
+                                                         int(hour), int(minute), int(second)                        ,& !4,5,6
+                                    Me%ExternalVar%Mass(Number,Index)    /Me%ConvertionFactor                       ,& !7, #/m2
+                                    Me%ExternalVar%Mass(M_E,Index)                                                  ,& !8
+                                    Me%ExternalVar%Mass(M_V,Index)       , Me%ExternalVar%Mass(M_H,Index)           ,& !9,10    
+                                    Me%ExternalVar%Mass(M_R,Index)       , Me%ExternalVar%Mass(L,Index)             ,& !11,12    
+                                    Me%ExternalVar%Mass(Age,Index)                                                  ,& !13
+                                    Cohort%Processes%ClearanceRate       , Cohort%Processes%FilteredInorganic       ,& !14,15    
+                                    Cohort%Processes%FilteredFood%C      , Cohort%Processes%IngestionInorganic      ,& !16,17
+                                    Cohort%Processes%IngestionFood%C     , Cohort%Processes%PFContributionInorganic ,& !18,19
+                                    Cohort%Processes%PFContributionFood%C, Cohort%Processes%Assimilation%C          ,& !20,21
+                                    Cohort%Processes%FaecesContributionInorganic                                    ,& !22
+                                    Cohort%Processes%FaecesContributionFood%C                                       ,& !23
+                                    Cohort%Processes%SomaticMaintenance  , Cohort%Processes%Mobilization            ,& !24,25    
+                                    Cohort%Processes%ReservesDynamics    , Cohort%Processes%GametesLoss             ,& !26,27    
+                                    Cohort%Processes%StructureLoss       , Cohort%Processes%StructureDynamics       ,& !28,29    
+                                    Cohort%Processes%MaturityDynamics    , Cohort%Processes%MaturityLoss            ,& !30,31    
+                                    Cohort%Processes%Spawning            , Cohort%Processes%GametesToRelease        ,& !32,33    
+                                    Cohort%Processes%ReproductionDynamics, Cohort%Processes%InorganicFluxes%CO2     ,& !34,35
+                                    Cohort%Processes%InorganicFluxes%H2O , Cohort%Processes%InorganicFluxes%O2      ,& !36,37
+                                    Cohort%Processes%InorganicFluxes%NH3 , Cohort%Processes%InorganicFluxes%PO4     ,& !38,39
+                                    Cohort%Processes%DeathByAge                /Me%ConvertionFactor            ,& !40, #.d/m2
+                                    Cohort%Processes%DeathByOxygen             /Me%ConvertionFactor            ,& !41, #.d/m2   
+                                    Cohort%Processes%DeathByStarvation         /Me%ConvertionFactor            ,& !42, #.d/m2
+                                    Cohort%Processes%DeathByNatural            /Me%ConvertionFactor            ,& !43, #.d/m2
+                                    Cohort%Processes%PredationByShrimps        /Me%ConvertionFactor            ,& !44, #.d/m2
+                                    Cohort%Processes%PredationByCrabs          /Me%ConvertionFactor            ,& !45, #.d/m2
+                                    Cohort%Processes%PredationByOysterCatchers /Me%ConvertionFactor            ,& !46, #.d/m2
+                                    Cohort%Processes%PredationByEiderDucks     /Me%ConvertionFactor            ,& !47, #.d/m2
+                                    Cohort%Processes%PredationByHerringGull    /Me%ConvertionFactor            ,& !48, #.d/m2
+                                    Cohort%Processes%DeathByLowNumbers         /Me%ConvertionFactor            ,& !49, #.d/m2
+                                    Cohort%Processes%DeathBySelfPredation      /Me%ConvertionFactor            ,& !50, #.d/m2
+                                    Cohort%Processes%DeathByLarvaePredationByOthers      /Me%ConvertionFactor   ,& !50, #.d/m2
+                                    Cohort%Processes%DeathByVelocity           /Me%ConvertionFactor            ,& !49, #.d/m2
+                                    Cohort%Processes%DeathByWrongSettlement    /Me%ConvertionFactor            ,& !50, #.d/m2
+                                    Cohort%BivalveCondition%ScaledE                 !50, #.d/m2
 
                     Cohort => Cohort%Next
                 end do d2
             end if
             
             if (Species%Population) then
-            
-                nullify(Population)            
-                Population => Species%PopulationProcesses
  
 !                OuputHeader =   "Seconds YY MM DD hh mm ss "                                        // &
 !                                " TN NCoh TBio Cr Fil Ing Ass"                                      // &
@@ -8933,67 +8913,87 @@ d2:             do while(associated(Cohort))
 !                                " InitialPhyto InitialShrimp"                                       // &
 !                                " MaxLength MaxTNFiels SpawningEvents"
 
-                103 format( F16.2,  1x, I4,     1x, I2,     1x, I2,     1x, I2,     1x, I2,    1x, I2, 1x       ,&  !6
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !10
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !15
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !20
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !25
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !30
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !35
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !40 
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !45 
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !50 
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !55 
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !60 
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !65 
-                            E20.13, 1x, I4, 1x)                                                                     !66,67
-                
-                write(Species%PopulationOutput%Unit(iIndexOutput), 103) TotalSeconds                           ,& !1
-                    int(Year), int(Month), int(Day),int(hour), int(minute), int(second)                        ,& !2 to 7
-                    Population%TN/Factor         , Population%NCoh                                             ,& !7to8, #/m2
-                    Population%TBio/Factor       , Population%Cr/Factor                                        ,& !9to10 molC/m2
-                    Population%Fil               , Population%Ing             , Population%Ass                 ,& !11,12,13 molC/m3
-                    Population%CO2               , Population%H2O             , Population%O                   ,& !14,15,16 mol/m3
-                    Population%NH3               , Population%PO4                                              ,& !17,18, mol/m3
-                    Me%LackOfFood                                                                              ,& !19
-                    Population%m_A/Factor        , Population%m_O/Factor      , Population%m_F/Factor          ,& !20,21 22#/d.m2
-                    Population%m_nat/Factor      , Population%m_shr/Factor    , Population%m_cra               ,& !23,24 25 #/d.m2
-                    Population%m_oys/Factor      , Population%m_duck/Factor   , Population%m_gull/Factor       ,& !26,27 28,#/d.m2
-                    Population%m_low/Factor      , Population%m_self/Factor   , Population%m_vel/Factor        ,& !29 30 31,#/d.m2
-                    Population%m_settle/Factor   , Population%m_others/Factor                                  ,& !32 33,#/d.m2    
-                    Population%SumAllMortalityInMass(1) /Factor  , Population%SumAllMortalityInMass(2) /Factor ,& !34 35,#/d.m2    
-                    Population%SumAllMortalityInMass(3) /Factor  , Population%SumAllMortalityInMass(4) /Factor ,& !36 37,#/d.m2    
-                    Population%SumAllMortalityInMass(5) /Factor  , Population%SumAllMortalityInMass(6) /Factor ,& !38 39,#/d.m2    
-                    Population%SumAllMortalityInMass(7) /Factor  , Population%SumAllMortalityInMass(8) /Factor ,& !40 41,#/d.m2
-                    Population%SumAllMortalityInMass(9) /Factor  , Population%SumAllMortalityInMass(10)/Factor ,& !42 43,#/d.m2
-                    Population%SumAllMortalityInMass(11)/Factor , Population%SumAllMortalityInMass(12) /Factor ,& !44 45,#/d.m2
-                    Population%SumAllMortalityInMass(13)/Factor , Population%SumAllMortalityInMass(14) /Factor ,& !46 47,#/d.m2
-                    Population%AverageMortalityInNumbers(1) /Factor                                            ,& !48 ,#/d.m2  
-                    Population%AverageMortalityInNumbers(2) /Factor                                            ,& !49 ,#/d.m2   
-                    Population%AverageMortalityInNumbers(3) /Factor                                            ,& !50 ,#/d.m2   
-                    Population%AverageMortalityInNumbers(4) /Factor                                            ,& !51 ,#/d.m2
-                    Population%AverageMortalityInNumbers(5) /Factor                                            ,& !52 ,#/d.m2   
-                    Population%AverageMortalityInNumbers(6) /Factor                                            ,& !53 ,#/d.m2   
-                    Population%AverageMortalityInNumbers(7) /Factor                                            ,& !54 ,#/d.m2
-                    Population%AverageMortalityInNumbers(8) /Factor                                            ,& !55 ,#/d.m2
-                    Population%AverageMortalityInNumbers(9) /Factor                                            ,& !56 ,#/d.m2
-                    Population%AverageMortalityInNumbers(10)/Factor                                            ,& !57 ,#/d.m2
-                    Population%AverageMortalityInNumbers(11)/Factor                                            ,& !58 ,#/d.m2
-                    Population%AverageMortalityInNumbers(12)/Factor                                            ,& !59 ,#/d.m2
-                    Population%AverageMortalityInNumbers(13)/Factor                                            ,& !60 ,#/d.m2
-                    Population%AverageMortalityInNumbers(14)/Factor                                            ,& !61 ,#/d.m2
-                    Population%TNField                      /Factor                                            ,& !62 ,#/d.m2
-                    Me%ExternalVar%InitialPhyto(Index), Me%ExternalVar%InitialShrimp(Index)                    ,& !63 64
-                    Population%MaxLength , Me%MaxTNField/Factor , Population%nSpawning                            !65, 66, 67
-        
+                103 format( F16.2,    1x, I4,    1x, I2,    1x, I2,    1x, I2,    1x, I2,    1x, I2, 1x  , &  !6
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                     , &  !10
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x          , &  !15
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x          , &  !20
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x          , &  !25
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x          , &  !30
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x   , &  !35
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x          , &  !40
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x          , &  !45
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x          , &  !50
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                     , &  !53
+                            E20.13, 1x, E20.13, 1x                                           , &  !Phyto E Shrimp
+                            E20.13, 1x, E20.13, 1x, I4, 1x)                                               !54,55
+                                            
+                    write(Species%PopulationOutput%Unit(iIndexOutput), 103) TotalSeconds                 ,& !1
+                        int(Year), int(Month), int(Day)                                                  ,& !2,3,4
+                        int(hour), int(minute), int(second)                                              ,& !5,6,7
+                        Species%PopulationProcesses%TN                            /Me%ConvertionFactor ,& !7, #/m2
+                        Species%PopulationProcesses%NCoh                                                 ,& !8
+                        Species%PopulationProcesses%TBio                          /Me%ConvertionFactor ,& !9, molC/m2
+                        Species%PopulationProcesses%Cr                            /Me%ConvertionFactor ,& !10, molC/m2
+                        Species%PopulationProcesses%Fil,   Species%PopulationProcesses%Ing               ,& !11,12, molC/m3
+                        Species%PopulationProcesses%Ass                                                  ,& !13, molC/m3
+                        Species%PopulationProcesses%CO2,   Species%PopulationProcesses%H2O               ,& !14,15, mol/m3
+                        Species%PopulationProcesses%O  ,   Species%PopulationProcesses%NH3               ,& !16,17, mol/m3
+                        Species%PopulationProcesses%PO4                                                  ,& !18, mol/m3
+                        Me%LackOfFood                                                                    ,& !19
+                        Species%PopulationProcesses%m_A                           /Me%ConvertionFactor ,& !20,#/d.m2
+                        Species%PopulationProcesses%m_O                           /Me%ConvertionFactor ,& !21,#/d.m2
+                        Species%PopulationProcesses%m_F                           /Me%ConvertionFactor ,& !22,#/d.m2
+                        Species%PopulationProcesses%m_nat                         /Me%ConvertionFactor ,& !23,#/d.m2
+                        Species%PopulationProcesses%m_shr                         /Me%ConvertionFactor ,& !24,#/d.m2
+                        Species%PopulationProcesses%m_cra                         /Me%ConvertionFactor ,& !25,#/d.m2
+                        Species%PopulationProcesses%m_oys                         /Me%ConvertionFactor ,& !26,#/d.m2
+                        Species%PopulationProcesses%m_duck                        /Me%ConvertionFactor ,& !27,#/d.m2
+                        Species%PopulationProcesses%m_gull                        /Me%ConvertionFactor ,& !28,#/d.m2
+                        Species%PopulationProcesses%m_low                         /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%m_self                        /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%m_vel                         /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%m_settle                      /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%m_others                      /Me%ConvertionFactor ,& !29,#/d.m2    
+                        Species%PopulationProcesses%SumAllMortalityInMass(1)      /Me%ConvertionFactor ,& !30,#/d.m2    
+                        Species%PopulationProcesses%SumAllMortalityInMass(2)      /Me%ConvertionFactor ,& !31,#/d.m2    
+                        Species%PopulationProcesses%SumAllMortalityInMass(3)      /Me%ConvertionFactor ,& !32,#/d.m2    
+                        Species%PopulationProcesses%SumAllMortalityInMass(4)      /Me%ConvertionFactor ,& !33
+                        Species%PopulationProcesses%SumAllMortalityInMass(5)      /Me%ConvertionFactor ,& !34    
+                        Species%PopulationProcesses%SumAllMortalityInMass(6)      /Me%ConvertionFactor ,& !35    
+                        Species%PopulationProcesses%SumAllMortalityInMass(7)      /Me%ConvertionFactor ,& !36
+                        Species%PopulationProcesses%SumAllMortalityInMass(8)      /Me%ConvertionFactor ,& !37
+                        Species%PopulationProcesses%SumAllMortalityInMass(9)      /Me%ConvertionFactor ,& !38
+                        Species%PopulationProcesses%SumAllMortalityInMass(10)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%SumAllMortalityInMass(11)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%SumAllMortalityInMass(12)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%SumAllMortalityInMass(13)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%SumAllMortalityInMass(14)     /Me%ConvertionFactor ,& !39
+                        Species%PopulationProcesses%AverageMortalityInNumbers(1)  /Me%ConvertionFactor ,& !40    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(2)  /Me%ConvertionFactor ,& !41    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(3)  /Me%ConvertionFactor ,& !42    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(4)  /Me%ConvertionFactor ,& !43
+                        Species%PopulationProcesses%AverageMortalityInNumbers(5)  /Me%ConvertionFactor ,& !44    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(6)  /Me%ConvertionFactor ,& !45    
+                        Species%PopulationProcesses%AverageMortalityInNumbers(7)  /Me%ConvertionFactor ,& !46
+                        Species%PopulationProcesses%AverageMortalityInNumbers(8)  /Me%ConvertionFactor ,& !47
+                        Species%PopulationProcesses%AverageMortalityInNumbers(9)  /Me%ConvertionFactor ,& !48
+                        Species%PopulationProcesses%AverageMortalityInNumbers(10) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%AverageMortalityInNumbers(11) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%AverageMortalityInNumbers(12) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%AverageMortalityInNumbers(13) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%AverageMortalityInNumbers(14) /Me%ConvertionFactor ,& !49
+                        Species%PopulationProcesses%TNField                       /Me%ConvertionFactor ,& !50,#/d.m2
+                        Me%ExternalVar%InitialPhyto(Index), Me%ExternalVar%InitialShrimp(Index)             ,& !Phyto e Shrimp
+                        Species%PopulationProcesses%MaxLength                                               ,& !51
+                        Me%MaxTNField                                             /Me%ConvertionFactor ,& !51
+                        Species%PopulationProcesses%nSpawning                                                !52
+                                                                    
                 if (Species%BySizeOutput) then
 
                     call WriteSizeDistribution (Index, Species, iIndexOutput)
 
                 end if
             
-                nullify(Population)            
-
             end if !population
             
             Species => Species%Next
@@ -9404,8 +9404,9 @@ d2:             do while(associated(Cohort))
         real                                :: m_shr, m_cra, m_oys, m_duck, m_gull, m_low, m_self
         real                                :: m_others, m_vel, m_settle        
         integer                             :: TC,Evaluation 
-        character(len=1000)                 :: ParameterValueStr
-        character(len=1000)                 :: CompleteLineStr
+        !real                                :: Year, Month, Day, hour, minute, second
+        character(len=1000)                  :: ParameterValueStr
+        character(len=1000)                  :: CompleteLineStr
 
         
         !Begin-----------------------------------------------------------------
@@ -9480,11 +9481,11 @@ d2:             do while(associated(Cohort))
                 Predator => Predator%Next
             end do
                 
-            150 format(E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, I5, 1x               , &
-                       E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                       , & !5
-                       E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x           , &
-                       E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x,E20.13, 1x, &
-                       E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x,E20.13, 1x, &
+            150 format(E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, I5, 1x     , &
+                       E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x             , & !5
+                       E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x,   &
+                       E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x,E20.13, 1x,   &
+                       E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x,E20.13, 1x,   &
                        E20.13, 1x, E20.13, 1x,E20.13, 1x,I5, 1x,E20.13, 1x)        !6
             
             write(ParameterValueStr, 150) Me%DT                                                                          , &   
