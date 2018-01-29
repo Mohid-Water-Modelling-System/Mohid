@@ -9651,7 +9651,7 @@ if0:    if (Me%HasProperties) then
                 
                     if (present(TopRadiation))      Me%TopRadiation     (NodeID) = TopRadiation     (CurrNode%GridI, CurrNode%GridJ)
                     if (present(AirTemperature))    Me%AirTemperature   (NodeID) = AirTemperature   (CurrNode%GridI, CurrNode%GridJ)
-                    if (present(CloudCover))        Me%CloudCover       (NodeID) = CloudCover       (CurrNode%GridI, CurrNode%GridJ)    
+                    if (present(CloudCover))        Me%CloudCover       (NodeID) = CloudCover       (CurrNode%GridI, CurrNode%GridJ)
                     if (present(RelativeHumidity))  Me%RelativeHumidity (NodeID) = RelativeHumidity (CurrNode%GridI, CurrNode%GridJ)
                     if (present(WindSpeed))         Me%WindSpeed        (NodeID) = WindSpeed        (CurrNode%GridI, CurrNode%GridJ)
                     
@@ -15200,8 +15200,8 @@ if2:            if (Property%Toxicity%Evolution == Saturation) then
         real(8),dimension(:), pointer           :: WaterVolume    
         real                                    :: DT
         type (T_Node    ) , pointer             :: CurrNode
-        real   ,dimension(:),pointer            :: CellArea
-        integer                                 :: NodeID  
+!        real   ,dimension(:),pointer            :: CellArea
+!        integer                                 :: NodeID  
         !Begin----------------------------------------------------------------- 
 
         Size1D%ILB = 1
