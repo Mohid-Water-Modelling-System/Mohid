@@ -21387,8 +21387,7 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
     !Arguments------------------------------------------------------------- Teste WaterLevelIncrease
     integer                         :: i, j, STAT_CALL
     
-        call GetWaterPoints2D(Me%ObjHorizontalMap, &
-					          Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+        call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
 	        stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'			  
         !Paralelizar! João Sobrinho
@@ -31390,8 +31389,11 @@ cd1:        if  (BoundaryFacesUV  (i, j     )  == Boundary     .and.            
 
                     if (LocalAssimila) then
 
-                        Aux1 = dble(Bathymetry(i_int, j_int) + SlowCoef * AssimilaWaterLevel(i_int, j_int) &
-                                                      + (1. - SlowCoef) * WaterLevel_New(i_int, j_int)) 
+                        Aux1 = dble(Bathymetry(i_int, j_int) + SlowCoef * AssimilaWaterLevel(i_int, j_int)) 
+                        
+                        if (Me%ComputeOptions%LocalSolution == AssimilationField_) then
+                            Aux1 = Aux1 + dble((1. - SlowCoef) * WaterLevel_New(i_int, j_int)) 
+                        endif                                    
 
                     else
 
@@ -31551,9 +31553,13 @@ cd15:           if (LocalSolution) then
 
                     if (LocalAssimila) then
                         LocalWLa = LocalWLa +       SlowCoef  * AssimilaWaterLevel(ib   , jb   )
-                        LocalWLa = LocalWLa + (1. - SlowCoef) * WaterLevel_New    (ib   , jb   )
                         LocalWLb = LocalWLb +       SlowCoef  * AssimilaWaterLevel(i_int, j_int)
-                        LocalWLb = LocalWLb + (1. - SlowCoef) * WaterLevel_New    (i_int, j_int)
+                        
+                        if (Me%ComputeOptions%LocalSolution == AssimilationField_) then
+                            LocalWLa = LocalWLa + (1. - SlowCoef) * WaterLevel_New    (ib   , jb   )                        
+                            LocalWLb = LocalWLb + (1. - SlowCoef) * WaterLevel_New    (i_int, j_int)                            
+                        endif                        
+                        
                     endif
 
 
