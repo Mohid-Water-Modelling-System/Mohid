@@ -22451,22 +22451,23 @@ AO:     if (Actual >= SurfaceOutTime) then
                    if (Me%WriteHDFReal4)then
                         call SetMatrixValue(Me%Output%Aux3Dreal4, Me%Size, PropertyX%Concentration)
                     
-                        call HDF5WriteData  (Me%ObjSurfaceHDF5,                             &
-                                            "/Results/"//PropertyX%ID%Name,                 &
-                                            PropertyX%ID%Name, PropertyX%ID%Units,          &
-                                            Array3D      = Me%Output%Aux3Dreal4,            &
-                                            OutputNumber = SurfaceOutPutNumber,             &
+                        call HDF5WriteData  (Me%ObjSurfaceHDF5,                         &
+                                            "/Results/"//PropertyX%ID%Name,             &
+                                            PropertyX%ID%Name, PropertyX%ID%Units,      &
+                                            Array3D      = Me%Output%Aux3Dreal4,        &
+                                            OutputNumber = SurfaceOutPutNumber,         &
                                             STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR70')
                     
                    else
-                    call HDF5WriteData  (Me%ObjSurfaceHDF5,                             &
+                                           
+                        call HDF5WriteData  (Me%ObjSurfaceHDF5,                         &
                                         "/Results/"//PropertyX%ID%Name,                 &
                                         PropertyX%ID%Name, PropertyX%ID%Units,          &
                                         Array3D      = PropertyX%Concentration,         &
                                         OutputNumber = SurfaceOutPutNumber,             &
                                         STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR80')                       
+                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR80')
                    endif
 
 
