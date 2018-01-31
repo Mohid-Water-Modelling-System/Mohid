@@ -257,7 +257,7 @@ Module ModuleTimeSerie
         logical, optional, intent(IN )                  :: UseTabulatedData
         logical, optional, intent(IN )                  :: HavePath
         character(len=*), optional, intent(IN )         :: Comment
-        type (T_Polygon), pointer, optional, intent(IN ):: ModelDomain
+        type (T_Polygon), pointer, optional             :: ModelDomain
         integer, optional, intent(OUT)                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -515,7 +515,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                         :: TimeSerieID
         integer                                         :: ObjTime
         integer                                         :: ObjEnterData
-        integer, dimension(:), intent(IN), pointer      :: TurbineTimeSerieList
+        integer, dimension(:), pointer                  :: TurbineTimeSerieList
         character(len=*), dimension(:), pointer         :: PropertyList
         character(len=*), intent(IN )                   :: Extension
         integer, dimension(:,:,:), optional, pointer    :: WaterPoints3D
@@ -529,16 +529,15 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
         logical, optional, intent(IN )                  :: UseTabulatedData
         logical, optional, intent(IN )                  :: HavePath
         character(len=*), optional, intent(IN )         :: Comment
-        type (T_Polygon), pointer, optional, intent(IN ):: ModelDomain
+        type (T_Polygon), pointer, optional             :: ModelDomain
         integer, optional, intent(OUT)                  :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_CALL, nUsers
         integer                                         :: ready_ , STAT_
-        integer                                         :: FromFile
         integer                                         :: flag, ret
-        integer                                         :: iTimeSerie, j
-        character(len=20)                              :: str
+        integer                                         :: iTimeSerie
+        character(len=20)                               :: str
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -1120,9 +1119,8 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
         !Local-----------------------------------------------------------------
         type (T_Time)                       :: AuxTime, DummyTime
         integer                             :: STAT_CALL
-        integer                             :: ClientNumber
         integer                             :: iTimeSerie, iflag
-        integer                             :: FromBlock, FromFile        
+        integer                             :: FromFile        
 
         !Gets parameter from the module EnterData
 

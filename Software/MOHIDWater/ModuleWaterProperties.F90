@@ -2715,6 +2715,7 @@ do1:        do while (associated(ObjCohort%Next))
         type(T_Property), pointer           :: NewProperty
 !        character(LEN = StringLength)       :: CohortPropName
         character(len=5)                    :: CohortIDStr
+        integer                             :: MassConservation
         
         !Begin-----------------------------------------------------------------
 
@@ -2866,7 +2867,14 @@ do1:        do while (associated(ObjCohort%Next))
         NewProperty%Evolution%MinConcentration         = ON
         NewProperty%MinValue                           = 0.0
         
+        call GetBoundaryConditionList(MassConservation = MassConservation)
+        
+        NewProperty%Evolution%Advec_Difus_Parameters%DecayTime           = 1440.0
+        NewProperty%Evolution%Advec_Difus_Parameters%BoundaryCondition   = MassConservation
+        
         nullify(NewProperty)
+
+
         
     end subroutine ConstructCohort
 
@@ -3018,9 +3026,9 @@ do1:        do while (associated(ObjCohort%Next))
         if (NewProperty%evolution%AdvectionDiffusion)         &
             call Read_Advec_Difus_Parameters(NewProperty)
 
-        NewProperty%Evolution%MinConcentration         = .false.
+        NewProperty%Evolution%MinConcentration         = .true.
         NewProperty%Evolution%MaxConcentration         = .false.
-        NewProperty%MinValue                           = FillValueReal
+        NewProperty%MinValue                           = 0.0
         NewProperty%MaxValue                           = - FillValueReal
         
         allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
@@ -3527,9 +3535,9 @@ do6 :                       do K = WKLB, WKUB
         NewProperty%Evolution%Advec_Difus_Parameters%VolumeRelMax        = 1.5
         NewProperty%Evolution%Advec_Difus_Parameters%AdvectionNudging    = .false.
         
-        NewProperty%Evolution%MinConcentration                           = .false.
+        NewProperty%Evolution%MinConcentration                           = .true.
         NewProperty%Evolution%MaxConcentration                           = .false.
-        NewProperty%MinValue                                             = FillValueReal
+        NewProperty%MinValue                                             = 0.0
         NewProperty%MaxValue                                             = - FillValueReal
         
         allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)

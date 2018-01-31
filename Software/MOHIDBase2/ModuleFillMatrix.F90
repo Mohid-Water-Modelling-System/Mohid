@@ -1740,7 +1740,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              ClientModule   = 'ModuleFillMatrix',                      &
                              default        = null_real,                               &
                              STAT           = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR100'
+                if (STAT_CALL .NE. SUCCESS_) then
+                    
+                    if(STAT_CALL == SIZE_ERR_)then 
+                        if(.not. Me%VectorialProp .and. iflag .ne. 1)then
+                            write(*,*) "Property ", trim(Me%PropertyID%Name)
+                            write(*,*) "DEFAULTVALUE must be a scalar"
+                            stop 'ReadOptions - ModuleFillMatrix - ERR99'
+                        elseif(iflag > 3)then
+                            write(*,*) "Property ", trim(Me%PropertyID%Name)
+                            write(*,*) "Too many arguments in keyword "//trim(Me%OverrideValueKeyword)
+                            stop 'ReadOptions - ModuleFillMatrix - ERR98'
+                        endif
+                    else
+                        stop 'ReadOptions - ModuleFillMatrix - ERR100'
+                    endif 
+                    
+                
+                end if
                 
                 if(iflag == 0)then
                     

@@ -12468,7 +12468,6 @@ do7 :       do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropertyX
         integer                                     :: STAT_CALL
-        integer                                     :: OutPutNumber
         integer                                     :: HDF5_CREATE
         character(LEN = PathLength)                 :: FileName
         integer                                     :: ObjHDF5
