@@ -11614,28 +11614,27 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
 
         if(OutputON)then
 
-        CurrentProperty => Me%FirstProperty
-        do while (associated(CurrentProperty))
-            
-            if(.not. CurrentProperty%OutputReal4) then
-                Me%WriteHDFReal4 = .false.
-                exit
+            CurrentProperty => Me%FirstProperty
+            do while (associated(CurrentProperty))
+                
+                if(.not. CurrentProperty%OutputReal4) then
+                    Me%WriteHDFReal4 = .false.
+                    exit
+                endif
+
+                CurrentProperty => CurrentProperty%Next
+
+            enddo
+            !João Sobrinho
+            if(Me%WriteHDFReal4)then
+              
+                nullify(Me%Output%Aux3Dreal4)
+                allocate(Me%Output%Aux3Dreal4(Me%Size%ILB:Me%Size%IUB,&
+                                              Me%Size%JLB:Me%Size%JUB,&
+                                              Me%Size%KLB:Me%Size%KUB))
+                                
+                Me%Output%Aux3Dreal4(:,:,:) = 0.0          
             endif
-
-            CurrentProperty => CurrentProperty%Next
-
-        enddo
-        !João Sobrinho
-        if(Me%WriteHDFReal4)then
-          
-            nullify(Me%Output%Aux3Dreal4)
-            allocate(Me%Output%Aux3Dreal4(Me%Size%ILB:Me%Size%IUB,&
-                                          Me%Size%JLB:Me%Size%JUB,&
-                                          Me%Size%KLB:Me%Size%KUB))
-                            
-            Me%Output%Aux3Dreal4(:,:,:) = 0.0          
-        endif
-        
 
             call GetOutPutTime(Me%ObjEnterData,                                         &
                                CurrentTime      = Me%ExternalVar%Now,                   &
@@ -11751,6 +11750,9 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
 
             allocate(Me%OutW%ObjHDF5        (Me%OutW%WindowsNumber))
             allocate(Me%OutW%OriginalCorners(Me%OutW%WindowsNumber))
+
+            KLB = Me%WorkSize%KLB
+            KUB = Me%WorkSize%KUB
             
             do iW = 1, Me%OutW%WindowsNumber
             
@@ -11770,8 +11772,16 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                 
                 endif
                 
+                if (Me%OutW%OutPutWindows(iW)%KLB < KLB .or.                            &
+                    Me%OutW%OutPutWindows(iW)%KUB > KUB) then
+                    
+                    write(*,*) 'cell layers out of the model domain for the output window number',iW
+                    stop 'ConstructGlobalOutput - WaterProperties - ERR65'
+                    
+                endif                  
+                
                 if (Me%OutW%OutPutWindows(iW)%ILB < ILB .or.                            &
-                    Me%OutW%OutPutWindows(iW)%ILB > IUB .or.                            & 
+                    Me%OutW%OutPutWindows(iW)%IUB > IUB .or.                            & 
                     Me%OutW%OutPutWindows(iW)%JLB < JLB .or.                            & 
                     Me%OutW%OutPutWindows(iW)%JUB > JUB) then
                     
@@ -20368,6 +20378,13 @@ i4 :                if (Property%SubModel%ON) then
 
                 if (STAT_CALL /= SUCCESS_)                                                  &
                     call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR40')
+                    
+                if (ColdPeriod > 0. .and. Property%Old) then
+                    write(*,*) 'ColdRelaxPeriod is ON in a HOT START '
+                    write(*,*) 'Remove from Assimilation_x.dat the keyword COLD_RELAX_PERIOD'
+                    call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR50')
+                endif
+                    
 
 
                 DT_RunPeriod = Actual - Me%BeginTime
