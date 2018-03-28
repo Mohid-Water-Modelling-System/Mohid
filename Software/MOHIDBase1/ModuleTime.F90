@@ -74,6 +74,7 @@ Module ModuleTime
     public  :: null_time            !Turns type(time) to FillValueInt
     public  :: PrintProgress        !Writes a message to the screen         !Frank 3-8-99
     public  :: ConvertTimeToString  !Converts T_Time to a String like 2000:01:01:23:59:59
+    public  :: ConvertDateToString  !Converts T_Time to a Date like 2000:01:01
     public  :: JulianDateToGregorianDate
 
 
@@ -2283,8 +2284,53 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     end function ConvertTimeToString         
 
-    
 
+    !--------------------------------------------------------------------------
+
+    character(len=10) function ConvertDateToString(Time1, Delimiter)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Time),      intent(IN )              :: Time1
+        character(len=1),  intent(IN ), optional    :: Delimiter
+
+        !Local-----------------------------------------------------------------
+        character(len=10)                           :: auxStr
+        character(len=4)                            :: Year
+        character(len=2)                            :: Month, Day
+        character(len=1)                            :: DL
+        logical                                     :: DLOn
+        
+        !----------------------------------------------------------------------
+        
+        if (present(Delimiter)) then
+            DL   = Delimiter
+            DLOn = .true.
+        else
+            DLOn = .false.
+        endif            
+        
+        
+        write(Year ,  '(I4)'   ) int(Time1%Time_(1))
+        write(Month,  '(I2)'   ) int(Time1%Time_(2))
+        write(Day  ,  '(I2)'   ) int(Time1%Time_(3))
+
+        if (DLOn) then
+            auxStr = Year//DL//Month//DL//Day
+            if (auxStr(6:6) == ' ') auxStr(6:6) = '0'
+            if (auxStr(9:9) == ' ') auxStr(9:9) = '0'
+        else
+            auxStr = Year//Month//Day
+            if (auxStr(5:5) == ' ') auxStr(5:5) = '0'
+            if (auxStr(7:7) == ' ') auxStr(7:7) = '0'            
+        endif            
+
+        ConvertDateToString = auxStr
+
+        !2000:12:12:23:59:59.123345678
+
+    end function ConvertDateToString         
+    
+    
 end module ModuleTime
 
 !----------------------------------------------------------------------------------------------------------
