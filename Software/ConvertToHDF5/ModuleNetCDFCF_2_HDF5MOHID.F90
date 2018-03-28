@@ -126,6 +126,9 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type (T_ValueIn)                        :: LongIn,  LatIn        
         real, dimension(:,:),     pointer       :: LongOut, LatOut, RotationX, RotationY
         integer                                 :: imax, jmax
+        logical                                 :: Imposed
+        real                                    :: LongOrig, dLong
+        real                                    :: LatOrig,  dLat        
         logical                                 :: Starts180W
         integer                                 :: CorrectJDown, CorrectJUp, BreakJ
         integer                                 :: dij
@@ -153,6 +156,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real(8), dimension(:),       pointer    :: Zlevels
         logical                                 :: InvertLayers
         logical                                 :: NetCDFNameFaceOff = .false.
+        integer                                 :: RemoveNsurfLayers = 0
     end type  T_Depth
 
     private :: T_Bathym
@@ -935,13 +939,60 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     subroutine WriteRotation
     
         !Local-----------------------------------------------------------------
+        real,  dimension(:,:), pointer              :: RotationX, RotationY
         integer                                     :: i, iP, iPx, iPy
         logical                                     :: Found
+        integer                                     :: WorkJLB, WorkJUB, WorkILB, WorkIUB
+        integer                                     :: ii, jj, STAT_CALL
         !Begin-----------------------------------------------------------------
         
         do iP = 1, Me%PropNumber
         
             if (Me%Field(iP)%Rotation) then
+                    
+                if (.not.associated(Me%LongLat%RotationX)) then
+                
+                
+                    if (Me%WindowOut%ON) then
+                        WorkILB = 1
+                        WorkIUB = Me%WindowOut%IUB - Me%WindowOut%ILB + 1
+                        WorkJLB = 1
+                        WorkJUB = Me%WindowOut%JUB - Me%WindowOut%JLB + 1
+                    else
+                    
+                        WorkILB = Me%WorkSize%ILB
+                        WorkIUB = Me%WorkSize%IUB        
+                        WorkJLB = Me%WorkSize%JLB
+                        WorkJUB = Me%WorkSize%JUB       
+                        
+                        Me%WindowOut%ILB = Me%WorkSize%ILB
+                        Me%WindowOut%IUB = Me%WorkSize%IUB
+                        Me%WindowOut%JLB = Me%WorkSize%JLB
+                        Me%WindowOut%JUB = Me%WorkSize%JUB
+
+                    endif
+                                 
+                
+                    allocate(Me%LongLat%RotationX (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    allocate(Me%LongLat%RotationY (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))            
+                    
+
+                    call GetGridRotation(Me%ObjHorizontalGrid, RotationX, RotationY, STAT = STAT_CALL)   
+                    if (STAT_CALL /= SUCCESS_)stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+                    
+                    do jj = WorkJLB, WorkJUB
+                    do ii = WorkILB, WorkIUB
+                        Me%LongLat%RotationX(ii+ Me%WindowOut%ILB - 1,jj+ Me%WindowOut%JLB - 1) = RotationX(ii,jj)
+                        Me%LongLat%RotationY(ii+ Me%WindowOut%ILB - 1,jj+ Me%WindowOut%JLB - 1) = RotationY(ii,jj)                
+                    enddo
+                    enddo
+        
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, RotationX, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+        
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, RotationY, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR30'                    
+                endif                                        
         
                 !Found component X
                 Found = .false.
@@ -951,7 +1002,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         exit
                     endif
                 enddo
-                if (.not. Found) stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+                if (.not. Found) stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
 
                 !Found component Y
                 Found = .false.
@@ -961,7 +1012,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         exit
                     endif
                 enddo
-                if (.not. Found) stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                if (.not. Found) stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
 
                 do i=1, Me%Date%TotalInst
@@ -2303,6 +2354,12 @@ BF:         if (BlockFound) then
                              default      = "down",                                     &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR160'  
+                
+                if (trim(Me%Depth%Positive) /= "down" .and.                             &
+                    trim(Me%Depth%Positive) /= "up"   .and.                             &
+                    trim(Me%Depth%Positive) /= "inverse") then
+                    stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR162'  
+                endif                    
 
                 !invert layer order
                 call GetData(Me%Depth%InvertLayers,                                     &
@@ -2324,16 +2381,87 @@ BF:         if (BlockFound) then
                              default      = .false.,                                    &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR170'  
+
+
+                call GetData(Me%LongLat%Imposed,                                        &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'LONG_LAT_IMPOSED',                         &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = .false.,                                    &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR180'  
                 
+                if (Me%LongLat%Imposed) then
+
+                    call GetData(Me%LongLat%LongOrig,                                   &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'LONG_ORIG',                            &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR190'  
+                    
+                    if (iflag == 0) then
+                        stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR200'  
+                    endif
+                
+                    call GetData(Me%LongLat%dLong,                                      &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'LONG_DX',                              &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR210'  
+                    
+                    if (iflag == 0) then
+                        stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR220'  
+                    endif
+
+                    call GetData(Me%LongLat%LatOrig,                                    &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'LAT_ORIG',                             &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR230'  
+                    
+                    if (iflag == 0) then
+                        stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR240'  
+                    endif
+                
+                    call GetData(Me%LongLat%dLat,                                       &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'LAT_DY',                               &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR250'  
+                    
+                    if (iflag == 0) then
+                        stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR260'  
+                    endif
+                    
+                
+                    call GetData(Me%Depth%RemoveNsurfLayers,                            &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'REMOVE_SURFACE_N_LAYERS',              &
+                                 default      = 0,                                      &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR270'  
+  
+                endif
   
             else BF
             
-                stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR200'    
+                stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR400'    
                 
             endif BF
         else IS
         
-            stop 'ReadGrid2DOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR300'    
+            stop 'ReadGrid2DOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR500'    
         
         endif IS                             
                               
@@ -3149,6 +3277,82 @@ BF:         if (BlockFound) then
     end subroutine ReadTotalTime
 
     !------------------------------------------------------------------------
+    
+   !------------------------------------------------------------------------
+    subroutine ImposedRegularGrid(ncid)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ncid
+        
+        !Local-----------------------------------------------------------------
+        integer                                         :: status, numDims, i, j
+        integer                                         :: RhVarIdLat, RhVarIdLong
+        integer, dimension(nf90_max_var_dims)           :: rhDimIdsLat, rhDimIdsLong
+        
+        !Begin-----------------------------------------------------------------        
+
+
+        
+        status=nf90_inq_varid(ncid,trim(Me%LongLat%NetCDFNameLong),RhVarIdLong)
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+        status = nf90_inquire_variable(ncid, RhVarIdLong, ndims = numDims)
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+        status = nf90_inquire_variable(ncid, RhVarIdLong, dimids = rhDimIdsLong(:numDims))
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+        
+        status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%jmax)
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'  
+
+        status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%imax)
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'         
+        
+        if (Me%ReadInvertXY) then
+
+            status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%jmax)
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'        
+
+            status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%imax)
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR70' 
+        
+        endif
+        
+    
+        !Build HDF5 MOHID Grid
+        Me%WorkSize%ILB = Me%LongLat%dij
+        Me%WorkSize%IUB = Me%LongLat%imax - 1 - Me%LongLat%dij
+        Me%WorkSize%JLB = Me%LongLat%dij
+        Me%WorkSize%JUB = Me%LongLat%jmax - 1 - Me%LongLat%dij
+
+        
+        !to warn the user before the model crashes
+        !cant use a NetCDF with one of the dimension as 2 (or lower) because IUB or JUB would be zero (or lower).
+        if ((Me%WorkSize%IUB < 1) .or. (Me%WorkSize%JUB < 1)) then
+            write (*,*)
+            write (*,*) 'Please use a NETCDF file with more than'
+            write (*,*) '2x2 points so that the grid can be correctly extracted'
+            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+        endif
+
+        Me%Size%ILB     = Me%WorkSize%ILB - 1
+        Me%Size%IUB     = Me%WorkSize%IUB + 1
+        Me%Size%JLB     = Me%WorkSize%JLB - 1
+        Me%Size%JUB     = Me%WorkSize%JUB + 1    
+        
+        allocate(Me%LongLat%LongOut   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%LongLat%LatOut    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+      
+        
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB+1
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB+1
+            
+            Me%LongLat%LongOut(i, j) = Me%LongLat%LongOrig + real(j-1)*Me%LongLat%dLong
+            Me%LongLat%LatOut (i, j) = Me%LongLat%LatOrig  + real(i-1)*Me%LongLat%dLat
+            
+        enddo
+        enddo     
+            
+    end subroutine ImposedRegularGrid                       
 
    !------------------------------------------------------------------------
     subroutine ReadWriteGrid2D(ncid)
@@ -3156,7 +3360,7 @@ BF:         if (BlockFound) then
         integer                                         :: ncid
         
         !Local-----------------------------------------------------------------
-        real,  dimension(:,:), pointer              :: RotationX, RotationY, Lat, Long
+        real,  dimension(:,:), pointer              :: Lat, Long
         real,   dimension(:),   pointer             :: Dummy
         integer                                     :: STAT_CALL, i, j
         type (T_Size2D)                             :: WorkSize2D
@@ -3164,7 +3368,11 @@ BF:         if (BlockFound) then
 
         !Begin-----------------------------------------------------------------
         
-        call ReadGrid2DNetCDF(ncid)
+        if (Me%LongLat%Imposed) then
+            call ImposedRegularGrid(ncid)
+        else
+            call ReadGrid2DNetCDF(ncid)
+        endif            
 
         Me%WorkSize2D%ILB = Me%WorkSize%ILB
         Me%WorkSize2D%IUB = Me%WorkSize%IUB        
@@ -3230,21 +3438,6 @@ BF:         if (BlockFound) then
                                      WorkSize = WorkSize2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
-            call GetGridRotation(Me%ObjHorizontalGrid, RotationX, RotationY, STAT = STAT_CALL)   
-            if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
-            
-            do j = WorkJLB, WorkJUB
-            do i = WorkILB, WorkIUB
-                Me%LongLat%RotationX(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1) = RotationX(i,j)
-                Me%LongLat%RotationY(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1) = RotationY(i,j)                
-            enddo
-            enddo
-
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, RotationX, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
-
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, RotationY, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
             
         endif
         
@@ -4249,6 +4442,10 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             elseif  (Me%Depth%Positive == "down") then i4
             
                 GetCellInDepth = Aux
+                
+            elseif  (Me%Depth%Positive == "inverse") then i4                
+            
+                GetCellInDepth = - Aux            
             
             else i4
                 stop 'GetCellInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR20' 
@@ -4889,7 +5086,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
         call AllocateValueIn(Me%Date%ValueIn, Dim1 = Me%Date%NumberInst)
 
-        if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR60'        
+        !if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR60'        
         
         do i=1, Me%Date%NumberInst
         
@@ -5131,8 +5328,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
        
         allocate(Me%LongLat%LongOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%LongLat%LatOut (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%LongLat%RotationX(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%LongLat%RotationY (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
         
         
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB+1
@@ -5474,7 +5670,7 @@ i2:                 if (Me%Depth%Interpolate) then
         if (Me%Depth%Interpolate) then
             Me%WorkSize%KUB = Me%Depth%N_ZLevels
         else
-            Me%WorkSize%KUB = Me%Depth%kmax        
+            Me%WorkSize%KUB = Me%Depth%kmax - Me%Depth%RemoveNsurfLayers
         endif
 
         Me%Size%KLB = Me%WorkSize%KLB - 1
@@ -5557,6 +5753,9 @@ i2:                 if (Me%Depth%Interpolate) then
                                                            Dim2 = Me%LongLat%imax,      &
                                                            Dim3 = 1,                    &
                                                            Dim4 = 1)
+            elseif (Me%Field(iP)%ValueIn%Dim  == 2) then
+                call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,      &
+                                                           Dim2 = Me%LongLat%imax)                                                           
             else
                 stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
             endif
