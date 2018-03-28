@@ -607,7 +607,7 @@ program MohidWater
                 end if
                 
                 !PCL 
-                write(*,*) "Construct modelo MPI ID =", CurrentModel%MPI_ID
+                write(*,*) "Construct model MPI ID =", CurrentModel%MPI_ID
 
                 call ConstructModel(LagInstance, ModelNames, NumberOfModels,            &
                                     ObjLagrangianGlobal, CurrentModel%ModelID,          &
@@ -850,14 +850,14 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                     call GetHydroNeedsFather (CurrentModel%HydrodynamicID,               &
                                               CurrentModel%FatherLink%Hydro,             &
                                               STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR300'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR300'
                     
 
                     call GetWaterNeedsFather (CurrentModel%WaterpropertiesID,            &
                                               CurrentModel%FatherLink%Water,             &
                                               CurrentModel%FatherLink%nProp,             &
                                               STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR310'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR310'
                     
                     if (CurrentModel%FatherLink%Hydro .or. CurrentModel%FatherLink%Water) then
                         CurrentModel%FatherLink%Nesting = .true.
