@@ -62,7 +62,7 @@ Module ModuleField4D
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
                                        HDF5WriteData, HDF5FlushMemory, HDF5WriteData,   &
                                        GetHDF5GroupExist, GetHDF5DataSetExist,          &
-                                       GetHDF5ArrayDim
+                                       GetHDF5ArrayDim, HDF5ReadData
 #ifndef _NO_NETCDF                                       
     ! Manages NetCDF files
     use ModuleNetCDF,           only : GetNCDFFileAccess, ConstructNETCDF,              &
@@ -103,6 +103,7 @@ Module ModuleField4D
     !Selector
     public  :: GetField4DTimeLimits
     public  :: GetField4DNumberOfInstants
+    public  :: GetField4DGeneric4DValue    
     public  :: GetField4DInstant
     public  :: GetField4DSize2D
     public  :: GetField4DSize3D   
@@ -4452,6 +4453,75 @@ d2:     do N =1, NW
     
     !--------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
+    real function GetField4DGeneric4DValue (Field4DID, Instant, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: Field4DID
+        integer                                         :: Instant
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        real,   dimension(:), pointer                   :: AuxVector
+        integer                                         :: STAT_, ready_, STAT_CALL
+        logical                                         :: Generic4DExist
+        
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(Field4DID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call GetHDF5GroupExist (HDF5ID      = Me%File%Obj,                          &
+                                    GroupName   = "/Generic4D",                         &
+                                    Exist       = Generic4DExist,                       &
+                                    STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'GetField4DGeneric4DValue - ModuleField4D - ERR10'
+            
+            if (Generic4DExist) then  
+
+                call HDF5SetLimits  (Me%File%Obj, 1, 1, STAT = STAT_CALL)
+
+                allocate(AuxVector(1))
+                                      
+                call HDF5ReadData   (HDF5ID         = Me%File%Obj,                      &
+                                     GroupName      = "/Generic4D",                     &
+                                     Name           = "Generic4D",                      &
+                                     Array1D        = AuxVector,                        &
+                                     OutputNumber   = Instant,                          &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    write(*,*) 'ObjHDF5=', Me%File%Obj 
+                    write(*,*) 'FileName=', trim(Me%File%FileName)
+                    write(*,*) 'STAT_CALL= ', STAT_CALL
+                    stop 'GetField4DGeneric4DValue - ModuleField4D - ERR20'
+                endif
+
+                GetField4DGeneric4DValue = AuxVector(1)
+     
+                deallocate(AuxVector)                
+                
+            else
+                write(*,*) "GroupName = /Generic4D does not exist in File=",trim(Me%File%FileName)
+                stop 'GetField4DGeneric4DValue - ModuleField4D - ERR30'
+            endif            
+            
+            
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end function GetField4DGeneric4DValue
+    
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
     subroutine GetField4DSize2D (Field4DID, Size2D, WorkSize2D, STAT)
