@@ -293,7 +293,8 @@ Module ModuleTurbulence
         real, dimension(:,:,:), pointer             :: TKE, L, eps, P, B          
         real                                        :: MAXMixingLength        = null_real !Nihoul & Leendertsee
         real                                        :: MINHorizontalViscosity = null_real !Estuary & Smagorinsky
-        real                                        :: MAXHorizontalViscosity = null_real !Estuary & Smagorinsky        
+        real                                        :: MAXHorizontalViscosity = null_real !Estuary & Smagorinsky 
+        logical                                     :: HorizontalMaxON        = .false.                
         real                                        :: ReferenceDepth         = null_real !Estuary
         real                                        :: ReferenceVelocity      = null_real !Estuary
         real                                        :: HORCON                 = null_real !Smagorinsky
@@ -1802,7 +1803,13 @@ cd2 :   if (flag .EQ. 0) then
                      default      = -FillValueReal,                                     &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'TurbulenceOptions - ModuleTurbulence - ERR240'        
+            stop 'TurbulenceOptions - ModuleTurbulence - ERR240'    
+            
+        if (flag == 1) then
+            Me%TurbVar%HorizontalMaxON = .true.
+        else
+            Me%TurbVar%HorizontalMaxON = .false.
+        endif            
  
 ! Modified by Matthias DELPEy - 19/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         call GetData(Me%TurbOptions%WaveSurfTKE,                                        &
@@ -2099,7 +2106,7 @@ case1 : select case(String)
 
 cd1 :   if (iflag .EQ. 0) then
             write(*,*) 
-            write(*,*) 'Maximum Horizontal Viscosity not defined'
+            write(*,*) 'Minimum Horizontal Viscosity not defined'
             write(*,*) 'Keyword - VISH_REF'
             write(*,*) 'Value set to ', Me%TurbVar%MINHorizontalViscosity
             write(*,*) 'InicEstuarySmagorinskyModel - ModuleTurbulence - WRN01'
@@ -3516,6 +3523,10 @@ cd4 :       if     (Me%TurbOptions%MODVISH .EQ. Constant_   ) then
                 call WaveBreaking
                                     
             endif
+            
+            if (Me%TurbVar%HorizontalMaxON) then
+                call ImposeTurbHorizLimit
+            endif                
 
             call TurbulentViscosity_CellCorner
             
@@ -4573,10 +4584,6 @@ do1 :           do k = kbottom, KUB
                     Me%Viscosity%HorizontalCenter(i, j, k) = max(Me%TurbVar%MINHorizontalViscosity, &
                                                                  ViscTurb + Me%Viscosity%Background)
                                                                  
-                    if (Me%Viscosity%HorizontalCenter(i, j, k) > Me%TurbVar%MaxHorizontalViscosity) then
-                        Me%Viscosity%HorizontalCenter(i, j, k) = Me%TurbVar%MaxHorizontalViscosity
-                    endif
-
                 enddo do1
             end if cd1          
 
@@ -4804,9 +4811,6 @@ do1 :           do k = kbottom, KUB
                     
                     Me%Viscosity%HorizontalCenter(i, j, k) = Me%Viscosity%HorizontalCenterIni(i, j, k) + TurbWaveBreaking
                                                                  
-                    if (Me%Viscosity%HorizontalCenter(i, j, k) > Me%TurbVar%MaxHorizontalViscosity) then
-                        Me%Viscosity%HorizontalCenter(i, j, k) = Me%TurbVar%MaxHorizontalViscosity
-                    endif
                         
                 enddo do1
             end if cd1          
@@ -6306,6 +6310,60 @@ do3 :   do i = ILB, IUB
         if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "TurbulentViscosity_CellCorner")
 
     end subroutine TurbulentViscosity_CellCorner
+
+
+    !----------------------------------------------------------------------------
+    !This subroutine limits the horizontal turbulent viscosity to a max value
+
+    subroutine ImposeTurbHorizLimit
+
+        !Local-------------------------------------------------------------------
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: i, j, k
+
+        integer                                 :: CHUNK
+        
+        !------------------------------------------------------------------------  
+        
+        if (MonitorPerformance) &
+            call StartWatch ("ModuleTurbulence", "ImposeTurbHorizLimit")
+      
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+
+        !Interpolates
+
+        CHUNK = CHUNK_J(JLB,JUB)
+        !$OMP PARALLEL PRIVATE(I,J)
+        
+do1 :   do k = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+do2 :   do j = JLB, JUB
+do3 :   do i = ILB, IUB
+
+
+            if (Me%ExternalVar%WaterPoints3D(i  , j  , k) == WaterPoint) then
+
+                if (Me%Viscosity%HorizontalCenter(i, j, k) > Me%TurbVar%MaxHorizontalViscosity) then
+                    Me%Viscosity%HorizontalCenter(i, j, k) = Me%TurbVar%MaxHorizontalViscosity
+                endif
+
+            endif
+
+        end do do3
+        end do do2
+        !$OMP END DO
+        end do do1
+
+        !$OMP END PARALLEL
+        if (MonitorPerformance) call StopWatch ("ModuleTurbulence", "ImposeTurbHorizLimit")
+
+    end subroutine ImposeTurbHorizLimit
+
 
     
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
