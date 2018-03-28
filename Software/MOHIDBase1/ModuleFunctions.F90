@@ -5071,19 +5071,21 @@ d1:     do k = KLB, KUB
                         do dij=1,dijmax
 
                             do jj=j-dij,j+dij
-                            do ii=i-dij,i+dij
 
                                 if (jj < JLB) cycle
                                 if (jj > JUB) cycle
-                                if (ii < ILB) cycle
-                                if (ii > IUB) cycle
 
-                                if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
-                                    SumValues   = SumValues   + OutValues3D(ii, jj, k) 
-                                    Count = Count + 1
-                                endif
+                                do ii=i-dij,i+dij
 
-                            enddo
+                                    if (ii < ILB) cycle
+                                    if (ii > IUB) cycle
+
+                                    if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
+                                        SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                        Count = Count + 1
+                                    endif
+
+                                enddo
                             enddo
 
                             if (Count > 0) exit
@@ -5125,6 +5127,7 @@ d1:     do k = KLB, KUB
                                                                        
                                 else
 
+                                    write(*,*) 'i j k=',i,j,k   
                                     stop 'ExtraPol3DNearestCell - ModuleFunctions - ERR10'
                                 
                                 endif
@@ -5218,19 +5221,21 @@ d1:     do k = KLB, KUB
                         do dij=1,dijmax
 
                             do jj=j-dij,j+dij
-                            do ii=i-dij,i+dij
 
                                 if (jj < JLB) cycle
                                 if (jj > JUB) cycle
-                                if (ii < ILB) cycle
-                                if (ii > IUB) cycle
 
-                                if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
-                                    SumValues   = SumValues   + OutValues3D(ii, jj, k) 
-                                    Count = Count + 1
-                                endif
+                                do ii=i-dij,i+dij
 
-                            enddo
+                                    if (ii < ILB) cycle
+                                    if (ii > IUB) cycle
+
+                                    if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
+                                        SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                        Count = Count + 1
+                                    endif
+
+                                enddo
                             enddo
 
                             if (Count > 0) exit
@@ -5271,7 +5276,10 @@ d1:     do k = KLB, KUB
                                     OutValues3D(i, j, k) = FillValueReal
                                                                        
                                 else
-
+                                    write(*,*) 'kk dk=',kk, dk
+                                    write(*,*) 'ii jj dij dijmax=',ii, jj, dij, dijmax
+                                    write(*,*) 'Count SumValues=',Count, SumValues
+                                    write(*,*) 'i j k=',i,j,k   
                                     stop 'ExtraPol3DNearestCell_8 - ModuleFunctions - ERR10'
                                 
                                 endif
