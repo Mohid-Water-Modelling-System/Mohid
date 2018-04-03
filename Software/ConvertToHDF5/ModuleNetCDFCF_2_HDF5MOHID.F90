@@ -126,6 +126,9 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         type (T_ValueIn)                        :: LongIn,  LatIn        
         real, dimension(:,:),     pointer       :: LongOut, LatOut, RotationX, RotationY
         integer                                 :: imax, jmax
+        logical                                 :: Imposed
+        real                                    :: LongOrig, dLong
+        real                                    :: LatOrig,  dLat        
         logical                                 :: Starts180W
         integer                                 :: CorrectJDown, CorrectJUp, BreakJ
         integer                                 :: dij
@@ -153,6 +156,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real(8), dimension(:),       pointer    :: Zlevels
         logical                                 :: InvertLayers
         logical                                 :: NetCDFNameFaceOff = .false.
+        integer                                 :: RemoveNsurfLayers = 0
     end type  T_Depth
 
     private :: T_Bathym
@@ -935,13 +939,60 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     subroutine WriteRotation
     
         !Local-----------------------------------------------------------------
+        real,  dimension(:,:), pointer              :: RotationX, RotationY
         integer                                     :: i, iP, iPx, iPy
         logical                                     :: Found
+        integer                                     :: WorkJLB, WorkJUB, WorkILB, WorkIUB
+        integer                                     :: ii, jj, STAT_CALL
         !Begin-----------------------------------------------------------------
         
         do iP = 1, Me%PropNumber
         
             if (Me%Field(iP)%Rotation) then
+                    
+                if (.not.associated(Me%LongLat%RotationX)) then
+                
+                
+                    if (Me%WindowOut%ON) then
+                        WorkILB = 1
+                        WorkIUB = Me%WindowOut%IUB - Me%WindowOut%ILB + 1
+                        WorkJLB = 1
+                        WorkJUB = Me%WindowOut%JUB - Me%WindowOut%JLB + 1
+                    else
+                    
+                        WorkILB = Me%WorkSize%ILB
+                        WorkIUB = Me%WorkSize%IUB        
+                        WorkJLB = Me%WorkSize%JLB
+                        WorkJUB = Me%WorkSize%JUB       
+                        
+                        Me%WindowOut%ILB = Me%WorkSize%ILB
+                        Me%WindowOut%IUB = Me%WorkSize%IUB
+                        Me%WindowOut%JLB = Me%WorkSize%JLB
+                        Me%WindowOut%JUB = Me%WorkSize%JUB
+
+                    endif
+                                 
+                
+                    allocate(Me%LongLat%RotationX (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    allocate(Me%LongLat%RotationY (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))            
+                    
+
+                    call GetGridRotation(Me%ObjHorizontalGrid, RotationX, RotationY, STAT = STAT_CALL)   
+                    if (STAT_CALL /= SUCCESS_)stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+                    
+                    do jj = WorkJLB, WorkJUB
+                    do ii = WorkILB, WorkIUB
+                        Me%LongLat%RotationX(ii+ Me%WindowOut%ILB - 1,jj+ Me%WindowOut%JLB - 1) = RotationX(ii,jj)
+                        Me%LongLat%RotationY(ii+ Me%WindowOut%ILB - 1,jj+ Me%WindowOut%JLB - 1) = RotationY(ii,jj)                
+                    enddo
+                    enddo
+        
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, RotationX, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+        
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, RotationY, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR30'                    
+                endif                                        
         
                 !Found component X
                 Found = .false.
@@ -951,7 +1002,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         exit
                     endif
                 enddo
-                if (.not. Found) stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+                if (.not. Found) stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
 
                 !Found component Y
                 Found = .false.
@@ -961,7 +1012,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         exit
                     endif
                 enddo
-                if (.not. Found) stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                if (.not. Found) stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
 
                 do i=1, Me%Date%TotalInst
@@ -2303,6 +2354,12 @@ BF:         if (BlockFound) then
                              default      = "down",                                     &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR160'  
+                
+                if (trim(Me%Depth%Positive) /= "down" .and.                             &
+                    trim(Me%Depth%Positive) /= "up"   .and.                             &
+                    trim(Me%Depth%Positive) /= "inverse") then
+                    stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR162'  
+                endif                    
 
                 !invert layer order
                 call GetData(Me%Depth%InvertLayers,                                     &
@@ -2324,16 +2381,87 @@ BF:         if (BlockFound) then
                              default      = .false.,                                    &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR170'  
+
+
+                call GetData(Me%LongLat%Imposed,                                        &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'LONG_LAT_IMPOSED',                         &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = .false.,                                    &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR180'  
                 
+                if (Me%LongLat%Imposed) then
+
+                    call GetData(Me%LongLat%LongOrig,                                   &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'LONG_ORIG',                            &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR190'  
+                    
+                    if (iflag == 0) then
+                        stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR200'  
+                    endif
+                
+                    call GetData(Me%LongLat%dLong,                                      &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'LONG_DX',                              &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR210'  
+                    
+                    if (iflag == 0) then
+                        stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR220'  
+                    endif
+
+                    call GetData(Me%LongLat%LatOrig,                                    &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'LAT_ORIG',                             &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR230'  
+                    
+                    if (iflag == 0) then
+                        stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR240'  
+                    endif
+                
+                    call GetData(Me%LongLat%dLat,                                       &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'LAT_DY',                               &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR250'  
+                    
+                    if (iflag == 0) then
+                        stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR260'  
+                    endif
+                    
+                
+                    call GetData(Me%Depth%RemoveNsurfLayers,                            &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'REMOVE_SURFACE_N_LAYERS',              &
+                                 default      = 0,                                      &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR270'  
+  
+                endif
   
             else BF
             
-                stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR200'    
+                stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR400'    
                 
             endif BF
         else IS
         
-            stop 'ReadGrid2DOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR300'    
+            stop 'ReadGrid2DOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR500'    
         
         endif IS                             
                               
@@ -3149,6 +3277,82 @@ BF:         if (BlockFound) then
     end subroutine ReadTotalTime
 
     !------------------------------------------------------------------------
+    
+   !------------------------------------------------------------------------
+    subroutine ImposedRegularGrid(ncid)
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ncid
+        
+        !Local-----------------------------------------------------------------
+        integer                                         :: status, numDims, i, j
+        integer                                         :: RhVarIdLat, RhVarIdLong
+        integer, dimension(nf90_max_var_dims)           :: rhDimIdsLat, rhDimIdsLong
+        
+        !Begin-----------------------------------------------------------------        
+
+
+        
+        status=nf90_inq_varid(ncid,trim(Me%LongLat%NetCDFNameLong),RhVarIdLong)
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+        status = nf90_inquire_variable(ncid, RhVarIdLong, ndims = numDims)
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+        status = nf90_inquire_variable(ncid, RhVarIdLong, dimids = rhDimIdsLong(:numDims))
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+        
+        status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%jmax)
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'  
+
+        status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%imax)
+        if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'         
+        
+        if (Me%ReadInvertXY) then
+
+            status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(2), len = Me%LongLat%jmax)
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'        
+
+            status=NF90_INQUIRE_DIMENSION(ncid, rhDimIdsLong(1), len = Me%LongLat%imax)
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR70' 
+        
+        endif
+        
+    
+        !Build HDF5 MOHID Grid
+        Me%WorkSize%ILB = Me%LongLat%dij
+        Me%WorkSize%IUB = Me%LongLat%imax - 1 - Me%LongLat%dij
+        Me%WorkSize%JLB = Me%LongLat%dij
+        Me%WorkSize%JUB = Me%LongLat%jmax - 1 - Me%LongLat%dij
+
+        
+        !to warn the user before the model crashes
+        !cant use a NetCDF with one of the dimension as 2 (or lower) because IUB or JUB would be zero (or lower).
+        if ((Me%WorkSize%IUB < 1) .or. (Me%WorkSize%JUB < 1)) then
+            write (*,*)
+            write (*,*) 'Please use a NETCDF file with more than'
+            write (*,*) '2x2 points so that the grid can be correctly extracted'
+            stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR130'
+        endif
+
+        Me%Size%ILB     = Me%WorkSize%ILB - 1
+        Me%Size%IUB     = Me%WorkSize%IUB + 1
+        Me%Size%JLB     = Me%WorkSize%JLB - 1
+        Me%Size%JUB     = Me%WorkSize%JUB + 1    
+        
+        allocate(Me%LongLat%LongOut   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%LongLat%LatOut    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+      
+        
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB+1
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB+1
+            
+            Me%LongLat%LongOut(i, j) = Me%LongLat%LongOrig + real(j-1)*Me%LongLat%dLong
+            Me%LongLat%LatOut (i, j) = Me%LongLat%LatOrig  + real(i-1)*Me%LongLat%dLat
+            
+        enddo
+        enddo     
+            
+    end subroutine ImposedRegularGrid                       
 
    !------------------------------------------------------------------------
     subroutine ReadWriteGrid2D(ncid)
@@ -3156,7 +3360,7 @@ BF:         if (BlockFound) then
         integer                                         :: ncid
         
         !Local-----------------------------------------------------------------
-        real,  dimension(:,:), pointer              :: RotationX, RotationY, Lat, Long
+        real,  dimension(:,:), pointer              :: Lat, Long
         real,   dimension(:),   pointer             :: Dummy
         integer                                     :: STAT_CALL, i, j
         type (T_Size2D)                             :: WorkSize2D
@@ -3164,7 +3368,11 @@ BF:         if (BlockFound) then
 
         !Begin-----------------------------------------------------------------
         
-        call ReadGrid2DNetCDF(ncid)
+        if (Me%LongLat%Imposed) then
+            call ImposedRegularGrid(ncid)
+        else
+            call ReadGrid2DNetCDF(ncid)
+        endif            
 
         Me%WorkSize2D%ILB = Me%WorkSize%ILB
         Me%WorkSize2D%IUB = Me%WorkSize%IUB        
@@ -3230,21 +3438,6 @@ BF:         if (BlockFound) then
                                      WorkSize = WorkSize2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
-            call GetGridRotation(Me%ObjHorizontalGrid, RotationX, RotationY, STAT = STAT_CALL)   
-            if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
-            
-            do j = WorkJLB, WorkJUB
-            do i = WorkILB, WorkIUB
-                Me%LongLat%RotationX(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1) = RotationX(i,j)
-                Me%LongLat%RotationY(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1) = RotationY(i,j)                
-            enddo
-            enddo
-
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, RotationX, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
-
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, RotationY, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadWriteGrid2D - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
             
         endif
         
@@ -4249,6 +4442,10 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             elseif  (Me%Depth%Positive == "down") then i4
             
                 GetCellInDepth = Aux
+                
+            elseif  (Me%Depth%Positive == "inverse") then i4                
+            
+                GetCellInDepth = - Aux            
             
             else i4
                 stop 'GetCellInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR20' 
@@ -4632,218 +4829,291 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
 
 
         status=NF90_INQ_DIMID(ncid,trim(Me%Date%NetCDFDimName),dimid)
-        if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
-
-        status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%Date%NumberInst)
-        if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+        if (status /= nf90_noerr) then
+            !Try to rea in String format - WRF model format
+            call ReadTimeNetCDFString(ncid)            
+        else
         
-        call AllocateValueIn(Me%Date%ValueIn, Dim1 = Me%Date%NumberInst)
-
-        status = nf90_inq_varid(ncid, trim(Me%Date%NetCDFName), n)
-        if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
-
-        call GetNetCDFMatrix(ncid, n, Me%Date%ValueIn) 
-        
-        if (Me%Date%RefAttribute) then
-        
-            status=NF90_GET_ATT(ncid,n,trim(Me%Date%RefAttributeName), ref_date)
-            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            status=NF90_INQUIRE_DIMENSION(ncid, dimid, len = Me%Date%NumberInst)
+            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
             
+            call AllocateValueIn(Me%Date%ValueIn, Dim1 = Me%Date%NumberInst)
+
+            status = nf90_inq_varid(ncid, trim(Me%Date%NetCDFName), n)
+            if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+
+            call GetNetCDFMatrix(ncid, n, Me%Date%ValueIn) 
             
+            if (Me%Date%RefAttribute) then
             
-            tmax = len_trim(ref_date)
-
-            ReadTime =.false.
-            
-            Me%Date%UnitsFactor = 3600.
-
-            do i=1,tmax-5
-                if (ref_date(i:i+5)== "second") then
-                    ReadTime =.true.
-                    Me%Date%UnitsFactor = 1.
-                    exit
-                endif
-            enddo
-            
-            do i=1,tmax-2
-                if (ref_date(i:i+2)== "day" .or. ref_date(i:i+2)== "DAY" .or.           &
-                    ref_date(i:i+2)== "Day" .or. ref_date(i:i+2)== "daY" .or.           &
-                    ref_date(i:i+2)== "DAy") then
-                    ReadTime =.true.
-                    Me%Date%UnitsFactor = 86400.
-                    exit
-                endif
-            enddo            
-
-            do i=1,tmax-5
-                if (ref_date(i:i+5)== "minute") then
-                    ReadTime =.true.
-                    Me%Date%UnitsFactor = 60.
-                    exit
-                endif
-            enddo            
-
-
-            do i=1,tmax-4            
-                if (ref_date(i:i+4)== "since") then
-                    ref_date = ref_date(i+5:tmax)
-                    exit
-                endif
+                status=NF90_GET_ATT(ncid,n,trim(Me%Date%RefAttributeName), ref_date)
+                if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
                 
-            enddo
-
-            ReadTime = .false.
-            do i=1,len_trim(ref_date)
-
-                if (ref_date(i:i) ==':') then
-                    ReadTime = .true.
-                endif
-
-            enddo  
-
-            do i=1,len(ref_date)
-
-!                if (ref_date(i:i) =='_'.or.ref_date(i:i) ==':'.or. ref_date(i:i) =='-'&
-!                    .or. ref_date(i:i) =='Z'.or. ref_date(i:i) =='T') then
-!                    ref_date(i:i) = ' '
-!                endif
-                if (ichar(ref_date(i:i))>57 .or. ichar(ref_date(i:i))<48) ref_date(i:i)=' '
                 
-                !write(*,*) ichar("1"), ichar("9"), ichar("0")
-            enddo  
-            
-            jmax = len(ref_date)-3
-            
-            do i=1,jmax
-
-                if (ref_date(i:i+3) ==' 00 ') then
-                    ref_date(i:i+3) = ' 0  '
-                endif
-
-                if (ref_date(i:i+3) ==' 0.0') then
-                    ref_date(i:i+3) = ' 0  '
-                endif          
                 
-                if (ref_date(i:i+2) ==' 01 ') then
-                    ref_date(i:i+2) = '  1 '
-                endif                              
+                tmax = len_trim(ref_date)
 
-                if (ref_date(i:i+2) ==' 02 ') then
-                    ref_date(i:i+2) = '  2 '
-                endif                   
+                ReadTime =.false.
                 
-                if (ref_date(i:i+2) ==' 03 ') then
-                    ref_date(i:i+2) = '  3 '
-                endif        
-                
-                if (ref_date(i:i+2) ==' 04 ') then
-                    ref_date(i:i+2) = '  4 '
-                endif                   
+                Me%Date%UnitsFactor = 3600.
 
-                if (ref_date(i:i+2) ==' 05 ') then
-                    ref_date(i:i+2) = '  5 '
-                endif                   
-
-                if (ref_date(i:i+2) ==' 06 ') then
-                    ref_date(i:i+2) = '  6 '
-                endif                   
-
-                if (ref_date(i:i+2) ==' 07 ') then
-                    ref_date(i:i+2) = '  7 '
-                endif                   
-
-                if (ref_date(i:i+2) ==' 08 ') then
-                    ref_date(i:i+2) = '  8 '
-                endif                   
-
-                if (ref_date(i:i+2) ==' 09 ') then
-                    ref_date(i:i+2) = '  9 '
-                endif                   
-
-            enddo            
-            
-            !ref_date(1:19) = trim(adjustl(ref_date))
-            
-            AuxTime(:) = 0.
-
-            if (ReadTime) then                            
-                read(ref_date,*,iostat=stat) (AuxTime (i), i = 1, 6)
-                if (stat /= SUCCESS_) then
-                    read(ref_date,*,iostat=stat) (AuxTime (i), i = 1, 5)
-                    AuxTime(6) = 0
-                endif                    
-                
-            else
-                read(ref_date,*) (AuxTime (i), i = 1, 3)
-            endif
-
-                        
-            call SetDate (Me%Date%RefDateTimeIn, Year    = AuxTime(1),                  &
-                                                 Month   = AuxTime(2),                  &
-                                                 Day     = AuxTime(3),                  &
-                                                 Hour    = AuxTime(4),                  &
-                                                 Minute  = AuxTime(5),                  &
-                                                 Second  = AuxTime(6))
-
-        endif
-        
-        if (Me%Date%RefDateOffSetFromAtt) then
-        
-            AuxOffSet   = ReadOffSetAtt (ncid = ncid,                                   &
-                                         Prop = Me%Date%RefDateOffSetProp,              &
-                                         Att  = Me%Date%RefDateOffSetAtt)
-        endif
-                
-        
-        do i=1, Me%Date%NumberInst
-
-            Aux = GetNetCDFValue(Me%Date%ValueIn,  Dim1 = i)
-            
-            Aux = Aux * dble(Me%Date%UnitsFactor)
-            
-            HundredDays = 100*86400 
-            Aux1        = Aux
-            call JulianDateToGregorianDate(Me%Date%RefDateTimeIn, CurrentTime)
-            
-            !~3e7 anos
-            if (Aux1 > 1e15) then  
-                write(*,*) 'error in the time instant =',i
-                
-                stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
-            endif                 
-             
-
-            if (Aux1 > HundredDays) then            
-                
-                do while (Aux1 > HundredDays)
-                    
-                    CurrentTime = CurrentTime + HundredDays
-                    
-                    Aux1 = Aux1 - HundredDays                 
+                do i=1,tmax-5
+                    if (ref_date(i:i+5)== "second") then
+                        ReadTime =.true.
+                        Me%Date%UnitsFactor = 1.
+                        exit
+                    endif
                 enddo
-            
+                
+                do i=1,tmax-2
+                    if (ref_date(i:i+2)== "day" .or. ref_date(i:i+2)== "DAY" .or.           &
+                        ref_date(i:i+2)== "Day" .or. ref_date(i:i+2)== "daY" .or.           &
+                        ref_date(i:i+2)== "DAy") then
+                        ReadTime =.true.
+                        Me%Date%UnitsFactor = 86400.
+                        exit
+                    endif
+                enddo            
+
+                do i=1,tmax-5
+                    if (ref_date(i:i+5)== "minute") then
+                        ReadTime =.true.
+                        Me%Date%UnitsFactor = 60.
+                        exit
+                    endif
+                enddo            
+
+
+                do i=1,tmax-4            
+                    if (ref_date(i:i+4)== "since") then
+                        ref_date = ref_date(i+5:tmax)
+                        exit
+                    endif
+                    
+                enddo
+
+                ReadTime = .false.
+                do i=1,len_trim(ref_date)
+
+                    if (ref_date(i:i) ==':') then
+                        ReadTime = .true.
+                    endif
+
+                enddo  
+
+                do i=1,len(ref_date)
+
+    !                if (ref_date(i:i) =='_'.or.ref_date(i:i) ==':'.or. ref_date(i:i) =='-'&
+    !                    .or. ref_date(i:i) =='Z'.or. ref_date(i:i) =='T') then
+    !                    ref_date(i:i) = ' '
+    !                endif
+                    if (ichar(ref_date(i:i))>57 .or. ichar(ref_date(i:i))<48) ref_date(i:i)=' '
+                    
+                    !write(*,*) ichar("1"), ichar("9"), ichar("0")
+                enddo  
+                
+                jmax = len(ref_date)-3
+                
+                do i=1,jmax
+
+                    if (ref_date(i:i+3) ==' 00 ') then
+                        ref_date(i:i+3) = ' 0  '
+                    endif
+
+                    if (ref_date(i:i+3) ==' 0.0') then
+                        ref_date(i:i+3) = ' 0  '
+                    endif          
+                    
+                    if (ref_date(i:i+2) ==' 01 ') then
+                        ref_date(i:i+2) = '  1 '
+                    endif                              
+
+                    if (ref_date(i:i+2) ==' 02 ') then
+                        ref_date(i:i+2) = '  2 '
+                    endif                   
+                    
+                    if (ref_date(i:i+2) ==' 03 ') then
+                        ref_date(i:i+2) = '  3 '
+                    endif        
+                    
+                    if (ref_date(i:i+2) ==' 04 ') then
+                        ref_date(i:i+2) = '  4 '
+                    endif                   
+
+                    if (ref_date(i:i+2) ==' 05 ') then
+                        ref_date(i:i+2) = '  5 '
+                    endif                   
+
+                    if (ref_date(i:i+2) ==' 06 ') then
+                        ref_date(i:i+2) = '  6 '
+                    endif                   
+
+                    if (ref_date(i:i+2) ==' 07 ') then
+                        ref_date(i:i+2) = '  7 '
+                    endif                   
+
+                    if (ref_date(i:i+2) ==' 08 ') then
+                        ref_date(i:i+2) = '  8 '
+                    endif                   
+
+                    if (ref_date(i:i+2) ==' 09 ') then
+                        ref_date(i:i+2) = '  9 '
+                    endif                   
+
+                enddo            
+                
+                !ref_date(1:19) = trim(adjustl(ref_date))
+                
+                AuxTime(:) = 0.
+
+                if (ReadTime) then                            
+                    read(ref_date,*,iostat=stat) (AuxTime (i), i = 1, 6)
+                    if (stat /= SUCCESS_) then
+                        read(ref_date,*,iostat=stat) (AuxTime (i), i = 1, 5)
+                        AuxTime(6) = 0
+                    endif                    
+                    
+                else
+                    read(ref_date,*) (AuxTime (i), i = 1, 3)
+                endif
+
+                            
+                call SetDate (Me%Date%RefDateTimeIn, Year    = AuxTime(1),                  &
+                                                     Month   = AuxTime(2),                  &
+                                                     Day     = AuxTime(3),                  &
+                                                     Hour    = AuxTime(4),                  &
+                                                     Minute  = AuxTime(5),                  &
+                                                     Second  = AuxTime(6))
+
             endif
-                        
-            CurrentTime = CurrentTime + Aux1
-            
-            !CurrentTime = CurrentTime + Me%Date%RefDateOffSet*86400
-            !Date off set in seconds
-            CurrentTime = CurrentTime + Me%Date%RefDateOffSet
             
             if (Me%Date%RefDateOffSetFromAtt) then
-                CurrentTime = CurrentTime + AuxOffSet 
-            endif
             
-            if (i==Me%Date%NumberInst) Me%Date%FileEndTime = CurrentTime
+                AuxOffSet   = ReadOffSetAtt (ncid = ncid,                                   &
+                                             Prop = Me%Date%RefDateOffSetProp,              &
+                                             Att  = Me%Date%RefDateOffSetAtt)
+            endif
+                    
+            
+            do i=1, Me%Date%NumberInst
+
+                Aux = GetNetCDFValue(Me%Date%ValueIn,  Dim1 = i)
+                
+                Aux = Aux * dble(Me%Date%UnitsFactor)
+                
+                HundredDays = 100*86400 
+                Aux1        = Aux
+                call JulianDateToGregorianDate(Me%Date%RefDateTimeIn, CurrentTime)
+                
+                !~3e7 anos
+                if (Aux1 > 1e15) then  
+                    write(*,*) 'error in the time instant =',i
+                    
+                    stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                endif                 
+                 
+
+                if (Aux1 > HundredDays) then            
+                    
+                    do while (Aux1 > HundredDays)
+                        
+                        CurrentTime = CurrentTime + HundredDays
+                        
+                        Aux1 = Aux1 - HundredDays                 
+                    enddo
+                
+                endif
+                            
+                CurrentTime = CurrentTime + Aux1
+                
+                !CurrentTime = CurrentTime + Me%Date%RefDateOffSet*86400
+                !Date off set in seconds
+                CurrentTime = CurrentTime + Me%Date%RefDateOffSet
+                
+                if (Me%Date%RefDateOffSetFromAtt) then
+                    CurrentTime = CurrentTime + AuxOffSet 
+                endif
+                
+                if (i==Me%Date%NumberInst) Me%Date%FileEndTime = CurrentTime
+                
+                Aux = CurrentTime - Me%Date%RefDateTimeOut
+                
+                call SetNetCDFValue(Me%Date%ValueIn,  Aux, Dim1 = i)
+                
+            enddo        
+        endif    
+ 
+    end subroutine ReadTimeNetCDF
+
+   !---------------------------------------------------------------------------
+
+   !---------------------------------------------------------------------------
+   
+   
+    subroutine ReadTimeNetCDFString(ncid)
+        !Arguments-------------------------------------------------------------
+        integer                                 :: ncid
+        
+        !Local-----------------------------------------------------------------
+        character(Len=StringLength)             :: aux_str
+        real                                    :: Year, Month, Day, Hour, Minute, Second
+        real(8)                                 :: Aux
+        integer                                 :: n, status, dimid, i, numDims
+        integer                                 :: stat, STAT_CALL, StringLength, k
+        type (T_Time)                           :: CurrentTime
+        integer, dimension(nf90_max_var_dims)   :: DimidArray
+
+        !Begin-----------------------------------------------------------------
+        
+        write(*,*)
+        write(*,*)'Read Time NetCDF file from an string array...'
+
+
+        status=nf90_inq_varid(ncid,trim(Me%Date%NetCDFDimName),dimid)
+        if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+        status = nf90_inquire_variable(ncid, dimid, ndims = numDims)
+        if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+        status = nf90_inquire_variable(ncid, dimid, dimids = DimidArray(:numDims))
+        if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+        
+        status=NF90_INQUIRE_DIMENSION(ncid, DimidArray(2), len = Me%Date%NumberInst)
+        if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR40'        
+
+        status=NF90_INQUIRE_DIMENSION(ncid, DimidArray(1), len = StringLength)
+        if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR50'        
+
+        call AllocateValueIn(Me%Date%ValueIn, Dim1 = Me%Date%NumberInst)
+
+        !if (status /= nf90_noerr) stop 'ReadTimeNetCDFString - ModuleNetCDFCF_2_HDF5MOHID - ERR60'        
+        
+        do i=1, Me%Date%NumberInst
+        
+
+            status = NF90_GET_VAR(ncid,dimid, aux_str(1:StringLength), &
+                                 start = (/ 1, i /))            
+
+            !The follow format is assumed 2017-10-09_11:00:00
+            read (aux_str( 1: 4),*) Year
+            read (aux_str( 6: 7),*) Month
+            read (aux_str( 9:10),*) Day
+            read (aux_str(12:13),*) Hour
+            read (aux_str(15:16),*) Minute
+            read (aux_str(18:19),*) Second   
+            
+            call SetDate(CurrentTime, Year, Month, Day, Hour, Minute, Second)     
             
             Aux = CurrentTime - Me%Date%RefDateTimeOut
             
             call SetNetCDFValue(Me%Date%ValueIn,  Aux, Dim1 = i)
             
+            if (i==Me%Date%NumberInst) Me%Date%FileEndTime = CurrentTime            
+            
         enddo        
-    
+       
  
-    end subroutine ReadTimeNetCDF
+    end subroutine ReadTimeNetCDFString
 
    !---------------------------------------------------------------------------
    
@@ -4885,6 +5155,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         integer                                 :: RhVarIdLat, RhVarIdLong
         integer, dimension(nf90_max_var_dims)   :: rhDimIdsLat, rhDimIdsLong
         real(8), dimension(:), allocatable      :: Long1D, Lat1D
+        real(8), dimension(:,:,:), allocatable  :: Aux3D
         real(8)                                 :: X1, X2, X3, X4, Y1, Y2, Y3, Y4, Aux1, Aux2, Aux
         !Begin-----------------------------------------------------------------
         
@@ -4907,7 +5178,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         status=nf90_inq_varid(ncid,trim(Me%LongLat%NetCDFNameLat),RhVarIdLat)
         if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
         
-        if      (numDims == 2) then     
+        if      (numDims == 2 .or. numDims == 3) then     
         
             if (Me%ReadInvertLat) then
                 write(*,*) 'Can only invert the latitude reading if the Grid in not 2D'
@@ -4944,6 +5215,36 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         if      (numDims == 2) then    
             call GetNetCDFMatrix(ncid, RhVarIdLong, Me%LongLat%LongIn) 
             call GetNetCDFMatrix(ncid, RhVarIdLat,  Me%LongLat%LatIn) 
+        else if (numDims == 3) then
+        
+            allocate(Aux3D(1: Me%LongLat%jmax,  Me%LongLat%imax,1))
+
+            status = nf90_get_var(ncid, RhVarIdLong, Aux3D,                          &
+                        start = (/ 1,       1, 1 /),                             &
+                        count = (/ Me%LongLat%jmax, Me%LongLat%imax, 1 /))  
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR110' 
+             
+            do j=1, Me%LongLat%jmax
+            do i=1, Me%LongLat%imax
+                call SetNetCDFValue(Me%LongLat%LongIn, Aux3D (j, i, 1), Dim1 = j,   Dim2 = i  )
+            enddo
+            enddo    
+                                
+
+            status = nf90_get_var(ncid, RhVarIdLat,  Aux3D,                          &
+                        start = (/ 1,       1, 1 /),                             &
+                        count = (/ Me%LongLat%jmax, Me%LongLat%imax, 1 /))
+            if (status /= nf90_noerr) stop 'ReadGrid2DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR120'          
+            
+            do j=1, Me%LongLat%jmax
+            do i=1, Me%LongLat%imax
+                call SetNetCDFValue(Me%LongLat%LatIn,  Aux3D (j, i, 1), Dim1 = j,   Dim2 = i  )
+            enddo
+            enddo    
+                               
+
+            deallocate(Aux3D)
+            
         else if (numDims == 1) then
             allocate(Long1D(1:Me%LongLat%jmax))
             allocate(Lat1D (1:Me%LongLat%imax))
@@ -5027,8 +5328,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
        
         allocate(Me%LongLat%LongOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%LongLat%LatOut (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%LongLat%RotationX(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        allocate(Me%LongLat%RotationY (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
         
         
         do j=Me%WorkSize%JLB, Me%WorkSize%JUB+1
@@ -5370,7 +5670,7 @@ i2:                 if (Me%Depth%Interpolate) then
         if (Me%Depth%Interpolate) then
             Me%WorkSize%KUB = Me%Depth%N_ZLevels
         else
-            Me%WorkSize%KUB = Me%Depth%kmax        
+            Me%WorkSize%KUB = Me%Depth%kmax - Me%Depth%RemoveNsurfLayers
         endif
 
         Me%Size%KLB = Me%WorkSize%KLB - 1
@@ -5453,6 +5753,9 @@ i2:                 if (Me%Depth%Interpolate) then
                                                            Dim2 = Me%LongLat%imax,      &
                                                            Dim3 = 1,                    &
                                                            Dim4 = 1)
+            elseif (Me%Field(iP)%ValueIn%Dim  == 2) then
+                call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,      &
+                                                           Dim2 = Me%LongLat%imax)                                                           
             else
                 stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
             endif

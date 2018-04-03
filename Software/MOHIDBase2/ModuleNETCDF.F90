@@ -23,7 +23,7 @@ Module ModuleNETCDF
 #else
     use netcdf90
 #endif
-
+    
     implicit none
 
     private 
@@ -47,6 +47,7 @@ Module ModuleNETCDF
     public  :: NETCDFSetDimensions
     public  :: NETCDFGetDimensions    
     public  :: NETCDFWriteLatLon
+    public  :: NETCDFWriteLatLon1D    
     public  :: NETCDFWriteVert
     public  :: NETCDFWriteVertStag    
     public  :: NETCDFReadVert    
@@ -92,27 +93,27 @@ Module ModuleNETCDF
     !nf90_int    = 4; nf90_float  = 5; nf90_double = 6
     
     !Grid
-    character(len=StringLength)                     :: Lat_Name        = "lat"
-    character(len=StringLength)                     :: Lon_Name        = "lon"    
-    character(len=StringLength)                     :: Lat_Stag_Name   = "lat_staggered"
-    character(len=StringLength)                     :: Lon_Stag_Name   = "lon_staggered"    
-    character(len=StringLength)                     :: gmaps_x_Name    = "googlemaps_x"
-    character(len=StringLength)                     :: gmaps_y_Name    = "googlemaps_y"
+    character(len=StringLength), parameter          :: Lat_Name        = "lat"
+    character(len=StringLength), parameter          :: Lon_Name        = "lon"    
+    character(len=StringLength), parameter          :: Lat_Stag_Name   = "lat_staggered"
+    character(len=StringLength), parameter          :: Lon_Stag_Name   = "lon_staggered"    
+    character(len=StringLength), parameter          :: gmaps_x_Name    = "googlemaps_x"
+    character(len=StringLength), parameter          :: gmaps_y_Name    = "googlemaps_y"
 
-    character(len=StringLength)                     :: depth_Name      = "depth"
-    character(len=StringLength)                     :: depth_Stag_Name = "depth_staggered"
+    character(len=StringLength), parameter          :: depth_Name      = "depth"
+    character(len=StringLength), parameter          :: depth_Stag_Name = "depth_staggered"
 
     
     !Time
-    character(len=StringLength)                     :: Time_Name                = "time"    
+    character(len=StringLength), parameter          :: Time_Name                = "time"    
     !Dimensions
-    character(len=StringLength)                     :: Column_Name              = "column_c"
-    character(len=StringLength)                     :: Line_Name                = "line_c"
-    character(len=StringLength)                     :: Layer_Name               = "depth"
+    character(len=StringLength), parameter          :: Column_Name              = "column_c"
+    character(len=StringLength), parameter          :: Line_Name                = "line_c"
+    character(len=StringLength), parameter          :: Layer_Name               = "depth"
     !horizontal vertices dimension
-    character(len=StringLength)                     :: HorizCell_Vertices_Names = "nvh"
+    character(len=StringLength), parameter          :: HorizCell_Vertices_Names = "nvh"
     !layers vertices dimension
-    character(len=StringLength)                     :: Layer_Vertices_Names     = "nvv"    
+    character(len=StringLength), parameter          :: Layer_Vertices_Names     = "nvv"    
     
     !Types---------------------------------------------------------------------
     type     T_ID
@@ -422,7 +423,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                              Calendar, ScaleFactor, FillValue,          &
                                              MissingValue, ValidMin, ValidMax,          &
                                              Maximum, Minimum, Add_Offset, Step,        &
-                                             iFillValue, coordinates, bounds, axis)
+                                             iFillValue, coordinates, bounds, axis,     &
+                                             reference)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: VarID
@@ -444,6 +446,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), optional                  :: coordinates
         character(len=*), optional                  :: bounds
         character(len=*), optional                  :: axis
+        character(len=*), optional                  :: reference 
+               
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
@@ -587,22 +591,29 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         end if
 
 
+        if(present(reference))then
+            STAT_CALL = nf90_put_att(Me%ncid, VarID, 'reference', reference) 
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR60' 
+        end if
+
     end subroutine NETCDFWriteAttributes
 
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFSetDimensions (NCDFID, IUB, JUB, KUB, STAT)
+    subroutine NETCDFSetDimensions (NCDFID, IUB, JUB, KUB, SimpleGrid, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: NCDFID
         integer                                     :: IUB
         integer                                     :: JUB
         integer                                     :: KUB
-        integer, optional                           :: STAT
+        logical, optional                           :: SimpleGrid
+        integer,          optional                  :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
         integer                                     :: STAT_CALL
+        logical                                     :: SimpleGrid_
 
         !Begin-----------------------------------------------------------------
 
@@ -611,12 +622,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Ready (NCDFID, ready_)
 
         if (ready_ .EQ. IDLE_ERR_) then
-            
-            Me%Dims(1)%ID%Name = trim(Column_Name)
+        
+            if (present(SimpleGrid)) then
+                SimpleGrid_ = SimpleGrid
+            else                
+                SimpleGrid_ = .false. 
+            endif
+
+
+            if (SimpleGrid_) then            
+                Me%Dims(1)%ID%Name = trim(Lon_Name)
+            else
+                Me%Dims(1)%ID%Name = trim(Column_Name)
+            endif                    
             Me%Dims(1)%LB      = 1
             Me%Dims(1)%UB      = JUB
 
-            Me%Dims(2)%ID%Name = trim(Line_Name)
+            if (SimpleGrid_) then            
+                Me%Dims(2)%ID%Name = trim(Lat_Name)
+            else
+                Me%Dims(2)%ID%Name = trim(Line_Name)
+            endif                    
+
             Me%Dims(2)%LB      = 1
             Me%Dims(2)%UB      = IUB
 
@@ -1998,6 +2025,153 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine NETCDFWriteLatLon
 
     !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
+
+    subroutine NETCDFWriteLatLon1D(NCDFID, Lat, Lon, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: NCDFID
+        real, dimension(:,:), pointer                   :: Lat, Lon
+        integer, optional                               :: STAT
+        
+        !Local-----------------------------------------------------------------
+        real, dimension(:), pointer                     :: Lat1D, Lon1D
+        real                                            :: FillValue, MissingValue
+        real                                            :: Scale, Aux1, Aux2, Aux3, Dif  
+        integer                                         :: i, j, nv, di, dj
+        integer                                         :: STAT_, ready_
+        integer                                         :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready (NCDFID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+        
+            !enter definition mode
+            STAT_CALL = nf90_redef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR10'
+
+            !define matrix lines as variable
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lat_Name), NF90_FLOAT, Me%Dims(2)%ID%Number, Me%Dims(2)%VarID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR20'
+
+            !define longitude as variable 
+            STAT_CALL = nf90_def_var(Me%ncid, trim(Lon_Name), NF90_FLOAT, Me%Dims(1)%ID%Number, Me%Dims(1)%VarID)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR30'
+
+            FillValue    = FillValueReal
+            MissingValue = FillValueReal
+            
+            call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "longitude",    &
+                                                         StandardName = "longitude",    &
+                                                         Units        = "degrees_east", &
+                                                         ValidMin    = -180.,           &
+                                                         ValidMax    =  180.,           &
+                                                         axis           ="X",           &
+                                                         reference    = "geographical coordinates, WGS84 projection")
+
+            call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "latitude",     &
+                                                         StandardName = "latitude",     &
+                                                         Units        = "degrees_north",&
+                                                         ValidMin    = -90.,            &
+                                                         ValidMax    =  90.,            &                                                         
+                                                         axis           ="Y",           &
+                                                         reference    = "geographical coordinates, WGS84 projection")
+                                                         
+            allocate(Lon1D(Me%Dims(1)%LB:Me%Dims(1)%UB))
+            allocate(Lat1D(Me%Dims(2)%LB:Me%Dims(2)%UB))  
+            
+!            Scale = Lon(2,1) - Lon(1,1)
+!            
+!            if (Scale > 0.) then
+!                Scale = int(log10(100. / Scale))
+!                Scale = 10**(Scale +1)
+!            else
+!                stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR40'
+!            endif
+!            
+!            do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+!                Aux1 = Lon(j,1) * Scale
+!                Aux2 = FLOAT (INT(Aux1))
+!                Dif  = Aux1 - Aux2
+!                if (abs(Dif) > 0.5) then
+!                    if (Aux2>0) then
+!                        Aux3 = (Aux2 + 1.)/Scale
+!                    else
+!                        Aux3 = (Aux2 - 1.)/Scale
+!                    endif                        
+!                else                    
+!                    Aux3 = (Aux2     )/Scale
+!                endif
+!                                    
+!                Lon1D  (j)= Aux3
+!            enddo 
+!            
+!            Scale = Lat(1,2) - Lat(1,1)
+!            
+!            if (Scale > 0.) then
+!                Scale = int(log10(100. / Scale))
+!                Scale = 10**(Scale +1)
+!            else
+!                stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR40'
+!            endif                   
+!            
+!            do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+!                Aux1 = Lat(1,i) * Scale
+!                Aux2 = FLOAT (INT(Aux1))
+!                Dif  = Aux1 - Aux2
+!                if (Dif > 0.5) then
+!                    Aux3 = (Aux2 + 1.)/Scale
+!                else                    
+!                    Aux3 = (Aux2     )/Scale
+!                endif
+!                                    
+!                Lat1D  (i)= Aux3
+!            enddo        
+
+            do j=Me%Dims(1)%LB,Me%Dims(1)%UB
+                Lon1D  (j)= Lon(j,1)
+            enddo   
+            
+            do i=Me%Dims(2)%LB,Me%Dims(2)%UB
+                Lat1D  (i)= Lat(1,i)
+            enddo                   
+
+            !exit definition mode
+            STAT_CALL = nf90_enddef(ncid = Me%ncid)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR40'
+
+            !write column indexes
+            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(1)%VarID, Lon1D)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR50'
+
+            !write line indexes
+            STAT_CALL = nf90_put_var(Me%ncid, Me%Dims(2)%VarID, Lat1D)
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteLatLon1D - ModuleNETCDF - ERR60'
+
+            deallocate(Lon1D)
+            deallocate(Lat1D) 
+
+            STAT_ = SUCCESS_
+
+        else
+
+            STAT_ = ready_
+
+        endif
+
+        if (present(STAT)) STAT = STAT_
+
+
+    end subroutine NETCDFWriteLatLon1D
+
+    !--------------------------------------------------------------------------    
+
+
     !--------------------------------------------------------------------------
 
     subroutine NETCDFGetDimensions (NCDFID, JUB, IUB, KUB, nTime, STAT)

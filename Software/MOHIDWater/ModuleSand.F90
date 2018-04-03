@@ -406,6 +406,7 @@ Module ModuleSand
         real, dimension(:,:), pointer              :: TransportCapacity     => null ()
         real, dimension(:,:), pointer              :: TauCritic             => null ()
         real, dimension(:,:), pointer              :: Dast                  => null ()
+        real, dimension(:,:), pointer              :: BatGradient           => null ()        
         integer                                    :: TransportMethod       = FillValueInt
         logical                                    :: BedLoad               = .true.
         logical                                    :: SuspendedLoad         = .true.        
@@ -2167,6 +2168,7 @@ cd2 :               if (BlockFound) then
 
         allocate(Me%TauCritic(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         Me%TauCritic(:,:) = 0.
+        
 
         !<BeginKeyword>
             !Keyword          : TRANSPORT_METHOD
@@ -6297,6 +6299,89 @@ d1:         do dis = 1, DischargesNumber
     
     !--------------------------------------------------------------------------
 
+!--------------------------------------------------------------------------
+
+    subroutine ComputeBathymetryGradient           
+
+        !Local-----------------------------------------------------------------
+        real                               :: dhdx1, dhdy1, dhdx2, dhdy2 
+        integer                            :: i, j
+        !----------------------------------------------------------------------
+        
+        
+        
+        if (.not.associated(Me%BatGradient)) then
+            allocate(Me%BatGradient(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))    
+        endif
+
+        
+        do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+            if (Me%ExternalVar%WaterPoints2D(i,  j  ) == WaterPoint) then
+        
+                if (Me%ExternalVar%WaterPoints2D(i,j-1) == WaterPoint) then
+        
+                    dhdx1 = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i, j-1)) /  &
+                            Me%ExternalVar%DZX(i,j-1)
+
+                else
+                
+                    dhdx1 = 0.
+                            
+                endif                            
+                
+
+                if (Me%ExternalVar%WaterPoints2D(i,j+1) == WaterPoint) then
+        
+                    dhdx2 = (Me%ExternalVar%Bathymetry(i, j+1) - Me%ExternalVar%Bathymetry(i, j)) /  &
+                            Me%ExternalVar%DZX(i,j)
+
+                else
+                
+                    dhdx2 = 0.
+                            
+                endif                            
+                
+                if (Me%ExternalVar%WaterPoints2D(i-1,j) == WaterPoint) then
+        
+                    dhdy1 = (Me%ExternalVar%Bathymetry(i, j) - Me%ExternalVar%Bathymetry(i-1, j)) /  &
+                            Me%ExternalVar%DZY(i-1,j)
+
+                else
+                
+                    dhdy1 = 0.
+                            
+                endif                            
+                
+
+                if (Me%ExternalVar%WaterPoints2D(i+1,j) == WaterPoint) then
+        
+                    dhdy2 = (Me%ExternalVar%Bathymetry(i+1, j) - Me%ExternalVar%Bathymetry(i, j)) /  &
+                            Me%ExternalVar%DZY(i,j)
+
+                else
+                
+                    dhdy2 = 0.
+                            
+                endif   
+                
+                Me%BatGradient(i, j) = max(abs(dhdx1),abs(dhdx1),abs(dhdy1),abs(dhdy2))                 
+                
+            else
+                            
+                Me%BatGradient(i, j) = FillValueReal
+                
+            endif
+
+                                   
+        enddo
+        enddo
+        
+    end subroutine ComputeBathymetryGradient
+    
+    !--------------------------------------------------------------------------
+
 
     subroutine BoundaryCondition(Field2D)
         !Arguments-------------------------------------------------------------
@@ -6523,6 +6608,14 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                                      "-", Array2D = Me%ExternalVar%OpenPoints2D,        &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR40'
+                
+                call ComputeBathymetryGradient
+                
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Bathymetry Gradient", "Bathymetry Gradient",   &
+                                     "-", Array2D = Me%BatGradient,          &
+                                     OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutPutSandHDF - ModuleSand - ERR50'
+                
 
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Bathymetry", "Bathymetry",   &
                                      "-", Array2D = Me%ExternalVar%Bathymetry,          &
@@ -6941,6 +7034,10 @@ if1:            if (Me%Classes%Number > 0) then
                 if (Me%HybridMorph%ON) then
                     call KillHybridMorph
                 endif
+                
+                if (associated(Me%BatGradient)) then
+                    deallocate(Me%BatGradient)
+                endif                
 
 
                 call ReadUnLockExternalVar

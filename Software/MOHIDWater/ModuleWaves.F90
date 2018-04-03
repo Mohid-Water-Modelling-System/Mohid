@@ -3486,8 +3486,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (ready_ .EQ. IDLE_ERR_)then
 
-            if (associated(VelU))         Me%ExternalVar%VelocityU => VelU
-            if (associated(VelV))         Me%ExternalVar%VelocityV => VelV
+            if (associated(SeaLevel)) Me%ExternalVar%SeaLevel  => SeaLevel
+            if (associated(VelU    )) Me%ExternalVar%VelocityU => VelU
+            if (associated(VelV    )) Me%ExternalVar%VelocityV => VelV
             
             STAT_ = SUCCESS_  
 
