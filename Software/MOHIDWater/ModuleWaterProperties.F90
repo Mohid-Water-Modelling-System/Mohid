@@ -356,7 +356,7 @@ Module ModuleWaterProperties
     private ::                      ConstructCohortList                           
     private ::                          AddCohort                                  
     private ::                          ConstructCohort                           
-    private ::                              Construct_CohortPropertiesFromFile
+    private ::                              Construct_CohortPropFromFile
     private ::                      ConstructSpeciesSettlement
     private ::              SetSpeciesSettlementProbability
     private ::              UpdateLarvaeDistribution    
@@ -489,8 +489,8 @@ Module ModuleWaterProperties
     private ::                      RemovePropertyFromList
     private ::                  AddNewbornsToList
     private ::                      ConstructNewBornCohort
-    private ::                          Construct_CohortPropertiesFromCohort
-    private ::                          Construct_OutputBoxFluxesFromCohort                   
+    private ::                          Construct_CohortPropFromCohort
+    private ::                          Construct_OutputBoxesFromCohort                   
     private ::              UpdateBivalvePropertyList
     private ::              UpdateInterfaceMass
     private ::          BivalveOutput
@@ -2408,7 +2408,7 @@ cd2 :           if (BlockFound) then
             call CloseAllAndStop ('ConstructSpecies - ModuleWaterProperties - ERR220') 
             
         if(NewSpecies%Old)then
-            call ConstructCohortListFromRestartFile(NewSpecies)
+            call ConstructCohortFromRestart(NewSpecies)
         else
             call ConstructCohortList(NewSpecies, ClientNumber)
         endif
@@ -2493,7 +2493,7 @@ cd2 :           if (BlockFound) then
  
     !--------------------------------------------------------------------------
     
-    subroutine ConstructCohortListFromRestartFile(NewSpecies) 
+    subroutine ConstructCohortFromRestart(NewSpecies) 
         
         !Arguments-------------------------------------------------------------
         type (T_Species),      pointer              :: NewSpecies
@@ -2528,12 +2528,12 @@ cd2 :           if (BlockFound) then
             call ConstructHDF5 (ObjHDF5,                                                 &
                                 trim(Me%Files%InitialWaterProperties)//"5",&
                                 HDF5_READ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR01')
+            if (STAT_CALL /= SUCCESS_)call CloseAllAndStop ('ConstructCohortFromRestart - ModuleWaterProperties - ERR01')
             
             call GetHDF5GroupNumberOfItems(ObjHDF5, "/Concentration", nProperties, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR10')
+            if (STAT_CALL /= SUCCESS_)call CloseAllAndStop ('ConstructCohortFromRestart - ModuleWaterProperties - ERR10')
             
-            if(nProperties == 0)call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR20')
+            if(nProperties == 0)call CloseAllAndStop ('ConstructCohortFromRestart - ModuleWaterProperties - ERR20')
             
             SpeciesNameLength = len_trim(NewSpecies%ID%Name)
             
@@ -2543,7 +2543,7 @@ cd2 :           if (BlockFound) then
             
                 call GetHDF5GroupID(ObjHDF5, "/Concentration", iProp, PropertyName, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                              &
-                    call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR10')
+                    call CloseAllAndStop ('ConstructCohortFromRestart - ModuleWaterProperties - ERR10')
                 
                 PropertyNameLength = len_trim(PropertyName)
                 
@@ -2591,7 +2591,7 @@ cd2 :           if (BlockFound) then
             
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR100')
+                call CloseAllAndStop ('ConstructCohortFromRestart - ModuleWaterProperties - ERR100')
 
         elseif(.not. EXIST)then
             
@@ -2602,11 +2602,11 @@ cd2 :           if (BlockFound) then
             write(*,*)"continue calculation of bivalve cohorts from: "
             write(*,*)trim(NewSpecies%ID%Name)
             write(*,*)"Please see and correct keyword EUL_INI in nomfich.dat file."
-            call CloseAllAndStop ('ConstructCohortListFromRestartFile - ModuleWaterProperties - ERR100')
+            call CloseAllAndStop ('ConstructCohortFromRestart - ModuleWaterProperties - ERR100')
 
         endif
        
-    end subroutine ConstructCohortListFromRestartFile
+    end subroutine ConstructCohortFromRestart
      
     !--------------------------------------------------------------------------
     
@@ -2742,11 +2742,11 @@ do1:        do while (associated(ObjCohort%Next))
                                        IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'LENGTH')
+        call Construct_CohortPropFromFile (NewProperty, Species, 'LENGTH')
                                        
         !CohortPropName      = 'LENGTH'
         !NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" length"    
-        !call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        !call Construct_CohortPropFromFile (NewProperty, Species, trim(CohortPropName))
 
         nullify(NewProperty)
 
@@ -2761,11 +2761,11 @@ do1:        do while (associated(ObjCohort%Next))
                                        IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'STRUCTURE')
+        call Construct_CohortPropFromFile (NewProperty, Species, 'STRUCTURE')
         
         !CohortPropName      = 'STRUCTURE'
         !NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" structure"        
-        !call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        !call Construct_CohortPropFromFile (NewProperty, Species, trim(CohortPropName))
                        
         nullify(NewProperty)
 
@@ -2780,11 +2780,11 @@ do1:        do while (associated(ObjCohort%Next))
                                        IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'RESERVES')        
+        call Construct_CohortPropFromFile (NewProperty, Species, 'RESERVES')        
 
         !CohortPropName      = 'RESERVES'
         !NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reserves"                
-        !call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+        !call Construct_CohortPropFromFile (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
@@ -2799,11 +2799,11 @@ do1:        do while (associated(ObjCohort%Next))
                                        IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'MATURITY')
+        call Construct_CohortPropFromFile (NewProperty, Species, 'MATURITY')
         
 !~         CohortPropName      = 'MATURITY'
 !~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" maturity"        
-!~         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromFile (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
@@ -2818,11 +2818,11 @@ do1:        do while (associated(ObjCohort%Next))
                                        IsVectorial      = .false.,                                                &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'REPRODUCTION')
+        call Construct_CohortPropFromFile (NewProperty, Species, 'REPRODUCTION')
         
 !~         CohortPropName      = 'REPRODUCTION'
 !~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reproduction"
-!~         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromFile (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
@@ -2837,11 +2837,11 @@ do1:        do while (associated(ObjCohort%Next))
                                        IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'AGE')
+        call Construct_CohortPropFromFile (NewProperty, Species, 'AGE')
         
 !~         CohortPropName       = 'AGE'
 !~         NewProperty%ID%Name  = trim(adjustl(NewCohort%ID%Name))//" age"
-!~         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromFile (NewProperty, Species, trim(CohortPropName))
         NewProperty%Evolution%AdvectionDiffusion  = .false. !age has no advection-diffusion
         
         nullify(NewProperty)
@@ -2857,11 +2857,11 @@ do1:        do while (associated(ObjCohort%Next))
                                        IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromFile (NewProperty, Species, 'NUMBER')        
+        call Construct_CohortPropFromFile (NewProperty, Species, 'NUMBER')        
         
 !~         CohortPropName = 'NUMBER'
 !~         NewProperty%ID%Name               = trim(adjustl(NewCohort%ID%Name))//" number"                
-!~         call Construct_CohortPropertiesFromFile (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromFile (NewProperty, Species, trim(CohortPropName))
         
         Me%Coupled%MinimumConcentration%Yes            = ON
         NewProperty%Evolution%MinConcentration         = ON
@@ -2934,7 +2934,7 @@ do1:        do while (associated(ObjCohort%Next))
 
     !--------------------------------------------------------------------------
 
-    subroutine Construct_CohortPropertiesFromFile (NewProperty, Species, OverrideKeyword) 
+    subroutine Construct_CohortPropFromFile (NewProperty, Species, OverrideKeyword) 
 
         !Arguments-------------------------------------------------------------
         type(T_property), pointer           :: NewProperty
@@ -3033,7 +3033,7 @@ do1:        do while (associated(ObjCohort%Next))
         
         allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR10')
+            call CloseAllAndStop ('Subroutine Construct_CohortPropFromFile - ModuleWaterProperties - ERR10')
         
         NewProperty%Mass_Created(:,:,:) = 0.  
 
@@ -3045,11 +3045,11 @@ do1:        do while (associated(ObjCohort%Next))
 
             call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                 &
-                call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR300')
+                call CloseAllAndStop ('Subroutine Construct_CohortPropFromFile - ModuleWaterProperties - ERR300')
 
             call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                 &
-                call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR310')
+                call CloseAllAndStop ('Subroutine Construct_CohortPropFromFile - ModuleWaterProperties - ERR310')
     
             if (VariableDT) then
                 
@@ -3063,7 +3063,7 @@ do1:        do while (associated(ObjCohort%Next))
                 if (NewProperty%evolution%DTInterval < (ModelDT)) then
                     write(*,*) 
                     write(*,*) ' Time step error.'
-                    call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR330')
+                    call CloseAllAndStop ('Subroutine Construct_CohortPropFromFile - ModuleWaterProperties - ERR330')
 
                 elseif (NewProperty%evolution%DTInterval > (ModelDT)) then
 
@@ -3074,7 +3074,7 @@ do1:        do while (associated(ObjCohort%Next))
                     if (Erroraux /= 0) then
                         write(*,*) 
                         write(*,*) ' Time step error.'
-                        call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR340')
+                        call CloseAllAndStop ('Subroutine Construct_CohortPropFromFile - ModuleWaterProperties - ERR340')
                     endif
 
                     ! Run period in seconds
@@ -3087,7 +3087,7 @@ do1:        do while (associated(ObjCohort%Next))
                     if (ErrorAux /= 0) then
                         write(*,*) 
                         write(*,*) ' Time step error.'
-                        call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR350')
+                        call CloseAllAndStop ('Subroutine Construct_CohortPropFromFile - ModuleWaterProperties - ERR350')
                     endif
 
                     NewProperty%Evolution%HydroIntegration = .true.
@@ -3116,7 +3116,7 @@ do1:        do while (associated(ObjCohort%Next))
 #else
         allocate(NewProperty%Concentration(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            call CloseAllAndStop ('Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR10') 
+            call CloseAllAndStop ('Construct_CohortPropFromFile - ModuleWaterProperties - ERR10') 
 #endif
 
         NewProperty%Concentration(:,:,:) = FillValueReal
@@ -3125,7 +3125,7 @@ do1:        do while (associated(ObjCohort%Next))
 
         allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)            
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            call CloseAllAndStop ('Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR30') 
+            call CloseAllAndStop ('Construct_CohortPropFromFile - ModuleWaterProperties - ERR30') 
             NewProperty%Assimilation%Field(:,:,:) = FillValueReal
 
         !endif
@@ -3148,14 +3148,14 @@ cd1 :   if (.not.NewProperty%Old) then
                                        OverrideValueKeyword = trim(OverrideKeyword),        &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call CloseAllAndStop ('Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR110')
+                call CloseAllAndStop ('Construct_CohortPropFromFile - ModuleWaterProperties - ERR110')
 
             call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Scalar, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call CloseAllAndStop ('Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR120')
+                call CloseAllAndStop ('Construct_CohortPropFromFile - ModuleWaterProperties - ERR120')
                 
             call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL  /= SUCCESS_) call CloseAllAndStop ('Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR121')
+            if (STAT_CALL  /= SUCCESS_) call CloseAllAndStop ('Construct_CohortPropFromFile - ModuleWaterProperties - ERR121')
 
             call CheckFieldConsistence(NewProperty)
 
@@ -3191,7 +3191,7 @@ do1 :           do I = ILB, IUB
                          ClientModule = 'ModuleWaterProperties',                        &
                          STAT       = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
-                call CloseAllAndStop ('Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR180') 
+                call CloseAllAndStop ('Construct_CohortPropFromFile - ModuleWaterProperties - ERR180') 
 
 cd4 :       if (associated(Me%ExternalVar%BoundaryPoints2D)) then
 cd2 :           if      (BoundaryMethod=='EXTERIOR'        ) then
@@ -3218,7 +3218,7 @@ do6 :                       do K = WKLB, WKUB
                     write(*,*) 
                     write(*,*) 'The boundary initialization methods can only be two: '
                     write(*,*) '    INTERIOR OR EXTERIOR'
-                    call CloseAllAndStop ('Construct_CohortPropertiesFromFile - ModuleWaterProperties - ERR190')  
+                    call CloseAllAndStop ('Construct_CohortPropFromFile - ModuleWaterProperties - ERR190')  
         
                end if cd2
 
@@ -3236,7 +3236,7 @@ do6 :                       do K = WKLB, WKUB
         
         Me%Bivalve%nPropertiesFromBivalve = Me%Bivalve%nPropertiesFromBivalve + 1
         
-    end subroutine Construct_CohortPropertiesFromFile
+    end subroutine Construct_CohortPropFromFile
     
     !----------------------------------------------------------------------------
     
@@ -3260,8 +3260,10 @@ do6 :                       do K = WKLB, WKUB
         NewCohort%ID%Name = trim(adjustl(Species%ID%Name))//" cohort "//trim(adjustl(CohortIDStr))
         write(*,*)trim(adjustl(NewCohort%ID%Name))
         
-        call AllocateAuxLarvae(NewCohort)
-        
+        if (Species%LarvaeTransport) then 
+            call AllocateAuxLarvae(NewCohort)
+        end if
+         
         !Newborns properties, from bivalve?
         call GetBivalveNewBornParameters (Bivalve_ID      = Me%ObjBivalve,          &
                                           SpeciesIDNumber = Species%ID%IDNumber,    &
@@ -3287,11 +3289,11 @@ do6 :                       do K = WKLB, WKUB
                                        IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'LENGTH')
+        call Construct_CohortPropFromCohort (NewProperty, Species, 'LENGTH')
         
 !~         CohortPropName = 'LENGTH'
 !~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" length"        
-!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromCohort (NewProperty, Species, trim(CohortPropName))
         
         Property_L => NewProperty
         
@@ -3308,12 +3310,12 @@ do6 :                       do K = WKLB, WKUB
                                        IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'STRUCTURE')
+        call Construct_CohortPropFromCohort (NewProperty, Species, 'STRUCTURE')
         
 !~         CohortPropName = 'STRUCTURE'
 !~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" structure"
         
-!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromCohort (NewProperty, Species, trim(CohortPropName))
                     
         nullify(NewProperty)
 
@@ -3328,12 +3330,12 @@ do6 :                       do K = WKLB, WKUB
                                        IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'RESERVES')
+        call Construct_CohortPropFromCohort (NewProperty, Species, 'RESERVES')
         
 !~         CohortPropName = 'RESERVES'
 !~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reserves"
        
-!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromCohort (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
@@ -3348,12 +3350,12 @@ do6 :                       do K = WKLB, WKUB
                                        IsVectorial      = .false.,                                            &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'MATURITY')
+        call Construct_CohortPropFromCohort (NewProperty, Species, 'MATURITY')
         
 !~         CohortPropName = 'MATURITY'
 !~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" maturity"
 
-!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromCohort (NewProperty, Species, trim(CohortPropName))
         
         nullify(NewProperty)
 
@@ -3368,12 +3370,12 @@ do6 :                       do K = WKLB, WKUB
                                        IsVectorial      = .false.,                                                &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'REPRODUCTION')
+        call Construct_CohortPropFromCohort (NewProperty, Species, 'REPRODUCTION')
         
 !~         CohortPropName = 'REPRODUCTION'
 !~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" reproduction"
         
-!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromCohort (NewProperty, Species, trim(CohortPropName))
 
         nullify(NewProperty)
 
@@ -3389,12 +3391,12 @@ do6 :                       do K = WKLB, WKUB
                                        IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'AGE')
+        call Construct_CohortPropFromCohort (NewProperty, Species, 'AGE')
         
 !~         CohortPropName = 'AGE'
 !~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" age"
         
-!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromCohort (NewProperty, Species, trim(CohortPropName))
         NewProperty%Evolution%AdvectionDiffusion  = .false. !age has no advection-diffusion    
         nullify(NewProperty)
 
@@ -3409,12 +3411,12 @@ do6 :                       do K = WKLB, WKUB
                                        IsVectorial      = .false.,                                        &
                                        Units            = trim(Species%ID%Units))
                                        
-        call Construct_CohortPropertiesFromCohort (NewProperty, Species, 'NUMBER')
+        call Construct_CohortPropFromCohort (NewProperty, Species, 'NUMBER')
         
 !~         CohortPropName = 'NUMBER'
 !~         NewProperty%ID%Name = trim(adjustl(NewCohort%ID%Name))//" number"
         
-!~         call Construct_CohortPropertiesFromCohort (NewProperty, Species, trim(CohortPropName))
+!~         call Construct_CohortPropFromCohort (NewProperty, Species, trim(CohortPropName))
         
         Me%Coupled%MinimumConcentration%Yes            = ON
         NewProperty%Evolution%MinConcentration         = ON
@@ -3427,7 +3429,7 @@ do6 :                       do K = WKLB, WKUB
         if (Species%CohortBoxTimeSerie) then
         
             !create and open the box time serie files for the new properties
-            call Construct_OutputBoxFluxesFromCohort(NewCohort)
+            call Construct_OutputBoxesFromCohort(NewCohort)
             
         end if
         
@@ -3439,7 +3441,7 @@ do6 :                       do K = WKLB, WKUB
 
     !--------------------------------------------------------------------------
 
-    subroutine Construct_CohortPropertiesFromCohort (NewProperty, Species, CohortPropName) 
+    subroutine Construct_CohortPropFromCohort (NewProperty, Species, CohortPropName) 
 
         !Arguments-------------------------------------------------------------
         type(T_property), pointer           :: NewProperty
@@ -3542,7 +3544,7 @@ do6 :                       do K = WKLB, WKUB
         
         allocate(NewProperty%Mass_Created(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
-            call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR10')
+            call CloseAllAndStop ('Subroutine Construct_CohortPropFromCohort - ModuleWaterProperties - ERR10')
         
         NewProperty%Mass_Created(:,:,:) = 0.  
   
@@ -3555,11 +3557,11 @@ do6 :                       do K = WKLB, WKUB
 
             call GetComputeTimeStep(Me%ObjTime, ModelDT, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                 &
-                call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR00')
+                call CloseAllAndStop ('Subroutine Construct_CohortPropFromCohort - ModuleWaterProperties - ERR00')
 
             call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                 &
-                call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR10')
+                call CloseAllAndStop ('Subroutine Construct_CohortPropFromCohort - ModuleWaterProperties - ERR10')
     
             if (VariableDT) then
                 
@@ -3573,7 +3575,7 @@ do6 :                       do K = WKLB, WKUB
                 if (NewProperty%evolution%DTInterval < (ModelDT)) then
                     write(*,*) 
                     write(*,*) ' Time step error.'
-                    call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR20')
+                    call CloseAllAndStop ('Subroutine Construct_CohortPropFromCohort - ModuleWaterProperties - ERR20')
 
                 elseif (NewProperty%evolution%DTInterval > (ModelDT)) then
 
@@ -3584,7 +3586,7 @@ do6 :                       do K = WKLB, WKUB
                     if (Erroraux /= 0) then
                         write(*,*) 
                         write(*,*) ' Time step error.'
-                        call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR30')
+                        call CloseAllAndStop ('Subroutine Construct_CohortPropFromCohort - ModuleWaterProperties - ERR30')
                     endif
 
                     ! Run period in seconds
@@ -3597,7 +3599,7 @@ do6 :                       do K = WKLB, WKUB
                     if (ErrorAux /= 0) then
                         write(*,*) 
                         write(*,*) ' Time step error.'
-                        call CloseAllAndStop ('Subroutine Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR40')
+                        call CloseAllAndStop ('Subroutine Construct_CohortPropFromCohort - ModuleWaterProperties - ERR40')
                     endif
 
                     NewProperty%Evolution%HydroIntegration = .true.
@@ -3627,7 +3629,7 @@ do6 :                       do K = WKLB, WKUB
 #else
         allocate(NewProperty%Concentration(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
-            call CloseAllAndStop ('Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR50') 
+            call CloseAllAndStop ('Construct_CohortPropFromCohort - ModuleWaterProperties - ERR50') 
 #endif
 
         NewProperty%Concentration(:,:,:) = FillValueReal
@@ -3636,7 +3638,7 @@ do6 :                       do K = WKLB, WKUB
 
             allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)            
             if (STAT_CALL .NE. SUCCESS_)                                                     &
-                call CloseAllAndStop ('Construct_CohortPropertiesFromCohort - ModuleWaterProperties - ERR60') 
+                call CloseAllAndStop ('Construct_CohortPropFromCohort - ModuleWaterProperties - ERR60') 
                 NewProperty%Assimilation%Field(:,:,:) = FillValueReal
 
         !endif
@@ -3730,11 +3732,11 @@ do1 :        do I = ILB, IUB
         
         Me%Bivalve%nPropertiesFromBivalve = Me%Bivalve%nPropertiesFromBivalve + 1
                 
-    end subroutine Construct_CohortPropertiesFromCohort
+    end subroutine Construct_CohortPropFromCohort
     
     !--------------------------------------------------------------------------
 
-    subroutine Construct_OutputBoxFluxesFromCohort (NewCohort)
+    subroutine Construct_OutputBoxesFromCohort (NewCohort)
 
         !Arguments--------------------------------------------------------------
         type(T_Cohort), pointer                             :: NewCohort
@@ -3754,11 +3756,11 @@ do1 :        do I = ILB, IUB
 
         allocate(CohortScalarOutputList(nScalars), STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-            call CloseAllAndStop ('Construct_OutputBoxFluxesFromCohort - ModuleWaterProperties - ERR03')
+            call CloseAllAndStop ('Construct_OutputBoxesFromCohort - ModuleWaterProperties - ERR03')
 
         allocate(CohortFluxesOutputList(nFluxes), STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-            call CloseAllAndStop ('Construct_OutputBoxFluxesFromCohort - ModuleWaterProperties - ERR04')
+            call CloseAllAndStop ('Construct_OutputBoxesFromCohort - ModuleWaterProperties - ERR04')
 
         CohortScalarOutputList(1) = trim(adjustl(NewCohort%ID%Name))//" structure"
         CohortScalarOutputList(2) = trim(adjustl(NewCohort%ID%Name))//" reserves"
@@ -3776,20 +3778,20 @@ do1 :        do I = ILB, IUB
                            nDimensions           = 3,                            &
                            STAT               = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-            call CloseAllAndStop ('Construct_OutputBoxFluxesFromCohort - ModuleWaterProperties - ERR07')
+            call CloseAllAndStop ('Construct_OutputBoxesFromCohort - ModuleWaterProperties - ERR07')
 
         deallocate(CohortFluxesOutputList, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-            call CloseAllAndStop ('Construct_OutputBoxFluxesFromCohort - ModuleWaterProperties - ERR08')
+            call CloseAllAndStop ('Construct_OutputBoxesFromCohort - ModuleWaterProperties - ERR08')
         nullify (CohortFluxesOutputList)
 
 
         deallocate(CohortScalarOutputList, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
-            call CloseAllAndStop ('Construct_OutputBoxFluxesFromCohort - ModuleWaterProperties - ERR07')
+            call CloseAllAndStop ('Construct_OutputBoxesFromCohort - ModuleWaterProperties - ERR07')
         nullify (CohortScalarOutputList)
 
-    end subroutine Construct_OutputBoxFluxesFromCohort
+    end subroutine Construct_OutputBoxesFromCohort
     
     !----------------------------------------------------------------------------
 
