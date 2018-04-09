@@ -1984,8 +1984,8 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
 
     subroutine RotateVectorFields(PropertyX, PropertyY)
         !Arguments-------------------------------------------------------------
-        type (T_Property), pointer                  :: PropertyX        => null()
-        type (T_Property), pointer                  :: PropertyY        => null()
+        type (T_Property), pointer                  :: PropertyX
+        type (T_Property), pointer                  :: PropertyY 
         
         !Local-----------------------------------------------------------------
         integer, dimension(:,:),    pointer         :: WaterPoints2D
