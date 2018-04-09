@@ -575,17 +575,15 @@ if1:                if (BlockInBlockFound) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     
-    subroutine ModifyTurbine(TurbineID,VelocityU, VelocityV, VelocityUV, VelocityVU, VolumeUV,  &
-                              KFloor_UV, DXX_YY, DUX_VY, di, dj, Density, DT, STAT)
+    subroutine ModifyTurbine(TurbineID,VelocityU, VelocityV, VelocityUV, VolumeUV,  &
+                              KFloor_UV, Density, STAT)
     
         !Arguments------------------------------------------------------------------
         integer                             :: TurbineID
-        real, dimension(:,:,:), pointer     :: VelocityUV, VelocityVU, VolumeUV, Density, VelocityU, VelocityV
+        real, dimension(:,:,:), pointer     :: VelocityUV, VolumeUV, Density, VelocityU, VelocityV
         integer, dimension(:,:), pointer    :: KFloor_UV
-        real, dimension(:,:), pointer       :: DXX_YY, DUX_VY
         integer, optional, intent (OUT)     :: STAT
-        integer                             :: di, dj
-        real                                :: DT, CT, CP, DensityAv
+        real                                :: CT, CP, DensityAv
         !Local-----------------------------------------------------------------
         logical                             :: START = .false.
         real, dimension(:), pointer         :: T_Area

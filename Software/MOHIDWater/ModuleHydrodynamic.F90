@@ -34914,14 +34914,14 @@ cd3:                   if (Manning) then
         !Obstacle drag
         if (Me%ComputeOptions%Obstacle)                                         &
             call Modify_ObstacleDrag
+        
         if (Me%ComputeOptions%Turbine)                                          &
             call ModifyTurbine(Me%ObjTurbine, Me%Velocity%Horizontal%U%New,     &
-                              Me%Velocity%Horizontal%V%New, Me%Velocity%Horizontal%UV%New,     &
-                              Me%Velocity%Horizontal%VU%New,                     &
-                              Me%External_Var%Volume_UV,                    &
-                              Me%External_Var%KFloor_UV, Me%External_Var%DXX_YY,    &
-                              Me%External_Var%DUX_VY, Me%Direction%di, Me%Direction%dj,  &
-                              Me%External_Var%Density, Me%Velocity%DT)
+                               Me%Velocity%Horizontal%V%New,                    &
+                               Me%Velocity%Horizontal%UV%New,                   &
+                               Me%External_Var%Volume_UV,                       &
+                               Me%External_Var%KFloor_UV,                       &
+                               Me%External_Var%Density)
      
         !Effect of a scraper in a settling tank
         if (Me%ComputeOptions%Scraper)                                          &
