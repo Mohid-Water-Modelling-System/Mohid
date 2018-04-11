@@ -147,6 +147,7 @@ Module ModuleFunctions
     !Coordinates of grid cells
     public  :: RODAXY
     public  :: FromCartesianToGrid
+
     public  :: FromGridToCartesian
     interface  FromGridToCartesian
         module procedure FromGridToCartesianR4
@@ -5617,7 +5618,7 @@ d5:     do k = klast + 1,KUB
     !Arguments---------------------------------------------------------------------------------
     real,    dimension(:,:), pointer, intent(IN)        :: SonProperty
     integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
-    real,    dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
+    real(8), dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
     real,    dimension(:,:), pointer, intent(INOUT)     :: FatherProperty
     integer, dimension(:,:), pointer, intent(IN)        :: IConnect, Jconnect
     integer, intent(IN)                                 :: KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
@@ -5675,7 +5676,8 @@ d5:     do k = klast + 1,KUB
                                     KUBSon, KLBSon, IConnect, Jconnect, DecayTime, DT,    &
                                     TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather) 
     !Arguments---------------------------------------------------------------------------------
-    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty, VolumeZSon, VolumeZFather
+    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty
+    real(8), dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
     real,    dimension(:,:,:), pointer, intent(INOUT)   :: FatherProperty
     integer, dimension(:,:),   pointer, intent(IN)      :: IConnect, Jconnect
     integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
@@ -12057,7 +12059,7 @@ D2:     do I=imax-1,2,-1
      
         !Begin-----------------------------------------------------------------   
     
-        do I=1,6
+        do i=1,6
             read(UnitIn,*) 
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ReadEsriGridData - ModuleFunctions - ERR10'
