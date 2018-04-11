@@ -3879,6 +3879,16 @@ i1:     if (Me%Tsunami%ON) then
                 stop 'ConstructTsunami - ModuleHydrodynamic - ERR40'
             endif
             
+            !  AMPLIFICATION OF THE TSUNAMI
+            call GetData(Me%Tsunami%Fault%Amplification,                            & 
+                            Me%ObjEnterData, iflag,                                    & 
+                            Keyword        = 'FAULT_AMPLIFICATION',                    &
+                            SearchType     = FromFile,                                 &
+                            ClientModule   = 'ModuleHydrodynamic',                     &
+                            default        = 1.,                                       &
+                            STAT           = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR245'            
+            
 i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
 
                 ! Fault filemane of the input grid data file
@@ -4020,16 +4030,6 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                 if (iflag /= 1) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR240'
                 endif
-
-                !  AMPLIFICATION OF THE TSUNAMI
-                call GetData(Me%Tsunami%Fault%Amplification,                            & 
-                             Me%ObjEnterData, iflag,                                    & 
-                             Keyword        = 'FAULT_AMPLIFICATION',                    &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             default        = 1.,                                       &
-                             STAT           = STAT_CALL)            
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR245'
 
             endif i3
 
@@ -49216,7 +49216,7 @@ do5:            do i = ILB, IUB
         integer, intent(IN)                               :: SonHydrodynamicID
         integer, dimension(:,:), pointer                  :: IV, JV
         integer, dimension(:,:,:), pointer                :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer                :: VolumeZSon, VolumeZFather !João Sobrinho
+        real(8), dimension(:,:,:), pointer                :: VolumeZSon, VolumeZFather !João Sobrinho
         type (T_Hydrodynamic), pointer                    :: ObjHydrodynamicSon
         integer                                           :: status, STAT_, ready_son, i, j, k
         integer, optional, intent(OUT)                    :: STAT
