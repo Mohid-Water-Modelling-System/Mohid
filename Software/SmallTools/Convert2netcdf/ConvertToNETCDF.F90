@@ -810,7 +810,8 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer(HSIZE_T)                            :: ssize
+        !integer(HID_T)                              :: ssize
+        integer(SIZE_T)                             :: ssize        
         integer(HID_T)                              :: space_id, datatype_id
         integer(HID_T)                              :: rank
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
@@ -1614,7 +1615,8 @@ program Convert2netcdf
         integer                                     :: rank, obj_type
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer(HSIZE_T)                            :: ssize
+        !integer(HID_T)                              :: ssize
+        integer(SIZE_T)                             :: ssize        
         integer(HID_T)                              :: space_id, datatype_id
         !logical                                     :: IsMapping
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
@@ -2429,7 +2431,8 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                     :: STAT_CALL
         integer(HID_T)                              :: class_id, space_id, dset_id
         integer(HID_T)                              :: datatype_id, rank, NumType
-        integer(HSIZE_T)                            :: ssize
+        !integer(HID_T)                              :: ssize
+        integer(SIZE_T)                             :: ssize        
         integer(HSIZE_T), dimension(7)              :: dims
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         character(len=StringLength)                 :: Name, NCDFName, LongName, StandardName, Units

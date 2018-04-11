@@ -7211,7 +7211,8 @@ if4D:   if (CurrentHDF%Field4D) then
             
                 call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
                                            Matrix2D         = Field,                    &
-                                           CurrentHDF       = CurrentHDF)
+                                           CurrentHDF       = CurrentHDF,               &
+                                           Instant          = Instant)
 
             else
             
@@ -7219,6 +7220,7 @@ if4D:   if (CurrentHDF%Field4D) then
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           & 
                                    CurrentTime      = CurrentTime,                      &
                                    Matrix2D         = Field,                            &
+                                   Instant          = Instant,                          &
                                    STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
 
@@ -7320,14 +7322,16 @@ if4D:   if (CurrentHDF%Field4D) then
             
                 call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
                                            Matrix3D         = Field,                    &
-                                           CurrentHDF       = CurrentHDF)
+                                           CurrentHDF       = CurrentHDF,               &
+                                           Instant          = Instant)
 
             else            
 
-                call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,                &
+                call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,            &
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           & 
                                    CurrentTime      = CurrentTime,                      & 
                                    Matrix3D         = Field,                            &
+                                   Instant          = Instant,                          &                                   
                                    STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
                 
@@ -7515,13 +7519,14 @@ if4D:   if (CurrentHDF%Field4D) then
 
     !-----------------------------------------------------------------------------------
 
-    subroutine ModifyField4DInterpol(CurrentTime, Matrix3D, Matrix2D, CurrentHDF)
+    subroutine ModifyField4DInterpol(CurrentTime, Matrix3D, Matrix2D, CurrentHDF, Instant)
     
         !Arguments-------------------------------------------------------------
         type(T_Time)                                :: CurrentTime
         real, dimension(:,:,:), pointer, optional   :: Matrix3D
         real, dimension(:,:  ), pointer, optional   :: Matrix2D
         type(T_Field4D)                             :: CurrentHDF
+        integer,                         optional   :: Instant        
         !Local-----------------------------------------------------------------
         real, dimension(:,:,:), pointer             :: ZCellCenter 
         integer                                     :: i, j, k, icount
@@ -7565,6 +7570,7 @@ if2D:   if (Me%Dim == Dim2D) then
                                   Y                     = CurrentHDF%Y,                     &
                                   Field                 = CurrentHDF%Prop,                  &
                                   NoData                = CurrentHDF%NoData,                &
+                                  Instant               = Instant,                          &
                                   STAT                  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR30' 
             
@@ -7626,6 +7632,7 @@ if2D:   if (Me%Dim == Dim2D) then
                                   Z                     = CurrentHDF%Z,                     &
                                   Field                 = CurrentHDF%Prop,                  &
                                   NoData                = CurrentHDF%NoData,                &
+                                  Instant               = Instant,                          &                                  
                                   STAT                  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
             
@@ -10277,7 +10284,7 @@ i1:     if (.not.(CurrentHDF%Previous4DValue <= Generic_4D_Value_ .and.         
         else
         
 
-            call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,                    &
+            call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,                &
                                PropertyIDNumber = Me%PropertyID%IDNumber,               & 
                                CurrentTime      = Now,                                  & 
                                Matrix2D         = Me%Matrix2D,                          &

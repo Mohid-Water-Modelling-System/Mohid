@@ -419,7 +419,7 @@ if1:                if (BlockInBlockFound) then
         
         
         !Saves the position of the turbine in grid coordinates
-        call GetXYCellZ(Me%ObjHorizontalGrid, XPoint = NewTurbine%Long_coord,Ypoint = NewTurbine%Lat_coord,   &
+        call GetXYCellZ(Me%ObjHorizontalGrid, XPoint = real(NewTurbine%Long_coord),Ypoint = real(NewTurbine%Lat_coord),   &
                         I = NewTurbine%I, J=NewTurbine%J, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR20'
 
@@ -575,17 +575,16 @@ if1:                if (BlockInBlockFound) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     
-    subroutine ModifyTurbine(TurbineID,VelocityU, VelocityV, VelocityUV, VelocityVU, VolumeUV,  &
-                              KFloor_UV, DXX_YY, DUX_VY, di, dj, Density, DT, STAT)
+    subroutine ModifyTurbine(TurbineID,VelocityU, VelocityV, VelocityUV, VolumeUV,  &
+                              KFloor_UV, Density, STAT)
     
         !Arguments------------------------------------------------------------------
         integer                             :: TurbineID
-        real, dimension(:,:,:), pointer     :: VelocityUV, VelocityVU, VolumeUV, Density, VelocityU, VelocityV
+        real, dimension(:,:,:), pointer     :: VelocityUV, Density, VelocityU, VelocityV
+        real(8), dimension(:,:,:), pointer  :: VolumeUV
         integer, dimension(:,:), pointer    :: KFloor_UV
-        real, dimension(:,:), pointer       :: DXX_YY, DUX_VY
         integer, optional, intent (OUT)     :: STAT
-        integer                             :: di, dj
-        real                                :: DT, CT, CP, DensityAv
+        real                                :: CT, CP, DensityAv
         !Local-----------------------------------------------------------------
         logical                             :: START = .false.
         real, dimension(:), pointer         :: T_Area

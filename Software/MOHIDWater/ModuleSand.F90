@@ -1266,8 +1266,8 @@ cd0:        if (EXIST) then
         call ReadFileName('SAND_END', Me%Files%FinalSand,                                &
                            Message = Message, TIME_END = Me%EndTime,                     &
                            Extension = 'sandlf',                                         &
-                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
-                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
+                           MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),           &
+                           DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),           &
                            STAT      = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             stop 'Read_Sand_Files_Name - ModuleSand - ERR03' 

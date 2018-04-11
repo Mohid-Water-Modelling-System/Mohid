@@ -277,3 +277,5 @@ Solutions/Linux/MohidWater/MohidWater
 /Solutions/VisualStudio2015_IntelFortran16/MOHIDNumerics/MOHIDNumerics.VC.VC.opendb
 *.db
 *.db3
+/Solutions/VisualStudio2017_IntelFortran18/MOHIDNumerics/PhreeqC/Win32
+/Solutions/VisualStudio2017_IntelFortran18/MOHIDNumerics/PhreeqC/Debug Double

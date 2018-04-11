@@ -212,7 +212,8 @@ Module ModuleField4D
         integer                            :: ObjTimeSerie          = null_int
         integer                            :: TimeSerieColumn       = null_int
         real                               :: CurrentValue          = null_real
-
+        integer                            :: Instant               = null_int
+        logical                            :: InstantON             = .false. 
     end type 
     
     type T_ExternalVar
@@ -1633,6 +1634,8 @@ wwd1:       if (Me%WindowWithData) then
 
 
         if (PropField%Generic4D%ON) call Generic4thDimension(PropField, ExtractType)
+        
+        PropField%Generic4D%InstantON = .false. 
         
 
         call GetData(PropField%VGroupPath,                                              &
@@ -3128,12 +3131,20 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
 
         !Begin-----------------------------------------------------------------
         
-        if (Previous) then
-            Field   => NewPropField%PreviousField2D
-            Instant =  NewPropField%PreviousInstant        
+        if (NewPropField%Generic4D%InstantON) then
+            Instant = NewPropField%Generic4D%Instant
         else
-            Field   => NewPropField%NextField2D        
-            Instant =  NewPropField%NextInstant
+            if (Previous) then
+                Instant =  NewPropField%PreviousInstant        
+            else
+                Instant =  NewPropField%NextInstant
+            endif   
+        endif
+        
+        if (Previous) then
+            Field    => NewPropField%PreviousField2D
+        else
+            Field    => NewPropField%NextField2D        
         endif
         
         ILB = Me%WorkSize2D%ILB
@@ -3270,12 +3281,20 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
 
         !Begin-----------------------------------------------------------------
         
-        if (Previous) then
-            Field   => NewPropField%PreviousField3D
-            Instant =  NewPropField%PreviousInstant        
+        if (NewPropField%Generic4D%InstantON) then
+            Instant = NewPropField%Generic4D%Instant
         else
-            Field   => NewPropField%NextField3D        
-            Instant =  NewPropField%NextInstant
+            if (Previous) then
+                Instant =  NewPropField%PreviousInstant        
+            else
+                Instant =  NewPropField%NextInstant
+            endif   
+        endif
+        
+        if (Previous) then
+            Field    => NewPropField%PreviousField3D
+        else
+            Field    => NewPropField%NextField3D        
         endif
                     
         ILB = Me%WorkSize3D%ILB
@@ -4825,7 +4844,7 @@ d2:     do N =1, NW
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ModifyField4D(Field4DID, PropertyIDNumber, CurrentTime, Matrix2D, Matrix3D, STAT)
+    subroutine ModifyField4D(Field4DID, PropertyIDNumber, CurrentTime, Matrix2D, Matrix3D, Instant, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                 intent(IN)             :: Field4DID
@@ -4833,6 +4852,7 @@ d2:     do N =1, NW
         type (T_Time),           intent(IN)             :: CurrentTime        
         real,    dimension(:, :),    pointer, optional  :: Matrix2D
         real,    dimension(:, :, :), pointer, optional  :: Matrix3D
+        integer,                 intent(IN),  optional  :: Instant
         integer,                 intent(OUT), optional  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -4846,7 +4866,10 @@ d2:     do N =1, NW
         call Ready(Field4DID, ready_)
 
         if (ready_ .EQ. IDLE_ERR_) then
-        
+    
+            call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4D - ModuleField4D - ERR10'        
+
             Me%CurrentTimeExt = CurrentTime
         
             if (Me%BackTracking) then  
@@ -4854,52 +4877,80 @@ d2:     do N =1, NW
             else   
                 Me%CurrentTimeInt = Me%CurrentTimeExt
             endif
-            
-            CorrectTimeFrame = .true.
-            
-            if (Me%CurrentTimeInt < Me%File%StartTime) CorrectTimeFrame = .false.  
-            if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.              
-            
-            call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4D - ModuleField4D - ERR10'
-            
-            if (PropField%Harmonics%ON) CorrectTimeFrame = .true.
 
-            if (CorrectTimeFrame ) then
-
-                if      (PropField%SpaceDim == Dim2D) then
-                    if (PropField%Harmonics%ON) then
-                        call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
-                    else
-                        call ModifyInput2D        (PropField) 
-                    endif                        
-                else if (PropField%SpaceDim == Dim3D) then
-                    if (PropField%Harmonics%ON) then
-                        call FromHarmonics2Field3D(PropField, Me%CurrentTimeInt)                        
-                    else
-                        call ModifyInput3D        (PropField) 
-                    endif                        
-
-                endif
+            if (PropField%Generic4D%ON) then
+            
+                if (present(Instant)) then
                 
-                if (Me%Output%Yes) then
-                    call WriteOutput(PropField, PropertyIDNumber)
-                endif
+                    PropField%Generic4D%Instant   = Instant
+                    PropField%Generic4D%InstantON = .true. 
+
+                    if      (PropField%SpaceDim == Dim2D) then
+                    
+                        call ReadValues2D (PropField, Previous = .false.)
+                        
+                        Me%Matrix2D = PropField%NextField2D
+                    
+                    else if (PropField%SpaceDim == Dim3D) then
+                    
+                        call ReadValues3D (PropField, Previous = .false.)
+                    
+                        Me%Matrix3D = PropField%NextField3D
+                    
+                    endif            
+                    
+                else
                 
-                if (present(Matrix2D)) then
-                    Matrix2D(:,:) = Me%Matrix2D(:,:)
-                endif
+                    stop 'ModifyField4D - ModuleField4D - ERR20'
+                    
+                endif                    
+                
+            else            
+            
+                CorrectTimeFrame = .true.
+                
+                if (Me%CurrentTimeInt < Me%File%StartTime) CorrectTimeFrame = .false.  
+                if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.              
+                
+                if (PropField%Harmonics%ON) CorrectTimeFrame = .true.
 
-                if (present(Matrix3D)) then
-                    if (PropField%From3Dto2D) then
-                        Matrix3D(:,:,1) = Me%Matrix3D(:,:, Me%WorkSize3D%KUB)
-                    else
-                        Matrix3D(:,:,:) = Me%Matrix3D(:,:,:)
-                    endif                        
-                endif
-                                
+                if (CorrectTimeFrame ) then
 
+                    if      (PropField%SpaceDim == Dim2D) then
+                        if (PropField%Harmonics%ON) then
+                            call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
+                        else
+                            call ModifyInput2D        (PropField) 
+                        endif                        
+                    else if (PropField%SpaceDim == Dim3D) then
+                        if (PropField%Harmonics%ON) then
+                            call FromHarmonics2Field3D(PropField, Me%CurrentTimeInt)                        
+                        else
+                            call ModifyInput3D        (PropField) 
+                        endif                        
+
+                    endif
+                    
+                endif     
+                
+            endif                           
+                
+            if (Me%Output%Yes) then
+                call WriteOutput(PropField, PropertyIDNumber)
             endif
+            
+            if (present(Matrix2D)) then
+                Matrix2D(:,:) = Me%Matrix2D(:,:)
+            endif
+
+            if (present(Matrix3D)) then
+                if (PropField%From3Dto2D) then
+                    Matrix3D(:,:,1) = Me%Matrix3D(:,:, Me%WorkSize3D%KUB)
+                else
+                    Matrix3D(:,:,:) = Me%Matrix3D(:,:,:)
+                endif                        
+            endif
+                                
             
             STAT_ = SUCCESS_
             
@@ -5028,7 +5079,7 @@ d2:     do N =1, NW
     !--------------------------------------------------------------------------
     subroutine ModifyField4DXYZ(Field4DID, PropertyIDNumber, CurrentTime, X, Y, Z,      &
                                 Field, NoData, WaveName, ExtractAmplitudes,             &
-                                ExtractPhaseReal, InterpolationDT, STAT)
+                                ExtractPhaseReal, InterpolationDT, Instant, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                            intent(IN)             :: Field4DID
@@ -5036,12 +5087,13 @@ d2:     do N =1, NW
         type (T_Time),                      intent(IN), optional   :: CurrentTime 
         real,    dimension(:),   pointer,   intent(IN)             :: X, Y
         real,    dimension(:),   pointer,   intent(IN),  optional  :: Z
-        real,    dimension(:),   pointer,   intent(OUT)            :: Field
+        real,    dimension(:),   pointer,   intent(INOUT)          :: Field
         logical, dimension(:),   pointer,   intent(INOUT)          :: NoData
         character(len=*),                   intent(IN ), optional  :: WaveName
         logical,                            intent(IN ), optional  :: ExtractAmplitudes
         logical,                            intent(IN ), optional  :: ExtractPhaseReal
         real,                               intent(OUT), optional  :: InterpolationDT        
+        integer,                            intent(IN),  optional  :: Instant
         integer,                            intent(OUT), optional  :: STAT
                                             
         !Local-----------------------------------------------------------------
@@ -5061,6 +5113,10 @@ d2:     do N =1, NW
             endif                
         
             if (Me%WindowWithData) then
+ 
+                call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DXYZ - ModuleField4D - ERR10'     
+ 
                 if (present(CurrentTime)) then
                     Me%CurrentTimeExt = CurrentTime
                 else
@@ -5073,63 +5129,111 @@ d2:     do N =1, NW
                     Me%CurrentTimeInt = Me%CurrentTimeExt
                 endif
                 
-                CorrectTimeFrame = .true.
+
+ifG4D:          if (PropField%Generic4D%ON) then
                 
-                if (Me%CurrentTimeInt < Me%File%StartTime) CorrectTimeFrame = .false.  
-                if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.     
-                
-                call SearchPropertyField(PropField, PropertyIDNumber, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DXYZ - ModuleField4D - ERR10'                
-                
-                if (PropField%Harmonics%ON) CorrectTimeFrame = .true.                                         
-                
-                if (CorrectTimeFrame) then        
-            
-                    if (PropField%Harmonics%Extract) then
+                    if (present(Instant)) then
                     
-                        if (present(WaveName)) then
-                            PropField%Harmonics%ExtractWave = WaveName
-                        else
-                            stop 'ModifyField4DXYZ - ModuleField4D - ERR20'                                                
-                        endif
+                        PropField%Generic4D%Instant   = Instant
+                        PropField%Generic4D%InstantON = .true.                         
+
+                        if      (PropField%SpaceDim == Dim2D) then
+                        
+                            call ReadValues2D (PropField, Previous = .false.)
+                            
+                            Me%Matrix2D = PropField%NextField2D
+                        
+                        else if (PropField%SpaceDim == Dim3D) then
+                        
+                            call ReadValues3D (PropField, Previous = .false.)
+                        
+                            Me%Matrix3D = PropField%NextField3D
+                        
+                        endif            
+                        
+                    else
+                    
+                        stop 'ModifyField4D - ModuleField4D - ERR20'
+                        
+                    endif   
+                
+                else ifG4D
+                
+                    CorrectTimeFrame = .true.
+                    
+                    if (Me%CurrentTimeInt < Me%File%StartTime) CorrectTimeFrame = .false.  
+                    if (Me%CurrentTimeInt > Me%File%EndTime  ) CorrectTimeFrame = .false.     
+                    
+                    if (PropField%Harmonics%ON) CorrectTimeFrame = .true.                                         
+                    
+CTF:                if (CorrectTimeFrame) then        
+                
+                        if (PropField%Harmonics%Extract) then
+                        
+                            if (present(WaveName)) then
+                                PropField%Harmonics%ExtractWave = WaveName
+                            else
+                                stop 'ModifyField4DXYZ - ModuleField4D - ERR20'                                                
+                            endif
 
 
-                        if (present(ExtractAmplitudes)) then
-                            PropField%Harmonics%ExtractAmp = ExtractAmplitudes
-                        else
-                            stop 'ModifyField4DXYZ - ModuleField4D - ERR30'                                                
-                        endif
+                            if (present(ExtractAmplitudes)) then
+                                PropField%Harmonics%ExtractAmp = ExtractAmplitudes
+                            else
+                                stop 'ModifyField4DXYZ - ModuleField4D - ERR30'                                                
+                            endif
 
-                        if (present(ExtractPhaseReal)) then
-                            PropField%Harmonics%ExtractPhaseReal = ExtractPhaseReal
-                        else
-                            PropField%Harmonics%ExtractPhaseReal = .false. 
+                            if (present(ExtractPhaseReal)) then
+                                PropField%Harmonics%ExtractPhaseReal = ExtractPhaseReal
+                            else
+                                PropField%Harmonics%ExtractPhaseReal = .false. 
+                            endif
+                            
+                        endif  
+
+                        if      (PropField%SpaceDim == Dim2D) then
+                        
+                            if (PropField%Harmonics%ON) then
+                                call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
+                            else
+                                call ModifyInput2D        (PropField) 
+                            endif                        
+
+                        else if (PropField%SpaceDim == Dim3D) then
+
+                            if (PropField%Harmonics%ON) then
+                                call FromHarmonics2Field3D(PropField, Me%CurrentTimeInt)                        
+                            else
+                                call ModifyInput3D        (PropField) 
+                            endif                        
+
                         endif
                         
-                    endif                        
-                    
-                    if      (PropField%SpaceDim == Dim2D) then
-                    
-                        call Interpolate2DCloud (PropField, X, Y, Field, NoData) 
+                    endif CTF                        
                         
-                    else if (PropField%SpaceDim == Dim3D) then
+                endif ifG4D                       
+                                       
+                if      (PropField%SpaceDim == Dim2D) then
+                
+                    call Interpolate2DCloud (PropField, X, Y, Field, NoData) 
                     
-                        if (.not.present(Z)) then
-                            stop 'ModifyField4DXYZ - ModuleField4D - ERR50'
-                        endif
-
-                        call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
+                else if (PropField%SpaceDim == Dim3D) then
+                
+                    if (.not.present(Z)) then
+                        stop 'ModifyField4DXYZ - ModuleField4D - ERR50'
                     endif
 
-                    if (present(InterpolationDT)) then                                    
-                        InterpolationDT = PropField%NextTime - PropField%PreviousTime
-                    endif
-                    
-                    if (Me%Output%Yes) then
-                        call WriteOutput(PropField, PropertyIDNumber)
-                    endif
-
+                    call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
                 endif
+
+                if (present(InterpolationDT)) then                                    
+                    InterpolationDT = PropField%NextTime - PropField%PreviousTime
+                endif
+                
+                if (Me%Output%Yes) then
+                    call WriteOutput(PropField, PropertyIDNumber)
+                endif
+
             
             endif
             
@@ -5238,7 +5342,7 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         !Arguments------------------------------------------------------------
         type (T_PropField),         pointer, intent(IN)     :: PropField
         real,       dimension(:),   pointer, intent(IN)     :: X, Y
-        real,       dimension(:),   pointer, intent(OUT)    :: Field
+        real,       dimension(:),   pointer, intent(INOUT)  :: Field
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
         !Local----------------------------------------------------------------
         real                                            :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
@@ -5252,11 +5356,6 @@ if5 :       if (PropField%ID%IDNumber==PropertyIDNumber) then
         
         nPoints = size(X)
         
-        if (PropField%Harmonics%ON) then
-            call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
-        else
-            call ModifyInput2D        (PropField) 
-        endif                        
 
         call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
                               WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
@@ -5488,7 +5587,7 @@ dnP:    do nP = 1,nPoints
         
         !Arguments------------------------------------------------------------
         real,       dimension(:),   pointer, intent(IN)     :: X, Y
-        real,       dimension(:),   pointer, intent(OUT)    :: Bathym
+        real,       dimension(:),   pointer, intent(INOUT)  :: Bathym
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
         !Local----------------------------------------------------------------
         real                                            :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
@@ -5622,7 +5721,7 @@ dnP:    do nP = 1,nPoints
         !Arguments------------------------------------------------------------
         type (T_PropField),         pointer, intent(IN)     :: PropField
         real,       dimension(:),   pointer, intent(IN)     :: X, Y, Z
-        real,       dimension(:),   pointer, intent(OUT)    :: Field
+        real,       dimension(:),   pointer, intent(INOUT)  :: Field
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
         !Local----------------------------------------------------------------
         real,   dimension(:,:,:),   pointer                 :: SZZ
@@ -5632,12 +5731,6 @@ dnP:    do nP = 1,nPoints
 
         !Begin----------------------------------------------------------------
         
-        if (PropField%Harmonics%ON) then
-            call FromHarmonics2Field3D(PropField, Me%CurrentTimeInt)                        
-        else
-            call ModifyInput3D        (PropField) 
-        endif                        
-
         
         call GetWaterPoints3D(Map_ID            = Me%ObjMap,                            &
                               WaterPoints3D     = Me%ExternalVar%WaterPoints3D,         &
@@ -5737,7 +5830,7 @@ do3 :   do I = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
         integer                            , intent(IN)     :: HorizontalGrid
         integer                            , intent(IN)     :: KLB, KUB
         real,       dimension(:),   pointer, intent(IN)     :: X, Y, Z
-        real,       dimension(:),   pointer, intent(OUT)    :: Field
+        real,       dimension(:),   pointer, intent(INOUT)  :: Field
         logical,    dimension(:),   pointer, intent(INOUT)  :: NoData
         !Local----------------------------------------------------------------
         real(8),    dimension(:),   pointer                 :: Depth1D, Matrix1D

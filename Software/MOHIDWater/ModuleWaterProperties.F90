@@ -19198,7 +19198,7 @@ do1 :   do while (associated(PropertyX))
         integer                                 :: KLBSon, SonWaterPropertiesID, STAT_CALL, FatherWaterPropertiesID
         integer, dimension(:,:), pointer        :: IV, JV
         integer, dimension(:,:,:), pointer      :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer      :: VolumeZSon, VolumeZFather
+        real(8), dimension(:,:,:), pointer      :: VolumeZSon, VolumeZFather
         type (T_WaterProperties), pointer       :: ObjWaterPropertiesSon
         type (T_Property), pointer              :: PropertyX, PropertySon
         

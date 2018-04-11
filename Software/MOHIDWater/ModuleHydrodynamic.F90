@@ -3879,6 +3879,16 @@ i1:     if (Me%Tsunami%ON) then
                 stop 'ConstructTsunami - ModuleHydrodynamic - ERR40'
             endif
             
+            !  AMPLIFICATION OF THE TSUNAMI
+            call GetData(Me%Tsunami%Fault%Amplification,                            & 
+                            Me%ObjEnterData, iflag,                                    & 
+                            Keyword        = 'FAULT_AMPLIFICATION',                    &
+                            SearchType     = FromFile,                                 &
+                            ClientModule   = 'ModuleHydrodynamic',                     &
+                            default        = 1.,                                       &
+                            STAT           = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR245'            
+            
 i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
 
                 ! Fault filemane of the input grid data file
@@ -4020,16 +4030,6 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                 if (iflag /= 1) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR240'
                 endif
-
-                !  AMPLIFICATION OF THE TSUNAMI
-                call GetData(Me%Tsunami%Fault%Amplification,                            & 
-                             Me%ObjEnterData, iflag,                                    & 
-                             Keyword        = 'FAULT_AMPLIFICATION',                    &
-                             SearchType     = FromFile,                                 &
-                             ClientModule   = 'ModuleHydrodynamic',                     &
-                             default        = 1.,                                       &
-                             STAT           = STAT_CALL)            
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructTsunami - ModuleHydrodynamic - ERR245'
 
             endif i3
 
@@ -34914,14 +34914,14 @@ cd3:                   if (Manning) then
         !Obstacle drag
         if (Me%ComputeOptions%Obstacle)                                         &
             call Modify_ObstacleDrag
+        
         if (Me%ComputeOptions%Turbine)                                          &
             call ModifyTurbine(Me%ObjTurbine, Me%Velocity%Horizontal%U%New,     &
-                              Me%Velocity%Horizontal%V%New, Me%Velocity%Horizontal%UV%New,     &
-                              Me%Velocity%Horizontal%VU%New,                     &
-                              Me%External_Var%Volume_UV,                    &
-                              Me%External_Var%KFloor_UV, Me%External_Var%DXX_YY,    &
-                              Me%External_Var%DUX_VY, Me%Direction%di, Me%Direction%dj,  &
-                              Me%External_Var%Density, Me%Velocity%DT)
+                               Me%Velocity%Horizontal%V%New,                    &
+                               Me%Velocity%Horizontal%UV%New,                   &
+                               Me%External_Var%Volume_UV,                       &
+                               Me%External_Var%KFloor_UV,                       &
+                               Me%External_Var%Density)
      
         !Effect of a scraper in a settling tank
         if (Me%ComputeOptions%Scraper)                                          &
@@ -49216,7 +49216,7 @@ do5:            do i = ILB, IUB
         integer, intent(IN)                               :: SonHydrodynamicID
         integer, dimension(:,:), pointer                  :: IV, JV
         integer, dimension(:,:,:), pointer                :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer                :: VolumeZSon, VolumeZFather !João Sobrinho
+        real(8), dimension(:,:,:), pointer                :: VolumeZSon, VolumeZFather !João Sobrinho
         type (T_Hydrodynamic), pointer                    :: ObjHydrodynamicSon
         integer                                           :: status, STAT_, ready_son, i, j, k
         integer, optional, intent(OUT)                    :: STAT

@@ -2491,7 +2491,7 @@ i6:                         if (DirectionX.ne.0.) then
     real,    dimension(:,:), pointer, intent(IN)    :: XX, YY
     real,    dimension(2,2),          intent(IN)    :: WIn
     integer                ,          intent(IN)    :: ILB, IUB, JLB, JUB
-    integer, dimension(:,:), pointer, intent(OUT)   :: WOut
+    integer, dimension(:,:), pointer, intent(INOUT) :: WOut
     logical,                          intent(OUT)   :: WindowWithData
 
     !Local----------------------------------------
