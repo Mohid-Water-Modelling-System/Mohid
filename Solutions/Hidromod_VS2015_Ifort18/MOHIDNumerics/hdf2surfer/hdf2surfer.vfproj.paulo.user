@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<VisualStudioUserFile ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{C04384BB-3887-4EA3-A9B4-988A0C698396}">
-	<Configurations>
-		<Configuration Name="Debug|Win32" WorkingDirectory="X:\Proj_413_Chipre\Simula\DataAnalysis\Fase2\Validation"/>
-		<Configuration Name="Release|Win32"/>
-		<Configuration Name="Debug|x64" WorkingDirectory="X:\Proj_440_CMEMS\Simula\Valida\GridData\SST_Madeira\HDF2Surfer"/>
-		<Configuration Name="Release|x64" WorkingDirectory="X:\Proj_440_CMEMS\Simula\Valida\GridData\SST_Madeira\HDF2Surfer"/></Configurations></VisualStudioUserFile>
