@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioProject ProjectType="typeStaticLibrary" ProjectCreator="Intel Fortran" Keyword="Static Library" Version="11.0" ProjectIdGuid="{B186E0E8-1704-4EB0-A0C5-85AFB52A069C}">
+	<Platforms>
+		<Platform Name="Win32"/>
+		<Platform Name="x64"/></Platforms>
+	<Configurations>
+		<Configuration Name="Debug|Win32" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;_NO_NETCDF" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran" PreprocessorDefinitions="_INCREASE_MAXINSTANCES;_LAGRANGIAN_GLOBAL_;_STACK_LIMITS_;_SWAN_COUPLING_;_GOOGLEMAPS" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran" PreprocessorDefinitions="_INCREASE_MAXINSTANCES;_LAGRANGIAN_GLOBAL_;_STACK_LIMITS_;_SWAN_COUPLING_;_GOOGLEMAPS;_NO_NETCDF" OpenMPConditionalCompilation="false" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" RealKIND="realKIND8" OutputCarriageControl="outputCCNone" RuntimeChecks="rtChecksNone" Interfaces="true"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release MPI|Win32" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\NETCDF\VS2015\win32\include" RealKIND="realKIND8"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release MPI|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\MPI_x64\Microsoft" PreprocessorDefinitions="_NO_NETCDF;_USE_MPI;_LAGRANGIAN_;_INCREASE_MAXINSTANCES;_SWAN_COUPLING_" StandardWarnings="standardWarningsF03" WarnUnusedVariables="true" RealKIND="realKIND8" OutputCarriageControl="outputCCNone" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release OpenMP|Win32" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\NETCDF\VS2015\win32\include" OpenMP="OpenMPParallelCode" RealKIND="realKIND8"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release OpenMP|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran" PreprocessorDefinitions="_NO_NETCDF;_LAGRANGIAN_GLOBAL_;_INCREASE_MAXINSTANCES" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" RealKIND="realKIND8" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug MPI|Win32" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\NETCDF\VS2015\win32\include" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug MPI|x64" ConfigurationType="typeStaticLibrary">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\MPI_x64\Microsoft" PreprocessorDefinitions="_NO_NETCDF;_LAGRANGIAN_;_USE_MPI" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLibrarianTool"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
+	<Files>
+		<Filter Name="Header Files" Filter="fi;fd"/>
+		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
+		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleBenthicEcology.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleBenthos.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleBivalve.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleCEQUALW2.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleCuda.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleDischarges.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleDrainageNetwork.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleDrawing.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleEnterData.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleFunctions.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleGlobalData.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleHDF5.F90">
+			<FileConfiguration Name="Release|x64">
+				<Tool Name="VFFortranCompilerTool" RealKIND="realKIND8"/></FileConfiguration></File>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleHydroIntegration.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleInterface.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleLife.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleLightExtinction.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLitter.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleLUD.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleMacroAlgae.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleMPImanagement.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleProfile.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleSeagrassSedimInteraction.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleSeagrassWaterInteraction.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleSedimentQuality.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleStopWatch.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleTask2000.F"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleTime.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleTimeSerie.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleTriangulation.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleVoronoi3D.f">
+			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleWaterQuality.F90"/>
+		<File RelativePath="Y:\paulo\mohid\Software\MOHIDBase1\ModuleWWTPQ.F90"/>
+		<File RelativePath="..\..\..\..\ExternalLibs\MPI_x64\Microsoft\mpi.f90">
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true">
+				<Tool Name="VFFortranCompilerTool" RealKIND="realKIND8"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\proj4.F90">
+			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release MPI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release OpenMP|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug MPI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/></File></Filter></Files>
+	<Globals/></VisualStudioProject>
