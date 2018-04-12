@@ -450,8 +450,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
+        integer                                     :: STAT_CALL, xtype
         real                                        :: LastMax, LastMin
+        real(4)                                     :: AuxR4
+        real(8)                                     :: AuxR8        
 
        
         !Begin-----------------------------------------------------------------
@@ -477,8 +479,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         end if
 
         if(present(FillValue))then
-            STAT_CALL = nf90_put_att(Me%ncid, VarID, '_FillValue', FillValue) 
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR05' 
+            STAT_CALL = nf90_inquire_variable(ncid = Me%ncid, varid = VarID, xtype = xtype)        
+            if (xtype == nf90_double) then
+                !STAT_CALL = nf90_put_att(ncid = Me%ncid, varid = VarID, name = '_FillValue', values = NF90_FILL_DOUBLE) 
+                AuxR8 = FillValue            
+                STAT_CALL = nf90_put_att(ncid = Me%ncid, varid = VarID, name = '_FillValue', values = AuxR8)             
+                if(STAT_CALL /= nf90_noerr) then
+                    write(*,*) trim(NF90_STRERROR(STAT_CALL))
+                    stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR05' 
+                endif    
+            elseif (xtype == nf90_float) then                
+                !STAT_CALL = nf90_put_att(ncid = Me%ncid, varid = VarID, name = '_FillValue', values = NF90_FILL_FLOAT) 
+                AuxR4 = FillValue
+                STAT_CALL = nf90_put_att(ncid = Me%ncid, varid = VarID, name = '_FillValue', values = AuxR4)             
+                if(STAT_CALL /= nf90_noerr) then
+                    write(*,*) trim(NF90_STRERROR(STAT_CALL))    
+                    stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR05a'                     
+                endif                    
+                
+            endif
         end if
         
         if(present(MissingValue))then

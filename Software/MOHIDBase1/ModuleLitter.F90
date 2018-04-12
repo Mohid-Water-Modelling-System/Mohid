@@ -553,7 +553,9 @@ i1:         if (AreasFound) then
                 nullify(Me%BeachAreas%Individual(nAreas)%Polygons)
                 
                 !Generates beach areas from file -> t_polygons that intersect the model domain
-                call New(Me%BeachAreas%Individual(nAreas)%Polygons, Me%BeachAreas%Individual(nAreas)%FileName, Me%ExtVar%ModelDomain)                                
+                call New(Polygons           = Me%BeachAreas%Individual(nAreas)%Polygons,&
+                         PolygonsFileName   = Me%BeachAreas%Individual(nAreas)%FileName,& 
+                         PolygonsRef        = Me%ExtVar%ModelDomain)                                
                 
 
                 call GetData(Me%BeachAreas%Individual(nAreas)%CoastType,                &
