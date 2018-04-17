@@ -3726,20 +3726,29 @@ ifG3D:          if (Me%InterpolateGrid3D .and. FirstProperty3D) then
         type(T_Grid )                               :: NewGrid
 
         !Local-----------------------------------------------------------------
-        real,    dimension(:), pointer              :: NodeX, NodeY, NodeZ
+        logical, dimension(:,:), pointer            :: CellsChosen
+        real,    dimension(:  ), pointer            :: NodeX, NodeY, NodeZ
         real                                        :: AuxX, AuxY
         real                                        :: AuxXmin, AuxYmin
         real                                        :: AuxXmax, AuxYmax        
         integer                                     :: STAT_CALL
         integer                                     :: NumberOfNodes, Count, i, j
-        integer                                     :: ii, jj, di, dj, daux
+        integer                                     :: ii, jj
         logical                                     :: FillOutsidePoints   = .false.
+        integer                                     :: imin, imax, jmin, jmax
         
         !Begin-----------------------------------------------------------------
 
 
         NumberOfNodes =  Sum(Me%Father%WaterPoints2D(Me%Father%WorkSize2D%ILB:Me%Father%WorkSize2D%IUB, &
                                                      Me%Father%WorkSize2D%JLB:Me%Father%WorkSize2D%JUB))
+                                                     
+                                                     
+        allocate(CellsChosen(Me%Father%Size2D%ILB:Me%Father%Size2D%IUB,                 &
+                             Me%Father%Size2D%JLB:Me%Father%Size2D%JUB))
+
+        CellsChosen(:,:) = .false. 
+                                        
 
 iN:     if (NumberOfNodes >= 3) then
 
@@ -3749,49 +3758,37 @@ iN:     if (NumberOfNodes >= 3) then
 
         Count = 0
 
-d1:     do jj = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB,3
+d1:     do jj = Me%Father%WorkSize2D%JLB, Me%Father%WorkSize2D%JUB
             
-            daux = Me%Father%WorkSize2D%JUB - jj
+
+d2:         do ii = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB
             
-            if (daux < 0) then
-                stop 'Triangulator - ModuleInterpolateGrids - ERR10'
-            endif
-
-            if (daux < 2) then
-                dj = daux
-            else
-                dj = 2
-            endif                
-
-d2:         do ii = Me%Father%WorkSize2D%ILB, Me%Father%WorkSize2D%IUB,3
-            
-                daux = Me%Father%WorkSize2D%IUB - ii
-
-                if (daux < 0) then
-                    stop 'Triangulator - ModuleInterpolateGrids - ERR20'
-                endif
-                
-                if (daux < 2) then
-                    di = daux
-                else
-                    di = 2
-                endif                
-
-                AuxXmax = maxval(Me%Father%ConnectionX(ii:ii+di+1,jj:jj+dj+1))
-                AuxXmin = minval(Me%Father%ConnectionX(ii:ii+di+1,jj:jj+dj+1))
+                AuxXmax = maxval(Me%Father%ConnectionX(ii:ii+1,jj:jj+1))
+                AuxXmin = minval(Me%Father%ConnectionX(ii:ii+1,jj:jj+1))
         
-                AuxYmax = maxval(Me%Father%ConnectionY(ii:ii+di+1,jj:jj+dj+1))
-                AuxYmin = minval(Me%Father%ConnectionY(ii:ii+di+1,jj:jj+dj+1))
+                AuxYmax = maxval(Me%Father%ConnectionY(ii:ii+1,jj:jj+1))
+                AuxYmin = minval(Me%Father%ConnectionY(ii:ii+1,jj:jj+1))
 
                 
 i1:             if (AuxXmax >= Me%InterpolWindow%Xmin .and. AuxXmin <= Me%InterpolWindow%Xmax .and.&
                     AuxYmax >= Me%InterpolWindow%Ymin .and. AuxYmin <= Me%InterpolWindow%Ymax) then
 
+                    jmin =max(Me%Father%WorkSize2D%JLB, jj-1)
+                    jmax =min(Me%Father%WorkSize2D%JUB, jj+1)                    
 
-d3:                 do j = jj, jj+dj
-d4:                 do i = ii, ii+di
+                    imin =max(Me%Father%WorkSize2D%ILB, ii-1)
+                    imax =min(Me%Father%WorkSize2D%IUB, ii+1)                    
+                    
+d3:                 do j = jj-1, jj+1
+d4:                 do i = ii-1, ii+1
 
                         if (Me%Father%WaterPoints2D(i, j) /= WaterPoint) cycle
+                        
+                        if (CellsChosen(i, j)) then
+                            cycle
+                        else
+                            CellsChosen(i, j) = .true.
+                        endif
                 
 
                         AuxX = ((Me%Father%ConnectionX(i, j  ) + Me%Father%ConnectionX(i+1, j  ))/2. + &
@@ -3817,6 +3814,8 @@ d4:                 do i = ii, ii+di
 
             enddo d2
         enddo d1
+        
+        deallocate(CellsChosen)
 
         NumberOfNodes = Count
 
