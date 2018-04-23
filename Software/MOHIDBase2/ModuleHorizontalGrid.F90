@@ -485,7 +485,8 @@ Module ModuleHorizontalGrid
         integer                                 :: FilesListID    = null_int
         character(PathLength)                   :: ModelPath      = null_str  
         type (T_Coef2D)                         :: Coef2D
-        type (T_Coef3D)                         :: Coef3D        
+        type (T_Coef3D)                         :: Coef3D      
+        logical                                 :: AutomaticLines = .false. 
     end type T_DDecomp
     
 
@@ -1265,9 +1266,21 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
         call Block_Unlock(Me%ObjEnterData2, ClientNumber, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR210'
 
-iAuto:  if (.not. Me%DDecomp%Auto) then
+iAuto:  if (Me%DDecomp%Auto) then
+
+            call GetData(Value          = Me%DDecomp%AutomaticLines,                    &
+                         EnterDataID    = Me%ObjEnterData2,                             & 
+                         flag           = iflag,                                        &
+                         keyword        = 'AUTOMATIC_LINES',                            &
+                         SearchType     = FromFile,                                     &
+                         default        = .false.,                                      &
+                         ClientModule   = 'ModuleHorizontalGrid',                       &
+                         STAT           = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
         
-            call GetData(Value          = Me%DDecomp%NInterfaces,               &
+        else
+        
+            call GetData(Value          = Me%DDecomp%NInterfaces,                       &
                          EnterDataID    = Me%ObjEnterData2,                                 & 
                          flag           = iflag,                                            &
                          keyword        = 'INTERFACES_NUMBER',                              &
@@ -1453,7 +1466,7 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
         
         write(*,*) 'halo_points', Me%DDecomp%Halo_Points        
         
-        if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB) then
+        if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB .or. Me%DDecomp%AutomaticLines) then
             call AutomaticDDecompLines  ()
         else
             call AutomaticDDecompColumns()        
@@ -15067,7 +15080,9 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
             ObjHorizontalGrid => ObjHorizontalGrid%Next
         enddo
 
-        if (.not. associated(ObjHorizontalGrid)) stop 'HorizontalGrid - LocateObjFather - ERR01'
+        if (.not. associated(ObjHorizontalGrid)) then
+            stop 'HorizontalGrid - LocateObjFather - ERR01'
+        endif                        
 
     end subroutine LocateObjFather
 

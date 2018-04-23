@@ -5131,6 +5131,8 @@ d2:     do N =1, NW
                 
 
 ifG4D:          if (PropField%Generic4D%ON) then
+
+                    CorrectTimeFrame = .true.
                 
                     if (present(Instant)) then
                     
@@ -5211,24 +5213,30 @@ CTF:                if (CorrectTimeFrame) then
                         
                     endif CTF                        
                         
-                endif ifG4D                       
+                endif ifG4D    
+                
+                if (CorrectTimeFrame) then
                                        
-                if      (PropField%SpaceDim == Dim2D) then
+                    if      (PropField%SpaceDim == Dim2D) then
                 
-                    call Interpolate2DCloud (PropField, X, Y, Field, NoData) 
+                        call Interpolate2DCloud (PropField, X, Y, Field, NoData) 
                     
-                else if (PropField%SpaceDim == Dim3D) then
+                    else if (PropField%SpaceDim == Dim3D) then
                 
-                    if (.not.present(Z)) then
-                        stop 'ModifyField4DXYZ - ModuleField4D - ERR50'
-                    endif
+                        if (.not.present(Z)) then
+                            stop 'ModifyField4DXYZ - ModuleField4D - ERR50'
+                        endif
 
-                    call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
-                endif
+                        call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
+                    endif
+                    
+                endif                    
 
                 if (present(InterpolationDT)) then                                    
                     InterpolationDT = PropField%NextTime - PropField%PreviousTime
                 endif
+
+                                
                 
                 if (Me%Output%Yes) then
                     call WriteOutput(PropField, PropertyIDNumber)
