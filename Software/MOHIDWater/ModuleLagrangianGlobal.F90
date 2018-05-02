@@ -3385,7 +3385,7 @@ i1:     if (BlockInBlockFound) then
         !Begin-----------------------------------------------------------------
 
         call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR10'
         
         FieldNumber = 0
         
@@ -3397,7 +3397,7 @@ i1:     if (BlockInBlockFound) then
                                                 BlockInBlockFound,                      &
                                                 FirstLine, LastLine,                    &
                                                 STAT = STAT_CALL)                                        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR20'
                 
     i1:     if (BlockInBlockFound) then
     
@@ -3407,7 +3407,7 @@ i1:     if (BlockInBlockFound) then
                 if (Me%MeteoOcean%Prop(nProp)%ID%IDNumber == bathymetry_) then        
                     exit
                 else
-                    stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR30'
+                    stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR30'
                 endif
             else i1
                 exit                                 
@@ -3420,7 +3420,7 @@ i1:     if (BlockInBlockFound) then
         allocate (Me%MeteoOcean%Prop(nProp)%Field(Me%MeteoOcean%Prop(nProp)%FieldNumber))        
         
         call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR40'
         
         do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
 
@@ -3430,7 +3430,7 @@ i1:     if (BlockInBlockFound) then
                                                 BlockInBlockFound,                      &
                                                 FirstLine, LastLine,                    &
                                                 STAT = STAT_CALL)                                        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR50'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR50'
                 
             FileNumber = LastLine - FirstLine - 1
             
@@ -3445,14 +3445,14 @@ i1:     if (BlockInBlockFound) then
                 call GetData(Me%MeteoOcean%Prop(nProp)%Field(i)%FileNameList(n),           &
                              Me%ObjEnterData,  iflag, Buffer_Line  = FirstLine + n, &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR60'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR60'
 
             enddo
 
         enddo            
 
         call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR70'
 
     end subroutine ReadMeteoOceanListFiles
                 
