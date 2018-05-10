@@ -119,6 +119,7 @@ Module ModuleGeometry
     private ::      ComputeDistances
     private ::      ComputeAreas
     private ::      ComputeVolumes
+    private ::      ComputeVolume2D
     private ::      StoreVolumeZOld
 
 #ifdef _USE_SEQASSIMILATION
@@ -271,6 +272,7 @@ Module ModuleGeometry
 
     type T_Volumes
         real(8), dimension(:, :, :), allocatable    :: VolumeZ, VolumeU, VolumeV, VolumeW, VolumeZOld
+        real(8), dimension(:, :),    allocatable    :: VolumeZ_2D   !Joao Sobrinho
         logical                                     :: FirstVolW = .true.
     end type T_Volumes
 
@@ -307,6 +309,7 @@ Module ModuleGeometry
                                                    VolumeU      => null(), &
                                                    VolumeV      => null(), &
                                                    VolumeZOld   => null()
+        real(8), dimension(:, :,  ), pointer    :: VolumeZ_2D   => null(), &        
     end type T_StatePointer
 #endif _USE_SEQASSIMILATION
 
@@ -793,7 +796,11 @@ Module ModuleGeometry
         allocate (Me%Volumes%VolumeZ(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR10'
         Me%Volumes%VolumeZ = FillValueDouble
-
+        !Joao Sobrinho
+        allocate (Me%Volumes%VolumeZ_2D(ILB:IUB, JLB:JUB), stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR11'
+        Me%Volumes%VolumeZ_2D = FillValueDouble
+        
         allocate (Me%Volumes%VolumeU(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR20'
         Me%Volumes%VolumeU = FillValueDouble
@@ -2626,6 +2633,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%AuxPointer%WaterColumnZ => Me%WaterColumn%Z
 
             Me%AuxPointer%VolumeZ => Me%Volumes%VolumeZ
+            
+            Me%AuxPointer%VolumeZ_2D => Me%Volumes%VolumeZ_2D
 
             Me%AuxPointer%VolumeU => Me%Volumes%VolumeU
 
@@ -2961,12 +2970,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !It is necessary for the Soil model
             call ComputeZCellCenter
 
-            if (present(SurfaceElevation)) then
-                !Computes the WaterColumn
-                if (Me%FirstDomain%DomainType /= FixSediment) then
-                    call ComputeWaterColumn(SurfaceElevation)
-                endif
-            endif                
+            !Computes the WaterColumn
+            if (Me%FirstDomain%DomainType /= FixSediment) then
+                call ComputeWaterColumn(SurfaceElevation)
+                call ComputeVolume2D
+            endif
 
             nullify(Me%Externalvar%DecayTime)
 
@@ -3167,7 +3175,40 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
      end subroutine ComputeWaterColumn
 
     !--------------------------------------------------------------------------
+    subroutine ComputeVolume2D !João Sobrinho
+        !locals-----------------------------------------------------------------
+        integer                                 :: i, j, STAT_CALL
+        real, dimension(:,:),     pointer       :: DUX, DVY
+        integer, dimension(:, :), pointer       :: WaterPoints2D
+        !Begin------------------------------------------------------------------
+        
+        !Gets DUX, DVY
+        call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR01'
+        
+        !Gets WaterPoints2D
+        call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR02'
+        
+        !Integrate volumeZ - for 2way nesting purposes
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            Me%Volumes%VolumeZ_2D(i, j) = Me%WaterColumn%Z(i, j) * dble(DUX(i, j)) * dble(DVY(i, j)) *  &
+                                          WaterPoints2D(i, j)
+        enddo
+        enddo
+        
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DUX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR03'
 
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DVY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR04'
+        
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR05'
+    
+    end subroutine ComputeVolume2D
 
     !--------------------------------------------------------------------------
     !Computes the Distances (DWZ + DZZ + DUZ + DVZ + DZI + DZE)
@@ -5938,11 +5979,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !--------------------------------------------------------------------------
 
     subroutine GetGeometryVolumes(GeometryID, VolumeZ, VolumeU, VolumeV, &
-                                  VolumeW, VolumeZOld, ActualTime, STAT)
+                                  VolumeW, VolumeZOld, VolumeZ_2D, ActualTime, STAT)
 
         !Parameter-------------------------------------------------------------
         integer                                         :: GeometryID
         real(8), dimension(:, :, :), pointer, optional  :: VolumeZ, VolumeU, VolumeV, VolumeW, VolumeZOld
+        real(8), dimension(:,    :), pointer, optional  :: VolumeZ_2D
         type (T_Time), optional                         :: ActualTime
         integer, intent(out), optional                  :: STAT
 
@@ -5970,6 +6012,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 call Read_Lock(mGEOMETRY_, Me%InstanceID)
                 VolumeZ => Me%Volumes%VolumeZ
             endif
+            !VolumeZ_2D - Joao Sobrinho
+            if (present(VolumeZ_2D)) then
+                call Read_Lock(mGEOMETRY_, Me%InstanceID)
+                VolumeZ_2D => Me%Volumes%VolumeZ_2D
+            endif            
 
             !VolumeU
             if (present(VolumeU)) then
@@ -6605,6 +6652,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%Areas%AreaV => Me%AuxPointer%AreaV
 
             Me%Volumes%VolumeZ => Me%AuxPointer%VolumeZ
+            
+            Me%Volumes%VolumeZ_2D => Me%AuxPointer%VolumeZ_2D
 
             Me%Volumes%VolumeZOld => Me%AuxPointer%VolumeZOld
 
@@ -6757,13 +6806,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             deallocate (Me%Volumes%VolumeZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR10'
         endif
-
+        if (allocated(Me%Volumes%VolumeZ_2D)) then
+            deallocate (Me%Volumes%VolumeZ, stat = STATUS)
+            if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR11'
+        endif
         if (allocated(Me%Volumes%VolumeU)) then
             deallocate (Me%Volumes%VolumeU, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR20'
         endif
-
-
         if (allocated(Me%Volumes%VolumeV)) then
             deallocate (Me%Volumes%VolumeV, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR30'
@@ -6984,6 +7034,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             nullify(Me%AuxPointer%AreaV)
 
             nullify(Me%AuxPointer%VolumeZ)
+            
+            nullify(Me%AuxPointer%VolumeZ_2D)
 
             nullify(Me%AuxPointer%VolumeZOld)
 

@@ -147,7 +147,6 @@ Module ModuleFunctions
     !Coordinates of grid cells
     public  :: RODAXY
     public  :: FromCartesianToGrid
-
     public  :: FromGridToCartesian
     interface  FromGridToCartesian
         module procedure FromGridToCartesianR4
@@ -180,12 +179,9 @@ Module ModuleFunctions
     public  :: FillMatrix3D
     
     !Assimilation - TwoWay   João Sobrinho
-    public  :: TwoWayAssimilation
-    
-    interface  TwoWayAssimilation
-        module procedure TwoWayAssimilation2D
-        module procedure TwoWayAssimilation3D
-    end interface  TwoWayAssimilation
+    public  :: TwoWayAssimilation3D
+    public  :: TwoWayAssimilationWaterLevel
+    public  :: TwoWayAssimilation2D
     
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
@@ -5072,21 +5068,19 @@ d1:     do k = KLB, KUB
                         do dij=1,dijmax
 
                             do jj=j-dij,j+dij
+                            do ii=i-dij,i+dij
 
                                 if (jj < JLB) cycle
                                 if (jj > JUB) cycle
+                                if (ii < ILB) cycle
+                                if (ii > IUB) cycle
 
-                                do ii=i-dij,i+dij
+                                if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
+                                    SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                    Count = Count + 1
+                                endif
 
-                                    if (ii < ILB) cycle
-                                    if (ii > IUB) cycle
-
-                                    if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
-                                        SumValues   = SumValues   + OutValues3D(ii, jj, k) 
-                                        Count = Count + 1
-                                    endif
-
-                                enddo
+                            enddo
                             enddo
 
                             if (Count > 0) exit
@@ -5128,7 +5122,6 @@ d1:     do k = KLB, KUB
                                                                        
                                 else
 
-                                    write(*,*) 'i j k=',i,j,k   
                                     stop 'ExtraPol3DNearestCell - ModuleFunctions - ERR10'
                                 
                                 endif
@@ -5222,21 +5215,19 @@ d1:     do k = KLB, KUB
                         do dij=1,dijmax
 
                             do jj=j-dij,j+dij
+                            do ii=i-dij,i+dij
 
                                 if (jj < JLB) cycle
                                 if (jj > JUB) cycle
+                                if (ii < ILB) cycle
+                                if (ii > IUB) cycle
 
-                                do ii=i-dij,i+dij
+                                if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
+                                    SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                    Count = Count + 1
+                                endif
 
-                                    if (ii < ILB) cycle
-                                    if (ii > IUB) cycle
-
-                                    if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
-                                        SumValues   = SumValues   + OutValues3D(ii, jj, k) 
-                                        Count = Count + 1
-                                    endif
-
-                                enddo
+                            enddo
                             enddo
 
                             if (Count > 0) exit
@@ -5277,10 +5268,7 @@ d1:     do k = KLB, KUB
                                     OutValues3D(i, j, k) = FillValueReal
                                                                        
                                 else
-                                    write(*,*) 'kk dk=',kk, dk
-                                    write(*,*) 'ii jj dij dijmax=',ii, jj, dij, dijmax
-                                    write(*,*) 'Count SumValues=',Count, SumValues
-                                    write(*,*) 'i j k=',i,j,k   
+
                                     stop 'ExtraPol3DNearestCell_8 - ModuleFunctions - ERR10'
                                 
                                 endif
@@ -5612,137 +5600,212 @@ d5:     do k = klast + 1,KUB
     end subroutine FillMatrix3D
     !-----------------------------------------------------------------------------------------------------------------
     
-    subroutine TwoWayAssimilation2D(FatherProperty, SonProperty, Open3DFather, Open3DSon, KUBFather,        &
-                                    IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, IConnect, Jconnect, DecayTime,  &
-                                    DT, TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather)
-    !Arguments---------------------------------------------------------------------------------
-    real,    dimension(:,:), pointer, intent(IN)        :: SonProperty
-    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
-    real(8), dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
-    real,    dimension(:,:), pointer, intent(INOUT)     :: FatherProperty
-    integer, dimension(:,:), pointer, intent(IN)        :: IConnect, Jconnect
-    integer, intent(IN)                                 :: KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
-    real, intent(IN)                                    :: DecayTime, DT
-    !Aux variables --------------------------------------------------------------------------------
-    integer                                             :: i, j
-    real,    dimension(:,:), pointer                    :: AuxMatrix
-    real,    dimension(:,:,:), pointer                  :: TotSonVolInFather
-    real,    dimension(:,:), pointer                    :: FatherCopyCorners
-    !Begin-------------------------------------------------------------------------------------
-
-    !left lower corner
-    FatherCopyCorners(1, KUBFather) = FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1)
-    !left upper corner
-    FatherCopyCorners(2, KUBFather) = FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1)
-    !Right lower corner
-    FatherCopyCorners(3, KUBFather) = FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1)
-    !Right upper corner
-    FatherCopyCorners(4, KUBFather) = FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1)
+    subroutine TwoWayAssimilationWaterLevel(FatherProperty, SonProperty, Open3DFather, Open3DSon, SizeFather, SizeSon,&
+                                            ILink, JLink, DecayTime, DT, TotSonVolInFather2D, AuxMatrix,              &
+                                            FatherCorners, VolumeSon, VolumeFather)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)      :: SizeSon, SizeFather    
+        real,    dimension(:,:  ), pointer, intent(IN)      :: SonProperty, VolumeFather, VolumeSon
+        integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
+        real,    dimension(:,:  ), pointer, intent(INOUT)   :: FatherProperty
+        integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink
+        real,                               intent(IN)      :: DecayTime, DT
+        real,    dimension(:,:),   pointer                  :: TotSonVolInFather2D, AuxMatrix, FatherCorners
+        !Local variables --------------------------------------------------------------------------------
+        integer                                             :: i, j, KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
+        !Begin-------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB
+        IUBSon = SizeSon%IUB
+        JLBSon = SizeSon%JLB
+        JUBSon = SizeSon%JUB
+        KUBSon = SizeSon%KUB
+        KUBFather = SizeFather%KUB
+        !left lower corner
+        FatherCorners(1, 1) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1)
+        !left upper corner
+        FatherCorners(2, 1) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1)
+        !Right lower corner
+        FatherCorners(3, 1) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1)
+        !Right upper corner
+        FatherCorners(4, 1) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1)
     
         do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                if (Open3DSon(i, j, KUBSon) == 1)then                     
-                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1) = &
-                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1) + SonProperty(i, j) * VolumeZSon(i, j, KUBFather)
-                endif
-            enddo        
+        do i = ILBSon, IUBSon
+            AuxMatrix(ILink(i, j)+1, JLink(i, j)+1) = (AuxMatrix(ILink(i, j)+1, JLink(i, j)+1) +                     &
+                                                      SonProperty(i, j) * VolumeSon(i, j)) * Open3DSon(i, j, KUBSon)
+        enddo        
         enddo
     
-        do j = Jconnect(1, 1)+1, Jconnect(IUBSon, JUBSon)+1
-            do i = IConnect(1, 1)+1, IConnect(IUBSon, JUBSon)+1  
-                if (Open3DFather(i, j, KUBFather) == 1 .and. TotSonVolInFather(i, j, KUBFather) > 0 )then
-                    FatherProperty(i, j) = FatherProperty(i, j) + (AuxMatrix(i, j) /                      &
-                                           TotSonVolInFather(i, j, KUBFather) - FatherProperty(i, j)) *   &
-                                           (DT / DecayTime) * (TotSonVolInFather(i, j, KUBFather) /       &
-                                           VolumeZFather(i, j, KUBFather))
-                endif
-            enddo
+        do j = JLink(1, 1)+1, JLink(IUBSon, JUBSon)+1
+        do i = ILink(1, 1)+1, ILink(IUBSon, JUBSon)+1  
+            if (Open3DFather(i, j, KUBFather) == 1 .and. TotSonVolInFather2D(i, j) > 0 )then
+                FatherProperty(i, j) = FatherProperty(i, j) + (AuxMatrix(i, j) / TotSonVolInFather2D(i, j) -   &
+                                       FatherProperty(i, j)) * (DT / DecayTime) *                              &
+                                       (TotSonVolInFather2D(i, j) / VolumeFather(i, j))
+                                        
+            endif
+        enddo
         enddo
         
         !left lower corner
-        FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1) = FatherCopyCorners(1,KUBFather) 
+        FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1) = FatherCorners(1,1) 
         !left upper corner, KUBFather
-        FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1) = FatherCopyCorners(2,KUBFather)
+        FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1) = FatherCorners(2,1)
         !Right lower corner
-        FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1) = FatherCopyCorners(3,KUBFather)
+        FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1) = FatherCorners(3,1)
         !Right upper corner
-        FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1) = FatherCopyCorners(4,KUBFather)
+        FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1) = FatherCorners(4,1)
     
-    end subroutine TwoWayAssimilation2D
+    end subroutine TwoWayAssimilationWaterLevel
     !------------------------------------------------------------------------------------------------------------------
 
-    subroutine TwoWayAssimilation3D(FatherProperty,SonProperty, Open3DFather, Open3DSon,  &
-                                    KUBFather, KLBFather, IUBSon, ILBSon, JUBSon, JLBSon, &
-                                    KUBSon, KLBSon, IConnect, Jconnect, DecayTime, DT,    &
-                                    TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather) 
-    !Arguments---------------------------------------------------------------------------------
-    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty
-    real(8), dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
-    real,    dimension(:,:,:), pointer, intent(INOUT)   :: FatherProperty
-    integer, dimension(:,:),   pointer, intent(IN)      :: IConnect, Jconnect
-    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
-    integer, intent(IN)                                 :: KUBFather, KLBFather, IUBSon, ILBSon, JUBSon, JLBSon
-    integer, intent(IN)                                 :: KUBSon, KLBSon
-    real,    intent (IN)                                :: DecayTime, DT
-    !Aux variables -----------------------------------------------------------------------------
-    integer                                             :: i, j, k
-    real, dimension(:,:,:), pointer                     :: AuxMatrix
-    real, dimension(:,:,:), pointer                     :: TotSonVolInFather
-    real, dimension(:,:), pointer                       :: FatherCopyCorners
-    !Begin----------------------------------------------------------------------------------------
-    
-    !Copies Values of FatherProperty coincident with the corners of the Son domain (because the son domain does
-    ! not compute them).
-    do k = KLBFather, KUBFather
+    subroutine TwoWayAssimilation2D(FatherProperty, SonProperty, Open3DFather, Open3DSon, SizeFather, SizeSon,    &
+                                    ILink, JLink, DecayTime, DT, TotSonVolInFather, AuxMatrix, FatherCorners,     &
+                                    VolumeSon, VolumeFather)
+        !Arguments--------------------------------------------------------------------------------------------------
+        type(T_Size3D),                       intent(IN)      :: SizeSon, SizeFather
+        real,    dimension(:,:,:), pointer,   intent(IN)      :: SonProperty, VolumeSon, VolumeFather
+        real,    dimension(:,:,:), pointer,   intent(INOUT)   :: FatherProperty
+        integer, dimension(:,:),   pointer,   intent(IN)      :: ILink, JLink
+        integer, dimension(:,:,:), pointer,   intent(IN)      :: Open3DFather, Open3DSon
+        real,                                 intent(IN)      :: DecayTime, DT
+        real,    dimension(:,:,:), pointer,   intent(IN)      :: AuxMatrix, TotSonVolInFather
+        real,    dimension(:,:),   pointer,   intent(IN)      :: FatherCorners
+        !local variables ---------------------------------------------------------------------------------------------
+        integer                                               :: i, j, KUBFather, IUBSon, ILBSon, JUBSon, &
+                                                                 JLBSon, KLBSon
+        !Begin------------------------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB
+        IUBSon = SizeSon%IUB
+        JLBSon = SizeSon%JLB
+        JUBSon = SizeSon%JUB
+        !Copy Values of FatherProperty coincident with the corners of the Son domain (because the son domain does
+        ! not compute them).
+        
         !left lower corner
-        FatherCopyCorners(1, k) = FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1, k)
+        FatherCorners(1, 1) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, 1)
         !left upper corner
-        FatherCopyCorners(2, k) = FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1, k)
+        FatherCorners(2, 1) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, 1)
         !Right lower corner
-        FatherCopyCorners(3, k) = FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1, k)
+        FatherCorners(3, 1) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, 1)
         !Right upper corner
-        FatherCopyCorners(4, k) = FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1, k)
-    enddo
-    !Paralelizar! João Sobrinho
-    do k = KLBSon, KUBSon
+        FatherCorners(4, 1) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, 1)
+        
+        !Paralelizar! João Sobrinho
         do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                if (Open3DSon(i, j, k) == 1)then
-                    !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) = AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) + &
-                                                                      SonProperty(i, j, k) * VolumeZSon(i, j, k)
-                endif
-            enddo        
+        do i = ILBSon, IUBSon
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, 1) = AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, 1) +  &
+                                                             SonProperty(i, j, 1) * VolumeSon(i, j, 1) *   &
+                                                             Open3DSon(i, j, 1)
+        enddo        
         enddo
-    enddo
-    !Paralelizar! João Sobrinho
-    do k = KLBFather, KUBFather
-        do j = Jconnect(1, 1)+1, Jconnect(IUBSon, JUBSon)+1
-            do i = IConnect(1, 1)+1, IConnect(IUBSon, JUBSon)+1
-                if (Open3DFather(i, j, k) == 1 .and. TotSonVolInFather(i, j, k) > 0. )then
-                    FatherProperty(i, j, k) = FatherProperty(i, j, k) + &
-                                              (AuxMatrix(i, j, k) / TotSonVolInFather(i, j, k) - FatherProperty(i, j, k)) * &
-                                              (DT / DecayTime) * (TotSonVolInFather(i, j, k) / VolumeZFather(i, j, k))
-                endif
+        
+        !Paralelizar! João Sobrinho
+        do j = JLink(1, 1)+1, JLink(IUBSon, JUBSon)+1
+        do i = ILink(1, 1)+1, ILink(IUBSon, JUBSon)+1
+            
+            if (Open3DFather(i, j, 1) == 1 .and. TotSonVolInFather(i, j, 1) > 0. )then
                 
-            enddo
+                FatherProperty(i, j, 1) = FatherProperty(i, j, 1) + (AuxMatrix(i, j, 1) / TotSonVolInFather(i, j, 1) -&
+                                          FatherProperty(i, j, 1)) * (DT / DecayTime) *                               &
+                                          (TotSonVolInFather(i, j, 1) / VolumeFather(i, j, 1))
+            endif
+                
         enddo
-    enddo
+        enddo
     
-    do k = KLBFather, KUBFather
         !left lower corner
-        FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1, k) = FatherCopyCorners(1, k) 
+        FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, 1) = FatherCorners(1, 1) 
         !left upper corner
-        FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1, k) = FatherCopyCorners(2, k)
+        FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, 1) = FatherCorners(2, 2)
         !Right lower corner
-        FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1, k) = FatherCopyCorners(3, k)
+        FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, 1) = FatherCorners(3, 3)
         !Right upper corner
-        FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1, k) = FatherCopyCorners(4, k)
-    enddo
+        FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, 1) = FatherCorners(4, 4)
     
-    end subroutine TwoWayAssimilation3D
-   
-    !-------------------------------------------------------------------------------------    
+    end subroutine TwoWayAssimilation2D
+                                    
+    !--------------------------------------------------------------------------------------------------------------
+                                    
+    subroutine TwoWayAssimilation3D(FatherProperty, SonProperty, Open3DFather, Open3DSon, SizeFather, SizeSon, &
+                                    ILink, JLink, DecayTime, DT, TotSonVolInFather, AuxMatrix, FatherCorners,  &
+                                    VolumeSon, VolumeFather) 
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)      :: SizeSon, SizeFather
+        real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty, VolumeSon, VolumeFather
+        real,    dimension(:,:,:), pointer, intent(INOUT)   :: FatherProperty
+        integer, dimension(:,:),   pointer, intent(IN)      :: ILink, JLink
+        integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
+        real,    intent (IN)                                :: DecayTime, DT
+        real, dimension(:,:,:), pointer                     :: AuxMatrix, TotSonVolInFather
+        real, dimension(:,:), pointer                       :: FatherCorners
+        !Local variables -----------------------------------------------------------------------------
+        integer                                             :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+                                                               KUBSon, KUBFather, KLBFather
+        !Begin----------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB
+        IUBSon = SizeSon%IUB
+        JLBSon = SizeSon%JLB
+        JUBSon = SizeSon%JUB
+        KLBSon = SizeSon%KLB
+        KUBSon = SizeSon%KUB
+        KLBFather = SizeFather%KLB
+        KUBFather = SizeFather%KUB
+        !Copies Values of FatherProperty coincident with the corners of the Son domain (because the son domain does
+        ! not compute them).
+        do k = KLBFather, KUBFather
+            !left lower corner
+            FatherCorners(1, k) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, k)
+            !left upper corner
+            FatherCorners(2, k) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, k)
+            !Right lower corner
+            FatherCorners(3, k) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, k)
+            !Right upper corner
+            FatherCorners(4, k) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, k)
+        enddo
+        
+        !Paralelizar! João Sobrinho
+        do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) = AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) + &
+                                                             SonProperty(i, j, k) * VolumeSon(i, j, k) *  &
+                                                             Open3DSon(i, j, k)
+        enddo        
+        enddo
+        enddo
+        
+        !Paralelizar! João Sobrinho
+        do k = KLBFather, KUBFather
+        do j = JLink(1, 1)+1, JLink(IUBSon, JUBSon)+1
+        do i = ILink(1, 1)+1, ILink(IUBSon, JUBSon)+1
+            if (Open3DFather(i, j, k) == 1 .and. TotSonVolInFather(i, j, k) > 0. )then
+                FatherProperty(i, j, k) = FatherProperty(i, j, k) + (AuxMatrix(i, j, k) / TotSonVolInFather(i, j, k) -&
+                                          FatherProperty(i, j, k)) * (DT / DecayTime) * (TotSonVolInFather(i, j, k) / &
+                                          VolumeFather(i, j, k))
+            endif
+                
+        enddo
+        enddo
+        enddo
+    
+        do k = KLBFather, KUBFather
+            !left lower corner
+            FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, k) = FatherCorners(1, k) 
+            !left upper corner
+            FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, k) = FatherCorners(2, k)
+            !Right lower corner
+            FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, k) = FatherCorners(3, k)
+            !Right upper corner
+            FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, k) = FatherCorners(4, k)
+        enddo
+    
+    end subroutine TwoWayAssimilation3D    
+    
+    !-------------------------------------------------------------------------------------
+                                    
     subroutine ReadTimeKeyWords(ObjEnterData, ExtractTime, BeginTime, EndTime, DT,       &
                                 VariableDT, ClientModule, MaxDT, GmtReference,           &
                                 DTPredictionInterval)
@@ -12059,7 +12122,7 @@ D2:     do I=imax-1,2,-1
      
         !Begin-----------------------------------------------------------------   
     
-        do i=1,6
+        do I=1,6
             read(UnitIn,*) 
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ReadEsriGridData - ModuleFunctions - ERR10'
