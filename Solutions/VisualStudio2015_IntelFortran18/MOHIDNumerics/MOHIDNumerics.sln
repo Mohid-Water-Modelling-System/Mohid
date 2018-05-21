@@ -117,6 +117,12 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "ConvertToTimeSerie", "Conve
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "JoinTimeSeries", "JoinTimeSeries\JoinTimeSeries.vfproj", "{FC3EC4C8-E66F-4B9D-98A0-631EDD72F9B3}"
 EndProject
+Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "Compare2HDFfiles", "Compare2HDFfiles\Compare2HDFfiles.vfproj", "{A2362933-01EF-4E31-914B-C4316A54E065}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5B9DC9D4-2641-4422-B6DC-988CA58D9323} = {5B9DC9D4-2641-4422-B6DC-988CA58D9323}
+		{B186E0E8-1704-4EB0-A0C5-85AFB52A069C} = {B186E0E8-1704-4EB0-A0C5-85AFB52A069C}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug MPI|Any CPU = Debug MPI|Any CPU
@@ -1033,6 +1039,50 @@ Global
 		{FC3EC4C8-E66F-4B9D-98A0-631EDD72F9B3}.Release|Win32.ActiveCfg = Release|Win32
 		{FC3EC4C8-E66F-4B9D-98A0-631EDD72F9B3}.Release|Win32.Build.0 = Release|Win32
 		{FC3EC4C8-E66F-4B9D-98A0-631EDD72F9B3}.Release|x64.ActiveCfg = Release|x64
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug MPI|Any CPU.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug MPI|Any CPU.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug MPI|Mixed Platforms.ActiveCfg = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug MPI|Mixed Platforms.Build.0 = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug MPI|Win32.ActiveCfg = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug MPI|Win32.Build.0 = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug MPI|x64.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug MPI|x64.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug OpenMP|Any CPU.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug OpenMP|Any CPU.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug OpenMP|Mixed Platforms.ActiveCfg = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug OpenMP|Mixed Platforms.Build.0 = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug OpenMP|Win32.ActiveCfg = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug OpenMP|Win32.Build.0 = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug OpenMP|x64.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug OpenMP|x64.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug|Any CPU.ActiveCfg = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug|Win32.Build.0 = Debug|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Debug|x64.ActiveCfg = Debug|x64
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release MPI|Any CPU.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release MPI|Any CPU.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release MPI|Mixed Platforms.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release MPI|Mixed Platforms.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release MPI|Win32.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release MPI|Win32.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release MPI|x64.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release MPI|x64.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release OpenMP|Any CPU.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release OpenMP|Any CPU.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release OpenMP|Mixed Platforms.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release OpenMP|Mixed Platforms.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release OpenMP|Win32.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release OpenMP|Win32.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release OpenMP|x64.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release OpenMP|x64.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release|Any CPU.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release|Win32.ActiveCfg = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release|Win32.Build.0 = Release|Win32
+		{A2362933-01EF-4E31-914B-C4316A54E065}.Release|x64.ActiveCfg = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

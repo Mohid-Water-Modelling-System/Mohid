@@ -15,8 +15,8 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\Include\fortran;..\..\..\..\ExternalLibs\MPI_x64\IntelFortran11\include" PreprocessorDefinitions="_NO_NETCDF;_USE_MPI" WarnUnusedVariables="true"/>
-				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib;..\..\..\..\ExternalLibs\MPI_x64\IntelFortran11\Lib" IgnoreDefaultLibraryNames="msvcrt.lib" SubSystem="subSystemConsole" AdditionalDependencies="hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib fmpich2.lib"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\MPI_x64\IntelFortran11\include" PreprocessorDefinitions="_NO_NETCDF;_USE_MPI" WarnUnusedVariables="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\MPI_x64\IntelFortran11\Lib" IgnoreDefaultLibraryNames="msvcrt.lib" SubSystem="subSystemConsole" AdditionalDependencies="hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib fmpich2.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -35,8 +35,8 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|x64">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\Include\fortran;..\..\..\..\ExternalLibs\MPI_x64\IntelFortran11\include" PreprocessorDefinitions="_NO_NETCDF;_USE_MPI"/>
-				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.6_x64\lib;..\..\..\..\ExternalLibs\MPI_x64\IntelFortran11\Lib" IgnoreDefaultLibraryNames="msvcrt.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib fmpich2.lib"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\MPI_x64\IntelFortran11\include" PreprocessorDefinitions="_NO_NETCDF;_USE_MPI"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\MPI_x64\IntelFortran11\Lib" IgnoreDefaultLibraryNames="msvcrt.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib fmpich2.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
