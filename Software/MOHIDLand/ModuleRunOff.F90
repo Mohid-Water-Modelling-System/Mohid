@@ -1211,7 +1211,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                              Me%ObjEnterData,iflag,                             &
                              SearchType   = FromFile,                           &
                              keyword      = 'TIME_SERIE_LOCATION',              &
-                             ClientModule = 'ModuleHydrodynamic',               &
+                             ClientModule = 'ModuleRunOff',                     &
                              Default      = Me%Files%DataFile,                  &
                              STAT         = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_)stop 'ReadDataFile - ModuleRunOff - ERR377'
