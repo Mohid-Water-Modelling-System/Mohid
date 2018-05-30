@@ -328,7 +328,7 @@ Module ModuleCompare2HDFfiles
         call GetData(   Me%HDFOut,                                                      &
                         Me%ObjEnterData, flag,                                          &
                         SearchType   = FromFile,                                        &
-                        ClientModule = 'ModuleCompare2HDFfiles',                              &
+                        ClientModule = 'ModuleCompare2HDFfiles',                        &
                         keyword      = 'HDF_OUT_ON',                                    &
                         default      = .false.,                                         &
                         STAT         = STAT_CALL)

@@ -4657,10 +4657,14 @@ First:      if (LastTime.LT.Actual) then
 !~             if (Check_Vectorial_Property(PropertyX%ID%IDNumber)) then
             if (PropertyX%ID%IsVectorial) then
 
-                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldX, STAT = STAT_CALL)
+                call WriteTimeSerie(TimeSerieID = Me%ObjTimeSerie,                      &
+                                    Data2D      = PropertyX%FieldX,                     &
+                                    STAT        = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR010'
             
-                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldY, STAT = STAT_CALL)
+                call WriteTimeSerie(TimeSerieID = Me%ObjTimeSerie,                      &
+                                    Data2D      = PropertyX%FieldY,                     &
+                                    STAT        = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR020'      
                                  
                 
@@ -4668,12 +4672,16 @@ First:      if (LastTime.LT.Actual) then
 !~             else if (Check_Angle_Property(PropertyX%ID%IDNumber)) then
             elseif (PropertyX%ID%IsAngle) then
                     
-                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%FieldInputRef, STAT = STAT_CALL)
+                call WriteTimeSerie(TimeSerieID = Me%ObjTimeSerie,                      &
+                                    Data2D      = PropertyX%FieldInputRef,              &
+                                    STAT        = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR040'                                    
                 
             else
                 
-                call WriteTimeSerie(Me%ObjTimeSerie, Data2D = PropertyX%Field, STAT = STAT_CALL)
+                call WriteTimeSerie(TimeSerieID = Me%ObjTimeSerie,                      &
+                                    Data2D      = PropertyX%Field,                      &
+                                    STAT        = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleAtmosphere - ERR050'
             
             endif
