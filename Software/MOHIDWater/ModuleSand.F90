@@ -6706,7 +6706,7 @@ TOut:       if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                 do j = WorkJLB, Me%WorkSize%JUB
                 do i = WorkILB, Me%WorkSize%IUB
                     if (Me%ExternalVar%OpenPoints2D(i, j) == 1) then
-                        Array2D(i, j) = sqrt(Me%OutFluxX(i,j)**2. + Me%OutFluxY(i,j)**2.)
+                        Array2D(i, j) = sqrt(Me%Residual%OutFluxX(i,j)**2. + Me%Residual%OutFluxY(i,j)**2.)
                     else
                         Array2D(i, j) = 0.
                     endif                        
