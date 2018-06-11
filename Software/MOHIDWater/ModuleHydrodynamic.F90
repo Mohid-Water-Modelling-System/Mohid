@@ -24462,7 +24462,7 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
         !Arguments------------------------------------------------------------
 
         !Local----------------------------------------------------------------
-        integer, dimension(:,:,:), pointer  :: WaterPoints3D
+        integer, dimension(:,:,:), pointer  :: WaterPoints3D, OpenPoints3D
         real,    dimension(:,:  ), pointer  :: SurfaceElevation
         real,    dimension(:,:,:), pointer  :: Velocity_Z, DecayTime
         real                                :: DT_WaterLevel
@@ -24473,6 +24473,8 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
         !Begin----------------------------------------------------------------
         
         WaterPoints3D    => Me%External_Var%WaterPoints3D
+        
+        OpenPoints3D       => Me%External_Var%OpenPoints3D !Joao Sobrinho
 
         SurfaceElevation => Me%WaterLevel%New
 
@@ -24551,22 +24553,23 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         if (Me%Relaxation%Geometry) then 
 
             !Compute new volume 
-            call ComputeVerticalGeometry(Me%ObjGeometry, WaterPoints3D,                     &
-                                         SurfaceElevation, Me%CurrentTime,                  &
-                                         Velocity_Z, DT_WaterLevel,                         &
-                                         DecayTime = DecayTime, STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                 stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR30' 
-        else
-        
-            call ComputeVerticalGeometry(Me%ObjGeometry, WaterPoints3D,                     &
-                                         SurfaceElevation, Me%CurrentTime,                  &
-                                         Velocity_Z, DT_WaterLevel,                         &
+            call ComputeVerticalGeometry(Me%ObjGeometry, WaterPoints3D,                        &
+                                         SurfaceElevation, Me%CurrentTime,                     &
+                                         Velocity_Z, DT_WaterLevel,                            &
+                                         DecayTime = DecayTime, OpenPoints3D = OpenPoints3D,   &
                                          STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                 stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR40' 
+            if (STAT_CALL /= SUCCESS_)                                                         &
+                 stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR30' 
+        else
+            
+            call computeverticalgeometry(me%objgeometry, waterpoints3d,                        &
+                                         surfaceelevation, me%currenttime,                     &
+                                         velocity_z, dt_waterlevel,                            &
+                                         OpenPoints3D = OpenPoints3D, stat = stat_call)
+
+            if (stat_call /= success_)                                                         &
+                 stop 'subroutine new_geometry - modulehydrodynamic. err40' 
         
         endif
 
@@ -34680,12 +34683,11 @@ cd3:                   if (Manning) then
             call Modify_ObstacleDrag
         if (Me%ComputeOptions%Turbine)                                          &
             call ModifyTurbine(Me%ObjTurbine, Me%Velocity%Horizontal%U%New,     &
-                              Me%Velocity%Horizontal%V%New, Me%Velocity%Horizontal%UV%New,     &
-                              Me%Velocity%Horizontal%VU%New,                     &
-                              Me%External_Var%Volume_UV,                    &
-                              Me%External_Var%KFloor_UV, Me%External_Var%DXX_YY,    &
-                              Me%External_Var%DUX_VY, Me%Direction%di, Me%Direction%dj,  &
-                              Me%External_Var%Density, Me%Velocity%DT)
+                               Me%Velocity%Horizontal%V%New,                    &
+                               Me%Velocity%Horizontal%UV%New,                   &
+                               Me%External_Var%Volume_UV,                       &
+                               Me%External_Var%KFloor_UV,                       &
+                               Me%External_Var%Density)
      
         !Effect of a scraper in a settling tank
         if (Me%ComputeOptions%Scraper)                                          &
@@ -48979,8 +48981,8 @@ do5:            do i = ILB, IUB
         !Locals---------------------------------------------------------------------------------------------------
         integer,    dimension(:,:),   pointer             :: IV, JV, IU, JU, IZ, JZ
         integer,    dimension(:,:,:), pointer             :: Open3DFather, Open3DSon
-        real,       dimension(:,:,:), pointer             :: VolumeWSon, VolumeZFather, VolumeUSon, VolumeUFather
-        real,       dimension(:,:,:), pointer             :: VolumeVSon, VolumeVFather, VolumeZSon, VolumeWFather
+        real,       dimension(:,:,:), pointer             :: VolumeZFather, VolumeUSon, VolumeUFather
+        real,       dimension(:,:,:), pointer             :: VolumeVSon, VolumeVFather, VolumeZSon
         real,       dimension(:,:),   pointer             :: VolumeZFather_2D, VolumeZSon_2D
         type (T_Hydrodynamic),     pointer                :: ObjHydrodynamicSon
         integer                                           :: status, STAT_, ready_son, i, j, k, AuxHydrodynamicID
@@ -48996,10 +48998,9 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
             if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")
             
             !Get 3Dvolumes, openPoints and areas
-            call GetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeWSon, VolumeUSon,       &
-                                           VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather,            &
-                                           VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D,             &
-                                           VolumeWFather)
+            call GetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeUSon,       &
+                                           VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather,&
+                                           VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D)
             !Zeros matrixes and compute total volume of son cells in each father cell
             call UpdateMatrixes2Way(ObjHydrodynamicSon%WorkSize, Open3DSon, VolumeUSon, IU, JU)
             !update Velocity U
@@ -49033,7 +49034,7 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
                                         Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeVSon, VolumeVFather)              
             endif
             
-            call UpdateMatrixes2Way(ObjHydrodynamicSon%WorkSize, Open3DSon, VolumeWSon, IZ, JZ)
+            call UpdateMatrixes2Way(ObjHydrodynamicSon%WorkSize, Open3DSon, VolumeZSon, IZ, JZ)
 
             !Update vertical geometry
             !2D and 3D cases to improve cycle paralelization
@@ -49042,13 +49043,13 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
                                         ObjHydrodynamicSon%Velocity%Vertical%Cartesian, Open3DFather, Open3DSon,      &
                                         Me%WorkSize, ObjHydrodynamicSon%WorkSize, IZ, JZ,                             &
                                         ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,                &
-                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeWSon, VolumeWFather)
+                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon, VolumeZFather)
             else
                 call TwoWayAssimilation3D(Me%Velocity%Vertical%Cartesian,                                             &
                                         ObjHydrodynamicSon%Velocity%Vertical%Cartesian, Open3DFather, Open3DSon,      &
                                         Me%WorkSize, ObjHydrodynamicSon%WorkSize, IZ, JZ,                             &
                                         ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,                &
-                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeWSon, VolumeWFather)
+                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon, VolumeZFather)
             endif
                        
             !Calculation of volume 2D because volumes are allocated in 3D and waterLevel is always 2D
@@ -49066,10 +49067,9 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
            
             AuxHydrodynamicID = SonHydrodynamicID        ! Change ID to Son
             
-            call UnGetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeWSon, VolumeUSon,     &
-                                               VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather,        &
-                                               VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D,         &
-                                               VolumeWFather)
+            call UnGetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeUSon,         &
+                                               VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather,&
+                                               VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D)
             
             if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")           
            
@@ -49083,16 +49083,15 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
     end subroutine UpdateFatherModel
 
     !End------------------------------------------------------------------------------
-    subroutine GetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeWSon, VolumeUSon,         &
-                                           VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather,            &
-                                           VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D,             &
-                                           VolumeWFather)
+    subroutine GetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeUSon,          &
+                                           VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather, &
+                                           VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D)
         !Argumets ------------------------------------------------------------------------------------------
         integer, intent(INOUT)                            :: AuxHydrodynamicID
         integer, dimension(:,:),   pointer, intent(OUT)   :: IV, JV, IU, JU, IZ, JZ
         integer, dimension(:,:,:), pointer, intent(OUT)   :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer, intent(OUT)   :: VolumeWSon, VolumeZFather, VolumeUSon, VolumeUFather, &
-                                                             VolumeVSon, VolumeVFather, VolumeZSon, VolumeWFather
+        real,    dimension(:,:,:), pointer, intent(OUT)   :: VolumeZFather, VolumeUSon, VolumeUFather, &
+                                                             VolumeVSon, VolumeVFather, VolumeZSon
         real,    dimension(:,:  ), pointer, intent(OUT)   :: VolumeZSon_2D, VolumeZFather_2D
         !Locals ------------------------------------------------------------------------------------------------------
         integer                                           :: status
@@ -49106,8 +49105,7 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
                                                   STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetExternal2WayAuxVariables - Hydrodynamic - ERR01")
             
-        call GetGeometryVolumes(AuxHydrodynamicID, VolumeW    = VolumeWSon,    &
-                                                   VolumeU    = VolumeUSon,    &
+        call GetGeometryVolumes(AuxHydrodynamicID, VolumeU    = VolumeUSon,    &
                                                    VolumeV    = VolumeVSon,    &
                                                    VolumeZ    = VolumeZSon,    &
                                                    VolumeZ_2D = VolumeZSon_2D, &
@@ -49122,8 +49120,7 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
         call GetOpenPoints3D(AuxHydrodynamicID, Open3DFather, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetExternal2WayAuxVariables - Hydrodynamic - ERR04")
         
-        call GetGeometryVolumes(AuxHydrodynamicID, VolumeW    = VolumeWFather,    &
-                                                   VolumeU    = VolumeUFather,    &
+        call GetGeometryVolumes(AuxHydrodynamicID, VolumeU    = VolumeUFather,    &
                                                    VolumeV    = VolumeVFather,    &
                                                    VolumeZ    = VolumeZFather,    &
                                                    VolumeZ_2D = VolumeZFather_2D, &
@@ -49133,17 +49130,16 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
     end subroutine GetExternal2WayAuxVariables
     !----------------------------------------------------------------------------
     
-    subroutine UnGetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeWSon, VolumeUSon,     &
-                                             VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather,        &
-                                             VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D,         &
-                                             VolumeWFather)
+    subroutine UnGetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeUSon,          &
+                                             VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather, &
+                                             VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D)
     
         !Argumets ------------------------------------------------------------------------------------------
         integer, intent(INOUT)                           :: AuxHydrodynamicID
         integer, dimension(:,:),   pointer               :: IV, JV, IU, JU, IZ, JZ
         integer, dimension(:,:,:), pointer               :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer               :: VolumeWSon, VolumeZFather, VolumeUSon, VolumeUFather, &
-                                                            VolumeVSon, VolumeVFather, VolumeZSon, VolumeWFather
+        real,    dimension(:,:,:), pointer               :: VolumeZFather, VolumeUSon, VolumeUFather, &
+                                                            VolumeVSon, VolumeVFather, VolumeZSon
         real,    dimension(:,:  ), pointer               :: VolumeZSon_2D, VolumeZFather_2D
         !Locals ------------------------------------------------------------------------------------------------------
         integer                                           :: status
@@ -49153,40 +49149,36 @@ cd1 :   if (ready_son .EQ. IDLE_ERR_) then
         call UngetHorizontalGrid(AuxHydrodynamicID, JV, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR02")
         call UngetHorizontalGrid(AuxHydrodynamicID, IU, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR01")
-        call UngetHorizontalGrid(AuxHydrodynamicID, JU, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR02")
-        call UngetHorizontalGrid(AuxHydrodynamicID, IZ, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR01")
-        call UngetHorizontalGrid(AuxHydrodynamicID, JZ, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR02")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeWSon, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR03")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeUSon, STAT = status)
+        call UngetHorizontalGrid(AuxHydrodynamicID, JU, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR04")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeVSon, STAT = status)
+        call UngetHorizontalGrid(AuxHydrodynamicID, IZ, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR05")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeZSon, STAT = status)
+        call UngetHorizontalGrid(AuxHydrodynamicID, JZ, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR06")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeZSon_2D, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR06")
-        call UnGetMap(AuxHydrodynamicID, Open3DSon, STAT = status)
+        call UnGetGeometry(AuxHydrodynamicID, VolumeUSon, STAT = status)
         if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR07")
+        call UnGetGeometry(AuxHydrodynamicID, VolumeVSon, STAT = status)
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR08")
+        call UnGetGeometry(AuxHydrodynamicID, VolumeZSon, STAT = status)
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR09")
+        call UnGetGeometry(AuxHydrodynamicID, VolumeZSon_2D, STAT = status)
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR10")
+        call UnGetMap(AuxHydrodynamicID, Open3DSon, STAT = status)
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR11")
             
         AuxHydrodynamicID = Me%InstanceID  ! Change ID to Father
             
         call UnGetMap(AuxHydrodynamicID, Open3DFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR08")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR12")
         call UnGetGeometry(AuxHydrodynamicID, VolumeZFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR09")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR13")
         call UnGetGeometry(AuxHydrodynamicID, VolumeUFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR10")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR14")
         call UnGetGeometry(AuxHydrodynamicID, VolumeVFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR11")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeWFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR11")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR15")
         call UnGetGeometry(AuxHydrodynamicID, VolumeZFather_2D, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR11")  
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR16")  
     
     end subroutine UnGetExternal2WayAuxVariables
     

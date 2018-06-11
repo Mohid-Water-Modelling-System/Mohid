@@ -98,7 +98,7 @@ program MohidWater
 #ifdef _USE_MPI
     use ModuleHydrodynamic,     only : GetHydroNeedsFather, SetHydroFather,              &
                                        SendHydrodynamicMPI, RecvHydrodynamicMPI,         &
-                                       UpdateHydroMPI
+                                       UpdateHydroMPI, GetModelHasTwoWay
     use ModuleWaterproperties,  only : GetWaterNeedsFather, GetPropListNeedsFather,      &
                                        SetWaterPropFather, SendWaterPropertiesMPI,       &
                                        RecvWaterPropertiesMPI, UpdateWaterMPI
@@ -113,7 +113,7 @@ program MohidWater
                                        SetWaterPropFather,  GetWaterOverlap,             &
                                        SetModelOverlapWater
 #else  OVERLAP
-    use ModuleHydrodynamic,     only : GetHydroNeedsFather, SetHydroFather
+    use ModuleHydrodynamic,     only : GetHydroNeedsFather, SetHydroFather, GetModelHasTwoWay
     use ModuleWaterproperties,  only : GetWaterNeedsFather, GetPropListNeedsFather,      &
                                        SetWaterPropFather
 #endif  OVERLAP
@@ -163,6 +163,7 @@ program MohidWater
         integer                                             :: OverlapWaterPropertiesID = 0
 #endif OVERLAP
         
+        logical                                             :: TwoWayOn                 = .false.
         integer                                             :: FatherGridID             = null_int
         type (T_MohidWater), pointer                        :: FatherModel              => null()
         type (T_MohidWater), pointer                        :: Next                     => null()
@@ -368,11 +369,13 @@ program MohidWater
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR100'
                     
                 endif 
-
-
+!Joao  Sobrinho
+                call GetModelHasTwoWay(CurrentModel%HydrodynamicID, CurrentModel%TwoWayOn)
+                !Joao Sobrinho
                 call ConstructFatherGridLocation(CurrentModel%HorizontalGridID,             &
                                                  CurrentModel%FatherModel%HorizontalGridID, &
                                                  Window = CurrentModel%FatherLink%Window,   &
+                                                 TwoWay = CurrentModel%TwoWayOn,            &
                                                  STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR110'
 
@@ -607,7 +610,7 @@ program MohidWater
                 end if
                 
                 !PCL 
-                write(*,*) "Construct model MPI ID =", CurrentModel%MPI_ID
+                write(*,*) "Construct modelo MPI ID =", CurrentModel%MPI_ID
 
                 call ConstructModel(LagInstance, ModelNames, NumberOfModels,            &
                                     ObjLagrangianGlobal, CurrentModel%ModelID,          &
@@ -850,14 +853,14 @@ if2 :       if(SubModelBeginTime .ne. GlobalBeginTime .or. &
                     call GetHydroNeedsFather (CurrentModel%HydrodynamicID,               &
                                               CurrentModel%FatherLink%Hydro,             &
                                               STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR300'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR300'
                     
 
                     call GetWaterNeedsFather (CurrentModel%WaterpropertiesID,            &
                                               CurrentModel%FatherLink%Water,             &
                                               CurrentModel%FatherLink%nProp,             &
                                               STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR310'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR310'
                     
                     if (CurrentModel%FatherLink%Hydro .or. CurrentModel%FatherLink%Water) then
                         CurrentModel%FatherLink%Nesting = .true.

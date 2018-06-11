@@ -1729,7 +1729,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                              OkZ_, OkU_, OkV_, OkCross_)
             endif
             
-            if(TwoWay)then !Joao Sobrinho
+            if (TwoWay)then !Joao Sobrinho
                 call CheckNesting(ObjHorizontalGridFather, GoForIWD, NewFatherGrid)
                 if (GoForIWD) then
                     Me%UsedIWD_2Way = .true.

@@ -212,6 +212,8 @@ Module ModuleFunctions
     public  :: PolIntProfile
     public  :: polint
 
+    !Average of nearby vertical velocities
+    public  :: ComputeAvgVerticalVelocity
     !Polygon 
     public  :: RelativePosition4VertPolygon
     public  :: PolygonArea
@@ -8076,6 +8078,62 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
     end subroutine
     !End------------------------------------------------------------ 
+    
+    ! This routine computes the average of the vertical velocities around (and including) the center cell
+    ! To be used for the lagrangian layers evolution. Matrix outputed : ZonalVerticalVelocity
+    ! Needs to be parallelized
+    ! Joao Sobrinho
+    subroutine ComputeAvgVerticalVelocity(VerticalVelocity, ZonalVerticalVelocity, Size3D, &
+                                          OpenPoints3D)
+        !Arguments---------------------------------------------------
+        real, dimension(:,:,:), pointer     :: VerticalVelocity, ZonalVerticalVelocity
+        integer, dimension(:,:,:), pointer  :: OpenPoints3D
+        type(T_Size3D)                      :: Size3D
+        integer                             :: i, j, k, NumCells, ILB, IUB, JLB, JUB, KLB, KUB
+        real                                :: SumVerticalVelocity
+        !Begin-------------------------------------------------------
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "ComputeAvgVerticalVelocity")
+        
+        ILB = Size3D%ILB
+        IUB = Size3D%IUB
+
+        JLB = Size3D%JLB
+        JUB = Size3D%JUB
+
+        KLB = Size3D%KLB
+        KUB = Size3D%KUB
+        
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            !If The current cell is a water point BUT not an openpoint, then zonal vertical velocity should use ony the
+            ! vertical velocity of the current cell. Hence the OpenPoints3D(i, j  , k) in the end
+            SumVerticalVelocity   = VerticalVelocity(i, j, k)                                     + &
+                                   (VerticalVelocity(i+1, j-1, k)  * OpenPoints3D(i+1, j-1, k)    + &
+                                    VerticalVelocity(i+1, j  , k)  * OpenPoints3D(i+1, j  , k)    + &
+                                    VerticalVelocity(i+1, j+1, k)  * OpenPoints3D(i+1, j+1, k)    + &
+                                    VerticalVelocity(i  , j-1, k)  * OpenPoints3D(i  , j-1, k)    + &
+                                    VerticalVelocity(i  , j+1, k)  * OpenPoints3D(i  , j+1, k)    + &
+                                    VerticalVelocity(i-1, j-1, k)  * OpenPoints3D(i-1, j-1, k)    + &
+                                    VerticalVelocity(i-1, j  , k)  * OpenPoints3D(i-1, j  , k)    + &
+                                    VerticalVelocity(i-1, j+1, k)  * OpenPoints3D(i-1, j+1, k))   * &
+                                    OpenPoints3D(i, j  , k)
+            
+            NumCells = 1 + (OpenPoints3D(i+1, j-1, k) + OpenPoints3D(i+1, j  , k) + OpenPoints3D(i+1, j+1, k)  + &
+                            OpenPoints3D(i  , j-1, k) + OpenPoints3D(i  , j  , k) + OpenPoints3D(i  , j+1, k)  + &
+                            OpenPoints3D(i-1, j-1, k) + OpenPoints3D(i-1, j  , k) + OpenPoints3D(i-1, j+1, k)) * &
+                            OpenPoints3D(i, j  , k)
+            
+            ZonalVerticalVelocity(i, j, k) = SumVerticalVelocity / NumCells
+            
+        enddo        
+        enddo   
+        enddo
+        
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "ComputeAvgVerticalVelocity")
+        
+    end subroutine ComputeAvgVerticalVelocity
+    !End------------------------------------------------------------
     Subroutine ComputeDiffusion1D(ilb, iub, dt, du, Prop, k, v, ComputePoints, &
                                   Ticoef, Ecoef, DCoef, Fcoef, Theta)
         !Arguments---------------------------------------------------
