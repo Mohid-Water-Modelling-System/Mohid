@@ -1460,7 +1460,7 @@ doNext:     do while (associated(NextModel))
                 CurrentModel => CurrentModel%Next
             enddo
 
-            #ifdef _USE_MPI
+#ifdef _USE_MPI
             !  All models in the end of each iteration synchronise with all other models 
             !  This way it is avoid accumulation of send/receive variables in queue 
             !  If the accumulation is to large a stack error happens. This MPI_Barrier aims
@@ -1470,7 +1470,7 @@ doNext:     do while (associated(NextModel))
             call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR50'
 
-            #endif            
+#endif            
             
         else
 
