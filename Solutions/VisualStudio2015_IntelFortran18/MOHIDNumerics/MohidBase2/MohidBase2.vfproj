@@ -15,7 +15,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release|Win32" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32;..\MohidBase1\Release" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32;..\MohidBase1\Release" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;" RealKIND="realKIND8" RuntimeChecks="rtChecksNone"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>

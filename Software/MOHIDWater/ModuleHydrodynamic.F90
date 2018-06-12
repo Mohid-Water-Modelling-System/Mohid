@@ -1648,12 +1648,7 @@ Module ModuleHydrodynamic
         integer                         :: BufferCount  = null_int 
         real(8)                         :: PotentialEnergyReference = null_real 
         logical                         :: FirstTime                = .true.
-        real, dimension(:), pointer     :: YearBuffer               => null(), &
-                                           MonthBuffer              => null(), &
-                                           DayBuffer                => null(), &
-                                           HourBuffer               => null(), &
-                                           MinuteBuffer             => null(), &
-                                           SecondBuffer             => null(), &
+        real, dimension(:), pointer     :: SecondsBuffer             => null(), &
                                            RelativeKEBuffer         => null(), &
                                            RelativePEBuffer         => null(), &
                                            KineticBuffer            => null(), &
@@ -11981,19 +11976,9 @@ i1:         if (CoordON) then
         !Inits the buffer count
         Me%Energy%BufferCount = 0
 
-        write (Me%Energy%FileID,*)  'Year Month Day Hour Minute Second '  // &
-                                    'KEtotal PEtotal KE PE M V '          // & 
-                                    'OpenV Level BarotropicKE '           // &
-                                    'BaroclinicKE VelMax VelMaxBaroclinic'// &
-                                    'Enstrophy'   
                         
         !Allocates the buffer
-        allocate(Me%Energy%YearBuffer            (1:EnergyBufferSize))
-        allocate(Me%Energy%MonthBuffer           (1:EnergyBufferSize))
-        allocate(Me%Energy%DayBuffer             (1:EnergyBufferSize))
-        allocate(Me%Energy%HourBuffer            (1:EnergyBufferSize))
-        allocate(Me%Energy%MinuteBuffer          (1:EnergyBufferSize))
-        allocate(Me%Energy%SecondBuffer          (1:EnergyBufferSize))
+        allocate(Me%Energy%SecondsBuffer         (1:EnergyBufferSize))
         allocate(Me%Energy%KineticBuffer         (1:EnergyBufferSize))
         allocate(Me%Energy%PotentialBuffer       (1:EnergyBufferSize))
         allocate(Me%Energy%VorticityBuffer       (1:EnergyBufferSize))
@@ -49565,7 +49550,7 @@ do3:            do  k = kbottom, KUB
 !        real, dimension(:, :, :),    pointer    :: S,T
 !        real(8)                                 :: MinusOnePercentS, A, TotalA,Smin,Smax
 !        real(8)                                 :: rho_p, rho
-
+        character(len=256)                          :: String256
         integer                                     :: CHUNK
 
         !Begin --------------------------------------------------------------------------
@@ -49887,19 +49872,36 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
 
             ! TotalEnstrophy = 0.5 * TotalEnstrophy
 
-            !Gets the current simulation time
-            call ExtractDate(Me%CurrentTime,     &
-                             Year   = Year,   Month = Month,  &
-                             Day    = Day,    Hour  = Hour,   &
-                             Minute = Minute, Second= Second)
+
 
             if (Me%Energy%FirstTime) then
+            
+                !Gets the current simulation time
+                call ExtractDate(Me%BeginTime,                &
+                             Year   = Year,   Month = Month,  &
+                             Day    = Day,    Hour  = Hour,   &
+                             Minute = Minute, Second= Second)            
 
                 Me%Energy%FirstTime = .false.
             
                 !Stores the energy of the first iteration as reference
                 Me%Energy%PotentialEnergyReference = TotalPotentialEnergy
-
+                
+                call WriteDataLine(Me%Energy%FileID, 'NAME'              , 'Energy' )
+                call WriteDataLine(Me%Energy%FileID, 'LOCALIZATION_I'    , '-999999')
+                call WriteDataLine(Me%Energy%FileID, 'LOCALIZATION_J'    , '-999999')
+                call WriteDataLine(Me%Energy%FileID, 'LOCALIZATION_K'    , '-999999')
+                call WriteDataLine(Me%Energy%FileID, 'SERIE_INITIAL_DATA', Me%BeginTime)
+                call WriteDataLine(Me%Energy%FileID, 'TIME_UNITS        ', 'SECONDS')
+                
+                write (String256,'(A)')  'Seconds '                               // &
+                                            'KEtotal PEtotal KE PE M V '          // & 
+                                            'OpenV Level BarotropicKE '           // &
+                                            'BaroclinicKE VelMax VelMaxBaroclinic'// &
+                                            ' Enstrophy'                
+                write (Me%Energy%FileID,'(A)') trim(adjustl(String256))
+                write (Me%Energy%FileID,*)  '<BeginTimeSerie>'
+                
             endif
 
 
@@ -49907,12 +49909,8 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             Me%Energy%BufferCount = Me%Energy%BufferCount + 1
             iBuffer = Me%Energy%BufferCount
 
-            Me%Energy%YearBuffer(iBuffer)      = Year
-            Me%Energy%MonthBuffer(iBuffer)     = Month
-            Me%Energy%DayBuffer(iBuffer)       = Day
-            Me%Energy%HourBuffer(iBuffer)      = Hour
-            Me%Energy%MinuteBuffer(iBuffer)    = Minute
-            Me%Energy%SecondBuffer(iBuffer)    = Second
+
+            Me%Energy%SecondsBuffer(iBuffer)   = Me%CurrentTime - Me%BeginTime
             Me%Energy%RelativeKEBuffer(iBuffer)= TotalKineticEnergy / TotalMass
             Me%Energy%RelativePEBuffer(iBuffer)= (TotalPotentialEnergy -                &
                                                   Me%Energy%PotentialEnergyReference) / &
@@ -49984,12 +49982,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
 
 
         do iBuffer = 1, Me%Energy%BufferCount
-            write(Me%Energy%FileID, fmt=100) Me%Energy%YearBuffer            (iBuffer), &
-                                             Me%Energy%MonthBuffer           (iBuffer), &
-                                             Me%Energy%DayBuffer             (iBuffer), &
-                                             Me%Energy%HourBuffer            (iBuffer), &
-                                             Me%Energy%MinuteBuffer          (iBuffer), &
-                                             Me%Energy%SecondBuffer          (iBuffer), &
+            write(Me%Energy%FileID, fmt=100) Me%Energy%SecondsBuffer         (iBuffer), &
                                              Me%Energy%KineticBuffer         (iBuffer), &
                                              Me%Energy%PotentialBuffer       (iBuffer), &
                                              Me%Energy%RelativeKEBuffer      (iBuffer), &
@@ -50004,7 +49997,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                                              Me%Energy%VelMaxBaroclinicBuffer(iBuffer), &
                                              Me%Energy%VorticityBuffer       (iBuffer)
                                                          
-            100 format(1x, f5.0, 1x, f4.0, 1x, f4.0, 1x, f4.0, 1x, f4.0, f4.0, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x,  &
+            100 format(1x, f16.4, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x,  &
                        e16.8, 1x, e16.8, 1x, e16.8, 1x, f12.6, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x, e16.8, 1x, e16.8)
                        
         enddo
@@ -54478,33 +54471,15 @@ cd1:    if (Me%State%BOXFLUXES) then
 
         !Disposes the rest of the buffer
         call WriteEnergyDataFile
+        
+        write (Me%Energy%FileID,*)  '<EndTimeSerie>'        
 
         call UnitsManager(Me%Energy%FileID, FileClose, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                        &
             stop 'KillEnergy - ModuleHydrodynamic - ERR01' 
 
         !Deallocates buffer
-        deallocate(Me%Energy%YearBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR02' 
-
-        deallocate(Me%Energy%MonthBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR03' 
-
-        deallocate(Me%Energy%DayBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR04' 
-
-        deallocate(Me%Energy%HourBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR05' 
-
-        deallocate(Me%Energy%MinuteBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR06' 
-
-        deallocate(Me%Energy%SecondBuffer, STAT = STAT_CALL)
+        deallocate(Me%Energy%SecondsBuffer, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                        &
             stop 'KillEnergy - ModuleHydrodynamic - ERR07' 
 

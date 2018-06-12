@@ -19,12 +19,12 @@ Module ModuleTurbine
     use ModuleGlobalData
     
     use ModuleEnterData,        only : ReadFileName, ConstructEnterData, GetData,       &
-                                       ExtractBlockFromBuffer, ExtractBlockFromBlock,  &
+                                       ExtractBlockFromBuffer, ExtractBlockFromBlock,   &
                                        Block_Unlock, KillEnterData
     
     use ModuleHorizontalGrid,    only : GetXYCellZ
 
-    use ModuleGeometry,          only : GetGeometrySize, GetGeometryKFloor,               &
+    use ModuleGeometry,          only : GetGeometrySize, GetGeometryKFloor,             &
                                       GetGeometryDistances, UnGetGeometry
     
     use ModuleTimeSerie,         only : StartTimeSerieTurbine, KillTimeSerie, WriteTimeSerie
@@ -309,98 +309,99 @@ if1:                if (BlockInBlockFound) then
         !Arguments---------------------------------------------------------------
         !Local-------------------------------------------------------------------
         type (T_Turbine_param), pointer :: NewTurbine
+        real                            :: XPoint, YPoint
         integer                         :: STAT_CALL
         integer                         :: flag
         !Allocates new instance
         allocate (NewTurbine)
         nullify  (NewTurbine%Next)                        
                     
-        call GetData(NewTurbine%Diameter,                           &
-                    Me%ObjEnterData,                                        &
-                    flag,                                                   &
-                    SearchType   = FromBlockInBlock,                               &
-                    keyword      ='DIAMETER',                              &
-                    ClientModule ='Moduleturbine',                          &
+        call GetData(NewTurbine%Diameter,                                               &
+                    Me%ObjEnterData,                                                    &
+                    flag,                                                               &
+                    SearchType   = FromBlockInBlock,                                    &
+                    keyword      ='DIAMETER',                                           &
+                    ClientModule ='Moduleturbine',                                      &
                     STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR09'
                        
-        call GetData(NewTurbine%H,                           &
-                    Me%ObjEnterData,                                        &
-                    flag,                                                   &
-                    SearchType   = FromBlockInBlock,                               &
-                    keyword      ='HEIGHT',                              &
-                    ClientModule ='Moduleturbine',                          &
+        call GetData(NewTurbine%H,                                                      &
+                    Me%ObjEnterData,                                                    &
+                    flag,                                                               &
+                    SearchType   = FromBlockInBlock,                                    &
+                    keyword      ='HEIGHT',                                             &
+                    ClientModule ='Moduleturbine',                                      &
                     STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR10'
                        
-        call GetData(NewTurbine%CP,                           &
-                    Me%ObjEnterData,                                        &
-                    flag,                                                   &
-                    SearchType   = FromBlockInBlock,                               &
-                    keyword      ='CP',                              &
-                    ClientModule ='Moduleturbine',                          &
+        call GetData(NewTurbine%CP,                                                     &
+                    Me%ObjEnterData,                                                    &
+                    flag,                                                               &
+                    SearchType   = FromBlockInBlock,                                    &
+                    keyword      ='CP',                                                 &
+                    ClientModule ='Moduleturbine',                                      &
                     STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR11'
         
-        call GetData(NewTurbine%CT,                           &
-                    Me%ObjEnterData,                                        &
-                    flag,                                                   &
-                    SearchType   = FromBlockInBlock,                               &
-                    keyword      ='CT',                              &
-                    ClientModule ='Moduleturbine',                          &
+        call GetData(NewTurbine%CT,                                                     &
+                    Me%ObjEnterData,                                                    &
+                    flag,                                                               &
+                    SearchType   = FromBlockInBlock,                                    &
+                    keyword      ='CT',                                                 &
+                    ClientModule ='Moduleturbine',                                      &
                     STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR12'        
         
-        call GetData(NewTurbine%LowerVelocity,                           &
-                    Me%ObjEnterData,                                        &
-                    flag,                                                   &
-                    SearchType   = FromBlockInBlock,                               &
-                    keyword      ='LOWER_VEL',                              &
-                    ClientModule ='Moduleturbine',                          &
+        call GetData(NewTurbine%LowerVelocity,                                          &
+                    Me%ObjEnterData,                                                    &
+                    flag,                                                               &
+                    SearchType   = FromBlockInBlock,                                    &
+                    keyword      ='LOWER_VEL',                                          &
+                    ClientModule ='Moduleturbine',                                      &
                     STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR13'
                        
-        call GetData(NewTurbine%UpperVelocity,                           &
-                    Me%ObjEnterData,                                        &
-                    flag,                                                   &
-                    SearchType   = FromBlockInBlock,                               &
-                    keyword      ='UPPER_VEL',                              &
-                    ClientModule ='Moduleturbine',                          &
+        call GetData(NewTurbine%UpperVelocity,                                          &
+                    Me%ObjEnterData,                                                    &
+                    flag,                                                               &
+                    SearchType   = FromBlockInBlock,                                    &
+                    keyword      ='UPPER_VEL',                                          &
+                    ClientModule ='Moduleturbine',                                      &
                     STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR14'
                        
-        !call GetData(NewTurbine%CD,                           &
-        !            Me%ObjEnterData,                                        &
-        !            flag,                                                   &
-        !            SearchType   = FromBlockInBlock,                               &
-        !            keyword      ='CD',                              &
-        !            ClientModule ='Moduleturbine',                          &
+        !call GetData(NewTurbine%CD,                                                    &
+        !            Me%ObjEnterData,                                                   &
+        !            flag,                                                              &
+        !            SearchType   = FromBlockInBlock,                                   &
+        !            keyword      ='CD',                                                &
+        !            ClientModule ='Moduleturbine',                                     &
         !            STAT         = STAT_CALL)             
         !if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR15'
                         
-        call GetData(NewTurbine%Lat_coord,                           &
-                    Me%ObjEnterData,                                        &
-                    flag,                                                   &
-                    SearchType   = FromBlockInBlock,                               &
-                    keyword      ='POS_LAT',                              &
-                    ClientModule ='Moduleturbine',                          &
+        call GetData(NewTurbine%Lat_coord,                                              &
+                    Me%ObjEnterData,                                                    &
+                    flag,                                                               &
+                    SearchType   = FromBlockInBlock,                                    &
+                    keyword      ='POS_LAT',                                            &
+                    ClientModule ='Moduleturbine',                                      &
                     STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR16'
                        
-        call GetData(NewTurbine%Long_coord,                           &
-                    Me%ObjEnterData,                                        &
-                    flag,                                                   &
-                    SearchType   = FromBlockInBlock,                               &
-                    keyword      ='POS_LONG',                              &
-                    ClientModule ='Moduleturbine',                          &
+        call GetData(NewTurbine%Long_coord,                                             &
+                    Me%ObjEnterData,                                                    &
+                    flag,                                                               &
+                    SearchType   = FromBlockInBlock,                                    &
+                    keyword      ='POS_LONG',                                           &
+                    ClientModule ='Moduleturbine',                                      &
                     STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR17'
-        call GetData(NewTurbine%TimeSerieOut,                           &
-                    Me%ObjEnterData,                                        &
-                    flag,                                                   &
-                    SearchType   = FromBlockInBlock,                               &
-                    keyword      ='TIMESERIE',                              &
-                    ClientModule ='Moduleturbine',                          &
+        call GetData(NewTurbine%TimeSerieOut,                                           &
+                    Me%ObjEnterData,                                                    &
+                    flag,                                                               &
+                    SearchType   = FromBlockInBlock,                                    &
+                    keyword      ='TIMESERIE',                                          &
+                    ClientModule ='Moduleturbine',                                      &
                     STAT         = STAT_CALL)             
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR18'
         
@@ -408,19 +409,25 @@ if1:                if (BlockInBlockFound) then
             Me%nTurbinesTS = Me%nTurbinesTS + 1
         endif
         
-        !call GetData(NewTurbine%Width,                           &
-        !            Me%ObjEnterData,                                        &
-        !            flag,                                                   &
-        !            SearchType   = FromBlockInBlock,                               &
-        !            keyword      ='WIDTH_STRUCT',                              &
-        !            ClientModule ='Moduleturbine',                          &
+        !call GetData(NewTurbine%Width,                                                 &
+        !            Me%ObjEnterData,                                                   &
+        !            flag,                                                              &
+        !            SearchType   = FromBlockInBlock,                                   &
+        !            keyword      ='WIDTH_STRUCT',                                      &
+        !            ClientModule ='Moduleturbine',                                     &
         !            STAT         = STAT_CALL)             
         !if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR19'
         
+        XPoint = NewTurbine%Long_coord
+        Ypoint = NewTurbine%Lat_coord
         
         !Saves the position of the turbine in grid coordinates
-        call GetXYCellZ(Me%ObjHorizontalGrid, XPoint = real(NewTurbine%Long_coord),Ypoint = real(NewTurbine%Lat_coord),   &
-                        I = NewTurbine%I, J=NewTurbine%J, STAT = STAT_CALL)
+        call GetXYCellZ(HorizontalGridID    = Me%ObjHorizontalGrid,                     &
+                        XPoint              = XPoint,                                   &
+                        Ypoint              = YPoint,                                   &
+                        I                   = NewTurbine%I,                             &
+                        J                   = NewTurbine%J,                             &
+                        STAT                = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AllocateDataTurbine - ModuleTurbine - ERR20'
 
         call AllocateTurbine(NewTurbine) 
@@ -834,19 +841,19 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         call Ready(TurbineID, ready_)
         
         if (ready_ .EQ. IDLE_ERR_) then
-            call WriteTimeSerie(Me%ObjTimeSerie,                        &
-                                Data1D = Me%Power,                      &
-                                STAT = STAT_CALL)
+            call WriteTimeSerie(TimeSerieID = Me%ObjTimeSerie,                          &
+                                Data1D      = Me%Power,                                 &
+                                STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPut_Turbine - ModuleTurbine - ERR21'
         
-            call WriteTimeSerie(Me%ObjTimeSerie,                        &
-                              Data1D = Me%Energy,                      &
-                                STAT = STAT_CALL)
+            call WriteTimeSerie(TimeSerieID = Me%ObjTimeSerie,                          &
+                                Data1D      = Me%Energy,                                &
+                                STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPut_Turbine - ModuleTurbine - ERR22'
         
-            call WriteTimeSerie(Me%ObjTimeSerie,                        &
-                                Data1D = Me%TurbineVelocity,                      &
-                                STAT = STAT_CALL)
+            call WriteTimeSerie(TimeSerieID = Me%ObjTimeSerie,                          &
+                                Data1D      = Me%TurbineVelocity,                       &
+                                STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutPut_Turbine - ModuleTurbine - ERR23'        
          else 
             STAT_ = ready_

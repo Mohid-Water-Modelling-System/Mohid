@@ -234,9 +234,11 @@ program MohidLand
         
         !Constructs Basin
         call ConstructBasin   (ObjBasinID = ObjBasin, ObjTime = ObjComputeTime, ModelName = ModelName, &
-                               StopOnBathymetryChange = StopOnBathymetryChange, STAT = STAT_CALL)
+                               StopOnBathymetryChange = StopOnBathymetryChange, STAT = STAT_CALL)       
+
 
         ModelConstructed = .true.
+
 
     end subroutine ConstructMohidLand
 
@@ -611,7 +613,8 @@ program MohidLand
         character(*)                                :: workingDirectory
         
         !Local-----------------------------------------------------------------
-        
+        integer                                     :: STAT_CALL
+
 !        call SetError(WARNING_, INTERNAL_, "Test Error Message")
 !        Initialize = .false.
 !        return
@@ -619,6 +622,22 @@ program MohidLand
         FilesName = workingDirectory
         
         call ConstructMohidLand()
+        
+        call date_and_time(Values = F95Time)
+        call SetDate      (InitialModelTime, float(F95Time(1)), float(F95Time(2)),      &
+                                              float(F95Time(3)), float(F95Time(5)),      &
+                                              float(F95Time(6)), float(F95Time(7))+      &
+                                              float(F95Time(8))/1000.)
+
+        call SetInitialModelTime (ObjComputeTime, InitialModelTime, STAT_CALL)
+        call CPU_TIME(LastCPUTime)        
+        
+#ifndef _OUTPUT_OFF_
+        write(*, *)"-------------------------- MOHID -------------------------"
+        write(*, *)
+        write(*, *)"Running MOHID Land, please wait..."
+        write(*, *)                    
+#endif
 
         Initialize = .true.
 

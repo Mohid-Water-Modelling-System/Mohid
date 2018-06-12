@@ -238,7 +238,7 @@ Module ModuleWaterProperties
                                           GetAssimilationCoef, UnGetAssimilation,               &
                                           KillAssimilation, GetAssimilationAltimetry,           &
                                           GetAssimilationAltimetryDT, ModifyAssimilation,       &
-                                          GetAltimetryDecayTime
+                                          GetAltimetryDecayTime, GetNumberOfFields
     use ModuleAdvectionDiffusion,   only: StartAdvectionDiffusion, AdvectionDiffusion,          &
                                           GetAdvFlux, GetDifFlux, GetBoundaryConditionList,     &
                                           SetDischarges, UnSetDischarges,                       &
@@ -20097,6 +20097,7 @@ dn:         do n=1, nCells
                                                        DT_RunPeriod, AuxDecay
         logical                                     :: SubModelON
         integer                                     :: CHUNK
+        integer                                     :: N_Field, NumberOfFields
         !Begin--------------------------------------------------------------------
 
         ILB = Me%WorkSize%ILB 
@@ -20119,12 +20120,23 @@ i1 :        if (Property%Evolution%DataAssimilation /= NoNudging) then
 
 i2 :        if (Actual.GE.Property%Evolution%NextCompute) then
 
+
+                if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))           &
+                    call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR10')
+
+                call GetNumberOfFields(AssimilationID  = Me%ObjAssimilation,            &
+                                       ID              = PropertyID,                    &
+                                       NumberOfFields  = NumberOfFields,                &
+                                       STAT            = STAT_CALL)
+                
+dnass :         do N_Field = 1, NumberOfFields     
+
                 SubModelON = OFF
 
-i3 :            if (Property%Evolution%DataAssimilation == NudgingToRef .or.                &
+i3 :            if (Property%Evolution%DataAssimilation == NudgingToRef .or.            &
                     Property%Evolution%DataAssimilation == Hybrid) then
 
-i4 :                if (Property%SubModel%ON) then
+i4 :                if (Property%SubModel%ON .and. N_Field == 1) then
 
                         PropAssimilation => Property%Assimilation%Field
                     
@@ -20133,16 +20145,13 @@ i4 :                if (Property%SubModel%ON) then
                     else i4
                     
                         SubModelON = OFF
-
-                        if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))       &
-                            call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR10')
-
-
-                        call GetAssimilationField(Me%ObjAssimilation,                       &
-                                                  ID              = PropertyID,             &
-                                                  Field3D         = PropAssimilation,       &
+                            
+                        call GetAssimilationField(AssimilationID  = Me%ObjAssimilation, &
+                                                  ID              = PropertyID,         &
+                                                  N_Field         = N_Field,            &
+                                                  Field3D         = PropAssimilation,   &
                                                   STAT            = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                          &
+                        if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR20')
                             
                         Property%Assimilation%Field(:,:,:) = PropAssimilation(:,:,:)
@@ -20156,8 +20165,9 @@ i4 :                if (Property%SubModel%ON) then
                  if (.not. CheckPropertyName   (Property%ID%Name, PropertyID))              &
                     call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR30')
 
-                call GetAssimilationCoef (Me%ObjAssimilation,                               &
+                call GetAssimilationCoef (AssimilationID  = Me%ObjAssimilation,             &
                                           ID              = PropertyID,                     &
+                                          N_Field         = N_Field,                        &
                                           ColdRelaxPeriod = ColdPeriod,                     &
                                           ColdOrder       = ColdOrder,                      &
                                           CoefField3D     = Property%Assimilation%DecayTime,&
@@ -20292,7 +20302,8 @@ i7:                     if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0
                     call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR90')
 
 
-
+            enddo dnass
+                    
             endif i2
 
             endif i1
@@ -20828,14 +20839,14 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                 icJLB = Me%DDecomp%Mapping%JLB
                 icJUB = Me%DDecomp%Mapping%JUB
             
-                write(ModelName,*) 'ModelName =', trim(Me%ModelName),' - MPI ID =', Me%DDecomp%MPI_ID, &
+                write(ModelName,*) 'ModelName =', trim(adjustl(Me%ModelName)),' - MPI ID =', Me%DDecomp%MPI_ID, &
                 ' - domain corners(imin, imax, jmin, jmax)=',icILB, icIUB, icJLB, icJUB
                 
                 di_out = Me%DDecomp%WindowLimitsJI%ILB - 1
                 dj_out = Me%DDecomp%WindowLimitsJI%JLB - 1
                 
             else
-                write(ModelName,*) 'ModelName =', trim(Me%ModelName)
+                write(ModelName,*) 'ModelName =', trim(adjustl(Me%ModelName))
                 di_out = 0
                 dj_out = 0
             endif                                    

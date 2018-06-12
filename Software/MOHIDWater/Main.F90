@@ -1449,7 +1449,7 @@ doNext:     do while (associated(NextModel))
                         call GetModelCurrentTime (CurrentModel%ModelID, CurrentModel%StartIteration, &
                                                   STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR40'
-
+                        
                         if (CurrentModel%SubOn) then
                             !send information from father to son
                             call SendInformationMPI (CurrentModel)
@@ -1462,6 +1462,19 @@ doNext:     do while (associated(NextModel))
                 endif
                 CurrentModel => CurrentModel%Next
             enddo
+
+#ifdef _USE_MPI
+            !  All models in the end of each iteration synchronise with all other models 
+            !  This way it is avoid accumulation of send/receive variables in queue 
+            !  If the accumulation is to large a stack error happens. This MPI_Barrier aims
+            !  to avoid stack errors
+            
+            !Waits for all processes
+            call MPI_Barrier  (MPI_COMM_WORLD, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR50'
+
+#endif            
+            
         else
 
             CurrentModel => FirstModel
@@ -1469,7 +1482,7 @@ doNext:     do while (associated(NextModel))
 
                 call UpdateTimeAndMapping (CurrentModel%ModelID, GlobalCurrentTime,  &
                                            DoNextStep, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR50'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR60'
 
                 if (DoNextStep) then    
                     call SubModelComunication     (CurrentModel)
@@ -1481,13 +1494,13 @@ doNext:     do while (associated(NextModel))
 
                     if (associated(CurrentModel%FatherModel))  then
                         call GetModelTimeStep (CurrentModel%FatherModel%ModelID, DT_Father, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR60'
+                        if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR70'
                     else
                         DT_Father = - FillValueReal
                     endif
 
                     call RunModel             (CurrentModel%ModelID, DT_Father, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR70'
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMohidWater - MohidWater - ERR80'
                     
                 endif
 
@@ -1940,7 +1953,7 @@ do1:        do i=2,StringLength
         integer                                     :: STAT_CALL, iProp
         integer                                     :: status(MPI_STATUS_SIZE)
         real, dimension(6)                          :: AuxTime
-        logical                                     :: ReceiveOk
+        !logical                                     :: ReceiveOk
         integer                                     :: Precision                
         !Begin-----------------------------------------------------------------
         
@@ -1984,14 +1997,15 @@ do1:        do i=2,StringLength
         !  to avoid stack errors
         !  This MPI_Send force a sycronization point 
 
-        Precision = MPI_LOGICAL
+
+        !Precision = MPI_LOGICAL
         
-        ReceiveOk = .true.
+        !ReceiveOk = .true.
         
-        call MPI_Send (ReceiveOk, 1, Precision, CurrentModel%FatherModel%MPI_ID, 9999, MPI_COMM_WORLD, status,  &
-                       STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReceiveInformationMPI - MohidWater - ERR30'
-        
+!        call MPI_Send (ReceiveOk, 1, Precision, CurrentModel%FatherModel%MPI_ID, 9999, MPI_COMM_WORLD, status,  &
+!                       STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'ReceiveInformationMPI - MohidWater - ERR30'
+        !write(*,*) 'pcl-mpi 2 send', CurrentModel%MPI_ID, CurrentModel%FatherModel%MPI_ID
 #else _USE_MPI
 
     !Disable unused variable warnings
@@ -2012,35 +2026,34 @@ do1:        do i=2,StringLength
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, iSub, iProp
         real, dimension(6)                          :: AuxTime
-        logical                                     :: ReceiveOk
+        !logical                                     :: ReceiveOk
         integer                                     :: Precision, status
         !Begin-----------------------------------------------------------------
         
         call ExtractDate (CurrentModel%StartIteration, AuxTime(1), AuxTime(2), AuxTime(3),  &
                                                        AuxTime(4), AuxTime(5), AuxTime(6))
-                                                       
         do iSub = 1, CurrentModel%nSubModels
-
+        
             Precision = MPIKind(AuxTime(1))
 
             call MPI_Send (AuxTime, 6, Precision, CurrentModel%SubMPIID(iSub), 999,       &
                            MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR10'
-            
 
             if (CurrentModel%SubmodelLink(iSub)%Hydro) then
+            
                 call SendHydrodynamicMPI (CurrentModel%HydrodynamicID,                   &
                                           CurrentModel%SubMPIID(iSub),                   &
                                           CurrentModel%SubmodelLink(iSub)%Window,        &
                                           InitialField = .false., STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR20'
+                if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR20'
                                                       
             endif
 
             if(CurrentModel%SubmodelLink(iSub)%Water)then
-
+            
                 do iProp = 1, CurrentModel%SubmodelLink(iSub)%nProp
-
+                
                     call SendWaterPropertiesMPI (CurrentModel%WaterPropertiesID,                            &
                                          CurrentModel%SubMPIID(iSub),                                       &
                                          CurrentModel%SubmodelLink(iSub)%Window,                            &
@@ -2050,27 +2063,28 @@ do1:        do i=2,StringLength
                     if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR30'
 
                 enddo
-
+                
             end if
-            
+
             !  Father waits for the son models in the end of each iteration
             !  This way it is avoid accumulation of send/receive variables in queue 
             !  If the accumulation is to large a stack error happens. This receive aims
             !  to avoid stack errors
-            !  This MPI_Recv force a sycronization point             
+            !  This MPI_Recv force a sycronization point       
+            !Precision = MPI_LOGICAL
             
-            Precision = MPI_LOGICAL
-            
-            call MPI_Recv(ReceiveOk, 1, Precision, CurrentModel%SubMPIID(iSub), 9999, MPI_COMM_WORLD, status,  &
-                           STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR40'         
-            
-            if (.not. ReceiveOk) then
-                write(*,*) 'Father - son submodel communication not syncronized'
-                stop 'SendInformationMPI - MohidWater - ERR50'
-            endif
-            
+            !ReceiveOk = .false.            
+
+            !call MPI_Recv(ReceiveOk, 1, Precision, CurrentModel%SubMPIID(iSub), 9999, MPI_COMM_WORLD, status,  &
+            !               STAT_CALL)
+            !if (STAT_CALL /= SUCCESS_) stop 'SendInformationMPI - MohidWater - ERR40'         
+             !write(*,*) 'pcl-mpi 2 receive', CurrentModel%MPI_ID, CurrentModel%SubMPIID(iSub)   
+            !if (.not. ReceiveOk) then
+            !    write(*,*) 'Father - son submodel communication not syncronized'
+            !    stop 'SendInformationMPI - MohidWater - ERR50'
+            !endif
         enddo
+        
 
 #else _USE_MPI
 

@@ -673,7 +673,7 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(MPI_ID)) then
                 Me%DDecomp%MPI_ID = MPI_ID
             endif
-           
+            
             
             if (present(MasterID)) then
                 Me%DDecomp%Master_MPI_ID = MasterID
@@ -962,6 +962,14 @@ iE:         if  (Exist) then
                 if (STAT_CALL /= SUCCESS_)                                                     &
                    call SetError(FATAL_, INTERNAL_, "ConstructDDecomp - Hydrodynamic - ERR20")
 
+                write(*,*) "Read from file Domain Decomposition mapping"
+                write(*,*) "Present MPI ID =", Me%DDecomp%MPI_ID
+                write(*,*) "Master MPI_ID = ", Me%DDecomp%Master_MPI_ID
+                write(*,*) "Number of domain Slaves = ",Me%DDecomp%Nslaves
+                do i=1, Me%DDecomp%Nslaves
+                    write(*,*) "ID of Slave number ",i, "is =", Me%DDecomp%Slaves_MPI_ID(i)
+                enddo                    
+
                 call OptionsDDecomp
                 
                 call KillEnterData(Me%ObjEnterData2, STAT = STAT_CALL) 
@@ -1215,7 +1223,13 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
             endif    
 
             if (MissMatchID) then
+                write(*,*) 'MPI ID of present Domain', Me%DDecomp%MPI_ID
                 write(*,*) 'Domain -', MPI_ID, ' is not one of decomposition domains' 
+                write(*,*) "All MPI_ID - Slaves"
+                do ii =1, Me%DDecomp%Nslaves
+                    write(*,*) "MPI_ID =", Me%DDecomp%Slaves_MPI_ID(ii)
+                enddo         
+                write(*,*) "MPI_ID Master=",Me%DDecomp%Master_MPI_ID
                 stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR165'            
             endif
             
@@ -2873,7 +2887,10 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         endif
         
         !Intialization of domain decomposition procedure
-        call ConstructDDecomp                         
+        if (Me%DDecomp%ON) then
+            call ConstructDDecomp                         
+        endif            
+            
 
         if (Me%DDecomp%MasterOrSlave)  then
 

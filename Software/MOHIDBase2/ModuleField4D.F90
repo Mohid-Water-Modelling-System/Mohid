@@ -4691,10 +4691,10 @@ d2:     do N =1, NW
     subroutine GetField4DHarmonicsName(Field4DID, PropertyIDNumber, HarmonicsName, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer,                                              intent(IN ) :: Field4DID
-        integer,                                              intent(IN ) :: PropertyIDNumber
-        character(Len=WaveNameLength), dimension(:), pointer, intent(OUT) :: HarmonicsName
-        integer, optional,                                    intent(OUT) :: STAT
+        integer,                                              intent(IN   ) :: Field4DID
+        integer,                                              intent(IN   ) :: PropertyIDNumber
+        character(Len=WaveNameLength), dimension(:), pointer, intent(INOUT) :: HarmonicsName
+        integer, optional,                                    intent(OUT  ) :: STAT
 
         !Local-----------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
