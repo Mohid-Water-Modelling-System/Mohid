@@ -19014,13 +19014,13 @@ do1 :   do while (associated(PropertyX))
                     if(PropertySon%Evolution%NextCompute == PropertyX%Evolution%LastCompute)then
                         if ((Me%WorkSize%KUB == 1) .or. (ObjWaterPropertiesSon%WorkSize%KUB == 1))then
                             !Assimilation of son domain into father domain
-                            call TwoWayAssimilation3D(PropertyX%Concentration,PropertySon%Concentration, Open3DFather,&
+                            call TwoWayAssimilation2D(PropertyX%Concentration,PropertySon%Concentration, Open3DFather,&
                                                 Open3DSon, Me%WorkSize, ObjWaterPropertiesSon%WorkSize, IZ, JZ,       &
                                                 PropertySon%Submodel%TwoWayAssimCoef, PropertyX%Evolution%DtInterval, &
                                                 Me%ExternalVar%TotSonVolInFather, Me%ExternalVar%Aux2Way,             &
                                                 Me%ExternalVar%Corners, VolumeZSon, VolumeZFather)
                         else
-                            call TwoWayAssimilation2D(PropertyX%Concentration,PropertySon%Concentration, Open3DFather,&
+                            call TwoWayAssimilation3D(PropertyX%Concentration,PropertySon%Concentration, Open3DFather,&
                                                 Open3DSon, Me%WorkSize, ObjWaterPropertiesSon%WorkSize, IZ, JZ,       &
                                                 PropertySon%Submodel%TwoWayAssimCoef, PropertyX%Evolution%DtInterval, &
                                                 Me%ExternalVar%TotSonVolInFather, Me%ExternalVar%Aux2Way,             &

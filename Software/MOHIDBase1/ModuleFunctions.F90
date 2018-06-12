@@ -5622,14 +5622,14 @@ d5:     do k = klast + 1,KUB
         JUBSon = SizeSon%JUB
         KUBSon = SizeSon%KUB
         KUBFather = SizeFather%KUB
-        !left lower corner
-        FatherCorners(1, 1) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1)
-        !left upper corner
-        FatherCorners(2, 1) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1)
-        !Right lower corner
-        FatherCorners(3, 1) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1)
-        !Right upper corner
-        FatherCorners(4, 1) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1)
+        !!left lower corner
+        !FatherCorners(1, 1) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1)
+        !!left upper corner
+        !FatherCorners(2, 1) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1)
+        !!Right lower corner
+        !FatherCorners(3, 1) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1)
+        !!Right upper corner
+        !FatherCorners(4, 1) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1)
     
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
@@ -5638,8 +5638,8 @@ d5:     do k = klast + 1,KUB
         enddo        
         enddo
     
-        do j = JLink(1, 1)+1, JLink(IUBSon, JUBSon)+1
-        do i = ILink(1, 1)+1, ILink(IUBSon, JUBSon)+1  
+        do j = JLink(1, 1)+3, JLink(IUBSon, JUBSon)-1
+        do i = ILink(1, 1)+3, ILink(IUBSon, JUBSon)-1  
             if (Open3DFather(i, j, KUBFather) == 1 .and. TotSonVolInFather2D(i, j) > 0 )then
                 FatherProperty(i, j) = FatherProperty(i, j) + (AuxMatrix(i, j) / TotSonVolInFather2D(i, j) -   &
                                        FatherProperty(i, j)) * (DT / DecayTime) *                              &
@@ -5649,14 +5649,14 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
         
-        !left lower corner
-        FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1) = FatherCorners(1,1) 
-        !left upper corner, KUBFather
-        FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1) = FatherCorners(2,1)
-        !Right lower corner
-        FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1) = FatherCorners(3,1)
-        !Right upper corner
-        FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1) = FatherCorners(4,1)
+        !!left lower corner
+        !FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1) = FatherCorners(1,1) 
+        !!left upper corner, KUBFather
+        !FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1) = FatherCorners(2,1)
+        !!Right lower corner
+        !FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1) = FatherCorners(3,1)
+        !!Right upper corner
+        !FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1) = FatherCorners(4,1)
     
     end subroutine TwoWayAssimilationWaterLevel
     !------------------------------------------------------------------------------------------------------------------
@@ -5684,14 +5684,14 @@ d5:     do k = klast + 1,KUB
         !Copy Values of FatherProperty coincident with the corners of the Son domain (because the son domain does
         ! not compute them).
         
-        !left lower corner
-        FatherCorners(1, 1) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, 1)
-        !left upper corner
-        FatherCorners(2, 1) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, 1)
-        !Right lower corner
-        FatherCorners(3, 1) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, 1)
-        !Right upper corner
-        FatherCorners(4, 1) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, 1)
+        !!left lower corner
+        !FatherCorners(1, 1) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, 1)
+        !!left upper corner
+        !FatherCorners(2, 1) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, 1)
+        !!Right lower corner
+        !FatherCorners(3, 1) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, 1)
+        !!Right upper corner
+        !FatherCorners(4, 1) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, 1)
         
         !Paralelizar! João Sobrinho
         do j = JLBSon, JUBSon
@@ -5704,8 +5704,8 @@ d5:     do k = klast + 1,KUB
         enddo
         
         !Paralelizar! João Sobrinho
-        do j = JLink(1, 1)+1, JLink(IUBSon, JUBSon)+1
-        do i = ILink(1, 1)+1, ILink(IUBSon, JUBSon)+1
+        do j = JLink(1, 1)+3, JLink(IUBSon, JUBSon)-1
+        do i = ILink(1, 1)+3, ILink(IUBSon, JUBSon)-1
             
             if (Open3DFather(i, j, 1) == 1 .and. TotSonVolInFather(i, j, 1) > 0. )then
                 
@@ -5717,14 +5717,14 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
     
-        !left lower corner
-        FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, 1) = FatherCorners(1, 1) 
-        !left upper corner
-        FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, 1) = FatherCorners(2, 2)
-        !Right lower corner
-        FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, 1) = FatherCorners(3, 3)
-        !Right upper corner
-        FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, 1) = FatherCorners(4, 4)
+        !!left lower corner
+        !FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, 1) = FatherCorners(1, 1) 
+        !!left upper corner
+        !FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, 1) = FatherCorners(2, 2)
+        !!Right lower corner
+        !FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, 1) = FatherCorners(3, 3)
+        !!Right upper corner
+        !FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, 1) = FatherCorners(4, 4)
     
     end subroutine TwoWayAssimilation2D
                                     
@@ -5756,16 +5756,16 @@ d5:     do k = klast + 1,KUB
         KUBFather = SizeFather%KUB
         !Copies Values of FatherProperty coincident with the corners of the Son domain (because the son domain does
         ! not compute them).
-        do k = KLBFather, KUBFather
-            !left lower corner
-            FatherCorners(1, k) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, k)
-            !left upper corner
-            FatherCorners(2, k) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, k)
-            !Right lower corner
-            FatherCorners(3, k) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, k)
-            !Right upper corner
-            FatherCorners(4, k) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, k)
-        enddo
+        !do k = KLBFather, KUBFather
+        !    !left lower corner
+        !    FatherCorners(1, k) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, k)
+        !    !left upper corner
+        !    FatherCorners(2, k) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, k)
+        !    !Right lower corner
+        !    FatherCorners(3, k) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, k)
+        !    !Right upper corner
+        !    FatherCorners(4, k) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, k)
+        !enddo
         
         !Paralelizar! João Sobrinho
         do k = KLBSon, KUBSon
@@ -5781,8 +5781,8 @@ d5:     do k = klast + 1,KUB
         
         !Paralelizar! João Sobrinho
         do k = KLBFather, KUBFather
-        do j = JLink(1, 1)+1, JLink(IUBSon, JUBSon)+1
-        do i = ILink(1, 1)+1, ILink(IUBSon, JUBSon)+1
+        do j = JLink(1, 1)+3, JLink(IUBSon, JUBSon)-1
+        do i = ILink(1, 1)+3, ILink(IUBSon, JUBSon)-1
             if (Open3DFather(i, j, k) == 1 .and. TotSonVolInFather(i, j, k) > 0. )then
                 FatherProperty(i, j, k) = FatherProperty(i, j, k) + (AuxMatrix(i, j, k) / TotSonVolInFather(i, j, k) -&
                                           FatherProperty(i, j, k)) * (DT / DecayTime) * (TotSonVolInFather(i, j, k) / &
@@ -5792,17 +5792,31 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
         enddo
+
+        !!Paralelizar! João Sobrinho
+        !do k = KLBFather, KUBFather
+        !do j = JLink(1, 1)+1, JLink(IUBSon, JUBSon)+1
+        !do i = ILink(1, 1)+1, ILink(IUBSon, JUBSon)+1
+        !    if (Open3DFather(i, j, k) == 1 .and. TotSonVolInFather(i, j, k) > 0. )then
+        !        FatherProperty(i, j, k) = FatherProperty(i, j, k) + (AuxMatrix(i, j, k) / TotSonVolInFather(i, j, k) -&
+        !                                  FatherProperty(i, j, k)) * (DT / DecayTime) * (TotSonVolInFather(i, j, k) / &
+        !                                  VolumeFather(i, j, k))
+        !    endif
+        !        
+        !enddo
+        !enddo
+        !enddo
     
-        do k = KLBFather, KUBFather
-            !left lower corner
-            FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, k) = FatherCorners(1, k) 
-            !left upper corner
-            FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, k) = FatherCorners(2, k)
-            !Right lower corner
-            FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, k) = FatherCorners(3, k)
-            !Right upper corner
-            FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, k) = FatherCorners(4, k)
-        enddo
+        !do k = KLBFather, KUBFather
+        !    !left lower corner
+        !    FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, k) = FatherCorners(1, k) 
+        !    !left upper corner
+        !    FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, k) = FatherCorners(2, k)
+        !    !Right lower corner
+        !    FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, k) = FatherCorners(3, k)
+        !    !Right upper corner
+        !    FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, k) = FatherCorners(4, k)
+        !enddo
     
     end subroutine TwoWayAssimilation3D    
     
