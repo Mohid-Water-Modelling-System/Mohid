@@ -1037,8 +1037,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)              
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSediment - ERR200'
         
-        if (Me%ConsolidationOn .eq. .true.) then
-            if (Me%Evolution%Geometry .eq. .false.) then
+        if (Me%ConsolidationOn) then
+            if (Me%Evolution%Geometry) then
                 write(*,*) 'GEOMETRY_EVOLUTION must be activated to run with CONSOLIDATION'
                 stop 'ConstructGlobalParameters - ModuleSediment - ERR205'
             endif

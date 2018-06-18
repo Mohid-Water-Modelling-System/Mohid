@@ -573,7 +573,7 @@ d2:     do l= 1, Me%NumberUnits
                 Me%NonComputedPoint(n, i, j) = .true.
             endif
             
-            if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX) Then
+            if(Me%Generic4D==1 .AND. p==Me%Generic4DPropertyIndeX .AND. Me%PropVector(p).GT. -99.0) Then
                 Me%Generic4DValue=Me%PropVector(p)
                 Me%Generic4DUnits=trim(Me%PropsUnits(p))
             end if
@@ -674,26 +674,27 @@ i5:         if (trim(Me%PropsName(p)) == GetPropertyName(TransportEnergyY_)) the
             else
                 write(*,*)'Swan in Cartesian Convention...'
                 write(*,*)
-            endif
-            
-i2:         if (Me%Generic4D==1) then
-    
-                allocate(RealArray1D(1:1))
-                
-                RealArray1D(1) = Me%Generic4DValue
-                
-                call HDF5SetLimits  (Me%ObjHDF5, 1, 1, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR30'
-                
-                call HDF5WriteData  (Me%ObjHDF5, "/Generic4D",                           &
-                                     "Generic4D", Me%Generic4DUnits,                     &
-                                     Array1D = RealArray1D,                              &
-                                     OutputNumber = n, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR40'
-                
-            endif i2
-        endif
+            endif          
 
+        endif
+        
+i2:     if (Me%Generic4D==1 .AND. Me%Generic4DPropertyIndeX==p) then
+    
+            allocate(RealArray1D(1:1))
+                
+            RealArray1D(1) = Me%Generic4DValue
+                
+            call HDF5SetLimits  (Me%ObjHDF5, 1, 1, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR30'
+                
+            call HDF5WriteData  (Me%ObjHDF5, "/Generic4D",                           &
+                                   "Generic4D", Me%Generic4DUnits,                     &
+                                   Array1D = RealArray1D,                              &
+                                   OutputNumber = n, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR40'
+                
+        endif i2
+            
         write(*,*)"Converting: "//trim(Me%PropsName(p))
         write(*,*)
         
@@ -740,7 +741,7 @@ d1:     do n=1,Me%OutPut%TotalOutputs
         call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'OutputFields - ModuleReadSWANNonStationary - ERR90'
 
-        if (p == 1 .and. Me%Generic4D==1) then
+        if (Me%Generic4D==1 .AND. Me%Generic4DPropertyIndeX==p) then
             deallocate(RealArray1D)
             nullify(RealArray1D)
         endif

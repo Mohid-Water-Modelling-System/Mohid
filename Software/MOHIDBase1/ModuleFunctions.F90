@@ -147,6 +147,7 @@ Module ModuleFunctions
     !Coordinates of grid cells
     public  :: RODAXY
     public  :: FromCartesianToGrid
+
     public  :: FromGridToCartesian
     interface  FromGridToCartesian
         module procedure FromGridToCartesianR4
@@ -5071,19 +5072,21 @@ d1:     do k = KLB, KUB
                         do dij=1,dijmax
 
                             do jj=j-dij,j+dij
-                            do ii=i-dij,i+dij
 
                                 if (jj < JLB) cycle
                                 if (jj > JUB) cycle
-                                if (ii < ILB) cycle
-                                if (ii > IUB) cycle
 
-                                if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
-                                    SumValues   = SumValues   + OutValues3D(ii, jj, k) 
-                                    Count = Count + 1
-                                endif
+                                do ii=i-dij,i+dij
 
-                            enddo
+                                    if (ii < ILB) cycle
+                                    if (ii > IUB) cycle
+
+                                    if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
+                                        SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                        Count = Count + 1
+                                    endif
+
+                                enddo
                             enddo
 
                             if (Count > 0) exit
@@ -5125,6 +5128,7 @@ d1:     do k = KLB, KUB
                                                                        
                                 else
 
+                                    write(*,*) 'i j k=',i,j,k   
                                     stop 'ExtraPol3DNearestCell - ModuleFunctions - ERR10'
                                 
                                 endif
@@ -5218,19 +5222,21 @@ d1:     do k = KLB, KUB
                         do dij=1,dijmax
 
                             do jj=j-dij,j+dij
-                            do ii=i-dij,i+dij
 
                                 if (jj < JLB) cycle
                                 if (jj > JUB) cycle
-                                if (ii < ILB) cycle
-                                if (ii > IUB) cycle
 
-                                if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
-                                    SumValues   = SumValues   + OutValues3D(ii, jj, k) 
-                                    Count = Count + 1
-                                endif
+                                do ii=i-dij,i+dij
 
-                            enddo
+                                    if (ii < ILB) cycle
+                                    if (ii > IUB) cycle
+
+                                    if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
+                                        SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                        Count = Count + 1
+                                    endif
+
+                                enddo
                             enddo
 
                             if (Count > 0) exit
@@ -5271,7 +5277,10 @@ d1:     do k = KLB, KUB
                                     OutValues3D(i, j, k) = FillValueReal
                                                                        
                                 else
-
+                                    write(*,*) 'kk dk=',kk, dk
+                                    write(*,*) 'ii jj dij dijmax=',ii, jj, dij, dijmax
+                                    write(*,*) 'Count SumValues=',Count, SumValues
+                                    write(*,*) 'i j k=',i,j,k   
                                     stop 'ExtraPol3DNearestCell_8 - ModuleFunctions - ERR10'
                                 
                                 endif
@@ -5609,7 +5618,7 @@ d5:     do k = klast + 1,KUB
     !Arguments---------------------------------------------------------------------------------
     real,    dimension(:,:), pointer, intent(IN)        :: SonProperty
     integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
-    real,    dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
+    real(8), dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
     real,    dimension(:,:), pointer, intent(INOUT)     :: FatherProperty
     integer, dimension(:,:), pointer, intent(IN)        :: IConnect, Jconnect
     integer, intent(IN)                                 :: KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
@@ -5667,7 +5676,8 @@ d5:     do k = klast + 1,KUB
                                     KUBSon, KLBSon, IConnect, Jconnect, DecayTime, DT,    &
                                     TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather) 
     !Arguments---------------------------------------------------------------------------------
-    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty, VolumeZSon, VolumeZFather
+    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty
+    real(8), dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
     real,    dimension(:,:,:), pointer, intent(INOUT)   :: FatherProperty
     integer, dimension(:,:),   pointer, intent(IN)      :: IConnect, Jconnect
     integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
@@ -12049,7 +12059,7 @@ D2:     do I=imax-1,2,-1
      
         !Begin-----------------------------------------------------------------   
     
-        do I=1,6
+        do i=1,6
             read(UnitIn,*) 
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ReadEsriGridData - ModuleFunctions - ERR10'

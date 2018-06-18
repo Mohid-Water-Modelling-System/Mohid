@@ -5138,7 +5138,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             do i = PropLB, PropUB
                 if (.not.FindProperty(PropertiesList, BivalveList(i))) then
                     write(*,*) 'Property ',GetPropertyName(BivalveList(i)),' not found in the Bivalve list'
-                    write(*,*) 'Please check subroutine Construct_CohortPropertiesFromCohort if BIVALVE is on.'
+                    write(*,*) 'Please check subroutine Construct_CohortPropFromCohort if BIVALVE is on.'
                           stop 'Properties lists inconsistent  - UpdateMassDimensions - ModuleInterface - ERR03'    
                 end if
             end do

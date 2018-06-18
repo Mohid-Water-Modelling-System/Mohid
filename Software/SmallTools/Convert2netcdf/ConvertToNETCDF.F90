@@ -122,6 +122,8 @@ program Convert2netcdf
         real,    dimension(:,:,:), pointer                  :: Float3DOut          => null()
         integer, dimension(:,:  ), pointer                  :: Int2DOut            => null()
         integer, dimension(:,:,:), pointer                  :: Int3DOut            => null()
+        
+        logical                                             :: IsMapping           = .false. 
 
 
         type(T_HDFFile)                                     :: HDFFile
@@ -144,6 +146,9 @@ program Convert2netcdf
         real                                                :: Add_Factor       = FillValueReal
         real                                                :: Multiply_Factor  = FillValueReal        
         
+        logical                                             :: SimpleGrid       = .false. 
+        
+        real                                                :: MissingValue     = FillValueReal
 
     end type T_Conv2netcdf
 
@@ -526,12 +531,33 @@ program Convert2netcdf
                      Default      = 1.,                                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR370'
+        
+        call GetData(Me%SimpleGrid,                                                     &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'SIMPLE_GRID',                                      &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR370'
+        
      
         if(.not. Me%ConvertEverything)then
 
              call ReadVGroupsToConvert
 
         end if
+        
+        call GetData(Me%MissingValue,                                                   &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MISSING_VALUE',                                    &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = FillValueReal,                                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR380'
+
+        
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR990'
@@ -768,9 +794,13 @@ program Convert2netcdf
             endif
         endif
 
-        call ReadWriteBathymetry
+!        if (.not.Me%SimpleGrid) then
 
-        call ReadMask
+            call ReadWriteBathymetry
+
+            call ReadMask
+            
+!        endif                        
 
     end subroutine ReadWriteGrid
 
@@ -780,7 +810,8 @@ program Convert2netcdf
 
         !Local-----------------------------------------------------------------
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer                                     :: ssize
+        !integer(HID_T)                              :: ssize
+        integer(SIZE_T)                             :: ssize        
         integer(HID_T)                              :: space_id, datatype_id
         integer(HID_T)                              :: rank
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
@@ -844,10 +875,12 @@ program Convert2netcdf
         Me%HDFFile%Size%KUB = dims(3)
         
         if (Me%DepthLayersON) then
-            call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(dims(1),4), int(dims(2),4), int(Me%DepthLayers,4), STAT = STAT_CALL)
+            call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(dims(1),4),int(dims(2),4), &
+                                     int(Me%DepthLayers,4), SimpleGrid = Me%SimpleGrid, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR20'
         else
-            call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(dims(1),4), int(dims(2),4), int(dims(3),4), STAT = STAT_CALL)
+            call NETCDFSetDimensions(Me%NCDF_File%ObjNETCDF, int(dims(1),4), int(dims(2),4),&
+                                     int(dims(3),4), SimpleGrid = Me%SimpleGrid, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadSetDimensions - Convert2netcdf - ERR30'
         endif
         
@@ -929,39 +962,51 @@ program Convert2netcdf
         enddo
         enddo
         
-        allocate(SphericX(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
-        allocate(SphericY(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
+        if (Me%SimpleGrid) then
         
-        if (Me%StagGoogleOut) then
-
-            call WGS84toGoogleMaps(lon_stag, lat_stag,                                      &
-                                   1, Me%HDFFile%Size%JUB, 1, Me%HDFFile%Size%IUB,          &
-                                   SphericX, SphericY)
-
-            call NETCDFWriteLatLon(NCDFID           = Me%NCDF_File%ObjNETCDF,               &
-                                   Lat              = Lat,                                  &
-                                   Lon              = Lon,                                  &
-                                   Lat_Stag         = Lat_Stag,                             &
-                                   Lon_Stag         = Lon_Stag,                             &
-                                   SphericX         = SphericX,                             &
-                                   SphericY         = SphericY,                             &
-                                   STAT             = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR60'
-
-            deallocate(SphericX, SphericY)
-            
+            call NETCDFWriteLatLon1D(NCDFID           = Me%NCDF_File%ObjNETCDF,         &
+                                     Lat              = Lat,                            &
+                                     Lon              = Lon,                            &
+                                     STAT             = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR40'
+        
         else
-
-            call NETCDFWriteLatLon(NCDFID           = Me%NCDF_File%ObjNETCDF,               &
-                                   Lat              = Lat,                                  &
-                                   Lon              = Lon,                                  &
-                                   Lat_Stag         = Lat_Stag,                             &
-                                   Lon_Stag         = Lon_Stag,                             &
-                                   STAT             = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR70'        
         
-        endif
+            allocate(SphericX(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
+            allocate(SphericY(1:Me%HDFFile%Size%JUB+1, 1:Me%HDFFile%Size%IUB+1))
+            
+            if (Me%StagGoogleOut) then
+
+                call WGS84toGoogleMaps(lon_stag, lat_stag,                              &
+                                       1, Me%HDFFile%Size%JUB, 1, Me%HDFFile%Size%IUB,  &
+                                       SphericX, SphericY)
+
+                call NETCDFWriteLatLon(NCDFID           = Me%NCDF_File%ObjNETCDF,       &
+                                       Lat              = Lat,                          &
+                                       Lon              = Lon,                          &
+                                       Lat_Stag         = Lat_Stag,                     &
+                                       Lon_Stag         = Lon_Stag,                     &
+                                       SphericX         = SphericX,                     &
+                                       SphericY         = SphericY,                     &
+                                       STAT             = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR50'
+
+                deallocate(SphericX, SphericY)
+                
+            else
+
+                call NETCDFWriteLatLon(NCDFID           = Me%NCDF_File%ObjNETCDF,       &
+                                       Lat              = Lat,                          &
+                                       Lon              = Lon,                          &
+                                       Lat_Stag         = Lat_Stag,                     &
+                                       Lon_Stag         = Lon_Stag,                     &
+                                       STAT             = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadWriteLatLon - Convert2netcdf - ERR60'        
+            
+            endif
                     
+        endif
+
         deallocate(Lat, Lon, Lat_Stag, Lon_Stag)
         nullify   (Lat, Lon, Lat_Stag, Lon_Stag)
 
@@ -1570,9 +1615,10 @@ program Convert2netcdf
         integer                                     :: rank, obj_type
         integer(HSIZE_T), dimension(7)              :: dims, maxdims
         integer(HID_T)                              :: gr_id, dset_id, class_id
-        integer                                     :: ssize
+        !integer(HID_T)                              :: ssize
+        integer(SIZE_T)                             :: ssize        
         integer(HID_T)                              :: space_id, datatype_id
-        logical                                     :: IsMapping
+        !logical                                     :: IsMapping
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, i, j, k
 
         !Begin-----------------------------------------------------------------
@@ -1584,7 +1630,7 @@ program Convert2netcdf
         KLB = Me%HDFFile%Size%KLB 
         KUB = Me%HDFFile%Size%KUB
 
-        IsMapping = .false.
+        Me%IsMapping = .false.
 
         write(*,*)"Reading and writing mask old..."
 
@@ -1618,12 +1664,12 @@ program Convert2netcdf
                 !The mask variable should be explicited in the configuration file.
                 !And the defaults should be WaterPoints2D and WaterPoints3D.
                 if(class_id == H5T_INTEGER_F) then
-                    IsMapping = .true.
+                    Me%IsMapping = .true.
                 else
-                    IsMapping = .false.
+                    Me%IsMapping = .false.
                 endif
 
-                if(IsMapping)then
+                if(Me%IsMapping)then
 
                     select case(Rank)
 
@@ -1784,6 +1830,7 @@ program Convert2netcdf
                 Units           = ""
                 ValidMin        = 0
                 ValidMax        = 1
+                MissingValue    = -99
             
             case("OpenPoints2D", "OpenPoints3D")
                 NCDFName        = "mask"
@@ -1792,6 +1839,7 @@ program Convert2netcdf
                 Units           = ""
                 ValidMin        = 0
                 ValidMax        = 1
+                MissingValue    = -99
 
             case("temperature")
                 NCDFName        = "temperature"
@@ -1800,7 +1848,7 @@ program Convert2netcdf
                 Units           = "degC"
                 ValidMin        = 0.
                 ValidMax        = 50.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("salinity")
                 NCDFName        = "salinity"
@@ -1809,7 +1857,7 @@ program Convert2netcdf
                 Units           = "PSU"
                 ValidMin        = 0.
                 ValidMax        = 40.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("density")
                 NCDFName        = "density"
@@ -1818,7 +1866,7 @@ program Convert2netcdf
                 Units           = "kg m-3"
                 ValidMin        = 900.
                 ValidMax        = 1200.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("oxygen")
                 NCDFName        = "dissolved_oxygen"
@@ -1827,7 +1875,7 @@ program Convert2netcdf
                 Units           = "mg l-1"
                 ValidMin        = 0.
                 ValidMax        = 30.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("dissolved_oxygen_percent_saturation")
                 NCDFName        = "dissolved_oxygen_percent_saturation"
@@ -1836,7 +1884,7 @@ program Convert2netcdf
                 Units           = "%"
                 ValidMin        = 0.
                 ValidMax        = 200.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("velocity_U")
                 NCDFName        = "u"
@@ -1845,7 +1893,7 @@ program Convert2netcdf
                 Units           = "m s-1"
                 ValidMin        = -5.
                 ValidMax        = 5.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("velocity_V")
                 NCDFName        = "v"
@@ -1854,7 +1902,7 @@ program Convert2netcdf
                 Units           = "m s-1"
                 ValidMin        = -5.
                 ValidMax        = 5.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("velocity_W")
                 NCDFName        = "velocity_W"
@@ -1863,7 +1911,7 @@ program Convert2netcdf
                 Units           = "m s-1"
                 ValidMin        = -2.
                 ValidMax        = 2.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("velocity_modulus")
                 NCDFName        = "vm"
@@ -1872,7 +1920,7 @@ program Convert2netcdf
                 Units           = "m s-1"
                 ValidMin        = -5.
                 ValidMax        = 5.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("water_level")
                 NCDFName        = "ssh"
@@ -1881,7 +1929,7 @@ program Convert2netcdf
                 Units           = "m"
                 ValidMin        = -20.
                 ValidMax        = 20.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("wind_modulus")
                 NCDFName        = "wind_modulus"
@@ -1890,7 +1938,7 @@ program Convert2netcdf
                 Units           = "m s-1"
                 ValidMin        = -100.
                 ValidMax        = 100.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
             case("wind_velocity_X")
                 NCDFName        = "x_wind"
                 LongName        = "x wind"
@@ -1898,7 +1946,7 @@ program Convert2netcdf
                 Units           = "m s-1"
                 ValidMin        = -100.
                 ValidMax        = 100.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("wind_velocity_Y")
                 NCDFName        = "y_wind"
@@ -1907,7 +1955,7 @@ program Convert2netcdf
                 Units           = "m s-1"
                 ValidMin        = -100.
                 ValidMax        = 100.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("air_temperature")
                 NCDFName        = "air_temperature"
@@ -1916,7 +1964,7 @@ program Convert2netcdf
                 Units           = "degC"
                 ValidMin        = -90.
                 ValidMax        = 60.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("atmospheric_pressure")
                 NCDFName        = "atmospheric_pressure"
@@ -1925,7 +1973,7 @@ program Convert2netcdf
                 Units           = "Pa"
                 ValidMin        = 85000.
                 ValidMax        = 110000.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("mean_sea_level_pressure")
                 NCDFName        = "mean_sea_level_pressure"
@@ -1934,7 +1982,7 @@ program Convert2netcdf
                 Units           = "Pa"
                 ValidMin        = 85000.
                 ValidMax        = 110000.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("relative_humidity")
                 NCDFName        = "relative_humidity"
@@ -1943,7 +1991,7 @@ program Convert2netcdf
                 Units           = "1"
                 ValidMin        = 0.
                 ValidMax        = 1.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("short_wave_solar_radiation_extinction")
                 NCDFName        = "volume_absorption_coefficient_of_radiative_flux_in_sea_water"
@@ -1952,7 +2000,7 @@ program Convert2netcdf
                 Units           = "m-1"
                 ValidMin        = 0.
                 ValidMax        = 100.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("solar_radiation")
                 NCDFName        = "solar_radiation"
@@ -1961,7 +2009,7 @@ program Convert2netcdf
                 Units           = "W m-2"
                 ValidMin        = 0.
                 ValidMax        = 1400.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("downward_long_wave_radiation")
                 NCDFName        = "downward_long_wave_radiation"
@@ -1970,7 +2018,7 @@ program Convert2netcdf
                 Units           = "W m-2"
                 ValidMin        = 0.
                 ValidMax        = 1400.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("phytoplankton")
                 NCDFName        = "phytoplankton"
@@ -1980,7 +2028,7 @@ program Convert2netcdf
                 Multiply_Factor_ = 1000./12.0107
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("zooplankton")
                 NCDFName        = "zooplankton"
@@ -1990,7 +2038,7 @@ program Convert2netcdf
                 Multiply_Factor_ = 1000./12.0107
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("nitrate")
                 NCDFName        = "nitrate"
@@ -2000,7 +2048,7 @@ program Convert2netcdf
                 Multiply_Factor_ = 1000./14.0067
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("ammonia")
                 NCDFName        = "ammonia"
@@ -2010,7 +2058,7 @@ program Convert2netcdf
                 Multiply_Factor_ = 1000./14.0067
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("cohesive_sediment")
                 NCDFName        = "cohesive_sediment"
@@ -2019,7 +2067,7 @@ program Convert2netcdf
                 Units           = "mg l-1"
                 ValidMin        = 0.
                 ValidMax        = 1000.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("inorganic_phosphorus")
                 NCDFName        = "inorganic_phosphorus"
@@ -2029,7 +2077,7 @@ program Convert2netcdf
                 Multiply_Factor_ = 1000./30.974
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("particulate_organic_nitrogen")
                 NCDFName        = "particulate_organic_nitrogen"
@@ -2039,7 +2087,7 @@ program Convert2netcdf
                 Multiply_Factor_ = 1000./14.0067
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("particulate_organic_phosphorus")
                 NCDFName        = "particulate_organic_phosphorus"
@@ -2049,17 +2097,26 @@ program Convert2netcdf
                 Multiply_Factor_ = 1000./30.974
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("mean_wave_direction")
                 NCDFName        = "mean_wave_direction"
                 LongName        = "sea surface wave to direction"
                 StandardName    = "sea_surface_wave_to_direction"
                 Units           = "degree"
-                !ValidMin        = -180 
-                !ValidMax        = 180.
-                !Multiply_Factor_ = 57.2958
-                MissingValue    = FillValueReal
+                ValidMin        = 0. 
+                ValidMax        = 360.
+                MissingValue    = Me%MissingValue
+                
+            case("swell_wave_direction")
+                NCDFName        = "swell_wave_direction"
+                LongName        = "sea surface swell wave to direction"
+                StandardName    = "sea_surface_swell_wave_to_direction"
+                Units           = "degree"
+                ValidMin        = 0. 
+                ValidMax        = 360.
+                MissingValue    = Me%MissingValue                
+                
 ! Next 2 keywords are not CF compliant
             case("mean_wave_direction_X")
                 NCDFName        = "wave_X"
@@ -2068,7 +2125,7 @@ program Convert2netcdf
                 Units           = "-"
                 ValidMin        = -1. 
                 ValidMax        = 1.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("mean_wave_direction_Y")
                 NCDFName        = "wave_Y"
@@ -2077,7 +2134,7 @@ program Convert2netcdf
                 Units           = "-"
                 ValidMin        = -1. 
                 ValidMax        = 1.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
             case("significant_wave_height")
                 NCDFName        = "significant_wave_height"
@@ -2085,8 +2142,26 @@ program Convert2netcdf
                 StandardName    = "sea_surface_wave_significant_height"
                 Units           = "m"
                 ValidMin        = 0. 
-                ValidMax        = 30.
-                MissingValue    = FillValueReal
+                ValidMax        = 40.
+                MissingValue    = Me%MissingValue
+
+            case("swell_wave_height")
+                NCDFName        = "swell_wave_height"
+                LongName        = "sea surface swell wave height"
+                StandardName    = "sea_surface_swell_wave_height"
+                Units           = "m"
+                ValidMin        = 0. 
+                ValidMax        = 40.
+                MissingValue    = Me%MissingValue
+
+            case("wind_wave_height")
+                NCDFName        = "wind_wave_height"
+                LongName        = "sea surface wind wave height"
+                StandardName    = "sea_surface_wind_wave_height"
+                Units           = "m"
+                ValidMin        = 0. 
+                ValidMax        = 40.
+                MissingValue    = Me%MissingValue
 
             case("mean_wave_period")
                 NCDFName        = "mean_wave_period"
@@ -2095,17 +2170,35 @@ program Convert2netcdf
                 Units           = "s"
                 ValidMin        = 0. 
                 ValidMax        = 30.
-                MissingValue    = FillValueReal
+                MissingValue    = Me%MissingValue
 
+
+            case("swell_wave_period")
+                NCDFName        = "swell_wave_period"
+                LongName        = "sea surface swell wave period"
+                StandardName    = "sea_surface_swell_wave_period"
+                Units           = "s"
+                ValidMin        = 0. 
+                ValidMax        = 30.
+                MissingValue    = Me%MissingValue
+
+            case("wind_wave_period")
+                NCDFName        = "wind_wave_period"
+                LongName        = "sea surface wind wave period"
+                StandardName    = "sea_surface_wind_wave_period"
+                Units           = "s"
+                ValidMin        = 0. 
+                ValidMax        = 30.
+                MissingValue    = Me%MissingValue
             case default
 
                 NCDFName        = trim(adjustl(Name))
                 LongName        = trim(adjustl(Name))
                 StandardName    = trim(adjustl(Name))
                 Units           = "unknown"
-                ValidMin        =   null_real
-                ValidMax        = - null_real
-                MissingValue    = FillValueReal
+                ValidMin        =   Me%MissingValue / 10.
+                ValidMax        = - Me%MissingValue / 10. 
+                MissingValue    = Me%MissingValue
 
         end select
 
@@ -2135,6 +2228,14 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     Max = Float2D(j,i) 
 
                 endif
+                
+                if(Float2D(j,i) < FillValueReal/2.) then
+                    Float2D(j,i) = Me%MissingValue
+                endif
+                
+                if (Me%HDFFile%ImposeMask .or. Me%IsMapping) then
+                    if (Me%Int2DOut(j,i) == 0) Float2D(j,i) = Me%MissingValue             
+                endif                    
 
             enddo
             enddo
@@ -2158,6 +2259,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                     Max = Float3D(j,i,k) 
 
                 endif
+                
+                
+                if(Float3D(j,i,k) < FillValueReal/2.) then
+                    Float3D(j,i,k) = Me%MissingValue
+                endif
+                
+                if (Me%HDFFile%ImposeMask .or. Me%IsMapping) then
+                    if (Me%Int3DOut(j,i,k) == 0) Float3D(j,i,k) = Me%MissingValue             
+                endif                                    
 
             enddo
             enddo
@@ -2321,7 +2431,8 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                     :: STAT_CALL
         integer(HID_T)                              :: class_id, space_id, dset_id
         integer(HID_T)                              :: datatype_id, rank, NumType
-        integer                                     :: ssize
+        !integer(HID_T)                              :: ssize
+        integer(SIZE_T)                             :: ssize        
         integer(HSIZE_T), dimension(7)              :: dims
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         character(len=StringLength)                 :: Name, NCDFName, LongName, StandardName, Units

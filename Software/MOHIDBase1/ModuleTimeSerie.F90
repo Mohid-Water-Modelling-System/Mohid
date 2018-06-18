@@ -505,11 +505,10 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
     !the standard StartTimeSerie with some changes because the input format of the turbine data is diferent
     !----------------------------------------------------------------------------------------
                               
-    subroutine StartTimeSerieTurbine(TimeSerieID, ObjTime, ObjEnterData, TurbineTimeSerieList,                 &
-                              PropertyList, Extension, WaterPoints3D, &
-                              WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
-                              ModelName, CoordX, CoordY, UseTabulatedData,               &
-                              HavePath, Comment, ModelDomain, STAT)
+    subroutine StartTimeSerieTurbine(TimeSerieID, ObjTime, ObjEnterData, TurbineTimeSerieList,  &
+                                     PropertyList, Extension, ResultFileName, Instance,         &
+                                     ModelName, UseTabulatedData,  HavePath,                    &
+                                     Comment, ModelDomain, STAT)                             
 
         !Arguments-------------------------------------------------------------
         integer                                         :: TimeSerieID
@@ -518,14 +517,9 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:), pointer                  :: TurbineTimeSerieList
         character(len=*), dimension(:), pointer         :: PropertyList
         character(len=*), intent(IN )                   :: Extension
-        integer, dimension(:,:,:), optional, pointer    :: WaterPoints3D
-        integer, dimension(:,:  ), optional, pointer    :: WaterPoints2D
-        integer, dimension(:    ), optional, pointer    :: WaterPoints1D
         character(len=*), optional, intent(IN )         :: ResultFileName
         character(len=*), optional, intent(IN )         :: Instance  
         character(len=*), optional, intent(IN )         :: ModelName
-        real, optional                                  :: CoordX
-        real, optional                                  :: CoordY
         logical, optional, intent(IN )                  :: UseTabulatedData
         logical, optional, intent(IN )                  :: HavePath
         character(len=*), optional, intent(IN )         :: Comment
@@ -1120,14 +1114,13 @@ i9:         if (.not. Me%TimeSerie(iTimeSerie)%DepthON) then
         type (T_Time)                       :: AuxTime, DummyTime
         integer                             :: STAT_CALL
         integer                             :: iTimeSerie, iflag
-        integer                             :: FromFile        
+    
 
         !Gets parameter from the module EnterData
 
         do iTimeSerie = 1, Me%NumberOfTimeSeries
         
             if (Me%TimeSerie(iTimeSerie)%IgnoreON) cycle
-
 
             !Searches for the first output DT
             call GetData(Me%TimeSerie(iTimeSerie)%FirstDT,                          &

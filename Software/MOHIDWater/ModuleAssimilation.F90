@@ -89,6 +89,7 @@ Module ModuleAssimilation
     public  ::  GetAltimetryDecayTime
     public  ::  GetAltimSigmaDensAnalyzed
     public  ::  GetWaveCelerityField
+    public  ::  GetNumberOfFields
 
     public  ::  UngetAssimilation
 
@@ -1783,21 +1784,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
     !--------------------------------------------------------------------------
 
     
-    subroutine GetAssimilationField(AssimilationID, ID,                         & 
-                                       Field2D, Field3D,                        &
-                                       STAT)
+    subroutine GetAssimilationField(AssimilationID, ID, N_Field,                & 
+                                    Field2D, Field3D, STAT)
 
         !Arguments--------------------------------------------------------------
-        integer                                     :: AssimilationID
+        integer          , intent(IN )              :: AssimilationID
+        integer          , intent(IN )              :: ID
+        integer          , intent(IN ),  optional   :: N_Field          
         real, dimension(:,:  ), pointer, optional   :: Field2D
         real, dimension(:,:,:), pointer, optional   :: Field3D
-        integer                                     :: ID
         integer, optional, intent(OUT)              :: STAT
 
         !External--------------------------------------------------------------
         integer                                     :: ready_        
         type (T_Property), pointer                  :: PropertyX    
         integer                                     :: STAT_CALL, STAT_CALL1
+        integer                                     :: N_Field_
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
@@ -1812,8 +1814,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             nullify(PropertyX)
-            call SearchProperty(PropertyX = PropertyX, PropertyXIDNumber = ID, STAT = STAT_CALL) 
-                                         
+            
+            if (present(N_Field)) then
+                N_Field_ = N_Field
+            else
+                N_Field_ = 1
+            endif            
+            
+            call SearchProperty(PropertyX           = PropertyX,                        &
+                                PropertyXIDNumber   = ID,                               &
+                                N_Field             = N_Field_,                         &
+                                STAT                = STAT_CALL)                                         
                            
 cd2:        if (STAT_CALL == SUCCESS_) then
 
@@ -1984,8 +1995,8 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
 
     subroutine RotateVectorFields(PropertyX, PropertyY)
         !Arguments-------------------------------------------------------------
-        type (T_Property), pointer                  :: PropertyX        => null()
-        type (T_Property), pointer                  :: PropertyY        => null()
+        type (T_Property), pointer                  :: PropertyX
+        type (T_Property), pointer                  :: PropertyY 
         
         !Local-----------------------------------------------------------------
         integer, dimension(:,:),    pointer         :: WaterPoints2D
@@ -2085,21 +2096,24 @@ i2:     if (PropertyX%Dim == Dim_3D) then
     !--------------------------------------------------------------------------
 
 
-    subroutine GetAssimilationCoef(AssimilationID, ID, CoefField2D, CoefField3D,        &
-                                   ColdRelaxPeriod, ColdOrder, Minimum, STAT)
+    subroutine GetAssimilationCoef(AssimilationID, ID, N_Field,                         &
+                                   CoefField2D, CoefField3D, ColdRelaxPeriod,           &
+                                   ColdOrder, Minimum, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                     :: AssimilationID
+        integer          , intent(IN )              :: ID   
+        integer          , intent(IN ),  optional   :: N_Field   
         real, dimension(:,:  ), pointer, optional   :: CoefField2D
         real, dimension(:,:,:), pointer, optional   :: CoefField3D
         real,    optional, intent(OUT)              :: Minimum, ColdRelaxPeriod, ColdOrder
-        integer          , intent(IN )              :: ID
         integer, optional, intent(OUT)              :: STAT
 
         !External--------------------------------------------------------------
         integer                                     :: ready_        
         type (T_Property), pointer                  :: PropertyX    
         integer                                     :: STAT_CALL, STAT_CALL1
+        integer                                     :: N_Field_
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
@@ -2114,7 +2128,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             nullify(PropertyX)
-            call SearchProperty(PropertyX = PropertyX, PropertyXIDNumber = ID , STAT = STAT_CALL)
+            
+            if (present(N_Field)) then
+                N_Field_ = N_Field
+            else
+                N_Field_ = 1
+            endif            
+            
+            call SearchProperty(PropertyX           = PropertyX,                        &
+                                PropertyXIDNumber   = ID,                               &
+                                N_Field             = N_Field_,                         &
+                                STAT                = STAT_CALL)
                                             
 
 cd2:        if (STAT_CALL == SUCCESS_) then
@@ -2404,6 +2428,64 @@ cd2:        if (STAT_CALL == SUCCESS_) then
     end subroutine GetWaveCelerityField
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine GetNumberOfFields(AssimilationID, ID, NumberOfFields, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer,            intent(IN )             :: AssimilationID
+        integer,            intent(IN )             :: ID
+        integer,            intent(OUT)             :: NumberOfFields
+        integer, optional,  intent(OUT)             :: STAT
+
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+        type (T_Property), pointer                  :: PropertyX    
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(AssimilationID, ready_)    
+        
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            NumberOfFields = 0
+            
+            PropertyX => Me%FirstAssimilationProp
+
+            do while (associated(PropertyX)) 
+                
+                if (PropertyX%ID%IDNumber == ID) then
+                    NumberOfFields  = NumberOfFields + 1
+                endif
+                
+                PropertyX => PropertyX%Next                 
+                
+            end do                
+            
+        else cd1
+         
+            STAT_ = ready_
+
+        end if cd1
+
+
+        if (present(STAT))                                                               &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetNumberOfFields
+
+    !--------------------------------------------------------------------------
+   
+    
    
     !--------------------------------------------------------------------------
 
@@ -2522,28 +2604,45 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !--------------------------------------------------------------------------
 
 
-    subroutine SearchProperty(PropertyX, PropertyXIDNumber, STAT)
+    subroutine SearchProperty(PropertyX, PropertyXIDNumber, N_Field, STAT)
 
         !Arguments-------------------------------------------------------------
         type(T_Property),           pointer             :: PropertyX
         integer         ,           intent (IN)         :: PropertyXIDNumber
+        integer         , optional, intent (IN)         :: N_Field
         integer         , optional, intent (OUT)        :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_ 
+        integer                                         :: N_Field_, Counter
 
         !----------------------------------------------------------------------
 
         STAT_  = UNKNOWN_
 
         PropertyX => Me%FirstAssimilationProp
+        
+        if (present(N_Field)) then
+            N_Field_ = N_Field
+        else
+            N_Field_ = 1
+        endif
+        
+        Counter = 0 
 
         do while (associated(PropertyX)) 
             if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
-                exit        
-            else
-                PropertyX => PropertyX%Next                 
-            end if    
+            
+                Counter     = Counter + 1
+                
+                if (N_Field_ == Counter) then
+                    exit        
+                endif       
+                
+            endif
+
+            PropertyX => PropertyX%Next                 
+
         end do    
 
         if (associated(PropertyX)) then
@@ -2560,7 +2659,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine SearchProperty
-
+    
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

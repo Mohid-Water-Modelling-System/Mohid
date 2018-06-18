@@ -389,6 +389,7 @@ Module ModuleDrainageNetwork
     integer, parameter                              :: CriticalDepth        = 2
     integer, parameter                              :: ImposedWaterLevel    = 3
     integer, parameter                              :: ImposedVelocity      = 4
+    integer, parameter                              :: Flow_vs_WaterLevel   = 5
     
 
     !HydrodynamicApproximation
@@ -565,6 +566,7 @@ Module ModuleDrainageNetwork
         real                                        :: MiddleWidth              = null_real             
         real                                        :: MiddleHeight             = null_real
         real                                        :: SlopeTop                 = null_real
+        logical                                     :: CorrectBanks             = .true. 
         !Tabular
         integer                                     :: IBottom                  = 0
         integer                                     :: NStations                = 0
@@ -2548,6 +2550,11 @@ if2:        if (Me%Downstream%Evolution == ReadTimeSerie) then
                 if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR11'
                 
             end if if2
+        
+        elseif (Me%Downstream%Boundary == Flow_vs_WaterLevel)then if1
+            
+            !Me%Downstream%Evolution = Flow_vs_WaterLevelFile
+            stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR12'
 
 
         endif if1
@@ -2794,7 +2801,7 @@ if2:            if (BlockFound) then
 
         call GetData(NewNode%StationName,                                       &
                      Me%Files%ObjEnterDataNetwork, flag,                        & 
-                     keyword        = 'ASSOCIATEDSTATION_NAME',                &
+                     keyword        = 'ASSOCIATEDSTATION_NAME',                 &
                      default        = null_str,                                 &
                      ClientModule   = 'DrainageNetwork',                        &
                      SearchType     = FromBlock,                                &
@@ -3094,6 +3101,16 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
                 end if 
 
             endif
+            
+            call GetData(NewNode%CrossSection%CorrectBanks,                         &
+                         Me%Files%ObjEnterDataNetwork, flag,                        &
+                         keyword      = 'CORRECT_BANKS',                            &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromBlock,                                  &
+                         Default      = OFF,                                        &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR17'
+
 
             call InitializeTabularCrossSection(NewNode, ComputeElevation)                                   
 
@@ -3183,7 +3200,7 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
         write(*,*)''
         write(*,*)'Forced Drainage Network river points over DTM'
         write(*,*)'Nodes changed to be consistent with DTM'
-        write(*,*)'Drainage Network corrected was writte to ', filename
+        write(*,*)'Drainage Network corrected was written to ', filename
         write(*,*)''
         
         call UnitsManager (Unit, OPEN_FILE)
@@ -3312,14 +3329,24 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
         do i=1,IBL-1
             if (Elevation(i+1)-Elevation(i) > 0) then
                 write(*,*) 'Left bank elevations must decrease in Node ', CurrNode%ID
-                stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR03'
+                if(CurrNode%CrossSection%CorrectBanks)then
+                    write(*,*)"Elevation at station", i, " changed from ",  Elevation(i+1), " to ", Elevation(i)
+                    Elevation(i+1) = Elevation(i)
+                else
+                    stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR03'
+                endif
             endif
         enddo
 
         do i=IBL,N-1
             if (Elevation(i+1)-Elevation(i) < 0) then
                 write(*,*) 'Right bank elevations must increase in Node ', CurrNode%ID
-                stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR04'
+                if(CurrNode%CrossSection%CorrectBanks)then
+                    write(*,*)"Elevation at station", i, " changed from ",  Elevation(i+1), " to ", Elevation(i)
+                    Elevation(i+1) = Elevation(i)
+                else
+                    stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR04'
+                endif
             endif
         enddo
 
@@ -6443,7 +6470,10 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         integer                             :: i, ilev
         real                                :: dH, b, m
 
-        if (WaterLevel < CrossSection%BottomLevel)  stop 'WaterLevel lower than bottom level'
+        if (WaterLevel < CrossSection%BottomLevel) then
+            write(*,*)'WaterLevel lower than bottom level'
+            stop 'TabularGeometry - ModuleDrainageNetwork - ERR01'
+        end if
         !if (WaterLevel > CrossSection%Elevation(1)) write(*,*) 'WaterLevel higher than max elevation'
         
         Av = 0.

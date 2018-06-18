@@ -74,6 +74,8 @@ Module ModuleTime
     public  :: null_time            !Turns type(time) to FillValueInt
     public  :: PrintProgress        !Writes a message to the screen         !Frank 3-8-99
     public  :: ConvertTimeToString  !Converts T_Time to a String like 2000:01:01:23:59:59
+    public  :: ConvertDateToString  !Converts T_Time to a Date like 2000:01:01
+    public  :: ConvertStringtToDate !Converts String like 2000:01:01:23:59:59 to T_Time
     public  :: JulianDateToGregorianDate
 
 
@@ -2283,8 +2285,104 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     end function ConvertTimeToString         
 
+
+    !--------------------------------------------------------------------------
+
+    character(len=10) function ConvertDateToString(Time1, Delimiter)
+    
+        !Arguments-------------------------------------------------------------
+        type(T_Time),      intent(IN )              :: Time1
+        character(len=1),  intent(IN ), optional    :: Delimiter
+
+        !Local-----------------------------------------------------------------
+        character(len=10)                           :: auxStr
+        character(len=4)                            :: Year
+        character(len=2)                            :: Month, Day
+        character(len=1)                            :: DL
+        logical                                     :: DLOn
+        
+        !----------------------------------------------------------------------
+        
+        if (present(Delimiter)) then
+            DL   = Delimiter
+            DLOn = .true.
+        else
+            DLOn = .false.
+        endif            
+        
+        
+        write(Year ,  '(I4)'   ) int(Time1%Time_(1))
+        write(Month,  '(I2)'   ) int(Time1%Time_(2))
+        write(Day  ,  '(I2)'   ) int(Time1%Time_(3))
+
+        if (DLOn) then
+            auxStr = Year//DL//Month//DL//Day
+            if (auxStr(6:6) == ' ') auxStr(6:6) = '0'
+            if (auxStr(9:9) == ' ') auxStr(9:9) = '0'
+        else
+            auxStr = Year//Month//Day
+            if (auxStr(5:5) == ' ') auxStr(5:5) = '0'
+            if (auxStr(7:7) == ' ') auxStr(7:7) = '0'            
+        endif            
+
+        ConvertDateToString = auxStr
+
+        !2000:12:12:23:59:59.123345678
+
+    end function ConvertDateToString         
     
 
+    !--------------------------------------------------------------------------
+
+    type (T_Time) function ConvertStringtToDate(String, Delimiter)
+    
+        !Arguments-------------------------------------------------------------
+        character(len=*),  intent(IN )              :: String
+        logical,                        optional    :: Delimiter
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: DLOn
+        type (T_Time)                               :: Time1
+        
+        !----------------------------------------------------------------------
+        
+        if (present(Delimiter)) then
+            DLOn = Delimiter
+        else
+            DLOn = .false.
+        endif            
+        
+        
+
+        if (DLOn) then
+            if (len_trim(String)==19) then
+                read(String(1:4 ) , '(F4.0)'   ) Time1%Time_(1)
+                read(String(6:7 ) , '(F2.0)'   ) Time1%Time_(2)
+                read(String(9:10) , '(F2.0)'   ) Time1%Time_(3)
+                read(String(12:13), '(F2.0)'   ) Time1%Time_(4)
+                read(String(15:16), '(F2.0)'   ) Time1%Time_(5)
+                read(String(18:19), '(F2.0)'   ) Time1%Time_(6)            
+            else
+                stop "ConvertStringtToDate - ModuleTime - ERR10"
+            endif
+        else
+            if (len_trim(String)==14) then        
+                read(String(1:4 ) , '(F4.0)'   ) Time1%Time_(1)
+                read(String(5:6 ) , '(F2.0)'   ) Time1%Time_(2)
+                read(String(7:8 ) , '(F2.0)'   ) Time1%Time_(3)
+                read(String(9:10 ), '(F2.0)'   ) Time1%Time_(4)
+                read(String(11:12), '(F2.0)'   ) Time1%Time_(5)
+                read(String(13:14), '(F2.0)'   ) Time1%Time_(6)            
+            else
+                stop "ConvertStringtToDate - ModuleTime - ERR20"
+            endif
+        endif            
+
+        ConvertStringtToDate = Time1
+
+
+    end function ConvertStringtToDate    
+    
 end module ModuleTime
 
 !----------------------------------------------------------------------------------------------------------

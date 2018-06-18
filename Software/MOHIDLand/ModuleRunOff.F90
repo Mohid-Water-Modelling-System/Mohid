@@ -34,7 +34,10 @@ Module ModuleRunOff
     use ModuleTime
     use ModuleTimeSerie         ,only : StartTimeSerieInput, KillTimeSerie,              &
                                         GetTimeSerieInitialData, GetTimeSerieValue,      &
-                                        StartTimeSerie, WriteTimeSerieLine
+                                        StartTimeSerie, WriteTimeSerieLine,              &
+                                        GetNumberOfTimeSeries, GetTimeSerieLocation,     &
+                                        TryIgnoreTimeSerie, CorrectsCellsTimeSerie,      &
+                                        GetTimeSerieName, WriteTimeSerie
     use ModuleEnterData
     use ModuleHDF5
     use ModuleFunctions         ,only : TimeToString, SetMatrixValue, ChangeSuffix,      &
@@ -84,6 +87,7 @@ Module ModuleRunOff
     private ::      ConstructOverLandCoefficient
     private ::      ConstructStormWaterDrainage
     private ::      ConstructHDF5Output
+    private ::      ConstructTimeSeries
 
     !Selector
     public  ::  GetOverLandFlow
@@ -120,6 +124,7 @@ Module ModuleRunOff
     private ::      IntegrateFlow
     private ::      ComputeNextDT
     private ::      RunOffOutput
+    private ::      OutputTimeSeries
     private ::  AdjustSlope
 
     !Destructor
@@ -164,10 +169,10 @@ Module ModuleRunOff
     
     !Types---------------------------------------------------------------------
     type T_OutPut
-         type (T_Time), pointer, dimension(:)       :: OutTime              => null()
-         integer                                    :: NextOutPut           = 1
-         logical                                    :: Yes                  = .false.
-         type (T_Time), dimension(:), pointer       :: RestartOutTime       => null()
+        type (T_Time), pointer, dimension(:)        :: OutTime              => null()
+        integer                                     :: NextOutPut           = 1
+        logical                                     :: Yes                  = .false.
+        type (T_Time), dimension(:), pointer        :: RestartOutTime       => null()
         logical                                     :: WriteRestartFile     = .false.
         logical                                     :: RestartOverwrite     = .false.
         integer                                     :: NextRestartOutput    = 1 
@@ -198,14 +203,15 @@ Module ModuleRunOff
         real, dimension(:,:), pointer               :: FloodPeriod                    => null()        
         real                                        :: FloodWaterColumnLimit          = null_real 
         
-        logical                                     :: TimeSerieDischON   = .false. 
-        integer                                     :: DischargesNumber   = null_int 
-        integer, dimension(:),   pointer            :: TimeSerieDischID   => null()     
-        real,    dimension(:,:), pointer            :: TimeSerieDischProp => null()
-        integer                                     :: TS_Numb_DischProp  = null_int 
+        logical                                     :: TimeSeries                     = .false.
+        logical                                     :: TimeSerieDischON               = .false. 
+        integer                                     :: DischargesNumber               = null_int 
+        integer, dimension(:),   pointer            :: TimeSerieDischID               => null()     
+        real,    dimension(:,:), pointer            :: TimeSerieDischProp             => null()
+        integer                                     :: TS_Numb_DischProp              = null_int 
         type (T_Time)                               :: NextOutPutDisch    
         real                                        :: OutPutDischDT
-        character(len=PathLength)                   :: TimeSerieLocationFile
+        character(len=PathLength)                   :: TimeSerieLocationFile, DiscTimeSerieLocationFile
         
     end type T_OutPut
 
@@ -284,6 +290,7 @@ Module ModuleRunOff
         integer                                     :: ObjDischarges            = 0
         integer                                     :: ObjEnterData             = 0
         integer                                     :: ObjBoxDif                = 0
+        integer                                     :: ObjTimeSerie             = 0
         type (T_OutPut   )                          :: OutPut
         type (T_ExtVar)                             :: ExtVar
         type (T_Files)                              :: Files
@@ -563,13 +570,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ConstructHDF5Output
             endif
 
-
             call CalculateTotalStoredVolume
 
             !Output Results
-            if (Me%OutPut%Yes) then
-                call ComputeCenterValues                   
+            if (Me%OutPut%Yes .or. Me%OutPut%TimeSeries) then
+                call ComputeCenterValues      
+            endif
+            
+            if(Me%OutPut%Yes)then
                 call RunOffOutput
+            endif
+            
+            if(Me%OutPut%TimeSeries) then
+                call OutputTimeSeries
             endif
 
 
@@ -1207,11 +1220,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             if (Me%Output%TimeSerieDischON) then
             
-                call GetData(Me%Output%TimeSerieLocationFile,                   &
+                call GetData(Me%Output%DiscTimeSerieLocationFile,               &
                              Me%ObjEnterData,iflag,                             &
                              SearchType   = FromFile,                           &
-                             keyword      = 'TIME_SERIE_LOCATION',              &
-                             ClientModule = 'ModuleHydrodynamic',               &
+                             keyword      = 'DISCHARGE_TIME_SERIE_LOCATION',    &
+                             ClientModule = 'ModuleRunOff',                     &
                              Default      = Me%Files%DataFile,                  &
                              STAT         = STAT_CALL)
                 if (STAT_CALL/=SUCCESS_)stop 'ReadDataFile - ModuleRunOff - ERR377'
@@ -1220,7 +1233,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 call GetData(Me%Output%OutPutDischDT,                           &
                              Me%ObjEnterData, iflag,                            &
-                             keyword    = 'DT_OUTPUT_TIME',                     &
+                             keyword    = 'DISCHARGE_DT_OUTPUT_TIME',           &
                              Default    = FillValueReal,                        &
                              SearchType = FromFile,                             &
                              ClientModule ='ModuleRunOff',                      &
@@ -1228,8 +1241,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (STAT_CALL/=SUCCESS_)stop 'ReadDataFile - ModuleRunOff - ERR378'
 
                 if (iflag == 0) then
-                    call GetComputeTimeStep(Me%ObjTime,                                         &
-                                            Me%Output%OutPutDischDT,                            &
+                    call GetComputeTimeStep(Me%ObjTime,                         &
+                                            Me%Output%OutPutDischDT,            &
                                             STAT = STAT_CALL)
                     if (STAT_CALL/=SUCCESS_)stop 'ReadDataFile - ModuleRunOff - ERR379'
 
@@ -1240,7 +1253,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Discharges
         call GetData(Me%SimpleChannelInteraction,                           &
-                     Me%ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                &  
                      keyword      = 'SIMPLE_CHANNEL_FLOW',                  &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1252,7 +1265,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Routes D4 Points
         call GetData(Me%RouteDFourPoints,                                   &
-                     Me%ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                &  
                      keyword      = 'ROUTE_D4',                             &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1263,7 +1276,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (Me%RouteDFourPoints) then
             !Routes D4 Points
             call GetData(Me%RouteDFourPointsOnDN,                               &
-                         Me%ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                &  
                          keyword      = 'ROUTE_D4_ON_DN',                       &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
@@ -1290,7 +1303,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Limits Flow to critical
         call GetData(Me%LimitToCriticalFlow,                                &
-                     Me%ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                &  
                      keyword      = 'LIMIT_TO_CRITICAL_FLOW',               &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1302,7 +1315,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Storm Water Drainage
         call GetData(Me%StormWaterDrainage,                                 &
-                     Me%ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                &  
                      keyword      = 'STORM_WATER',                          &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1314,7 +1327,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
             !Storm Water Infiltration Velocity
             call GetData(Me%StormWaterInfiltrationVelocity,                     &
-                         Me%ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                &  
                          keyword      = 'STORM_WATER_INF_VEL',                  &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
@@ -1324,7 +1337,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Storm Water Transfer Coeficient
             call GetData(Me%StormWaterFlowVelocity,                             &
-                         Me%ObjEnterData, iflag,                                   &  
+                         Me%ObjEnterData, iflag,                                &  
                          keyword      = 'STORM_WATER_FLOW_VEL',                 &
                          ClientModule = 'ModuleRunOff',                         &
                          SearchType   = FromFile,                               &
@@ -1336,7 +1349,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !If Buildings are to be simulated (flow ocuation in urban areas)
         call GetData(Me%Buildings,                                          &
-                     Me%ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                &  
                      keyword      = 'BUILDINGS',                            &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1346,7 +1359,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         !If Connected to a StormWater model
         call GetData(Me%StormWaterModel,                                    &
-                     Me%ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                &  
                      keyword      = 'STORM_WATER_MODEL_LINK',               &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
@@ -1357,7 +1370,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                    
 
         !Gets Output Time 
-        call GetOutPutTime(Me%ObjEnterData,                                                 &
+        call GetOutPutTime(Me%ObjEnterData,                                              &
                            CurrentTime = Me%ExtVar%Now,                                  &
                            EndTime     = Me%EndTime,                                     &
                            keyword     = 'OUTPUT_TIME',                                  &
@@ -1369,7 +1382,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
         !Output for restart
-        call GetOutPutTime(Me%ObjEnterData,                                                &
+        call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime  = Me%ExtVar%Now,                                &
                            EndTime      = Me%EndTime,                                   &
                            keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
@@ -1930,6 +1943,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
                 
         call ReadConvergenceParameters
+        
+        call ConstructTimeSeries
         
         call StartOutputBoxFluxes
                 
@@ -3007,12 +3022,12 @@ do4:            do di = -1, 1
             call GetDischargesIDName (Me%ObjDischarges, dis, DischargeName, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_)stop 'Construct_Time_Serie_Discharge - ModuleRunOff - ERR60'
         
-            call StartTimeSerie(TimeSerieID         = Me%OutPut%TimeSerieDischID(dis),  &
-                                ObjTime             = Me%ObjTime,                       &
-                                TimeSerieDataFile   = Me%Output%TimeSerieLocationFile,  &
-                                PropertyList        = PropertyList,                     &
-                                Extension           = Extension,                        &
-                                ResultFileName      = "hydro_"//trim(DischargeName),    &
+            call StartTimeSerie(TimeSerieID         = Me%OutPut%TimeSerieDischID(dis),      &
+                                ObjTime             = Me%ObjTime,                           &
+                                TimeSerieDataFile   = Me%Output%DiscTimeSerieLocationFile,  &
+                                PropertyList        = PropertyList,                         &
+                                Extension           = Extension,                            &
+                                ResultFileName      = "hydro_"//trim(DischargeName),        &
                                 STAT                = STAT_CALL)
             if (STAT_CALL/=SUCCESS_)stop 'Construct_Time_Serie_Discharge - ModuleRunOff - ERR70'
             
@@ -3456,6 +3471,130 @@ do4:            do di = -1, 1
 
 
     end subroutine ConstructHDF5Output
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructTimeSeries
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        character(len=StringLength), dimension(:), pointer  :: PropertyList
+        integer                                             :: nProperties
+        integer                                             :: STAT_CALL
+        integer                                             :: iflag
+        character(len=StringLength)                         :: TimeSerieLocationFile
+        integer                                             :: TimeSerieNumber, dn, Id, Jd
+        real                                                :: CoordX, CoordY
+        logical                                             :: CoordON, IgnoreOK
+        character(len=StringLength)                         :: TimeSerieName
+        
+        !Begin------------------------------------------------------------------
+
+        nProperties = 8
+        if(Me%StormWaterModel)then
+            nProperties = 12
+        endif      
+
+        !Allocates PropertyList
+        allocate(PropertyList(nProperties))
+        
+        !Property names
+        PropertyList(1) = trim(GetPropertyName (WaterLevel_)) 
+        PropertyList(2) = trim(GetPropertyName (WaterColumn_)) 
+        PropertyList(3) = "flow X" 
+        PropertyList(4) = "flow_Y" 
+        PropertyList(5) = trim(GetPropertyName (FlowModulus_)) 
+        PropertyList(6) = trim(GetPropertyName (VelocityU_))
+        PropertyList(7) = trim(GetPropertyName (VelocityV_))
+        PropertyList(8) = trim(GetPropertyName (VelocityModulus_))
+      
+        if(Me%StormWaterModel)then
+            PropertyList(9)  = "storm water model flow"
+            PropertyList(10) = "street gutter flow"
+            PropertyList(11) = "sewer potential inflow"
+            PropertyList(12) = "storm water real flow"
+        endif
+        
+        call GetData (TimeSerieLocationFile,                  &
+                      Me%ObjEnterData, iflag,                 &
+                      SearchType   = FromFile,                &
+                      keyword      = 'TIME_SERIE_LOCATION',   &
+                      ClientModule = 'ModuleRunoff',          &
+                      Default      = Me%Files%DataFile,       &
+                      STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleRunoff - ERR010' 
+
+        if (iflag == 1) then
+            Me%OutPut%TimeSeries = .true.
+        else
+            Me%OutPut%TimeSeries = .false.
+        endif
+        
+        !Constructs TimeSerie
+        call StartTimeSerie (Me%ObjTimeSerie, Me%ObjTime,           &
+                            TimeSerieLocationFile,                 &
+                            PropertyList, "srr",                   &
+                            WaterPoints2D = Me%ExtVar%BasinPoints, &
+                            STAT          = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleRunoff - ERR030' 
+
+        !Deallocates PropertyList
+        deallocate(PropertyList)
+
+        !Corrects if necessary the cell of the time serie based in the time serie coordinates
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleRunoff - ERR050'
+
+        do dn = 1, TimeSerieNumber
+
+            call GetTimeSerieLocation (Me%ObjTimeSerie, dn, &  
+                                    CoordX   = CoordX,   &
+                                    CoordY   = CoordY,   & 
+                                    CoordON  = CoordON,  &
+                                    STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleRunoff - ERR060'
+            
+            call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleRunoff - ERR070'
+            
+    i1:     if (CoordON) then
+    
+                call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleRunoff - ERR080'
+
+                if (Id < 0 .or. Jd < 0) then
+                
+                   call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
+                   if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleRunoff - ERR090'
+
+                   if (IgnoreOK) then
+                      write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName)
+                      cycle
+                   else
+                      stop 'ConstructTimeSeries - ModuleRunoff - ERR100'
+                   endif
+
+                endif
+
+                call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleRunoff - ERR110'
+
+            endif i1
+
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,    &  
+                                      LocalizationI   = Id,   &
+                                      LocalizationJ   = Jd,   & 
+                                      STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTimeSeries - ModuleRunoff - ERR120'
+
+            if (Me%ExtVar%BasinPoints(Id, Jd) /= WaterPoint) then
+                write(*,*) 'Time Serie in a cell outside basin - ',trim(TimeSerieName)
+            endif
+
+        enddo
+       
+    end subroutine ConstructTimeSeries
 
     !--------------------------------------------------------------------------
     
@@ -4795,6 +4934,10 @@ doIter:         do while (iter <= Niter)
             !Output Results
             if (Me%OutPut%Yes) then                   
                 call RunOffOutput
+            endif
+            
+            if(Me%OutPut%TimeSeries) then
+                call OutputTimeSeries
             endif
             
             if (Me%Output%BoxFluxes) then
@@ -9292,6 +9435,83 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
     end subroutine RunOffOutput
 
     !--------------------------------------------------------------------------
+    
+    subroutine OutputTimeSeries
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: STAT_CALL
+        
+        !----------------------------------------------------------------------
+       
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data2D = Me%MyWaterLevel,                                   &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data2D = Me%MyWaterColumn,                                  &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data2D = Me%CenterFlowX,                                    &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data2D = Me%CenterFlowY,                                    &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data2D = Me%FlowModulus,                                    &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data2D = Me%CenterVelocityX,                                &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+
+        
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data2D = Me%CenterVelocityY,                                &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+
+        call WriteTimeSerie(Me%ObjTimeSerie,                                            &
+                            Data2D = Me%VelocityModulus,                                &
+                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        
+        if(Me%StormWaterModel)then
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%StormWaterModelFlow,                        &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%StreetGutterFlow,                           &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%SewerInflow,                                &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%StormInteractionFlow,                       &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+            
+        endif
+   
+    end subroutine OutputTimeSeries
+    
+    !--------------------------------------------------------------------------
 
     subroutine ComputeBoxesWaterFluxes
 
@@ -9940,6 +10160,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%OutPut%Yes) then
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR090'
+                endif
+                
+                if(Me%OutPut%TimeSeries) then
+                    call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillRunOff - ModuleRunOff - ERR091'
                 endif
                 
                 if (Me%Discharges) then

@@ -894,7 +894,7 @@ if2 :           if (adjustl(trim(GroupName))//"/"//adjustl(trim(Name)) .NE. &
         
         !------------------------------------------------------------------------
         
-if16 :  if (DomainSize(1) .GT. 1 .AND. adjustl(trim(GroupName)) .NE. "/Time") then
+if16 :  if (DomainSize(1) .GT. 1 .AND. DDC_VGroups(GroupName)) then
 
             ILB = WindowPosition(1)-DomainSize(1)+1
             IUB = WindowPosition(2)-DomainSize(1)+1+LimitsArrayFactor
@@ -941,7 +941,7 @@ if16 :  if (DomainSize(1) .GT. 1 .AND. adjustl(trim(GroupName)) .NE. "/Time") th
         
         !------------------------------------------------------------------------
         
-if15 :  if (adjustl(trim(GroupName)) .NE. "/Time") then 
+if15 :  if (DDC_VGroups(GroupName)) then 
        
             ILB_MPI = LimitsArray(1) - WindowFrame(1) + 1 
             IUB_MPI = LimitsArray(2) - WindowFrame(1) + 1
@@ -985,12 +985,12 @@ if15 :  if (adjustl(trim(GroupName)) .NE. "/Time") then
         
         LimitsArray = 1
         
-if14 :  if (Rank .EQ. 1 .AND. adjustl(trim(GroupName)) .NE. "/Time") then
+if14 :  if (Rank .EQ. 1 .AND. DDC_VGroups(GroupName)) then
                     
             LimitsArray(1)= WindowPosition(1)
             LimitsArray(2)= WindowPosition(2)
             
-        elseif (Rank .EQ. 1 .AND. adjustl(trim(GroupName)) .EQ. "/Time") then if14
+        elseif (Rank .EQ. 1 .AND. .NOT. DDC_VGroups(GroupName)) then if14
         
             LimitsArray(1)= 1
             LimitsArray(2)= Dimensions(1)    
@@ -1191,7 +1191,7 @@ if3 :   if(associated(MPIMatrixes%MPIDataR8_1D) .EQ. .TRUE.) then
 
 if21 :  if (Rank .EQ. 1) then
 
-if22 :      if (DomainSize(1) .GT. 1 .AND. adjustl(trim(GroupName)) .NE. "/Time") then
+if22 :      if (DomainSize(1) .GT. 1 .AND. DDC_VGroups(GroupName)) then
             
                 ILB = DomainSize(1)-DomainSize(1)+1
                 IUB = DomainSize(2)-DomainSize(1)+1
@@ -1200,7 +1200,7 @@ if22 :      if (DomainSize(1) .GT. 1 .AND. adjustl(trim(GroupName)) .NE. "/Time"
                 KLB = 1 
                 KUB = 1
             
-            elseif (adjustl(trim(GroupName)) .EQ. "/Time") then if22
+            elseif (.NOT. DDC_VGroups(GroupName)) then if22
                       
                 ILB= 1
                 IUB= Dimensions(1)
@@ -2267,6 +2267,29 @@ if1 :       if (hash_get_next_exists(hash_map_out, key)) then
     end function VerifyReadLock_DDC
 
     !-------------------------------------------------------------------------
+    
+
+    !--------------------------------------------------------------------------
+
+    logical function DDC_VGroups(GroupName)
+
+        !Arguments-------------------------------------------------------------
+        character(len=*)        :: GroupName
+        !------------------------------------------------------------------------
+        
+        DDC_VGroups = .true. 
+        if      (adjustl(trim(GroupName)) == "/Time"     ) then
+            DDC_VGroups = .false. 
+        elseif  (adjustl(trim(GroupName)) == "/Generic4D") then
+            DDC_VGroups = .false.         
+        endif
+        
+        !------------------------------------------------------------------------
+
+    end function DDC_VGroups
+
+    !-------------------------------------------------------------------------
+        
 
 end module ModuleDDC
 

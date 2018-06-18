@@ -171,7 +171,7 @@ Module ModuleLagrangianGlobal
 !   ACCIDENT_TIME           : YYYY MM DD HH MM SS       [BeginModel]            !Accident time
 !   (next keyword is only read if EMISSION_SPATIAL = Accident and ACCIDENT_METHOD = Thickness)
 !   THICKNESS_METERS        : meters                    []                      !Thickness of floating particles
-!   MOVEMENT                : SullivanAllen/NotRandom   []                      !Random Horizontal Movement
+!   MOVEMENT                : SullivanAllen/NotRandom/DiffusionCoef   []                      !Random Horizontal Movement
 !   (following 5 keywords are read if MOVEMENT = SullivanAllen)
 !   VARVELHX                :                           [0.2]                   !
 !   VARVELH                 :                           [0.0]                   !
@@ -485,11 +485,16 @@ Module ModuleLagrangianGlobal
 #endif
     use ModuleField4D,          only : ConstructField4D, ModifyField4DXYZ, GetBathymXY, KillField4D
     
+#ifdef _LITTER_    
+    use ModuleLitter
+#endif
     !use ModuleVoronoi3D,        only : Voronoi_3D_volume
 
 !#ifdef _CGI_
 !    use dflib
 !#endif
+    
+    
 
     implicit none 
 
@@ -639,6 +644,7 @@ Module ModuleLagrangianGlobal
     !Aleat movement
     integer, parameter                          :: SullivanAllen_           = 1
     integer, parameter                          :: NotRandom_               = 2
+    integer, parameter                          :: DiffusionCoef_           = 3
 
     !Standard deviation
     integer, parameter                          :: VerticalTurbConstant     = 1
@@ -746,6 +752,7 @@ Module ModuleLagrangianGlobal
 
     character(LEN = StringLength), parameter    :: Char_SullivanAllen       = 'SullivanAllen'
     character(LEN = StringLength), parameter    :: Char_NotRandom           = 'NotRandom'
+    character(LEN = StringLength), parameter    :: Char_DiffusionCoef       = 'DiffusionCoef'    
     character(LEN = StringLength), parameter    :: Char_Profile             = 'Profile'
     character(LEN = StringLength), parameter    :: Char_Constant            = 'Constant'
 
@@ -1041,6 +1048,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: ObjShoreTypeBox      = 0
         integer                                 :: ObjAssimilation      = 0
         integer                                 :: ObjAtmosphere        = 0
+        
 
 
         type(T_ParticleGrid)                    :: Grid
@@ -1163,7 +1171,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: Number               = null_int
         type (T_IndividualBoom), dimension(:), pointer :: Individual    => null()
     end type T_Booms
-
+    
     !Output
     type       T_OutPut
          type (T_Time), pointer, dimension(:)   :: OutTime              => null()
@@ -1220,11 +1228,13 @@ Module ModuleLagrangianGlobal
         integer                                 :: MovType                  = NotRandom_
         real                                    :: VarVelHX                 = 0.2
         real                                    :: VarVelH                  = 0.0
+        real                                    :: DiffusionCoefH           = 0.0
 
         !Vertical
         integer                                 :: StandardDeviationType    = VerticalTurbConstant
         real                                    :: VarVelVX                 = 0.0
         real                                    :: VarVelV                  = 0.0
+        real                                    :: DiffusionCoefV           = 0.0        
 
         real                                    :: WindTransferCoef         = 0.03
         integer                                 :: WindDriftCorrection      = NoCorrection_
@@ -1689,6 +1699,8 @@ Module ModuleLagrangianGlobal
         real                                    :: DefaultRemovalRateCoef      = null_real
         integer                                 :: RemovalRateCoefSpatial      = null_int
         real                                    :: NearCoastDistance           = null_real
+        
+        logical                                 :: LitterON                    = .false. 
 
         type(T_Statistic)                       :: Statistic
         type(T_MeteoOcean)                      :: MeteoOcean
@@ -1749,6 +1761,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: ObjEnterData         = 0
         integer                                 :: ObjEnterDataClone    = 0
         integer                                 :: ObjEnterDataOriginal = 0
+        integer                                 :: ObjLitter            = 0
         
         logical                                 :: VoronoiVolume        = .false. 
 
@@ -3372,7 +3385,7 @@ i1:     if (BlockInBlockFound) then
         !Begin-----------------------------------------------------------------
 
         call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR10'
         
         FieldNumber = 0
         
@@ -3384,7 +3397,7 @@ i1:     if (BlockInBlockFound) then
                                                 BlockInBlockFound,                      &
                                                 FirstLine, LastLine,                    &
                                                 STAT = STAT_CALL)                                        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR20'
                 
     i1:     if (BlockInBlockFound) then
     
@@ -3394,7 +3407,7 @@ i1:     if (BlockInBlockFound) then
                 if (Me%MeteoOcean%Prop(nProp)%ID%IDNumber == bathymetry_) then        
                     exit
                 else
-                    stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR30'
+                    stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR30'
                 endif
             else i1
                 exit                                 
@@ -3407,7 +3420,7 @@ i1:     if (BlockInBlockFound) then
         allocate (Me%MeteoOcean%Prop(nProp)%Field(Me%MeteoOcean%Prop(nProp)%FieldNumber))        
         
         call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR40'
         
         do i = 1, Me%MeteoOcean%Prop(nProp)%FieldNumber
 
@@ -3417,7 +3430,7 @@ i1:     if (BlockInBlockFound) then
                                                 BlockInBlockFound,                      &
                                                 FirstLine, LastLine,                    &
                                                 STAT = STAT_CALL)                                        
-            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR50'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR50'
                 
             FileNumber = LastLine - FirstLine - 1
             
@@ -3432,14 +3445,14 @@ i1:     if (BlockInBlockFound) then
                 call GetData(Me%MeteoOcean%Prop(nProp)%Field(i)%FileNameList(n),           &
                              Me%ObjEnterData,  iflag, Buffer_Line  = FirstLine + n, &
                              STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR60'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR60'
 
             enddo
 
         enddo            
 
         call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanFiles - ModuleLagrangianGlobal - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMeteoOceanListFiles - ModuleLagrangianGlobal - ERR70'
 
     end subroutine ReadMeteoOceanListFiles
                 
@@ -4145,8 +4158,9 @@ d2:     do em =1, Me%EulerModelNumber
         else
             Me%BeachAreaON  = .true.
             call New(Me%BeachArea, Me%BeachAreaFile, Me%GridsBounds)
-        endif                     
-
+        endif      
+        
+ 
         call GetData(Aux2,                                                              &
                      Me%ObjEnterData,                                                   &
                      flag,                                                              &
@@ -4273,6 +4287,34 @@ em4:        do em =1, Me%EulerModelNumber
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR390'           
 
+        
+        call GetData(Me%LitterON,                                                       &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='LITTER_ON',                                         &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     Default      = OFF,                                                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR410'    
+        
+#ifdef _LITTER_
+        if (Me%LitterON) then
+            call ConstructLitter(ObjLitterID    = Me%ObjLitter,                         &
+                                 Nomfich        = Me%Files%Nomfich,                     &
+                                 EndTime        = Me%ExternalVar%EndTime,               &
+                                 ModelDomain    = Me%GridsBounds,                       &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR420'
+        endif  
+#else
+        if (Me%LitterON) then
+            write(*,*) 'executable not compile with the Module ModuleLitter'
+            write(*,*) 'this executable do not run the option LITTER_ON : 1'
+            stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR430'
+        endif                    
+#endif  
+        
         !Number of times it read the lagrangian data looking for origins
         !Only when the _CGI_ option is on is able to read several times 
         !the origin blocks
@@ -4980,7 +5022,32 @@ AC:     if (NewOrigin%EmissionSpatial == Accident_) then
 MO:             if (flag == 1) then
 
             select case(trim(adjustl(String)))
-        
+            
+            case(Char_DiffusionCoef)
+
+                NewOrigin%Movement%MovType = DiffusionCoef_
+
+                ! ---> Definition of the Horizontal and Vertical turbulent diffusion
+                call GetData(NewOrigin%Movement%DiffusionCoefH,                         &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      = 'DIFFUSION_H',                              &
+                             ClientModule ='ModuleLagrangianGlobal',                    &  
+                             Default      = 1.0,                                        &
+                             STAT         = STAT_CALL)             
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR705'
+
+                call GetData(NewOrigin%Movement%DiffusionCoefV,                         &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      = 'DIFFUSION_V',                              &
+                             ClientModule ='ModuleLagrangianGlobal',                    &  
+                             Default      = 0.001,                                      &
+                             STAT         = STAT_CALL)             
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR707'                
+                
             case(Char_SullivanAllen)
                 NewOrigin%Movement%MovType = SullivanAllen_
 
@@ -6688,6 +6755,8 @@ SP:             if (NewProperty%SedimentPartition%ON) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1520'
 
+        if (Me%LitterON         ) NewOrigin%State%Age = .true.  
+        
         if (NewOrigin%State%Age) Me%State%Age = .true.
 
         if (NewOrigin%State%Age) then
@@ -12324,6 +12393,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 if (Me%State%Age)  then
                     call NewParticleAge ()
                 endif
+                
+                !Compute beaching processes specific of litter
+                if (Me%LitterON) then
+                    call ProcessLitter
+                endif
 
                 !Monitorization
                 if (Me%State%Monitor) then
@@ -15700,13 +15774,19 @@ BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. Curr
                 
                 U = CurrentPartic%CurrentX                
                 V = CurrentPartic%CurrentY 
-
-                !Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
-                !Linear Interpolation to obtain the thickness gradient
-                GradDWx = LinearInterpolation(Me%EulerModel(emp)%DWZ_Xgrad(i,  j  ,k),  &
-                                              Me%EulerModel(emp)%DWZ_Xgrad(i,  j+1,k), Balx)
-                GradDWy = LinearInterpolation(Me%EulerModel(emp)%DWZ_Ygrad(i,  j  ,k),  &
-                                              Me%EulerModel(emp)%DWZ_Ygrad(i+1,j  ,k), Baly)
+                
+                if (CurrentOrigin%Movement%Float) then                 
+                    GradDWx = 0.0
+                    GradDWy = 0.0                
+                else
+                    !Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
+                    !Linear Interpolation to obtain the thickness gradient
+                    GradDWx = LinearInterpolation(Me%EulerModel(emp)%DWZ_Xgrad(i,  j  ,k),  &
+                                                  Me%EulerModel(emp)%DWZ_Xgrad(i,  j+1,k), Balx)
+                    GradDWy = LinearInterpolation(Me%EulerModel(emp)%DWZ_Ygrad(i,  j  ,k),  &
+                                                  Me%EulerModel(emp)%DWZ_Ygrad(i+1,j  ,k), Baly)
+                endif                                              
+                                              
                                               
                 UStokesDrift = 0.
                 VStokesDrift = 0.
@@ -16181,6 +16261,33 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         CurrentPartic%TpercursoH = CurrentPartic%TpercursoH + Me%DT_Partic
                     end if
 
+                else if (CurrentOrigin%Movement%MovType .EQ. DiffusionCoef_    ) then MT                    
+                
+
+                        ! First step - compute the modulus of turbulent vector
+                        
+                        call random_number(RAND)
+                        
+                        !(m^2/s/s)^0.5  du = sqrt(2*D/dt) - standard approach
+                        HD                       = sqrt(2.*CurrentOrigin%Movement%DiffusionCoefH / Me%DT_Partic)  * RAND
+
+                        ! Second step - Compute the modulus of each component of the turbulent vector
+                        call random_number(RAND)
+
+                        !   From 0 to Pi/2 cos and sin have positive values
+                        UD                       = HD * cos(Pi / 2. * RAND)
+                        VD                       = HD * sin(Pi / 2. * RAND)
+
+                        !Third step - Compute the direction of the the turbulent vector taking in consideration the layers thickness gradients
+                        ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
+                        call random_number(RAND)
+                       
+                        if (RAND > GradDWx)   UD = - UD              
+
+                        call random_number(RAND)
+
+                        if (RAND > GradDWy)   VD = - VD      
+                        
                    
                 else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
 
@@ -16979,7 +17086,7 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         type(T_Larvae), pointer                     :: LarvaePtr
         real                                        :: SPMDensity, WaterDensity
         integer                                     :: STAT_CALL
-        real                                        :: DistSurface, DistBottom
+        real                                        :: DistSurface, DistBottom, RAND
 
         !------------------------------------------------------------------------
 
@@ -17176,6 +17283,13 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                     end select
 
+                else if (CurrentOrigin%Movement%MovType .EQ. DiffusionCoef_    ) then MT                    
+                    
+                    call random_number(RAND)
+                        
+                    !(m^2/s/s)^0.5  wd = sqrt(2*D/dt) - standard approach
+                    WD  = sqrt(2.*CurrentOrigin%Movement%DiffusionCoefV / DT_Vert)  * (1.0 - 2.0 * RAND)
+                
                 else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
 
                     WD = 0.0
@@ -20778,6 +20892,7 @@ CurrOr: do while (associated(CurrentOrigin))
         enddo CurrOr
 
     end subroutine CheckConcLimits
+    
 
     !--------------------------------------------------------------------------
     subroutine NewParticleAge ()
@@ -20856,6 +20971,102 @@ CurrOr: do while (associated(CurrentOrigin))
     end subroutine NewParticleAge
 
     !--------------------------------------------------------------------------
+
+
+    !--------------------------------------------------------------------------
+    subroutine ProcessLitter ()
+
+        !Arguments-------------------------------------------------------------
+   
+
+        !Local-----------------------------------------------------------------
+        real(8),    dimension(:), pointer           :: Longitude, Latitude, Age
+        integer,    dimension(:), pointer           :: Origin, ID   
+        logical,    dimension(:), pointer           :: Beach, KillPartic        
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        integer                                     :: n, STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        CurrentOrigin => Me%FirstOrigin
+CurrOr: do while (associated(CurrentOrigin))
+
+            allocate   (Longitude   (CurrentOrigin%nParticle))
+            allocate   (Latitude    (CurrentOrigin%nParticle))
+            allocate   (Age         (CurrentOrigin%nParticle))
+            allocate   (Origin      (CurrentOrigin%nParticle))            
+            allocate   (ID          (CurrentOrigin%nParticle))                        
+            allocate   (Beach       (CurrentOrigin%nParticle))
+            allocate   (KillPartic  (CurrentOrigin%nParticle))            
+            
+            CurrentPartic => CurrentOrigin%FirstPartic
+            n = 1
+            do while (associated(CurrentPartic))
+
+                Longitude(n) = CurrentPartic%Position%CoordX
+                Latitude (n) = CurrentPartic%Position%CoordY                
+                Age      (n) = CurrentPartic%Age
+                Origin   (n) = CurrentOrigin%ID
+                ID       (n) = CurrentPartic%ID
+                
+                CurrentPartic => CurrentPartic%Next
+                n = n + 1
+            enddo
+            
+            nullify(CurrentPartic)
+            
+            if (CurrentOrigin%nParticle /= n-1) then
+                stop 'ProcessLitter - ModuleLagrangianGlobal - ERR10'
+            endif
+            
+#ifdef _LITTER_
+            call ModifyLitter(ObjLitterID   = Me%ObjLitter,                             &
+                              nParticles    = CurrentOrigin%nParticle,                  &
+                              CurrentTime   = Me%Now,                                   &
+                              Longitude     = Longitude,                                &
+                              Latitude      = Latitude,                                 &
+                              Age           = Age,                                      &
+                              Origin        = Origin,                                   &
+                              ID            = ID,                                       &
+                              Beach         = Beach,                                    &
+                              KillPartic    = KillPartic,                               &
+                              STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ProcessLitter - ModuleLagrangianGlobal - ERR20'
+#endif  
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+            n= 1
+            do while (associated(CurrentPartic))
+
+                CurrentPartic%Beached    = Beach     (n)
+                CurrentPartic%KillPartic = KillPartic(n)
+                         
+                CurrentPartic => CurrentPartic%Next
+                n = n + 1                
+            enddo
+                
+            nullify(CurrentPartic)
+
+            deallocate   (Longitude   )
+            deallocate   (Latitude    )
+            deallocate   (Age         )
+            deallocate   (Origin      )            
+            deallocate   (ID          )                        
+            deallocate   (Beach       )
+            deallocate   (KillPartic  )            
+
+
+            CurrentOrigin => CurrentOrigin%Next
+
+        enddo CurrOr
+        
+        nullify(CurrentOrigin)
+
+    end subroutine ProcessLitter
+
+    !--------------------------------------------------------------------------
+        
     
     !--------------------------------------------------------------------------
     subroutine ComputeAccidentProbability ()
@@ -23196,8 +23407,8 @@ i1:             if (nP>0) then
 
                         endif
 
-                        !Oil-Beached Particles
-                        if (Me%State%AssociateBeachProb .and. CurrentOrigin%Beaching) then
+                        !Beached Particles
+                        if (Me%State%AssociateBeachProb .and. CurrentOrigin%Beaching .or. Me%LitterON) then
 
                             CurrentPartic   => CurrentOrigin%FirstPartic
                             nP = 0
@@ -24083,13 +24294,13 @@ ParticleState:          do while (associated(CurrentOrigin))
                                                    STAT = STAT_CALL)
 
                         !(Oil-Beached Particles)
-iobp:                   if (Me%State%AssociateBeachProb) then
+iobp:                   if (Me%State%AssociateBeachProb .or. Me%LitterON) then
 
                             nP = 1
                             CurrentOrigin => Me%FirstOrigin
-    OilState:               do while (associated(CurrentOrigin))
+    TryOrigin:              do while (associated(CurrentOrigin))
                                 if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
-    IfBeaching:                     if (CurrentOrigin%Beaching) then
+    IfBeaching:                     if (CurrentOrigin%Beaching  .or. Me%LitterON) then
                                         CurrentPartic   => CurrentOrigin%FirstPartic
                                         do while (associated(CurrentPartic))
 
@@ -24106,7 +24317,7 @@ iobp:                   if (Me%State%AssociateBeachProb) then
                                     end if IfBeaching
                                endif
                                CurrentOrigin => CurrentOrigin%Next
-                            enddo OilState
+                            enddo TryOrigin
 
 
                             !HDF 5
@@ -28011,6 +28222,14 @@ d2:         do em = 1, Me%EulerModelNumber
             enddo d2
             
             if (Me%MeteoOcean%PropNumber>0) call KillMeteoOcean
+            
+#ifdef _LITTER_
+            if (Me%LitterON) then
+                call KillLitter(ObjLitterID   = Me%ObjLitter,                           &
+                                  STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'DeallocateLagrangianGlobal - ModuleLagrangianGlobal - ERR190'
+            endif                
+#endif  
 
             STAT_         = SUCCESS_
 

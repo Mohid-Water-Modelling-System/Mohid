@@ -253,7 +253,7 @@ program MohidBatimFilter
         call GetHorizontalGridSize(ObjHorizontalGrid, Size, WorkSize, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructDomain - MohidBatimFilter - ERR04'
 
-        call GetGridData(ObjBathymetry, Bathymetry, STAT = STAT_CALL)
+        call GetGridData(GridDataID = ObjBathymetry, GridData2D = Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructDomain - MohidBatimFilter - ERR05'
 
         write(*,*)

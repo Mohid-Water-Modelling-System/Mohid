@@ -1348,7 +1348,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         real :: SumFractionDissolvedDT, SumFractionVolatilizedDT, SumFractionSedimentedDT
         integer :: HNSParticleState
         real:: MinimumProbability
-        integer::SampleSize
         
         !------------------------------------------------------------------------
         MEvaporatedDT = 0.0

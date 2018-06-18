@@ -41,7 +41,9 @@ Module ModuleGridData
                                       GetCheckDistortion,                               &
                                       GetGridLatitudeLongitude, GetZCoordinates,        &
                                       GetDDecompParameters, GetDDecompWorkSize2D,       &
-                                      Add_MPI_ID_2_Filename 
+                                      GetDDecompMPI_ID, GetDDecompON
+                                      
+                                       
 
 #ifndef _NO_HDF5                                      
     use ModuleHorizontalGrid,   only: WriteHorizontalGrid
@@ -531,29 +533,14 @@ Module ModuleGridData
             !sediment module will set values through SetGridDataEvolution
             if (.not. Me%SedimentModule) then
 
-                !Gets if the bathymetry can change in time
-                call GetData            (Me%Evolution%File, ObjEnterData, flag,             &
-                                         keyword      = 'EVOLUTION_FILE',                   &
-                                         ClientModule = 'ModuleGridData',                   &
-                                         default      ='******.***',                        &
-                                         STAT         = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR70'
-
-                if (flag == 0)  then
-            
-                    call ReadFileName('EVOLUTION_FILE', Me%Evolution%File,                  &
-                                       Message = Message, STAT = STAT_CALL)
-
-                    if (STAT_CALL /= SUCCESS_)                                              &
-                        stop 'ReadGridDataFile - ModuleGridData - ERR80'
+                call ReadFileName('EVOLUTION_FILE', Me%Evolution%File,                  &
+                                   Message   = Message,                                 &
+                                   MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),  &
+                                   DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),  &
+                                   STAT      = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    stop 'ReadGridDataFile - ModuleGridData - ERR80'
                     
-                endif
-            
-                call Add_MPI_ID_2_Filename(Me%ObjHorizontalGrid,                            &
-                                           Filename    = Me%Evolution%File,                 &
-                                           STAT        = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ReadGridDataFile - ModuleGridData - ERR85'
-            
                 call GetData            (Me%Evolution%PropName, ObjEnterData, flag,         &
                                          keyword      = 'PROPERTY_NAME',                    &
                                          ClientModule = 'ModuleGridData',                   &

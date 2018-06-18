@@ -76,7 +76,8 @@ Module ModuleFillMatrix
                                        
     use ModuleField4D,          only : ConstructField4D, GetField4DNumberOfInstants,    &
                                        GetField4DInstant, ModifyField4D,                &
-                                       ModifyField4DXYZ, KillField4D
+                                       ModifyField4DXYZ, GetField4DGeneric4DValue,      &
+                                       KillField4D
     use ModuleStopWatch,        only : StartWatch, StopWatch
                                        
 
@@ -7122,38 +7123,64 @@ d1:         do i=1,6
 
         !Begin-----------------------------------------------------------------
 
-        if (CurrentHDF%Generic4D%ReadFromTimeSerie) then
+if4D:   if (CurrentHDF%Field4D) then
 
-            TimeInstant = HDF5TimeInstant(Instant, CurrentHDF)
+            if (CurrentHDF%Generic4D%ReadFromTimeSerie) then
 
-            HDF5Generic4DInstant = TimeSerieValue(CurrentHDF%Generic4D%ObjTimeSerie,        &
-                                                  TimeInstant,                          &
-                                                  CurrentHDF%Generic4D%TimeSerieColumn) 
+                TimeInstant =  GetField4DInstant (CurrentHDF%ObjField4D, Instant, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'HDF5Generic4DInstant - ModuleFillMatrix - ERR10'                
 
-        else
-                
-            call HDF5SetLimits  (CurrentHDF%ObjHDF5, 1, 1, STAT = STAT_CALL)
+                HDF5Generic4DInstant = TimeSerieValue(CurrentHDF%Generic4D%ObjTimeSerie,        &
+                                                      TimeInstant,                              &
+                                                      CurrentHDF%Generic4D%TimeSerieColumn) 
 
-            allocate(AuxVector(1))
-
-            call HDF5ReadData   (HDF5ID         = CurrentHDF%ObjHDF5,                   &
-                                 GroupName      = "/Generic4D",                         &
-                                 Name           = "Generic4D",                          &
-                                 Array1D        = AuxVector,                            &
-                                 OutputNumber   = Instant,                              &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) then
-                write(*,*) 'ObjHDF5=', CurrentHDF%ObjHDF5 
-                write(*,*) 'FileName=', trim(CurrentHDF%FileName)
-                write(*,*) 'STAT_CALL= ', STAT_CALL
-                stop 'HDF5Generic4DInstant - ModuleFillMatrix - ERR10'
-            endif
+            else
             
-            HDF5Generic4DInstant = AuxVector(1)
- 
-            deallocate(AuxVector)
+                HDF5Generic4DInstant = GetField4DGeneric4DValue (Field4DID = CurrentHDF%ObjField4D, &
+                                                                 Instant   = Instant,               &
+                                                                 STAT      = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'HDF5Generic4DInstant - ModuleFillMatrix - ERR20'
 
-        endif
+            endif
+
+
+        else                
+
+            if (CurrentHDF%Generic4D%ReadFromTimeSerie) then
+
+                TimeInstant = HDF5TimeInstant(Instant, CurrentHDF)
+
+                HDF5Generic4DInstant = TimeSerieValue(CurrentHDF%Generic4D%ObjTimeSerie,   &
+                                                      TimeInstant,                         &
+                                                      CurrentHDF%Generic4D%TimeSerieColumn) 
+
+            else
+            
+                call HDF5SetLimits  (CurrentHDF%ObjHDF5, 1, 1, STAT = STAT_CALL)
+
+                allocate(AuxVector(1))
+
+                call HDF5ReadData   (HDF5ID         = CurrentHDF%ObjHDF5,               &
+                                     GroupName      = "/Generic4D",                     &
+                                     Name           = "Generic4D",                      &
+                                     Array1D        = AuxVector,                        &
+                                     OutputNumber   = Instant,                          &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    write(*,*) 'ObjHDF5=', CurrentHDF%ObjHDF5 
+                    write(*,*) 'FileName=', trim(CurrentHDF%FileName)
+                    write(*,*) 'STAT_CALL= ', STAT_CALL
+                    stop 'HDF5Generic4DInstant - ModuleFillMatrix - ERR10'
+                endif
+                
+                HDF5Generic4DInstant = AuxVector(1)
+     
+                deallocate(AuxVector)
+
+            endif 
+            
+
+        endif  if4D          
 
     end function HDF5Generic4DInstant
     
@@ -7184,7 +7211,8 @@ if4D:   if (CurrentHDF%Field4D) then
             
                 call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
                                            Matrix2D         = Field,                    &
-                                           CurrentHDF       = CurrentHDF)
+                                           CurrentHDF       = CurrentHDF,               &
+                                           Instant          = Instant)
 
             else
             
@@ -7192,6 +7220,7 @@ if4D:   if (CurrentHDF%Field4D) then
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           & 
                                    CurrentTime      = CurrentTime,                      &
                                    Matrix2D         = Field,                            &
+                                   Instant          = Instant,                          &
                                    STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
 
@@ -7293,14 +7322,16 @@ if4D:   if (CurrentHDF%Field4D) then
             
                 call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
                                            Matrix3D         = Field,                    &
-                                           CurrentHDF       = CurrentHDF)
+                                           CurrentHDF       = CurrentHDF,               &
+                                           Instant          = Instant)
 
             else            
 
-                call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,                &
+                call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,            &
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           & 
                                    CurrentTime      = CurrentTime,                      & 
                                    Matrix3D         = Field,                            &
+                                   Instant          = Instant,                          &                                   
                                    STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
                 
@@ -7488,13 +7519,14 @@ if4D:   if (CurrentHDF%Field4D) then
 
     !-----------------------------------------------------------------------------------
 
-    subroutine ModifyField4DInterpol(CurrentTime, Matrix3D, Matrix2D, CurrentHDF)
+    subroutine ModifyField4DInterpol(CurrentTime, Matrix3D, Matrix2D, CurrentHDF, Instant)
     
         !Arguments-------------------------------------------------------------
         type(T_Time)                                :: CurrentTime
         real, dimension(:,:,:), pointer, optional   :: Matrix3D
         real, dimension(:,:  ), pointer, optional   :: Matrix2D
         type(T_Field4D)                             :: CurrentHDF
+        integer,                         optional   :: Instant        
         !Local-----------------------------------------------------------------
         real, dimension(:,:,:), pointer             :: ZCellCenter 
         integer                                     :: i, j, k, icount
@@ -7538,6 +7570,7 @@ if2D:   if (Me%Dim == Dim2D) then
                                   Y                     = CurrentHDF%Y,                     &
                                   Field                 = CurrentHDF%Prop,                  &
                                   NoData                = CurrentHDF%NoData,                &
+                                  Instant               = Instant,                          &
                                   STAT                  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR30' 
             
@@ -7599,6 +7632,7 @@ if2D:   if (Me%Dim == Dim2D) then
                                   Z                     = CurrentHDF%Z,                     &
                                   Field                 = CurrentHDF%Prop,                  &
                                   NoData                = CurrentHDF%NoData,                &
+                                  Instant               = Instant,                          &                                  
                                   STAT                  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
             
@@ -10250,7 +10284,7 @@ i1:     if (.not.(CurrentHDF%Previous4DValue <= Generic_4D_Value_ .and.         
         else
         
 
-            call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,                    &
+            call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,                &
                                PropertyIDNumber = Me%PropertyID%IDNumber,               & 
                                CurrentTime      = Now,                                  & 
                                Matrix2D         = Me%Matrix2D,                          &
