@@ -1,18 +1,17 @@
-#!/usr/bin/bash
+#!/bin/bash
 #==============================================================================
 #title        : install_req.sh
 #description  : This script is an attempt to compile all the necessary libraries
 #               to compile MOHID in a machine with Ubuntu or CentOS linux distro
-#               and Intel compiler. For more information consult 
+#               and Intel compiler. For more information consult
 #               http://wiki.mohid.com and http://forum.mohid.com
 #author       : Jorge Palma (jorgempalma@tecnico.ulisboa.pt)
-#date         : 20170314
+#date         : 20180511
 #usage        : bash install_req.sh
-#notes        : 
+#notes        :
 #==============================================================================
 
 ### Make the changes to fit your setup ###
-set -e
 
 ## default path to compiler
 export CC=/opt/intel/bin/icc
@@ -30,8 +29,8 @@ export FFLAGS='-O3 -xHost -ip'
 DIRINSTALL=$HOME/apps_intel
 
 ## have you root permissions? yes or no (uncomment what is best for you)
-#sudo=sudo     # yes
-sudo=          # no
+#sudo=sudo     ## yes
+sudo=          ## no
 
 ## libraries to intall
 zlib='zlib-1.2.11'
@@ -43,11 +42,14 @@ proj4fortran='proj4-fortran'
 iphreeqc='iphreeqc-3.3.11-12535'
 phreeqcrm='phreeqcrm-3.3.11-12535'
 mpi=mpich
-mpi_version=3.2 
+mpi_version=3.2
 #openmpi='openmpi-2.0.1'
 
 
+####################################################
 ###### -Don't touch anything below this line- ######
+####################################################
+set -e
 
 # echo colors ##
 RED='\033[0;31m'
@@ -69,7 +71,7 @@ HELP(){
            echo "auto install mohid library"
            echo "Usage: $0 [-option]"
            echo "    -h|-help                : Show this help"
-           echo "    -req|requirements       : install mohid compile requirements"
+           echo "    -req|requirements       : install compile requirements"
            echo "    -zlib                   : install zlib library"
            echo "    -hdf5                   : install hdf5 library"
            echo "    -nc|netcdf              : install netcdf and netcdff library     (optional)"
@@ -125,7 +127,7 @@ OPT_MPICH(){
     RM_DIR $DIRINSTALL/$mpiv
     if [ ! -e $TMPDIRINSTALL/$mpiv.tar.gz ]; then
       wget "http://www.mpich.org/static/downloads/$mpi_version/$mpiv.tar.gz"
-    fi    
+    fi
     tar -xf "$mpiv.tar.gz"
     cd $mpiv || exit 1
     CC=$CC CXX=$CXX F77=$F77 FC=$FC  \
@@ -191,9 +193,8 @@ OPT_HDF5(){
     PAUSE "Press [Enter] key to continue..."
     RM_DIR $DIRINSTALL/$hdf5
     if [ ! -e $TMPDIRINSTALL/$hdf5.tar.gz ]; then
-      #wget "ftp://ftp.hdfgroup.org/HDF5/current/src/$hdf5.tar.gz"
-      wget "ftp://ftp.hdfgroup.org/HDF5/releases/hdf5-1.8/hdf5-1.8.15/src/$hdf5.tar.gz"
-    fi    
+      wget "https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.8/$hdf5/src/$hdf5.tar.gz"
+    fi
     tar -xf "$hdf5.tar.gz"
     cd $hdf5 || exit 1
     CC=$CC FC=$FC  ./configure --with-zlib=$DIRINSTALL/$zlib --prefix=$DIRINSTALL/$hdf5 --enable-fortran --enable-fortran2003 || exit 1
@@ -310,7 +311,8 @@ OPT_PROJ4F(){
     ## IF error, add -DIFORT or -D<COMPILER_TAG> in the compile expression
     echo
     echo -e " ${RED}If error occur, you need to specify which F90 compiler you use e.g. for INTEL compiler add -DIFORT; For GNU compiler add -Df2cFortran. See cfortran.h ${NC}"
-    echo -e " ${RED}cd $TMPDIRINSTALL/$proj4fortran; Copy compile command, add correct compiler flag and run it: make; make install${NC}"
+    echo -e " ${RED}cd $TMPDIRINSTALL/$proj4fortran; Copy compile command, add correct compiler flag and run it again with \"make; make install\"${NC}"
+    echo -e " ${RED}After that, you must close and reopen your session in another shell to load new env varaiables added in .bashrc ${NC}"
     echo
     PAUSE 'Press [Enter] key to continue...'
     make || exit 1
@@ -333,11 +335,11 @@ OPT_IPHC(){
     wget "ftp://brrftp.cr.usgs.gov/pub/charlton/iphreeqc/$iphreeqc.tar.gz"
     tar -xf "$iphreeqc.tar.gz"
     cd $iphreeqc || exit
-    ## The module IPhreeqc has been revised when using Fortran. 
+    ## The module IPhreeqc has been revised when using Fortran.
     ## IPhreeqc is now a Fortran “module”. The old IPhreeqc.f.inc and IPhreeqc.f90.inc files are no longer used to define the interfaces for the subroutines of IPhreeqc.
     ## The include files (.inc) are now replaced with “USE” statements (USE IPhreeqc). In addition, an interface file (IPhreeqc_interface.F90) must be included in the user’s Fortran project.
     ## IPhreeqc now uses ISO_C_BINDING, which is available in the Fortran 2003 standard. Use of this standard removes some ambiguities in argument types when calling C.
-    ## 
+    ##
     ## In Fortran, you will need to include the source file IPhreeqc_interface.F90 in your project files. This file defines the IPhreeqc Fortran module.
     ## This is the preferred method to use IPhreeqc from a Fortran program.
     ./configure --prefix=$DIRINSTALL/$iphreeqc --enable-fortran-module=yes --enable-fortran-test=yes  CC=$CC FC=$FC
@@ -371,20 +373,20 @@ OPT_PHCRM(){
     echo >> ~/.bashrc
 }
 
-## install phreeqcrm library ##
+## remove install directory ##
 OPT_RM(){
     $sudo rm -rf $TMPDIRINSTALL
     echo " $TMPDIRINSTALL removed with success"
     echo
 }
 
-## remove install dir if exist ##
+## remove install directory if exist ##
 RM_DIR(){
     LINK_OR_DIR=$1
     if [ -d "$LINK_OR_DIR" ]; then
         read -r -p " Install dir $LINK_OR_DIR already exist. Are you sure you want to continue? [y/N] " response
         case "$response" in
-          [yY]) 
+          [yY])
             $sudo rm -rf "$LINK_OR_DIR"
             ;;
           *)
@@ -417,7 +419,7 @@ case $OS in
     *)
         echo
         echo " This script only work for Ubuntu and CentOS Linux distribuition"
-        echo " Maybee you can manually adapt for your linux distribution..."
+        echo " Maybe you can manually adapt for your linux distribution..."
         echo
         exit 1
         ;;
@@ -435,52 +437,52 @@ case $1 in
     -h|-help|--help)
        HELP
     ;;
-    -req|requirements) 
+    -req|requirements)
        OPT_REQ
        exit 0
     ;;
-    -zlib) 
+    -zlib)
        OPT_ZLIB
        WARNING
     ;;
-    -hdf5) 
+    -hdf5)
        OPT_HDF5
        WARNING
     ;;
-    -nc|netcdf) 
+    -nc|netcdf)
        OPT_NC
        OPT_NCF
        WARNING
     ;;
-    -ncf|netcdff) 
+    -ncf|netcdff)
        OPT_NCF
        WARNING
     ;;
-    -proj4) 
+    -proj4)
        OPT_PROJ4
        WARNING
     ;;
-    -proj4f|proj4fortran) 
+    -proj4f|proj4fortran)
        OPT_PROJ4F
        WARNING
     ;;
-    -phqc|iphreeqc) 
+    -phqc|iphreeqc)
        OPT_IPHC
        WARNING
     ;;
-    -phqcrm|phreeqcrm) 
+    -phqcrm|phreeqcrm)
        OPT_PHCRM
        WARNING
     ;;
-    -mpich) 
+    -mpich)
        OPT_MPICH
        WARNING
     ;;
-    -openmpi) 
+    -openmpi)
        OPT_OPENMPI
        WARNING
     ;;
-    -rm) 
+    -rm)
        OPT_RM
        exit 0
     ;;
