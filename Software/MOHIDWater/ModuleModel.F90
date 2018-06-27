@@ -47,7 +47,7 @@ Module ModuleModel
                                                
     use ModuleHydrodynamic,             only : StartHydrodynamic, GetWaterLevel,         &
                                                GetHorizontalVelocity, GetChezy,          &
-                                               GetVerticalVelocity,                      &
+                                               GetVerticalVelocity, GetModelHasTwoWay,   &
                                                Modify_Hydrodynamic, UnGetHydrodynamic,   &
                                                KillHydrodynamic
 
@@ -121,6 +121,7 @@ Module ModuleModel
     use ModuleCuda
 #endif
 
+	use ModuleTwoWay
     !$ use omp_lib
 
 
@@ -247,7 +248,6 @@ Module ModuleModel
         logical                                 :: RunWaves         = .false. 
         logical                                 :: NoIsolatedCells  = .false. 
         integer                                 :: OnLineType       = null_int 
-
         type (T_Size2D)                         :: SubModelWindow
         logical                                 :: SubModelWindowON = .false. 
         
@@ -289,6 +289,7 @@ Module ModuleModel
         integer                                 :: ObjSedimentProperties        = 0
         integer                                 :: ObjConsolidation             = 0
         integer                                 :: ObjFreeVerticalMovement      = 0
+		integer                                 :: ObjTwoWay                    = 0
        
 #ifdef _USE_SEQASSIMILATION
         integer                                 :: ObjSeqAssimilation           = 0
@@ -1073,6 +1074,11 @@ il:         if (Me%RunLagrangian) then
             endif
 #endif _USE_SEQASSIMILATION
 
+			call ConstructTwoWay	(ModelName	  = trim(Me%ModelName), &
+									 TwoWayID     = Me%ObjTwoWay,       &
+									 STAT		  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - 535'			
+			
             !nullify(Me%ModelNames )
             !nullify(Me%LagInstance)
             
@@ -1684,7 +1690,16 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             call SetInitialModelTime (Me%ObjTime, InitialModelTime, STAT_)            
             call CPU_TIME(Me%LastCPUTime)
-        endif
+		endif
+		
+		call GetModelHasTwoWay(Me%ObjHydrodynamic, TwoWay)	
+		
+		!Son domain calls modify_TwoWay
+		if (TwoWay) then
+			call Modify_TwoWay (HydrodynamicID = Me%ObjHydrodynamic, &
+				                STAT           = STAT_CALL)
+		endif
+		
         
 #ifdef _USE_SEQASSIMILATION
            if (Me%RunSeqAssimilation) then
@@ -2208,7 +2223,11 @@ if7 :               if     (DT_error > 0) then
                 !Kills hydrodynamic properties
                 call KillHydrodynamic(Me%ObjHydrodynamic,           STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR110'
-
+                 
+				!Kills TwoWay
+				call KillTwoWay     (Me%ObjTwoWay,          STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR111'
+				
                 !Kill Turbulence
                 call KillTurbulence     (Me%ObjTurbulence,          STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR120'

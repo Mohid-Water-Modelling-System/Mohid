@@ -146,7 +146,7 @@ Module ModuleHydrodynamic
                                        ReturnsIntersectionCorners,                       &                                       
                                        GetGridOutBorderPolygon,                          &
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
-                                       GetCellRotation, GetGridCellArea !João Sobrinho  
+                                       GetCellRotation, GetGridCellArea
 #ifdef _USE_MPI                                                  
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
