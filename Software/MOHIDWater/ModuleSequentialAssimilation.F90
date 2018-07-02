@@ -340,7 +340,7 @@ Module ModuleSequentialAssimilation
         real(8), dimension(:, :, :), pointer        :: VolumeZ           => null()  !initialization: Carina
         real(8), dimension(:, :, :), pointer        :: VolumeU           => null()  !initialization: Carina
         real(8), dimension(:, :, :), pointer        :: VolumeV           => null()  !initialization: Carina
-        real(8), dimension(:, :, :), pointer        :: VolumeV           => null()  !initialization: Carina
+        !real(8), dimension(:, :, :), pointer        :: VolumeV           => null()  !initialization: Carina
     end type T_FullState
 
     private :: T_Files
@@ -5039,9 +5039,9 @@ case1 :         select case(ObjProperty%ID%IDNumber)
         deallocate (Aux3)
         deallocate (Aux4)
 
-        !Reference: Hoteit, Ibrahim, 2001, Filtres de Kalman Réduits Efficaces pour
-        !           l'Assimilation de Données en Oceanographie, Thèse de Docteur en 
-        !           Mathématiques Appliquées de l'Université de Joseph Fourrier
+        !Reference: Hoteit, Ibrahim, 2001, Filtres de Kalman Rï¿½duits Efficaces pour
+        !           l'Assimilation de Donnï¿½es en Oceanographie, Thï¿½se de Docteur en 
+        !           Mathï¿½matiques Appliquï¿½es de l'Universitï¿½ de Joseph Fourrier
 
     end subroutine SEEKAnalysis
 

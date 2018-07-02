@@ -795,7 +795,7 @@ cd5 :               if (flag .EQ. 0) then
                             iFN = len_trim(FILE_NAME)
                             ipath = 0
                             do i = iFN, 1, -1
-                                if (FILE_NAME(i:i) == '/' .or. FILE_NAME(i:i) == '\') then
+                                if (FILE_NAME(i:i) == '/' .or. FILE_NAME(i:i) == backslash) then
                                     ipath = i
                                     exit
                                 endif
