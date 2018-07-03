@@ -4157,6 +4157,8 @@ cd0:    if (Exist) then
         character (Len = StringLength)              :: OptionsType
         type (T_BasinProperty), pointer             :: Property
         logical                                     :: IsFinalFile
+        logical                                     :: VariableDT
+        
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ModifyBasin")
@@ -4403,7 +4405,14 @@ cd0:    if (Exist) then
             UnLockToWhichModules = 'AllModules'
             OptionsType = 'ModifyBasin'
             call ReadUnLockExternalVar (UnLockToWhichModules, OptionsType)
-            call ComputeNextDT(NewDT)
+
+            call GetVariableDT          (Me%ObjTime, VariableDT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyBasin - ModuleBasin - ERR00'
+
+            
+            if (VariableDT) then 
+                call ComputeNextDT(NewDT)
+            endif
 
             STAT_ = SUCCESS_
         else               
