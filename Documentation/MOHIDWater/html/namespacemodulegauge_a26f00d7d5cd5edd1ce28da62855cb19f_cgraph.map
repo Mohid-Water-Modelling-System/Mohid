@@ -1,0 +1,8 @@
+<map id="modulegauge::readgaugedatahdf" name="modulegauge::readgaugedatahdf">
+<area shape="rect" id="node2" href="$namespacemodulegauge.html#a6be887d8098d9844b158ef75048c3473" title="modulegauge::readgaugedata" alt="" coords="556,64,748,91"/>
+<area shape="rect" id="node5" href="$namespacemodulegauge.html#ad253767480082a0c9e00cc725e85786e" title="modulegauge::newwave" alt="" coords="1036,43,1195,70"/>
+<area shape="rect" id="node6" href="$namespacemodulegauge.html#a672a5d3f45d4bf6b413012a0705ca328" title="modulegauge::addgauge2list" alt="" coords="559,126,745,152"/>
+<area shape="rect" id="node7" href="$namespacemodulegauge.html#a986286ef5f7c779896aa9d9797f840cd" title="modulegauge::creategaugefromhdfdata" alt="" coords="263,86,508,112"/>
+<area shape="rect" id="node3" href="$namespacemodulegauge.html#adb09b4f645d53ae4da6e979cbda1d5ea" title="modulegauge::calc_decimal\l_geo_coord" alt="" coords="801,36,983,77"/>
+<area shape="rect" id="node4" href="$namespacemodulegauge.html#a9095cfa51e7b4150e1d3889efe30b265" title="modulegauge::readharmonics" alt="" coords="796,102,988,128"/>
+</map>

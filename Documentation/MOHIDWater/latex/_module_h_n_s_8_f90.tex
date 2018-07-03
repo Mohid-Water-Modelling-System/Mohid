@@ -1,0 +1,128 @@
+\hypertarget{_module_h_n_s_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+H\+NS.F90 File Reference}
+\label{_module_h_n_s_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+H\+N\+S.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+H\+N\+S.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulehns_1_1t__state}{modulehns\+::t\+\_\+state}}
+\item 
+type \mbox{\hyperlink{structmodulehns_1_1t__files}{modulehns\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulehns_1_1t__var}{modulehns\+::t\+\_\+var}}
+\item 
+type \mbox{\hyperlink{structmodulehns_1_1t__external}{modulehns\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmodulehns_1_1t__hns}{modulehns\+::t\+\_\+hns}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulehns}{modulehns}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a65e1246a501100818d485a4f330fa1d7}{modulehns\+::starthns}} (H\+N\+S\+ID, Time\+ID, Enter\+Data\+ID, DT, Cont\+Calc, Extract\+Type, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_a1ecdd29807e20a3d2a3ad0b9fc798f51}{modulehns\+::allocateinstance}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_a71301e39dc6614233febb77b7cd18194}{modulehns\+::hnsoptions}} (DT, Cont\+Calc, Extract\+Type)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a2dabe744302beb8c44eef0780790d14a}{modulehns\+::exportdropletoptions}} (H\+N\+S\+ID, Method\+B\+W\+Droplets\+Diameter, Droplets\+D50, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehns_a42753d96607d5c8c88073bec5ee71084}{modulehns\+::findhnsbehaviourclass}} (Vapor\+Pressure, Water\+Solubility, Density, Water\+Density, H\+N\+S\+Behaviour\+Class)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_ade4bb11bbb379ee7bb16ff28af1174e6}{modulehns\+::gethnsinitialstate}} (H\+N\+S\+ID, H\+N\+S\+Behaviour\+Class, Emission\+At\+Surface, H\+N\+S\+Initial\+State, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a7dda9b6f209c0922b44bc935eadbf01a}{modulehns\+::gethnssedimentation}} (H\+N\+S\+ID, H\+N\+S\+Sedimentation, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a80a5a74cdd341402c42729e1ce18e7a5}{modulehns\+::gethnsentrainment}} (H\+N\+S\+ID, H\+N\+S\+Entrainment, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a348f38143e5b2cd8130f996bf16a44a2}{modulehns\+::gethnsspreading}} (H\+N\+S\+ID, H\+N\+S\+Spreading, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a9a3b41c5caabf304ae3d502e0c7fe6e7}{modulehns\+::gethnsbehaviourclass}} (H\+N\+S\+ID, H\+N\+S\+Behaviour\+Class, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a256a2f0f1c2c0f036a40633b9605bf3d}{modulehns\+::gethnsinitialmass}} (H\+N\+S\+ID, Volume, Initial\+Mass, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a4c50440c13ebd880d5f1b94bc868d428}{modulehns\+::gethnsdensity}} (H\+N\+S\+ID, Density, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_aabe546b840bff5b9fd03aff072b67385}{modulehns\+::getinitialarea}} (H\+N\+S\+ID, Vol\+Inic, Area\+Total, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a13a7fa3be67224e60db06a75d7f0dea7}{modulehns\+::gethnsspreadingdiffvel}} (H\+N\+S\+ID, DT, Area\+Total, Area\+Particle, Volume\+Particle, Spreading\+Diff\+Vel, Spreading\+Diff\+Coef, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a6329952c484c367d1190fff3d5a0d951}{modulehns\+::hnsinternalprocesses}} (H\+N\+S\+ID, Wind, Currents, Water\+Temperature, Water\+Density, S\+PM, Air\+Temperature, Atm\+Pressure, Wave\+Height, Wave\+Period, Area, Initial\+Mass, Mass\+IN, H\+N\+S\+Particle\+State\+IN, Droplets\+Diameter\+IN, Depth, Density, Mass\+O\+UT, Volume\+O\+UT, Droplets\+Diameter\+O\+UT, H\+N\+S\+Particle\+State\+O\+UT, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_a23256714b2ab17223f430aced19cdda8}{modulehns\+::initializevariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_a4966ebd0f80ed38b932eafaa93d15db4}{modulehns\+::updatehnsparticlestate}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_aea7fc4ad80f75c5e51fdf077a3c341c8}{modulehns\+::evaporation}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_a13e99017fa3f908e775b29ff9c3fee14}{modulehns\+::entrainment}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_a2b9b45c82fa5451490cda26d15845a31}{modulehns\+::dissolution}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehns_a837429821cbc45e6eb9a1c1aad7bef4e}{modulehns\+::findinitialdropletdiameter}}
+\item 
+real function \mbox{\hyperlink{namespacemodulehns_a1d67c72bdca52544f6736edf0babb013}{modulehns\+::molarvolumelebas}} (Organic, Molecular\+Weight)
+\item 
+real function \mbox{\hyperlink{namespacemodulehns_a0b9d738b31afba3668603a21335882f9}{modulehns\+::getwaterdynamicvisc}} (Water\+Temperature)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_afbe73cf1017e84dcb207a4be7e224a29}{modulehns\+::volatilization}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_ab96db95d39d4bc3d33b5266fe71250e6}{modulehns\+::sedimentation}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_a378c8e88593c5f512652c5189a9a9729}{modulehns\+::degradation}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_ae9cbb1085170907acb10a56c08c0a669}{modulehns\+::killhns}} (H\+N\+S\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehns_a3c016aeb7936c47cd4071d8b9aa3ac75}{modulehns\+::deallocateinstance}} ()
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_abf878e74b0b3dfd62305bbe1afe7b434}{modulehns\+::writefinalhns}} (H\+N\+S\+ID, Unit\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehns_a41374dfc4d54eb48869c9b6727298941}{modulehns\+::readfinalhns}} (H\+N\+S\+ID, Unit\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehns_a1b4bda03d346568b51278fca35b05366}{modulehns\+::ready}} (Obj\+H\+N\+S\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehns_aff869b6b5dffbe4b2d00b777a1c0455d}{modulehns\+::locateobjhns}} (Obj\+H\+N\+S\+ID)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehns_aad6ce5a9588d71fd220382594f3ebead}{modulehns\+::watermolecularweight}} = 18.\+015
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehns_aefafa2b5510ebc07de11b9d21aa664ba}{modulehns\+::waterdiffusioncoef}} = 2.\+3e-\/9
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehns_aaa60d48f4a69de776e4d6d3c202a822a}{modulehns\+::aircinematicvisc}} = 1.\+5e-\/5
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehns_ad84ee382328093946ea2771a16dbaa41}{modulehns\+::spreadingrateconstant}} = 5787.\+037
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_aef3a83c33839f6914b9e84080e96d98b}{modulehns\+::gas\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_a5988a9ef40c61141e18e7a4142e26c66}{modulehns\+::gasdissolver\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_a1c4da7f59d93e9880ab1dfe83261e4d9}{modulehns\+::evaporator\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_a444efbb573a36e11ac20ebc867ec732f}{modulehns\+::evaporatordissolver\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_a5f5d37f56b892349502cbcb42287a505}{modulehns\+::floaterevaporator\+\_\+}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_adf7de4913f5ef154bbdc3c38a14d837f}{modulehns\+::floaterevaporatordissolver\+\_\+}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_acca937d62ed3b694dc28629fdee08561}{modulehns\+::floater\+\_\+}} = 7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_a065860e13c610ed17fc54cbb69420b06}{modulehns\+::floaterdissolver\+\_\+}} = 8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_afee2c4aee2b6391f2f16da4601cb64ac}{modulehns\+::dissolverevaporator\+\_\+}} = 9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_ac3d664a8e67e552a9295f78c85e458a4}{modulehns\+::dissolver\+\_\+}} = 10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_aa0404cd5f1d8c21f47bd63bdc49da335}{modulehns\+::sinkerdissolver\+\_\+}} = 11
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_ae96b2e85a4537b419fe1a12258982859}{modulehns\+::sinker\+\_\+}} = 12
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehns_a358b7b669ccd8504299b7c44c39cad28}{modulehns\+::classunknown\+\_\+}} = 13
+\item 
+type(t\+\_\+hns), pointer \mbox{\hyperlink{namespacemodulehns_a9a4e8bc013590ee0dbb507ba6c44064a}{modulehns\+::firstobjhns}} =$>$ null()
+\item 
+type(t\+\_\+hns), pointer \mbox{\hyperlink{namespacemodulehns_a98081b0b751e146911fdbbdfc6bb2320}{modulehns\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

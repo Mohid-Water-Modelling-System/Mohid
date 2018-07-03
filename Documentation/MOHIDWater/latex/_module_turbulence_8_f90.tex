@@ -1,0 +1,222 @@
+\hypertarget{_module_turbulence_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Turbulence.F90 File Reference}
+\label{_module_turbulence_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Turbulence.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Turbulence.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemoduleturbulence_1_1ungetturbulence}{moduleturbulence\+::ungetturbulence}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__files}{moduleturbulence\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__turboptions}{moduleturbulence\+::t\+\_\+turboptions}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__statistics}{moduleturbulence\+::t\+\_\+statistics}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__viscosity}{moduleturbulence\+::t\+\_\+viscosity}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__diffusivity}{moduleturbulence\+::t\+\_\+diffusivity}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__turbvar}{moduleturbulence\+::t\+\_\+turbvar}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__external}{moduleturbulence\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__output}{moduleturbulence\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__turbulence}{moduleturbulence\+::t\+\_\+turbulence}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemoduleturbulence}{moduleturbulence}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_ace39b4cf089aa70cd60b083a3e341bc9}{moduleturbulence\+::constructturbulence}} (Model\+Name, Turbulence\+ID, Turb\+G\+O\+T\+M\+ID, Horizontal\+Grid\+ID, Geometry\+ID, Map\+ID, Grid\+Data\+ID, Horizontal\+Map\+ID, Time\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a90657496e68df9748a112f2c597aeda7}{moduleturbulence\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_abb6ebc59b95b0d9ec2ec468d7ab4b43a}{moduleturbulence\+::construct\+\_\+time\+\_\+serie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a4e5f190dd7da54cb916c8956e331e54c}{moduleturbulence\+::construct\+\_\+output\+\_\+profile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_afa8dd99716d657032435779e03fff106}{moduleturbulence\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_aed366fd3ef93f5aff7c411412fbeb93a}{moduleturbulence\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a5e493c3242c2ad7a0f5df2178a37aa3b}{moduleturbulence\+::constructmldstatistics}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a7d9753f3c1a5db2dfb55d80111926a99}{moduleturbulence\+::inichorizontalmodels}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a676ecd9b2dc8e4fd2506801b206e0fdc}{moduleturbulence\+::inicverticalmodels}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a59fa0936c4e079b4094b7b50f09a8092}{moduleturbulence\+::inicnihoulleendertseemodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad051a97467f11a69e59b2a477e516ba9}{moduleturbulence\+::turbulenceoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad670a65f522fc5db35f455468f147913}{moduleturbulence\+::checkverticalturbulenceoption}} (String, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a2df9458a1ab29d4f5f3fd747ded725b4}{moduleturbulence\+::checkhorizontalturbulenceoption}} (String, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_af876648dc22afb9f49305a2d9c2f1be4}{moduleturbulence\+::inicfilehorizontalmodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_abccdbd06f5d7520144dadb5297887cfb}{moduleturbulence\+::inicfileverticalmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a1d7775ffdad42a39e0e66a78b56f8faf}{moduleturbulence\+::inicconstanthorizontalmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a7dcc612b541b2355f6ee7df80ef63634}{moduleturbulence\+::inicestuarysmagorinskymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad65bc066b505edcac467325fc067aa87}{moduleturbulence\+::inicestuarymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a3ccb54fdbe649b382ed14de6135fd7b9}{moduleturbulence\+::inicsmagorinskymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a2cecb8eb2b3e94ef70af30650d368ef8}{moduleturbulence\+::inicconstantverticalmodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_af52d9bce4123a146f0b750fab46833ee}{moduleturbulence\+::iniclayersverticalmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_af1c597f7f366a455e6e36dbc70ea56b6}{moduleturbulence\+::inicmixinglengthhorizontal}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a37e3796794d913feea94c19ec07b14fb}{moduleturbulence\+::gethorizontalviscosity}} (Turbulence\+ID, Horizontal\+Center\+Viscosity, Horizontal\+Corner\+Viscosity, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_a7e2b5e220e823c62e0ceb84ca26e734b}{moduleturbulence\+::getturbulencemodelslist}} (Constant, Estuary, Smagorinsky, Leendertsee, Backhaus, Pacanowski, Nihoul, Turbulence\+Equation)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a2ef11327f7c8ee6d8580c79c1a68bbdc}{moduleturbulence\+::getverticalviscosity}} (Turbulence\+ID, Vertical\+Viscosity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a6067ede135e4137914b0f3958ddc0353}{moduleturbulence\+::getverticaldiffusivity}} (Turbulence\+ID, Vertical\+Diffusivity\+Center, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_ad3675f05df244e553dafe1a09eb8f7e1}{moduleturbulence\+::getmixinglengthhorizontal}} (Turbulence\+ID, Mixing\+LengthX, Mixing\+LengthY, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a9ca6f654636dff4860b7e20134c59253}{moduleturbulence\+::getmixinglengthvertical}} (Turbulence\+ID, Lupward, Ldownward, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a8e849950710589a5439a724899ac2b8d}{moduleturbulence\+::getmld\+\_\+surf}} (Turbulence\+ID, M\+L\+D\+\_\+\+Surf, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a78bc503a0ceb792c161200d1e1e51bf0}{moduleturbulence\+::getcontinuousgotm}} (Turbulence\+ID, Continuous, Model\+G\+O\+TM, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a3efe4fb95ca7fe2eff42a33023683bd8}{moduleturbulence\+::ungetturbulence3d}} (Turbulence\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a036689ae17a2c12c06edbd02b17281c1}{moduleturbulence\+::ungetturbulence2d}} (Turbulence\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a9df29956676b28634ce0733aa108c62e}{moduleturbulence\+::setturbulencebottomrugosity}} (Turbulence\+ID, Bottom\+Rugosity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_aa75d43b0bd3a1b14c9baa4fe1ba2e6f7}{moduleturbulence\+::turbulence}} (Turbulence\+ID, VelocityX, VelocityY, VelocityZ, Chezy, Temperature, Salinity, Sigma\+No\+Pressure, Water\+Level, Water\+Level\+Old, Water\+Level\+DT, Dens\+Method, Correc\+Press, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a5f1e04626a1dd3845c37639bd960e2e6}{moduleturbulence\+::imposeturbvertlimit}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a3366379c368e20e48c460dff1f7585d8}{moduleturbulence\+::output\+\_\+results\+\_\+hdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_aaab5a3be952e034c14a581ba00fb2d22}{moduleturbulence\+::leendertseemodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a823fa2230f79873d97eb37068c46756f}{moduleturbulence\+::backhausmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ac17c49932990b363ac1d4fc06653ff7a}{moduleturbulence\+::pacanowskimodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a403c337f711237d4bc2b5d439e974a19}{moduleturbulence\+::nihoulmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_aaa0e2c6e1a9ea1d07cb81974aeb2b1f8}{moduleturbulence\+::richardson}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ab1caba5ca0b728449a98a3884fda59e8}{moduleturbulence\+::turbulenceequationmodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_ab31d00156edd7f09041fb314d6d0445a}{moduleturbulence\+::smagorinsky3dmodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_a60c4e6500b8bfaf5e8e8a202db2203ba}{moduleturbulence\+::wavebreaking}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad38c50749e5db481714069b7e366c4e7}{moduleturbulence\+::computemixedlayerdepth}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a217345ed46e74ae2c1880a07108c9487}{moduleturbulence\+::output\+\_\+statistics}} (Value2D, Statistics\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad434d19fe537a51091b39515c951a2a3}{moduleturbulence\+::output\+\_\+timeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a72996c619e984f58e135b17214de8718}{moduleturbulence\+::output\+\_\+profile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a256cd0709bb85cc0f9cd463e00938709}{moduleturbulence\+::write\+\_\+hdf5\+\_\+format}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_abcd63973fdc2c7e7d3ad23e011bee2d5}{moduleturbulence\+::estuarymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a80e74aea32fd0cd9fd8e273cb359791a}{moduleturbulence\+::smagorinskymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ab7894e5b2120544a23a97a5dec146823}{moduleturbulence\+::turbulentviscosity\+\_\+cellcorner}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_a350c5c3bf3571f6247e3278025c35a0c}{moduleturbulence\+::imposeturbhorizlimit}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a16fdef89832180a7e41d6bd450c05746}{moduleturbulence\+::killturbulence}} (Turbulence\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_aad40d3e2593854d66c21ebbd92791ba0}{moduleturbulence\+::deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_aee156286cd0fad2976b9e8c3c1d52ec6}{moduleturbulence\+::ready}} (Obj\+Turbulence\+\_\+\+Id, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a36b249a1813247cecf28481893bc0ea2}{moduleturbulence\+::locateobjturbulence}} (Obj\+Turbulence\+\_\+\+Id)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ad62b0db026f88d0c2b487beade4e08eb}{moduleturbulence\+::kinematicviscosity}} = 1.\+3e-\/6
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ac4e0b3b2db8e62f3e9d95ec50f14bdf8}{moduleturbulence\+::cnh}} = -\/0.\+8
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_adddd5559eb5d60561f50c8458e67485b}{moduleturbulence\+::cvk}} = 0.\+41
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ae9d9f2ae68b9865d04266017aa207f35}{moduleturbulence\+::delta}} = 0.\+5
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a50b658339ff4d17b0ff8d430db7111dc}{moduleturbulence\+::g}} = 9.\+81
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a9ff8d5e43c5a70b1652f6a7a9b1a4167}{moduleturbulence\+::richardsonmax}} = 10.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ada81f70a31cb8c32d07fd796bfe1e5af}{moduleturbulence\+::cbk1}} = 7.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ae6bb5f3b916bb34da86c6520bb9a8911}{moduleturbulence\+::cbk2}} = -\/0.\+25
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a0750fdf99ef02d010fc2f831cbf9a47e}{moduleturbulence\+::cbk3}} = 0.\+0025
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a52421696a2b6905e1b41cb0b06ca3d58}{moduleturbulence\+::cbk4}} = 0.\+0002669
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ac8e07e705f846c0aeb2da32508e51a10}{moduleturbulence\+::cbk5}} = 1.\+75
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a50fd1ae32293b82b44a38e05f942167b}{moduleturbulence\+::cpw1}} = 5.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_acce43cc93279db98af00c54476c61907}{moduleturbulence\+::icpw2}} = -\/2.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ae0ec8e0f40d2dde1eb4818c1b1c64440}{moduleturbulence\+::cpw4}} = 0.\+00001
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a8f01dbc0f39a5dd8da2489f20d7a9533}{moduleturbulence\+::gama}} = 1.\+4
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a54890d68b5eb7ba1cdad66eef22b56a6}{moduleturbulence\+::gama2}} = 1.\+2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a1a6e5da84d7a92e32fbe23db2fd9c51d}{moduleturbulence\+::constant\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_aa745ad2596a9341093ee58a720d8788b}{moduleturbulence\+::estuary\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a29d7fdceea6d5b2feff6d666d0532452}{moduleturbulence\+::smagorinsky\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a5b737b397ea4d53ee93ebaa2536042bb}{moduleturbulence\+::file2d\+\_\+}} = 10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_ac18db79bbfe34ce5f8ecc3c5a81e44f2}{moduleturbulence\+::leendertsee\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a2e4474631725c7959668fd9dfe8f90d0}{moduleturbulence\+::backhaus\+\_\+}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a3919ba926fe406c56c698575129339b3}{moduleturbulence\+::pacanowski\+\_\+}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_adadd9f612e4d053afcc2457f3e728ce1}{moduleturbulence\+::nihoul\+\_\+}} = 7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a4458bdc093d13a35fdeaae3b5d7a5de9}{moduleturbulence\+::turbulenceequation\+\_\+}} = 8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a7eb55bedf9f4cbaeb7e86ac31b2223a2}{moduleturbulence\+::layers\+\_\+}} = 9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a0c9974d78cad27746ab531d210087c49}{moduleturbulence\+::smagorinsky3d\+\_\+}} = 99
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a6d843198335720f3520b5b04ae013ef0}{moduleturbulence\+::tke\+\_\+mld\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a7b1c6356cf135cccdc1fa4593c7a8e7e}{moduleturbulence\+::rich\+\_\+mld\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a8c9c8f005ce1bb83a3e5a8cebd69bae4}{moduleturbulence\+::brunt\+\_\+mld\+\_\+}} = 3
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleturbulence_a860d5ece29b255ab5d250a33b6b5106c}{moduleturbulence\+::viscosity\+\_\+h\+\_\+begin}} = \textquotesingle{}$<$begin\+\_\+viscosity\+\_\+h$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleturbulence_a134ebac9140a7aa6099ca4888f990ea8}{moduleturbulence\+::viscosity\+\_\+h\+\_\+end}} = \textquotesingle{}$<$end\+\_\+viscosity\+\_\+h$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleturbulence_aa207229e0ff82c7ac123a9b078a51f6a}{moduleturbulence\+::viscosity\+\_\+v\+\_\+begin}} = \textquotesingle{}$<$begin\+\_\+viscosity\+\_\+v$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleturbulence_a2b0fb2fa55418700724ffc5e0f294858}{moduleturbulence\+::viscosity\+\_\+v\+\_\+end}} = \textquotesingle{}$<$end\+\_\+viscosity\+\_\+v$>$\textquotesingle{}
+\item 
+type(t\+\_\+turbulence), pointer \mbox{\hyperlink{namespacemoduleturbulence_af5759b7ab5d1b988fb35e62f93a6d7ed}{moduleturbulence\+::firstobjturbulence}} =$>$ null()
+\item 
+type(t\+\_\+turbulence), pointer \mbox{\hyperlink{namespacemoduleturbulence_aa8a18b46ae48dcd9b22bd9078b5f6c72}{moduleturbulence\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

@@ -1,0 +1,222 @@
+\hypertarget{structmoduleturbgotm_1_1t__turbgotm}{}\section{moduleturbgotm\+:\+:t\+\_\+turbgotm Type Reference}
+\label{structmoduleturbgotm_1_1t__turbgotm}\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+
+
+Collaboration diagram for moduleturbgotm\+:\+:t\+\_\+turbgotm\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structmoduleturbgotm_1_1t__turbgotm__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_aefd4bd094bf9510abe45256c2df3e2ab}{instanceid}} = null\+\_\+int
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a109b2877fa69e7e20389a3dc483297fd}{size}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_afc7c7c147324d1e69cf1fb9a7f074447}{worksize}}
+\item 
+real(8), dimension(\+:, \+:, \+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_abdf94072109764cbe99e660dfdcf3d37}{matrix}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm}{t\+\_\+turbgotm}}), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a89526353589ba1dd06bcf90b08ef162e}{next}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_ada9e3282787014694f50e281a68e9a49}{tke}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a68550a0fc4bd02f88df618f515bde711}{l}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_af93521142974aee8adc85faf33a06580}{eps}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_ac94ccfec472020d62d02eb2aa4738cbd}{num}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a09b0956eba24be2ee36c01d0f3658441}{nuh}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a389c2dae16f379d0d75cae7a5d5ea9b0}{p}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_aa2143a10fa14294021526aff3a052e7d}{b}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a3baf72b7f1ed62d8f867b7a15abf4e17}{foc}} =$>$ null()
+\item 
+real \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_ad845e85ba1c712f48e287e3edfd9fd9c}{dt}} = null\+\_\+real
+\item 
+type(\mbox{\hyperlink{structmoduleturbgotm_1_1t__external}{t\+\_\+external}}) \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_ae4b2497dbf97f24137824988ab34090c}{externalvar}}
+\item 
+type(\mbox{\hyperlink{structmoduleturbgotm_1_1t__files}{t\+\_\+files}}) \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a285be44f7959684c4436afa761e6efe9}{files}}
+\item 
+type(t\+\_\+gotm), dimension(\+:), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_aac972434e3c634202405ca7fc6df756b}{objgotm}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_ae1aaeec5059c3af7050fd8ea62b9e759}{maxthreads}} = null\+\_\+int
+\item 
+type(t\+\_\+gotmparameters), pointer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a978df6481ead2347503e5eb07c55d258}{objgotmparameters}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a086db531b5db3fe7c6340845cb19ebaf}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a51e87bdd152824c9fd26a15765e3d6f0}{objgriddata}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a14d5905f62a8a04f1367d70d4d338631}{objhorizontalmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a417af34e17982a190caf069d6ed70927}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_ace0b2547515b0286b759c9c153496c69}{objmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm_a026a546d01bd4145909150c7115ce92e}{objgeometry}} = 0
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_aa2143a10fa14294021526aff3a052e7d}\label{structmoduleturbgotm_1_1t__turbgotm_aa2143a10fa14294021526aff3a052e7d}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!b@{b}}
+\index{b@{b}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{b}{b}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::b =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_ad845e85ba1c712f48e287e3edfd9fd9c}\label{structmoduleturbgotm_1_1t__turbgotm_ad845e85ba1c712f48e287e3edfd9fd9c}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!dt@{dt}}
+\index{dt@{dt}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{dt}{dt}}
+{\footnotesize\ttfamily real moduleturbgotm\+::t\+\_\+turbgotm\+::dt = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_af93521142974aee8adc85faf33a06580}\label{structmoduleturbgotm_1_1t__turbgotm_af93521142974aee8adc85faf33a06580}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!eps@{eps}}
+\index{eps@{eps}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{eps}{eps}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::eps =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_ae4b2497dbf97f24137824988ab34090c}\label{structmoduleturbgotm_1_1t__turbgotm_ae4b2497dbf97f24137824988ab34090c}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!externalvar@{externalvar}}
+\index{externalvar@{externalvar}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{externalvar}{externalvar}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleturbgotm_1_1t__external}{t\+\_\+external}}) moduleturbgotm\+::t\+\_\+turbgotm\+::externalvar\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a285be44f7959684c4436afa761e6efe9}\label{structmoduleturbgotm_1_1t__turbgotm_a285be44f7959684c4436afa761e6efe9}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!files@{files}}
+\index{files@{files}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{files}{files}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleturbgotm_1_1t__files}{t\+\_\+files}} ) moduleturbgotm\+::t\+\_\+turbgotm\+::files\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a3baf72b7f1ed62d8f867b7a15abf4e17}\label{structmoduleturbgotm_1_1t__turbgotm_a3baf72b7f1ed62d8f867b7a15abf4e17}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!foc@{foc}}
+\index{foc@{foc}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{foc}{foc}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::foc =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_aefd4bd094bf9510abe45256c2df3e2ab}\label{structmoduleturbgotm_1_1t__turbgotm_aefd4bd094bf9510abe45256c2df3e2ab}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!instanceid@{instanceid}}
+\index{instanceid@{instanceid}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{instanceid}{instanceid}}
+{\footnotesize\ttfamily integer moduleturbgotm\+::t\+\_\+turbgotm\+::instanceid = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a68550a0fc4bd02f88df618f515bde711}\label{structmoduleturbgotm_1_1t__turbgotm_a68550a0fc4bd02f88df618f515bde711}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!l@{l}}
+\index{l@{l}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{l}{l}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::l =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_abdf94072109764cbe99e660dfdcf3d37}\label{structmoduleturbgotm_1_1t__turbgotm_abdf94072109764cbe99e660dfdcf3d37}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!matrix@{matrix}}
+\index{matrix@{matrix}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{matrix}{matrix}}
+{\footnotesize\ttfamily real(8), dimension(\+:, \+:, \+:), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::matrix =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_ae1aaeec5059c3af7050fd8ea62b9e759}\label{structmoduleturbgotm_1_1t__turbgotm_ae1aaeec5059c3af7050fd8ea62b9e759}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!maxthreads@{maxthreads}}
+\index{maxthreads@{maxthreads}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{maxthreads}{maxthreads}}
+{\footnotesize\ttfamily integer moduleturbgotm\+::t\+\_\+turbgotm\+::maxthreads = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a89526353589ba1dd06bcf90b08ef162e}\label{structmoduleturbgotm_1_1t__turbgotm_a89526353589ba1dd06bcf90b08ef162e}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!next@{next}}
+\index{next@{next}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm}{t\+\_\+turbgotm}}), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::next =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a09b0956eba24be2ee36c01d0f3658441}\label{structmoduleturbgotm_1_1t__turbgotm_a09b0956eba24be2ee36c01d0f3658441}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!nuh@{nuh}}
+\index{nuh@{nuh}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{nuh}{nuh}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::nuh =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_ac94ccfec472020d62d02eb2aa4738cbd}\label{structmoduleturbgotm_1_1t__turbgotm_ac94ccfec472020d62d02eb2aa4738cbd}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!num@{num}}
+\index{num@{num}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{num}{num}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::num =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a026a546d01bd4145909150c7115ce92e}\label{structmoduleturbgotm_1_1t__turbgotm_a026a546d01bd4145909150c7115ce92e}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!objgeometry@{objgeometry}}
+\index{objgeometry@{objgeometry}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{objgeometry}{objgeometry}}
+{\footnotesize\ttfamily integer moduleturbgotm\+::t\+\_\+turbgotm\+::objgeometry = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_aac972434e3c634202405ca7fc6df756b}\label{structmoduleturbgotm_1_1t__turbgotm_aac972434e3c634202405ca7fc6df756b}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!objgotm@{objgotm}}
+\index{objgotm@{objgotm}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{objgotm}{objgotm}}
+{\footnotesize\ttfamily type (t\+\_\+gotm), dimension(\+:), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::objgotm =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a978df6481ead2347503e5eb07c55d258}\label{structmoduleturbgotm_1_1t__turbgotm_a978df6481ead2347503e5eb07c55d258}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!objgotmparameters@{objgotmparameters}}
+\index{objgotmparameters@{objgotmparameters}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{objgotmparameters}{objgotmparameters}}
+{\footnotesize\ttfamily type(t\+\_\+gotmparameters), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::objgotmparameters =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a51e87bdd152824c9fd26a15765e3d6f0}\label{structmoduleturbgotm_1_1t__turbgotm_a51e87bdd152824c9fd26a15765e3d6f0}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!objgriddata@{objgriddata}}
+\index{objgriddata@{objgriddata}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{objgriddata}{objgriddata}}
+{\footnotesize\ttfamily integer moduleturbgotm\+::t\+\_\+turbgotm\+::objgriddata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a417af34e17982a190caf069d6ed70927}\label{structmoduleturbgotm_1_1t__turbgotm_a417af34e17982a190caf069d6ed70927}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer moduleturbgotm\+::t\+\_\+turbgotm\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a14d5905f62a8a04f1367d70d4d338631}\label{structmoduleturbgotm_1_1t__turbgotm_a14d5905f62a8a04f1367d70d4d338631}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!objhorizontalmap@{objhorizontalmap}}
+\index{objhorizontalmap@{objhorizontalmap}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{objhorizontalmap}{objhorizontalmap}}
+{\footnotesize\ttfamily integer moduleturbgotm\+::t\+\_\+turbgotm\+::objhorizontalmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_ace0b2547515b0286b759c9c153496c69}\label{structmoduleturbgotm_1_1t__turbgotm_ace0b2547515b0286b759c9c153496c69}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!objmap@{objmap}}
+\index{objmap@{objmap}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{objmap}{objmap}}
+{\footnotesize\ttfamily integer moduleturbgotm\+::t\+\_\+turbgotm\+::objmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a086db531b5db3fe7c6340845cb19ebaf}\label{structmoduleturbgotm_1_1t__turbgotm_a086db531b5db3fe7c6340845cb19ebaf}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!objtime@{objtime}}
+\index{objtime@{objtime}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer moduleturbgotm\+::t\+\_\+turbgotm\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a389c2dae16f379d0d75cae7a5d5ea9b0}\label{structmoduleturbgotm_1_1t__turbgotm_a389c2dae16f379d0d75cae7a5d5ea9b0}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!p@{p}}
+\index{p@{p}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{p}{p}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::p =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_a109b2877fa69e7e20389a3dc483297fd}\label{structmoduleturbgotm_1_1t__turbgotm_a109b2877fa69e7e20389a3dc483297fd}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!size@{size}}
+\index{size@{size}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size3d ) moduleturbgotm\+::t\+\_\+turbgotm\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_ada9e3282787014694f50e281a68e9a49}\label{structmoduleturbgotm_1_1t__turbgotm_ada9e3282787014694f50e281a68e9a49}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!tke@{tke}}
+\index{tke@{tke}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{tke}{tke}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbgotm\+::t\+\_\+turbgotm\+::tke =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbgotm_1_1t__turbgotm_afc7c7c147324d1e69cf1fb9a7f074447}\label{structmoduleturbgotm_1_1t__turbgotm_afc7c7c147324d1e69cf1fb9a7f074447}} 
+\index{moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}!worksize@{worksize}}
+\index{worksize@{worksize}!moduleturbgotm\+::t\+\_\+turbgotm@{moduleturbgotm\+::t\+\_\+turbgotm}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size3d ) moduleturbgotm\+::t\+\_\+turbgotm\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_turb_g_o_t_m_8_f90}{Module\+Turb\+G\+O\+T\+M.\+F90}}\end{DoxyCompactItemize}

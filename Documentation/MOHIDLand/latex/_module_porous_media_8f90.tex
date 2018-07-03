@@ -1,0 +1,392 @@
+\hypertarget{_module_porous_media_8f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Porous\+Media.f90 File Reference}
+\label{_module_porous_media_8f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Porous\+Media.\+f90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Porous\+Media.\+f90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemoduleporousmedia_1_1ungetporousmedia}{moduleporousmedia\+::ungetporousmedia}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__output}{moduleporousmedia\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__integrationbyhorizon}{moduleporousmedia\+::t\+\_\+integrationbyhorizon}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__integrationinfo}{moduleporousmedia\+::t\+\_\+integrationinfo}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__integrationoutput}{moduleporousmedia\+::t\+\_\+integrationoutput}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__files}{moduleporousmedia\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__extvar}{moduleporousmedia\+::t\+\_\+extvar}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__fromtimeserie}{moduleporousmedia\+::t\+\_\+fromtimeserie}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__piezometer}{moduleporousmedia\+::t\+\_\+piezometer}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__inverseweight}{moduleporousmedia\+::t\+\_\+inverseweight}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__nodes}{moduleporousmedia\+::t\+\_\+nodes}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__triangulation}{moduleporousmedia\+::t\+\_\+triangulation}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__boundary}{moduleporousmedia\+::t\+\_\+boundary}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__soiloptions}{moduleporousmedia\+::t\+\_\+soiloptions}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__soiltype}{moduleporousmedia\+::t\+\_\+soiltype}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__retention}{moduleporousmedia\+::t\+\_\+retention}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__converge}{moduleporousmedia\+::t\+\_\+converge}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmedia_1_1t__porousmedia}{moduleporousmedia\+::t\+\_\+porousmedia}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemoduleporousmedia}{moduleporousmedia}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ac5974f908fab2510640dceca6afdc55e}{moduleporousmedia\+::constructporousmedia}} (Model\+Name, Obj\+Porous\+Media\+ID, Compute\+Time\+ID, Horizontal\+Grid\+ID, Horizontal\+Map\+ID, Topography\+ID, Basin\+Geometry\+ID, Drainage\+Network\+ID, Check\+Global\+Mass, Construct\+Evaporation, Construct\+Transpiration, Geometry\+ID, Map\+ID, Discharges\+ID, Stop\+On\+Bathymetry\+Change, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a964d0ccee02d1c5d84e0ea29ec30b3e7}{moduleporousmedia\+::startoutputboxfluxes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a2dddd8490c583823d5dd45c3bb20e816}{moduleporousmedia\+::checkboundarycells}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a3f2cef78b695643e2f4662105678330c}{moduleporousmedia\+::checkriverbelowsoil}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a52ed3f752ac2299db63f80ea0dca19d2}{moduleporousmedia\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a00f10b641a285b482aecd0a0d9289ed7}{moduleporousmedia\+::readdatafile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a8cce03cb321fdeb4b547654baa7cdf81}{moduleporousmedia\+::readconvergenceparameters}}
+\item 
+integer function \mbox{\hyperlink{namespacemoduleporousmedia_a0fc4ab39d44c6c2942e125f98c3a3466}{moduleporousmedia\+::countdomainpoints}} (Chunk\+K\+Factor)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ad218337265b17e54150c2a4447473293}{moduleporousmedia\+::readinitialfile\+\_\+bin}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ad6fc7e9521189f7f68bcd991a1724a96}{moduleporousmedia\+::readinitialfile\+\_\+hdf}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a3f70a3e3d6c8c8f18b17f1417b314f3e}{moduleporousmedia\+::constructbottomtopography}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ac906d07242e6b29b7b3f0b0984c50530}{moduleporousmedia\+::verticaldiscretization}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a14d726826714b21efcb1bdd8fe521dbc}{moduleporousmedia\+::constructasciioutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a908fc394580adaa43494724ec7882eca}{moduleporousmedia\+::allocatevariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ac4e498c09f58d0ecca6f79a2a268bb84}{moduleporousmedia\+::constructdischarges}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a7aef95520258c11f2ce4493e2bef61c8}{moduleporousmedia\+::readsoiltypes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_af773f6dce68c6222d17ca3f4fe88192d}{moduleporousmedia\+::readintegrationpropertyconfig}} (Info, Is3D, Block\+Begin, Block\+End, Allocate\+Arrays, Client\+Number)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_afd9c6f0efb919260c9cb27d5f27faf98}{moduleporousmedia\+::readintegrationconfiguration}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a35c831104f825a9f11f297800f87ecab}{moduleporousmedia\+::initialfields}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ab48cf69fc08a66f3d4cfa5d9624e5ebf}{moduleporousmedia\+::updateboundaryconditions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_afc9e4c782508e0d8b55b1c444d54d741}{moduleporousmedia\+::readboundaryconditions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ac3173bc46df00d4f9eeea325d87cd8d7}{moduleporousmedia\+::constructpiezometers}} (Client\+Number)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a367419c3e235d10645f9a8ef04d062b8}{moduleporousmedia\+::addpiezometer}} (First\+Piezometer, Obj\+Piezometer)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ab8846ea02c912ad7abc75b7736e11552}{moduleporousmedia\+::readpiezometertimeserie}} (New\+Piezometer)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a92e9c5aa327b8fb0f60c057a8885230d}{moduleporousmedia\+::modifyboundarylevel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a800f0d4d8cd48ad329f33e9bb42015a7}{moduleporousmedia\+::updatepiezometervalue}} (Piezometer, Current\+Time)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a9df397532d5ac8a58a2087f07677d385}{moduleporousmedia\+::writetriangles}} (Triangles\+File\+Name)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a85940000a15a4caa7221748c12a655c6}{moduleporousmedia\+::definegridpoints}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_af2c381d3df927d5f0eb263a6fe3b13a7}{moduleporousmedia\+::startwithfieldcapacity}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a5bc710495ce11815ae382078999351b3}{moduleporousmedia\+::computesoilfieldcapacity}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ad4d7e80e82397566cbd292b6c16a78f8}{moduleporousmedia\+::constructintegrationhdf5output}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a222cfa7f29b1db2fb4ab637f6c27c28e}{moduleporousmedia\+::constructhdf5output}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_adba23be00c82f6436627807a223113c5}{moduleporousmedia\+::constructtimeserie}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a4c55632f6a1d6b5ff5769ca1ae4a1f74}{moduleporousmedia\+::constructprofileoutput}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a97ffb3238bf0364c7e0c3e30fe5b7021}{moduleporousmedia\+::getnextporousmediadt}} (Obj\+Porous\+Media\+ID, DT, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_aa235c3281ca1f6104396eec860cafc63}{moduleporousmedia\+::getpotentialinfiltration}} (Obj\+Porous\+Media\+ID, Pot\+Infiltration, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ad1bd34c459069a631831974e49b7bb8c}{moduleporousmedia\+::getinfiltration}} (Obj\+Porous\+Media\+ID, Infiltration, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a2706d0d1284873eb1538b17e9b347d9a}{moduleporousmedia\+::getefectiveevtp}} (Obj\+Porous\+Media\+ID, Efective\+E\+V\+TP, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a59f51d54f2a02220e661022657f0435a}{moduleporousmedia\+::getgwflowtochannels}} (Obj\+Porous\+Media\+ID, Flow\+To\+Channels, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a3e1fc1f7f447b7f85698caff9d4810c7}{moduleporousmedia\+::getgwflowtochannelsbylayer}} (Obj\+Porous\+Media\+ID, Flow\+To\+Channels\+Layer, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a742d19854f8590b5db164ac97052d8c3}{moduleporousmedia\+::getgwtochannelslayers}} (Obj\+Porous\+Media\+ID, G\+W\+To\+Channels\+Bottom\+Layer, G\+W\+To\+Channels\+Top\+Layer, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a959d8f66b0c720fa0d26da43495843eb}{moduleporousmedia\+::getgwflowoption}} (Obj\+Porous\+Media\+ID, Drainage\+Network\+Link, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a48f51dadcb6b3234ad3625d8e26cb7bc}{moduleporousmedia\+::getgwlayer}} (Obj\+Porous\+Media\+ID, G\+W\+Layer, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_aa697c2ff7c0b471220e55d71bd4c665a}{moduleporousmedia\+::getgwlayerold}} (Obj\+Porous\+Media\+ID, G\+W\+Layer\+Old, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a26ca2f410bb96e145f78213b45a7a519}{moduleporousmedia\+::getflowdischarge}} (Obj\+Porous\+Media\+ID, Flow\+Discharge, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a4ef35ba24ac6cd6fbf310e39c0892c80}{moduleporousmedia\+::getpmtotaldischargeflowvolume}} (Obj\+Porous\+Media\+ID, Volume, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a3a5ad5a7ceee985765e313febb118f98}{moduleporousmedia\+::getporousmediatotalstoredvolume}} (Obj\+Porous\+Media\+ID, Total\+Stored\+Volume, Loss\+To\+Ground, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_abf74842fd7f071be6dfbcb008ae86d92}{moduleporousmedia\+::getgeometryinstance}} (Obj\+Porous\+Media\+ID, Geometry\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_adf0daee2f37be73787378affc272dbc0}{moduleporousmedia\+::getfluxu}} (Obj\+Porous\+Media\+ID, FlowU, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a7232e9ac88cf3c92c636f7432acbec07}{moduleporousmedia\+::getfluxv}} (Obj\+Porous\+Media\+ID, FlowV, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a5f6e92f6c7e21ae5b9a8b35203c299c7}{moduleporousmedia\+::getfluxw}} (Obj\+Porous\+Media\+ID, Flux\+W\+Final, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ae1e42504208d748be9b82e97810025bf}{moduleporousmedia\+::getunsatv}} (Obj\+Porous\+Media\+ID, UnsatV, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a4a8574c685ff8e68510803b38c3821ad}{moduleporousmedia\+::getunsatu}} (Obj\+Porous\+Media\+ID, UnsatU, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a34b7f3e33813dc9217457bf375eb5d30}{moduleporousmedia\+::getunsatw}} (Obj\+Porous\+Media\+ID, UnsatW, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a3fedd853f5701a32fbd7def6581fa30f}{moduleporousmedia\+::getunsatwfinal}} (Obj\+Porous\+Media\+ID, UnsatW, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a9423063423e189eb443c264d3302f41d}{moduleporousmedia\+::getwatercolumn}} (Obj\+Porous\+Media\+ID, Water\+Column, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a5b9d7f2adce9fea213bdc41bdb432a9f}{moduleporousmedia\+::getwatercontent}} (Obj\+Porous\+Media\+ID, WC, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a97c2a20bb7ae4ddffb2c0f4d7586412a}{moduleporousmedia\+::getrelativewatercontent}} (Obj\+Porous\+Media\+ID, R\+WC, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a2b7e324655161146b0aaf1af3e684670}{moduleporousmedia\+::getoldwatercontent}} (Obj\+Porous\+Media\+ID, W\+Cold, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a19324728630ae49f29d577f63d3f8523}{moduleporousmedia\+::gethead}} (Obj\+Porous\+Media\+ID, Head, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a40c5d4f62420edfa4bfd5f6ec20d6eda}{moduleporousmedia\+::getthetar}} (Obj\+Porous\+Media\+ID, ThetaR, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a13998a8a43bd8d705b0fbcf88cee6f50}{moduleporousmedia\+::getthetas}} (Obj\+Porous\+Media\+ID, ThetaS, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a80332ae529e97e277c38798d15633046}{moduleporousmedia\+::getthetaf}} (Obj\+Porous\+Media\+ID, ThetaF, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a8bdcde0305ffa37c3f25774f880927af}{moduleporousmedia\+::getunsatk}} (Obj\+Porous\+Media\+ID, UnsatK, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a03d64458de86e4672fab26f2e74233b8}{moduleporousmedia\+::getevaporation}} (Obj\+Porous\+Media\+ID, Evaporation, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ad069d36e784e065b5145cf9e5a29e786}{moduleporousmedia\+::gettranspiration}} (Obj\+Porous\+Media\+ID, Transpiration, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ac5c8b09a721ba8f3b2b3610d90098651}{moduleporousmedia\+::getevtpvolumes}} (ID, Evaporation, Transpiration, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_af76c86e60836074eb54ae108e4cbb7e5}{moduleporousmedia\+::getpmboundaryflowvolume}} (ID, Acc\+Boundary\+Flow\+Volume, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a92e48a5d06b01af62070aecdf43d84e8}{moduleporousmedia\+::getpmstoredvolume}} (ID, Stored\+Volume, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ab3b8a6941c7523cd30e46b5a95be57de}{moduleporousmedia\+::getignorewatercolumnonevap}} (Obj\+Porous\+Media\+ID, Ignore\+Water\+Column\+On\+Evap, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a7ef0de747f82c7f61108e9f6033b260d}{moduleporousmedia\+::getboundaryimposed}} (Obj\+Porous\+Media\+ID, Boundary\+Open, Boundary\+Walls\+Open, Boundary\+Bottom\+Open, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a50641f9d2c506813ba712d8f3ba6438d}{moduleporousmedia\+::getboundaryfluxwalls}} (Obj\+Porous\+Media\+ID, Boundary\+Flux, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ad1e02ec3a85b11609df54fd2e561da0d}{moduleporousmedia\+::getboundaryfluxbottom}} (Obj\+Porous\+Media\+ID, Boundary\+Flux, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a791a426544d46967cd83d7b81926e26a}{moduleporousmedia\+::getboundarycells}} (Obj\+Porous\+Media\+ID, Boundary\+Cells, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ab9c801f3c5442ad39e9dcb57a60fe017}{moduleporousmedia\+::getwatercontentforhead}} (id, head, array, mask, stat)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ab411441ee4f139b7e2efb9f91cad1778}{moduleporousmedia\+::getpmobjmap}} (id, obj, stat)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a4733e16297b69cfac43e1f2f0cd30381}{moduleporousmedia\+::getthetafield}} (Obj\+Porous\+Media\+ID, Theta\+Field, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_ae3c2ce61a7783cf1653e19109914fe29}{moduleporousmedia\+::getcomputesoilfield}} (Obj\+Porous\+Media\+ID, Compute\+Soil\+Field, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a3070d5af7ef46dbbb22e63098a25f566}{moduleporousmedia\+::getlimitthetalow}} (Obj\+Porous\+Media\+ID, Limit\+Theta\+Low, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a90cbc92ae3cf9c9c828403c5fdc6c414}{moduleporousmedia\+::ungetporousmedia\+\_\+r4}} (Obj\+Porous\+Media\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a4341a39680ae8538342f20cb21df9b6a}{moduleporousmedia\+::ungetporousmedia\+\_\+r8}} (Obj\+Porous\+Media\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a762615c8c034a45d738dd8a156eeed72}{moduleporousmedia\+::ungetporousmedia\+\_\+r}} (Obj\+Porous\+Media\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ac6425bf5e26a5219b8c52bbabeda12ce}{moduleporousmedia\+::ungetporousmedia\+\_\+r1}} (Obj\+Porous\+Media\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a1ceb6ca7f8349192893a0bd63cf7403d}{moduleporousmedia\+::ungetporousmedia\+\_\+ri}} (Obj\+Porous\+Media\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ad36e11e27240926924cf03325b9a47bc}{moduleporousmedia\+::ungetporousmedia\+\_\+ai}} (Obj\+Porous\+Media\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a287c849b30a2dc7af1280cf983edfb8d}{moduleporousmedia\+::ungetporousmedia\+\_\+ai2d}} (Obj\+Porous\+Media\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a382cfd35fca1c040d9c4d2fb68011276}{moduleporousmedia\+::modifyporousmedia}} (Obj\+Porous\+Media\+ID, Infiltration\+Column, Potential\+Evaporation, Actual\+Transpiration, Imposed\+Infiltration, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a7f0fec21916c2f7aad9c56e3af1c8cae}{moduleporousmedia\+::computeintegration}} (Local\+DT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a616ff2e8e3230ac9ca5923369b4d8cfc}{moduleporousmedia\+::variablesaturatedflow}} (Infiltration\+Column)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a1a0af39f7098b5de11c64c15cb6f4c39}{moduleporousmedia\+::modifywaterdischarges}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a981859707e33f26a3f78d09d6f170f12}{moduleporousmedia\+::insertinfiltrationonfluxmatrix}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a25f85d61b730aa85aca7f9dded8b38b5}{moduleporousmedia\+::calculatemeanflows}} (iterations)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a96f689b9636ed899f8e42b8e37d1e63d}{moduleporousmedia\+::accumulateflows}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_ae1f8e4af55c2c1a3cad5db62a53c9041}{moduleporousmedia\+::computenextdt}} (Niter)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a717a5b2d4249d602f98474f7a4c24665}{moduleporousmedia\+::soilwatervelocity}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ab6c499954f98c7268ff499c927952622}{moduleporousmedia\+::computefinalhead}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a42b31332e78c6e4efb8f6b4c8c1bc569}{moduleporousmedia\+::infiltrationvelocity}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ad749502c076b86d6579522e1a1377e65}{moduleporousmedia\+::soilwaterflux}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a702433cf8268af2b48ad2dff405d1202}{moduleporousmedia\+::condutivity\+\_\+face}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_af9319c9dde3c764e53801191ae902220}{moduleporousmedia\+::condutivityaverage}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_ae2e67be2f15dbdf148268d5b0fe82c68}{moduleporousmedia\+::condutivitymaximum}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_acd65a0f6af171e6aea2cd5784f58fcc3}{moduleporousmedia\+::condutivityminimum}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_addae947f6fd1fa818093524bef8b0716}{moduleporousmedia\+::condutivitygeometricaverage}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a9e2789b14ba4547dcad30834e1068477}{moduleporousmedia\+::evaporationflux}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a659c3fab21d457aee320269fbc101787}{moduleporousmedia\+::calculatenewtheta}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a65ff629d0c1ef9ecd5231bc72cc38c06}{moduleporousmedia\+::integratevaluesintime}} (Sum\+DT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ad3dd92d2f8b726911dbb895f480b0725}{moduleporousmedia\+::integratedischargeflow}} (Sum\+DT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a5232e9d01e4dffac7d88f9b9d10ddc3f}{moduleporousmedia\+::updatewatercolumninfiltration}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a06efe35a5a85d34f8db82ebe144c1def}{moduleporousmedia\+::updateefectiveevtp}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ab03d5744de85ffec6652ff0b88896f38}{moduleporousmedia\+::integrateflow}} (Sum\+DT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_ac37dcb693dc313ce78306c5294823662}{moduleporousmedia\+::soilparameters}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ae17de838533d1f706a81845e023fcec8}{moduleporousmedia\+::checkcompletestupidsolution}} (Is\+Stupid, Correct\+Theta)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a6005172f093c0d9ccafbe25e15b30383}{moduleporousmedia\+::checkstability}} (Restart)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ab71e22750d7cb57370aeec645454d816}{moduleporousmedia\+::debugstability}} (i, j, k, variation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a406def0f9f49282ca709c13afe389dff}{moduleporousmedia\+::verticalcontinuity}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ad5fbeb4f9729104026e34d772e57be70}{moduleporousmedia\+::correctfinalhead}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_aefd72c2c51be03528321ec53d37a595c}{moduleporousmedia\+::logdt}} (iteration)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a38214dbc89926ed05dfa7d3831f6fc5a}{moduleporousmedia\+::modifyboundaryflux}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a3ba8c32bae3dfce05b772d49374e1381}{moduleporousmedia\+::calculateugwaterlevel}}
+\item 
+real function \mbox{\hyperlink{namespacemoduleporousmedia_a8bee2fc4ac5baf4e997680a0b63e34b3}{moduleporousmedia\+::head\+\_\+}} (thf, Soil\+ID)
+\item 
+real function \mbox{\hyperlink{namespacemoduleporousmedia_a3c4b0e307933259bb0fd3bb97624a021}{moduleporousmedia\+::head\+\_\+slope\+\_\+}} (th, Soil\+ID)
+\item 
+real function \mbox{\hyperlink{namespacemoduleporousmedia_a61fe4c9d6a8bf021bfbb5ae3ba5e548e}{moduleporousmedia\+::theta\+\_\+}} (head, Soil\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a01d07c2251d4f4c42f4f695af824a478}{moduleporousmedia\+::computethetaforhead}} (head, array, mask)
+\item 
+real function \mbox{\hyperlink{namespacemoduleporousmedia_ada12066e158a338a6444954f0da815e1}{moduleporousmedia\+::thetaf\+\_\+}} (th, Soil\+ID)
+\item 
+real function \mbox{\hyperlink{namespacemoduleporousmedia_a27a116705cfa7c67ac33a00726529cfa}{moduleporousmedia\+::unsatk\+\_\+}} (thf, Soil\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a448128120b85135d0a29b8fbdb5a0b1e}{moduleporousmedia\+::exchangewithdrainagenet\+\_\+1}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a7459ca0efe1499228194caae424c0f28}{moduleporousmedia\+::exchangewithdrainagenet\+\_\+2}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a3a50b72fe18c884e4924b75c7d58d2c6}{moduleporousmedia\+::exchangewithdrainagenet\+\_\+3}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ae9d86bed181ca34fa5ffb39235e588fc}{moduleporousmedia\+::getlayerslimits\+\_\+2}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a68ea6f414786e8b58ce6e1091b663f76}{moduleporousmedia\+::getlayerslimits\+\_\+3}}
+\item 
+real function \mbox{\hyperlink{namespacemoduleporousmedia_a6c8a46ce1fd00d13bf974507ac525cb8}{moduleporousmedia\+::buckinghamdarcyequation}} (con, hinf, hsup, delta)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a349fd0e731f948138864367a533ec7aa}{moduleporousmedia\+::integrationoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a2bde5212b61a523c797e44d2787e0e7d}{moduleporousmedia\+::porousmediaoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a25ea91b53937b18722679c44410dd4db}{moduleporousmedia\+::outputtimeseries}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a929b6fbd1b7c5c387333ef5f2d508c18}{moduleporousmedia\+::profileoutput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ae3a3e980159413f4ef5a35c8b4763aa6}{moduleporousmedia\+::computeboxeswaterfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a445b7f7d63644c6c7b90d76b56175868}{moduleporousmedia\+::calculatetotalstoredvolume}} (Write\+Out)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmedia_a0935fa1b37d6d9dcbd156944ae27cbe3}{moduleporousmedia\+::killporousmedia}} (Obj\+Porous\+Media\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_a98c9f7f64e2362f9f4a6d161dc8a7c99}{moduleporousmedia\+::writefinalfile\+\_\+bin}} (Is\+Final\+File)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_aa65138badcf5c2f27aad4149d87bcd10}{moduleporousmedia\+::writefinalfile\+\_\+hdf}} (Is\+Final\+File)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a7941341d1b0822b150125db812b3fc76}{moduleporousmedia\+::deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_a9773f71db5ddd0e9b7ddeac94fc33e39}{moduleporousmedia\+::ready}} (Obj\+Porous\+Media\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmedia_ac6ac9e34fbd80443bbf33b5006e8b25e}{moduleporousmedia\+::locateobjporousmedia}} (Obj\+Porous\+Media\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_acfd0df7c0db51fe2a9c3ab697d07b548}{moduleporousmedia\+::readlockexternalvar}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmedia_ade70c21b16e6288bf0e789900f845c5a}{moduleporousmedia\+::readunlockexternalvar}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a5730b454f11628ff395e43c5a795d3d7}{moduleporousmedia\+::average}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_aaa8cb214ea1121336b19f217f44e094d}{moduleporousmedia\+::maximum}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_aeacb9ecf515364a343f1c8807d0d03a8}{moduleporousmedia\+::minimum}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a65d641f3f69c2f8685c3dc6620a53cdc}{moduleporousmedia\+::weighted}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_adb7574495c916a0ce17e626b67eda28b}{moduleporousmedia\+::geometricavg}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a9dbee5252241abf509cd0d987d379a8e}{moduleporousmedia\+::singleevapotranspiration}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_ab621a4e17a5e9b199140296dc23c46dc}{moduleporousmedia\+::separateevapotranspiration}} = 2
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a4e3d5ff3f6291d44bcd01d8f0357cf5f}{moduleporousmedia\+::minugthickness}} = 0.\+10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_ab6920bd67d176c0022920b53355df066}{moduleporousmedia\+::triangulation\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a3940ae95403224b561f66cef3c75aaab}{moduleporousmedia\+::inverseweight\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a4867a391fa2e9b3c575ab6606ed45e1b}{moduleporousmedia\+::nointerpolation\+\_\+}} = 3
+\item 
+character(len=9), parameter \mbox{\hyperlink{namespacemoduleporousmedia_a9e5f5886dde3038543ba592a0f590876}{moduleporousmedia\+::fromtimeserie}} = \textquotesingle{}T\+I\+M\+E\+S\+E\+R\+IE\textquotesingle{}
+\item 
+character(len=12), parameter \mbox{\hyperlink{namespacemoduleporousmedia_a04422be8d50537a662c44bd12eaca375}{moduleporousmedia\+::singlevalue}} = \textquotesingle{}C\+O\+N\+S\+T\+A\+NT\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleporousmedia_af22fc91889b7575174928fbaace1bf8d}{moduleporousmedia\+::char\+\_\+theta}} = trim(adjustl(\textquotesingle{}Theta\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleporousmedia_a06f39391019fe9f68e0830e66d8d30dd}{moduleporousmedia\+::char\+\_\+soilid}} = trim(adjustl(\textquotesingle{}Soil\+ID\textquotesingle{}))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleporousmedia_a60c5e507d9236adaed3b8caee85cb0ec}{moduleporousmedia\+::char\+\_\+waterlevel}} = trim(adjustl(\textquotesingle{}waterlevel\textquotesingle{} ))
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_aeaa5af14db3a8d6228eac80c7211c516}{moduleporousmedia\+::satcond\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a481df84cb04f10c7675c50d66767c218}{moduleporousmedia\+::unsatcond\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a891aed761f4141d1e05c29c1862dd3e0}{moduleporousmedia\+::nullgradient\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a8bebb0b791a472f99c709f85976dde27}{moduleporousmedia\+::gwflowareawetperimeter\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a73014666c1653e31d4f9322e0b6d07de}{moduleporousmedia\+::gwflowareawetperimeterandaquifer\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_afac9099ee4b4a056a09dac528e6d391c}{moduleporousmedia\+::bin\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmedia_a08e7e01d3e63f79377cf1be17529922d}{moduleporousmedia\+::hdf\+\_\+}} = 2
+\item 
+type(t\+\_\+porousmedia), pointer \mbox{\hyperlink{namespacemoduleporousmedia_adce3f6c3cf611a0ec921e0f59f8564fd}{moduleporousmedia\+::firstobjporousmedia}}
+\item 
+type(t\+\_\+porousmedia), pointer \mbox{\hyperlink{namespacemoduleporousmedia_a3e17aaf8157066d02072051194e1dcb0}{moduleporousmedia\+::me}}
+\end{DoxyCompactItemize}

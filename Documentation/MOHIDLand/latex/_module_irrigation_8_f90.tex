@@ -1,0 +1,186 @@
+\hypertarget{_module_irrigation_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Irrigation.F90 File Reference}
+\label{_module_irrigation_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Irrigation.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Irrigation.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemoduleirrigation_1_1ungetirrigation}{moduleirrigation\+::ungetirrigation}}
+\item 
+type \mbox{\hyperlink{structmoduleirrigation_1_1t__output}{moduleirrigation\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleirrigation_1_1t__accoutput}{moduleirrigation\+::t\+\_\+accoutput}}
+\item 
+type \mbox{\hyperlink{structmoduleirrigation_1_1t__irriproperty}{moduleirrigation\+::t\+\_\+irriproperty}}
+\item 
+type \mbox{\hyperlink{structmoduleirrigation_1_1t__dailyschedule}{moduleirrigation\+::t\+\_\+dailyschedule}}
+\item 
+type \mbox{\hyperlink{structmoduleirrigation_1_1t__irrischedule}{moduleirrigation\+::t\+\_\+irrischedule}}
+\item 
+type \mbox{\hyperlink{structmoduleirrigation_1_1t__files}{moduleirrigation\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleirrigation_1_1t__irrigationdata}{moduleirrigation\+::t\+\_\+irrigationdata}}
+\item 
+type \mbox{\hyperlink{structmoduleirrigation_1_1t__irrigation}{moduleirrigation\+::t\+\_\+irrigation}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemoduleirrigation}{moduleirrigation}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleirrigation_a1533651367025ce2df52f548e83ecf32}{moduleirrigation\+::constructirrigation}} (Model\+Name, id, Compute\+Time\+ID, Horizontal\+Grid\+ID, Horizontal\+Map\+ID, Grid\+Data\+ID, Basin\+Geometry\+ID, Geometry\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleirrigation_abf07b20393874412d5ace40cf035088a}{moduleirrigation\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleirrigation_ae53033583e6896d868b4b65aa406c69f}{moduleirrigation\+::readdatafile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleirrigation_af29d54feea0c7cea86e11b179c4a36a3}{moduleirrigation\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleirrigation_ae48537ba7c81436db04d271739290617}{moduleirrigation\+::initializevariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_aa85b5fec6716d256db1e856f29f36468}{moduleirrigation\+::checkconfiguration}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a6339c6a7568266fb2911688be44e1957}{moduleirrigation\+::constructschedules}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a46de92ffaac8fbd782bdcdf682a48601}{moduleirrigation\+::constructschedule}} (new\+\_\+schedule, client\+\_\+number)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a3c38f9eb6c59407d288913caba5f6569}{moduleirrigation\+::constructproperties}} (new\+\_\+schedule, client\+\_\+number)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_ab5de3f1600faba7f4c6ae843ce15e5e3}{moduleirrigation\+::constructinternalproperties}} (new\+\_\+schedule)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_ae801aa6c2bc91136e80b57fea94668d1}{moduleirrigation\+::constructinternalproperty}} (new\+\_\+schedule, new\+\_\+property, name, old, save\+\_\+to\+\_\+final\+\_\+file)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a777c0e9f94d23db57aa011c352cc06d9}{moduleirrigation\+::constructproperty}} (new\+\_\+schedule, new\+\_\+property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a13b8da4174e7efc86d8f045b78cd51fe}{moduleirrigation\+::checkirripropertyname}} (new\+\_\+schedule, new\+\_\+property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_afc426b9dbadbb0d592b750d75f2bedfc}{moduleirrigation\+::constructpropertyvalues}} (new\+\_\+schedule, new\+\_\+property, is\+\_\+internal)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a992b40277b2c8bae0924d2f8aa1534ec}{moduleirrigation\+::addproperty}} (new\+\_\+schedule, new\+\_\+property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a27adbd031b4482b018dcd962be92a681}{moduleirrigation\+::readoldvaluefromhdf}} (new\+\_\+schedule, new\+\_\+property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_af6e24627c25064683d994b7a6fc66c6d}{moduleirrigation\+::constructdailyschedules}} (schedule, obj\+\_\+hdf)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a2334c75854146c9d46127bcb0e0c54f2}{moduleirrigation\+::openinitialfile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a8b1ff94a2633495022dd8e0f95fd56a6}{moduleirrigation\+::closeinitialfile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_af6d787a11912e264ab8d53cc1b691f1c}{moduleirrigation\+::constructtimeseriesoutput}}
+\item 
+real function, public \mbox{\hyperlink{namespacemoduleirrigation_aa24ee945c35012ad9d3790d40cbd02ab}{moduleirrigation\+::getirrigationdtfornextevent}} (id, stat)
+\item 
+logical function, public \mbox{\hyperlink{namespacemoduleirrigation_a051749a8f8467229fbb8e6e300b32c9d}{moduleirrigation\+::getirrigationpmisrequired}} (id, stat)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleirrigation_a64c49f7b68195826fe0693bf10d5cc26}{moduleirrigation\+::getirrigationthresholds}} (id, start\+\_\+head, target\+\_\+head, schedule\+\_\+id, mask, finish, stat)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleirrigation_a23127929f74fe2c391dc8ddec9c8d44d}{moduleirrigation\+::getirrigationrequirements}} (id, roots\+\_\+depth, roots\+\_\+klb, soil\+\_\+water\+\_\+content, soil\+\_\+head, stat)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleirrigation_affdb4d2e7e0c67d2c459ff6596babad9}{moduleirrigation\+::getirrigationflux}} (id, irrigation, stat)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleirrigation_a7a8a56e2b5c74ba0280ecb4abe6cc726}{moduleirrigation\+::setirrigationthresholds}} (id, schedule, start\+\_\+wc, target\+\_\+wc, mapping, stat)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleirrigation_a6f3edc54a431fcfb5b0676e0e83f9113}{moduleirrigation\+::ungetirrigation2d\+\_\+r4}} (id, array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleirrigation_a05ab21ff0a3d20f186805f3b6d100c9a}{moduleirrigation\+::ungetirrigation2d\+\_\+r8}} (id, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleirrigation_a1b4b8c33ee265298e1bf3cb4d19f6762}{moduleirrigation\+::modifyirrigation}} (id, data, stat)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_adfeefc8d9f9d754a3a3c503b77e8b3e9}{moduleirrigation\+::computenextdt}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a3bf1e9298115d3f00376f1288687113b}{moduleirrigation\+::findrootsklb}} (schedule, roots\+\_\+depth, lai\+\_\+senescence)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_ad1bea8412119ae05c2eb3e177bcaed44}{moduleirrigation\+::computeirrigationbysteps}} (schedule)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a199776e3a4c64d2997f9a5b51681d1f6}{moduleirrigation\+::computecontinuousirrigation}} (schedule)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a5e72e31f9329f22de3b6ae1142d2371c}{moduleirrigation\+::updateirrigation}} (schedule)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a80324762e72192acef959aaff9c21571}{moduleirrigation\+::removeolddailyschedules}} (schedule)
+\item 
+logical function \mbox{\hyperlink{namespacemoduleirrigation_a4eb93ff5b528eade2a9dc76c368c8076}{moduleirrigation\+::cancomputeirrigationneeds}} (schedule)
+\item 
+logical function \mbox{\hyperlink{namespacemoduleirrigation_a3c849d3ae9b8a9b5488e452d7fb9490e}{moduleirrigation\+::setcomputepoints}} (schedule, compute\+\_\+points)
+\item 
+logical function \mbox{\hyperlink{namespacemoduleirrigation_aac246bcb2688c75d66da1daaa6234e3f}{moduleirrigation\+::isirrigationscheduledfortoday}} (schedule)
+\item 
+logical function \mbox{\hyperlink{namespacemoduleirrigation_aac6fd8245bfb3f2dff30adb8ac0e5d2d}{moduleirrigation\+::issurfacesaturated}} (schedule, i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a056efe3e9f80f4703447f224848ebd47}{moduleirrigation\+::setupdailyschedule}} (schedule, irrigation)
+\item 
+real function \mbox{\hyperlink{namespacemoduleirrigation_ada3092907de79d715950bd53c82fd943}{moduleirrigation\+::computeirrigationneed}} (schedule, compute\+\_\+points)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_ad1b1ec0e0230931e65e80ed64cb0fa86}{moduleirrigation\+::readpropertiesfromfile}} (schedule)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleirrigation_a70eefa9249ea662d2b9debe983aee68e}{moduleirrigation\+::readlockexternalvar}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleirrigation_aec61adf79fc09c9fdc6f2f4a521e6549}{moduleirrigation\+::readunlockexternalvar}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_af7ed2c0b32e93ac914c21fd4aa075fb6}{moduleirrigation\+::updateoutputtimeseries}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_ae415b72207ef4095b22ebc9437d78482}{moduleirrigation\+::writerestartfile}} (is\+\_\+last)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_acc9d2d1967203bbf775af6570c0abd70}{moduleirrigation\+::adddailyscheduletolist}} (schedule, daily\+\_\+schedule)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_ac485f39127c7b84771cf5b8e2a64e5d7}{moduleirrigation\+::removedailyschedulefromlist}} (schedule, daily\+\_\+schedule)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleirrigation_acef69ff6504c99d5478be81efeab79fe}{moduleirrigation\+::killirrigation}} (id, stat)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleirrigation_a01348df0fa0c9f40c6462d69d05b875b}{moduleirrigation\+::deallocateinstance}} ()
+\item 
+integer function, private \mbox{\hyperlink{namespacemoduleirrigation_afbdbea5850d2436e5bbe8f9fb8da65bd}{moduleirrigation\+::ready}} (id)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleirrigation_ae56505ddeb0553538b6cc26774184d2a}{moduleirrigation\+::locateobjirrigation}} (id)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a3b553457a1005642e2ac59eb843de92a}{moduleirrigation\+::startheadthreshold\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a43d8aa216adc2cd9b9db5c2aa1f90348}{moduleirrigation\+::startheadlimitthreshold\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_ab4cd763a1789ba18e00c7dae6547325f}{moduleirrigation\+::endheadthreshold\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a7c52a4d567422946329e7dffa6698cd7}{moduleirrigation\+::minimumintervalbetweenevents\+\_\+}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_ae5b31d672d8c4384b45e3ae223caf4c5}{moduleirrigation\+::startinstantthreshold\+\_\+}} = 7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a1ad7dafe571fb7b8c766b6d5c9c91731}{moduleirrigation\+::geartype\+\_\+}} = 8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_ab50ffa53613e9117da8236fe72ef8e20}{moduleirrigation\+::gearefficiency\+\_\+}} = 9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a469ab4816f9930b188249666036ab2c0}{moduleirrigation\+::debit\+\_\+}} = 10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a4715bb03155d7869bc30822df5a48104}{moduleirrigation\+::position\+\_\+}} = 11
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a7554b7e361ce512902bddcb3bc6f8f11}{moduleirrigation\+::secondstoeventend\+\_\+}} = 13
+\item 
+character(20), parameter \mbox{\hyperlink{namespacemoduleirrigation_a308de16d1c9334b19953d80706843c0f}{moduleirrigation\+::beginschedule}} = \char`\"{}$<$Begin\+Schedule$>$\char`\"{}
+\item 
+character(20), parameter \mbox{\hyperlink{namespacemoduleirrigation_a60900c938a0d92ac18e3459bf54ee951}{moduleirrigation\+::endschedule}} = \char`\"{}$<$End\+Schedule$>$\char`\"{}
+\item 
+character(20), parameter \mbox{\hyperlink{namespacemoduleirrigation_a7b9cd689d449001080ee8306937e548b}{moduleirrigation\+::beginirriprop}} = \char`\"{}$<$Begin\+Property$>$\char`\"{}
+\item 
+character(20), parameter \mbox{\hyperlink{namespacemoduleirrigation_a65b1bc6c0161df8127aa3f2e0700aa0f}{moduleirrigation\+::endirriprop}} = \char`\"{}$<$End\+Property$>$\char`\"{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_af18536531d1a60d197cbd139c29b6a23}{moduleirrigation\+::fixedirrigation}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a6f420362ee468739eb03ec59c6122a8b}{moduleirrigation\+::irrigationbysteps}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a3f1f1153accbe98bce266d510f0f4040}{moduleirrigation\+::continuousirrigation}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_add295bc7a511d04311da8b9a1a8c7d86}{moduleirrigation\+::centerpivot}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_a932e0690fe4a0a49e49dc227e2125ce8}{moduleirrigation\+::linearpivot}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_acd46c6a54f736c193beab3bdd802c697}{moduleirrigation\+::sprinkler}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_acd6586cdd0a8288da599088d54558cc5}{moduleirrigation\+::gravitysystem}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleirrigation_af19cd97530363d4eae8f7dee720ca806}{moduleirrigation\+::dripirrigation}} = 5
+\item 
+type(t\+\_\+irrigation), pointer \mbox{\hyperlink{namespacemoduleirrigation_a75d41f9a105660aa75946ab5de6c746c}{moduleirrigation\+::firstobjirrigation}} =$>$ null()
+\item 
+type(t\+\_\+irrigation), pointer \mbox{\hyperlink{namespacemoduleirrigation_a82eeda1d7ba69cfca539fcb735102ccf}{moduleirrigation\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

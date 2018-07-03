@@ -1,0 +1,13 @@
+<map id="moduleoil::ready" name="moduleoil::ready">
+<area shape="rect" id="node2" href="$namespacemoduleoil.html#a65a42d1b037b7effaac748ed9de641b9" title="moduleoil::startoil" alt="" coords="216,5,340,32"/>
+<area shape="rect" id="node3" href="$namespacemoduleoil.html#a957aec9748df48f4722e500b1f600985" title="moduleoil::getoildensityoil" alt="" coords="193,56,363,83"/>
+<area shape="rect" id="node4" href="$namespacemoduleoil.html#abeaffbf39f30e3630cefa9fdf3a69e82" title="moduleoil::getoilapi" alt="" coords="211,107,345,133"/>
+<area shape="rect" id="node5" href="$namespacemoduleoil.html#a110af1cd38e3c7128a98fb3d2bed2fdb" title="moduleoil::getoilspreadingvelocity" alt="" coords="171,157,385,184"/>
+<area shape="rect" id="node6" href="$namespacemoduleoil.html#ab0850c594da69306ab36555f8971e6e4" title="moduleoil::getoilspreading" alt="" coords="192,208,364,235"/>
+<area shape="rect" id="node7" href="$namespacemoduleoil.html#a2fe92325448f8b8b46f0b9a6c44129c1" title="moduleoil::ungetoil" alt="" coords="213,259,343,285"/>
+<area shape="rect" id="node8" href="$namespacemoduleoil.html#a4b104a789e2f264a4494966c5b9a47fd" title="moduleoil::oilinternalprocesses" alt="" coords="178,309,378,336"/>
+<area shape="rect" id="node9" href="$namespacemoduleoil.html#aa53749d5416d21d1602ffd0208f0f8f2" title="moduleoil::oilactiveprocesses" alt="" coords="183,360,373,387"/>
+<area shape="rect" id="node10" href="$namespacemoduleoil.html#a3515505fcda962cedd51dd5986ff6777" title="moduleoil::killoil" alt="" coords="221,411,335,437"/>
+<area shape="rect" id="node11" href="$namespacemoduleoil.html#afaa341d33088f674ca74e6ac763daa2d" title="moduleoil::writefinaloil" alt="" coords="204,461,352,488"/>
+<area shape="rect" id="node12" href="$namespacemoduleoil.html#aaa3a2256f78ae25e941bfe7a937c796b" title="moduleoil::readfinaloil" alt="" coords="205,512,351,539"/>
+</map>

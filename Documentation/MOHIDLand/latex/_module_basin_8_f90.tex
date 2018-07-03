@@ -1,0 +1,206 @@
+\hypertarget{_module_basin_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Basin.F90 File Reference}
+\label{_module_basin_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Basin.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Basin.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__output}{modulebasin\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__coupling}{modulebasin\+::t\+\_\+coupling}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__extvar}{modulebasin\+::t\+\_\+extvar}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__extupdate}{modulebasin\+::t\+\_\+extupdate}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__files}{modulebasin\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__integratedflow}{modulebasin\+::t\+\_\+integratedflow}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__propmassbalance}{modulebasin\+::t\+\_\+propmassbalance}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__basinproperty}{modulebasin\+::t\+\_\+basinproperty}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__propertyb}{modulebasin\+::t\+\_\+propertyb}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__simpleinfiltration}{modulebasin\+::t\+\_\+simpleinfiltration}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel}{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__watermassbalance}{modulebasin\+::t\+\_\+watermassbalance}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__basinwaterbalance}{modulebasin\+::t\+\_\+basinwaterbalance}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__integration}{modulebasin\+::t\+\_\+integration}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__basindt}{modulebasin\+::t\+\_\+basindt}}
+\item 
+type \mbox{\hyperlink{structmodulebasin_1_1t__basin}{modulebasin\+::t\+\_\+basin}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulebasin}{modulebasin}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulebasin_a51d97ade316802f4f499db0fb3835e3f}{modulebasin\+::constructbasin}} (Obj\+Basin\+ID, Obj\+Time, Model\+Name, Stop\+On\+Bathymetry\+Change, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a59f6b3609f5cf292bc0d40591c8d6d33}{modulebasin\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a78bcec6c944663f5c555c4799011fd8f}{modulebasin\+::readfilenames}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_af9f507847046c6d52d84d57c39911669}{modulebasin\+::readdatafile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a6de1170114b38ad6db725fe89c8cd2bd}{modulebasin\+::verifyoptions}} (Warning\+String)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a0b7274cf3bbde399251125f839f59767}{modulebasin\+::constructsimpleinfiltration}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a5a5342d9e5be44e9161d8d4643071661}{modulebasin\+::constructscscnrunoffmodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a5a3aa456544a0c67f38a3d3655071347}{modulebasin\+::constructoneproperty}} (New\+Property, Property\+Name, Block\+Begin, Block\+End)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a3d6f3d514121b3b20c1b2d2ec4c56fa9}{modulebasin\+::constructdiffusewatersource}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_ad767dee07579ea3a5545d747a0d7cfcf}{modulebasin\+::constructhdf5output}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a485c76ff915dee4b9ba1ca5c7e79d462}{modulebasin\+::constructtimeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_abec73ddab1c13a2f52007dbd7a5adf56}{modulebasin\+::constructevtphdfoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a86eb7d3c4f70fdc55c9b4a4945a8ad9b}{modulebasin\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a3b96c67f2670be0a100bc48d94ecb93d}{modulebasin\+::constructcoupledmodules}} ( \+\_\+\+E\+N\+A\+B\+L\+E\+\_\+\+C\+U\+DA
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a914a8d07507d5ca843132c144c8e61f7}{modulebasin\+::constructpropertylist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_afc1a708f812fbecd655d2ec2ec7d7ae7}{modulebasin\+::constructproperty}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a65271cf9b17250a778002a527ee4c253}{modulebasin\+::construct\+\_\+propertyvalues}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_ad6d474b32a2a819360f61e25e869f0bd}{modulebasin\+::addproperty}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a4ea226fec981510a8e050dbe3bc285ab}{modulebasin\+::readinitialfile\+\_\+bin}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a52545eff06912899ced860eb99799977}{modulebasin\+::readinitialfile\+\_\+hdf}} ()
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulebasin_a5ce7ee123ed0331d3bcb0ba4db4a9797}{modulebasin\+::modifybasin}} (Obj\+Basin\+ID, New\+DT, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a1dc5e66cf881f77967c196e5413f7ff2}{modulebasin\+::atmosphereprocesses}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a4c084fc559ce2dc2a135a4e171d15024}{modulebasin\+::divideprecipitation}} (Precipitation\+Flux, Irrigation\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a112f8b0445f6c2ff174a1292c9efd8c2}{modulebasin\+::calcpotevapotranspiration}}
+\item 
+real function, private \mbox{\hyperlink{namespacemodulebasin_af1790be65f99274cd923932448358912}{modulebasin\+::adjustcropcoefficient}} (I, J)
+\item 
+real function \mbox{\hyperlink{namespacemodulebasin_ac23d68c52a8a6bf444bd3ade576da5bb}{modulebasin\+::calcradterm}} (Radiation, Soil\+Loss, Wind\+Velocity, S\+S\+V\+PC, psiconst)
+\item 
+real function \mbox{\hyperlink{namespacemodulebasin_a466a2ecf0466b641fa24bb3e7847e37d}{modulebasin\+::calcaeroterm}} (Temperature, Wind, S\+S\+V\+PC, S\+VP, VP, psiconst)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a73f54ad66e54b432898b7261a7ba0969}{modulebasin\+::updatevegconcentration}} (Warning\+String)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a9ece838b83c6e7f083c271a95dbb460f}{modulebasin\+::divideprecipitationmassfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a8345c242b1aed1c95c3779596054b89f}{modulebasin\+::vegetationprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a7c47f016b2561d84dff67a1089c6c8f0}{modulebasin\+::simpleinfiltration}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_aa0b9eaedf50e780116499db9c0c35730}{modulebasin\+::scscnrunoffmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a4732062e95bfb4656920c8c89a412510}{modulebasin\+::overlandprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a19824f46960f411ab472a65b6e3a9d2e}{modulebasin\+::snowprocesses}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_ab83592a7be03719e664d5eb440853228}{modulebasin\+::drainagenetworkprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a2d6933b0b62fd8ddf365de6af6309c1c}{modulebasin\+::reservoirsprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_af1ae0091980128250cba6871d67a941c}{modulebasin\+::irrigationprocesses}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_aea9e156b76b5f88b91a7c975b33694ac}{modulebasin\+::porousmediaprocesses}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_abe3651d838039c895cf2f2192597ff85}{modulebasin\+::porousmediapropertiesprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a0d5f24ad034e1da333cb8086aba4bf1f}{modulebasin\+::runoffpropertiesprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a6b7803a58ac882de2847f5af4c47cf02}{modulebasin\+::actualizewatercolumn}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a3ad94088588cc4ac448ba73dc73a3f61}{modulebasin\+::actualizewatercolumnconc}} (Warning\+String)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a106653309e017391895ef068b14bfdc2}{modulebasin\+::computemassinflow}} (Warning\+String, R\+P\+Concentration, Prop\+ID, Particulate, Mass\+In\+Flow)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a2c7426bfbfa1e3a2540f18b8e04ec4b5}{modulebasin\+::removewatercolumn}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a51eb37f44f2fb4685ca3ed3454156732}{modulebasin\+::getstoredvolumes}} (instant)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_af1427c4ade7156552be2283259050d1d}{modulebasin\+::calculatemass}} (Time)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a5d090cabe217c5ee21e1b627217a129f}{modulebasin\+::timeserieoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a728974f3cdc06d12227aa4b65b29b574}{modulebasin\+::hdf5output}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_ac386c2a8b57550077a00db68e3c300ab}{modulebasin\+::evtphdfoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_ac258b876198ebb36e6bb2b0fd0399158}{modulebasin\+::globalmasserror}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a9ef4a0de552e03dfcc7dc780e6162af7}{modulebasin\+::computeintegration}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_ad852fa9f51f06a8aad01fbf81cfd7015}{modulebasin\+::computebasinwaterbalance}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_a00fd3009ac96d7478c5ad365f4438954}{modulebasin\+::calculatevegtotalstoredmass}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a3f14e909944d51caacaf3104b755d817}{modulebasin\+::computenextdt}} (New\+DT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulebasin_a766c9c7d623f8a8392b3ed324921f71c}{modulebasin\+::killbasin}} (Obj\+Basin\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_ab2ed3d304db416a0172609e73be05bd4}{modulebasin\+::writefinalfile\+\_\+bin}} (Is\+Final\+File)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_af6daa86ceef2fea67fa23aaebaf588f1}{modulebasin\+::writefinalfile\+\_\+hdf}} (Is\+Final\+File)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a1aae2d1fbf8f2ccffa519261e67515b3}{modulebasin\+::deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_afed1d3ff36b21d7528bddef4df954906}{modulebasin\+::ready}} (Obj\+Basin\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_a44bb775ef055614008b8afd7ca4b77f4}{modulebasin\+::locateobjbasin}} (Obj\+Basin\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulebasin_aa2e4e95b7bf5ee3e53a64d7f2269c946}{modulebasin\+::searchproperty}} (PropertyX, Property\+X\+I\+D\+Number, Print\+Warning, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_adebce1a3581c733f01c10813a94c4dea}{modulebasin\+::readlockexternalvar}} (Lock\+To\+Which\+Modules, Options\+Type)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulebasin_aff09c4da760fd9cda4b797242d7ff522}{modulebasin\+::readunlockexternalvar}} (Un\+Lock\+To\+Which\+Modules, Options\+Type)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulebasin_a14ea3de5b477aa2d46ac8ce040ba891c}{modulebasin\+::block\+\_\+begin}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulebasin_a2dc5a4aaf15a73086781f37d625f774d}{modulebasin\+::block\+\_\+end}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+character($\ast$), parameter \mbox{\hyperlink{namespacemodulebasin_a230ea75f89c595973578b0499383801d}{modulebasin\+::characcerrorinvolume}} = \textquotesingle{}acc. error in volume\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_a2dcbd4e7d257d1f941396190dc70d0ff}{modulebasin\+::singleevapotranspiration}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_a4b6df4471c430f67f989fae81f10890e}{modulebasin\+::separateevapotranspiration}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_aa7e35827b82168f13e8ecdcc1bf6617f}{modulebasin\+::latentheatmethod}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_a173aa2ad8e4e632e6cb9251e98c97e5d}{modulebasin\+::et0method}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_af088e3a549c4287fe37268c7b797009a}{modulebasin\+::noevaporation}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_a08406908915d785e95593b3fac62eba2}{modulebasin\+::initialinstant}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_ab601fa0c07f0bc9134f81f45d1341678}{modulebasin\+::finalinstant}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_a07f6f68a43c452ae9eef45c1933a1d20}{modulebasin\+::dormantvegetation}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_a2def264a3397d7af9334938fcadc85a1}{modulebasin\+::growingvegetation}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_ab9e149429872bd1ef4a8213cff258870}{modulebasin\+::bin\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulebasin_adfc7cbd6f69b8542c190e4a6c26df03d}{modulebasin\+::hdf\+\_\+}} = 2
+\item 
+type(t\+\_\+basin), pointer \mbox{\hyperlink{namespacemodulebasin_a5b7e2b3f3d81ecb78131059c79f1557e}{modulebasin\+::firstobjbasin}} =$>$ null()
+\item 
+type(t\+\_\+basin), pointer \mbox{\hyperlink{namespacemodulebasin_ac2c2d1c0a2e6ccb0d5e821368192a807}{modulebasin\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

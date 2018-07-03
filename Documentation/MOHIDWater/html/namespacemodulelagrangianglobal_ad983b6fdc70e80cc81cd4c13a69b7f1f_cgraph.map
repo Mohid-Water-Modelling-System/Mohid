@@ -1,0 +1,11 @@
+<map id="modulelagrangianglobal::emissionbox" name="modulelagrangianglobal::emissionbox">
+<area shape="rect" id="node2" href="$namespacemodulelagrangianglobal.html#a88f19e8e5a4b9ce0cfe45715a5e96dbc" title="modulelagrangianglobal\l::bestdomainforbox" alt="" coords="211,5,368,47"/>
+<area shape="rect" id="node3" href="$namespacemodulelagrangianglobal.html#a7c1bdff13dafe0f3f6c8cd12a1398401" title="modulelagrangianglobal\l::convert_cellij_xy" alt="" coords="211,71,368,112"/>
+<area shape="rect" id="node4" href="$namespacemodulelagrangianglobal.html#adf7a8f7c3f2d3dd4f0472f6d4d1ec56e" title="modulelagrangianglobal\l::allocatenewparticle" alt="" coords="211,136,368,177"/>
+<area shape="rect" id="node5" href="$namespacemodulelagrangianglobal.html#a619a331b54dcc8d330ab6dd05b4eae56" title="modulelagrangianglobal\l::convert_z_cellk" alt="" coords="211,201,368,243"/>
+<area shape="rect" id="node6" href="$namespacemodulelagrangianglobal.html#a75785d33db5dded34e1de495fe447eac" title="modulelagrangianglobal\l::convert_cellk_k" alt="" coords="211,267,368,308"/>
+<area shape="rect" id="node7" href="$namespacemodulelagrangianglobal.html#a2d4644f4134b54b72e810da551bd14a9" title="modulelagrangianglobal\l::insertparticletolist" alt="" coords="211,332,368,373"/>
+<area shape="rect" id="node10" href="$namespacemodulelagrangianglobal.html#ab7f2f6590a59e52fd0c30cdc7445acee" title="modulelagrangianglobal\l::convert_cellk_z" alt="" coords="211,397,368,439"/>
+<area shape="rect" id="node8" href="$namespacemodulelagrangianglobal.html#a48f3a78b845b645d04afad9baa94ac01" title="modulelagrangianglobal\l::getambientconcpartic" alt="" coords="416,332,573,373"/>
+<area shape="rect" id="node9" href="$namespacemodulelagrangianglobal.html#a21c98c8cc24ebb92a5b8821af08be797" title="modulelagrangianglobal\l::getambientconccell" alt="" coords="621,332,779,373"/>
+</map>

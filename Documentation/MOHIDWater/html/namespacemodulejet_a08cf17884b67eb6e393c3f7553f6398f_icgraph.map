@@ -1,0 +1,18 @@
+<map id="modulejet::ready" name="modulejet::ready">
+<area shape="rect" id="node2" href="$namespacemodulejet.html#abc7edc1751a89ee8c640aaea045a3d01" title="modulejet::construct_jet" alt="" coords="207,5,368,32"/>
+<area shape="rect" id="node3" href="$namespacemodulejet.html#aabae5c457f7fe1dd3d3f540d56e94877" title="modulejet::modifyjet" alt="" coords="218,56,357,83"/>
+<area shape="rect" id="node4" href="$namespacemodulejet.html#a5bd04e69691ddf86217eae82701cb7ea" title="modulejet::getplumedilution" alt="" coords="197,107,377,133"/>
+<area shape="rect" id="node5" href="$namespacemodulejet.html#a864a38eff68cbab56308586d389f202b" title="modulejet::getplumelocation" alt="" coords="195,157,379,184"/>
+<area shape="rect" id="node6" href="$namespacemodulejet.html#aace5b51fdfea28b29ddf40d44b7805b4" title="modulejet::getplumedensity" alt="" coords="197,208,378,235"/>
+<area shape="rect" id="node7" href="$namespacemodulejet.html#a6a3b06a4b31a48d3feabf8b545a6e8b2" title="modulejet::getplumesalinity" alt="" coords="197,259,377,285"/>
+<area shape="rect" id="node8" href="$namespacemodulejet.html#aa64ddb0bd7c80f966b8ec54eb9a36c7c" title="modulejet::getplumetemperature" alt="" coords="183,309,391,336"/>
+<area shape="rect" id="node9" href="$namespacemodulejet.html#ab7e7ab36f584f4edd9e7f7835d1e0cee" title="modulejet::getplumevelocity" alt="" coords="196,360,379,387"/>
+<area shape="rect" id="node10" href="$namespacemodulejet.html#a105341ffdec09f8266a68d6db9beba7f" title="modulejet::getplumemixinghorlength" alt="" coords="172,411,403,437"/>
+<area shape="rect" id="node11" href="$namespacemodulejet.html#a50ced2ba527ab243cd3228d18867695d" title="modulejet::getplumethickness" alt="" coords="190,461,385,488"/>
+<area shape="rect" id="node12" href="$namespacemodulejet.html#a81ee4e71d54b53e9b3ab94bb817d66e8" title="modulejet::getoutputmatrix" alt="" coords="199,512,375,539"/>
+<area shape="rect" id="node13" href="$namespacemodulejet.html#af33eb9ee692e4270d09338bd74aa8851" title="modulejet::getoutputheader" alt="" coords="198,563,377,589"/>
+<area shape="rect" id="node14" href="$namespacemodulejet.html#adcc462c38759f6ba6caa1b8f33479fa8" title="modulejet::getportgeometry" alt="" coords="197,613,377,640"/>
+<area shape="rect" id="node15" href="$namespacemodulejet.html#a3faa436f5c17dc03c594506d8e2e37ac" title="modulejet::ungetjetreal2d" alt="" coords="204,664,371,691"/>
+<area shape="rect" id="node16" href="$namespacemodulejet.html#aaa0ceb23e085072c0cf5693f217b27ea" title="modulejet::ungetjetchar1d" alt="" coords="202,715,373,741"/>
+<area shape="rect" id="node17" href="$namespacemodulejet.html#a98749a91e325a4b4041aa46d5abfde4e" title="modulejet::killjet" alt="" coords="229,765,345,792"/>
+</map>

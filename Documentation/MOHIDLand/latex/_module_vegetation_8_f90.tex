@@ -1,0 +1,408 @@
+\hypertarget{_module_vegetation_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Vegetation.F90 File Reference}
+\label{_module_vegetation_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Vegetation.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\+Module\+Vegetation.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemodulevegetation_1_1ungetvegetation}{modulevegetation\+::ungetvegetation}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__id}{modulevegetation\+::t\+\_\+id}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__integration}{modulevegetation\+::t\+\_\+integration}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__external}{modulevegetation\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__files}{modulevegetation\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__output}{modulevegetation\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__property}{modulevegetation\+::t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__timingdatabase}{modulevegetation\+::t\+\_\+timingdatabase}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__growthdatabase}{modulevegetation\+::t\+\_\+growthdatabase}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__grazingdatabase}{modulevegetation\+::t\+\_\+grazingdatabase}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__harvestkilldatabase}{modulevegetation\+::t\+\_\+harvestkilldatabase}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__fertilizer}{modulevegetation\+::t\+\_\+fertilizer}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__autofertilization}{modulevegetation\+::t\+\_\+autofertilization}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__fertilizerapps}{modulevegetation\+::t\+\_\+fertilizerapps}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__fertilizerdatabase}{modulevegetation\+::t\+\_\+fertilizerdatabase}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__pesticideapps}{modulevegetation\+::t\+\_\+pesticideapps}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__pesticidedatabase}{modulevegetation\+::t\+\_\+pesticidedatabase}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__transpirationmohid}{modulevegetation\+::t\+\_\+transpirationmohid}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__evolution}{modulevegetation\+::t\+\_\+evolution}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__computeoptions}{modulevegetation\+::t\+\_\+computeoptions}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__heatunits}{modulevegetation\+::t\+\_\+heatunits}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__growth}{modulevegetation\+::t\+\_\+growth}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__salinitystressparams}{modulevegetation\+::t\+\_\+salinitystressparams}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__vegetationtype}{modulevegetation\+::t\+\_\+vegetationtype}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__fluxestosoil}{modulevegetation\+::t\+\_\+fluxestosoil}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__fluxesfromsoil}{modulevegetation\+::t\+\_\+fluxesfromsoil}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__pesticideapp}{modulevegetation\+::t\+\_\+pesticideapp}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__pesticideflux}{modulevegetation\+::t\+\_\+pesticideflux}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__fluxes}{modulevegetation\+::t\+\_\+fluxes}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__statevariables}{modulevegetation\+::t\+\_\+statevariables}}
+\item 
+type \mbox{\hyperlink{structmodulevegetation_1_1t__vegetation}{modulevegetation\+::t\+\_\+vegetation}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulevegetation}{modulevegetation}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_ad61df3e43415a3c06f75588d06f77cce}{modulevegetation\+::constructvegetation}} (Obj\+Vegetation\+ID, Time\+ID, Grid\+Data\+ID, Horizontal\+Grid\+ID, Horizontal\+Map\+ID, Atmosphere\+ID, Porous\+Media\+ID, Mapping\+Points, Geometry\+ID, Basin\+Geometry\+ID, Coupled\+Atmosphere, Use\+Pot\+L\+AI, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a1f6f35f8c49c08345fa70db3965f5763}{modulevegetation\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a8edd281bd5f3e5d91a3fea4575a31396}{modulevegetation\+::readvegetationfilenames}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_af3a330cccc5b43beef6be4d97ca341ad}{modulevegetation\+::readoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_aa8b34aba441105ada4ef33de5fb88008}{modulevegetation\+::constructpropertylist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ac179d0f21b5052db939c21c142a5dda5}{modulevegetation\+::constructproperty}} (New\+Property, Client\+Id)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ad3fa17b279df119d651bb732e62a4f43}{modulevegetation\+::constructpropertyvalues}} (New\+Property, Client\+Id)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_ac0764a40d57c0889573171b3f85afbf3}{modulevegetation\+::checkfieldconsistence}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a0a43607cdb2236530e5fb3fefa7498f1}{modulevegetation\+::readoldhdf}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ac6177be389c51bc5c4360fab4db5d775}{modulevegetation\+::constructpropertyevolution}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a107cf428abfe6d2909a01c200803e576}{modulevegetation\+::constructpropertyoutput}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a1831ceef19623bbd9a0c7d167abbb20e}{modulevegetation\+::addproperty}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_ad22b2fa6cec4ffe4f2464f02624beca6}{modulevegetation\+::addvegetation}} (New\+Vegetation)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a73de44a26d2dff28225fc8df134023fc}{modulevegetation\+::constructvegetationlist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a487744668471d5e49ad9df7d7686866e}{modulevegetation\+::checkvegetationlistmatrix}} (Agric\+Pract\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a5a2c8672adf25c28f58c08cd7f76e1c6}{modulevegetation\+::checkvegetationlist}} (Agric\+Pract\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a0b1feb4dec9ae87423940f66f7c66f76}{modulevegetation\+::checkoptionsconsistence}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a9159b405f988e18f1d5dda447ae2525d}{modulevegetation\+::constructlog}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_aaa44ba5345b19bc2d7499a1e5643a52e}{modulevegetation\+::searchproperty}} (PropertyX, Property\+X\+I\+D\+Number, Print\+Warning, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a6aff1147d516330fb474cb37975e7075}{modulevegetation\+::createpropertiesalias}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_ae10e09bee209b569a0f021506b4bbf27}{modulevegetation\+::createvariablesalias}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a676fd58a37b84d4c65395b662dd8f0c6}{modulevegetation\+::allocatevariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a1a48067359829dcfe9c8335991ba78cc}{modulevegetation\+::allocateevolutionvariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a510aa5d26336e50f405ca27491ba7996}{modulevegetation\+::allocatepropertyvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ada5193380c49212dfdc1293861c924a0}{modulevegetation\+::constructtimeserie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a12974a55f8580bce1b17db7e139d7955}{modulevegetation\+::constructhdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a687f37b7582103fd8a3308f5602b635f}{modulevegetation\+::constructhdf5output}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a244fa0ac53269288775789c370d4ef6e}{modulevegetation\+::constructvegetationgrids}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a8c93a8f99238f47c92bfed9cc9ddedb8}{modulevegetation\+::checklatitude}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a74fe469b99fa1d5d3f2ef2182dd59c7b}{modulevegetation\+::constructfeddes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a11da2d592ded0bd3811f9e90de324046}{modulevegetation\+::constructvegetationparameters}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a561695c331526aacf6d2359ccf064e5b}{modulevegetation\+::readfeddesdatabase}} (ivt)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a9b539132b7ee0190f99651024f4550ee}{modulevegetation\+::readtimingparameters}} (ivt, Client\+Number, Parameter\+Obj\+Enter\+Data)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a0354ed5206e5b8c4f1269740f6b6506d}{modulevegetation\+::readgrowthdatabase}} (ivt)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_aec7d28b5d51b61d5ccc514ba6a645846}{modulevegetation\+::readharvestkillparameters}} (ivt, Client\+Number, Parameter\+Obj\+Enter\+Data)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ac0d2b1971374eb7a2ded39cf56b0bd04}{modulevegetation\+::readgrazingparameters}} (ivt, Client\+Number, Parameter\+Obj\+Enter\+Data)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a5f1703a3712f12ee155098c63f043191}{modulevegetation\+::readfertilizationparameters}} (ivt, Client\+Number, Parameter\+Obj\+Enter\+Data)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_abfd09d09ab90a3303dcc3a496d57223a}{modulevegetation\+::readpesticideparameters}} (ivt, Client\+Number, Parameter\+Obj\+Enter\+Data)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a57f3018a613928cdd40f99577993f439}{modulevegetation\+::getuniquepesticide}} (ivt, Number\+Of\+Pesticide\+Apps)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_ae02d565fa46c0234360e5a9da0983414}{modulevegetation\+::readinitialhdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a2d8935c5541507a64b862765b5c7702c}{modulevegetation\+::checkplantgrowing}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_af795c019d50bbacd6767423599de5ea5}{modulevegetation\+::convertlogicalinteger}} (Logical\+Matrix, Integer\+Matrix, Conversion\+Type)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a357b84bec55907c71de65f8c878020f2}{modulevegetation\+::getvegetationdt}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_acf7940a010ec79861c9eaee61e66b333}{modulevegetation\+::getleafareaindex}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a9c5cba62246c38a0de1aebb1aaa788d6}{modulevegetation\+::getvegetationacchu}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a135c6aa1fdf9824ab93f467c026a344f}{modulevegetation\+::getpotleafareaindex}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_aefe8dd6c224ba5b203b6c1be059d23e7}{modulevegetation\+::getspecificleafstorage}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_ac3fe071c0a204afbed0b3414ecb4e09d}{modulevegetation\+::getevtpcropcoefficient}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a91f1942c40129d70091dd872f5f926ae}{modulevegetation\+::getlaisenescence}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a4eb34f9d9a6f4daecca56ea8f69b25b3}{modulevegetation\+::getrootdepth}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a09efc99ad0002ea520622c460b1b067d}{modulevegetation\+::getrootdepthold}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_af38b12fb3f6aba5eaf0e0153c1a5cf5b}{modulevegetation\+::getcanopyheight}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_afcdcb6390a6a25bc7c5e5d70525ac36d}{modulevegetation\+::getnutrientfraction}} (Vegetation\+ID, Nitrogen\+Fraction, Phosphorus\+Fraction, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a518c8834ccdc068342976e2fb709d93e}{modulevegetation\+::getcanopystoragetype}} (Vegetation\+ID, Is\+Constant, Constant\+Value, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a016291d4e7aeb601c4e8ad878693cce7}{modulevegetation\+::gettranspiration}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_ad98c388458251c42c13f5d7ee73e3b9f}{modulevegetation\+::gettranspirationbottomlayer}} (Vegetation\+ID, Scalar, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_ad0a29b6dd966a910007e5e5268c1bb4a}{modulevegetation\+::getvegetationgrowing}} (Vegetation\+ID, Growing, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a95ec1a8e366b1743687f4824f5ac8672}{modulevegetation\+::getvegetationoptions}} (Vegetation\+ID, Model\+Water, Model\+Nitrogen, Model\+Phosphorus, Nutrient\+Fluxes\+With\+Soil, Grazing, Harvest\+Kill, Dormancy, Fertilization, Growth\+Model, Model\+Canopy\+Height, Nutrient\+Uptake\+Method, Pesticide, Number\+Of\+Pesticides, Veg\+Partic\+Fertilization, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a5ab5e21fef383950e0f159dd2ad953aa}{modulevegetation\+::getvegetationsoilfluxes}} (Vegetation\+ID, Soil\+Fluxes\+Active, Grazing\+Biomass, Grazing\+Nitrogen, Grazing\+Phosphorus, Grazing\+Ammonia, Harvest\+Kill\+Aerial\+Biomass, Harvest\+Kill\+Nitrogen, Harvest\+Kill\+Phosphorus, Harvest\+Kill\+Root\+Biomass, Dormancy\+Biomass, Dormancy\+Nitrogen, Dormancy\+Phosphorus, Fertil\+Nitrate\+Surface, Fertil\+Nitrate\+Sub\+Surface, Fertil\+Ammonia\+Surface, Fertil\+Ammonia\+Sub\+Surface, Fertil\+Organic\+N\+Surface, Fertil\+Organic\+N\+Sub\+Surface, Fertil\+Organic\+N\+Partic\+Fluff, Fertil\+Organic\+P\+Surface, Fertil\+Organic\+P\+Sub\+Surface, Fertil\+Organic\+P\+Partic\+Fluff, Fertil\+Mineral\+P\+Surface, Fertil\+Mineral\+P\+Sub\+Surface, Pest, Pesticide\+I\+D\+Number, Pesticide\+Soil, Nitrogen\+Uptake, Phosphorus\+Uptake, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a38d68bd81032a262aeb48e983401e19a}{modulevegetation\+::setsoilconcvegetation}} (Obj\+Vegetation\+ID, Nitrate, Inorganic\+Phosphorus, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_af9791218901ea10557b2795395421159}{modulevegetation\+::setecw}} (Obj\+Vegetation\+ID, E\+Cw, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a2c86b41a4e32d9f80ab445ee7695a777}{modulevegetation\+::getvegetationaerialfluxes}} (Vegetation\+ID, Pest, Pesticide\+I\+D\+Number, Pesticide\+Vegetation, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a820fdd3d0dd1463d385d92be5758637b}{modulevegetation\+::ungetvegetationaerialfluxes}} (Vegetation\+ID, Pest, Pesticide\+Vegetation, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_a96e88e3033a51f7458b1307ffccc0e3a}{modulevegetation\+::ungetvegetationsoilfluxes}} (Vegetation\+ID, Soil\+Fluxes\+Active, Grazing\+Biomass, Grazing\+Ammonia, Grazing\+Nitrogen, Grazing\+Phosphorus, Harvest\+Kill\+Aerial\+Biomass, Harvest\+Kill\+Nitrogen, Harvest\+Kill\+Phosphorus, Harvest\+Kill\+Root\+Biomass, Dormancy\+Biomass, Dormancy\+Nitrogen, Dormancy\+Phosphorus, Fertil\+Nitrate\+Surface, Fertil\+Nitrate\+Sub\+Surface, Fertil\+Ammonia\+Surface, Fertil\+Ammonia\+Sub\+Surface, Fertil\+Organic\+N\+Surface, Fertil\+Organic\+N\+Sub\+Surface, Fertil\+Organic\+N\+Partic\+Fluff, Fertil\+Organic\+P\+Surface, Fertil\+Organic\+P\+Sub\+Surface, Fertil\+Organic\+P\+Partic\+Fluff, Fertil\+Mineral\+P\+Surface, Fertil\+Mineral\+P\+Sub\+Surface, Nitrogen\+Uptake, Phosphorus\+Uptake, Pesticide\+Soil, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a2ffe279db4531dedb2c50c6349246a00}{modulevegetation\+::ungetvegetation2d}} (Vegetation\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a51242f691596a8990eaffb93f189b5ab}{modulevegetation\+::ungetvegetation2d\+\_\+i}} (Vegetation\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_ae3b94dadad52bcad92f73e4358946cda}{modulevegetation\+::ungetvegetation2d\+\_\+l}} (Vegetation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a1908216b2236c50cd95129a3757c0ebd}{modulevegetation\+::ungetvegetation3d}} (Vegetation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_ada29538c07fc35e07aff7961509fee8d}{modulevegetation\+::modifyvegetation}} (Obj\+Vegetation\+ID, Mapping\+Points, Potential\+Transpiration, Actual\+Transpiration, E\+Cw, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a7f06e4e44dcbf158ef41eaf0b26ef491}{modulevegetation\+::averageextpropduringdt}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a902f9aa035167e92ff669898d4bb5c14}{modulevegetation\+::nullifyfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a37069c3859e6dc1812ad2ddda5ab49cd}{modulevegetation\+::checkplantstate}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_af6b014e82fcb0998befe6b8a12f66de3}{modulevegetation\+::checkvegetationidchanges}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_aa3811c1a240a54342243a4e460197d77}{modulevegetation\+::modifyfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a5532e866feccedcf7ef4094cb3f08064}{modulevegetation\+::modifymodelledproperties}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a510092ab1c09ecfe1b683080ec88826a}{modulevegetation\+::modifyreadedproperties}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_aeb0bf58b2fe65989291c935b652a185e}{modulevegetation\+::computeplantannualstage}} (i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_adc2f366c1b31fc9c591f3d3be221f677}{modulevegetation\+::checktreeage}} (i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a51a465c0efb7efd6bb8d99cabfc0c19e}{modulevegetation\+::checkplanting}} (i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a57fef770d6b519b24b11d4ce771e5c20}{modulevegetation\+::computeplantgrowingstage}} (i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_abcc76339f35e9a70675847ad459a843c}{modulevegetation\+::plantrootfluxes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a8970a84682188f12c5a7e3c69fdbc853}{modulevegetation\+::wateruptake}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a61c5cc19d5b5fe894bc935b7365563cb}{modulevegetation\+::nitrogenuptake}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a8ecdc6f2c513a0f8920f448525858005}{modulevegetation\+::phosphorusuptake}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a99cb73f235c051753d3cc48f59f56eae}{modulevegetation\+::plantaerialfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_abf633925bf9ba7db34dd3d63300fe43d}{modulevegetation\+::wateruptakeswat}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_ac76c877ab32f2ff96b234d3ba23b4dbc}{modulevegetation\+::wateruptakemohid}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_aede0fbef50c854f21b7dc76d3534b847}{modulevegetation\+::getvegetationsalinityparameters}} (I, J, Use\+Salinity\+Stress, Stress\+Params, Stress\+Interaction)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a5c30bda27fd79a69f45cc6fd35a2f0af}{modulevegetation\+::nitrogenuptakeswat}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a1a53d3932ef020aaa3e0656050c15ee3}{modulevegetation\+::nitrogenuptake\+\_\+transpconc}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a977606da8238f3bcf3eeedafa42a6582}{modulevegetation\+::computeshapecoefficients}} (Factor1, Factor2, Factor3, Factor4, Plant\+Shape1, Plant\+Shape2)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_abdb0b0a9e6c19d706d25ff42b84611d2}{modulevegetation\+::computenutrientstress}} (Plant\+Content, Optimal\+Content, Computed\+Stress)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a4d0b983635068517bf0b541f0784430a}{modulevegetation\+::phosphorusuptakeswat}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a00089a428473ea96d0f567289aabe4f8}{modulevegetation\+::phosphorusuptake\+\_\+transpconc}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ac64ef166fcd5b553f404eca77d3f8ad4}{modulevegetation\+::nitrogenfixationswat}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a156df3425609d782754520991389dc1a}{modulevegetation\+::biomassgrowthfromradiationswat}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a9bed5257328690b46cde01cfe91f313a}{modulevegetation\+::computeglobalstress}} (i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a0a72b8d43553476da7abbddd263b7c85}{modulevegetation\+::computetemperaturestress}} (i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a0ec3ba9198a58232c38fd166c72810d5}{modulevegetation\+::laigrowthswat\+\_\+old}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a86662f45554df67ceb2fd66d1ff3afd1}{modulevegetation\+::laigrowthswat}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a3456662ceedeb9f7d5ad12c24dd83bc4}{modulevegetation\+::checkplantharvestkill}} (i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a68c29b5f11f8bae818809241e638e11a}{modulevegetation\+::harvestkillfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a3dc6ee6dd39f0f9ae9bbbe6356b45efc}{modulevegetation\+::harvestoperation}} (i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a5b6084c4fb89b8ce3f29e23d6b623bef}{modulevegetation\+::harvestkilloperation}} (i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a48e334671d44b0f7bf51ba2801d47db0}{modulevegetation\+::killoperation}} (i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a722712ec8addb85933d86a2bc0fa41aa}{modulevegetation\+::computedaylength}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_ad6c8bd7bf7ef1c60a031f3752ea5d26d}{modulevegetation\+::checkplantdormancy}} (i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a62a594d5a2ef5f37a2dcbc4db8507793}{modulevegetation\+::dormancyfluxes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a4db38a1c2ca800ff349c72b3c0c01ce7}{modulevegetation\+::checkplantgrazing}} (i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a6171f7a4fbe04e9636476d638cf27f05}{modulevegetation\+::grazingfluxes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_aefcd4003ffaf332e5ccc9b2fabd54149}{modulevegetation\+::checkplantpesticide}} (i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_afa2f07d94b35869067e9a8e4533df2fa}{modulevegetation\+::checkplantfertilization}} (i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a8f770924e5053c42aa7f57b5a6f5be05}{modulevegetation\+::updateplantgrowingstage}} (i, j, Warning\+String)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ad4d9e32956110026543f678e37dd08e1}{modulevegetation\+::updateglobalplantproperties}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a508cd23535bbe150f1712dc11c562d65}{modulevegetation\+::updaterootproperties}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a61c0b056617116efb1cc8733f0f1fd09}{modulevegetation\+::updateleafproperties\+\_\+old}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a51955d069f261e54788d0be4185665b4}{modulevegetation\+::updateleafproperties}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ac544594c050d3fcb7a12971817350194}{modulevegetation\+::updatestemproperties}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a045ff1bdd58f618fc041e85a712080d6}{modulevegetation\+::fertilizationfluxes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a75a60d7b15cdc37b7785b839927d2153}{modulevegetation\+::autofertilization}} (i, j, Need\+Nitrogen, Apply\+Phosphorus, Need\+Phosphorus)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a61c84b3c83334d731a2e537c7f0373fc}{modulevegetation\+::scheduledfertilization}} (i, j, Fert\+App)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_af6d8868a0a498022d072c484bbfc5f73}{modulevegetation\+::pesticidefluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ae3c35b12a954295511c0439076c44694}{modulevegetation\+::modify\+\_\+outputhdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_aca579929724e1ba027a5dedcca09f4f3}{modulevegetation\+::modify\+\_\+outputtimeseries}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulevegetation_abd79c5ff82c66aadb0dd041cf80540b8}{modulevegetation\+::killvegetation}} (Obj\+Vegetation\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_ad1ed23055b336a8f8253483f2289121b}{modulevegetation\+::write\+\_\+finalvegetation\+\_\+hdf}} (Is\+Final\+File)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a4208f430811c220efd414cd21312b73d}{modulevegetation\+::deallocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a6be2722d95215f594c5f964837e1e955}{modulevegetation\+::deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_a7bff2743f33908bdf727831d101dc37a}{modulevegetation\+::ready}} (Obj\+Vegetation\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulevegetation_ac457b656dd70c067c1609578542d0d16}{modulevegetation\+::locateobjvegetation}} (Obj\+Vegetation\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_a81039144c85fe53d59983283da9998a3}{modulevegetation\+::readlockexternalvar}} (Read\+Atmosphere)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulevegetation_adc5d72657ff85d4a70bd5b3345b65563}{modulevegetation\+::readunlockexternalvar}} (Read\+Atmosphere)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a8001bdebe574da77fb147554fe710c49}{modulevegetation\+::novegetationpoint}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_aa9569bdafa4413cbb392ae1e779009ae}{modulevegetation\+::vegetationpoint}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a8d4baebef6e48e57e05cd43519646f2a}{modulevegetation\+::readvalue}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a48e2a8877a184cb485dc25163f2978cb}{modulevegetation\+::swat}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a11f2fa58a2f5c093c626318c96888161}{modulevegetation\+::deb}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_acc35043b309d61209624f0904e30ceda}{modulevegetation\+::transpirationmohid}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_aa71bc8152aec332d7671b6dbc3200160}{modulevegetation\+::transpirationswat}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_abb03d062ddc11fc356bc1b6ac2db658a}{modulevegetation\+::roottriangular}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a4e0ef12556472447215a8ef1e6a670ee}{modulevegetation\+::rootconstant}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a1e316a9214fb589d7fd3a4e03adff766}{modulevegetation\+::rootexponential}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a74beec691fce5d94a352b5c0678b7bb5}{modulevegetation\+::feddes}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a9ad121105341943b97d746a6ee173103}{modulevegetation\+::genuchten}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a00022541edabc4f88cdf40358ea4c062}{modulevegetation\+::nutrientuptake\+\_\+transpconc}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_ae972c42e63c952384ea85f900c6d83ce}{modulevegetation\+::nutrientuptakeswat}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_adb9411841d04fe23f0b3e26d0cfa4da6}{modulevegetation\+::nonutrientuptake}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a0c5b6ced40e0ad90e60f119c725a7add}{modulevegetation\+::nutrientstressuptake}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_aeae6608b85511eb5af5fe147eef4c893}{modulevegetation\+::nutrientstressswat}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_aab05f943f7f926b8835fc8feda175327}{modulevegetation\+::ntarget\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a6c9a5abf22d1f3911992e9fe7ca54961}{modulevegetation\+::annualmaxapproach\+\_\+}} = 2
+\item 
+character(stringlength), parameter \mbox{\hyperlink{namespacemodulevegetation_af5c39235da7ffa5b02b08e4b5bdd08e0}{modulevegetation\+::beginproperty}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(stringlength), parameter \mbox{\hyperlink{namespacemodulevegetation_a73f3f232bb7f070329fd6d42320ca563}{modulevegetation\+::endproperty}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+character(stringlength), parameter \mbox{\hyperlink{namespacemodulevegetation_aac537c41b68962e791c65feb871f5cce}{modulevegetation\+::beginsoilconc}} = \textquotesingle{}$<$beginsoilconc$>$\textquotesingle{}
+\item 
+character(stringlength), parameter \mbox{\hyperlink{namespacemodulevegetation_aae3895207aa7a807bcad1a2dbd43ffaa}{modulevegetation\+::endsoilconc}} = \textquotesingle{}$<$endsoilconc$>$\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_ab82ae872dc102775656928be45fa95e7}{modulevegetation\+::notaplant}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_ac51d5cc86df047d333a5cdc12fa3aac9}{modulevegetation\+::warmseasonannuallegume}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a00205bc4eb26dcc7864edb912b674069}{modulevegetation\+::coldseasonannuallegume}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a2358703148df12cce73e5316f9194016}{modulevegetation\+::perenniallegume}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a110f4ca571607af92386764b0832fd96}{modulevegetation\+::warmseasonannual}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a2d67e3996b3eaec3ed46783d415ca576}{modulevegetation\+::coldseasonannual}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_a96d9120624d107226156e706840efa11}{modulevegetation\+::perennial}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulevegetation_ad076c54f9b499254f3f80779270921a4}{modulevegetation\+::trees}} = 7
+\item 
+type(t\+\_\+vegetation), pointer \mbox{\hyperlink{namespacemodulevegetation_aa55dc95d88d1f697796037ffc7ed34ae}{modulevegetation\+::firstobjvegetation}} =$>$ null()
+\item 
+type(t\+\_\+vegetation), pointer \mbox{\hyperlink{namespacemodulevegetation_aeef5a5f66defced3e5aa3faa8fbed9ed}{modulevegetation\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

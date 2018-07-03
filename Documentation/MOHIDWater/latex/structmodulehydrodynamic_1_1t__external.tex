@@ -1,0 +1,966 @@
+\hypertarget{structmodulehydrodynamic_1_1t__external}{}\section{modulehydrodynamic\+:\+:t\+\_\+external Type Reference}
+\label{structmodulehydrodynamic_1_1t__external}\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+
+
+Collaboration diagram for modulehydrodynamic\+:\+:t\+\_\+external\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=189pt]{structmodulehydrodynamic_1_1t__external__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ab5f755de65a67d3c55edfe41477e5a4c}{boundaryfacesuv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a3b9b6911586c9571b52fbac4e32248a9}{boundaryfacesvu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_acc9f37eae9e9abfd140dd5ace00693a0}{boundaryfacesu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ae7229d304ee0fe0ca3250d63bc21c365}{boundaryfacesv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a8ba20e63ed13af920cdeb8a6f3fe6d3f}{boundarypoints}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_af46ea838d9f5b8229b44850754d07bbc}{waterpoints2d}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_aee458c1fc212e3c2b5b4441ca24aaaa5}{landpoints2d}}
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a5e555c3fb258e395b870f8e19e0fc3f2}{computefaces3d\+\_\+u}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ae415a483f95358e22c164ee6a0884b9d}{computefaces3d\+\_\+v}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ab91115bc566989bff5100e04e5e751cb}{computefaces3d\+\_\+uv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a5bf5edef66e8d936fec125fb747b687d}{computefaces3d\+\_\+vu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a1c02da3d87d08013245f85437ddd41a3}{waterpoints3d}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ac9c3d5152f1218d19299d35bc1af5ba3}{computefaces3d\+\_\+w}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_add8be4ad79bb237058e937f7088d9fa9}{openpoints3d}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a877f904f7231f1fa1e2ecddad728f1f8}{landboundaryfacesuv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ac0722a7265c10e16592d12b4068c7c88}{landboundaryfacesvu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_aeb25f19b1bc1c24f1f85139110e78a3e}{landboundaryfacesu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_adcd4b8458e75c4af37b25992e5bf3218}{landboundaryfacesv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ad5aa628017441d887d9630629add74a8}{imposednormalfacesuv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ad0216994f9e05379bd4ad0c29ec3f7fe}{imposednormalfacesu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a744fdc71b353d325a7d31a72d06d170c}{imposednormalfacesv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a6e20c013ff6ed24d514a812d3044a02b}{imposedtangentialfacesu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a784ca9141c2dae5003a9dfdbde41bb4e}{imposedtangentialfacesv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a0d7e01f3b9fb4e4f0ca7076967ebeee0}{imposedtangentialfacesuv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a740c591199ad001750f6ad29b27feab0}{imposedtangentialfacesvu}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_abc3f7fc66e963e5e326cf8b9ad51158c}{dux}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_aef7982d7f3fe71ea05cdc2d75360c5b9}{dvy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_afb423a320d5e71d6fb91257db58e208b}{dzx}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a08395562eaf7703aec1669cd4820ad21}{dzy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ab741975409dfece5e1939cd026f3cd5a}{dyy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_acdfb3e19e04f25bdbc6a91b5bcee454e}{dxx}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a4a088242c62be7abf8a55c102808e061}{dux\+\_\+vy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a8291738506e423d56a5f99da0e0cff63}{dzx\+\_\+zy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a9a6b6d8e7267a6f31c363ba8ef3fd06f}{dzy\+\_\+zx}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a64944dd7ad8a3a9fa4c3c7a07b88b335}{dyy\+\_\+xx}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a163fa6ec2348c0307dec5e328715a116}{dxx\+\_\+yy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a13dfd336f562c687a75ba2a398c742af}{dvy\+\_\+ux}} =$>$ null()
+\item 
+real, dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_af6241cee6d72e5faa8c91c8f2a4cb669}{coriolis\+\_\+freq}} =$>$ null()
+\item 
+real, dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_acffa3ca6abbd2d3218d7e3f34e03a352}{rotationx}} =$>$ null()
+\item 
+real, dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_aac0d68a61c0e625cbc832362d4a7f71d}{rotationy}} =$>$ null()
+\item 
+logical \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a27f9ecb1f5b0576d46beec3bf51ba777}{distortion}} = .false.
+\item 
+real \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ad7ef65cb536c349ac47df49e7ec6c42e}{gridrotation}} = null\+\_\+real
+\item 
+real, dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ac2fa5f05f24a0f3e3a359b76bd599597}{latitudez}} =$>$ null()
+\item 
+real, dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ada14d85a6d1bb94fdbf93e513e4ef506}{longitudez}} =$>$ null()
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a9ab3d0e0db1629532a0c2fd92e982b1f}{volume\+\_\+z\+\_\+old}} =$>$ null()
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_abee963c48387a2a7e5e7fc114714e1ea}{volume\+\_\+z\+\_\+new}} =$>$ null()
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_aa76086b275fe1dded0327b08e0d5d62c}{volume\+\_\+u}} =$>$ null()
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a01e5c7d9044acab46d2f6f5e710ceeb9}{volume\+\_\+v}} =$>$ null()
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a35bab29625b80968a61e7173abadeb2c}{volume\+\_\+w}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ab0272e92a78b78362eb5e60aa797183c}{area\+\_\+u}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a9af970272a6f840e9b37d8091ec059b9}{area\+\_\+v}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a64fa084d34481eb0b05c46aefd36dc81}{dwz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a894bbeead029e5e1aab752c3ac5f1a60}{szz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ae6cbccf619e6426a7b54cc0397a4f7b7}{duz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a870c2279069ff8a3aa9f6c154bbaddaa}{dvz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_af7fa66b099f679fe565f3a5a8753e180}{duz\+\_\+vz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_afe76b5810dcc8fa17aa8adc0ede6a3dd}{dzz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a3e711cb8ffbd1f70252c08fd9c27740a}{watercolumn}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a96f16c1dd1881738cd8e8677ce21c6bd}{watercolumnu}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a311232a07dabcfe5812352aea6fb51d3}{watercolumnv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a5eeb78d39243754928a50b6ed87cf64a}{watercolumnuv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ad857173eda1cd9b8714b3b07d533b64e}{watercolumnvu}} =$>$ null()
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ae90b603a01e6e3ddd0f18284ac39b995}{volume\+\_\+uv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a0c66b27addce3cd485572c2f3940e12d}{area\+\_\+uv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ade0e223a59a5f7c95c750183022b3c8e}{area\+\_\+vu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a0053f4cc3099d29a7d033a8a8d408860}{kfloor\+\_\+z}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ac651418b183b367da15100a4c0019a2e}{kfloor\+\_\+u}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a7edc4c5b79310d82a93caf360c5a4c3e}{kfloor\+\_\+v}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a5dea2d6f45d39ae5cdc438eac3fa0090}{kfloor\+\_\+uv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a4a0a1c612a21488eec728dfc09082c07}{kfloor\+\_\+vu}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a483cbf3dc5ef6cba3eeddfac9f915a99}{visc\+\_\+h\+\_\+corner}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ad9ecd6109634b262475a7d8866a3a0af}{visc\+\_\+h\+\_\+center}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a59bbb49e4f686ec900313ce14eb523ef}{vertical\+\_\+viscosity}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a18af555dc0c9db03db5f1bb66c545aef}{density}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a6a9ad794d3de196493f276abbef597c7}{sigmadens}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_af305bcb79216a6417b77d63fa80d0eaf}{chezyz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a381b582a4ce2e7bfe6051da39d225e5c}{chezyveluv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a6d3321394e3f6c64d08826ea5f584eaa}{wavechezyvel}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a5f6d6b6a8118ade6d13a08a64729964a}{rugositymatrix}} =$>$ null()
+\item 
+real \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a0f2d2a334980fac313a57fce94c94441}{hmin\+\_\+chezy}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a09e984e44ca53f457b77b792cb3fc1d5}{vmin\+\_\+chezy}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a6422f8ac50cd3c405353f5c7c50d8a4f}{chezycoef}} = null\+\_\+real
+\item 
+logical \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_adbe8254671536aac63f2024b92eeb3ee}{manning}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_aef9fa6caf24eee25b581245d483f9c84}{chezy}} = .false.
+\item 
+integer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_afea73a985ffdbac1004129baf6a8583e}{shearstressmethod}} = null\+\_\+int
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ab2c33a4fc31004542704749c969872a4}{tauwindu}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_aed754a8ceb7e11bf58cc04911c99c20d}{tauwindv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a8e200e22026b823851eb6566c25d8976}{tauwind\+\_\+uv}} =$>$ null()
+\item 
+real(8), dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a6bcff60bd66f41a3745016282ea6aefc}{bottomwaterflux}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_abc59195f46ea07b1dc7cadafbfb8f9c9}{surfacewaterflux}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a6f7cbeab5a90d3566811938eb17a8ae0}{windstress\+\_\+x}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a9670a19197119e8cecda52f493c49d52}{windstress\+\_\+y}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a5ef9e8cad7064155815ee6f8e7b9e303}{atmosphericpressure}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ad38466c837e3d1aa804753a874417224}{tauwavesu}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a62468300fc3a5780f85315217e429fc7}{tauwavesv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a770a7d6c4ad132871897e0676fac5e66}{tauwaves\+\_\+uv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a29e5ac70dbbe6bc248bb85b563a6017d}{waveperiod}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a8131086b23ca7d18f5b043a67ed7d7cf}{waveheight}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_abbec03850971c8da0e30d4ec411e1b52}{directionh}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a93a1ad147ba67c1a3b111f289f7a0f12}{ubw}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a5db311714b13c1d999a518ea8f2a26a6}{abw}} =$>$ null()
+\item 
+integer, pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a2f91f5cbb936ceed33656b2ae3fdac24}{stokesfreqnum}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_abef239fac212c67b546ee3cd30b8598e}{stokeswavenumber}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ac30c3c3adc5cdf832063ae11baaecd10}{waveinducedpressurej}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a9290c23daa0306c3df0f1a7702f4134d}{stokesdriftspectrumx}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a7414b071ff31a966b4dbb61f04a686df}{stokesdriftspectrumy}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_adf39c83e3da6916216f0fd51c5dd6081}{atmtowavemomentumu}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a9666e89f68572a2f2cb9ef85b528ca6e}{atmtowavemomentumv}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ad12e037f3bc0187867f3832d27b90f30}{atmtowavemomentum\+\_\+uv}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a04b2a689a830aef551549b1e043b5cae}{wavetooceanmomentumu}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a3476a34a5ba7c2b16d0d16049d5546a5}{wavetooceanmomentumv}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a91babb92ab7261061a8527172970a0c5}{wavetooceanmomentum\+\_\+uv}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ade962fc9b2c55be9f0101809b0902f10}{wavelength}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a7f50200ee2bf4bd1e09af2e0c6f81f80}{altimwaterlevelanalyzed}} =$>$ null()
+\item 
+real \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a0bb60614b7dc74a342edf9f34fe717ab}{altimdecaytime}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_ae50beb87e9a3f772458807bfeb42d53e}{altimassimdt}} = null\+\_\+real
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a111904916c3520e29e459cba7be519ec}{altimsigmadensanalyzed}} =$>$ null()
+\item 
+logical \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external_a7f9d53d36458c1cc669e42a9dc93ee40}{backtracking}} = .false.
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a5db311714b13c1d999a518ea8f2a26a6}\label{structmodulehydrodynamic_1_1t__external_a5db311714b13c1d999a518ea8f2a26a6}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!abw@{abw}}
+\index{abw@{abw}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{abw}{abw}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::abw =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ae50beb87e9a3f772458807bfeb42d53e}\label{structmodulehydrodynamic_1_1t__external_ae50beb87e9a3f772458807bfeb42d53e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!altimassimdt@{altimassimdt}}
+\index{altimassimdt@{altimassimdt}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{altimassimdt}{altimassimdt}}
+{\footnotesize\ttfamily real modulehydrodynamic\+::t\+\_\+external\+::altimassimdt = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a0bb60614b7dc74a342edf9f34fe717ab}\label{structmodulehydrodynamic_1_1t__external_a0bb60614b7dc74a342edf9f34fe717ab}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!altimdecaytime@{altimdecaytime}}
+\index{altimdecaytime@{altimdecaytime}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{altimdecaytime}{altimdecaytime}}
+{\footnotesize\ttfamily real modulehydrodynamic\+::t\+\_\+external\+::altimdecaytime = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a111904916c3520e29e459cba7be519ec}\label{structmodulehydrodynamic_1_1t__external_a111904916c3520e29e459cba7be519ec}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!altimsigmadensanalyzed@{altimsigmadensanalyzed}}
+\index{altimsigmadensanalyzed@{altimsigmadensanalyzed}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{altimsigmadensanalyzed}{altimsigmadensanalyzed}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::altimsigmadensanalyzed =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a7f50200ee2bf4bd1e09af2e0c6f81f80}\label{structmodulehydrodynamic_1_1t__external_a7f50200ee2bf4bd1e09af2e0c6f81f80}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!altimwaterlevelanalyzed@{altimwaterlevelanalyzed}}
+\index{altimwaterlevelanalyzed@{altimwaterlevelanalyzed}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{altimwaterlevelanalyzed}{altimwaterlevelanalyzed}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::altimwaterlevelanalyzed =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ab0272e92a78b78362eb5e60aa797183c}\label{structmodulehydrodynamic_1_1t__external_ab0272e92a78b78362eb5e60aa797183c}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!area\+\_\+u@{area\+\_\+u}}
+\index{area\+\_\+u@{area\+\_\+u}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{area\+\_\+u}{area\_u}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::area\+\_\+u =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a0c66b27addce3cd485572c2f3940e12d}\label{structmodulehydrodynamic_1_1t__external_a0c66b27addce3cd485572c2f3940e12d}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!area\+\_\+uv@{area\+\_\+uv}}
+\index{area\+\_\+uv@{area\+\_\+uv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{area\+\_\+uv}{area\_uv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::area\+\_\+uv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a9af970272a6f840e9b37d8091ec059b9}\label{structmodulehydrodynamic_1_1t__external_a9af970272a6f840e9b37d8091ec059b9}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!area\+\_\+v@{area\+\_\+v}}
+\index{area\+\_\+v@{area\+\_\+v}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{area\+\_\+v}{area\_v}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::area\+\_\+v =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ade0e223a59a5f7c95c750183022b3c8e}\label{structmodulehydrodynamic_1_1t__external_ade0e223a59a5f7c95c750183022b3c8e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!area\+\_\+vu@{area\+\_\+vu}}
+\index{area\+\_\+vu@{area\+\_\+vu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{area\+\_\+vu}{area\_vu}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::area\+\_\+vu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a5ef9e8cad7064155815ee6f8e7b9e303}\label{structmodulehydrodynamic_1_1t__external_a5ef9e8cad7064155815ee6f8e7b9e303}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!atmosphericpressure@{atmosphericpressure}}
+\index{atmosphericpressure@{atmosphericpressure}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{atmosphericpressure}{atmosphericpressure}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::atmosphericpressure =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ad12e037f3bc0187867f3832d27b90f30}\label{structmodulehydrodynamic_1_1t__external_ad12e037f3bc0187867f3832d27b90f30}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!atmtowavemomentum\+\_\+uv@{atmtowavemomentum\+\_\+uv}}
+\index{atmtowavemomentum\+\_\+uv@{atmtowavemomentum\+\_\+uv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{atmtowavemomentum\+\_\+uv}{atmtowavemomentum\_uv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::atmtowavemomentum\+\_\+uv\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_adf39c83e3da6916216f0fd51c5dd6081}\label{structmodulehydrodynamic_1_1t__external_adf39c83e3da6916216f0fd51c5dd6081}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!atmtowavemomentumu@{atmtowavemomentumu}}
+\index{atmtowavemomentumu@{atmtowavemomentumu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{atmtowavemomentumu}{atmtowavemomentumu}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::atmtowavemomentumu\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a9666e89f68572a2f2cb9ef85b528ca6e}\label{structmodulehydrodynamic_1_1t__external_a9666e89f68572a2f2cb9ef85b528ca6e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!atmtowavemomentumv@{atmtowavemomentumv}}
+\index{atmtowavemomentumv@{atmtowavemomentumv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{atmtowavemomentumv}{atmtowavemomentumv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::atmtowavemomentumv\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a7f9d53d36458c1cc669e42a9dc93ee40}\label{structmodulehydrodynamic_1_1t__external_a7f9d53d36458c1cc669e42a9dc93ee40}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!backtracking@{backtracking}}
+\index{backtracking@{backtracking}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{backtracking}{backtracking}}
+{\footnotesize\ttfamily logical modulehydrodynamic\+::t\+\_\+external\+::backtracking = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a6bcff60bd66f41a3745016282ea6aefc}\label{structmodulehydrodynamic_1_1t__external_a6bcff60bd66f41a3745016282ea6aefc}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!bottomwaterflux@{bottomwaterflux}}
+\index{bottomwaterflux@{bottomwaterflux}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{bottomwaterflux}{bottomwaterflux}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::bottomwaterflux =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_acc9f37eae9e9abfd140dd5ace00693a0}\label{structmodulehydrodynamic_1_1t__external_acc9f37eae9e9abfd140dd5ace00693a0}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!boundaryfacesu@{boundaryfacesu}}
+\index{boundaryfacesu@{boundaryfacesu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{boundaryfacesu}{boundaryfacesu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::boundaryfacesu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ab5f755de65a67d3c55edfe41477e5a4c}\label{structmodulehydrodynamic_1_1t__external_ab5f755de65a67d3c55edfe41477e5a4c}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!boundaryfacesuv@{boundaryfacesuv}}
+\index{boundaryfacesuv@{boundaryfacesuv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{boundaryfacesuv}{boundaryfacesuv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::boundaryfacesuv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ae7229d304ee0fe0ca3250d63bc21c365}\label{structmodulehydrodynamic_1_1t__external_ae7229d304ee0fe0ca3250d63bc21c365}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!boundaryfacesv@{boundaryfacesv}}
+\index{boundaryfacesv@{boundaryfacesv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{boundaryfacesv}{boundaryfacesv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::boundaryfacesv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a3b9b6911586c9571b52fbac4e32248a9}\label{structmodulehydrodynamic_1_1t__external_a3b9b6911586c9571b52fbac4e32248a9}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!boundaryfacesvu@{boundaryfacesvu}}
+\index{boundaryfacesvu@{boundaryfacesvu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{boundaryfacesvu}{boundaryfacesvu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::boundaryfacesvu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a8ba20e63ed13af920cdeb8a6f3fe6d3f}\label{structmodulehydrodynamic_1_1t__external_a8ba20e63ed13af920cdeb8a6f3fe6d3f}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!boundarypoints@{boundarypoints}}
+\index{boundarypoints@{boundarypoints}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{boundarypoints}{boundarypoints}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::boundarypoints =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_aef9fa6caf24eee25b581245d483f9c84}\label{structmodulehydrodynamic_1_1t__external_aef9fa6caf24eee25b581245d483f9c84}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!chezy@{chezy}}
+\index{chezy@{chezy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{chezy}{chezy}}
+{\footnotesize\ttfamily logical modulehydrodynamic\+::t\+\_\+external\+::chezy = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a6422f8ac50cd3c405353f5c7c50d8a4f}\label{structmodulehydrodynamic_1_1t__external_a6422f8ac50cd3c405353f5c7c50d8a4f}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!chezycoef@{chezycoef}}
+\index{chezycoef@{chezycoef}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{chezycoef}{chezycoef}}
+{\footnotesize\ttfamily real modulehydrodynamic\+::t\+\_\+external\+::chezycoef = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a381b582a4ce2e7bfe6051da39d225e5c}\label{structmodulehydrodynamic_1_1t__external_a381b582a4ce2e7bfe6051da39d225e5c}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!chezyveluv@{chezyveluv}}
+\index{chezyveluv@{chezyveluv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{chezyveluv}{chezyveluv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::chezyveluv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_af305bcb79216a6417b77d63fa80d0eaf}\label{structmodulehydrodynamic_1_1t__external_af305bcb79216a6417b77d63fa80d0eaf}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!chezyz@{chezyz}}
+\index{chezyz@{chezyz}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{chezyz}{chezyz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::chezyz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a5e555c3fb258e395b870f8e19e0fc3f2}\label{structmodulehydrodynamic_1_1t__external_a5e555c3fb258e395b870f8e19e0fc3f2}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!computefaces3d\+\_\+u@{computefaces3d\+\_\+u}}
+\index{computefaces3d\+\_\+u@{computefaces3d\+\_\+u}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{computefaces3d\+\_\+u}{computefaces3d\_u}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::computefaces3d\+\_\+u =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ab91115bc566989bff5100e04e5e751cb}\label{structmodulehydrodynamic_1_1t__external_ab91115bc566989bff5100e04e5e751cb}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!computefaces3d\+\_\+uv@{computefaces3d\+\_\+uv}}
+\index{computefaces3d\+\_\+uv@{computefaces3d\+\_\+uv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{computefaces3d\+\_\+uv}{computefaces3d\_uv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::computefaces3d\+\_\+uv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ae415a483f95358e22c164ee6a0884b9d}\label{structmodulehydrodynamic_1_1t__external_ae415a483f95358e22c164ee6a0884b9d}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!computefaces3d\+\_\+v@{computefaces3d\+\_\+v}}
+\index{computefaces3d\+\_\+v@{computefaces3d\+\_\+v}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{computefaces3d\+\_\+v}{computefaces3d\_v}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::computefaces3d\+\_\+v =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a5bf5edef66e8d936fec125fb747b687d}\label{structmodulehydrodynamic_1_1t__external_a5bf5edef66e8d936fec125fb747b687d}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!computefaces3d\+\_\+vu@{computefaces3d\+\_\+vu}}
+\index{computefaces3d\+\_\+vu@{computefaces3d\+\_\+vu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{computefaces3d\+\_\+vu}{computefaces3d\_vu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::computefaces3d\+\_\+vu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ac9c3d5152f1218d19299d35bc1af5ba3}\label{structmodulehydrodynamic_1_1t__external_ac9c3d5152f1218d19299d35bc1af5ba3}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!computefaces3d\+\_\+w@{computefaces3d\+\_\+w}}
+\index{computefaces3d\+\_\+w@{computefaces3d\+\_\+w}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{computefaces3d\+\_\+w}{computefaces3d\_w}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::computefaces3d\+\_\+w =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_af6241cee6d72e5faa8c91c8f2a4cb669}\label{structmodulehydrodynamic_1_1t__external_af6241cee6d72e5faa8c91c8f2a4cb669}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!coriolis\+\_\+freq@{coriolis\+\_\+freq}}
+\index{coriolis\+\_\+freq@{coriolis\+\_\+freq}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{coriolis\+\_\+freq}{coriolis\_freq}}
+{\footnotesize\ttfamily real, dimension(\+:, \+:), pointer modulehydrodynamic\+::t\+\_\+external\+::coriolis\+\_\+freq =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a18af555dc0c9db03db5f1bb66c545aef}\label{structmodulehydrodynamic_1_1t__external_a18af555dc0c9db03db5f1bb66c545aef}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!density@{density}}
+\index{density@{density}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{density}{density}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::density =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_abbec03850971c8da0e30d4ec411e1b52}\label{structmodulehydrodynamic_1_1t__external_abbec03850971c8da0e30d4ec411e1b52}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!directionh@{directionh}}
+\index{directionh@{directionh}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{directionh}{directionh}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::directionh =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a27f9ecb1f5b0576d46beec3bf51ba777}\label{structmodulehydrodynamic_1_1t__external_a27f9ecb1f5b0576d46beec3bf51ba777}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!distortion@{distortion}}
+\index{distortion@{distortion}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{distortion}{distortion}}
+{\footnotesize\ttfamily logical modulehydrodynamic\+::t\+\_\+external\+::distortion = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_abc3f7fc66e963e5e326cf8b9ad51158c}\label{structmodulehydrodynamic_1_1t__external_abc3f7fc66e963e5e326cf8b9ad51158c}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dux@{dux}}
+\index{dux@{dux}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dux}{dux}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dux =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a4a088242c62be7abf8a55c102808e061}\label{structmodulehydrodynamic_1_1t__external_a4a088242c62be7abf8a55c102808e061}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dux\+\_\+vy@{dux\+\_\+vy}}
+\index{dux\+\_\+vy@{dux\+\_\+vy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dux\+\_\+vy}{dux\_vy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dux\+\_\+vy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ae6cbccf619e6426a7b54cc0397a4f7b7}\label{structmodulehydrodynamic_1_1t__external_ae6cbccf619e6426a7b54cc0397a4f7b7}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!duz@{duz}}
+\index{duz@{duz}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{duz}{duz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::duz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_af7fa66b099f679fe565f3a5a8753e180}\label{structmodulehydrodynamic_1_1t__external_af7fa66b099f679fe565f3a5a8753e180}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!duz\+\_\+vz@{duz\+\_\+vz}}
+\index{duz\+\_\+vz@{duz\+\_\+vz}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{duz\+\_\+vz}{duz\_vz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::duz\+\_\+vz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_aef7982d7f3fe71ea05cdc2d75360c5b9}\label{structmodulehydrodynamic_1_1t__external_aef7982d7f3fe71ea05cdc2d75360c5b9}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dvy@{dvy}}
+\index{dvy@{dvy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dvy}{dvy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dvy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a13dfd336f562c687a75ba2a398c742af}\label{structmodulehydrodynamic_1_1t__external_a13dfd336f562c687a75ba2a398c742af}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dvy\+\_\+ux@{dvy\+\_\+ux}}
+\index{dvy\+\_\+ux@{dvy\+\_\+ux}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dvy\+\_\+ux}{dvy\_ux}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dvy\+\_\+ux =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a870c2279069ff8a3aa9f6c154bbaddaa}\label{structmodulehydrodynamic_1_1t__external_a870c2279069ff8a3aa9f6c154bbaddaa}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dvz@{dvz}}
+\index{dvz@{dvz}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dvz}{dvz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::dvz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a64fa084d34481eb0b05c46aefd36dc81}\label{structmodulehydrodynamic_1_1t__external_a64fa084d34481eb0b05c46aefd36dc81}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dwz@{dwz}}
+\index{dwz@{dwz}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dwz}{dwz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::dwz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_acdfb3e19e04f25bdbc6a91b5bcee454e}\label{structmodulehydrodynamic_1_1t__external_acdfb3e19e04f25bdbc6a91b5bcee454e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dxx@{dxx}}
+\index{dxx@{dxx}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dxx}{dxx}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dxx =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a163fa6ec2348c0307dec5e328715a116}\label{structmodulehydrodynamic_1_1t__external_a163fa6ec2348c0307dec5e328715a116}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dxx\+\_\+yy@{dxx\+\_\+yy}}
+\index{dxx\+\_\+yy@{dxx\+\_\+yy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dxx\+\_\+yy}{dxx\_yy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dxx\+\_\+yy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ab741975409dfece5e1939cd026f3cd5a}\label{structmodulehydrodynamic_1_1t__external_ab741975409dfece5e1939cd026f3cd5a}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dyy@{dyy}}
+\index{dyy@{dyy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dyy}{dyy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dyy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a64944dd7ad8a3a9fa4c3c7a07b88b335}\label{structmodulehydrodynamic_1_1t__external_a64944dd7ad8a3a9fa4c3c7a07b88b335}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dyy\+\_\+xx@{dyy\+\_\+xx}}
+\index{dyy\+\_\+xx@{dyy\+\_\+xx}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dyy\+\_\+xx}{dyy\_xx}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dyy\+\_\+xx =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_afb423a320d5e71d6fb91257db58e208b}\label{structmodulehydrodynamic_1_1t__external_afb423a320d5e71d6fb91257db58e208b}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dzx@{dzx}}
+\index{dzx@{dzx}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dzx}{dzx}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dzx =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a8291738506e423d56a5f99da0e0cff63}\label{structmodulehydrodynamic_1_1t__external_a8291738506e423d56a5f99da0e0cff63}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dzx\+\_\+zy@{dzx\+\_\+zy}}
+\index{dzx\+\_\+zy@{dzx\+\_\+zy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dzx\+\_\+zy}{dzx\_zy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dzx\+\_\+zy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a08395562eaf7703aec1669cd4820ad21}\label{structmodulehydrodynamic_1_1t__external_a08395562eaf7703aec1669cd4820ad21}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dzy@{dzy}}
+\index{dzy@{dzy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dzy}{dzy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dzy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a9a6b6d8e7267a6f31c363ba8ef3fd06f}\label{structmodulehydrodynamic_1_1t__external_a9a6b6d8e7267a6f31c363ba8ef3fd06f}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dzy\+\_\+zx@{dzy\+\_\+zx}}
+\index{dzy\+\_\+zx@{dzy\+\_\+zx}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dzy\+\_\+zx}{dzy\_zx}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::dzy\+\_\+zx =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_afe76b5810dcc8fa17aa8adc0ede6a3dd}\label{structmodulehydrodynamic_1_1t__external_afe76b5810dcc8fa17aa8adc0ede6a3dd}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!dzz@{dzz}}
+\index{dzz@{dzz}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dzz}{dzz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::dzz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ad7ef65cb536c349ac47df49e7ec6c42e}\label{structmodulehydrodynamic_1_1t__external_ad7ef65cb536c349ac47df49e7ec6c42e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!gridrotation@{gridrotation}}
+\index{gridrotation@{gridrotation}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{gridrotation}{gridrotation}}
+{\footnotesize\ttfamily real modulehydrodynamic\+::t\+\_\+external\+::gridrotation = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a0f2d2a334980fac313a57fce94c94441}\label{structmodulehydrodynamic_1_1t__external_a0f2d2a334980fac313a57fce94c94441}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!hmin\+\_\+chezy@{hmin\+\_\+chezy}}
+\index{hmin\+\_\+chezy@{hmin\+\_\+chezy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{hmin\+\_\+chezy}{hmin\_chezy}}
+{\footnotesize\ttfamily real modulehydrodynamic\+::t\+\_\+external\+::hmin\+\_\+chezy = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ad0216994f9e05379bd4ad0c29ec3f7fe}\label{structmodulehydrodynamic_1_1t__external_ad0216994f9e05379bd4ad0c29ec3f7fe}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!imposednormalfacesu@{imposednormalfacesu}}
+\index{imposednormalfacesu@{imposednormalfacesu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{imposednormalfacesu}{imposednormalfacesu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::imposednormalfacesu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ad5aa628017441d887d9630629add74a8}\label{structmodulehydrodynamic_1_1t__external_ad5aa628017441d887d9630629add74a8}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!imposednormalfacesuv@{imposednormalfacesuv}}
+\index{imposednormalfacesuv@{imposednormalfacesuv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{imposednormalfacesuv}{imposednormalfacesuv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::imposednormalfacesuv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a744fdc71b353d325a7d31a72d06d170c}\label{structmodulehydrodynamic_1_1t__external_a744fdc71b353d325a7d31a72d06d170c}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!imposednormalfacesv@{imposednormalfacesv}}
+\index{imposednormalfacesv@{imposednormalfacesv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{imposednormalfacesv}{imposednormalfacesv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::imposednormalfacesv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a6e20c013ff6ed24d514a812d3044a02b}\label{structmodulehydrodynamic_1_1t__external_a6e20c013ff6ed24d514a812d3044a02b}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!imposedtangentialfacesu@{imposedtangentialfacesu}}
+\index{imposedtangentialfacesu@{imposedtangentialfacesu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{imposedtangentialfacesu}{imposedtangentialfacesu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::imposedtangentialfacesu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a0d7e01f3b9fb4e4f0ca7076967ebeee0}\label{structmodulehydrodynamic_1_1t__external_a0d7e01f3b9fb4e4f0ca7076967ebeee0}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!imposedtangentialfacesuv@{imposedtangentialfacesuv}}
+\index{imposedtangentialfacesuv@{imposedtangentialfacesuv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{imposedtangentialfacesuv}{imposedtangentialfacesuv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::imposedtangentialfacesuv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a784ca9141c2dae5003a9dfdbde41bb4e}\label{structmodulehydrodynamic_1_1t__external_a784ca9141c2dae5003a9dfdbde41bb4e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!imposedtangentialfacesv@{imposedtangentialfacesv}}
+\index{imposedtangentialfacesv@{imposedtangentialfacesv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{imposedtangentialfacesv}{imposedtangentialfacesv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::imposedtangentialfacesv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a740c591199ad001750f6ad29b27feab0}\label{structmodulehydrodynamic_1_1t__external_a740c591199ad001750f6ad29b27feab0}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!imposedtangentialfacesvu@{imposedtangentialfacesvu}}
+\index{imposedtangentialfacesvu@{imposedtangentialfacesvu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{imposedtangentialfacesvu}{imposedtangentialfacesvu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::imposedtangentialfacesvu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ac651418b183b367da15100a4c0019a2e}\label{structmodulehydrodynamic_1_1t__external_ac651418b183b367da15100a4c0019a2e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!kfloor\+\_\+u@{kfloor\+\_\+u}}
+\index{kfloor\+\_\+u@{kfloor\+\_\+u}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{kfloor\+\_\+u}{kfloor\_u}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::kfloor\+\_\+u =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a5dea2d6f45d39ae5cdc438eac3fa0090}\label{structmodulehydrodynamic_1_1t__external_a5dea2d6f45d39ae5cdc438eac3fa0090}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!kfloor\+\_\+uv@{kfloor\+\_\+uv}}
+\index{kfloor\+\_\+uv@{kfloor\+\_\+uv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{kfloor\+\_\+uv}{kfloor\_uv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::kfloor\+\_\+uv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a7edc4c5b79310d82a93caf360c5a4c3e}\label{structmodulehydrodynamic_1_1t__external_a7edc4c5b79310d82a93caf360c5a4c3e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!kfloor\+\_\+v@{kfloor\+\_\+v}}
+\index{kfloor\+\_\+v@{kfloor\+\_\+v}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{kfloor\+\_\+v}{kfloor\_v}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::kfloor\+\_\+v =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a4a0a1c612a21488eec728dfc09082c07}\label{structmodulehydrodynamic_1_1t__external_a4a0a1c612a21488eec728dfc09082c07}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!kfloor\+\_\+vu@{kfloor\+\_\+vu}}
+\index{kfloor\+\_\+vu@{kfloor\+\_\+vu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{kfloor\+\_\+vu}{kfloor\_vu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::kfloor\+\_\+vu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a0053f4cc3099d29a7d033a8a8d408860}\label{structmodulehydrodynamic_1_1t__external_a0053f4cc3099d29a7d033a8a8d408860}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!kfloor\+\_\+z@{kfloor\+\_\+z}}
+\index{kfloor\+\_\+z@{kfloor\+\_\+z}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{kfloor\+\_\+z}{kfloor\_z}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::kfloor\+\_\+z =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_aeb25f19b1bc1c24f1f85139110e78a3e}\label{structmodulehydrodynamic_1_1t__external_aeb25f19b1bc1c24f1f85139110e78a3e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!landboundaryfacesu@{landboundaryfacesu}}
+\index{landboundaryfacesu@{landboundaryfacesu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{landboundaryfacesu}{landboundaryfacesu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::landboundaryfacesu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a877f904f7231f1fa1e2ecddad728f1f8}\label{structmodulehydrodynamic_1_1t__external_a877f904f7231f1fa1e2ecddad728f1f8}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!landboundaryfacesuv@{landboundaryfacesuv}}
+\index{landboundaryfacesuv@{landboundaryfacesuv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{landboundaryfacesuv}{landboundaryfacesuv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::landboundaryfacesuv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_adcd4b8458e75c4af37b25992e5bf3218}\label{structmodulehydrodynamic_1_1t__external_adcd4b8458e75c4af37b25992e5bf3218}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!landboundaryfacesv@{landboundaryfacesv}}
+\index{landboundaryfacesv@{landboundaryfacesv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{landboundaryfacesv}{landboundaryfacesv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::landboundaryfacesv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ac0722a7265c10e16592d12b4068c7c88}\label{structmodulehydrodynamic_1_1t__external_ac0722a7265c10e16592d12b4068c7c88}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!landboundaryfacesvu@{landboundaryfacesvu}}
+\index{landboundaryfacesvu@{landboundaryfacesvu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{landboundaryfacesvu}{landboundaryfacesvu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::landboundaryfacesvu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_aee458c1fc212e3c2b5b4441ca24aaaa5}\label{structmodulehydrodynamic_1_1t__external_aee458c1fc212e3c2b5b4441ca24aaaa5}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!landpoints2d@{landpoints2d}}
+\index{landpoints2d@{landpoints2d}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{landpoints2d}{landpoints2d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::landpoints2d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ac2fa5f05f24a0f3e3a359b76bd599597}\label{structmodulehydrodynamic_1_1t__external_ac2fa5f05f24a0f3e3a359b76bd599597}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!latitudez@{latitudez}}
+\index{latitudez@{latitudez}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{latitudez}{latitudez}}
+{\footnotesize\ttfamily real, dimension(\+:, \+:), pointer modulehydrodynamic\+::t\+\_\+external\+::latitudez =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ada14d85a6d1bb94fdbf93e513e4ef506}\label{structmodulehydrodynamic_1_1t__external_ada14d85a6d1bb94fdbf93e513e4ef506}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!longitudez@{longitudez}}
+\index{longitudez@{longitudez}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{longitudez}{longitudez}}
+{\footnotesize\ttfamily real, dimension(\+:, \+:), pointer modulehydrodynamic\+::t\+\_\+external\+::longitudez =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_adbe8254671536aac63f2024b92eeb3ee}\label{structmodulehydrodynamic_1_1t__external_adbe8254671536aac63f2024b92eeb3ee}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!manning@{manning}}
+\index{manning@{manning}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{manning}{manning}}
+{\footnotesize\ttfamily logical modulehydrodynamic\+::t\+\_\+external\+::manning = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_add8be4ad79bb237058e937f7088d9fa9}\label{structmodulehydrodynamic_1_1t__external_add8be4ad79bb237058e937f7088d9fa9}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!openpoints3d@{openpoints3d}}
+\index{openpoints3d@{openpoints3d}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{openpoints3d}{openpoints3d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::openpoints3d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_acffa3ca6abbd2d3218d7e3f34e03a352}\label{structmodulehydrodynamic_1_1t__external_acffa3ca6abbd2d3218d7e3f34e03a352}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!rotationx@{rotationx}}
+\index{rotationx@{rotationx}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{rotationx}{rotationx}}
+{\footnotesize\ttfamily real, dimension(\+:, \+:), pointer modulehydrodynamic\+::t\+\_\+external\+::rotationx =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_aac0d68a61c0e625cbc832362d4a7f71d}\label{structmodulehydrodynamic_1_1t__external_aac0d68a61c0e625cbc832362d4a7f71d}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!rotationy@{rotationy}}
+\index{rotationy@{rotationy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{rotationy}{rotationy}}
+{\footnotesize\ttfamily real, dimension(\+:, \+:), pointer modulehydrodynamic\+::t\+\_\+external\+::rotationy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a5f6d6b6a8118ade6d13a08a64729964a}\label{structmodulehydrodynamic_1_1t__external_a5f6d6b6a8118ade6d13a08a64729964a}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!rugositymatrix@{rugositymatrix}}
+\index{rugositymatrix@{rugositymatrix}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{rugositymatrix}{rugositymatrix}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::rugositymatrix =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_afea73a985ffdbac1004129baf6a8583e}\label{structmodulehydrodynamic_1_1t__external_afea73a985ffdbac1004129baf6a8583e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!shearstressmethod@{shearstressmethod}}
+\index{shearstressmethod@{shearstressmethod}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{shearstressmethod}{shearstressmethod}}
+{\footnotesize\ttfamily integer modulehydrodynamic\+::t\+\_\+external\+::shearstressmethod = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a6a9ad794d3de196493f276abbef597c7}\label{structmodulehydrodynamic_1_1t__external_a6a9ad794d3de196493f276abbef597c7}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!sigmadens@{sigmadens}}
+\index{sigmadens@{sigmadens}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{sigmadens}{sigmadens}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::sigmadens =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a9290c23daa0306c3df0f1a7702f4134d}\label{structmodulehydrodynamic_1_1t__external_a9290c23daa0306c3df0f1a7702f4134d}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!stokesdriftspectrumx@{stokesdriftspectrumx}}
+\index{stokesdriftspectrumx@{stokesdriftspectrumx}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{stokesdriftspectrumx}{stokesdriftspectrumx}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::stokesdriftspectrumx\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a7414b071ff31a966b4dbb61f04a686df}\label{structmodulehydrodynamic_1_1t__external_a7414b071ff31a966b4dbb61f04a686df}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!stokesdriftspectrumy@{stokesdriftspectrumy}}
+\index{stokesdriftspectrumy@{stokesdriftspectrumy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{stokesdriftspectrumy}{stokesdriftspectrumy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::stokesdriftspectrumy\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a2f91f5cbb936ceed33656b2ae3fdac24}\label{structmodulehydrodynamic_1_1t__external_a2f91f5cbb936ceed33656b2ae3fdac24}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!stokesfreqnum@{stokesfreqnum}}
+\index{stokesfreqnum@{stokesfreqnum}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{stokesfreqnum}{stokesfreqnum}}
+{\footnotesize\ttfamily integer, pointer modulehydrodynamic\+::t\+\_\+external\+::stokesfreqnum\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_abef239fac212c67b546ee3cd30b8598e}\label{structmodulehydrodynamic_1_1t__external_abef239fac212c67b546ee3cd30b8598e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!stokeswavenumber@{stokeswavenumber}}
+\index{stokeswavenumber@{stokeswavenumber}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{stokeswavenumber}{stokeswavenumber}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::stokeswavenumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_abc59195f46ea07b1dc7cadafbfb8f9c9}\label{structmodulehydrodynamic_1_1t__external_abc59195f46ea07b1dc7cadafbfb8f9c9}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!surfacewaterflux@{surfacewaterflux}}
+\index{surfacewaterflux@{surfacewaterflux}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{surfacewaterflux}{surfacewaterflux}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::surfacewaterflux =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a894bbeead029e5e1aab752c3ac5f1a60}\label{structmodulehydrodynamic_1_1t__external_a894bbeead029e5e1aab752c3ac5f1a60}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!szz@{szz}}
+\index{szz@{szz}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{szz}{szz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::szz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a770a7d6c4ad132871897e0676fac5e66}\label{structmodulehydrodynamic_1_1t__external_a770a7d6c4ad132871897e0676fac5e66}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!tauwaves\+\_\+uv@{tauwaves\+\_\+uv}}
+\index{tauwaves\+\_\+uv@{tauwaves\+\_\+uv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{tauwaves\+\_\+uv}{tauwaves\_uv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::tauwaves\+\_\+uv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ad38466c837e3d1aa804753a874417224}\label{structmodulehydrodynamic_1_1t__external_ad38466c837e3d1aa804753a874417224}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!tauwavesu@{tauwavesu}}
+\index{tauwavesu@{tauwavesu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{tauwavesu}{tauwavesu}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::tauwavesu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a62468300fc3a5780f85315217e429fc7}\label{structmodulehydrodynamic_1_1t__external_a62468300fc3a5780f85315217e429fc7}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!tauwavesv@{tauwavesv}}
+\index{tauwavesv@{tauwavesv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{tauwavesv}{tauwavesv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::tauwavesv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a8e200e22026b823851eb6566c25d8976}\label{structmodulehydrodynamic_1_1t__external_a8e200e22026b823851eb6566c25d8976}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!tauwind\+\_\+uv@{tauwind\+\_\+uv}}
+\index{tauwind\+\_\+uv@{tauwind\+\_\+uv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{tauwind\+\_\+uv}{tauwind\_uv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::tauwind\+\_\+uv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ab2c33a4fc31004542704749c969872a4}\label{structmodulehydrodynamic_1_1t__external_ab2c33a4fc31004542704749c969872a4}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!tauwindu@{tauwindu}}
+\index{tauwindu@{tauwindu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{tauwindu}{tauwindu}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::tauwindu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_aed754a8ceb7e11bf58cc04911c99c20d}\label{structmodulehydrodynamic_1_1t__external_aed754a8ceb7e11bf58cc04911c99c20d}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!tauwindv@{tauwindv}}
+\index{tauwindv@{tauwindv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{tauwindv}{tauwindv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::tauwindv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a93a1ad147ba67c1a3b111f289f7a0f12}\label{structmodulehydrodynamic_1_1t__external_a93a1ad147ba67c1a3b111f289f7a0f12}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!ubw@{ubw}}
+\index{ubw@{ubw}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{ubw}{ubw}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::ubw =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a59bbb49e4f686ec900313ce14eb523ef}\label{structmodulehydrodynamic_1_1t__external_a59bbb49e4f686ec900313ce14eb523ef}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!vertical\+\_\+viscosity@{vertical\+\_\+viscosity}}
+\index{vertical\+\_\+viscosity@{vertical\+\_\+viscosity}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{vertical\+\_\+viscosity}{vertical\_viscosity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::vertical\+\_\+viscosity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ad9ecd6109634b262475a7d8866a3a0af}\label{structmodulehydrodynamic_1_1t__external_ad9ecd6109634b262475a7d8866a3a0af}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!visc\+\_\+h\+\_\+center@{visc\+\_\+h\+\_\+center}}
+\index{visc\+\_\+h\+\_\+center@{visc\+\_\+h\+\_\+center}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{visc\+\_\+h\+\_\+center}{visc\_h\_center}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::visc\+\_\+h\+\_\+center =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a483cbf3dc5ef6cba3eeddfac9f915a99}\label{structmodulehydrodynamic_1_1t__external_a483cbf3dc5ef6cba3eeddfac9f915a99}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!visc\+\_\+h\+\_\+corner@{visc\+\_\+h\+\_\+corner}}
+\index{visc\+\_\+h\+\_\+corner@{visc\+\_\+h\+\_\+corner}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{visc\+\_\+h\+\_\+corner}{visc\_h\_corner}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::visc\+\_\+h\+\_\+corner =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a09e984e44ca53f457b77b792cb3fc1d5}\label{structmodulehydrodynamic_1_1t__external_a09e984e44ca53f457b77b792cb3fc1d5}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!vmin\+\_\+chezy@{vmin\+\_\+chezy}}
+\index{vmin\+\_\+chezy@{vmin\+\_\+chezy}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{vmin\+\_\+chezy}{vmin\_chezy}}
+{\footnotesize\ttfamily real modulehydrodynamic\+::t\+\_\+external\+::vmin\+\_\+chezy = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_aa76086b275fe1dded0327b08e0d5d62c}\label{structmodulehydrodynamic_1_1t__external_aa76086b275fe1dded0327b08e0d5d62c}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!volume\+\_\+u@{volume\+\_\+u}}
+\index{volume\+\_\+u@{volume\+\_\+u}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{volume\+\_\+u}{volume\_u}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::volume\+\_\+u =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ae90b603a01e6e3ddd0f18284ac39b995}\label{structmodulehydrodynamic_1_1t__external_ae90b603a01e6e3ddd0f18284ac39b995}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!volume\+\_\+uv@{volume\+\_\+uv}}
+\index{volume\+\_\+uv@{volume\+\_\+uv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{volume\+\_\+uv}{volume\_uv}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::volume\+\_\+uv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a01e5c7d9044acab46d2f6f5e710ceeb9}\label{structmodulehydrodynamic_1_1t__external_a01e5c7d9044acab46d2f6f5e710ceeb9}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!volume\+\_\+v@{volume\+\_\+v}}
+\index{volume\+\_\+v@{volume\+\_\+v}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{volume\+\_\+v}{volume\_v}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::volume\+\_\+v =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a35bab29625b80968a61e7173abadeb2c}\label{structmodulehydrodynamic_1_1t__external_a35bab29625b80968a61e7173abadeb2c}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!volume\+\_\+w@{volume\+\_\+w}}
+\index{volume\+\_\+w@{volume\+\_\+w}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{volume\+\_\+w}{volume\_w}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::volume\+\_\+w =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_abee963c48387a2a7e5e7fc114714e1ea}\label{structmodulehydrodynamic_1_1t__external_abee963c48387a2a7e5e7fc114714e1ea}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!volume\+\_\+z\+\_\+new@{volume\+\_\+z\+\_\+new}}
+\index{volume\+\_\+z\+\_\+new@{volume\+\_\+z\+\_\+new}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{volume\+\_\+z\+\_\+new}{volume\_z\_new}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::volume\+\_\+z\+\_\+new =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a9ab3d0e0db1629532a0c2fd92e982b1f}\label{structmodulehydrodynamic_1_1t__external_a9ab3d0e0db1629532a0c2fd92e982b1f}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!volume\+\_\+z\+\_\+old@{volume\+\_\+z\+\_\+old}}
+\index{volume\+\_\+z\+\_\+old@{volume\+\_\+z\+\_\+old}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{volume\+\_\+z\+\_\+old}{volume\_z\_old}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::volume\+\_\+z\+\_\+old =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a3e711cb8ffbd1f70252c08fd9c27740a}\label{structmodulehydrodynamic_1_1t__external_a3e711cb8ffbd1f70252c08fd9c27740a}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!watercolumn@{watercolumn}}
+\index{watercolumn@{watercolumn}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{watercolumn}{watercolumn}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::watercolumn =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a96f16c1dd1881738cd8e8677ce21c6bd}\label{structmodulehydrodynamic_1_1t__external_a96f16c1dd1881738cd8e8677ce21c6bd}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!watercolumnu@{watercolumnu}}
+\index{watercolumnu@{watercolumnu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{watercolumnu}{watercolumnu}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::watercolumnu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a5eeb78d39243754928a50b6ed87cf64a}\label{structmodulehydrodynamic_1_1t__external_a5eeb78d39243754928a50b6ed87cf64a}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!watercolumnuv@{watercolumnuv}}
+\index{watercolumnuv@{watercolumnuv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{watercolumnuv}{watercolumnuv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::watercolumnuv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a311232a07dabcfe5812352aea6fb51d3}\label{structmodulehydrodynamic_1_1t__external_a311232a07dabcfe5812352aea6fb51d3}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!watercolumnv@{watercolumnv}}
+\index{watercolumnv@{watercolumnv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{watercolumnv}{watercolumnv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::watercolumnv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ad857173eda1cd9b8714b3b07d533b64e}\label{structmodulehydrodynamic_1_1t__external_ad857173eda1cd9b8714b3b07d533b64e}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!watercolumnvu@{watercolumnvu}}
+\index{watercolumnvu@{watercolumnvu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{watercolumnvu}{watercolumnvu}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::watercolumnvu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_af46ea838d9f5b8229b44850754d07bbc}\label{structmodulehydrodynamic_1_1t__external_af46ea838d9f5b8229b44850754d07bbc}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!waterpoints2d@{waterpoints2d}}
+\index{waterpoints2d@{waterpoints2d}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{waterpoints2d}{waterpoints2d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::waterpoints2d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a1c02da3d87d08013245f85437ddd41a3}\label{structmodulehydrodynamic_1_1t__external_a1c02da3d87d08013245f85437ddd41a3}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!waterpoints3d@{waterpoints3d}}
+\index{waterpoints3d@{waterpoints3d}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{waterpoints3d}{waterpoints3d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::waterpoints3d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a6d3321394e3f6c64d08826ea5f584eaa}\label{structmodulehydrodynamic_1_1t__external_a6d3321394e3f6c64d08826ea5f584eaa}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!wavechezyvel@{wavechezyvel}}
+\index{wavechezyvel@{wavechezyvel}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{wavechezyvel}{wavechezyvel}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::wavechezyvel =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a8131086b23ca7d18f5b043a67ed7d7cf}\label{structmodulehydrodynamic_1_1t__external_a8131086b23ca7d18f5b043a67ed7d7cf}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!waveheight@{waveheight}}
+\index{waveheight@{waveheight}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{waveheight}{waveheight}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::waveheight =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ac30c3c3adc5cdf832063ae11baaecd10}\label{structmodulehydrodynamic_1_1t__external_ac30c3c3adc5cdf832063ae11baaecd10}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!waveinducedpressurej@{waveinducedpressurej}}
+\index{waveinducedpressurej@{waveinducedpressurej}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{waveinducedpressurej}{waveinducedpressurej}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::waveinducedpressurej\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_ade962fc9b2c55be9f0101809b0902f10}\label{structmodulehydrodynamic_1_1t__external_ade962fc9b2c55be9f0101809b0902f10}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!wavelength@{wavelength}}
+\index{wavelength@{wavelength}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{wavelength}{wavelength}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::wavelength\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a29e5ac70dbbe6bc248bb85b563a6017d}\label{structmodulehydrodynamic_1_1t__external_a29e5ac70dbbe6bc248bb85b563a6017d}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!waveperiod@{waveperiod}}
+\index{waveperiod@{waveperiod}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{waveperiod}{waveperiod}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::waveperiod =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a91babb92ab7261061a8527172970a0c5}\label{structmodulehydrodynamic_1_1t__external_a91babb92ab7261061a8527172970a0c5}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!wavetooceanmomentum\+\_\+uv@{wavetooceanmomentum\+\_\+uv}}
+\index{wavetooceanmomentum\+\_\+uv@{wavetooceanmomentum\+\_\+uv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{wavetooceanmomentum\+\_\+uv}{wavetooceanmomentum\_uv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::wavetooceanmomentum\+\_\+uv\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a04b2a689a830aef551549b1e043b5cae}\label{structmodulehydrodynamic_1_1t__external_a04b2a689a830aef551549b1e043b5cae}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!wavetooceanmomentumu@{wavetooceanmomentumu}}
+\index{wavetooceanmomentumu@{wavetooceanmomentumu}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{wavetooceanmomentumu}{wavetooceanmomentumu}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::wavetooceanmomentumu\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a3476a34a5ba7c2b16d0d16049d5546a5}\label{structmodulehydrodynamic_1_1t__external_a3476a34a5ba7c2b16d0d16049d5546a5}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!wavetooceanmomentumv@{wavetooceanmomentumv}}
+\index{wavetooceanmomentumv@{wavetooceanmomentumv}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{wavetooceanmomentumv}{wavetooceanmomentumv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehydrodynamic\+::t\+\_\+external\+::wavetooceanmomentumv\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a6f7cbeab5a90d3566811938eb17a8ae0}\label{structmodulehydrodynamic_1_1t__external_a6f7cbeab5a90d3566811938eb17a8ae0}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!windstress\+\_\+x@{windstress\+\_\+x}}
+\index{windstress\+\_\+x@{windstress\+\_\+x}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{windstress\+\_\+x}{windstress\_x}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::windstress\+\_\+x =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehydrodynamic_1_1t__external_a9670a19197119e8cecda52f493c49d52}\label{structmodulehydrodynamic_1_1t__external_a9670a19197119e8cecda52f493c49d52}} 
+\index{modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}!windstress\+\_\+y@{windstress\+\_\+y}}
+\index{windstress\+\_\+y@{windstress\+\_\+y}!modulehydrodynamic\+::t\+\_\+external@{modulehydrodynamic\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{windstress\+\_\+y}{windstress\_y}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehydrodynamic\+::t\+\_\+external\+::windstress\+\_\+y =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_hydrodynamic_8_f90}{Module\+Hydrodynamic.\+F90}}\end{DoxyCompactItemize}

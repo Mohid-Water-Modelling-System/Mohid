@@ -1,0 +1,10 @@
+<map id="modulewaves::constructfetch" name="modulewaves::constructfetch">
+<area shape="rect" id="node2" href="$namespacemodulewaves.html#a87b9e4a4fb336f9ea383004f7732a8e5" title="modulewaves::computeanglelist" alt="" coords="294,5,499,32"/>
+<area shape="rect" id="node3" href="$namespacemodulewaves.html#a509d19a4e531573684282a3b2e47fb4a" title="modulewaves::constructlandarea" alt="" coords="291,56,502,83"/>
+<area shape="rect" id="node4" href="$namespacemodulewaves.html#aae4352dfe2bb084d6d5d956c1bdadea3" title="modulewaves::computefetchdistancepolygon" alt="" coords="257,107,536,133"/>
+<area shape="rect" id="node5" href="$namespacemodulewaves.html#a885bbbf547ce705b1cd35ecfebe8df37" title="modulewaves::computefetchdistanceanddepthgrid" alt="" coords="243,157,551,184"/>
+<area shape="rect" id="node6" href="$namespacemodulewaves.html#a945cce4a681b204911670731bf66725a" title="modulewaves::computefetchdistancegrid" alt="" coords="269,208,524,235"/>
+<area shape="rect" id="node7" href="$namespacemodulewaves.html#a1ef67144876afbf33cc3bff9a3c88ebd" title="modulewaves::computefetch" alt="" coords="304,259,489,285"/>
+<area shape="rect" id="node8" href="$namespacemodulewaves.html#a27cdbb0680c11412da65be9051fe9100" title="modulewaves::computedepth" alt="" coords="302,309,491,336"/>
+<area shape="rect" id="node9" href="$namespacemodulewaves.html#a566d06de3bff651d00d4a28e0e06157b" title="modulewaves::output\l_griddata" alt="" coords="325,361,468,402"/>
+</map>

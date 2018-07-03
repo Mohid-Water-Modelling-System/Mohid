@@ -1,0 +1,8 @@
+<map id="modulebasin::constructcoupledmodules" name="modulebasin::constructcoupledmodules">
+<area shape="rect" id="node2" href="$namespacemodulebasin.html#a0b7274cf3bbde399251125f839f59767" title="modulebasin::constructsimpleinfiltration" alt="" coords="311,5,561,32"/>
+<area shape="rect" id="node4" href="$namespacemodulebasin.html#a5a5342d9e5be44e9161d8d4643071661" title="modulebasin::constructscscnrunoffmodel" alt="" coords="307,56,565,83"/>
+<area shape="rect" id="node5" href="$namespacemodulebasin.html#a3d6f3d514121b3b20c1b2d2ec4c56fa9" title="modulebasin::constructdiffusewatersource" alt="" coords="304,107,568,133"/>
+<area shape="rect" id="node6" href="$namespacemodulebasin.html#ad767dee07579ea3a5545d747a0d7cfcf" title="modulebasin::constructhdf5output" alt="" coords="327,157,545,184"/>
+<area shape="rect" id="node7" href="$namespacemodulebasin.html#abec73ddab1c13a2f52007dbd7a5adf56" title="modulebasin::constructevtphdfoutput" alt="" coords="319,208,553,235"/>
+<area shape="rect" id="node3" href="$namespacemodulebasin.html#a5a3aa456544a0c67f38a3d3655071347" title="modulebasin::constructoneproperty" alt="" coords="616,31,841,57"/>
+</map>

@@ -1,0 +1,8 @@
+<map id="modulereservoirs::computereservoirlevel" name="modulereservoirs::computereservoirlevel">
+<area shape="rect" id="node2" href="$namespacemodulereservoirs.html#a3194d2a617c1c30dfa86442b6dbe1c31" title="modulereservoirs::initializereservoirsvolume" alt="" coords="304,5,573,32"/>
+<area shape="rect" id="node4" href="$namespacemodulereservoirs.html#a2af994aa3f7d8318c768f2960bb34e06" title="modulereservoirs::updatevolumes" alt="" coords="651,56,864,83"/>
+<area shape="rect" id="node6" href="$namespacemodulereservoirs.html#ac1692cb00cb68968ee7099ff5bf14ed0" title="modulereservoirs::getoutflowfromoperation" alt="" coords="307,107,570,133"/>
+<area shape="rect" id="node3" href="$namespacemodulereservoirs.html#a8356f95662b41d91816350cf3f3c6113" title="modulereservoirs::constructreservoirs" alt="" coords="639,5,875,32"/>
+<area shape="rect" id="node5" href="$namespacemodulereservoirs.html#a65da9561acff8444f90db1ccde975201" title="modulereservoirs::modifyreservoirs" alt="" coords="941,81,1161,108"/>
+<area shape="rect" id="node7" href="$namespacemodulereservoirs.html#a20b9abb4646405dacdb0a0927de2ec9b" title="modulereservoirs::computereservoiroutflows" alt="" coords="621,107,893,133"/>
+</map>

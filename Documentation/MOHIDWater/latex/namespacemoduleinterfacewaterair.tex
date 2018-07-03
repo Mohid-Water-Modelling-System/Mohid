@@ -1,0 +1,1645 @@
+\hypertarget{namespacemoduleinterfacewaterair}{}\section{moduleinterfacewaterair Module Reference}
+\label{namespacemoduleinterfacewaterair}\index{moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__coupled}{t\+\_\+coupled}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__coupling}{t\+\_\+coupling}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__evolution}{t\+\_\+evolution}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__atm}{t\+\_\+ext\+\_\+atm}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__global}{t\+\_\+ext\+\_\+global}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__options}{t\+\_\+ext\+\_\+options}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__water}{t\+\_\+ext\+\_\+water}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__extfield}{t\+\_\+extfield}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__files}{t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__int__options}{t\+\_\+int\+\_\+options}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair}{t\+\_\+interfacewaterair}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__local__atm}{t\+\_\+local\+\_\+atm}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__output}{t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__rugosity}{t\+\_\+rugosity}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__waveflux}{t\+\_\+waveflux}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleinterfacewaterair_a1d15121ff2d6a7ec0e45dffd0506037a}{startinterfacewaterair}} (Model\+Name, Obj\+Interface\+Water\+Air\+ID, Time\+ID, Horizontal\+Grid\+ID, Water\+Grid\+Data\+ID, Water\+Horizontal\+Map\+ID, Water\+Map\+ID, Water\+Geometry\+ID, Hydrodynamic\+ID, Turb\+G\+O\+T\+M\+ID, Waves\+ID, Water\+Properties\+ID, Atmosphere\+ID, Lagrangian\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_aac230f23ec15f17b04185abc9c918ba1}{allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a8a015dc245f72a1e32671973e4ef4538}{readwaterairfilesname}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_aade4da5319abf6cc9115d08e4cfb448b}{constructglobalvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad1e0a14ea6e30cf93be9661a4a71a0f7}{allocatecoarevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ae5a4815896d07094361faa53fb69aa03}{constructrugosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_af474bb755901d845cb8a0f3efa8ffcbe}{constructwavefluxtke}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a0102df656b49a2adcbef76f5a3a9e6d0}{construct\+\_\+propertylist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9b32248d73ce68c55c1d8671b779f48a}{searchproperty}} (PropertyX, Property\+X\+I\+D\+Number, Print\+Warning, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a8f499486725a26a9dcb5b2bd07ba3af9}{construct\+\_\+property}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a564ac080f485dff9d0cc2f92d398f795}{construct\+\_\+propertyvalues}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a49127aa503109a2b4f86aee6e0d4d665}{construct\+\_\+propertyevolution}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_aa99a2e7fefb8e45ed29092e8c068982a}{construct\+\_\+propertyoutput}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a2a801625d49cd1732858f2dc52a71271}{add\+\_\+property}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a48080272c5d72deaf3fe655740d02ccc}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a1512570388fa7585da06c4fd36fc27ae}{constructglobaloutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a26e91289c0b811bff694b61c7a06fb15}{construct\+\_\+sub\+\_\+modules}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a49e85ee8a7b283a5ec88a2c8db419d3e}{construct\+\_\+time\+\_\+serie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a657983e875ad047622b576288b98dd2e}{startoutputboxfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a7bb7aa6672e098e262e702265ea4cbef}{checkinternaloptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a6ca031d04555d7ec7193b26144ed978f}{checkoptionswater}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_afa8defb4c07e4d9150f1507fc3ea475a}{checkoptionsair}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_acc8f2f52f650494e800b421332c39060}{setsubmodulesconstructor}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_abba77353f44ae39342d577e54d38ad95}{search\+\_\+property}} (PropertyX, Property\+X\+ID, Print\+Warning, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a859b7054113f5f1ab347adbd693c2e16}{readlockexternalglobal}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a78276c71fe608663c6c964c59c8c7626}{readlockexternalwater}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ada112545191c798704451772d5803ea0}{readunlockexternalglobal}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a380a0dfa2a33b7c2eef433d69fdf7fef}{readunlockexternalwater}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad372fa1a038ce383360d4422cc25923d}{modifyinterfacewaterair}} (Obj\+Interface\+Water\+Air\+ID, Lagrangian\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a44a9529a1162816a090c836bc75d3f29}{modifylocalatmvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a91edae849454c0ec7ebcefd91556486e}{modifywaterairfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad58b286425c066f4643dc56d5a605645}{modifyalbedo}} (Prop\+Albedo)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a5442677ffd4780b9f170ffed821b8185}{computelatentheat}} (Prop\+Latent\+Heat)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a75fdc03352ad6627e770e22eddc20f05}{modifylatentheat}} (Prop\+Latent\+Heat)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9ae768b301ebc2c73524836b992b568d}{modifynonsolarflux}} (Prop\+Non\+Solar\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a440fa94544c221014817ea4b5bea703a}{computenonsolarflux}} (Prop\+Non\+Solar\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a57d8dae2ec14a4562c48bbccb24a5f96}{modifysurfaceradiation}} (Prop\+Surface\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ac9ef1ef38af46f9428d5e550057e60b9}{computesurfaceradiation}} (Prop\+Surface\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_abe46b3644f7d36d7d60cc3a86eb0de5f}{computesensibleheat}} (Prop\+Sensible\+Heat)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a2724f68137207e7ade1ca13b482d8f81}{modifysensibleheat}} (Prop\+Sensible\+Heat)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a808beb15bad5f77afa64f469679f1229}{computeevaporation}} (Prop\+Evaporation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a0c61f58f27a4d911118aadbccbbd1920}{modifyevaporation}} (Prop\+Evaporation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a88a4ad4c4d7d19f977f8154341d169fd}{modifysurfacewaterflux}} (Prop\+Surface\+Water\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a6cfc460eb2c0c3821a172285fe7ae066}{computeuplongwaverad}} (Prop\+Upward\+Long\+Wave\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ae3df7c61e2dbd50895d272ec3bdb3d28}{computedownlongwaverad}} (Prop\+Downward\+Long\+Wave\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a446911b7d3595fa04059369d70ebf75e}{modifynetlongwaveradiation}} (Prop\+Net\+Long\+Wave\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a1210cfaa400404020add49f99363970b}{computecoareheatbudget}} (Prop\+Latent\+Heat, Prop\+Sensible\+Heat, Prop\+Net\+Long\+Wave\+Radiation, Prop\+Up\+Long\+Wave\+Radiation, Prop\+Down\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation, Prop\+Non\+Solar\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a4dbe6db87de8afe751f851ce37f72dda}{computewarmlayer}} (Prop\+Net\+Long\+Wave\+Radiation, Prop\+Up\+Long\+Wave\+Radiation, Prop\+Down\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation, Water\+Density)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a542e31b196bb8758541444a1a4f7bd77}{computecoaresurfacefluxes}} (Prop\+Latent\+Heat, Prop\+Sensible\+Heat, Prop\+Net\+Long\+Wave\+Radiation, Prop\+Up\+Long\+Wave\+Radiation, Prop\+Down\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation, Prop\+Non\+Solar\+Flux, Water\+Density)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ae6acdb7a76bd3e0edd25e31a74d3ab48}{firstguess}} (Air\+Temperature, Moisture\+Content\+Air, Delta\+Sat\+Vap\+Press\+Corr, Visa, Interface\+Moisture\+Content, Wind\+Velocity, C\+O\+A\+R\+E\+Wind\+Velocity, Cool\+Skin\+Hum\+Depression, Delta\+Sat\+Vap\+Press, Delta\+Temp\+Interface, Cool\+Skin\+Temp\+Depression, Scailing\+Velocity\+Par, Scailing\+Temperature\+Par, Scailing\+Moisture\+Par, Cool\+Skin\+Thickness, P\+B\+L\+Height, Nits, i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_adca22635eac17186131c131155bfb929}{bulkloop}} (Prop\+Latent\+Heat, Prop\+Sensible\+Heat, Prop\+Net\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation, Air\+Temperature, Water\+Density, Delta\+Temp\+Interface, Scailing\+Temperature\+Par, Charn, Scailing\+Moisture\+Par, Delta\+Sat\+Vap\+Press, Cool\+Skin\+Temp\+Depression, Air\+Density, Visa, Cool\+Skin\+Hum\+Depression, Cool\+Skin\+Thickness, Bigc, Lat\+Heat\+Vap, Scailing\+Velocity\+Par, C\+O\+A\+R\+E\+Wind\+Velocity, Delta\+Sat\+Vap\+Press\+Corr, Moisture\+Content\+Air, Wind\+Velocity, P\+B\+L\+Height, i, j, K\+UB, Nits)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a285710ae41f9eb54923e88dfcaf64681}{checkradiationoptions}} (Prop\+Net\+Long\+Wave\+Radiation, Prop\+Up\+Long\+Wave\+Radiation, Prop\+Down\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a7ad682cf919390b70351f87d094eb4fb}{checklatentsensibleoptions}} (Prop\+Latent\+Heat, Prop\+Sensible\+Heat)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a65968d6dee9f2e512ec37dd5d4fe8fe1}{psit}} (zet)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_af976a3b281048d4f32222b16621b556a}{psiu}} (zet)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_adc7a37061f983410896c39bb15a20517}{airviscosity}} (Temperature)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad635dbe2d03621ece4e4eeb32fc65bb6}{watervapourdiffusivity}} (Temperature)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ab0d1bf1d73b112083b7be11d6c22aebc}{heatdiffusivity}} (Temperature, Air\+Density, Cpa)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a09c4f1b7db1459cc4893f784b8310831}{modifywindstress}} (Prop\+Wind\+Stress)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_aa8b103904b5c34125450b64aeff53081}{computetauwind}} (Prop\+Wind\+Stress)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ac1f2af410795916d4c7572b0b5a8e963}{modifyturbulentke}} (Prop\+Turbulent\+KE)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_afa753f72a101e83d20369a3801986adb}{computetkewind}} (Prop\+Turbulent\+KE)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad4e148f79fe842f02dfc2fd7eb424091}{modifyoxygenflux}} (Property\+O2)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9e9d9c5604753ebdf47d735d1c6b2fe4}{modifyaerationflux}} (Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a562697e89f9cb3b375137d30b5b565eb}{modifycarbondioxideflux}} (Prop\+Carbon\+Dioxide)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad16fde1df2013d74710f42901a89754e}{modifyco2aerationflux}} (Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a8f1f7fa64a06041e2cb84a386c86e9e1}{modifyammoniaflux}} (Prop\+Ammonia\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ac260263b243a28d2d9eb0dce7188d3b0}{modifynitrateflux}} (Prop\+Nitrate\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a067a8627bd218eba128377b9cca8031f}{modifywindshearvelocity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_abb9a2be6b590714a3c5b58da190ce52f}{computewavesrugosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_aa7f512949a9b145b55378017e58558a7}{modifyrugosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a2494cba9b6646ce732323f31ef820a97}{modifywavefluxtke}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a739b5f50c0652ff91c9f777fbf68729f}{output\+\_\+timeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a8c2f4a754ac1aeb4a3a8045d639e609f}{output\+\_\+boxtimeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_af0bc1dab0d7eafb5b7f4996d24e4d0bf}{output\+\_\+results\+\_\+hdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a5f28ad0176312886bacef9cc171cb2e1}{setsubmodulesmodifier}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9492d98237c53dd77ad30ffe270b64cd}{killinterfacewaterair}} (Obj\+Interface\+Water\+Air\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ab0b32961ac4c2950c8d474148dba7b1d}{deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a519b1351dce06ffef1eb101335e6361f}{ready}} (Obj\+Interface\+Water\+Air\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a17c41a363434acdb52729214d81e9e86}{locateobjinterfacewaterair}} (Obj\+Interface\+Water\+Air\+ID)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a5b4bd7da5a9e3e4da1bfe7edd8b805ac}{prop\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_abb372346805a352ba54048bced113782}{prop\+\_\+block\+\_\+end}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a0278d4530d0ebedf0d59117a3c772f93}{rugosity\+\_\+begin}} = \textquotesingle{}$<$begin\+\_\+rugosity$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a58a4130456c2f79f5500a5ccb4517cfd}{rugosity\+\_\+end}} = \textquotesingle{}$<$end\+\_\+rugosity$>$\textquotesingle{}
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_af9d25ee72bf87831a84be25bc8435c55}{wateremissivity}} = 0.\+96
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a4c926bc0f796609398890a390dc9d36c}{stefanboltzmann}} = 5.\+669e-\/08
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a8155eb359d8312366017041e27b20e8b}{bowencoefficient}} = 0.\+47
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a65185c3b0a782bd2b12e894ee2619550}{referencedensity}} = 1000.
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a56a7408ea5d0be55c3bed3cda2294990}{reflatentheatofvaporization}} = 2.\+5e6
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_ac4e6928da233e97fced767b3ff6b8482}{cde}} = 0.\+63\+E-\/06
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9e6fc9893e6a61442860c5361e65ef24}{nowave}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a48f8ac61c3aadc9ee602467e19d9939a}{surfacerugosityfromhs}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a1a742a8ff8b7f163b4dc4673bdf8482f}{surfacerugosityfromhsw}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_af9a5813643af305d2fcb128710906ce2}{constant}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_ab0bf8dbd48fafcd7c122816cd5ebce18}{windfunction}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_afc5639ec5cd09597dc78cfe2ee596fd0}{shearvelocity}} = 3
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair}{t\+\_\+interfacewaterair}}), pointer \mbox{\hyperlink{namespacemoduleinterfacewaterair_a55db38560ef3abcb02cfd5a7c17dc800}{firstobjinterfacewaterair}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair}{t\+\_\+interfacewaterair}}), pointer \mbox{\hyperlink{namespacemoduleinterfacewaterair_afff814b0fb4c5feeb5a9e6278d4f6fb5}{me}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a2a801625d49cd1732858f2dc52a71271}\label{namespacemoduleinterfacewaterair_a2a801625d49cd1732858f2dc52a71271}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!add\+\_\+property@{add\+\_\+property}}
+\index{add\+\_\+property@{add\+\_\+property}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{add\+\_\+property()}{add\_property()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::add\+\_\+property (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a2a801625d49cd1732858f2dc52a71271_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_adc7a37061f983410896c39bb15a20517}\label{namespacemoduleinterfacewaterair_adc7a37061f983410896c39bb15a20517}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!airviscosity@{airviscosity}}
+\index{airviscosity@{airviscosity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{airviscosity()}{airviscosity()}}
+{\footnotesize\ttfamily real function, private moduleinterfacewaterair\+::airviscosity (\begin{DoxyParamCaption}\item[{real}]{Temperature }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_adc7a37061f983410896c39bb15a20517_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ad1e0a14ea6e30cf93be9661a4a71a0f7}\label{namespacemoduleinterfacewaterair_ad1e0a14ea6e30cf93be9661a4a71a0f7}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!allocatecoarevariables@{allocatecoarevariables}}
+\index{allocatecoarevariables@{allocatecoarevariables}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{allocatecoarevariables()}{allocatecoarevariables()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::allocatecoarevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ad1e0a14ea6e30cf93be9661a4a71a0f7_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_aac230f23ec15f17b04185abc9c918ba1}\label{namespacemoduleinterfacewaterair_aac230f23ec15f17b04185abc9c918ba1}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_aac230f23ec15f17b04185abc9c918ba1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_adca22635eac17186131c131155bfb929}\label{namespacemoduleinterfacewaterair_adca22635eac17186131c131155bfb929}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!bulkloop@{bulkloop}}
+\index{bulkloop@{bulkloop}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{bulkloop()}{bulkloop()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::bulkloop (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Latent\+Heat,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Sensible\+Heat,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Net\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Surface\+Radiation,  }\item[{real, dimension(\+:,\+:), pointer}]{Air\+Temperature,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Water\+Density,  }\item[{real, intent(in)}]{Delta\+Temp\+Interface,  }\item[{real, intent(inout)}]{Scailing\+Temperature\+Par,  }\item[{real, intent(in)}]{Charn,  }\item[{real, intent(inout)}]{Scailing\+Moisture\+Par,  }\item[{real, intent(in)}]{Delta\+Sat\+Vap\+Press,  }\item[{real, intent(inout)}]{Cool\+Skin\+Temp\+Depression,  }\item[{real, intent(in)}]{Air\+Density,  }\item[{real, intent(in)}]{Visa,  }\item[{real, intent(inout)}]{Cool\+Skin\+Hum\+Depression,  }\item[{real, intent(inout)}]{Cool\+Skin\+Thickness,  }\item[{real, intent(in)}]{Bigc,  }\item[{real, intent(in)}]{Lat\+Heat\+Vap,  }\item[{real, intent(inout)}]{Scailing\+Velocity\+Par,  }\item[{real, intent(inout)}]{C\+O\+A\+R\+E\+Wind\+Velocity,  }\item[{real, intent(in)}]{Delta\+Sat\+Vap\+Press\+Corr,  }\item[{real, intent(in)}]{Moisture\+Content\+Air,  }\item[{real, intent(in)}]{Wind\+Velocity,  }\item[{real, dimension(\+:,\+:), pointer}]{P\+B\+L\+Height,  }\item[{integer, intent(in)}]{i,  }\item[{integer, intent(in)}]{j,  }\item[{integer, intent(in)}]{K\+UB,  }\item[{integer, intent(in)}]{Nits }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_adca22635eac17186131c131155bfb929_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_adca22635eac17186131c131155bfb929_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a7bb7aa6672e098e262e702265ea4cbef}\label{namespacemoduleinterfacewaterair_a7bb7aa6672e098e262e702265ea4cbef}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!checkinternaloptions@{checkinternaloptions}}
+\index{checkinternaloptions@{checkinternaloptions}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{checkinternaloptions()}{checkinternaloptions()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::checkinternaloptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a7bb7aa6672e098e262e702265ea4cbef_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a7bb7aa6672e098e262e702265ea4cbef_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a7ad682cf919390b70351f87d094eb4fb}\label{namespacemoduleinterfacewaterair_a7ad682cf919390b70351f87d094eb4fb}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!checklatentsensibleoptions@{checklatentsensibleoptions}}
+\index{checklatentsensibleoptions@{checklatentsensibleoptions}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{checklatentsensibleoptions()}{checklatentsensibleoptions()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::checklatentsensibleoptions (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Latent\+Heat,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Sensible\+Heat }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a7ad682cf919390b70351f87d094eb4fb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_afa8defb4c07e4d9150f1507fc3ea475a}\label{namespacemoduleinterfacewaterair_afa8defb4c07e4d9150f1507fc3ea475a}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!checkoptionsair@{checkoptionsair}}
+\index{checkoptionsair@{checkoptionsair}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{checkoptionsair()}{checkoptionsair()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::checkoptionsair (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_afa8defb4c07e4d9150f1507fc3ea475a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_afa8defb4c07e4d9150f1507fc3ea475a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a6ca031d04555d7ec7193b26144ed978f}\label{namespacemoduleinterfacewaterair_a6ca031d04555d7ec7193b26144ed978f}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!checkoptionswater@{checkoptionswater}}
+\index{checkoptionswater@{checkoptionswater}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{checkoptionswater()}{checkoptionswater()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::checkoptionswater (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a6ca031d04555d7ec7193b26144ed978f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a6ca031d04555d7ec7193b26144ed978f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a285710ae41f9eb54923e88dfcaf64681}\label{namespacemoduleinterfacewaterair_a285710ae41f9eb54923e88dfcaf64681}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!checkradiationoptions@{checkradiationoptions}}
+\index{checkradiationoptions@{checkradiationoptions}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{checkradiationoptions()}{checkradiationoptions()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::checkradiationoptions (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Net\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Up\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Down\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Surface\+Radiation }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a285710ae41f9eb54923e88dfcaf64681_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a285710ae41f9eb54923e88dfcaf64681_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a1210cfaa400404020add49f99363970b}\label{namespacemoduleinterfacewaterair_a1210cfaa400404020add49f99363970b}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computecoareheatbudget@{computecoareheatbudget}}
+\index{computecoareheatbudget@{computecoareheatbudget}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computecoareheatbudget()}{computecoareheatbudget()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computecoareheatbudget (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Latent\+Heat,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Sensible\+Heat,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Net\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Up\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Down\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Surface\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Non\+Solar\+Flux }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a1210cfaa400404020add49f99363970b_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a1210cfaa400404020add49f99363970b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a542e31b196bb8758541444a1a4f7bd77}\label{namespacemoduleinterfacewaterair_a542e31b196bb8758541444a1a4f7bd77}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computecoaresurfacefluxes@{computecoaresurfacefluxes}}
+\index{computecoaresurfacefluxes@{computecoaresurfacefluxes}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computecoaresurfacefluxes()}{computecoaresurfacefluxes()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computecoaresurfacefluxes (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Latent\+Heat,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Sensible\+Heat,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Net\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Up\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Down\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Surface\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Non\+Solar\+Flux,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Water\+Density }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a542e31b196bb8758541444a1a4f7bd77_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a542e31b196bb8758541444a1a4f7bd77_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ae3df7c61e2dbd50895d272ec3bdb3d28}\label{namespacemoduleinterfacewaterair_ae3df7c61e2dbd50895d272ec3bdb3d28}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computedownlongwaverad@{computedownlongwaverad}}
+\index{computedownlongwaverad@{computedownlongwaverad}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computedownlongwaverad()}{computedownlongwaverad()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computedownlongwaverad (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Downward\+Long\+Wave\+Radiation }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ae3df7c61e2dbd50895d272ec3bdb3d28_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a808beb15bad5f77afa64f469679f1229}\label{namespacemoduleinterfacewaterair_a808beb15bad5f77afa64f469679f1229}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computeevaporation@{computeevaporation}}
+\index{computeevaporation@{computeevaporation}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computeevaporation()}{computeevaporation()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computeevaporation (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Evaporation }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a808beb15bad5f77afa64f469679f1229_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a808beb15bad5f77afa64f469679f1229_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a5442677ffd4780b9f170ffed821b8185}\label{namespacemoduleinterfacewaterair_a5442677ffd4780b9f170ffed821b8185}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computelatentheat@{computelatentheat}}
+\index{computelatentheat@{computelatentheat}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computelatentheat()}{computelatentheat()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computelatentheat (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Latent\+Heat }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a5442677ffd4780b9f170ffed821b8185_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a440fa94544c221014817ea4b5bea703a}\label{namespacemoduleinterfacewaterair_a440fa94544c221014817ea4b5bea703a}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computenonsolarflux@{computenonsolarflux}}
+\index{computenonsolarflux@{computenonsolarflux}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computenonsolarflux()}{computenonsolarflux()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computenonsolarflux (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Non\+Solar\+Flux }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a440fa94544c221014817ea4b5bea703a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a440fa94544c221014817ea4b5bea703a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_abe46b3644f7d36d7d60cc3a86eb0de5f}\label{namespacemoduleinterfacewaterair_abe46b3644f7d36d7d60cc3a86eb0de5f}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computesensibleheat@{computesensibleheat}}
+\index{computesensibleheat@{computesensibleheat}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computesensibleheat()}{computesensibleheat()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computesensibleheat (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Sensible\+Heat }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_abe46b3644f7d36d7d60cc3a86eb0de5f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ac9ef1ef38af46f9428d5e550057e60b9}\label{namespacemoduleinterfacewaterair_ac9ef1ef38af46f9428d5e550057e60b9}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computesurfaceradiation@{computesurfaceradiation}}
+\index{computesurfaceradiation@{computesurfaceradiation}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computesurfaceradiation()}{computesurfaceradiation()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computesurfaceradiation (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Surface\+Radiation }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ac9ef1ef38af46f9428d5e550057e60b9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ac9ef1ef38af46f9428d5e550057e60b9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_aa8b103904b5c34125450b64aeff53081}\label{namespacemoduleinterfacewaterair_aa8b103904b5c34125450b64aeff53081}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computetauwind@{computetauwind}}
+\index{computetauwind@{computetauwind}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computetauwind()}{computetauwind()}}
+{\footnotesize\ttfamily subroutine moduleinterfacewaterair\+::computetauwind (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Wind\+Stress }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_aa8b103904b5c34125450b64aeff53081_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_aa8b103904b5c34125450b64aeff53081_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_afa753f72a101e83d20369a3801986adb}\label{namespacemoduleinterfacewaterair_afa753f72a101e83d20369a3801986adb}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computetkewind@{computetkewind}}
+\index{computetkewind@{computetkewind}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computetkewind()}{computetkewind()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computetkewind (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Turbulent\+KE }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_afa753f72a101e83d20369a3801986adb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a6cfc460eb2c0c3821a172285fe7ae066}\label{namespacemoduleinterfacewaterair_a6cfc460eb2c0c3821a172285fe7ae066}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computeuplongwaverad@{computeuplongwaverad}}
+\index{computeuplongwaverad@{computeuplongwaverad}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computeuplongwaverad()}{computeuplongwaverad()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computeuplongwaverad (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Upward\+Long\+Wave\+Radiation }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a6cfc460eb2c0c3821a172285fe7ae066_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a4dbe6db87de8afe751f851ce37f72dda}\label{namespacemoduleinterfacewaterair_a4dbe6db87de8afe751f851ce37f72dda}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computewarmlayer@{computewarmlayer}}
+\index{computewarmlayer@{computewarmlayer}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computewarmlayer()}{computewarmlayer()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computewarmlayer (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Net\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Up\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Down\+Long\+Wave\+Radiation,  }\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Surface\+Radiation,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Water\+Density }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a4dbe6db87de8afe751f851ce37f72dda_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_abb9a2be6b590714a3c5b58da190ce52f}\label{namespacemoduleinterfacewaterair_abb9a2be6b590714a3c5b58da190ce52f}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!computewavesrugosity@{computewavesrugosity}}
+\index{computewavesrugosity@{computewavesrugosity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{computewavesrugosity()}{computewavesrugosity()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::computewavesrugosity (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_abb9a2be6b590714a3c5b58da190ce52f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a8f499486725a26a9dcb5b2bd07ba3af9}\label{namespacemoduleinterfacewaterair_a8f499486725a26a9dcb5b2bd07ba3af9}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!construct\+\_\+property@{construct\+\_\+property}}
+\index{construct\+\_\+property@{construct\+\_\+property}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{construct\+\_\+property()}{construct\_property()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::construct\+\_\+property (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a8f499486725a26a9dcb5b2bd07ba3af9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a8f499486725a26a9dcb5b2bd07ba3af9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a49127aa503109a2b4f86aee6e0d4d665}\label{namespacemoduleinterfacewaterair_a49127aa503109a2b4f86aee6e0d4d665}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!construct\+\_\+propertyevolution@{construct\+\_\+propertyevolution}}
+\index{construct\+\_\+propertyevolution@{construct\+\_\+propertyevolution}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{construct\+\_\+propertyevolution()}{construct\_propertyevolution()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::construct\+\_\+propertyevolution (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a49127aa503109a2b4f86aee6e0d4d665_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a0102df656b49a2adcbef76f5a3a9e6d0}\label{namespacemoduleinterfacewaterair_a0102df656b49a2adcbef76f5a3a9e6d0}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!construct\+\_\+propertylist@{construct\+\_\+propertylist}}
+\index{construct\+\_\+propertylist@{construct\+\_\+propertylist}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{construct\+\_\+propertylist()}{construct\_propertylist()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::construct\+\_\+propertylist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a0102df656b49a2adcbef76f5a3a9e6d0_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a0102df656b49a2adcbef76f5a3a9e6d0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_aa99a2e7fefb8e45ed29092e8c068982a}\label{namespacemoduleinterfacewaterair_aa99a2e7fefb8e45ed29092e8c068982a}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!construct\+\_\+propertyoutput@{construct\+\_\+propertyoutput}}
+\index{construct\+\_\+propertyoutput@{construct\+\_\+propertyoutput}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{construct\+\_\+propertyoutput()}{construct\_propertyoutput()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::construct\+\_\+propertyoutput (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_aa99a2e7fefb8e45ed29092e8c068982a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a564ac080f485dff9d0cc2f92d398f795}\label{namespacemoduleinterfacewaterair_a564ac080f485dff9d0cc2f92d398f795}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!construct\+\_\+propertyvalues@{construct\+\_\+propertyvalues}}
+\index{construct\+\_\+propertyvalues@{construct\+\_\+propertyvalues}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{construct\+\_\+propertyvalues()}{construct\_propertyvalues()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::construct\+\_\+propertyvalues (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a564ac080f485dff9d0cc2f92d398f795_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a26e91289c0b811bff694b61c7a06fb15}\label{namespacemoduleinterfacewaterair_a26e91289c0b811bff694b61c7a06fb15}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!construct\+\_\+sub\+\_\+modules@{construct\+\_\+sub\+\_\+modules}}
+\index{construct\+\_\+sub\+\_\+modules@{construct\+\_\+sub\+\_\+modules}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{construct\+\_\+sub\+\_\+modules()}{construct\_sub\_modules()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::construct\+\_\+sub\+\_\+modules (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a26e91289c0b811bff694b61c7a06fb15_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a26e91289c0b811bff694b61c7a06fb15_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a49e85ee8a7b283a5ec88a2c8db419d3e}\label{namespacemoduleinterfacewaterair_a49e85ee8a7b283a5ec88a2c8db419d3e}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!construct\+\_\+time\+\_\+serie@{construct\+\_\+time\+\_\+serie}}
+\index{construct\+\_\+time\+\_\+serie@{construct\+\_\+time\+\_\+serie}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{construct\+\_\+time\+\_\+serie()}{construct\_time\_serie()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::construct\+\_\+time\+\_\+serie (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a49e85ee8a7b283a5ec88a2c8db419d3e_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a49e85ee8a7b283a5ec88a2c8db419d3e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a1512570388fa7585da06c4fd36fc27ae}\label{namespacemoduleinterfacewaterair_a1512570388fa7585da06c4fd36fc27ae}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!constructglobaloutput@{constructglobaloutput}}
+\index{constructglobaloutput@{constructglobaloutput}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{constructglobaloutput()}{constructglobaloutput()}}
+{\footnotesize\ttfamily subroutine moduleinterfacewaterair\+::constructglobaloutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a1512570388fa7585da06c4fd36fc27ae_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_aade4da5319abf6cc9115d08e4cfb448b}\label{namespacemoduleinterfacewaterair_aade4da5319abf6cc9115d08e4cfb448b}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!constructglobalvariables@{constructglobalvariables}}
+\index{constructglobalvariables@{constructglobalvariables}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{constructglobalvariables()}{constructglobalvariables()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::constructglobalvariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_aade4da5319abf6cc9115d08e4cfb448b_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_aade4da5319abf6cc9115d08e4cfb448b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ae5a4815896d07094361faa53fb69aa03}\label{namespacemoduleinterfacewaterair_ae5a4815896d07094361faa53fb69aa03}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!constructrugosity@{constructrugosity}}
+\index{constructrugosity@{constructrugosity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{constructrugosity()}{constructrugosity()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::constructrugosity (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ae5a4815896d07094361faa53fb69aa03_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ae5a4815896d07094361faa53fb69aa03_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_af474bb755901d845cb8a0f3efa8ffcbe}\label{namespacemoduleinterfacewaterair_af474bb755901d845cb8a0f3efa8ffcbe}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!constructwavefluxtke@{constructwavefluxtke}}
+\index{constructwavefluxtke@{constructwavefluxtke}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{constructwavefluxtke()}{constructwavefluxtke()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::constructwavefluxtke (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_af474bb755901d845cb8a0f3efa8ffcbe_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_af474bb755901d845cb8a0f3efa8ffcbe_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ab0b32961ac4c2950c8d474148dba7b1d}\label{namespacemoduleinterfacewaterair_ab0b32961ac4c2950c8d474148dba7b1d}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ab0b32961ac4c2950c8d474148dba7b1d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ae6acdb7a76bd3e0edd25e31a74d3ab48}\label{namespacemoduleinterfacewaterair_ae6acdb7a76bd3e0edd25e31a74d3ab48}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!firstguess@{firstguess}}
+\index{firstguess@{firstguess}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{firstguess()}{firstguess()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::firstguess (\begin{DoxyParamCaption}\item[{real, dimension(\+:,\+:), pointer}]{Air\+Temperature,  }\item[{real, intent(in)}]{Moisture\+Content\+Air,  }\item[{real, intent(in)}]{Delta\+Sat\+Vap\+Press\+Corr,  }\item[{real, intent(in)}]{Visa,  }\item[{real, intent(in)}]{Interface\+Moisture\+Content,  }\item[{real}]{Wind\+Velocity,  }\item[{real, intent(out)}]{C\+O\+A\+R\+E\+Wind\+Velocity,  }\item[{real, intent(out)}]{Cool\+Skin\+Hum\+Depression,  }\item[{real, intent(out)}]{Delta\+Sat\+Vap\+Press,  }\item[{real, intent(out)}]{Delta\+Temp\+Interface,  }\item[{real, intent(out)}]{Cool\+Skin\+Temp\+Depression,  }\item[{real, intent(out)}]{Scailing\+Velocity\+Par,  }\item[{real, intent(out)}]{Scailing\+Temperature\+Par,  }\item[{real, intent(out)}]{Scailing\+Moisture\+Par,  }\item[{real, intent(out)}]{Cool\+Skin\+Thickness,  }\item[{real, dimension(\+:,\+:), pointer}]{P\+B\+L\+Height,  }\item[{integer, intent(out)}]{Nits,  }\item[{integer, intent(in)}]{i,  }\item[{integer, intent(in)}]{j }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ae6acdb7a76bd3e0edd25e31a74d3ab48_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ae6acdb7a76bd3e0edd25e31a74d3ab48_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ab0d1bf1d73b112083b7be11d6c22aebc}\label{namespacemoduleinterfacewaterair_ab0d1bf1d73b112083b7be11d6c22aebc}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!heatdiffusivity@{heatdiffusivity}}
+\index{heatdiffusivity@{heatdiffusivity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{heatdiffusivity()}{heatdiffusivity()}}
+{\footnotesize\ttfamily real function, private moduleinterfacewaterair\+::heatdiffusivity (\begin{DoxyParamCaption}\item[{real}]{Temperature,  }\item[{real}]{Air\+Density,  }\item[{real}]{Cpa }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ab0d1bf1d73b112083b7be11d6c22aebc_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a9492d98237c53dd77ad30ffe270b64cd}\label{namespacemoduleinterfacewaterair_a9492d98237c53dd77ad30ffe270b64cd}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!killinterfacewaterair@{killinterfacewaterair}}
+\index{killinterfacewaterair@{killinterfacewaterair}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{killinterfacewaterair()}{killinterfacewaterair()}}
+{\footnotesize\ttfamily subroutine, public moduleinterfacewaterair\+::killinterfacewaterair (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Interface\+Water\+Air\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a9492d98237c53dd77ad30ffe270b64cd_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a17c41a363434acdb52729214d81e9e86}\label{namespacemoduleinterfacewaterair_a17c41a363434acdb52729214d81e9e86}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!locateobjinterfacewaterair@{locateobjinterfacewaterair}}
+\index{locateobjinterfacewaterair@{locateobjinterfacewaterair}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{locateobjinterfacewaterair()}{locateobjinterfacewaterair()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::locateobjinterfacewaterair (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Interface\+Water\+Air\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a17c41a363434acdb52729214d81e9e86_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a9e9d9c5604753ebdf47d735d1c6b2fe4}\label{namespacemoduleinterfacewaterair_a9e9d9c5604753ebdf47d735d1c6b2fe4}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifyaerationflux@{modifyaerationflux}}
+\index{modifyaerationflux@{modifyaerationflux}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifyaerationflux()}{modifyaerationflux()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifyaerationflux (\begin{DoxyParamCaption}\item[{real, dimension(\+:,\+:  ), pointer}]{Flux }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a9e9d9c5604753ebdf47d735d1c6b2fe4_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ad58b286425c066f4643dc56d5a605645}\label{namespacemoduleinterfacewaterair_ad58b286425c066f4643dc56d5a605645}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifyalbedo@{modifyalbedo}}
+\index{modifyalbedo@{modifyalbedo}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifyalbedo()}{modifyalbedo()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifyalbedo (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Albedo }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ad58b286425c066f4643dc56d5a605645_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a8f1f7fa64a06041e2cb84a386c86e9e1}\label{namespacemoduleinterfacewaterair_a8f1f7fa64a06041e2cb84a386c86e9e1}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifyammoniaflux@{modifyammoniaflux}}
+\index{modifyammoniaflux@{modifyammoniaflux}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifyammoniaflux()}{modifyammoniaflux()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifyammoniaflux (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Ammonia\+Flux }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a8f1f7fa64a06041e2cb84a386c86e9e1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a562697e89f9cb3b375137d30b5b565eb}\label{namespacemoduleinterfacewaterair_a562697e89f9cb3b375137d30b5b565eb}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifycarbondioxideflux@{modifycarbondioxideflux}}
+\index{modifycarbondioxideflux@{modifycarbondioxideflux}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifycarbondioxideflux()}{modifycarbondioxideflux()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifycarbondioxideflux (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Carbon\+Dioxide }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a562697e89f9cb3b375137d30b5b565eb_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a562697e89f9cb3b375137d30b5b565eb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ad16fde1df2013d74710f42901a89754e}\label{namespacemoduleinterfacewaterair_ad16fde1df2013d74710f42901a89754e}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifyco2aerationflux@{modifyco2aerationflux}}
+\index{modifyco2aerationflux@{modifyco2aerationflux}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifyco2aerationflux()}{modifyco2aerationflux()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifyco2aerationflux (\begin{DoxyParamCaption}\item[{real, dimension(\+:,\+:  ), pointer}]{Flux }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ad16fde1df2013d74710f42901a89754e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a0c61f58f27a4d911118aadbccbbd1920}\label{namespacemoduleinterfacewaterair_a0c61f58f27a4d911118aadbccbbd1920}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifyevaporation@{modifyevaporation}}
+\index{modifyevaporation@{modifyevaporation}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifyevaporation()}{modifyevaporation()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifyevaporation (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Evaporation }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a0c61f58f27a4d911118aadbccbbd1920_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a0c61f58f27a4d911118aadbccbbd1920_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ad372fa1a038ce383360d4422cc25923d}\label{namespacemoduleinterfacewaterair_ad372fa1a038ce383360d4422cc25923d}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifyinterfacewaterair@{modifyinterfacewaterair}}
+\index{modifyinterfacewaterair@{modifyinterfacewaterair}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifyinterfacewaterair()}{modifyinterfacewaterair()}}
+{\footnotesize\ttfamily subroutine, public moduleinterfacewaterair\+::modifyinterfacewaterair (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Interface\+Water\+Air\+ID,  }\item[{integer}]{Lagrangian\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ad372fa1a038ce383360d4422cc25923d_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a75fdc03352ad6627e770e22eddc20f05}\label{namespacemoduleinterfacewaterair_a75fdc03352ad6627e770e22eddc20f05}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifylatentheat@{modifylatentheat}}
+\index{modifylatentheat@{modifylatentheat}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifylatentheat()}{modifylatentheat()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifylatentheat (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Latent\+Heat }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a75fdc03352ad6627e770e22eddc20f05_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a75fdc03352ad6627e770e22eddc20f05_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a44a9529a1162816a090c836bc75d3f29}\label{namespacemoduleinterfacewaterair_a44a9529a1162816a090c836bc75d3f29}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifylocalatmvariables@{modifylocalatmvariables}}
+\index{modifylocalatmvariables@{modifylocalatmvariables}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifylocalatmvariables()}{modifylocalatmvariables()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifylocalatmvariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a44a9529a1162816a090c836bc75d3f29_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a446911b7d3595fa04059369d70ebf75e}\label{namespacemoduleinterfacewaterair_a446911b7d3595fa04059369d70ebf75e}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifynetlongwaveradiation@{modifynetlongwaveradiation}}
+\index{modifynetlongwaveradiation@{modifynetlongwaveradiation}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifynetlongwaveradiation()}{modifynetlongwaveradiation()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifynetlongwaveradiation (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Net\+Long\+Wave\+Radiation }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a446911b7d3595fa04059369d70ebf75e_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a446911b7d3595fa04059369d70ebf75e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ac260263b243a28d2d9eb0dce7188d3b0}\label{namespacemoduleinterfacewaterair_ac260263b243a28d2d9eb0dce7188d3b0}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifynitrateflux@{modifynitrateflux}}
+\index{modifynitrateflux@{modifynitrateflux}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifynitrateflux()}{modifynitrateflux()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifynitrateflux (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Nitrate\+Flux }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ac260263b243a28d2d9eb0dce7188d3b0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a9ae768b301ebc2c73524836b992b568d}\label{namespacemoduleinterfacewaterair_a9ae768b301ebc2c73524836b992b568d}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifynonsolarflux@{modifynonsolarflux}}
+\index{modifynonsolarflux@{modifynonsolarflux}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifynonsolarflux()}{modifynonsolarflux()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifynonsolarflux (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Non\+Solar\+Flux }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a9ae768b301ebc2c73524836b992b568d_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a9ae768b301ebc2c73524836b992b568d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ad4e148f79fe842f02dfc2fd7eb424091}\label{namespacemoduleinterfacewaterair_ad4e148f79fe842f02dfc2fd7eb424091}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifyoxygenflux@{modifyoxygenflux}}
+\index{modifyoxygenflux@{modifyoxygenflux}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifyoxygenflux()}{modifyoxygenflux()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifyoxygenflux (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Property\+O2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ad4e148f79fe842f02dfc2fd7eb424091_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ad4e148f79fe842f02dfc2fd7eb424091_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_aa7f512949a9b145b55378017e58558a7}\label{namespacemoduleinterfacewaterair_aa7f512949a9b145b55378017e58558a7}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifyrugosity@{modifyrugosity}}
+\index{modifyrugosity@{modifyrugosity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifyrugosity()}{modifyrugosity()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifyrugosity (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_aa7f512949a9b145b55378017e58558a7_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_aa7f512949a9b145b55378017e58558a7_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a2724f68137207e7ade1ca13b482d8f81}\label{namespacemoduleinterfacewaterair_a2724f68137207e7ade1ca13b482d8f81}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifysensibleheat@{modifysensibleheat}}
+\index{modifysensibleheat@{modifysensibleheat}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifysensibleheat()}{modifysensibleheat()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifysensibleheat (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Sensible\+Heat }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a2724f68137207e7ade1ca13b482d8f81_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a2724f68137207e7ade1ca13b482d8f81_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a57d8dae2ec14a4562c48bbccb24a5f96}\label{namespacemoduleinterfacewaterair_a57d8dae2ec14a4562c48bbccb24a5f96}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifysurfaceradiation@{modifysurfaceradiation}}
+\index{modifysurfaceradiation@{modifysurfaceradiation}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifysurfaceradiation()}{modifysurfaceradiation()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifysurfaceradiation (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Surface\+Radiation }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a57d8dae2ec14a4562c48bbccb24a5f96_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a57d8dae2ec14a4562c48bbccb24a5f96_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a88a4ad4c4d7d19f977f8154341d169fd}\label{namespacemoduleinterfacewaterair_a88a4ad4c4d7d19f977f8154341d169fd}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifysurfacewaterflux@{modifysurfacewaterflux}}
+\index{modifysurfacewaterflux@{modifysurfacewaterflux}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifysurfacewaterflux()}{modifysurfacewaterflux()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifysurfacewaterflux (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Surface\+Water\+Flux }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a88a4ad4c4d7d19f977f8154341d169fd_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a88a4ad4c4d7d19f977f8154341d169fd_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ac1f2af410795916d4c7572b0b5a8e963}\label{namespacemoduleinterfacewaterair_ac1f2af410795916d4c7572b0b5a8e963}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifyturbulentke@{modifyturbulentke}}
+\index{modifyturbulentke@{modifyturbulentke}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifyturbulentke()}{modifyturbulentke()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifyturbulentke (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Turbulent\+KE }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ac1f2af410795916d4c7572b0b5a8e963_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ac1f2af410795916d4c7572b0b5a8e963_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a91edae849454c0ec7ebcefd91556486e}\label{namespacemoduleinterfacewaterair_a91edae849454c0ec7ebcefd91556486e}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifywaterairfluxes@{modifywaterairfluxes}}
+\index{modifywaterairfluxes@{modifywaterairfluxes}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifywaterairfluxes()}{modifywaterairfluxes()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifywaterairfluxes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a91edae849454c0ec7ebcefd91556486e_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a91edae849454c0ec7ebcefd91556486e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a2494cba9b6646ce732323f31ef820a97}\label{namespacemoduleinterfacewaterair_a2494cba9b6646ce732323f31ef820a97}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifywavefluxtke@{modifywavefluxtke}}
+\index{modifywavefluxtke@{modifywavefluxtke}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifywavefluxtke()}{modifywavefluxtke()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifywavefluxtke (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a2494cba9b6646ce732323f31ef820a97_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a067a8627bd218eba128377b9cca8031f}\label{namespacemoduleinterfacewaterair_a067a8627bd218eba128377b9cca8031f}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifywindshearvelocity@{modifywindshearvelocity}}
+\index{modifywindshearvelocity@{modifywindshearvelocity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifywindshearvelocity()}{modifywindshearvelocity()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::modifywindshearvelocity (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a067a8627bd218eba128377b9cca8031f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a067a8627bd218eba128377b9cca8031f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a09c4f1b7db1459cc4893f784b8310831}\label{namespacemoduleinterfacewaterair_a09c4f1b7db1459cc4893f784b8310831}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!modifywindstress@{modifywindstress}}
+\index{modifywindstress@{modifywindstress}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{modifywindstress()}{modifywindstress()}}
+{\footnotesize\ttfamily subroutine moduleinterfacewaterair\+::modifywindstress (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{Prop\+Wind\+Stress }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a09c4f1b7db1459cc4893f784b8310831_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a09c4f1b7db1459cc4893f784b8310831_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a48080272c5d72deaf3fe655740d02ccc}\label{namespacemoduleinterfacewaterair_a48080272c5d72deaf3fe655740d02ccc}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine moduleinterfacewaterair\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a48080272c5d72deaf3fe655740d02ccc_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a8c2f4a754ac1aeb4a3a8045d639e609f}\label{namespacemoduleinterfacewaterair_a8c2f4a754ac1aeb4a3a8045d639e609f}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!output\+\_\+boxtimeseries@{output\+\_\+boxtimeseries}}
+\index{output\+\_\+boxtimeseries@{output\+\_\+boxtimeseries}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{output\+\_\+boxtimeseries()}{output\_boxtimeseries()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::output\+\_\+boxtimeseries (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a8c2f4a754ac1aeb4a3a8045d639e609f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_af0bc1dab0d7eafb5b7f4996d24e4d0bf}\label{namespacemoduleinterfacewaterair_af0bc1dab0d7eafb5b7f4996d24e4d0bf}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!output\+\_\+results\+\_\+hdf@{output\+\_\+results\+\_\+hdf}}
+\index{output\+\_\+results\+\_\+hdf@{output\+\_\+results\+\_\+hdf}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{output\+\_\+results\+\_\+hdf()}{output\_results\_hdf()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::output\+\_\+results\+\_\+hdf (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_af0bc1dab0d7eafb5b7f4996d24e4d0bf_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a739b5f50c0652ff91c9f777fbf68729f}\label{namespacemoduleinterfacewaterair_a739b5f50c0652ff91c9f777fbf68729f}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!output\+\_\+timeseries@{output\+\_\+timeseries}}
+\index{output\+\_\+timeseries@{output\+\_\+timeseries}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{output\+\_\+timeseries()}{output\_timeseries()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::output\+\_\+timeseries (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a739b5f50c0652ff91c9f777fbf68729f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a65968d6dee9f2e512ec37dd5d4fe8fe1}\label{namespacemoduleinterfacewaterair_a65968d6dee9f2e512ec37dd5d4fe8fe1}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!psit@{psit}}
+\index{psit@{psit}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{psit()}{psit()}}
+{\footnotesize\ttfamily real function, private moduleinterfacewaterair\+::psit (\begin{DoxyParamCaption}\item[{real, intent(in)}]{zet }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a65968d6dee9f2e512ec37dd5d4fe8fe1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_af976a3b281048d4f32222b16621b556a}\label{namespacemoduleinterfacewaterair_af976a3b281048d4f32222b16621b556a}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!psiu@{psiu}}
+\index{psiu@{psiu}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{psiu()}{psiu()}}
+{\footnotesize\ttfamily real function, private moduleinterfacewaterair\+::psiu (\begin{DoxyParamCaption}\item[{real, intent(in)}]{zet }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_af976a3b281048d4f32222b16621b556a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a859b7054113f5f1ab347adbd693c2e16}\label{namespacemoduleinterfacewaterair_a859b7054113f5f1ab347adbd693c2e16}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!readlockexternalglobal@{readlockexternalglobal}}
+\index{readlockexternalglobal@{readlockexternalglobal}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{readlockexternalglobal()}{readlockexternalglobal()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::readlockexternalglobal (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a859b7054113f5f1ab347adbd693c2e16_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a78276c71fe608663c6c964c59c8c7626}\label{namespacemoduleinterfacewaterair_a78276c71fe608663c6c964c59c8c7626}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!readlockexternalwater@{readlockexternalwater}}
+\index{readlockexternalwater@{readlockexternalwater}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{readlockexternalwater()}{readlockexternalwater()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::readlockexternalwater (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a78276c71fe608663c6c964c59c8c7626_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ada112545191c798704451772d5803ea0}\label{namespacemoduleinterfacewaterair_ada112545191c798704451772d5803ea0}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!readunlockexternalglobal@{readunlockexternalglobal}}
+\index{readunlockexternalglobal@{readunlockexternalglobal}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{readunlockexternalglobal()}{readunlockexternalglobal()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::readunlockexternalglobal (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ada112545191c798704451772d5803ea0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a380a0dfa2a33b7c2eef433d69fdf7fef}\label{namespacemoduleinterfacewaterair_a380a0dfa2a33b7c2eef433d69fdf7fef}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!readunlockexternalwater@{readunlockexternalwater}}
+\index{readunlockexternalwater@{readunlockexternalwater}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{readunlockexternalwater()}{readunlockexternalwater()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::readunlockexternalwater (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a380a0dfa2a33b7c2eef433d69fdf7fef_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a8a015dc245f72a1e32671973e4ef4538}\label{namespacemoduleinterfacewaterair_a8a015dc245f72a1e32671973e4ef4538}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!readwaterairfilesname@{readwaterairfilesname}}
+\index{readwaterairfilesname@{readwaterairfilesname}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{readwaterairfilesname()}{readwaterairfilesname()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::readwaterairfilesname (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a8a015dc245f72a1e32671973e4ef4538_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a519b1351dce06ffef1eb101335e6361f}\label{namespacemoduleinterfacewaterair_a519b1351dce06ffef1eb101335e6361f}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!ready@{ready}}
+\index{ready@{ready}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Interface\+Water\+Air\+\_\+\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a519b1351dce06ffef1eb101335e6361f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a519b1351dce06ffef1eb101335e6361f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_abba77353f44ae39342d577e54d38ad95}\label{namespacemoduleinterfacewaterair_abba77353f44ae39342d577e54d38ad95}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!search\+\_\+property@{search\+\_\+property}}
+\index{search\+\_\+property@{search\+\_\+property}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{search\+\_\+property()}{search\_property()}}
+{\footnotesize\ttfamily subroutine moduleinterfacewaterair\+::search\+\_\+property (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX,  }\item[{integer, intent(in)}]{Property\+X\+ID,  }\item[{logical, intent(in), optional}]{Print\+Warning,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_abba77353f44ae39342d577e54d38ad95_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a9b32248d73ce68c55c1d8671b779f48a}\label{namespacemoduleinterfacewaterair_a9b32248d73ce68c55c1d8671b779f48a}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!searchproperty@{searchproperty}}
+\index{searchproperty@{searchproperty}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{searchproperty()}{searchproperty()}}
+{\footnotesize\ttfamily subroutine moduleinterfacewaterair\+::searchproperty (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), optional, pointer}]{PropertyX,  }\item[{integer, intent(in), optional}]{Property\+X\+I\+D\+Number,  }\item[{logical, intent(in), optional}]{Print\+Warning,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a9b32248d73ce68c55c1d8671b779f48a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_acc8f2f52f650494e800b421332c39060}\label{namespacemoduleinterfacewaterair_acc8f2f52f650494e800b421332c39060}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!setsubmodulesconstructor@{setsubmodulesconstructor}}
+\index{setsubmodulesconstructor@{setsubmodulesconstructor}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{setsubmodulesconstructor()}{setsubmodulesconstructor()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::setsubmodulesconstructor (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_acc8f2f52f650494e800b421332c39060_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a5f28ad0176312886bacef9cc171cb2e1}\label{namespacemoduleinterfacewaterair_a5f28ad0176312886bacef9cc171cb2e1}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!setsubmodulesmodifier@{setsubmodulesmodifier}}
+\index{setsubmodulesmodifier@{setsubmodulesmodifier}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{setsubmodulesmodifier()}{setsubmodulesmodifier()}}
+{\footnotesize\ttfamily subroutine moduleinterfacewaterair\+::setsubmodulesmodifier (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a5f28ad0176312886bacef9cc171cb2e1_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a5f28ad0176312886bacef9cc171cb2e1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a1d15121ff2d6a7ec0e45dffd0506037a}\label{namespacemoduleinterfacewaterair_a1d15121ff2d6a7ec0e45dffd0506037a}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!startinterfacewaterair@{startinterfacewaterair}}
+\index{startinterfacewaterair@{startinterfacewaterair}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{startinterfacewaterair()}{startinterfacewaterair()}}
+{\footnotesize\ttfamily subroutine, public moduleinterfacewaterair\+::startinterfacewaterair (\begin{DoxyParamCaption}\item[{character(len=$\ast$)}]{Model\+Name,  }\item[{integer}]{Obj\+Interface\+Water\+Air\+ID,  }\item[{integer}]{Time\+ID,  }\item[{integer}]{Horizontal\+Grid\+ID,  }\item[{integer}]{Water\+Grid\+Data\+ID,  }\item[{integer}]{Water\+Horizontal\+Map\+ID,  }\item[{integer}]{Water\+Map\+ID,  }\item[{integer}]{Water\+Geometry\+ID,  }\item[{integer}]{Hydrodynamic\+ID,  }\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{integer}]{Waves\+ID,  }\item[{integer}]{Water\+Properties\+ID,  }\item[{integer}]{Atmosphere\+ID,  }\item[{integer}]{Lagrangian\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a1d15121ff2d6a7ec0e45dffd0506037a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a1d15121ff2d6a7ec0e45dffd0506037a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a657983e875ad047622b576288b98dd2e}\label{namespacemoduleinterfacewaterair_a657983e875ad047622b576288b98dd2e}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!startoutputboxfluxes@{startoutputboxfluxes}}
+\index{startoutputboxfluxes@{startoutputboxfluxes}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{startoutputboxfluxes()}{startoutputboxfluxes()}}
+{\footnotesize\ttfamily subroutine, private moduleinterfacewaterair\+::startoutputboxfluxes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_a657983e875ad047622b576288b98dd2e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ad635dbe2d03621ece4e4eeb32fc65bb6}\label{namespacemoduleinterfacewaterair_ad635dbe2d03621ece4e4eeb32fc65bb6}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!watervapourdiffusivity@{watervapourdiffusivity}}
+\index{watervapourdiffusivity@{watervapourdiffusivity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{watervapourdiffusivity()}{watervapourdiffusivity()}}
+{\footnotesize\ttfamily real function, private moduleinterfacewaterair\+::watervapourdiffusivity (\begin{DoxyParamCaption}\item[{real}]{Temperature }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleinterfacewaterair_ad635dbe2d03621ece4e4eeb32fc65bb6_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a8155eb359d8312366017041e27b20e8b}\label{namespacemoduleinterfacewaterair_a8155eb359d8312366017041e27b20e8b}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!bowencoefficient@{bowencoefficient}}
+\index{bowencoefficient@{bowencoefficient}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{bowencoefficient}{bowencoefficient}}
+{\footnotesize\ttfamily real, parameter moduleinterfacewaterair\+::bowencoefficient = 0.\+47\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ac4e6928da233e97fced767b3ff6b8482}\label{namespacemoduleinterfacewaterair_ac4e6928da233e97fced767b3ff6b8482}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!cde@{cde}}
+\index{cde@{cde}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{cde}{cde}}
+{\footnotesize\ttfamily real, parameter moduleinterfacewaterair\+::cde = 0.\+63\+E-\/06\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_af9a5813643af305d2fcb128710906ce2}\label{namespacemoduleinterfacewaterair_af9a5813643af305d2fcb128710906ce2}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!constant@{constant}}
+\index{constant@{constant}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{constant}{constant}}
+{\footnotesize\ttfamily integer, parameter moduleinterfacewaterair\+::constant = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a55db38560ef3abcb02cfd5a7c17dc800}\label{namespacemoduleinterfacewaterair_a55db38560ef3abcb02cfd5a7c17dc800}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!firstobjinterfacewaterair@{firstobjinterfacewaterair}}
+\index{firstobjinterfacewaterair@{firstobjinterfacewaterair}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{firstobjinterfacewaterair}{firstobjinterfacewaterair}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair}{t\+\_\+interfacewaterair}}), pointer moduleinterfacewaterair\+::firstobjinterfacewaterair =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_afff814b0fb4c5feeb5a9e6278d4f6fb5}\label{namespacemoduleinterfacewaterair_afff814b0fb4c5feeb5a9e6278d4f6fb5}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!me@{me}}
+\index{me@{me}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair}{t\+\_\+interfacewaterair}}), pointer moduleinterfacewaterair\+::me =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a9e6fc9893e6a61442860c5361e65ef24}\label{namespacemoduleinterfacewaterair_a9e6fc9893e6a61442860c5361e65ef24}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!nowave@{nowave}}
+\index{nowave@{nowave}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{nowave}{nowave}}
+{\footnotesize\ttfamily integer, parameter moduleinterfacewaterair\+::nowave = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a5b4bd7da5a9e3e4da1bfe7edd8b805ac}\label{namespacemoduleinterfacewaterair_a5b4bd7da5a9e3e4da1bfe7edd8b805ac}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!prop\+\_\+block\+\_\+begin@{prop\+\_\+block\+\_\+begin}}
+\index{prop\+\_\+block\+\_\+begin@{prop\+\_\+block\+\_\+begin}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{prop\+\_\+block\+\_\+begin}{prop\_block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleinterfacewaterair\+::prop\+\_\+block\+\_\+begin = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_abb372346805a352ba54048bced113782}\label{namespacemoduleinterfacewaterair_abb372346805a352ba54048bced113782}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!prop\+\_\+block\+\_\+end@{prop\+\_\+block\+\_\+end}}
+\index{prop\+\_\+block\+\_\+end@{prop\+\_\+block\+\_\+end}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{prop\+\_\+block\+\_\+end}{prop\_block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleinterfacewaterair\+::prop\+\_\+block\+\_\+end = \textquotesingle{}$<$endproperty$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a65185c3b0a782bd2b12e894ee2619550}\label{namespacemoduleinterfacewaterair_a65185c3b0a782bd2b12e894ee2619550}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!referencedensity@{referencedensity}}
+\index{referencedensity@{referencedensity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{referencedensity}{referencedensity}}
+{\footnotesize\ttfamily real, parameter moduleinterfacewaterair\+::referencedensity = 1000.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a56a7408ea5d0be55c3bed3cda2294990}\label{namespacemoduleinterfacewaterair_a56a7408ea5d0be55c3bed3cda2294990}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!reflatentheatofvaporization@{reflatentheatofvaporization}}
+\index{reflatentheatofvaporization@{reflatentheatofvaporization}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{reflatentheatofvaporization}{reflatentheatofvaporization}}
+{\footnotesize\ttfamily real, parameter moduleinterfacewaterair\+::reflatentheatofvaporization = 2.\+5e6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a0278d4530d0ebedf0d59117a3c772f93}\label{namespacemoduleinterfacewaterair_a0278d4530d0ebedf0d59117a3c772f93}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!rugosity\+\_\+begin@{rugosity\+\_\+begin}}
+\index{rugosity\+\_\+begin@{rugosity\+\_\+begin}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{rugosity\+\_\+begin}{rugosity\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleinterfacewaterair\+::rugosity\+\_\+begin = \textquotesingle{}$<$begin\+\_\+rugosity$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a58a4130456c2f79f5500a5ccb4517cfd}\label{namespacemoduleinterfacewaterair_a58a4130456c2f79f5500a5ccb4517cfd}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!rugosity\+\_\+end@{rugosity\+\_\+end}}
+\index{rugosity\+\_\+end@{rugosity\+\_\+end}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{rugosity\+\_\+end}{rugosity\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleinterfacewaterair\+::rugosity\+\_\+end = \textquotesingle{}$<$end\+\_\+rugosity$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_afc5639ec5cd09597dc78cfe2ee596fd0}\label{namespacemoduleinterfacewaterair_afc5639ec5cd09597dc78cfe2ee596fd0}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!shearvelocity@{shearvelocity}}
+\index{shearvelocity@{shearvelocity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{shearvelocity}{shearvelocity}}
+{\footnotesize\ttfamily integer, parameter moduleinterfacewaterair\+::shearvelocity = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a4c926bc0f796609398890a390dc9d36c}\label{namespacemoduleinterfacewaterair_a4c926bc0f796609398890a390dc9d36c}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!stefanboltzmann@{stefanboltzmann}}
+\index{stefanboltzmann@{stefanboltzmann}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{stefanboltzmann}{stefanboltzmann}}
+{\footnotesize\ttfamily real, parameter moduleinterfacewaterair\+::stefanboltzmann = 5.\+669e-\/08\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a48f8ac61c3aadc9ee602467e19d9939a}\label{namespacemoduleinterfacewaterair_a48f8ac61c3aadc9ee602467e19d9939a}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!surfacerugosityfromhs@{surfacerugosityfromhs}}
+\index{surfacerugosityfromhs@{surfacerugosityfromhs}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{surfacerugosityfromhs}{surfacerugosityfromhs}}
+{\footnotesize\ttfamily integer, parameter moduleinterfacewaterair\+::surfacerugosityfromhs = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_a1a742a8ff8b7f163b4dc4673bdf8482f}\label{namespacemoduleinterfacewaterair_a1a742a8ff8b7f163b4dc4673bdf8482f}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!surfacerugosityfromhsw@{surfacerugosityfromhsw}}
+\index{surfacerugosityfromhsw@{surfacerugosityfromhsw}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{surfacerugosityfromhsw}{surfacerugosityfromhsw}}
+{\footnotesize\ttfamily integer, parameter moduleinterfacewaterair\+::surfacerugosityfromhsw = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_af9d25ee72bf87831a84be25bc8435c55}\label{namespacemoduleinterfacewaterair_af9d25ee72bf87831a84be25bc8435c55}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!wateremissivity@{wateremissivity}}
+\index{wateremissivity@{wateremissivity}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{wateremissivity}{wateremissivity}}
+{\footnotesize\ttfamily real, parameter moduleinterfacewaterair\+::wateremissivity = 0.\+96\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleinterfacewaterair_ab0bf8dbd48fafcd7c122816cd5ebce18}\label{namespacemoduleinterfacewaterair_ab0bf8dbd48fafcd7c122816cd5ebce18}} 
+\index{moduleinterfacewaterair@{moduleinterfacewaterair}!windfunction@{windfunction}}
+\index{windfunction@{windfunction}!moduleinterfacewaterair@{moduleinterfacewaterair}}
+\subsubsection{\texorpdfstring{windfunction}{windfunction}}
+{\footnotesize\ttfamily integer, parameter moduleinterfacewaterair\+::windfunction = 2\hspace{0.3cm}{\ttfamily [private]}}
+

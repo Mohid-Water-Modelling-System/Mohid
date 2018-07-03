@@ -1,0 +1,286 @@
+\hypertarget{structmodulesnow_1_1t__snow}{}\section{modulesnow\+:\+:t\+\_\+snow Type Reference}
+\label{structmodulesnow_1_1t__snow}\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+
+
+Collaboration diagram for modulesnow\+:\+:t\+\_\+snow\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structmodulesnow_1_1t__snow__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a264183d6ebea2e2629911bea3b70c287}{instanceid}} = 0
+\item 
+character(len=stringlength) \mbox{\hyperlink{structmodulesnow_1_1t__snow_a9f6fc501fc3b8cd3b8424f1666a86da2}{modelname}} = null\+\_\+str
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_acd2485e66d8546de7dde1c9e0e90c928}{objbasingeometry}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_ab7a98214680585e54e7e3f08eb154a4f}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a1f4f6e44f629ea56308183a84c09bc27}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a277cae57af7f38e3c39dd1df8fcda2e6}{objhorizontalmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_ac567a0410f238673df658e731c23053c}{objgriddata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_aa6f53b3959bb2622b4a02a7b6880f709}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_acd4394e6942359e45e6ee10708596e40}{objinihdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a921ffdda134279e6108f27379066ef30}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a8ee9dbecc401e6a027cd56194b1aadd5}{objtimeserie}} = 0
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__output}{t\+\_\+output}}) \mbox{\hyperlink{structmodulesnow_1_1t__snow_a762a12dac2bd92d51a7e6bd05f344ed8}{output}}
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__extvar}{t\+\_\+extvar}}) \mbox{\hyperlink{structmodulesnow_1_1t__snow_ad24caf14edb34995059cf81af2046034}{extvar}}
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__files}{t\+\_\+files}}) \mbox{\hyperlink{structmodulesnow_1_1t__snow_a966b4f4781cc22f99e25bad6330b627a}{files}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulesnow_1_1t__snow_a8dfcd05aea4ac77d5f31c5b72f01473f}{begintime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulesnow_1_1t__snow_ab8a80e438250a0e0b2bc9589cb40c734}{endtime}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulesnow_1_1t__snow_a158cdcc669b0f3e73960c59e32f99e70}{size}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulesnow_1_1t__snow_a123524f9c9eb18a361baceea7ca5a725}{worksize}}
+\item 
+logical \mbox{\hyperlink{structmodulesnow_1_1t__snow_aaa3a4549a96cec531c37d716471ddc10}{continuous}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesnow_1_1t__snow_a16c2a0efa75346f9b4eea7b59a5d3f13}{stoponwrongdate}} = .true.
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__snow}{t\+\_\+snow}}), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_ae21a4847261a8c9a509176a8d17ea5c4}{next}} =$>$ null()
+\item 
+real \mbox{\hyperlink{structmodulesnow_1_1t__snow_a5672ce348a0a3b2786c74f44e9d50649}{snowmeltingdt}} = 86400.
+\item 
+real \mbox{\hyperlink{structmodulesnow_1_1t__snow_a00611d45dfaf0742132dc7e476defd8a}{meltingtemperature}} = 0.\+0
+\item 
+integer \mbox{\hyperlink{structmodulesnow_1_1t__snow_abdf96464f0aed100686641a6960f4658}{propertiesnumber}} = 0
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_ad5a018366b5eaf3355a85e5719ff5a92}{firstproperty}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a28f4fe133f2add18a9c6b3a21cee55ad}{lastproperty}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a3d74677f736c1497336da15a8cc3959b}{snowpack}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_aa5465903567338bba5da178db6216107}{dailyavgtemp}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_ae7172cbf3819662b17793e019b958944}{albedo}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a04001e8c7e922e531e8739f4a4f02c45}{forestcoverfraction}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_ab1b80f0da3bab4c62dff36909422a98e}{slopefactor}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a96476cdb591916b1df8edb0990b852c1}{snowmeltingflux}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulesnow_1_1t__snow_a05bee8139805c53360ca4023c1cc6e57}{snowmelted}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_ae7172cbf3819662b17793e019b958944}\label{structmodulesnow_1_1t__snow_ae7172cbf3819662b17793e019b958944}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!albedo@{albedo}}
+\index{albedo@{albedo}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{albedo}{albedo}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer modulesnow\+::t\+\_\+snow\+::albedo =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a8dfcd05aea4ac77d5f31c5b72f01473f}\label{structmodulesnow_1_1t__snow_a8dfcd05aea4ac77d5f31c5b72f01473f}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!begintime@{begintime}}
+\index{begintime@{begintime}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{begintime}{begintime}}
+{\footnotesize\ttfamily type (t\+\_\+time) modulesnow\+::t\+\_\+snow\+::begintime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_aaa3a4549a96cec531c37d716471ddc10}\label{structmodulesnow_1_1t__snow_aaa3a4549a96cec531c37d716471ddc10}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!continuous@{continuous}}
+\index{continuous@{continuous}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{continuous}{continuous}}
+{\footnotesize\ttfamily logical modulesnow\+::t\+\_\+snow\+::continuous = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_aa5465903567338bba5da178db6216107}\label{structmodulesnow_1_1t__snow_aa5465903567338bba5da178db6216107}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!dailyavgtemp@{dailyavgtemp}}
+\index{dailyavgtemp@{dailyavgtemp}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{dailyavgtemp}{dailyavgtemp}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer modulesnow\+::t\+\_\+snow\+::dailyavgtemp =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_ab8a80e438250a0e0b2bc9589cb40c734}\label{structmodulesnow_1_1t__snow_ab8a80e438250a0e0b2bc9589cb40c734}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!endtime@{endtime}}
+\index{endtime@{endtime}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{endtime}{endtime}}
+{\footnotesize\ttfamily type (t\+\_\+time) modulesnow\+::t\+\_\+snow\+::endtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_ad24caf14edb34995059cf81af2046034}\label{structmodulesnow_1_1t__snow_ad24caf14edb34995059cf81af2046034}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!extvar@{extvar}}
+\index{extvar@{extvar}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{extvar}{extvar}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulesnow_1_1t__extvar}{t\+\_\+extvar}}) modulesnow\+::t\+\_\+snow\+::extvar\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a966b4f4781cc22f99e25bad6330b627a}\label{structmodulesnow_1_1t__snow_a966b4f4781cc22f99e25bad6330b627a}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!files@{files}}
+\index{files@{files}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{files}{files}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulesnow_1_1t__files}{t\+\_\+files}}) modulesnow\+::t\+\_\+snow\+::files\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_ad5a018366b5eaf3355a85e5719ff5a92}\label{structmodulesnow_1_1t__snow_ad5a018366b5eaf3355a85e5719ff5a92}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!firstproperty@{firstproperty}}
+\index{firstproperty@{firstproperty}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{firstproperty}{firstproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer modulesnow\+::t\+\_\+snow\+::firstproperty =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a04001e8c7e922e531e8739f4a4f02c45}\label{structmodulesnow_1_1t__snow_a04001e8c7e922e531e8739f4a4f02c45}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!forestcoverfraction@{forestcoverfraction}}
+\index{forestcoverfraction@{forestcoverfraction}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{forestcoverfraction}{forestcoverfraction}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer modulesnow\+::t\+\_\+snow\+::forestcoverfraction =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a264183d6ebea2e2629911bea3b70c287}\label{structmodulesnow_1_1t__snow_a264183d6ebea2e2629911bea3b70c287}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!instanceid@{instanceid}}
+\index{instanceid@{instanceid}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{instanceid}{instanceid}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::instanceid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a28f4fe133f2add18a9c6b3a21cee55ad}\label{structmodulesnow_1_1t__snow_a28f4fe133f2add18a9c6b3a21cee55ad}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!lastproperty@{lastproperty}}
+\index{lastproperty@{lastproperty}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{lastproperty}{lastproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer modulesnow\+::t\+\_\+snow\+::lastproperty =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a00611d45dfaf0742132dc7e476defd8a}\label{structmodulesnow_1_1t__snow_a00611d45dfaf0742132dc7e476defd8a}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!meltingtemperature@{meltingtemperature}}
+\index{meltingtemperature@{meltingtemperature}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{meltingtemperature}{meltingtemperature}}
+{\footnotesize\ttfamily real modulesnow\+::t\+\_\+snow\+::meltingtemperature = 0.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a9f6fc501fc3b8cd3b8424f1666a86da2}\label{structmodulesnow_1_1t__snow_a9f6fc501fc3b8cd3b8424f1666a86da2}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!modelname@{modelname}}
+\index{modelname@{modelname}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{modelname}{modelname}}
+{\footnotesize\ttfamily character(len=stringlength) modulesnow\+::t\+\_\+snow\+::modelname = null\+\_\+str\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_ae21a4847261a8c9a509176a8d17ea5c4}\label{structmodulesnow_1_1t__snow_ae21a4847261a8c9a509176a8d17ea5c4}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!next@{next}}
+\index{next@{next}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesnow_1_1t__snow}{t\+\_\+snow}}), pointer modulesnow\+::t\+\_\+snow\+::next =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_acd2485e66d8546de7dde1c9e0e90c928}\label{structmodulesnow_1_1t__snow_acd2485e66d8546de7dde1c9e0e90c928}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!objbasingeometry@{objbasingeometry}}
+\index{objbasingeometry@{objbasingeometry}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{objbasingeometry}{objbasingeometry}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::objbasingeometry = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a921ffdda134279e6108f27379066ef30}\label{structmodulesnow_1_1t__snow_a921ffdda134279e6108f27379066ef30}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_ac567a0410f238673df658e731c23053c}\label{structmodulesnow_1_1t__snow_ac567a0410f238673df658e731c23053c}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!objgriddata@{objgriddata}}
+\index{objgriddata@{objgriddata}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{objgriddata}{objgriddata}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::objgriddata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_aa6f53b3959bb2622b4a02a7b6880f709}\label{structmodulesnow_1_1t__snow_aa6f53b3959bb2622b4a02a7b6880f709}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a1f4f6e44f629ea56308183a84c09bc27}\label{structmodulesnow_1_1t__snow_a1f4f6e44f629ea56308183a84c09bc27}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a277cae57af7f38e3c39dd1df8fcda2e6}\label{structmodulesnow_1_1t__snow_a277cae57af7f38e3c39dd1df8fcda2e6}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!objhorizontalmap@{objhorizontalmap}}
+\index{objhorizontalmap@{objhorizontalmap}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{objhorizontalmap}{objhorizontalmap}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::objhorizontalmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_acd4394e6942359e45e6ee10708596e40}\label{structmodulesnow_1_1t__snow_acd4394e6942359e45e6ee10708596e40}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!objinihdf5@{objinihdf5}}
+\index{objinihdf5@{objinihdf5}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{objinihdf5}{objinihdf5}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::objinihdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_ab7a98214680585e54e7e3f08eb154a4f}\label{structmodulesnow_1_1t__snow_ab7a98214680585e54e7e3f08eb154a4f}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!objtime@{objtime}}
+\index{objtime@{objtime}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a8ee9dbecc401e6a027cd56194b1aadd5}\label{structmodulesnow_1_1t__snow_a8ee9dbecc401e6a027cd56194b1aadd5}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!objtimeserie@{objtimeserie}}
+\index{objtimeserie@{objtimeserie}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{objtimeserie}{objtimeserie}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::objtimeserie = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a762a12dac2bd92d51a7e6bd05f344ed8}\label{structmodulesnow_1_1t__snow_a762a12dac2bd92d51a7e6bd05f344ed8}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!output@{output}}
+\index{output@{output}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{output}{output}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulesnow_1_1t__output}{t\+\_\+output}}) modulesnow\+::t\+\_\+snow\+::output\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_abdf96464f0aed100686641a6960f4658}\label{structmodulesnow_1_1t__snow_abdf96464f0aed100686641a6960f4658}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!propertiesnumber@{propertiesnumber}}
+\index{propertiesnumber@{propertiesnumber}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{propertiesnumber}{propertiesnumber}}
+{\footnotesize\ttfamily integer modulesnow\+::t\+\_\+snow\+::propertiesnumber = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a158cdcc669b0f3e73960c59e32f99e70}\label{structmodulesnow_1_1t__snow_a158cdcc669b0f3e73960c59e32f99e70}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!size@{size}}
+\index{size@{size}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type (t\+\_\+size2d) modulesnow\+::t\+\_\+snow\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_ab1b80f0da3bab4c62dff36909422a98e}\label{structmodulesnow_1_1t__snow_ab1b80f0da3bab4c62dff36909422a98e}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!slopefactor@{slopefactor}}
+\index{slopefactor@{slopefactor}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{slopefactor}{slopefactor}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer modulesnow\+::t\+\_\+snow\+::slopefactor =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a05bee8139805c53360ca4023c1cc6e57}\label{structmodulesnow_1_1t__snow_a05bee8139805c53360ca4023c1cc6e57}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!snowmelted@{snowmelted}}
+\index{snowmelted@{snowmelted}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{snowmelted}{snowmelted}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulesnow\+::t\+\_\+snow\+::snowmelted =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a5672ce348a0a3b2786c74f44e9d50649}\label{structmodulesnow_1_1t__snow_a5672ce348a0a3b2786c74f44e9d50649}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!snowmeltingdt@{snowmeltingdt}}
+\index{snowmeltingdt@{snowmeltingdt}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{snowmeltingdt}{snowmeltingdt}}
+{\footnotesize\ttfamily real modulesnow\+::t\+\_\+snow\+::snowmeltingdt = 86400.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a96476cdb591916b1df8edb0990b852c1}\label{structmodulesnow_1_1t__snow_a96476cdb591916b1df8edb0990b852c1}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!snowmeltingflux@{snowmeltingflux}}
+\index{snowmeltingflux@{snowmeltingflux}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{snowmeltingflux}{snowmeltingflux}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulesnow\+::t\+\_\+snow\+::snowmeltingflux =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a3d74677f736c1497336da15a8cc3959b}\label{structmodulesnow_1_1t__snow_a3d74677f736c1497336da15a8cc3959b}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!snowpack@{snowpack}}
+\index{snowpack@{snowpack}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{snowpack}{snowpack}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesnow_1_1t__property}{t\+\_\+property}}), pointer modulesnow\+::t\+\_\+snow\+::snowpack =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a16c2a0efa75346f9b4eea7b59a5d3f13}\label{structmodulesnow_1_1t__snow_a16c2a0efa75346f9b4eea7b59a5d3f13}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!stoponwrongdate@{stoponwrongdate}}
+\index{stoponwrongdate@{stoponwrongdate}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{stoponwrongdate}{stoponwrongdate}}
+{\footnotesize\ttfamily logical modulesnow\+::t\+\_\+snow\+::stoponwrongdate = .true.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesnow_1_1t__snow_a123524f9c9eb18a361baceea7ca5a725}\label{structmodulesnow_1_1t__snow_a123524f9c9eb18a361baceea7ca5a725}} 
+\index{modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}!worksize@{worksize}}
+\index{worksize@{worksize}!modulesnow\+::t\+\_\+snow@{modulesnow\+::t\+\_\+snow}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type (t\+\_\+size2d) modulesnow\+::t\+\_\+snow\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\mbox{\hyperlink{_module_snow_8_f90}{Module\+Snow.\+F90}}\end{DoxyCompactItemize}
