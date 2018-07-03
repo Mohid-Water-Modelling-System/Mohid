@@ -1,0 +1,11 @@
+<map id="modulevegetation::getvegetationsoilfluxes" name="modulevegetation::getvegetationsoilfluxes">
+<area shape="rect" id="node2" href="$namespacemodulevegetation.html#a7bff2743f33908bdf727831d101dc37a" title="modulevegetation::ready" alt="" coords="350,20,513,47"/>
+<area shape="rect" id="node4" href="$namespacemodulevegetation.html#a61c5cc19d5b5fe894bc935b7365563cb" title="modulevegetation::nitrogenuptake" alt="" coords="324,100,539,127"/>
+<area shape="rect" id="node8" href="$namespacemodulevegetation.html#a8ecdc6f2c513a0f8920f448525858005" title="modulevegetation::phosphorusuptake" alt="" coords="313,173,549,200"/>
+<area shape="rect" id="node3" href="$namespacemodulevegetation.html#ac457b656dd70c067c1609578542d0d16" title="modulevegetation::locateobjvegetation" alt="" coords="609,5,849,32"/>
+<area shape="rect" id="node5" href="$namespacemodulevegetation.html#a5c30bda27fd79a69f45cc6fd35a2f0af" title="modulevegetation::nitrogenuptakeswat" alt="" coords="607,56,850,83"/>
+<area shape="rect" id="node7" href="$namespacemodulevegetation.html#a1a53d3932ef020aaa3e0656050c15ee3" title="modulevegetation::nitrogenuptake\l_transpconc" alt="" coords="621,107,836,149"/>
+<area shape="rect" id="node6" href="$namespacemodulevegetation.html#abdb0b0a9e6c19d706d25ff42b84611d2" title="modulevegetation::computenutrientstress" alt="" coords="908,144,1167,171"/>
+<area shape="rect" id="node9" href="$namespacemodulevegetation.html#a4d0b983635068517bf0b541f0784430a" title="modulevegetation::phosphorusuptakeswat" alt="" coords="597,173,860,200"/>
+<area shape="rect" id="node10" href="$namespacemodulevegetation.html#a00089a428473ea96d0f567289aabe4f8" title="modulevegetation::phosphorusuptake\l_transpconc" alt="" coords="611,225,847,266"/>
+</map>

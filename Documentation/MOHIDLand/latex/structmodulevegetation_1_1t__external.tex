@@ -1,0 +1,230 @@
+\hypertarget{structmodulevegetation_1_1t__external}{}\section{modulevegetation\+:\+:t\+\_\+external Type Reference}
+\label{structmodulevegetation_1_1t__external}\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+
+
+Collaboration diagram for modulevegetation\+:\+:t\+\_\+external\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=217pt]{structmodulevegetation_1_1t__external__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+real \mbox{\hyperlink{structmodulevegetation_1_1t__external_a2cc9a47c6aab7954e497f04ada6f33b7}{dt}} = null\+\_\+real
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulevegetation_1_1t__external_accf48d8579d4504d5464c7ea166d27d5}{now}}
+\item 
+integer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a70cd16b3fdd3ed7136193eb210642a0d}{julianday\+\_\+old}} = null\+\_\+int
+\item 
+logical \mbox{\hyperlink{structmodulevegetation_1_1t__external_a994ac1f7a96cdf43dc236f2b440b2291}{computesoilfield}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulevegetation_1_1t__external_af47bf3697f38becd60ffa7942f20c7de}{coupledatmosphere}} = .false.
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_ad1f96193f15e0e997c4af139f40dff90}{dwz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a3530158a5cf70bbb54e87a1621dbf067}{szz}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a30220869f4ef67e195444b8623c18598}{kfloor}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a8a629e51c5f136afe669a4815322d0e5}{mappingpoints}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_acef7a312fb5148827a3375863a957eb6}{basinpoints}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_af604abe2a7f60017772e6f1346ebd97f}{topography}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a725247f2c544683f55e90ebe4198a5f3}{airtemperature}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_af5e65e5ef47acb12b3e7c9ae0b28ed26}{solarradiation}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_aca448111885ea129df8c0737aead9eac}{relativehumidity}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_aa23f31659288d54578f3677d6990e080}{potentialtranspiration}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a886bfe93f242d825e9fcd5ddb3f65376}{latitude}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a0d2d7ca9dc1575c3d2bc3aece1ff5bd5}{soilwatercontent}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a00e7874b6bd226fef8c415239b1c41e0}{head}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_ae0ab05b88fdc56d8fbc5d76818717530}{residualwatercontent}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a26ceb7fc3c1968e4a8302cb03c1b8ea6}{soilnitrate}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_ac6f74f4fe2ae6b44e024d6131a55078d}{soilphosphorus}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a080686962a3f73d4d7d852f32ca4ebfe}{fieldcapacity}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a6445a7d1a844cbb547ac71943d774a14}{gridcellarea}} =$>$ null()
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a2d0a9fb649115fd07e9911f55078cf11}{cellvolume}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulevegetation_1_1t__integration}{t\+\_\+integration}}) \mbox{\hyperlink{structmodulevegetation_1_1t__external_a564f18a3bc8fe04dc561f29d8e6a1997}{integration}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulevegetation_1_1t__external_a14c416e1b4b2deb3716b24f121729d03}{ecw}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a725247f2c544683f55e90ebe4198a5f3}\label{structmodulevegetation_1_1t__external_a725247f2c544683f55e90ebe4198a5f3}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!airtemperature@{airtemperature}}
+\index{airtemperature@{airtemperature}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{airtemperature}{airtemperature}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::airtemperature =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_acef7a312fb5148827a3375863a957eb6}\label{structmodulevegetation_1_1t__external_acef7a312fb5148827a3375863a957eb6}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!basinpoints@{basinpoints}}
+\index{basinpoints@{basinpoints}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{basinpoints}{basinpoints}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::basinpoints =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a2d0a9fb649115fd07e9911f55078cf11}\label{structmodulevegetation_1_1t__external_a2d0a9fb649115fd07e9911f55078cf11}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!cellvolume@{cellvolume}}
+\index{cellvolume@{cellvolume}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{cellvolume}{cellvolume}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::cellvolume =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a994ac1f7a96cdf43dc236f2b440b2291}\label{structmodulevegetation_1_1t__external_a994ac1f7a96cdf43dc236f2b440b2291}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!computesoilfield@{computesoilfield}}
+\index{computesoilfield@{computesoilfield}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{computesoilfield}{computesoilfield}}
+{\footnotesize\ttfamily logical modulevegetation\+::t\+\_\+external\+::computesoilfield = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_af47bf3697f38becd60ffa7942f20c7de}\label{structmodulevegetation_1_1t__external_af47bf3697f38becd60ffa7942f20c7de}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!coupledatmosphere@{coupledatmosphere}}
+\index{coupledatmosphere@{coupledatmosphere}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{coupledatmosphere}{coupledatmosphere}}
+{\footnotesize\ttfamily logical modulevegetation\+::t\+\_\+external\+::coupledatmosphere = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a2cc9a47c6aab7954e497f04ada6f33b7}\label{structmodulevegetation_1_1t__external_a2cc9a47c6aab7954e497f04ada6f33b7}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!dt@{dt}}
+\index{dt@{dt}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dt}{dt}}
+{\footnotesize\ttfamily real modulevegetation\+::t\+\_\+external\+::dt = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_ad1f96193f15e0e997c4af139f40dff90}\label{structmodulevegetation_1_1t__external_ad1f96193f15e0e997c4af139f40dff90}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!dwz@{dwz}}
+\index{dwz@{dwz}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{dwz}{dwz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::dwz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a14c416e1b4b2deb3716b24f121729d03}\label{structmodulevegetation_1_1t__external_a14c416e1b4b2deb3716b24f121729d03}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!ecw@{ecw}}
+\index{ecw@{ecw}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{ecw}{ecw}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::ecw =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a080686962a3f73d4d7d852f32ca4ebfe}\label{structmodulevegetation_1_1t__external_a080686962a3f73d4d7d852f32ca4ebfe}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!fieldcapacity@{fieldcapacity}}
+\index{fieldcapacity@{fieldcapacity}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{fieldcapacity}{fieldcapacity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::fieldcapacity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a6445a7d1a844cbb547ac71943d774a14}\label{structmodulevegetation_1_1t__external_a6445a7d1a844cbb547ac71943d774a14}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!gridcellarea@{gridcellarea}}
+\index{gridcellarea@{gridcellarea}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{gridcellarea}{gridcellarea}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::gridcellarea =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a00e7874b6bd226fef8c415239b1c41e0}\label{structmodulevegetation_1_1t__external_a00e7874b6bd226fef8c415239b1c41e0}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!head@{head}}
+\index{head@{head}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{head}{head}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::head =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a564f18a3bc8fe04dc561f29d8e6a1997}\label{structmodulevegetation_1_1t__external_a564f18a3bc8fe04dc561f29d8e6a1997}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!integration@{integration}}
+\index{integration@{integration}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{integration}{integration}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulevegetation_1_1t__integration}{t\+\_\+integration}}) modulevegetation\+::t\+\_\+external\+::integration\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a70cd16b3fdd3ed7136193eb210642a0d}\label{structmodulevegetation_1_1t__external_a70cd16b3fdd3ed7136193eb210642a0d}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!julianday\+\_\+old@{julianday\+\_\+old}}
+\index{julianday\+\_\+old@{julianday\+\_\+old}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{julianday\+\_\+old}{julianday\_old}}
+{\footnotesize\ttfamily integer modulevegetation\+::t\+\_\+external\+::julianday\+\_\+old = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a30220869f4ef67e195444b8623c18598}\label{structmodulevegetation_1_1t__external_a30220869f4ef67e195444b8623c18598}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!kfloor@{kfloor}}
+\index{kfloor@{kfloor}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{kfloor}{kfloor}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::kfloor =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a886bfe93f242d825e9fcd5ddb3f65376}\label{structmodulevegetation_1_1t__external_a886bfe93f242d825e9fcd5ddb3f65376}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!latitude@{latitude}}
+\index{latitude@{latitude}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{latitude}{latitude}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::latitude =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a8a629e51c5f136afe669a4815322d0e5}\label{structmodulevegetation_1_1t__external_a8a629e51c5f136afe669a4815322d0e5}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!mappingpoints@{mappingpoints}}
+\index{mappingpoints@{mappingpoints}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{mappingpoints}{mappingpoints}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::mappingpoints =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_accf48d8579d4504d5464c7ea166d27d5}\label{structmodulevegetation_1_1t__external_accf48d8579d4504d5464c7ea166d27d5}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!now@{now}}
+\index{now@{now}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{now}{now}}
+{\footnotesize\ttfamily type(t\+\_\+time) modulevegetation\+::t\+\_\+external\+::now\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_aa23f31659288d54578f3677d6990e080}\label{structmodulevegetation_1_1t__external_aa23f31659288d54578f3677d6990e080}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!potentialtranspiration@{potentialtranspiration}}
+\index{potentialtranspiration@{potentialtranspiration}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{potentialtranspiration}{potentialtranspiration}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::potentialtranspiration =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_aca448111885ea129df8c0737aead9eac}\label{structmodulevegetation_1_1t__external_aca448111885ea129df8c0737aead9eac}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!relativehumidity@{relativehumidity}}
+\index{relativehumidity@{relativehumidity}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{relativehumidity}{relativehumidity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::relativehumidity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_ae0ab05b88fdc56d8fbc5d76818717530}\label{structmodulevegetation_1_1t__external_ae0ab05b88fdc56d8fbc5d76818717530}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!residualwatercontent@{residualwatercontent}}
+\index{residualwatercontent@{residualwatercontent}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{residualwatercontent}{residualwatercontent}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::residualwatercontent =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a26ceb7fc3c1968e4a8302cb03c1b8ea6}\label{structmodulevegetation_1_1t__external_a26ceb7fc3c1968e4a8302cb03c1b8ea6}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!soilnitrate@{soilnitrate}}
+\index{soilnitrate@{soilnitrate}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{soilnitrate}{soilnitrate}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::soilnitrate =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_ac6f74f4fe2ae6b44e024d6131a55078d}\label{structmodulevegetation_1_1t__external_ac6f74f4fe2ae6b44e024d6131a55078d}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!soilphosphorus@{soilphosphorus}}
+\index{soilphosphorus@{soilphosphorus}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{soilphosphorus}{soilphosphorus}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::soilphosphorus =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a0d2d7ca9dc1575c3d2bc3aece1ff5bd5}\label{structmodulevegetation_1_1t__external_a0d2d7ca9dc1575c3d2bc3aece1ff5bd5}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!soilwatercontent@{soilwatercontent}}
+\index{soilwatercontent@{soilwatercontent}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{soilwatercontent}{soilwatercontent}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::soilwatercontent =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_af5e65e5ef47acb12b3e7c9ae0b28ed26}\label{structmodulevegetation_1_1t__external_af5e65e5ef47acb12b3e7c9ae0b28ed26}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!solarradiation@{solarradiation}}
+\index{solarradiation@{solarradiation}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{solarradiation}{solarradiation}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::solarradiation =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_a3530158a5cf70bbb54e87a1621dbf067}\label{structmodulevegetation_1_1t__external_a3530158a5cf70bbb54e87a1621dbf067}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!szz@{szz}}
+\index{szz@{szz}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{szz}{szz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::szz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulevegetation_1_1t__external_af604abe2a7f60017772e6f1346ebd97f}\label{structmodulevegetation_1_1t__external_af604abe2a7f60017772e6f1346ebd97f}} 
+\index{modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}!topography@{topography}}
+\index{topography@{topography}!modulevegetation\+::t\+\_\+external@{modulevegetation\+::t\+\_\+external}}
+\subsubsection{\texorpdfstring{topography}{topography}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulevegetation\+::t\+\_\+external\+::topography =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\mbox{\hyperlink{_module_vegetation_8_f90}{Module\+Vegetation.\+F90}}\end{DoxyCompactItemize}

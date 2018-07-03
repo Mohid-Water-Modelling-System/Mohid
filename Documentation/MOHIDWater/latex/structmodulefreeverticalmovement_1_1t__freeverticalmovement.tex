@@ -1,0 +1,238 @@
+\hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement}{}\section{modulefreeverticalmovement\+:\+:t\+\_\+freeverticalmovement Type Reference}
+\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement}\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+
+
+Collaboration diagram for modulefreeverticalmovement\+:\+:t\+\_\+freeverticalmovement\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structmodulefreeverticalmovement_1_1t__freeverticalmovement__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a45c0ceb2d6e2f3ef7ad7213cdcabaead}{instanceid}} = null\+\_\+int
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a1f7e11071405e09427692dfac4bb8a90}{size}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_af55d0f66b3891be359747ecc179aafcc}{worksize}}
+\item 
+type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__external}{t\+\_\+external}}) \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_aa0e435b92aafb36fc9b5686719ff3f43}{externalvar}}
+\item 
+type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__def}{t\+\_\+def}}) \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ac9608d51927e76d24c4e3589edef4440}{coef3}}
+\item 
+type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__options}{t\+\_\+options}}) \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a7a74fc04d749181836ea3cc5d4b2a7c8}{needs}}
+\item 
+type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__output}{t\+\_\+output}}) \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_aeb3ab05d41c58641872a1733303aca8e}{output}}
+\item 
+type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__files}{t\+\_\+files}}) \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a59f1d876b199d864dbf628368c78a096}{files}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ade3529b2747281a23db3855e5c68e707}{ticoef3}} =$>$ null()
+\item 
+logical \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_adfd0c16322c120e84bb18bc89f37f9db}{depositionintertidalzones}} = .false.
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_aeeac06b0ee85a04de7979edbad3507b3}{waterpointsoropenpoints}} =$>$ null()
+\item 
+real(8), dimension(\+:), pointer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ad8c3ae94c1109d459b52673826a3104a}{vecg}} =$>$ null()
+\item 
+real(8), dimension(\+:), pointer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a17162524ee866c6b264929db8314f7a2}{vecw}} =$>$ null()
+\item 
+type(t\+\_\+thomas), pointer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a7328ef0c236d95b0c683bd077c665b08}{thomas}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a4b1482b08af0cfc19be0cafe8a78acf7}{maxthreads}} = null\+\_\+int
+\item 
+type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ae5c3e8b6866f1cbf6e14b8f288dc0c8b}{firstproperty}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a6c8961a01f46aef25398ea79cf52db87}{lastproperty}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a268e420f9a2cc53d5ff2062a25ecedf1}{propertiesnumber}} = null\+\_\+int
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_af0cce68f3eda940f38428e765bbb4af3}{filename}} = null\+\_\+str
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ae7e54d4ef909eba99cb8c0a2dfe76abc}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a57a4e3d6f46808e79f0fe1c149bdc5e0}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ab4fd6672873d36eaacffb539110151a9}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a1e848b5f018b19184c292aee982d2b5f}{objgeometry}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_afc3282eb941dfaf4ee46d43ac9b64ee7}{objmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a2b2cc6fb8646ac8843bddf5f5279f9b7}{objturbgotm}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a41db6d1c886e8d0cee7f892d853aa046}{objtimeserie}} = 0
+\item 
+type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement}{t\+\_\+freeverticalmovement}}), pointer \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a6fc89941cf339263676df09fe78c5d41}{next}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ac9608d51927e76d24c4e3589edef4440}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ac9608d51927e76d24c4e3589edef4440}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!coef3@{coef3}}
+\index{coef3@{coef3}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{coef3}{coef3}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__def}{t\+\_\+def}} ) modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::coef3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_adfd0c16322c120e84bb18bc89f37f9db}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_adfd0c16322c120e84bb18bc89f37f9db}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!depositionintertidalzones@{depositionintertidalzones}}
+\index{depositionintertidalzones@{depositionintertidalzones}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{depositionintertidalzones}{depositionintertidalzones}}
+{\footnotesize\ttfamily logical modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::depositionintertidalzones = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_aa0e435b92aafb36fc9b5686719ff3f43}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_aa0e435b92aafb36fc9b5686719ff3f43}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!externalvar@{externalvar}}
+\index{externalvar@{externalvar}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{externalvar}{externalvar}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__external}{t\+\_\+external}}) modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::externalvar\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_af0cce68f3eda940f38428e765bbb4af3}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_af0cce68f3eda940f38428e765bbb4af3}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!filename@{filename}}
+\index{filename@{filename}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{filename}{filename}}
+{\footnotesize\ttfamily character(len = pathlength) modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::filename = null\+\_\+str\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a59f1d876b199d864dbf628368c78a096}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a59f1d876b199d864dbf628368c78a096}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!files@{files}}
+\index{files@{files}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{files}{files}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__files}{t\+\_\+files}} ) modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::files\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ae5c3e8b6866f1cbf6e14b8f288dc0c8b}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ae5c3e8b6866f1cbf6e14b8f288dc0c8b}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!firstproperty@{firstproperty}}
+\index{firstproperty@{firstproperty}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{firstproperty}{firstproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__property}{t\+\_\+property}}), pointer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::firstproperty =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a45c0ceb2d6e2f3ef7ad7213cdcabaead}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a45c0ceb2d6e2f3ef7ad7213cdcabaead}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!instanceid@{instanceid}}
+\index{instanceid@{instanceid}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{instanceid}{instanceid}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::instanceid = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a6c8961a01f46aef25398ea79cf52db87}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a6c8961a01f46aef25398ea79cf52db87}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!lastproperty@{lastproperty}}
+\index{lastproperty@{lastproperty}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{lastproperty}{lastproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__property}{t\+\_\+property}}), pointer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::lastproperty =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a4b1482b08af0cfc19be0cafe8a78acf7}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a4b1482b08af0cfc19be0cafe8a78acf7}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!maxthreads@{maxthreads}}
+\index{maxthreads@{maxthreads}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{maxthreads}{maxthreads}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::maxthreads = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a7a74fc04d749181836ea3cc5d4b2a7c8}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a7a74fc04d749181836ea3cc5d4b2a7c8}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!needs@{needs}}
+\index{needs@{needs}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{needs}{needs}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__options}{t\+\_\+options}} ) modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::needs\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a6fc89941cf339263676df09fe78c5d41}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a6fc89941cf339263676df09fe78c5d41}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!next@{next}}
+\index{next@{next}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement}{t\+\_\+freeverticalmovement}}), pointer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::next =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ae7e54d4ef909eba99cb8c0a2dfe76abc}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ae7e54d4ef909eba99cb8c0a2dfe76abc}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a1e848b5f018b19184c292aee982d2b5f}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a1e848b5f018b19184c292aee982d2b5f}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!objgeometry@{objgeometry}}
+\index{objgeometry@{objgeometry}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{objgeometry}{objgeometry}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::objgeometry = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ab4fd6672873d36eaacffb539110151a9}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ab4fd6672873d36eaacffb539110151a9}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_afc3282eb941dfaf4ee46d43ac9b64ee7}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_afc3282eb941dfaf4ee46d43ac9b64ee7}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!objmap@{objmap}}
+\index{objmap@{objmap}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{objmap}{objmap}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::objmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a57a4e3d6f46808e79f0fe1c149bdc5e0}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a57a4e3d6f46808e79f0fe1c149bdc5e0}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!objtime@{objtime}}
+\index{objtime@{objtime}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a41db6d1c886e8d0cee7f892d853aa046}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a41db6d1c886e8d0cee7f892d853aa046}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!objtimeserie@{objtimeserie}}
+\index{objtimeserie@{objtimeserie}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{objtimeserie}{objtimeserie}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::objtimeserie = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a2b2cc6fb8646ac8843bddf5f5279f9b7}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a2b2cc6fb8646ac8843bddf5f5279f9b7}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!objturbgotm@{objturbgotm}}
+\index{objturbgotm@{objturbgotm}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{objturbgotm}{objturbgotm}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::objturbgotm = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_aeb3ab05d41c58641872a1733303aca8e}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_aeb3ab05d41c58641872a1733303aca8e}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!output@{output}}
+\index{output@{output}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{output}{output}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__output}{t\+\_\+output}} ) modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::output\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a268e420f9a2cc53d5ff2062a25ecedf1}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a268e420f9a2cc53d5ff2062a25ecedf1}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!propertiesnumber@{propertiesnumber}}
+\index{propertiesnumber@{propertiesnumber}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{propertiesnumber}{propertiesnumber}}
+{\footnotesize\ttfamily integer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::propertiesnumber = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a1f7e11071405e09427692dfac4bb8a90}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a1f7e11071405e09427692dfac4bb8a90}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!size@{size}}
+\index{size@{size}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size3d ) modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a7328ef0c236d95b0c683bd077c665b08}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a7328ef0c236d95b0c683bd077c665b08}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!thomas@{thomas}}
+\index{thomas@{thomas}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{thomas}{thomas}}
+{\footnotesize\ttfamily type(t\+\_\+thomas), pointer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::thomas =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ade3529b2747281a23db3855e5c68e707}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ade3529b2747281a23db3855e5c68e707}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!ticoef3@{ticoef3}}
+\index{ticoef3@{ticoef3}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{ticoef3}{ticoef3}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::ticoef3 =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ad8c3ae94c1109d459b52673826a3104a}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_ad8c3ae94c1109d459b52673826a3104a}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!vecg@{vecg}}
+\index{vecg@{vecg}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{vecg}{vecg}}
+{\footnotesize\ttfamily real(8), dimension(\+:), pointer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::vecg =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a17162524ee866c6b264929db8314f7a2}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_a17162524ee866c6b264929db8314f7a2}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!vecw@{vecw}}
+\index{vecw@{vecw}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{vecw}{vecw}}
+{\footnotesize\ttfamily real(8), dimension(\+:), pointer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::vecw =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_aeeac06b0ee85a04de7979edbad3507b3}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_aeeac06b0ee85a04de7979edbad3507b3}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!waterpointsoropenpoints@{waterpointsoropenpoints}}
+\index{waterpointsoropenpoints@{waterpointsoropenpoints}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{waterpointsoropenpoints}{waterpointsoropenpoints}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::waterpointsoropenpoints =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulefreeverticalmovement_1_1t__freeverticalmovement_af55d0f66b3891be359747ecc179aafcc}\label{structmodulefreeverticalmovement_1_1t__freeverticalmovement_af55d0f66b3891be359747ecc179aafcc}} 
+\index{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}!worksize@{worksize}}
+\index{worksize@{worksize}!modulefreeverticalmovement\+::t\+\_\+freeverticalmovement@{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size3d ) modulefreeverticalmovement\+::t\+\_\+freeverticalmovement\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_free_vertical_movement_8_f90}{Module\+Free\+Vertical\+Movement.\+F90}}\end{DoxyCompactItemize}

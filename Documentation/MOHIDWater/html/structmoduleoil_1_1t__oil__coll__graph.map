@@ -1,0 +1,7 @@
+<map id="moduleoil::t_oil" name="moduleoil::t_oil">
+<area shape="rect" id="node2" href="$structmoduleoil_1_1t__files.html" title="{moduleoil::t_files\n|&#45; constructdata\l|}" alt="" coords="5,79,124,156"/>
+<area shape="rect" id="node3" href="$structmoduleoil_1_1t__state.html" title="{moduleoil::t_state\n|&#45; timeserie\l&#45; firststepip\l&#45; firststepap\l|}" alt="" coords="149,64,274,171"/>
+<area shape="rect" id="node4" href="$structmoduleoil_1_1t__var.html" title="{moduleoil::t_var\n|&#45; oiltype\l&#45; pourpoint\l&#45; dtoilinternalprocesses\l&#45; massoil\l&#45; massini\l&#45; volume\l&#45; volumeoil\l&#45; volinic\l&#45; slickthickness\l&#45; oilthickness\land 105 more...\l|}" alt="" coords="299,5,455,229"/>
+<area shape="rect" id="node5" href="$structmoduleoil_1_1t__timeserie.html" title="{moduleoil::t_timeserie\n|&#45; timeseriefile\l&#45; propertylist\l&#45; dataline\l|}" alt="" coords="479,64,629,171"/>
+<area shape="rect" id="node6" href="$structmoduleoil_1_1t__external.html" title="{moduleoil::t_external\n|&#45; now\l&#45; begintime\l&#45; endtime\l&#45; area\l&#45; gridthickness\l&#45; computefacesu3d\l&#45; computefacesv3d\l&#45; dzx\l&#45; dzy\l&#45; size\land 10 more...\l|}" alt="" coords="653,5,796,229"/>
+</map>

@@ -1,0 +1,2414 @@
+\hypertarget{namespacemoduleporousmediaproperties}{}\section{moduleporousmediaproperties Module Reference}
+\label{namespacemoduleporousmediaproperties}\index{moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__a__b__c__explicit}{t\+\_\+a\+\_\+b\+\_\+c\+\_\+explicit}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__advectiondiffusion}{t\+\_\+advectiondiffusion}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__boundary}{t\+\_\+boundary}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__coupled}{t\+\_\+coupled}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__def}{t\+\_\+def}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__evolution}{t\+\_\+evolution}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__extvar}{t\+\_\+extvar}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__files}{t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__fluxcoef}{t\+\_\+fluxcoef}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__fluxes}{t\+\_\+fluxes}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__id}{t\+\_\+id}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__massbalance}{t\+\_\+massbalance}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__output}{t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__partition}{t\+\_\+partition}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__porousmediaproperties}{t\+\_\+porousmediaproperties}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property__3d}{t\+\_\+property\+\_\+3d}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__relatedid}{t\+\_\+relatedid}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__sedimentrate}{t\+\_\+sedimentrate}}
+\item 
+type \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__thetaatfaces}{t\+\_\+thetaatfaces}}
+\item 
+interface \mbox{\hyperlink{interfacemoduleporousmediaproperties_1_1ungetporousmediaproperties}{ungetporousmediaproperties}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_a3be1252bc0db9785b9746ae093d82a5f}{constructporousmediaproperties}} (Obj\+Porous\+Media\+Properties\+ID, Compute\+Time\+ID, Grid\+Data\+ID, Horizontal\+Grid\+ID, Horizontal\+Map\+ID, Basin\+Geometry\+ID, Porous\+Media\+ID, Geometry\+ID, Map\+ID, Discharges\+ID, Coupled\+DN, Check\+Global\+Mass, \+\_\+\+E\+N\+A\+B\+L\+E\+\_\+\+C\+U\+DA
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a6b8ea609b75df890d6efecde90bff1ac}{constructdischarges}} (Discharges\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a9384815199fb37590dac347563039152}{checkboundary}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a63ce83aa045cf918fb7c8218fc07ff62}{checkflowdirections}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a2bfe4b92207b55cc4167ccce04ea859f}{constructlog}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_aa100fa334641d2574c9b2965459d3dbf}{allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a97ca52cdaf883bec238ac8f6844e5871}{readfilenames}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a9215099aea454d7ad22a07e69b0b6065}{readglobaloptions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a266292445f08da6a7567576e04444458}{allocatevariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a720c9abb0cbd672dacfd23a18a959f50}{constructscalar3d}} (Scalar3D, Extract\+Type, Client\+Number, block\+\_\+begin, block\+\_\+end)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a0b617f6e3c622010d4230970529e87fb}{construct\+\_\+propertylist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a3cb901c1fa6f5b569ff3841c39531ce5}{construct\+\_\+property}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a199bd8a8509f7ddd865f230c56680292}{add\+\_\+property}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a401ffa0cf421489bbc331e312e10ebd2}{construct\+\_\+propertystate}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a7475f0f419f35758071e5f74d001e408}{construct\+\_\+propertyevolution}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_acc3491b7ab1e55b078caa370b4c75601}{construct\+\_\+sedimentratelist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_abfc3b112a762e28d4f711dfe4a5d7d3d}{construct\+\_\+sedimentrate}} (New\+Sediment\+Rate)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4bcf212cc66413ac54a86d6f71dab6d6}{construct\+\_\+sedimentrateid}} (New\+Sediment\+Rate)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a38a540abbf59777875ca535ba0683c59}{construct\+\_\+sedimentratevalues}} (New\+Sediment\+Rate)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4a94ca075eedbc0f235c5c681470aee8}{add\+\_\+sedimentrate}} (New\+Sediment\+Rate)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a2b4f624f18ff4621d00ca5923d59cc36}{read\+\_\+partition\+\_\+parameters}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_af16278987bb08e48f63b916cf573a68d}{readadvectiondiffusionparam}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a03d5423382489d1918532f58f478c446}{constructpropertydiffusivity}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a72fa2352db155b8e701aa97c7aad155c}{construct\+\_\+propertyvalues}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a61c528a081f6e7bd050ab2482d187fe5}{constructpartition}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a8c45fef7355c15cfadf2a6d30d9bbb24}{constructprofileoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_acd8b0a3775ea88f8c55b0a2d1eaa957f}{construct\+\_\+propertyoutput}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_af8b1e7f8c04441c79ef987887896d90a}{constructtimeserie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_aecdb9ca882593072d63d590749b53ee9}{constructhdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a0c7ca57252cdb274ae0ce23c3deeba74}{startoutputboxfluxes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a03262673fc0a9c3eece9a35a7e11e852}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_abf58df3d1437a63cdfba7d236b8d0fa9}{readoldconcboundarieshdf}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a2f7af623d77295c6b462fed30cf66e1b}{checkfieldconsistence}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a61f775b3725813d36065a3b82e4cdb20}{couplesoilquality}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_aee3bf1633a5fbeea01e36455f4b4559c}{couplesoilchemistry}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a3cc1f6f3ccfd4d997cac22737bc1093f}{setupsoilchemistry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a2d7950fe81dbe3ec4b45b30ce9e19e5c}{couplechainreactions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_af477cac3aa38958d32a9af0ae317241f}{search\+\_\+property}} (PropertyX, Property\+X\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_acf31c9d94d5dc07a5b27c954a6895abb}{getpmpcoupled}} (Porous\+Media\+Properties\+ID, Soil\+Quality, ifdef \+\_\+\+P\+H\+R\+E\+E\+Q\+C\+\_\+
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_a24f7231dc218de6931238c8726e07bf9}{getecw}} (Porous\+Media\+Properties\+ID, E\+Cw, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_a7f77a3cf092866b51da8931bff80a9e3}{getpmpconcentration}} (Porous\+Media\+Properties\+ID, ConcentrationX, Property\+X\+I\+D\+Number, Property\+X\+Units, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_aad77475234f116fbce60ab8837dfd9e9}{getpmpconcentrationold}} (Porous\+Media\+Properties\+ID, Concentration\+X\+Old, Property\+X\+I\+D\+Number, Property\+X\+Units, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a2c248d4114a4213bca448f9d77478f28}{getpmptotalstoredmass}} (Porous\+Media\+Properties\+ID, Total\+Stored\+Mass, Property\+X\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_a3c0d671b8b697248b218443e59bb2cb8}{setwindvelocity}} (Porous\+Media\+Properties\+ID, Wind\+Modulus, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_aa2e7bcc28c7132e8ea2228f7f1e227d2}{setvegetationpmproperties}} (Porous\+Media\+Properties\+ID, Soil\+Fluxes\+Active, Grazing\+Biomass, Grazing\+Nitrogen, Grazing\+Ammonia, Grazing\+Phosphorus, Harvest\+Kill\+Aerial\+Biomass, Harvest\+Kill\+Nitrogen, Harvest\+Kill\+Phosphorus, Harvest\+Kill\+Root\+Biomass, Dormancy\+Biomass, Dormancy\+Nitrogen, Dormancy\+Phosphorus, Fertil\+Nitrate\+Surface, Fertil\+Nitrate\+Sub\+Surface, Fertil\+Ammonia\+Surface, Fertil\+Ammonia\+Sub\+Surface, Fertil\+Organic\+N\+Surface, Fertil\+Organic\+N\+Sub\+Surface, Fertil\+Organic\+P\+Surface, Fertil\+Organic\+P\+Sub\+Surface, Fertil\+Mineral\+P\+Surface, Fertil\+Mineral\+P\+Sub\+Surface, Nitrogen\+Uptake, Phosphorus\+Uptake, Grazing, Harvest\+Kill, Dormancy, Fertilization, Nutrient\+Fluxes\+With\+Soil, Root\+Depth, Model\+Water, Model\+Nitrogen, Model\+Phosphorus, Growth\+Model, Coupled\+Vegetation, Nitrogen\+Fraction, Phosphorus\+Fraction, Vegetation\+DT, Transpiration\+Bottom\+Layer, Nutrient\+Uptake\+Method, Pesticide\+I\+D\+Number, Pesticide\+Soil\+Flux, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_a06259226fc0457f3a2a483e2de48d783}{setdnconcpmp}} (Porous\+Media\+Properties\+ID, Property\+ID, D\+N\+Concentration, Channels\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_ad6dda3a878f9da43d0b12164c09edd9d}{setinfcolconcpmp}} (Porous\+Media\+Properties\+ID, Property\+X\+I\+D\+Number, ConcentrationX, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_aa5824bb6f506f737243ff62a77a6d38c}{getpmpmassbalance}} (Porous\+Media\+Properties\+ID, Property\+ID, Total\+Stored\+Mass, Transpired\+Mass, D\+N\+Exchange\+Mass, R\+P\+Exchange\+Mass, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_aff227e766a06094629675d29f5f9e972}{checkpmpproperty}} (Porous\+Media\+Properties\+ID, Property\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_a91af77c6bf746b618fd509c6ceb5b42d}{getpmpnproperties}} (Porous\+Media\+Properties\+ID, n\+Properties, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_af2bce43f88ee94ebe28c4b5f01c9f098}{getpmppropertiesidbyidx}} (Porous\+Media\+Properties\+ID, Idx, ID, Prop\+Adv\+Diff, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a08471307dc61da0cc694bc4e7b47b840}{ungetporousmediaproperties3d\+\_\+i}} (Obj\+Porous\+Media\+Properties\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_ae5667c60b268b4c99e403dc08b831ee5}{ungetporousmediaproperties3d\+\_\+r4}} (Obj\+Porous\+Media\+Properties\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_adae76989107c8fbe8fc908a111ea82ad}{ungetporousmediaproperties3d\+\_\+r8}} (Obj\+Porous\+Media\+Properties\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_af5a9da28db32e6f4ed9c06f73a7dc775}{modifyporousmediaproperties}} (Obj\+Porous\+Media\+Properties\+ID, Water\+Column, Water\+Column\+Old, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_aa717037551efabb3abaec9e2f610d0f3}{averageconcentration}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a9e33074d02a745b0e8cd90eccef5b5ed}{decayprocessing}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4b551b0430b61a97ca5a026b6467c003}{modifydischarges}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a0e66cb3f0270a54dfa87774f558ac3d5}{dischargeproperty}} (Discharge\+Flow, Discharge\+Conc, Igrid, Jgrid, Kgrid, Volume\+Old, Property, Local\+DT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a32b1336499ea5a5ca4e733054acee536}{computeecw}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a8fba489b1d7b502e23196a791d678e03}{computevolumes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a534ab2ca9e28f31cfce1876b53c263c8}{computethetaatfaces}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_ac3225dfdb6a7475838f45e43263a61a9}{computethetaatfacesbyavg}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a14becd6de87b194f724f94c34247ee36}{computethetaatfacesbymin}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a34afbe14179f6a786f5504a52ce2d220}{actualizepropertiesfromfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a9754a9e3d41ba3152a613bda8646ffae}{interfacefluxes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a81fcc32210036b193860971be2aa8f12}{vegetationinterfacefluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_ab176bef10683035ac59beb9b6b893728}{advectiondiffusionprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_afc91dc82442179a1d26d776a3a1007d6}{restartvariables}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_af0fd7f987acaa1a952f02b3bdedf1b8a}{computeadvectionterms}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_ab1e6a246ea1f6819438e21e75cf2de59}{advectionupwindorder1}} (Direction)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a07904791ddeab6650d5a3ed4ee8eca5d}{advectioncentraldifferences}} (Direction)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_adff3b6aa5d450f391ceaa763c275a82a}{modifycoefs}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_aaeea83f4ec370391b45509fd7863a3bc}{modifyadvectiondiffusioncoefs}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a1f506b4d3d9d8a845ba272fe4a1b867e}{checktransportoptions}} (PropertyX, Advection\+V\+\_\+\+Imp\+\_\+\+Exp, Diffusion\+V\+\_\+\+Imp\+\_\+\+Exp, Advection\+H\+\_\+\+Imp\+\_\+\+Exp, Imp\+Exp\+\_\+\+Adv\+XX, Imp\+Exp\+\_\+\+Adv\+YY)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a46d137d0c183e1c9fcad5f72b1101ffd}{horizontaldiffusion}} (Curr\+Prop)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a3a2fc7f94588508e3f73f83cdb76a6af}{horizontaldiffusionxx}} (Curr\+Prop)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a9bd1af2c6e3a19167f538d7c25d74e6b}{horizontaldiffusionyy}} (Curr\+Prop)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a7327a640c1b4db8bbf9db21d1a859a88}{horizontaladvection}} (Curr\+Prop, Imp\+Exp\+\_\+\+Adv\+XX, Imp\+Exp\+\_\+\+Adv\+YY)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a8e5f48df8b88839f3c864bb3668c251a}{horizontaladvectionxx}} (Curr\+Prop, Imp\+Exp\+\_\+\+Adv\+XX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4de4628b721cc4ace9457a05e6b46f11}{horizontaladvectionyy}} (Curr\+Prop, Imp\+Exp\+\_\+\+Adv\+YY)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a872ba647c81cc1f00e69bd02b7418258}{verticaldiffusion}} (Curr\+Property, Diffusion\+V\+\_\+\+Imp\+\_\+\+Exp)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a0872f72bfebe157c1a7a7030f27bf43c}{verticaladvection}} (Curr\+Prop, Advection\+V\+\_\+\+Imp\+\_\+\+Exp)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a073f545385ee87d0157436c464e871fa}{calcverticaladvflux}} (Curr\+Prop, Weigth)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a5723fa1fcf71ee69d8401d06efd65372}{calchorizontaladvfluxxx}} (Curr\+Prop, Weigth)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a0a76735f032f1dc67ea140ec4b090be9}{calchorizontaladvfluxyy}} (Curr\+Prop, Weigth)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_aaa3c9648a06189bd69f555e24fa2a81e}{calcverticaldifflux}} (Curr\+Prop, Weigth)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_ac3477d319b62465ddf85f06d31d2310b}{calchorizontaldiffluxxx}} (Curr\+Prop)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a060f429ecbcbfc17419b00ac5e09e9de}{calchorizontaldiffluxyy}} (Curr\+Prop)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_acb53435edd626676edd69fc709aa276c}{modifyevtpcoefs}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_ab821bd146f4dac552711604b920efa4a}{modifydrainagenetworkcoefs}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a5e436455f541e5914817fe2e3c9aa3f1}{modifyinfiltrationcoefs}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4a088b65d745be5c1c555008b706cf6a}{modifyboundarycoefs}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4a86b3e01bf62024194ec6a00d661a86}{modifypropertyvalues}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4f53429b96a7e06258d5ab4a001405e9}{modifyinterfacemassfluxes}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_aed31037cfdb4a26f847b51c25507a881}{modifydiffusivity\+\_\+new}} (Curr\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a2045bbe7b3450cd88b6aae4509fbe0c5}{soilqualityprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4f575711195b1879221a0c494292c90c}{changepropertyunits}} (Property, Condition)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_aad02f0ad0e6d8ad5f7cd959e38c17fa7}{computewindvelocity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a8875ae5fa2c63a9d71875b7fd07addfb}{partition\+\_\+processes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_aa132ced55703c339565649a0065925da}{setlimitsconcentration}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a457fa586000763f38ce30bbaf81de100}{warnonnegativevalues}} (Message)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a2438c1ae6e14a9ddbc08eda6cd410daf}{computedissolvedtoparticulate3d}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_aa89aee3f1e3ab0673669acd8126824f9}{chainreactionsprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4eef1ed87ef643f7f98c8302286a6eb1}{setchainreactionsproperties}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a09a5fbeb9b55249ae5b934510525a8ff}{decayprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_accf60e0dd2d0f11fb4815a77bd7db219}{decayfirstorder\+\_\+mass}} (Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a3c5193c49fa27b216424d2162798b41b}{decayfirstorder\+\_\+conc}} (Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a9e4d029f1da0a9fa9ea00b76a2a21ffd}{decaypeyrard}} (Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a2538954ade5763189d6d5f04ad4e7882}{actualize\+\_\+time\+\_\+evolution}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a23e72e1a1d3d2dc5b268bbc65dbeebed}{output\+\_\+timeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_afc8549b6ebf2207ac8a080ad892a6cd3}{output\+\_\+hdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_ab84b0ba6c0a1df355fb649c05128fbb3}{computeaverageconc}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a3d3bfa08325114d10c44b11e29d42d78}{computeaveragedecay}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a06f48331cb6d7a1d7fa1520565129efc}{computeintegrateddecay}} (PropertyX)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a4763c798964b2cbb6e1e012ba2141ff8}{output\+\_\+boxes\+\_\+mass}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a7485615a66ceb16b22cd17c505c048ff}{output\+\_\+boxes\+\_\+fluxes}} (Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_aed2bfb3c9121c8c37fc6bcd2ac8e1eb0}{writefinalfile}} (Is\+Final\+File)
+\item 
+real function \mbox{\hyperlink{namespacemoduleporousmediaproperties_ad5b352d84190c0b9d6cebc1a83db8ded}{tortuosity}} (WC, Porosity)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a223a0c32882543deab6de89c82e4295c}{profileoutput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a39cd5689166d641ddb0f961d291c6061}{calculatetotalstoredmass}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleporousmediaproperties_a735090aa674c6c295828243dcd120d40}{killporousmediaproperties}} (Obj\+Porous\+Media\+Properties\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a7002642c0fa8ff01f584386876557fef}{deallocateinstance}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a03075fd748d4630c43019d9d8b5c9b79}{deallocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a1a2026bd74e611727f9dca5173548d05}{ready}} (Obj\+Porous\+Media\+Properties\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleporousmediaproperties_a69bcc7ae1a4b78b640c2d9f0d660587f}{locateobjporousmediaproperties}} (Obj\+Porous\+Media\+Properties\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_af651cef8320f1769d6f02a15144aae88}{searchproperty}} (PropertyX, Property\+X\+I\+D\+Number, Print\+Warning, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_a56260cc89bfdab790c373015aa5f4675}{readlockexternalvar}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleporousmediaproperties_aa21cfad85460a30a39a9fb8f3421f874}{readunlockexternalvar}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_a7934d23c9d533535b043423188f8010a}{waterreferencedensity}} = 998.
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_a7489983ae12c2122d5feb988c8b3ad36}{layer\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_af3ed469348d3d6a26909648a47f56e8a}{directionx}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_a2fe7588436daae719ede5ee48e9dea60}{directiony}} = 2
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_abc69e8111d903d795ba37cf29a05f780}{prop\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_a7e051a4d35d9a334e59f188d76d5ef99}{prop\+\_\+block\+\_\+end}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+character(len=$\ast$), parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_a587732ce97c9a6cb0c8330a1c0aed2f1}{modulename}} = \textquotesingle{}Porous\+Media\+Properties\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_a71c8fa9cb77e17cfd7f683e3972580cd}{advdif\+\_\+modulepmp\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_a5fb79cc3aa76009c87d9dfcace7c7ed3}{advdif\+\_\+modulead\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_ab1806e49e85d996baa1b6916d45f0cc6}{imposedvalue\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_af0684f3b7ac61f5d41e83cc1424d8fae}{nullgradient\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleporousmediaproperties_a1e67fec3a9035dcb908daca2f464ffe0}{peyrard\+\_\+}} = 1
+\item 
+type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__porousmediaproperties}{t\+\_\+porousmediaproperties}}), pointer \mbox{\hyperlink{namespacemoduleporousmediaproperties_ab44e9a984567630770ebd718383594a7}{firstobjporousmediaproperties}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__porousmediaproperties}{t\+\_\+porousmediaproperties}}), pointer \mbox{\hyperlink{namespacemoduleporousmediaproperties_af14bc4d911a57505bd2db9b85e475b08}{me}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a2538954ade5763189d6d5f04ad4e7882}\label{namespacemoduleporousmediaproperties_a2538954ade5763189d6d5f04ad4e7882}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!actualize\+\_\+time\+\_\+evolution@{actualize\+\_\+time\+\_\+evolution}}
+\index{actualize\+\_\+time\+\_\+evolution@{actualize\+\_\+time\+\_\+evolution}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{actualize\+\_\+time\+\_\+evolution()}{actualize\_time\_evolution()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::actualize\+\_\+time\+\_\+evolution (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2538954ade5763189d6d5f04ad4e7882_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a34afbe14179f6a786f5504a52ce2d220}\label{namespacemoduleporousmediaproperties_a34afbe14179f6a786f5504a52ce2d220}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!actualizepropertiesfromfile@{actualizepropertiesfromfile}}
+\index{actualizepropertiesfromfile@{actualizepropertiesfromfile}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{actualizepropertiesfromfile()}{actualizepropertiesfromfile()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::actualizepropertiesfromfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a34afbe14179f6a786f5504a52ce2d220_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a199bd8a8509f7ddd865f230c56680292}\label{namespacemoduleporousmediaproperties_a199bd8a8509f7ddd865f230c56680292}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!add\+\_\+property@{add\+\_\+property}}
+\index{add\+\_\+property@{add\+\_\+property}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{add\+\_\+property()}{add\_property()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::add\+\_\+property (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a199bd8a8509f7ddd865f230c56680292_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4a94ca075eedbc0f235c5c681470aee8}\label{namespacemoduleporousmediaproperties_a4a94ca075eedbc0f235c5c681470aee8}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!add\+\_\+sedimentrate@{add\+\_\+sedimentrate}}
+\index{add\+\_\+sedimentrate@{add\+\_\+sedimentrate}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{add\+\_\+sedimentrate()}{add\_sedimentrate()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::add\+\_\+sedimentrate (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__sedimentrate}{t\+\_\+sedimentrate}}), pointer}]{New\+Sediment\+Rate }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4a94ca075eedbc0f235c5c681470aee8_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a07904791ddeab6650d5a3ed4ee8eca5d}\label{namespacemoduleporousmediaproperties_a07904791ddeab6650d5a3ed4ee8eca5d}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!advectioncentraldifferences@{advectioncentraldifferences}}
+\index{advectioncentraldifferences@{advectioncentraldifferences}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{advectioncentraldifferences()}{advectioncentraldifferences()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::advectioncentraldifferences (\begin{DoxyParamCaption}\item[{character(len=stringlength)}]{Direction }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a07904791ddeab6650d5a3ed4ee8eca5d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ab176bef10683035ac59beb9b6b893728}\label{namespacemoduleporousmediaproperties_ab176bef10683035ac59beb9b6b893728}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!advectiondiffusionprocesses@{advectiondiffusionprocesses}}
+\index{advectiondiffusionprocesses@{advectiondiffusionprocesses}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{advectiondiffusionprocesses()}{advectiondiffusionprocesses()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::advectiondiffusionprocesses (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ab176bef10683035ac59beb9b6b893728_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ab176bef10683035ac59beb9b6b893728_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ab1e6a246ea1f6819438e21e75cf2de59}\label{namespacemoduleporousmediaproperties_ab1e6a246ea1f6819438e21e75cf2de59}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!advectionupwindorder1@{advectionupwindorder1}}
+\index{advectionupwindorder1@{advectionupwindorder1}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{advectionupwindorder1()}{advectionupwindorder1()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::advectionupwindorder1 (\begin{DoxyParamCaption}\item[{character(len=stringlength)}]{Direction }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ab1e6a246ea1f6819438e21e75cf2de59_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aa100fa334641d2574c9b2965459d3dbf}\label{namespacemoduleporousmediaproperties_aa100fa334641d2574c9b2965459d3dbf}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aa100fa334641d2574c9b2965459d3dbf_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a266292445f08da6a7567576e04444458}\label{namespacemoduleporousmediaproperties_a266292445f08da6a7567576e04444458}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!allocatevariables@{allocatevariables}}
+\index{allocatevariables@{allocatevariables}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{allocatevariables()}{allocatevariables()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::allocatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a266292445f08da6a7567576e04444458_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aa717037551efabb3abaec9e2f610d0f3}\label{namespacemoduleporousmediaproperties_aa717037551efabb3abaec9e2f610d0f3}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!averageconcentration@{averageconcentration}}
+\index{averageconcentration@{averageconcentration}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{averageconcentration()}{averageconcentration()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::averageconcentration (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aa717037551efabb3abaec9e2f610d0f3_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aa717037551efabb3abaec9e2f610d0f3_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a5723fa1fcf71ee69d8401d06efd65372}\label{namespacemoduleporousmediaproperties_a5723fa1fcf71ee69d8401d06efd65372}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!calchorizontaladvfluxxx@{calchorizontaladvfluxxx}}
+\index{calchorizontaladvfluxxx@{calchorizontaladvfluxxx}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{calchorizontaladvfluxxx()}{calchorizontaladvfluxxx()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::calchorizontaladvfluxxx (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop,  }\item[{real, intent(in)}]{Weigth }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a5723fa1fcf71ee69d8401d06efd65372_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a0a76735f032f1dc67ea140ec4b090be9}\label{namespacemoduleporousmediaproperties_a0a76735f032f1dc67ea140ec4b090be9}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!calchorizontaladvfluxyy@{calchorizontaladvfluxyy}}
+\index{calchorizontaladvfluxyy@{calchorizontaladvfluxyy}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{calchorizontaladvfluxyy()}{calchorizontaladvfluxyy()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::calchorizontaladvfluxyy (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop,  }\item[{real, intent(in)}]{Weigth }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a0a76735f032f1dc67ea140ec4b090be9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ac3477d319b62465ddf85f06d31d2310b}\label{namespacemoduleporousmediaproperties_ac3477d319b62465ddf85f06d31d2310b}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!calchorizontaldiffluxxx@{calchorizontaldiffluxxx}}
+\index{calchorizontaldiffluxxx@{calchorizontaldiffluxxx}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{calchorizontaldiffluxxx()}{calchorizontaldiffluxxx()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::calchorizontaldiffluxxx (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ac3477d319b62465ddf85f06d31d2310b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a060f429ecbcbfc17419b00ac5e09e9de}\label{namespacemoduleporousmediaproperties_a060f429ecbcbfc17419b00ac5e09e9de}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!calchorizontaldiffluxyy@{calchorizontaldiffluxyy}}
+\index{calchorizontaldiffluxyy@{calchorizontaldiffluxyy}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{calchorizontaldiffluxyy()}{calchorizontaldiffluxyy()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::calchorizontaldiffluxyy (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a060f429ecbcbfc17419b00ac5e09e9de_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a39cd5689166d641ddb0f961d291c6061}\label{namespacemoduleporousmediaproperties_a39cd5689166d641ddb0f961d291c6061}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!calculatetotalstoredmass@{calculatetotalstoredmass}}
+\index{calculatetotalstoredmass@{calculatetotalstoredmass}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{calculatetotalstoredmass()}{calculatetotalstoredmass()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::calculatetotalstoredmass (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a39cd5689166d641ddb0f961d291c6061_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a39cd5689166d641ddb0f961d291c6061_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a073f545385ee87d0157436c464e871fa}\label{namespacemoduleporousmediaproperties_a073f545385ee87d0157436c464e871fa}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!calcverticaladvflux@{calcverticaladvflux}}
+\index{calcverticaladvflux@{calcverticaladvflux}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{calcverticaladvflux()}{calcverticaladvflux()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::calcverticaladvflux (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop,  }\item[{real, intent(in)}]{Weigth }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a073f545385ee87d0157436c464e871fa_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aaa3c9648a06189bd69f555e24fa2a81e}\label{namespacemoduleporousmediaproperties_aaa3c9648a06189bd69f555e24fa2a81e}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!calcverticaldifflux@{calcverticaldifflux}}
+\index{calcverticaldifflux@{calcverticaldifflux}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{calcverticaldifflux()}{calcverticaldifflux()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::calcverticaldifflux (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop,  }\item[{real, intent(in)}]{Weigth }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aaa3c9648a06189bd69f555e24fa2a81e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aa89aee3f1e3ab0673669acd8126824f9}\label{namespacemoduleporousmediaproperties_aa89aee3f1e3ab0673669acd8126824f9}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!chainreactionsprocesses@{chainreactionsprocesses}}
+\index{chainreactionsprocesses@{chainreactionsprocesses}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{chainreactionsprocesses()}{chainreactionsprocesses()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::chainreactionsprocesses (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aa89aee3f1e3ab0673669acd8126824f9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aa89aee3f1e3ab0673669acd8126824f9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4f575711195b1879221a0c494292c90c}\label{namespacemoduleporousmediaproperties_a4f575711195b1879221a0c494292c90c}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!changepropertyunits@{changepropertyunits}}
+\index{changepropertyunits@{changepropertyunits}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{changepropertyunits()}{changepropertyunits()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::changepropertyunits (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Property,  }\item[{character (len = stringlength)}]{Condition }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4f575711195b1879221a0c494292c90c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a9384815199fb37590dac347563039152}\label{namespacemoduleporousmediaproperties_a9384815199fb37590dac347563039152}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!checkboundary@{checkboundary}}
+\index{checkboundary@{checkboundary}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{checkboundary()}{checkboundary()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::checkboundary (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9384815199fb37590dac347563039152_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9384815199fb37590dac347563039152_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a2f7af623d77295c6b462fed30cf66e1b}\label{namespacemoduleporousmediaproperties_a2f7af623d77295c6b462fed30cf66e1b}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!checkfieldconsistence@{checkfieldconsistence}}
+\index{checkfieldconsistence@{checkfieldconsistence}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{checkfieldconsistence()}{checkfieldconsistence()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::checkfieldconsistence (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2f7af623d77295c6b462fed30cf66e1b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a63ce83aa045cf918fb7c8218fc07ff62}\label{namespacemoduleporousmediaproperties_a63ce83aa045cf918fb7c8218fc07ff62}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!checkflowdirections@{checkflowdirections}}
+\index{checkflowdirections@{checkflowdirections}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{checkflowdirections()}{checkflowdirections()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::checkflowdirections (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a63ce83aa045cf918fb7c8218fc07ff62_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aff227e766a06094629675d29f5f9e972}\label{namespacemoduleporousmediaproperties_aff227e766a06094629675d29f5f9e972}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!checkpmpproperty@{checkpmpproperty}}
+\index{checkpmpproperty@{checkpmpproperty}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{checkpmpproperty()}{checkpmpproperty()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::checkpmpproperty (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{integer}]{Property\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aff227e766a06094629675d29f5f9e972_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a1f506b4d3d9d8a845ba272fe4a1b867e}\label{namespacemoduleporousmediaproperties_a1f506b4d3d9d8a845ba272fe4a1b867e}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!checktransportoptions@{checktransportoptions}}
+\index{checktransportoptions@{checktransportoptions}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{checktransportoptions()}{checktransportoptions()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::checktransportoptions (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX,  }\item[{real, intent(out)}]{Advection\+V\+\_\+\+Imp\+\_\+\+Exp,  }\item[{real, intent(out)}]{Diffusion\+V\+\_\+\+Imp\+\_\+\+Exp,  }\item[{real, intent(out)}]{Advection\+H\+\_\+\+Imp\+\_\+\+Exp,  }\item[{real, intent(out)}]{Imp\+Exp\+\_\+\+Adv\+XX,  }\item[{real, intent(out)}]{Imp\+Exp\+\_\+\+Adv\+YY }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a1f506b4d3d9d8a845ba272fe4a1b867e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af0fd7f987acaa1a952f02b3bdedf1b8a}\label{namespacemoduleporousmediaproperties_af0fd7f987acaa1a952f02b3bdedf1b8a}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computeadvectionterms@{computeadvectionterms}}
+\index{computeadvectionterms@{computeadvectionterms}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computeadvectionterms()}{computeadvectionterms()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::computeadvectionterms (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_af0fd7f987acaa1a952f02b3bdedf1b8a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_af0fd7f987acaa1a952f02b3bdedf1b8a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ab84b0ba6c0a1df355fb649c05128fbb3}\label{namespacemoduleporousmediaproperties_ab84b0ba6c0a1df355fb649c05128fbb3}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computeaverageconc@{computeaverageconc}}
+\index{computeaverageconc@{computeaverageconc}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computeaverageconc()}{computeaverageconc()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::computeaverageconc (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ab84b0ba6c0a1df355fb649c05128fbb3_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ab84b0ba6c0a1df355fb649c05128fbb3_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a3d3bfa08325114d10c44b11e29d42d78}\label{namespacemoduleporousmediaproperties_a3d3bfa08325114d10c44b11e29d42d78}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computeaveragedecay@{computeaveragedecay}}
+\index{computeaveragedecay@{computeaveragedecay}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computeaveragedecay()}{computeaveragedecay()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::computeaveragedecay (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a3d3bfa08325114d10c44b11e29d42d78_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a2438c1ae6e14a9ddbc08eda6cd410daf}\label{namespacemoduleporousmediaproperties_a2438c1ae6e14a9ddbc08eda6cd410daf}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computedissolvedtoparticulate3d@{computedissolvedtoparticulate3d}}
+\index{computedissolvedtoparticulate3d@{computedissolvedtoparticulate3d}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computedissolvedtoparticulate3d()}{computedissolvedtoparticulate3d()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::computedissolvedtoparticulate3d (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2438c1ae6e14a9ddbc08eda6cd410daf_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2438c1ae6e14a9ddbc08eda6cd410daf_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a32b1336499ea5a5ca4e733054acee536}\label{namespacemoduleporousmediaproperties_a32b1336499ea5a5ca4e733054acee536}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computeecw@{computeecw}}
+\index{computeecw@{computeecw}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computeecw()}{computeecw()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::computeecw (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a32b1336499ea5a5ca4e733054acee536_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a06f48331cb6d7a1d7fa1520565129efc}\label{namespacemoduleporousmediaproperties_a06f48331cb6d7a1d7fa1520565129efc}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computeintegrateddecay@{computeintegrateddecay}}
+\index{computeintegrateddecay@{computeintegrateddecay}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computeintegrateddecay()}{computeintegrateddecay()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::computeintegrateddecay (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a06f48331cb6d7a1d7fa1520565129efc_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a06f48331cb6d7a1d7fa1520565129efc_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a534ab2ca9e28f31cfce1876b53c263c8}\label{namespacemoduleporousmediaproperties_a534ab2ca9e28f31cfce1876b53c263c8}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computethetaatfaces@{computethetaatfaces}}
+\index{computethetaatfaces@{computethetaatfaces}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computethetaatfaces()}{computethetaatfaces()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::computethetaatfaces (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a534ab2ca9e28f31cfce1876b53c263c8_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a534ab2ca9e28f31cfce1876b53c263c8_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ac3225dfdb6a7475838f45e43263a61a9}\label{namespacemoduleporousmediaproperties_ac3225dfdb6a7475838f45e43263a61a9}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computethetaatfacesbyavg@{computethetaatfacesbyavg}}
+\index{computethetaatfacesbyavg@{computethetaatfacesbyavg}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computethetaatfacesbyavg()}{computethetaatfacesbyavg()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::computethetaatfacesbyavg (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ac3225dfdb6a7475838f45e43263a61a9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a14becd6de87b194f724f94c34247ee36}\label{namespacemoduleporousmediaproperties_a14becd6de87b194f724f94c34247ee36}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computethetaatfacesbymin@{computethetaatfacesbymin}}
+\index{computethetaatfacesbymin@{computethetaatfacesbymin}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computethetaatfacesbymin()}{computethetaatfacesbymin()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::computethetaatfacesbymin (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a14becd6de87b194f724f94c34247ee36_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a8fba489b1d7b502e23196a791d678e03}\label{namespacemoduleporousmediaproperties_a8fba489b1d7b502e23196a791d678e03}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computevolumes@{computevolumes}}
+\index{computevolumes@{computevolumes}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computevolumes()}{computevolumes()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::computevolumes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a8fba489b1d7b502e23196a791d678e03_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aad02f0ad0e6d8ad5f7cd959e38c17fa7}\label{namespacemoduleporousmediaproperties_aad02f0ad0e6d8ad5f7cd959e38c17fa7}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!computewindvelocity@{computewindvelocity}}
+\index{computewindvelocity@{computewindvelocity}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{computewindvelocity()}{computewindvelocity()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::computewindvelocity (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aad02f0ad0e6d8ad5f7cd959e38c17fa7_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a3cb901c1fa6f5b569ff3841c39531ce5}\label{namespacemoduleporousmediaproperties_a3cb901c1fa6f5b569ff3841c39531ce5}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+property@{construct\+\_\+property}}
+\index{construct\+\_\+property@{construct\+\_\+property}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+property()}{construct\_property()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::construct\+\_\+property (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a3cb901c1fa6f5b569ff3841c39531ce5_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a3cb901c1fa6f5b569ff3841c39531ce5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a7475f0f419f35758071e5f74d001e408}\label{namespacemoduleporousmediaproperties_a7475f0f419f35758071e5f74d001e408}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+propertyevolution@{construct\+\_\+propertyevolution}}
+\index{construct\+\_\+propertyevolution@{construct\+\_\+propertyevolution}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+propertyevolution()}{construct\_propertyevolution()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::construct\+\_\+propertyevolution (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a7475f0f419f35758071e5f74d001e408_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a7475f0f419f35758071e5f74d001e408_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a0b617f6e3c622010d4230970529e87fb}\label{namespacemoduleporousmediaproperties_a0b617f6e3c622010d4230970529e87fb}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+propertylist@{construct\+\_\+propertylist}}
+\index{construct\+\_\+propertylist@{construct\+\_\+propertylist}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+propertylist()}{construct\_propertylist()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::construct\+\_\+propertylist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a0b617f6e3c622010d4230970529e87fb_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a0b617f6e3c622010d4230970529e87fb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_acd8b0a3775ea88f8c55b0a2d1eaa957f}\label{namespacemoduleporousmediaproperties_acd8b0a3775ea88f8c55b0a2d1eaa957f}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+propertyoutput@{construct\+\_\+propertyoutput}}
+\index{construct\+\_\+propertyoutput@{construct\+\_\+propertyoutput}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+propertyoutput()}{construct\_propertyoutput()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::construct\+\_\+propertyoutput (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_acd8b0a3775ea88f8c55b0a2d1eaa957f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a401ffa0cf421489bbc331e312e10ebd2}\label{namespacemoduleporousmediaproperties_a401ffa0cf421489bbc331e312e10ebd2}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+propertystate@{construct\+\_\+propertystate}}
+\index{construct\+\_\+propertystate@{construct\+\_\+propertystate}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+propertystate()}{construct\_propertystate()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::construct\+\_\+propertystate (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a401ffa0cf421489bbc331e312e10ebd2_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a72fa2352db155b8e701aa97c7aad155c}\label{namespacemoduleporousmediaproperties_a72fa2352db155b8e701aa97c7aad155c}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+propertyvalues@{construct\+\_\+propertyvalues}}
+\index{construct\+\_\+propertyvalues@{construct\+\_\+propertyvalues}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+propertyvalues()}{construct\_propertyvalues()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::construct\+\_\+propertyvalues (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a72fa2352db155b8e701aa97c7aad155c_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a72fa2352db155b8e701aa97c7aad155c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_abfc3b112a762e28d4f711dfe4a5d7d3d}\label{namespacemoduleporousmediaproperties_abfc3b112a762e28d4f711dfe4a5d7d3d}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+sedimentrate@{construct\+\_\+sedimentrate}}
+\index{construct\+\_\+sedimentrate@{construct\+\_\+sedimentrate}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+sedimentrate()}{construct\_sedimentrate()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::construct\+\_\+sedimentrate (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__sedimentrate}{t\+\_\+sedimentrate}}), pointer}]{New\+Sediment\+Rate }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_abfc3b112a762e28d4f711dfe4a5d7d3d_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_abfc3b112a762e28d4f711dfe4a5d7d3d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4bcf212cc66413ac54a86d6f71dab6d6}\label{namespacemoduleporousmediaproperties_a4bcf212cc66413ac54a86d6f71dab6d6}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+sedimentrateid@{construct\+\_\+sedimentrateid}}
+\index{construct\+\_\+sedimentrateid@{construct\+\_\+sedimentrateid}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+sedimentrateid()}{construct\_sedimentrateid()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::construct\+\_\+sedimentrateid (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__sedimentrate}{t\+\_\+sedimentrate}}), pointer}]{New\+Sediment\+Rate }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4bcf212cc66413ac54a86d6f71dab6d6_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4bcf212cc66413ac54a86d6f71dab6d6_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_acc3491b7ab1e55b078caa370b4c75601}\label{namespacemoduleporousmediaproperties_acc3491b7ab1e55b078caa370b4c75601}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+sedimentratelist@{construct\+\_\+sedimentratelist}}
+\index{construct\+\_\+sedimentratelist@{construct\+\_\+sedimentratelist}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+sedimentratelist()}{construct\_sedimentratelist()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::construct\+\_\+sedimentratelist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_acc3491b7ab1e55b078caa370b4c75601_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_acc3491b7ab1e55b078caa370b4c75601_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a38a540abbf59777875ca535ba0683c59}\label{namespacemoduleporousmediaproperties_a38a540abbf59777875ca535ba0683c59}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!construct\+\_\+sedimentratevalues@{construct\+\_\+sedimentratevalues}}
+\index{construct\+\_\+sedimentratevalues@{construct\+\_\+sedimentratevalues}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{construct\+\_\+sedimentratevalues()}{construct\_sedimentratevalues()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::construct\+\_\+sedimentratevalues (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__sedimentrate}{t\+\_\+sedimentrate}}), pointer}]{New\+Sediment\+Rate }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a38a540abbf59777875ca535ba0683c59_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a6b8ea609b75df890d6efecde90bff1ac}\label{namespacemoduleporousmediaproperties_a6b8ea609b75df890d6efecde90bff1ac}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!constructdischarges@{constructdischarges}}
+\index{constructdischarges@{constructdischarges}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{constructdischarges()}{constructdischarges()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::constructdischarges (\begin{DoxyParamCaption}\item[{integer}]{Discharges\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a6b8ea609b75df890d6efecde90bff1ac_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aecdb9ca882593072d63d590749b53ee9}\label{namespacemoduleporousmediaproperties_aecdb9ca882593072d63d590749b53ee9}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!constructhdf@{constructhdf}}
+\index{constructhdf@{constructhdf}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{constructhdf()}{constructhdf()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::constructhdf (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aecdb9ca882593072d63d590749b53ee9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aecdb9ca882593072d63d590749b53ee9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a2bfe4b92207b55cc4167ccce04ea859f}\label{namespacemoduleporousmediaproperties_a2bfe4b92207b55cc4167ccce04ea859f}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!constructlog@{constructlog}}
+\index{constructlog@{constructlog}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{constructlog()}{constructlog()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::constructlog (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2bfe4b92207b55cc4167ccce04ea859f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a61c528a081f6e7bd050ab2482d187fe5}\label{namespacemoduleporousmediaproperties_a61c528a081f6e7bd050ab2482d187fe5}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!constructpartition@{constructpartition}}
+\index{constructpartition@{constructpartition}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{constructpartition()}{constructpartition()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::constructpartition (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a61c528a081f6e7bd050ab2482d187fe5_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a61c528a081f6e7bd050ab2482d187fe5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a3be1252bc0db9785b9746ae093d82a5f}\label{namespacemoduleporousmediaproperties_a3be1252bc0db9785b9746ae093d82a5f}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!constructporousmediaproperties@{constructporousmediaproperties}}
+\index{constructporousmediaproperties@{constructporousmediaproperties}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{constructporousmediaproperties()}{constructporousmediaproperties()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::constructporousmediaproperties (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Porous\+Media\+Properties\+ID,  }\item[{integer}]{Compute\+Time\+ID,  }\item[{integer}]{Grid\+Data\+ID,  }\item[{integer}]{Horizontal\+Grid\+ID,  }\item[{integer}]{Horizontal\+Map\+ID,  }\item[{integer}]{Basin\+Geometry\+ID,  }\item[{integer}]{Porous\+Media\+ID,  }\item[{integer}]{Geometry\+ID,  }\item[{integer}]{Map\+ID,  }\item[{integer}]{Discharges\+ID,  }\item[{logical, optional}]{Coupled\+DN,  }\item[{logical}]{Check\+Global\+Mass,  }\item[{}]{\+\_\+\+E\+N\+A\+B\+L\+E\+\_\+\+C\+U\+DA }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a3be1252bc0db9785b9746ae093d82a5f_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a8c45fef7355c15cfadf2a6d30d9bbb24}\label{namespacemoduleporousmediaproperties_a8c45fef7355c15cfadf2a6d30d9bbb24}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!constructprofileoutput@{constructprofileoutput}}
+\index{constructprofileoutput@{constructprofileoutput}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{constructprofileoutput()}{constructprofileoutput()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::constructprofileoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a03d5423382489d1918532f58f478c446}\label{namespacemoduleporousmediaproperties_a03d5423382489d1918532f58f478c446}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!constructpropertydiffusivity@{constructpropertydiffusivity}}
+\index{constructpropertydiffusivity@{constructpropertydiffusivity}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{constructpropertydiffusivity()}{constructpropertydiffusivity()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::constructpropertydiffusivity (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a03d5423382489d1918532f58f478c446_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a720c9abb0cbd672dacfd23a18a959f50}\label{namespacemoduleporousmediaproperties_a720c9abb0cbd672dacfd23a18a959f50}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!constructscalar3d@{constructscalar3d}}
+\index{constructscalar3d@{constructscalar3d}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{constructscalar3d()}{constructscalar3d()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::constructscalar3d (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property__3d}{t\+\_\+property\+\_\+3d}}), pointer}]{Scalar3D,  }\item[{integer, intent(in)}]{Extract\+Type,  }\item[{integer, intent(in), optional}]{Client\+Number,  }\item[{character(len=$\ast$)}]{block\+\_\+begin,  }\item[{character(len=$\ast$)}]{block\+\_\+end }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a720c9abb0cbd672dacfd23a18a959f50_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af8b1e7f8c04441c79ef987887896d90a}\label{namespacemoduleporousmediaproperties_af8b1e7f8c04441c79ef987887896d90a}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!constructtimeserie@{constructtimeserie}}
+\index{constructtimeserie@{constructtimeserie}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{constructtimeserie()}{constructtimeserie()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::constructtimeserie (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_af8b1e7f8c04441c79ef987887896d90a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a2d7950fe81dbe3ec4b45b30ce9e19e5c}\label{namespacemoduleporousmediaproperties_a2d7950fe81dbe3ec4b45b30ce9e19e5c}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!couplechainreactions@{couplechainreactions}}
+\index{couplechainreactions@{couplechainreactions}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{couplechainreactions()}{couplechainreactions()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::couplechainreactions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2d7950fe81dbe3ec4b45b30ce9e19e5c_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2d7950fe81dbe3ec4b45b30ce9e19e5c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aee3bf1633a5fbeea01e36455f4b4559c}\label{namespacemoduleporousmediaproperties_aee3bf1633a5fbeea01e36455f4b4559c}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!couplesoilchemistry@{couplesoilchemistry}}
+\index{couplesoilchemistry@{couplesoilchemistry}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{couplesoilchemistry()}{couplesoilchemistry()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::couplesoilchemistry (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aee3bf1633a5fbeea01e36455f4b4559c_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aee3bf1633a5fbeea01e36455f4b4559c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a61f775b3725813d36065a3b82e4cdb20}\label{namespacemoduleporousmediaproperties_a61f775b3725813d36065a3b82e4cdb20}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!couplesoilquality@{couplesoilquality}}
+\index{couplesoilquality@{couplesoilquality}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{couplesoilquality()}{couplesoilquality()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::couplesoilquality (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a61f775b3725813d36065a3b82e4cdb20_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a61f775b3725813d36065a3b82e4cdb20_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a7002642c0fa8ff01f584386876557fef}\label{namespacemoduleporousmediaproperties_a7002642c0fa8ff01f584386876557fef}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a7002642c0fa8ff01f584386876557fef_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a03075fd748d4630c43019d9d8b5c9b79}\label{namespacemoduleporousmediaproperties_a03075fd748d4630c43019d9d8b5c9b79}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!deallocatevariables@{deallocatevariables}}
+\index{deallocatevariables@{deallocatevariables}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{deallocatevariables()}{deallocatevariables()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::deallocatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a03075fd748d4630c43019d9d8b5c9b79_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a3c5193c49fa27b216424d2162798b41b}\label{namespacemoduleporousmediaproperties_a3c5193c49fa27b216424d2162798b41b}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!decayfirstorder\+\_\+conc@{decayfirstorder\+\_\+conc}}
+\index{decayfirstorder\+\_\+conc@{decayfirstorder\+\_\+conc}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{decayfirstorder\+\_\+conc()}{decayfirstorder\_conc()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::decayfirstorder\+\_\+conc (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a3c5193c49fa27b216424d2162798b41b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_accf60e0dd2d0f11fb4815a77bd7db219}\label{namespacemoduleporousmediaproperties_accf60e0dd2d0f11fb4815a77bd7db219}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!decayfirstorder\+\_\+mass@{decayfirstorder\+\_\+mass}}
+\index{decayfirstorder\+\_\+mass@{decayfirstorder\+\_\+mass}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{decayfirstorder\+\_\+mass()}{decayfirstorder\_mass()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::decayfirstorder\+\_\+mass (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_accf60e0dd2d0f11fb4815a77bd7db219_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_accf60e0dd2d0f11fb4815a77bd7db219_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a9e4d029f1da0a9fa9ea00b76a2a21ffd}\label{namespacemoduleporousmediaproperties_a9e4d029f1da0a9fa9ea00b76a2a21ffd}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!decaypeyrard@{decaypeyrard}}
+\index{decaypeyrard@{decaypeyrard}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{decaypeyrard()}{decaypeyrard()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::decaypeyrard (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9e4d029f1da0a9fa9ea00b76a2a21ffd_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9e4d029f1da0a9fa9ea00b76a2a21ffd_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a09a5fbeb9b55249ae5b934510525a8ff}\label{namespacemoduleporousmediaproperties_a09a5fbeb9b55249ae5b934510525a8ff}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!decayprocesses@{decayprocesses}}
+\index{decayprocesses@{decayprocesses}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{decayprocesses()}{decayprocesses()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::decayprocesses (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a09a5fbeb9b55249ae5b934510525a8ff_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a09a5fbeb9b55249ae5b934510525a8ff_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a9e33074d02a745b0e8cd90eccef5b5ed}\label{namespacemoduleporousmediaproperties_a9e33074d02a745b0e8cd90eccef5b5ed}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!decayprocessing@{decayprocessing}}
+\index{decayprocessing@{decayprocessing}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{decayprocessing()}{decayprocessing()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::decayprocessing (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9e33074d02a745b0e8cd90eccef5b5ed_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9e33074d02a745b0e8cd90eccef5b5ed_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a0e66cb3f0270a54dfa87774f558ac3d5}\label{namespacemoduleporousmediaproperties_a0e66cb3f0270a54dfa87774f558ac3d5}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!dischargeproperty@{dischargeproperty}}
+\index{dischargeproperty@{dischargeproperty}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{dischargeproperty()}{dischargeproperty()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::dischargeproperty (\begin{DoxyParamCaption}\item[{real}]{Discharge\+Flow,  }\item[{real}]{Discharge\+Conc,  }\item[{integer}]{Igrid,  }\item[{integer}]{Jgrid,  }\item[{integer}]{Kgrid,  }\item[{real(8)}]{Volume\+Old,  }\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Property,  }\item[{real}]{Local\+DT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a0e66cb3f0270a54dfa87774f558ac3d5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a24f7231dc218de6931238c8726e07bf9}\label{namespacemoduleporousmediaproperties_a24f7231dc218de6931238c8726e07bf9}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!getecw@{getecw}}
+\index{getecw@{getecw}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{getecw()}{getecw()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::getecw (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{E\+Cw,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a24f7231dc218de6931238c8726e07bf9_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a7f77a3cf092866b51da8931bff80a9e3}\label{namespacemoduleporousmediaproperties_a7f77a3cf092866b51da8931bff80a9e3}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!getpmpconcentration@{getpmpconcentration}}
+\index{getpmpconcentration@{getpmpconcentration}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{getpmpconcentration()}{getpmpconcentration()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::getpmpconcentration (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{ConcentrationX,  }\item[{integer, intent(in)}]{Property\+X\+I\+D\+Number,  }\item[{character(len = $\ast$), intent(out), optional}]{Property\+X\+Units,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a7f77a3cf092866b51da8931bff80a9e3_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aad77475234f116fbce60ab8837dfd9e9}\label{namespacemoduleporousmediaproperties_aad77475234f116fbce60ab8837dfd9e9}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!getpmpconcentrationold@{getpmpconcentrationold}}
+\index{getpmpconcentrationold@{getpmpconcentrationold}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{getpmpconcentrationold()}{getpmpconcentrationold()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::getpmpconcentrationold (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Concentration\+X\+Old,  }\item[{integer, intent(in)}]{Property\+X\+I\+D\+Number,  }\item[{character(len = $\ast$), intent(out), optional}]{Property\+X\+Units,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aad77475234f116fbce60ab8837dfd9e9_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_acf31c9d94d5dc07a5b27c954a6895abb}\label{namespacemoduleporousmediaproperties_acf31c9d94d5dc07a5b27c954a6895abb}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!getpmpcoupled@{getpmpcoupled}}
+\index{getpmpcoupled@{getpmpcoupled}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{getpmpcoupled()}{getpmpcoupled()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::getpmpcoupled (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{logical, intent(out), optional}]{Soil\+Quality,  }\item[{}]{ifdef,  }\item[{}]{\+\_\+\+P\+H\+R\+E\+E\+Q\+C\+\_\+ }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_acf31c9d94d5dc07a5b27c954a6895abb_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aa5824bb6f506f737243ff62a77a6d38c}\label{namespacemoduleporousmediaproperties_aa5824bb6f506f737243ff62a77a6d38c}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!getpmpmassbalance@{getpmpmassbalance}}
+\index{getpmpmassbalance@{getpmpmassbalance}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{getpmpmassbalance()}{getpmpmassbalance()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::getpmpmassbalance (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{integer}]{Property\+ID,  }\item[{real(8), optional}]{Total\+Stored\+Mass,  }\item[{real(8), optional}]{Transpired\+Mass,  }\item[{real(8), optional}]{D\+N\+Exchange\+Mass,  }\item[{real(8), optional}]{R\+P\+Exchange\+Mass,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aa5824bb6f506f737243ff62a77a6d38c_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a91af77c6bf746b618fd509c6ceb5b42d}\label{namespacemoduleporousmediaproperties_a91af77c6bf746b618fd509c6ceb5b42d}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!getpmpnproperties@{getpmpnproperties}}
+\index{getpmpnproperties@{getpmpnproperties}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{getpmpnproperties()}{getpmpnproperties()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::getpmpnproperties (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{integer}]{n\+Properties,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a91af77c6bf746b618fd509c6ceb5b42d_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af2bce43f88ee94ebe28c4b5f01c9f098}\label{namespacemoduleporousmediaproperties_af2bce43f88ee94ebe28c4b5f01c9f098}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!getpmppropertiesidbyidx@{getpmppropertiesidbyidx}}
+\index{getpmppropertiesidbyidx@{getpmppropertiesidbyidx}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{getpmppropertiesidbyidx()}{getpmppropertiesidbyidx()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::getpmppropertiesidbyidx (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{integer, intent(in)}]{Idx,  }\item[{integer, intent(out)}]{ID,  }\item[{logical, intent(out)}]{Prop\+Adv\+Diff,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_af2bce43f88ee94ebe28c4b5f01c9f098_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a2c248d4114a4213bca448f9d77478f28}\label{namespacemoduleporousmediaproperties_a2c248d4114a4213bca448f9d77478f28}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!getpmptotalstoredmass@{getpmptotalstoredmass}}
+\index{getpmptotalstoredmass@{getpmptotalstoredmass}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{getpmptotalstoredmass()}{getpmptotalstoredmass()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::getpmptotalstoredmass (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{real(8)}]{Total\+Stored\+Mass,  }\item[{integer, intent(in)}]{Property\+X\+I\+D\+Number,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2c248d4114a4213bca448f9d77478f28_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a7327a640c1b4db8bbf9db21d1a859a88}\label{namespacemoduleporousmediaproperties_a7327a640c1b4db8bbf9db21d1a859a88}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!horizontaladvection@{horizontaladvection}}
+\index{horizontaladvection@{horizontaladvection}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{horizontaladvection()}{horizontaladvection()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::horizontaladvection (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop,  }\item[{real}]{Imp\+Exp\+\_\+\+Adv\+XX,  }\item[{real}]{Imp\+Exp\+\_\+\+Adv\+YY }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a7327a640c1b4db8bbf9db21d1a859a88_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a7327a640c1b4db8bbf9db21d1a859a88_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a8e5f48df8b88839f3c864bb3668c251a}\label{namespacemoduleporousmediaproperties_a8e5f48df8b88839f3c864bb3668c251a}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!horizontaladvectionxx@{horizontaladvectionxx}}
+\index{horizontaladvectionxx@{horizontaladvectionxx}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{horizontaladvectionxx()}{horizontaladvectionxx()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::horizontaladvectionxx (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop,  }\item[{real}]{Imp\+Exp\+\_\+\+Adv\+XX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a8e5f48df8b88839f3c864bb3668c251a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a8e5f48df8b88839f3c864bb3668c251a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4de4628b721cc4ace9457a05e6b46f11}\label{namespacemoduleporousmediaproperties_a4de4628b721cc4ace9457a05e6b46f11}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!horizontaladvectionyy@{horizontaladvectionyy}}
+\index{horizontaladvectionyy@{horizontaladvectionyy}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{horizontaladvectionyy()}{horizontaladvectionyy()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::horizontaladvectionyy (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop,  }\item[{real}]{Imp\+Exp\+\_\+\+Adv\+YY }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4de4628b721cc4ace9457a05e6b46f11_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4de4628b721cc4ace9457a05e6b46f11_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a46d137d0c183e1c9fcad5f72b1101ffd}\label{namespacemoduleporousmediaproperties_a46d137d0c183e1c9fcad5f72b1101ffd}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!horizontaldiffusion@{horizontaldiffusion}}
+\index{horizontaldiffusion@{horizontaldiffusion}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{horizontaldiffusion()}{horizontaldiffusion()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::horizontaldiffusion (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a46d137d0c183e1c9fcad5f72b1101ffd_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a46d137d0c183e1c9fcad5f72b1101ffd_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a3a2fc7f94588508e3f73f83cdb76a6af}\label{namespacemoduleporousmediaproperties_a3a2fc7f94588508e3f73f83cdb76a6af}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!horizontaldiffusionxx@{horizontaldiffusionxx}}
+\index{horizontaldiffusionxx@{horizontaldiffusionxx}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{horizontaldiffusionxx()}{horizontaldiffusionxx()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::horizontaldiffusionxx (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a3a2fc7f94588508e3f73f83cdb76a6af_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a3a2fc7f94588508e3f73f83cdb76a6af_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a9bd1af2c6e3a19167f538d7c25d74e6b}\label{namespacemoduleporousmediaproperties_a9bd1af2c6e3a19167f538d7c25d74e6b}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!horizontaldiffusionyy@{horizontaldiffusionyy}}
+\index{horizontaldiffusionyy@{horizontaldiffusionyy}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{horizontaldiffusionyy()}{horizontaldiffusionyy()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::horizontaldiffusionyy (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9bd1af2c6e3a19167f538d7c25d74e6b_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9bd1af2c6e3a19167f538d7c25d74e6b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a9754a9e3d41ba3152a613bda8646ffae}\label{namespacemoduleporousmediaproperties_a9754a9e3d41ba3152a613bda8646ffae}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!interfacefluxes@{interfacefluxes}}
+\index{interfacefluxes@{interfacefluxes}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{interfacefluxes()}{interfacefluxes()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::interfacefluxes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9754a9e3d41ba3152a613bda8646ffae_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9754a9e3d41ba3152a613bda8646ffae_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a735090aa674c6c295828243dcd120d40}\label{namespacemoduleporousmediaproperties_a735090aa674c6c295828243dcd120d40}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!killporousmediaproperties@{killporousmediaproperties}}
+\index{killporousmediaproperties@{killporousmediaproperties}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{killporousmediaproperties()}{killporousmediaproperties()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::killporousmediaproperties (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Porous\+Media\+Properties\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a735090aa674c6c295828243dcd120d40_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a69bcc7ae1a4b78b640c2d9f0d660587f}\label{namespacemoduleporousmediaproperties_a69bcc7ae1a4b78b640c2d9f0d660587f}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!locateobjporousmediaproperties@{locateobjporousmediaproperties}}
+\index{locateobjporousmediaproperties@{locateobjporousmediaproperties}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{locateobjporousmediaproperties()}{locateobjporousmediaproperties()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::locateobjporousmediaproperties (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Porous\+Media\+Properties\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemoduleporousmediaproperties_a69bcc7ae1a4b78b640c2d9f0d660587f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aaeea83f4ec370391b45509fd7863a3bc}\label{namespacemoduleporousmediaproperties_aaeea83f4ec370391b45509fd7863a3bc}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifyadvectiondiffusioncoefs@{modifyadvectiondiffusioncoefs}}
+\index{modifyadvectiondiffusioncoefs@{modifyadvectiondiffusioncoefs}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifyadvectiondiffusioncoefs()}{modifyadvectiondiffusioncoefs()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifyadvectiondiffusioncoefs (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aaeea83f4ec370391b45509fd7863a3bc_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aaeea83f4ec370391b45509fd7863a3bc_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4a088b65d745be5c1c555008b706cf6a}\label{namespacemoduleporousmediaproperties_a4a088b65d745be5c1c555008b706cf6a}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifyboundarycoefs@{modifyboundarycoefs}}
+\index{modifyboundarycoefs@{modifyboundarycoefs}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifyboundarycoefs()}{modifyboundarycoefs()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifyboundarycoefs (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4a088b65d745be5c1c555008b706cf6a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_adff3b6aa5d450f391ceaa763c275a82a}\label{namespacemoduleporousmediaproperties_adff3b6aa5d450f391ceaa763c275a82a}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifycoefs@{modifycoefs}}
+\index{modifycoefs@{modifycoefs}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifycoefs()}{modifycoefs()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifycoefs (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_adff3b6aa5d450f391ceaa763c275a82a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_adff3b6aa5d450f391ceaa763c275a82a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aed31037cfdb4a26f847b51c25507a881}\label{namespacemoduleporousmediaproperties_aed31037cfdb4a26f847b51c25507a881}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifydiffusivity\+\_\+new@{modifydiffusivity\+\_\+new}}
+\index{modifydiffusivity\+\_\+new@{modifydiffusivity\+\_\+new}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifydiffusivity\+\_\+new()}{modifydiffusivity\_new()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifydiffusivity\+\_\+new (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aed31037cfdb4a26f847b51c25507a881_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aed31037cfdb4a26f847b51c25507a881_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4b551b0430b61a97ca5a026b6467c003}\label{namespacemoduleporousmediaproperties_a4b551b0430b61a97ca5a026b6467c003}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifydischarges@{modifydischarges}}
+\index{modifydischarges@{modifydischarges}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifydischarges()}{modifydischarges()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifydischarges (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4b551b0430b61a97ca5a026b6467c003_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4b551b0430b61a97ca5a026b6467c003_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ab821bd146f4dac552711604b920efa4a}\label{namespacemoduleporousmediaproperties_ab821bd146f4dac552711604b920efa4a}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifydrainagenetworkcoefs@{modifydrainagenetworkcoefs}}
+\index{modifydrainagenetworkcoefs@{modifydrainagenetworkcoefs}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifydrainagenetworkcoefs()}{modifydrainagenetworkcoefs()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifydrainagenetworkcoefs (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ab821bd146f4dac552711604b920efa4a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_acb53435edd626676edd69fc709aa276c}\label{namespacemoduleporousmediaproperties_acb53435edd626676edd69fc709aa276c}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifyevtpcoefs@{modifyevtpcoefs}}
+\index{modifyevtpcoefs@{modifyevtpcoefs}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifyevtpcoefs()}{modifyevtpcoefs()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifyevtpcoefs (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_acb53435edd626676edd69fc709aa276c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a5e436455f541e5914817fe2e3c9aa3f1}\label{namespacemoduleporousmediaproperties_a5e436455f541e5914817fe2e3c9aa3f1}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifyinfiltrationcoefs@{modifyinfiltrationcoefs}}
+\index{modifyinfiltrationcoefs@{modifyinfiltrationcoefs}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifyinfiltrationcoefs()}{modifyinfiltrationcoefs()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifyinfiltrationcoefs (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a5e436455f541e5914817fe2e3c9aa3f1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4f53429b96a7e06258d5ab4a001405e9}\label{namespacemoduleporousmediaproperties_a4f53429b96a7e06258d5ab4a001405e9}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifyinterfacemassfluxes@{modifyinterfacemassfluxes}}
+\index{modifyinterfacemassfluxes@{modifyinterfacemassfluxes}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifyinterfacemassfluxes()}{modifyinterfacemassfluxes()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifyinterfacemassfluxes (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4f53429b96a7e06258d5ab4a001405e9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af5a9da28db32e6f4ed9c06f73a7dc775}\label{namespacemoduleporousmediaproperties_af5a9da28db32e6f4ed9c06f73a7dc775}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifyporousmediaproperties@{modifyporousmediaproperties}}
+\index{modifyporousmediaproperties@{modifyporousmediaproperties}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifyporousmediaproperties()}{modifyporousmediaproperties()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::modifyporousmediaproperties (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Porous\+Media\+Properties\+ID,  }\item[{real(8), dimension(\+:,\+:), pointer}]{Water\+Column,  }\item[{real(8), dimension(\+:,\+:), pointer}]{Water\+Column\+Old,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_af5a9da28db32e6f4ed9c06f73a7dc775_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4a86b3e01bf62024194ec6a00d661a86}\label{namespacemoduleporousmediaproperties_a4a86b3e01bf62024194ec6a00d661a86}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modifypropertyvalues@{modifypropertyvalues}}
+\index{modifypropertyvalues@{modifypropertyvalues}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modifypropertyvalues()}{modifypropertyvalues()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::modifypropertyvalues (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4a86b3e01bf62024194ec6a00d661a86_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a03262673fc0a9c3eece9a35a7e11e852}\label{namespacemoduleporousmediaproperties_a03262673fc0a9c3eece9a35a7e11e852}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a03262673fc0a9c3eece9a35a7e11e852_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a7485615a66ceb16b22cd17c505c048ff}\label{namespacemoduleporousmediaproperties_a7485615a66ceb16b22cd17c505c048ff}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!output\+\_\+boxes\+\_\+fluxes@{output\+\_\+boxes\+\_\+fluxes}}
+\index{output\+\_\+boxes\+\_\+fluxes@{output\+\_\+boxes\+\_\+fluxes}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{output\+\_\+boxes\+\_\+fluxes()}{output\_boxes\_fluxes()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::output\+\_\+boxes\+\_\+fluxes (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}})}]{Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a7485615a66ceb16b22cd17c505c048ff_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4763c798964b2cbb6e1e012ba2141ff8}\label{namespacemoduleporousmediaproperties_a4763c798964b2cbb6e1e012ba2141ff8}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!output\+\_\+boxes\+\_\+mass@{output\+\_\+boxes\+\_\+mass}}
+\index{output\+\_\+boxes\+\_\+mass@{output\+\_\+boxes\+\_\+mass}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{output\+\_\+boxes\+\_\+mass()}{output\_boxes\_mass()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::output\+\_\+boxes\+\_\+mass (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4763c798964b2cbb6e1e012ba2141ff8_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4763c798964b2cbb6e1e012ba2141ff8_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_afc8549b6ebf2207ac8a080ad892a6cd3}\label{namespacemoduleporousmediaproperties_afc8549b6ebf2207ac8a080ad892a6cd3}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!output\+\_\+hdf@{output\+\_\+hdf}}
+\index{output\+\_\+hdf@{output\+\_\+hdf}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{output\+\_\+hdf()}{output\_hdf()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::output\+\_\+hdf (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_afc8549b6ebf2207ac8a080ad892a6cd3_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a23e72e1a1d3d2dc5b268bbc65dbeebed}\label{namespacemoduleporousmediaproperties_a23e72e1a1d3d2dc5b268bbc65dbeebed}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!output\+\_\+timeseries@{output\+\_\+timeseries}}
+\index{output\+\_\+timeseries@{output\+\_\+timeseries}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{output\+\_\+timeseries()}{output\_timeseries()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::output\+\_\+timeseries (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a23e72e1a1d3d2dc5b268bbc65dbeebed_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a8875ae5fa2c63a9d71875b7fd07addfb}\label{namespacemoduleporousmediaproperties_a8875ae5fa2c63a9d71875b7fd07addfb}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!partition\+\_\+processes@{partition\+\_\+processes}}
+\index{partition\+\_\+processes@{partition\+\_\+processes}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{partition\+\_\+processes()}{partition\_processes()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::partition\+\_\+processes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a8875ae5fa2c63a9d71875b7fd07addfb_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a8875ae5fa2c63a9d71875b7fd07addfb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a223a0c32882543deab6de89c82e4295c}\label{namespacemoduleporousmediaproperties_a223a0c32882543deab6de89c82e4295c}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!profileoutput@{profileoutput}}
+\index{profileoutput@{profileoutput}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{profileoutput()}{profileoutput()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::profileoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a2b4f624f18ff4621d00ca5923d59cc36}\label{namespacemoduleporousmediaproperties_a2b4f624f18ff4621d00ca5923d59cc36}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!read\+\_\+partition\+\_\+parameters@{read\+\_\+partition\+\_\+parameters}}
+\index{read\+\_\+partition\+\_\+parameters@{read\+\_\+partition\+\_\+parameters}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{read\+\_\+partition\+\_\+parameters()}{read\_partition\_parameters()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::read\+\_\+partition\+\_\+parameters (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2b4f624f18ff4621d00ca5923d59cc36_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af16278987bb08e48f63b916cf573a68d}\label{namespacemoduleporousmediaproperties_af16278987bb08e48f63b916cf573a68d}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!readadvectiondiffusionparam@{readadvectiondiffusionparam}}
+\index{readadvectiondiffusionparam@{readadvectiondiffusionparam}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{readadvectiondiffusionparam()}{readadvectiondiffusionparam()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::readadvectiondiffusionparam (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_af16278987bb08e48f63b916cf573a68d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a97ca52cdaf883bec238ac8f6844e5871}\label{namespacemoduleporousmediaproperties_a97ca52cdaf883bec238ac8f6844e5871}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!readfilenames@{readfilenames}}
+\index{readfilenames@{readfilenames}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{readfilenames()}{readfilenames()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::readfilenames (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a97ca52cdaf883bec238ac8f6844e5871_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a9215099aea454d7ad22a07e69b0b6065}\label{namespacemoduleporousmediaproperties_a9215099aea454d7ad22a07e69b0b6065}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!readglobaloptions@{readglobaloptions}}
+\index{readglobaloptions@{readglobaloptions}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{readglobaloptions()}{readglobaloptions()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::readglobaloptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9215099aea454d7ad22a07e69b0b6065_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a9215099aea454d7ad22a07e69b0b6065_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a56260cc89bfdab790c373015aa5f4675}\label{namespacemoduleporousmediaproperties_a56260cc89bfdab790c373015aa5f4675}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!readlockexternalvar@{readlockexternalvar}}
+\index{readlockexternalvar@{readlockexternalvar}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{readlockexternalvar()}{readlockexternalvar()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::readlockexternalvar (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a56260cc89bfdab790c373015aa5f4675_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_abf58df3d1437a63cdfba7d236b8d0fa9}\label{namespacemoduleporousmediaproperties_abf58df3d1437a63cdfba7d236b8d0fa9}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!readoldconcboundarieshdf@{readoldconcboundarieshdf}}
+\index{readoldconcboundarieshdf@{readoldconcboundarieshdf}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{readoldconcboundarieshdf()}{readoldconcboundarieshdf()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::readoldconcboundarieshdf (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_abf58df3d1437a63cdfba7d236b8d0fa9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aa21cfad85460a30a39a9fb8f3421f874}\label{namespacemoduleporousmediaproperties_aa21cfad85460a30a39a9fb8f3421f874}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!readunlockexternalvar@{readunlockexternalvar}}
+\index{readunlockexternalvar@{readunlockexternalvar}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{readunlockexternalvar()}{readunlockexternalvar()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::readunlockexternalvar (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aa21cfad85460a30a39a9fb8f3421f874_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a1a2026bd74e611727f9dca5173548d05}\label{namespacemoduleporousmediaproperties_a1a2026bd74e611727f9dca5173548d05}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!ready@{ready}}
+\index{ready@{ready}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Porous\+Media\+Properties\+\_\+\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a1a2026bd74e611727f9dca5173548d05_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemoduleporousmediaproperties_a1a2026bd74e611727f9dca5173548d05_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_afc91dc82442179a1d26d776a3a1007d6}\label{namespacemoduleporousmediaproperties_afc91dc82442179a1d26d776a3a1007d6}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!restartvariables@{restartvariables}}
+\index{restartvariables@{restartvariables}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{restartvariables()}{restartvariables()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::restartvariables (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_afc91dc82442179a1d26d776a3a1007d6_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af477cac3aa38958d32a9af0ae317241f}\label{namespacemoduleporousmediaproperties_af477cac3aa38958d32a9af0ae317241f}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!search\+\_\+property@{search\+\_\+property}}
+\index{search\+\_\+property@{search\+\_\+property}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{search\+\_\+property()}{search\_property()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::search\+\_\+property (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX,  }\item[{integer, intent(in)}]{Property\+X\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_af477cac3aa38958d32a9af0ae317241f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af651cef8320f1769d6f02a15144aae88}\label{namespacemoduleporousmediaproperties_af651cef8320f1769d6f02a15144aae88}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!searchproperty@{searchproperty}}
+\index{searchproperty@{searchproperty}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{searchproperty()}{searchproperty()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::searchproperty (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), optional, pointer}]{PropertyX,  }\item[{integer, intent(in), optional}]{Property\+X\+I\+D\+Number,  }\item[{logical, intent(in), optional}]{Print\+Warning,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_af651cef8320f1769d6f02a15144aae88_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a4eef1ed87ef643f7f98c8302286a6eb1}\label{namespacemoduleporousmediaproperties_a4eef1ed87ef643f7f98c8302286a6eb1}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!setchainreactionsproperties@{setchainreactionsproperties}}
+\index{setchainreactionsproperties@{setchainreactionsproperties}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{setchainreactionsproperties()}{setchainreactionsproperties()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::setchainreactionsproperties (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4eef1ed87ef643f7f98c8302286a6eb1_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a4eef1ed87ef643f7f98c8302286a6eb1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a06259226fc0457f3a2a483e2de48d783}\label{namespacemoduleporousmediaproperties_a06259226fc0457f3a2a483e2de48d783}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!setdnconcpmp@{setdnconcpmp}}
+\index{setdnconcpmp@{setdnconcpmp}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{setdnconcpmp()}{setdnconcpmp()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::setdnconcpmp (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{integer}]{Property\+ID,  }\item[{real, dimension (\+:), pointer}]{D\+N\+Concentration,  }\item[{integer, dimension(\+:, \+:), pointer}]{Channels\+ID,  }\item[{integer}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a06259226fc0457f3a2a483e2de48d783_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ad6dda3a878f9da43d0b12164c09edd9d}\label{namespacemoduleporousmediaproperties_ad6dda3a878f9da43d0b12164c09edd9d}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!setinfcolconcpmp@{setinfcolconcpmp}}
+\index{setinfcolconcpmp@{setinfcolconcpmp}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{setinfcolconcpmp()}{setinfcolconcpmp()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::setinfcolconcpmp (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{integer}]{Property\+X\+I\+D\+Number,  }\item[{real, dimension (\+:,\+:), pointer}]{ConcentrationX,  }\item[{integer}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ad6dda3a878f9da43d0b12164c09edd9d_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aa132ced55703c339565649a0065925da}\label{namespacemoduleporousmediaproperties_aa132ced55703c339565649a0065925da}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!setlimitsconcentration@{setlimitsconcentration}}
+\index{setlimitsconcentration@{setlimitsconcentration}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{setlimitsconcentration()}{setlimitsconcentration()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::setlimitsconcentration (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aa132ced55703c339565649a0065925da_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a3cc1f6f3ccfd4d997cac22737bc1093f}\label{namespacemoduleporousmediaproperties_a3cc1f6f3ccfd4d997cac22737bc1093f}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!setupsoilchemistry@{setupsoilchemistry}}
+\index{setupsoilchemistry@{setupsoilchemistry}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{setupsoilchemistry()}{setupsoilchemistry()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::setupsoilchemistry (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a3cc1f6f3ccfd4d997cac22737bc1093f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aa2e7bcc28c7132e8ea2228f7f1e227d2}\label{namespacemoduleporousmediaproperties_aa2e7bcc28c7132e8ea2228f7f1e227d2}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!setvegetationpmproperties@{setvegetationpmproperties}}
+\index{setvegetationpmproperties@{setvegetationpmproperties}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{setvegetationpmproperties()}{setvegetationpmproperties()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::setvegetationpmproperties (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{logical, dimension(\+:,\+:), optional, pointer}]{Soil\+Fluxes\+Active,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Grazing\+Biomass,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Grazing\+Nitrogen,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Grazing\+Ammonia,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Grazing\+Phosphorus,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Harvest\+Kill\+Aerial\+Biomass,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Harvest\+Kill\+Nitrogen,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Harvest\+Kill\+Phosphorus,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Harvest\+Kill\+Root\+Biomass,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Dormancy\+Biomass,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Dormancy\+Nitrogen,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Dormancy\+Phosphorus,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Nitrate\+Surface,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Nitrate\+Sub\+Surface,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Ammonia\+Surface,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Ammonia\+Sub\+Surface,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Organic\+N\+Surface,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Organic\+N\+Sub\+Surface,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Organic\+P\+Surface,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Organic\+P\+Sub\+Surface,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Mineral\+P\+Surface,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Fertil\+Mineral\+P\+Sub\+Surface,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Nitrogen\+Uptake,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Phosphorus\+Uptake,  }\item[{logical, optional}]{Grazing,  }\item[{logical, optional}]{Harvest\+Kill,  }\item[{logical, optional}]{Dormancy,  }\item[{logical, optional}]{Fertilization,  }\item[{logical, optional}]{Nutrient\+Fluxes\+With\+Soil,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Root\+Depth,  }\item[{logical, optional}]{Model\+Water,  }\item[{logical, optional}]{Model\+Nitrogen,  }\item[{logical, optional}]{Model\+Phosphorus,  }\item[{logical, optional}]{Growth\+Model,  }\item[{logical, optional}]{Coupled\+Vegetation,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Nitrogen\+Fraction,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Phosphorus\+Fraction,  }\item[{real, optional}]{Vegetation\+DT,  }\item[{integer, dimension(\+:,\+:), optional, pointer}]{Transpiration\+Bottom\+Layer,  }\item[{integer, optional}]{Nutrient\+Uptake\+Method,  }\item[{integer, optional}]{Pesticide\+I\+D\+Number,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Pesticide\+Soil\+Flux,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aa2e7bcc28c7132e8ea2228f7f1e227d2_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a3c0d671b8b697248b218443e59bb2cb8}\label{namespacemoduleporousmediaproperties_a3c0d671b8b697248b218443e59bb2cb8}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!setwindvelocity@{setwindvelocity}}
+\index{setwindvelocity@{setwindvelocity}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{setwindvelocity()}{setwindvelocity()}}
+{\footnotesize\ttfamily subroutine, public moduleporousmediaproperties\+::setwindvelocity (\begin{DoxyParamCaption}\item[{integer}]{Porous\+Media\+Properties\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Wind\+Modulus,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a3c0d671b8b697248b218443e59bb2cb8_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a2045bbe7b3450cd88b6aae4509fbe0c5}\label{namespacemoduleporousmediaproperties_a2045bbe7b3450cd88b6aae4509fbe0c5}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!soilqualityprocesses@{soilqualityprocesses}}
+\index{soilqualityprocesses@{soilqualityprocesses}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{soilqualityprocesses()}{soilqualityprocesses()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::soilqualityprocesses (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2045bbe7b3450cd88b6aae4509fbe0c5_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a2045bbe7b3450cd88b6aae4509fbe0c5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a0c7ca57252cdb274ae0ce23c3deeba74}\label{namespacemoduleporousmediaproperties_a0c7ca57252cdb274ae0ce23c3deeba74}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!startoutputboxfluxes@{startoutputboxfluxes}}
+\index{startoutputboxfluxes@{startoutputboxfluxes}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{startoutputboxfluxes()}{startoutputboxfluxes()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::startoutputboxfluxes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a0c7ca57252cdb274ae0ce23c3deeba74_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ad5b352d84190c0b9d6cebc1a83db8ded}\label{namespacemoduleporousmediaproperties_ad5b352d84190c0b9d6cebc1a83db8ded}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!tortuosity@{tortuosity}}
+\index{tortuosity@{tortuosity}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{tortuosity()}{tortuosity()}}
+{\footnotesize\ttfamily real function moduleporousmediaproperties\+::tortuosity (\begin{DoxyParamCaption}\item[{real, intent(in)}]{WC,  }\item[{real, intent(in)}]{Porosity }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ad5b352d84190c0b9d6cebc1a83db8ded_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a08471307dc61da0cc694bc4e7b47b840}\label{namespacemoduleporousmediaproperties_a08471307dc61da0cc694bc4e7b47b840}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!ungetporousmediaproperties3d\+\_\+i@{ungetporousmediaproperties3d\+\_\+i}}
+\index{ungetporousmediaproperties3d\+\_\+i@{ungetporousmediaproperties3d\+\_\+i}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{ungetporousmediaproperties3d\+\_\+i()}{ungetporousmediaproperties3d\_i()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::ungetporousmediaproperties3d\+\_\+i (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Porous\+Media\+Properties\+ID,  }\item[{integer, dimension(\+:, \+:, \+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a08471307dc61da0cc694bc4e7b47b840_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ae5667c60b268b4c99e403dc08b831ee5}\label{namespacemoduleporousmediaproperties_ae5667c60b268b4c99e403dc08b831ee5}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!ungetporousmediaproperties3d\+\_\+r4@{ungetporousmediaproperties3d\+\_\+r4}}
+\index{ungetporousmediaproperties3d\+\_\+r4@{ungetporousmediaproperties3d\+\_\+r4}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{ungetporousmediaproperties3d\+\_\+r4()}{ungetporousmediaproperties3d\_r4()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::ungetporousmediaproperties3d\+\_\+r4 (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Porous\+Media\+Properties\+ID,  }\item[{real(4), dimension(\+:, \+:, \+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_ae5667c60b268b4c99e403dc08b831ee5_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_adae76989107c8fbe8fc908a111ea82ad}\label{namespacemoduleporousmediaproperties_adae76989107c8fbe8fc908a111ea82ad}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!ungetporousmediaproperties3d\+\_\+r8@{ungetporousmediaproperties3d\+\_\+r8}}
+\index{ungetporousmediaproperties3d\+\_\+r8@{ungetporousmediaproperties3d\+\_\+r8}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{ungetporousmediaproperties3d\+\_\+r8()}{ungetporousmediaproperties3d\_r8()}}
+{\footnotesize\ttfamily subroutine, private moduleporousmediaproperties\+::ungetporousmediaproperties3d\+\_\+r8 (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Porous\+Media\+Properties\+ID,  }\item[{real(8), dimension(\+:, \+:, \+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_adae76989107c8fbe8fc908a111ea82ad_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a81fcc32210036b193860971be2aa8f12}\label{namespacemoduleporousmediaproperties_a81fcc32210036b193860971be2aa8f12}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!vegetationinterfacefluxes@{vegetationinterfacefluxes}}
+\index{vegetationinterfacefluxes@{vegetationinterfacefluxes}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{vegetationinterfacefluxes()}{vegetationinterfacefluxes()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::vegetationinterfacefluxes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a81fcc32210036b193860971be2aa8f12_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a81fcc32210036b193860971be2aa8f12_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a0872f72bfebe157c1a7a7030f27bf43c}\label{namespacemoduleporousmediaproperties_a0872f72bfebe157c1a7a7030f27bf43c}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!verticaladvection@{verticaladvection}}
+\index{verticaladvection@{verticaladvection}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{verticaladvection()}{verticaladvection()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::verticaladvection (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Prop,  }\item[{real}]{Advection\+V\+\_\+\+Imp\+\_\+\+Exp }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a0872f72bfebe157c1a7a7030f27bf43c_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a0872f72bfebe157c1a7a7030f27bf43c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a872ba647c81cc1f00e69bd02b7418258}\label{namespacemoduleporousmediaproperties_a872ba647c81cc1f00e69bd02b7418258}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!verticaldiffusion@{verticaldiffusion}}
+\index{verticaldiffusion@{verticaldiffusion}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{verticaldiffusion()}{verticaldiffusion()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::verticaldiffusion (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer}]{Curr\+Property,  }\item[{real}]{Diffusion\+V\+\_\+\+Imp\+\_\+\+Exp }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a872ba647c81cc1f00e69bd02b7418258_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a872ba647c81cc1f00e69bd02b7418258_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a457fa586000763f38ce30bbaf81de100}\label{namespacemoduleporousmediaproperties_a457fa586000763f38ce30bbaf81de100}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!warnonnegativevalues@{warnonnegativevalues}}
+\index{warnonnegativevalues@{warnonnegativevalues}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{warnonnegativevalues()}{warnonnegativevalues()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::warnonnegativevalues (\begin{DoxyParamCaption}\item[{character(len=$\ast$)}]{Message }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_a457fa586000763f38ce30bbaf81de100_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_aed2bfb3c9121c8c37fc6bcd2ac8e1eb0}\label{namespacemoduleporousmediaproperties_aed2bfb3c9121c8c37fc6bcd2ac8e1eb0}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!writefinalfile@{writefinalfile}}
+\index{writefinalfile@{writefinalfile}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{writefinalfile()}{writefinalfile()}}
+{\footnotesize\ttfamily subroutine moduleporousmediaproperties\+::writefinalfile (\begin{DoxyParamCaption}\item[{logical}]{Is\+Final\+File }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleporousmediaproperties_aed2bfb3c9121c8c37fc6bcd2ac8e1eb0_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a5fb79cc3aa76009c87d9dfcace7c7ed3}\label{namespacemoduleporousmediaproperties_a5fb79cc3aa76009c87d9dfcace7c7ed3}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!advdif\+\_\+modulead\+\_\+@{advdif\+\_\+modulead\+\_\+}}
+\index{advdif\+\_\+modulead\+\_\+@{advdif\+\_\+modulead\+\_\+}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{advdif\+\_\+modulead\+\_\+}{advdif\_modulead\_}}
+{\footnotesize\ttfamily integer, parameter moduleporousmediaproperties\+::advdif\+\_\+modulead\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a71c8fa9cb77e17cfd7f683e3972580cd}\label{namespacemoduleporousmediaproperties_a71c8fa9cb77e17cfd7f683e3972580cd}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!advdif\+\_\+modulepmp\+\_\+@{advdif\+\_\+modulepmp\+\_\+}}
+\index{advdif\+\_\+modulepmp\+\_\+@{advdif\+\_\+modulepmp\+\_\+}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{advdif\+\_\+modulepmp\+\_\+}{advdif\_modulepmp\_}}
+{\footnotesize\ttfamily integer, parameter moduleporousmediaproperties\+::advdif\+\_\+modulepmp\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af3ed469348d3d6a26909648a47f56e8a}\label{namespacemoduleporousmediaproperties_af3ed469348d3d6a26909648a47f56e8a}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!directionx@{directionx}}
+\index{directionx@{directionx}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{directionx}{directionx}}
+{\footnotesize\ttfamily integer, parameter moduleporousmediaproperties\+::directionx = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a2fe7588436daae719ede5ee48e9dea60}\label{namespacemoduleporousmediaproperties_a2fe7588436daae719ede5ee48e9dea60}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!directiony@{directiony}}
+\index{directiony@{directiony}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{directiony}{directiony}}
+{\footnotesize\ttfamily integer, parameter moduleporousmediaproperties\+::directiony = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ab44e9a984567630770ebd718383594a7}\label{namespacemoduleporousmediaproperties_ab44e9a984567630770ebd718383594a7}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!firstobjporousmediaproperties@{firstobjporousmediaproperties}}
+\index{firstobjporousmediaproperties@{firstobjporousmediaproperties}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{firstobjporousmediaproperties}{firstobjporousmediaproperties}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__porousmediaproperties}{t\+\_\+porousmediaproperties}}), pointer moduleporousmediaproperties\+::firstobjporousmediaproperties =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_ab1806e49e85d996baa1b6916d45f0cc6}\label{namespacemoduleporousmediaproperties_ab1806e49e85d996baa1b6916d45f0cc6}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!imposedvalue\+\_\+@{imposedvalue\+\_\+}}
+\index{imposedvalue\+\_\+@{imposedvalue\+\_\+}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{imposedvalue\+\_\+}{imposedvalue\_}}
+{\footnotesize\ttfamily integer, parameter moduleporousmediaproperties\+::imposedvalue\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a7489983ae12c2122d5feb988c8b3ad36}\label{namespacemoduleporousmediaproperties_a7489983ae12c2122d5feb988c8b3ad36}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!layer\+\_\+@{layer\+\_\+}}
+\index{layer\+\_\+@{layer\+\_\+}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{layer\+\_\+}{layer\_}}
+{\footnotesize\ttfamily integer, parameter moduleporousmediaproperties\+::layer\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af14bc4d911a57505bd2db9b85e475b08}\label{namespacemoduleporousmediaproperties_af14bc4d911a57505bd2db9b85e475b08}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!me@{me}}
+\index{me@{me}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__porousmediaproperties}{t\+\_\+porousmediaproperties}}), pointer moduleporousmediaproperties\+::me =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a587732ce97c9a6cb0c8330a1c0aed2f1}\label{namespacemoduleporousmediaproperties_a587732ce97c9a6cb0c8330a1c0aed2f1}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!modulename@{modulename}}
+\index{modulename@{modulename}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{modulename}{modulename}}
+{\footnotesize\ttfamily character(len = $\ast$), parameter moduleporousmediaproperties\+::modulename = \textquotesingle{}Porous\+Media\+Properties\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_af0684f3b7ac61f5d41e83cc1424d8fae}\label{namespacemoduleporousmediaproperties_af0684f3b7ac61f5d41e83cc1424d8fae}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!nullgradient\+\_\+@{nullgradient\+\_\+}}
+\index{nullgradient\+\_\+@{nullgradient\+\_\+}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{nullgradient\+\_\+}{nullgradient\_}}
+{\footnotesize\ttfamily integer, parameter moduleporousmediaproperties\+::nullgradient\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a1e67fec3a9035dcb908daca2f464ffe0}\label{namespacemoduleporousmediaproperties_a1e67fec3a9035dcb908daca2f464ffe0}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!peyrard\+\_\+@{peyrard\+\_\+}}
+\index{peyrard\+\_\+@{peyrard\+\_\+}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{peyrard\+\_\+}{peyrard\_}}
+{\footnotesize\ttfamily integer, parameter moduleporousmediaproperties\+::peyrard\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_abc69e8111d903d795ba37cf29a05f780}\label{namespacemoduleporousmediaproperties_abc69e8111d903d795ba37cf29a05f780}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!prop\+\_\+block\+\_\+begin@{prop\+\_\+block\+\_\+begin}}
+\index{prop\+\_\+block\+\_\+begin@{prop\+\_\+block\+\_\+begin}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{prop\+\_\+block\+\_\+begin}{prop\_block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleporousmediaproperties\+::prop\+\_\+block\+\_\+begin = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a7e051a4d35d9a334e59f188d76d5ef99}\label{namespacemoduleporousmediaproperties_a7e051a4d35d9a334e59f188d76d5ef99}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!prop\+\_\+block\+\_\+end@{prop\+\_\+block\+\_\+end}}
+\index{prop\+\_\+block\+\_\+end@{prop\+\_\+block\+\_\+end}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{prop\+\_\+block\+\_\+end}{prop\_block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleporousmediaproperties\+::prop\+\_\+block\+\_\+end = \textquotesingle{}$<$endproperty$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleporousmediaproperties_a7934d23c9d533535b043423188f8010a}\label{namespacemoduleporousmediaproperties_a7934d23c9d533535b043423188f8010a}} 
+\index{moduleporousmediaproperties@{moduleporousmediaproperties}!waterreferencedensity@{waterreferencedensity}}
+\index{waterreferencedensity@{waterreferencedensity}!moduleporousmediaproperties@{moduleporousmediaproperties}}
+\subsubsection{\texorpdfstring{waterreferencedensity}{waterreferencedensity}}
+{\footnotesize\ttfamily real, parameter moduleporousmediaproperties\+::waterreferencedensity = 998.\hspace{0.3cm}{\ttfamily [private]}}
+

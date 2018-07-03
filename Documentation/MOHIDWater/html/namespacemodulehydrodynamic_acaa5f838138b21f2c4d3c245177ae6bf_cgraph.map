@@ -1,0 +1,8 @@
+<map id="modulehydrodynamic::construct_sub_modules" name="modulehydrodynamic::construct_sub_modules">
+<area shape="rect" id="node2" href="$namespacemodulehydrodynamic.html#ae0edf0b5ed199a732c27734b798443ab" title="modulehydrodynamic\l::construct_time_serie\l_discharge" alt="" coords="227,5,378,61"/>
+<area shape="rect" id="node3" href="$namespacemodulehydrodynamic.html#a048299b4cfb1c4c013ad653ff9e85f70" title="modulehydrodynamic\l::constructenergy" alt="" coords="230,86,375,127"/>
+<area shape="rect" id="node4" href="$namespacemodulehydrodynamic.html#ac37871a130f9232cb11f29fc34327f44" title="modulehydrodynamic\l::constructrelaxation" alt="" coords="230,151,375,193"/>
+<area shape="rect" id="node5" href="$namespacemodulehydrodynamic.html#a2a52e863aeb7df55203e4f6646d9b4a5" title="modulehydrodynamic\l::constructtidepotential" alt="" coords="225,217,380,258"/>
+<area shape="rect" id="node6" href="$namespacemodulehydrodynamic.html#a2892f053e17fe9b586d237a8b6684326" title="modulehydrodynamic\l::constructsubmodel" alt="" coords="230,282,375,323"/>
+<area shape="rect" id="node7" href="$namespacemodulehydrodynamic.html#a03c47a8a1c14b9e6471a24944ad9aae5" title="modulehydrodynamic\l::constructhydrostatistic" alt="" coords="221,347,384,389"/>
+</map>

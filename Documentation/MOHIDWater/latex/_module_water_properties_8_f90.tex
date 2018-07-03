@@ -1,0 +1,628 @@
+\hypertarget{_module_water_properties_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Water\+Properties.F90 File Reference}
+\label{_module_water_properties_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Water\+Properties.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Water\+Properties.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemodulewaterproperties_1_1ungetwaterproperties}{modulewaterproperties\+::ungetwaterproperties}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__id}{modulewaterproperties\+::t\+\_\+id}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__property__2d}{modulewaterproperties\+::t\+\_\+property\+\_\+2d}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__discharge}{modulewaterproperties\+::t\+\_\+discharge}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__advectiondiffusion__parameters}{modulewaterproperties\+::t\+\_\+advectiondiffusion\+\_\+parameters}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__freeverticalmovparameters}{modulewaterproperties\+::t\+\_\+freeverticalmovparameters}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__partition}{modulewaterproperties\+::t\+\_\+partition}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__lightextinction}{modulewaterproperties\+::t\+\_\+lightextinction}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__filtration}{modulewaterproperties\+::t\+\_\+filtration}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__reinitialize}{modulewaterproperties\+::t\+\_\+reinitialize}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__macroalgae}{modulewaterproperties\+::t\+\_\+macroalgae}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__sizeclass}{modulewaterproperties\+::t\+\_\+sizeclass}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__cohort}{modulewaterproperties\+::t\+\_\+cohort}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__species}{modulewaterproperties\+::t\+\_\+species}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__bivalve}{modulewaterproperties\+::t\+\_\+bivalve}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__evolution}{modulewaterproperties\+::t\+\_\+evolution}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__localassimila}{modulewaterproperties\+::t\+\_\+localassimila}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__output}{modulewaterproperties\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__outw}{modulewaterproperties\+::t\+\_\+outw}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__submodel}{modulewaterproperties\+::t\+\_\+submodel}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__property}{modulewaterproperties\+::t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__chemitem}{modulewaterproperties\+::t\+\_\+chemitem}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__chemlink}{modulewaterproperties\+::t\+\_\+chemlink}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__chemlinks}{modulewaterproperties\+::t\+\_\+chemlinks}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__wqrate}{modulewaterproperties\+::t\+\_\+wqrate}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__files}{modulewaterproperties\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__coupling}{modulewaterproperties\+::t\+\_\+coupling}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__age}{modulewaterproperties\+::t\+\_\+age}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__hybridweights}{modulewaterproperties\+::t\+\_\+hybridweights}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__coupled}{modulewaterproperties\+::t\+\_\+coupled}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__density}{modulewaterproperties\+::t\+\_\+density}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__specificheat}{modulewaterproperties\+::t\+\_\+specificheat}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__radiation}{modulewaterproperties\+::t\+\_\+radiation}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__dischargetimeserie}{modulewaterproperties\+::t\+\_\+dischargetimeserie}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__smalldepths}{modulewaterproperties\+::t\+\_\+smalldepths}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__external}{modulewaterproperties\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__extsurface}{modulewaterproperties\+::t\+\_\+extsurface}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__seagrassesleaves}{modulewaterproperties\+::t\+\_\+seagrassesleaves}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__ddecomp}{modulewaterproperties\+::t\+\_\+ddecomp}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__noflux}{modulewaterproperties\+::t\+\_\+noflux}}
+\item 
+type \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties}{modulewaterproperties\+::t\+\_\+waterproperties}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulewaterproperties}{modulewaterproperties}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a4b5a43f1052c697cd24d266317cd9be5}{modulewaterproperties\+::construct\+\_\+waterproperties}} (Model\+Name, Water\+Properties\+ID, Grid\+Data\+ID, Horizontal\+Grid\+ID, Geometry\+ID, Horizontal\+Map\+ID, Map\+ID, Assimilation\+ID, Hydrodynamic\+ID, Turbulence\+ID, Time\+ID, Discharges\+ID, Free\+Vertical\+Movement\+ID, Turb\+G\+O\+T\+M\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ade36efb7389c89e5e20b885a9157f285}{modulewaterproperties\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab589508866130f683e9d48bc7aeb235c}{modulewaterproperties\+::startoutputboxfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a23995dd394222f8d9f2a52604e119d73}{modulewaterproperties\+::construct\+\_\+globalvariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_abba5d253e1014bd117f71c0ea3a37d58}{modulewaterproperties\+::readconfiguration}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aac68ff898a933da27b109068c70a5f15}{modulewaterproperties\+::constructchemlinks}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a9745c5b394a2c3fc11587bda05c362d6}{modulewaterproperties\+::readchemlink}} (link, client)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aea1140bf6cb4f7e78048a1a4a434435d}{modulewaterproperties\+::constructddecomp}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a4eb6420a0cc772838269f9aed6c4394e}{modulewaterproperties\+::construct\+\_\+propertylist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aab78d8efe1058e8c8918e9ae266897d0}{modulewaterproperties\+::constructspecieslist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a3a5d5bfc3fea263034ab4c86a339e9f5}{modulewaterproperties\+::addspecies}} (Obj\+Species)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a34a1aa06efecd62c35348355c7bab36e}{modulewaterproperties\+::constructspecies}} (New\+Species, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a3d2b79958b73c28e20d23afd2fe092ef}{modulewaterproperties\+::constructspeciessettlement}} (New\+Species, Client\+Number)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a1c0b4f7abb2ee1226f22838efe265c80}{modulewaterproperties\+::constructcohortfromrestart}} (New\+Species)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_abc72b5ed3f87133ad8c1dfd787c6eee5}{modulewaterproperties\+::constructcohortlist}} (New\+Species, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a2a206e94af2b9f46781896fdc7ccfb3a}{modulewaterproperties\+::addcohort}} (Species, New\+Cohort, ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ae8f037a58e95e5182b8c0d4b073ad271}{modulewaterproperties\+::constructcohort}} (Species, New\+Cohort)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a7cc00cb7efcee6190d254a8eb846064c}{modulewaterproperties\+::allocateauxlarvae}} (New\+Cohort)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad9060a1bd0766835e26c1961f52d84a0}{modulewaterproperties\+::construct\+\_\+cohortpropfromfile}} (New\+Property, Species, Override\+Keyword)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a6d6a2e31ca36bd79bebb89f3613ed278}{modulewaterproperties\+::constructnewborncohort}} (Species, New\+Cohort)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ae1c5c0deae03ce719a2b777bc86fb00f}{modulewaterproperties\+::construct\+\_\+cohortpropfromcohort}} (New\+Property, Species, Cohort\+Prop\+Name)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a6f39106e418f143aa0c8fc86f0756562}{modulewaterproperties\+::construct\+\_\+outputboxesfromcohort}} (New\+Cohort)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_abadbafe8dee3212a744771417b0c292a}{modulewaterproperties\+::construct\+\_\+wqratelist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a20976aef3db724e8f1b9ec39453b5a98}{modulewaterproperties\+::open\+\_\+hdf5\+\_\+output\+\_\+file}} (iW, File\+Name\+IN, Obj\+H\+D\+F5\+External)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a947e6ba82bfc1266159800996b8e073c}{modulewaterproperties\+::open\+\_\+surface\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a0067cb435852460b42999329f0637ab7}{modulewaterproperties\+::construct\+\_\+time\+\_\+serie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a0df2c60cf00ccbb52f0db0aa65924c93}{modulewaterproperties\+::construct\+\_\+output\+\_\+profile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aef459b24af9c748df5b5fb96dc4292bb}{modulewaterproperties\+::construct\+\_\+sub\+\_\+modules}} (Assimilation\+ID, Discharges\+ID ifdef \+\_\+\+E\+N\+A\+B\+L\+E\+\_\+\+C\+U\+DA
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a57c8ab92e75b6233d379f6d614bdd148}{modulewaterproperties\+::checkoptionssolutionfromfile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_ad670c20ce44d68b70fd32aa550c904db}{modulewaterproperties\+::constructage}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a26a4b3541362ed971440672979e6fedb}{modulewaterproperties\+::couplelightextinction}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a2f489eed4fdde73d4aa3ecc3ac0f1ced}{modulewaterproperties\+::couplewaterquality}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a7478a221b172ba61186f09416e5b3b0d}{modulewaterproperties\+::couplecequalw2}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a2568e97ada2e06111796b52ea4b7c50a}{modulewaterproperties\+::couplelife}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab7e6de4d55639d85393ee68b800ba784}{modulewaterproperties\+::couplebivalve}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a634883e39ff4b721f62c2324303fa3c4}{modulewaterproperties\+::setspeciessettlementprobability}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_abe78da28c4264216e9c5f3d2e8a558f4}{modulewaterproperties\+::constructbivalveoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a2eeb2f2e0e29e2293f16af83dcbe02bb}{modulewaterproperties\+::couplemacroalgae}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad4fbcdc5c8f0cd8982dbe65a88f54ab8}{modulewaterproperties\+::coupleseagrassesleaves}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a2c86f539e4715abad89dc127b5f17d20}{modulewaterproperties\+::couplewwtpq}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a191c738815d3d3376105cfd51b26b59d}{modulewaterproperties\+::couplephreeqc}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab19037aba70755844475216443ec3a35}{modulewaterproperties\+::couplefreeverticalmovement}} ( ifdef \+\_\+\+E\+N\+A\+B\+L\+E\+\_\+\+C\+U\+DA
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a52ab6cc6910ba77bfa6154aca1f67db0}{modulewaterproperties\+::couplehydrointegration}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ac9b1f4e5840ee5c5f36ff7bee993386b}{modulewaterproperties\+::constructpartition}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a30c3709afcaafdcec85f3efda5a73d03}{modulewaterproperties\+::construct\+\_\+discharges\+\_\+tracking}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ae31629679bdc4c42e1d3884a2f046435}{modulewaterproperties\+::read\+\_\+waterproperties\+\_\+files\+\_\+name}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a87d8b877e916e4ea3318d7d568732d12}{modulewaterproperties\+::construct\+\_\+property}} (New\+Property, Client\+Number)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a9b03fe6ccf9de1a1c29846e4a8104c87}{modulewaterproperties\+::setdecayratepropertyoptions}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a8f1edb788021e4c68656d11b8b90ea26}{modulewaterproperties\+::construct\+\_\+wqrate}} (New\+Wq\+Rate)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_ae8c62a5189e434530eafcfe1fe66dae4}{modulewaterproperties\+::construct\+\_\+propertystate}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab6c7c187dc0a1da19d043a98bcdde9ec}{modulewaterproperties\+::construct\+\_\+wqrateid}} (New\+Wq\+Rate)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa646aa8763204437f6ad88ddbd01c560}{modulewaterproperties\+::construct\+\_\+propertyvalues}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_ae1f665f653d3f72ef388bbb889ec57c9}{modulewaterproperties\+::checkfieldconsistence}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a9af27763ee733163a23f71ee92aafb09}{modulewaterproperties\+::findnearestpositive}} (Start\+\_\+I, Start\+\_\+J, Start\+\_\+K, Concentration, New\+Value)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad23f7574f0a024c14e1ef11aeadb52ab}{modulewaterproperties\+::construct\+\_\+wqratevalues}} (New\+Wq\+Rate)
+\item 
+real function, private \mbox{\hyperlink{namespacemodulewaterproperties_a3a9b963326300338acf15af3b6edcdae}{modulewaterproperties\+::defaultvalueprop}} (Property\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ac9ab6b0f5ee3c2470edaceaf1ef669a7}{modulewaterproperties\+::construct\+\_\+propertyevolution}} (New\+Property, Client\+Number)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a3d45e3e4c8782ebce340659d7f000fbb}{modulewaterproperties\+::checkdischarges}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a178c0df0a5c46c1d129d7dfd6e6982fc}{modulewaterproperties\+::read\+\_\+advec\+\_\+difus\+\_\+parameters}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a5a214d6f2f108bf67d3db3df4165609d}{modulewaterproperties\+::readsubmodeloptions}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ac511e23eb2975f0a46fef2973712f060}{modulewaterproperties\+::read\+\_\+partition\+\_\+parameters}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ace6684fcd5340a736f01034eee0565cd}{modulewaterproperties\+::read\+\_\+filtration\+\_\+parameters}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_adb847af3f3968c2d9bf627677cb37d95}{modulewaterproperties\+::read\+\_\+reinitialize\+\_\+parameters}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a37e8798b8bd2e4c33eff80dd151d0d31}{modulewaterproperties\+::construct\+\_\+propertyoutput}} (New\+Property, Extract\+Type)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab37c7ef1af4bcefaf38220a0ce3fdf12}{modulewaterproperties\+::readoldconcboundarieshdf}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ac86532460470d9c3746a9645ede24903}{modulewaterproperties\+::add\+\_\+property}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab70fa49456211c5f7697e02f7d5e81d2}{modulewaterproperties\+::add\+\_\+wqrate}} (New\+Wq\+Rate)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ac1893e82a87294024a1db3f0c2a7a842}{modulewaterproperties\+::constructaltimassimilation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a9167d6301bd0853ded33f93fb437a619}{modulewaterproperties\+::constructhybridweights}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa61935dbc55b8114ffeef13972cd62b1}{modulewaterproperties\+::constructdensity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a48d5c887c475fa7e3e29d35f55262ade}{modulewaterproperties\+::constructbooleanaltimassim}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_aa5d8008c930a03a6746ab2ae44f44f14}{modulewaterproperties\+::constructbooleanseqassimilation}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a1c2eaa3c5cb93a51e2756820277cef75}{modulewaterproperties\+::constructwateroverlap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a1cee571ebf44f0252603c9bd29a100e1}{modulewaterproperties\+::constructnofluxinterior}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a638275f2c0c184e858bd3e3e3e459901}{modulewaterproperties\+::constructspecificheat}}
+\item 
+logical function, private \mbox{\hyperlink{namespacemodulewaterproperties_a53711f4b1de0dd2fa6207fc580193db9}{modulewaterproperties\+::solarradiationisneeded}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad8de5e881e7e755e1d5eaa908ad599eb}{modulewaterproperties\+::constructconvection}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a9f3f90ee5c2e83e1b90c3d1260a0d307}{modulewaterproperties\+::constructlog}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a5a69094fb0cfdb28de4d2307ceeb3f84}{modulewaterproperties\+::read\+\_\+old\+\_\+properties\+\_\+2d}} (Scalar\+\_\+2D, Property\+Name)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aef6113e740cce05ecfdab1fee63873df}{modulewaterproperties\+::constructglobaloutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad828152e0a7f6fd60ca0cd045955a56b}{modulewaterproperties\+::constructdosat}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa08d6c50fcab3e8816fe7775bd101952}{modulewaterproperties\+::checkaditionaloutputs}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_aa292f8dd2fd9a4ac03ea1234db030644}{modulewaterproperties\+::constructpropertiesidarray}} (Water\+Properties\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a4585c55e4791aa9e486553e2e0ad3c5c}{modulewaterproperties\+::pointtodensity}} (Water\+Properties\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a4a3c2baf1d479b6f25201db3550c7a46}{modulewaterproperties\+::pointtoconcentration}} (Water\+Properties\+ID, Property\+X\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_aa86f63313e6563018f6b05938306a23d}{modulewaterproperties\+::waterproperties\+\_\+evolution}} (Water\+Properties\+ID, New\+DT, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a96402f50a619ea1b6477bb32d13a9020}{modulewaterproperties\+::timestepactualization}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad38f0837c272b87901bd3963788eb9e9}{modulewaterproperties\+::smalldepthsmixing\+\_\+processes}} (PropertyX, VolumeZ, Open\+Points3D)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a2ac3ef009338f33bfef1ccc910ccf6d7}{modulewaterproperties\+::freeconvection}} (PropertyX, VolumeZ, Open\+Points3D)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a06e60ba3cd186c1e0cc2c534f1148b41}{modulewaterproperties\+::sendwaterpropertiesmpi}} (Water\+Properties\+ID, Destination, Window, Initial\+Field, Prop\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_ae6984c00ccf20f1bc66a14e9e9466c38}{modulewaterproperties\+::recvwaterpropertiesmpi}} (Water\+Properties\+ID, Source, Window, Initial\+Field, Father\+Grid\+ID, Prop\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a12cedfb20b7e67e1de82bb36c9375e95}{modulewaterproperties\+::updatewatermpi}} (Water\+Properties\+ID, Initial\+Field, Prop\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_abab3678d93906f85e9e8392ced1e6ab4}{modulewaterproperties\+::setwaterpropfather}} (Water\+Properties\+Son\+ID, Water\+Properties\+Father\+ID, Prop\+I\+D\+Number, Initial\+Field, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_affcb95213dcebf7b3e1fe53b349d50b6}{modulewaterproperties\+::constructtimeinterpolation}} (Property\+Son, Prop\+Father\+Variable, D\+T\+\_\+\+Father)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a70dce18437eed5f486027590c6d6a511}{modulewaterproperties\+::readnextorinitialfield}} (Father\+Grid\+ID, Open3\+D\+Father, Father\+Z\+Cell\+Center, Property\+Son, Prop\+Father\+Concentration, Initial\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a1c0bebcf1f9e3c75094930d29edfdcca}{modulewaterproperties\+::actualizesubmodelvalues}} (Property\+Son, Prop\+Father\+Old, Initial\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab0b8edf280ffb8e69ae400f400b252c9}{modulewaterproperties\+::actualizeson3dfather2d}} (Property\+Son, Prop\+Father\+Old, Initial\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a300389c60d61f49a71a655925f38baab}{modulewaterproperties\+::actualizeson3dfather3d}} (Property\+Son, Prop\+Father\+Old, Initial\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a2450d655461a0013ffb3d932848b59b7}{modulewaterproperties\+::advection\+\_\+diffusion\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ac64c0bef47a698a3d4ee6c542620ff58}{modulewaterproperties\+::preparelarvaeadvectiondiffusion}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_abd63efefa04ded5606dbc3b60797d347}{modulewaterproperties\+::restorelarvaeadvectiondiffusion}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a1edbcfe150c3db4a47036d7e4bfcdda3}{modulewaterproperties\+::checkifconcentrationisnegative}} (Property, Message)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ac2912c1f90322adb405cc7d8f1d67898}{modulewaterproperties\+::instantaneouslymixing}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a0b4d4f88a02be98e446a383c70ac8803}{modulewaterproperties\+::modifypropertiesfromfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a330fc5f39079fff0948cbca492cf139a}{modulewaterproperties\+::waterquality\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a77c662c86e2d882859f2a18d2cde59d1}{modulewaterproperties\+::cequalw2\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad72c8ac146887990ee173526b0a484f1}{modulewaterproperties\+::life\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa89a84314cb0905ce7ee9f02c7c35393}{modulewaterproperties\+::macroalgae\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a196db184712b743908b747b05495bc60}{modulewaterproperties\+::computemacroalgaeoccupation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a45571c439a7d4a05be3b427eb5ff0b9a}{modulewaterproperties\+::distributemacroalgae}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a27e3b4870b21a44136c19ab777be7e33}{modulewaterproperties\+::integratemacroalgae}} (Macro\+Algae)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_af4c3f5f2d82b97b5112ee2c44f4dc5a3}{modulewaterproperties\+::macroalgaephysicalconditions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_adf800c8c0d5bdc30d00d4b10c88f9693}{modulewaterproperties\+::seagrassesleaves\+\_\+processes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a60f5e5b09c032f11f1b1a75f101398a0}{modulewaterproperties\+::distributeleaves}} (PropertyX, Seagrasses\+Leaves)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_ac74bdef93cc8e54e691452462dce15da}{modulewaterproperties\+::leavesoccupation}} (Seagrasses\+Leaves)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_ae3241f210c7340a59547a54db80870aa}{modulewaterproperties\+::getseagrassesleavesrates}} (Water\+Properties\+ID, Rate\+ID, Rateflux, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad35241441c35aaaf61a0529c6be215e9}{modulewaterproperties\+::wwtpq\+\_\+processes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a24e8f85633a4f1ac903cfa366e4669d7}{modulewaterproperties\+::phreeqc\+\_\+processes}} (is\+\_\+starting)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa43273d07b646deb6e4c72e757b19fbd}{modulewaterproperties\+::bivalve\+\_\+processes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_ab62d1ee17d0bdd78beb327d8dd8c2f4d}{modulewaterproperties\+::truncatebivalvelownumber}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a9362aa51fad7e9cae9cd548057855662}{modulewaterproperties\+::updatelarvaedistribution}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a21e9506395b0784b11cea81e68719de8}{modulewaterproperties\+::computecohortlarvaedistribution}} (Cohort, Property\+\_\+L, Property\+\_\+N, Larvae\+Max\+Size)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a8446703f7cbfef308ed1b6f7114594a2}{modulewaterproperties\+::bivalveoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a6d9213c5f38db58c01899d8b68076950}{modulewaterproperties\+::bivalveoutputhdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_afcdb7811c7721d558a0d6ec94b87f297}{modulewaterproperties\+::bivalveoutputboxtimeserie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab88c2923a48aacf7da60a45cfeb98dfc}{modulewaterproperties\+::checklistdeadandlistnewborns}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a20082ef8bcaf7ce51aa737521cbeea5b}{modulewaterproperties\+::updateinterfacemass}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a8ab7e6ee60b7c71bc6775c1586bd99b3}{modulewaterproperties\+::updatepropertylist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a474948faf0bbb3ab44002a8cce97817b}{modulewaterproperties\+::removedeadidsfromlist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a3ee71384b4a5e160513a569765f2a4ba}{modulewaterproperties\+::removecohortfromlist}} (Obj\+Species, Obj\+Cohort)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a3d6f2d4c903cf8071d0cba596db412f1}{modulewaterproperties\+::removepropertyfromlist}} (Dynamic\+Cohort\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a201bc7106a0e1c889114fc878140e91f}{modulewaterproperties\+::addnewbornstolist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a24b8d7aa76331b7a72150e027594beba}{modulewaterproperties\+::partition\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a877a92e454e3c5723e48cbb8f6c322d8}{modulewaterproperties\+::freeverticalmovements\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a58f066775e7df388495e6602c2d567e6}{modulewaterproperties\+::filtration\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a3b050fab4946fe3d8840f4104a85e0ab}{modulewaterproperties\+::reinitialize\+\_\+solution}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_af5a9b4a5acf0da8a86fcabea8bf09f28}{modulewaterproperties\+::chemicallinks}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a3741d54f8b36c751fb10748ab34af465}{modulewaterproperties\+::surface\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aaba72b54a08a1561f8eff8fae60998f2}{modulewaterproperties\+::bottom\+\_\+processes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a10d63582cfbe1d7e4a4c18ad2b27ffc5}{modulewaterproperties\+::sinkssources\+\_\+processes}} (Sinks\+Sources\+Mass, Property\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a8e4fffcfd269b64a4795cf007ee2b707}{modulewaterproperties\+::firstorderdecayprocesses}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_aaeed6e345543d58d8feee181656796d0}{modulewaterproperties\+::modifyimposedrycells}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa39cc64df05076f8396e1894e6e74ad5}{modulewaterproperties\+::modifytwoway}} (Water\+Properties\+ID, Current\+Time)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad407a42c26969949261233d9d0aa8da1}{modulewaterproperties\+::updatefathermodelwp}} (Son\+Water\+Properties\+ID, Father\+Water\+Properties\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a1b70dbb2ea91a797c991fcc031837095}{modulewaterproperties\+::getmapinformation}} (Son\+Water\+Properties\+ID, Father\+Water\+Properties\+ID, IV, JV, Open3\+D\+Father, Open3\+D\+Son)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab369effb692dc27866518b2a5fa9fe1b}{modulewaterproperties\+::ungetmapinformation}} (Son\+Water\+Properties\+ID, Father\+Water\+Properties\+ID, IV, JV, Open3\+D\+Father, Open3\+D\+Son)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a5d19c5c0edd1b4706080cd0259456cd8}{modulewaterproperties\+::modifydecayrate}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a370617430ffb5b34448cfc27deca6c88}{modulewaterproperties\+::calcnewdt}} (New\+DT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a44ca5a1d937416e29607a7effa0209d5}{modulewaterproperties\+::modifyoxygensaturation}}
+\item 
+real function \mbox{\hyperlink{namespacemodulewaterproperties_a5dbf64b0ab9b6e7fc74c9425dd2e5801}{modulewaterproperties\+::computet90}} (PropertyX, Sal, Temp, Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_abf8fd0a88a0f3e9bf66064666c864915}{modulewaterproperties\+::setlimitsconcentration}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a772748e5406dcfadf1087f66a9622a83}{modulewaterproperties\+::computesurfaceheatfluxes}} (Temperature)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a1198b9575d74a6939f38dcaa6c63f476}{modulewaterproperties\+::waterpropdischarges}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_abdbc309080b92eb5274f0481166c683d}{modulewaterproperties\+::dataassimilationprocesses}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a3d30e149ea4b3528ce74dea8162b347f}{modulewaterproperties\+::modifynofluxmapping}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a352c7f22b34ddac5b3bada0a33cd7221}{modulewaterproperties\+::updatehybridreferencefield}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a372e37e94ca0415d98cc92c58dc4957b}{modulewaterproperties\+::altimassimilationprocess}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a93266e9cb4d7560fc55136ac596e1c35}{modulewaterproperties\+::calculateage}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_afcd5345e3a92fad8129c23c999e18873}{modulewaterproperties\+::actualize\+\_\+time\+\_\+evolution}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a7727e3b2ffd1b7f1c501dc60cf64c723}{modulewaterproperties\+::modifydensity}} (Current\+Time)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a430bfd6acd72693785ebf7d3e3a9dea8}{modulewaterproperties\+::modifydensitysed}} (Current\+Time)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ac377b27826c6ced4a835d6e47384f917}{modulewaterproperties\+::modifyspecificheat}} (Current\+Time)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a53a84226a2a46ab704fec5883bc4639a}{modulewaterproperties\+::modifysolarradiation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa1d438c16bd8399614f3b5058f6a58e8}{modulewaterproperties\+::compute\+\_\+swextcoeffield}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a9766d3375543a27f75f30630ffe87795}{modulewaterproperties\+::hydrointegration\+\_\+processes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa0e5621dbf495abbff865260517a210e}{modulewaterproperties\+::output\+\_\+results\+\_\+hdf}} (iW)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a3c8948249582551960c897355058c5f0}{modulewaterproperties\+::output\+\_\+surfaceresults\+\_\+hdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a0e590dc368b505cd9ea918d724d3eee3}{modulewaterproperties\+::outputhdf\+\_\+aditionalfields}} (Out\+Put\+Number, iW)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a0725e3aa303d243b60469b2ad581deaa}{modulewaterproperties\+::output\+\_\+timeseries}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a98520e5c44c187e7d09c51cc9864bb63}{modulewaterproperties\+::ouput\+\_\+timeseries\+\_\+aditionalresults}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_adbe4280f2ebe3767932360d61563ff93}{modulewaterproperties\+::output\+\_\+profile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a8400d7aab12081d64e14b5947eb9734c}{modulewaterproperties\+::output\+\_\+boxtimeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ae4782724563831422008fbeb12c51841}{modulewaterproperties\+::output\+\_\+statistics}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a6c8ccf3bc2c3f4cc47ee4ebfd2a2b354}{modulewaterproperties\+::copytemperature}} (Water\+Properties\+ID, Size3D, Temperature, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_afb6f9f66ff7f1eabafe85dfdf9ddeca8}{modulewaterproperties\+::copysalinity}} (Water\+Properties\+ID, Size3D, Salinity, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a71b237b2c78cd159d5fc9be5a1a5f127}{modulewaterproperties\+::copydensity}} (Water\+Properties\+ID, Size3D, Density, Sigma\+Density, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_ab01a5978241b2f90c9951fe60f6f7f8a}{modulewaterproperties\+::copyconcentration}} (Water\+Properties\+ID, Size3D, ConcentrationX, Property\+X\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a6e98b7d8e639a6feac4f88974d90c5e5}{modulewaterproperties\+::getwaterpropertiesnumber}} (Water\+Properties\+ID, Number\+PropertiesX, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_aab0b283f67aa51240519cab03610aab7}{modulewaterproperties\+::getwaterpropertyoptions}} (Water\+Properties\+ID, Prop\+I\+D\+Number, D\+T\+Interval, Bottom\+Fluxes, Free\+Vertical\+Movement, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_ac9026fc793014229d0d9bed57148db6a}{modulewaterproperties\+::getdensityoptions}} (Water\+Properties\+ID, Density\+Method, Pressure\+Correction, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a97df80c3a8c997c208dac464d58c0f8c}{modulewaterproperties\+::getwaterneedsfather}} (Water\+Properties\+ID, Water\+Needs\+Father, Prop\+Number, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_ac8bf28f0c63fb495a5f90cf0d6563ae6}{modulewaterproperties\+::getproplistneedsfather}} (Water\+Properties\+ID, Prop\+I\+D\+Number\+List, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a45cbba90a6054db2070c49281da1ef56}{modulewaterproperties\+::getconcentration}} (Water\+Properties\+ID, ConcentrationX, Property\+X\+I\+D\+Number, Property\+X\+Units, Property\+X\+I\+S\+Coef, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a821377ba47455562f8f8a055ad136a15}{modulewaterproperties\+::getshortwaveradiationaverage}} (Water\+Properties\+ID, Short\+Wave\+Radiation\+Average, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a627fb9974f1a0e254f8b0f6dfa4653ea}{modulewaterproperties\+::getseagrassarray2d}} (Water\+Properties\+ID, Array, Array\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a66ca6cd5369fd51e843c91e5992b9050}{modulewaterproperties\+::getfiltrationrate}} (Water\+Properties\+ID, Filtration\+RateX, D\+T\+Prop, Property\+X\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a786f352ede780fcaec30c57d6653f0f1}{modulewaterproperties\+::getmacroalgaebiomass}} (Water\+Properties\+ID, Macroalgae\+Biomass, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a5d3bf3d9b122b9eee78afc56a4047507}{modulewaterproperties\+::getdensity}} (Water\+Properties\+ID, Density, Current\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a3bb9d317e5be992645961cb331bdb55a}{modulewaterproperties\+::getsalinity}} (Water\+Properties\+ID, Salinity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a98876d77f6e973aec7cd3341346e8d8b}{modulewaterproperties\+::gettemperature}} (Water\+Properties\+ID, Temperature, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_ae8ca73c7b0b0c01064b13ed994d0935c}{modulewaterproperties\+::getsigma}} (Water\+Properties\+ID, Sigma, Current\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a900d2a5073201659f4476e350c5d728a}{modulewaterproperties\+::getsigmanopressure}} (Water\+Properties\+ID, Sigma\+No\+Pressure, Current\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_aa36e244423ac757e350a49437c3fb368}{modulewaterproperties\+::getspecificheat}} (Water\+Properties\+ID, Specific\+Heat, Current\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_af502ab70c7f5479a4e039154e3b7b099}{modulewaterproperties\+::getspecificheatreference}} (Water\+Properties\+ID, Specific\+Heat\+Reference, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_ae9ef33b9d5369265c98090b0520a41ae}{modulewaterproperties\+::getspm}} (Water\+Properties\+ID, S\+PM, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_aa92bc10cfb8ceb9e3edd659ae8e6ed71}{modulewaterproperties\+::getwaterpropertiessubmodulesid}} (Water\+Properties\+ID, Free\+Vertical\+Movement\+ID, Light\+Extinction\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a01766661cdbaa08fdb84926b54369de4}{modulewaterproperties\+::getwaterpropertiesairoptions}} (Water\+Properties\+ID, Temperature\+Flux\+Yes, Oxygen\+Flux\+Yes, Carbon\+Dioxide\+Flux\+Yes, Ammonia\+Flux\+Yes, Nitrate\+Flux\+Yes, W\+Q\+M\+Yes, T90\+Variable\+Yes, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a7c3194f050d1f1d1afd1dc2fd3e02dec}{modulewaterproperties\+::getwaterpropertiesbottomoptions}} (Water\+Properties\+ID, Macro\+Algae, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_af2c46d3b317e3d23dca87bea01a118fa}{modulewaterproperties\+::getpropertysurfaceflux}} (Water\+Properties\+ID, Oxygen\+Surface\+Flux, Carbon\+Dioxide\+Surface\+Flux, Ammonia\+Surface\+Flux, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a595720f235e82fd22fab49105706b84e}{modulewaterproperties\+::ungetwaterproperties1d\+\_\+i4}} (Water\+Properties\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab4f28352125d7c0b068c093e4ffb88dd}{modulewaterproperties\+::ungetwaterproperties3d}} (Water\+Properties\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ab8a50929e1e5fe0ebe591654fa4fd52f}{modulewaterproperties\+::ungetwaterproperties2d}} (Water\+Properties\+ID, Array, S\+T\+AT)
+\item 
+logical function, public \mbox{\hyperlink{namespacemodulewaterproperties_a2c7278a1e0767b9b9c5419a5b34299f5}{modulewaterproperties\+::waterpropertyexists}} (Water\+Properties\+ID, Prop\+I\+D\+Number, S\+T\+AT)
+\item 
+integer function \mbox{\hyperlink{namespacemodulewaterproperties_a628b8ae42fe46f1e958582529ab79db4}{modulewaterproperties\+::waterpropertyid}} (name, property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ae6b7d758da27fb15faee52b3ed14029d}{modulewaterproperties\+::search\+\_\+property}} (PropertyX, Property\+X\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a1dec5db35cff13d783df415f7991aff7}{modulewaterproperties\+::search\+\_\+propertyfather}} (Obj\+Water\+Properties\+Father, PropertyX, Property\+X\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_afdb62b42fe2bd1edafce470c06060ee4}{modulewaterproperties\+::search\+\_\+propertyson}} (Obj\+Water\+Properties\+Son, PropertyX, Property\+X\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a2550f7996bf177225c3f5a9830c86707}{modulewaterproperties\+::setsurfaceflux}} (Water\+Properties\+ID, I\+D\+Number, Flux, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a5d755fdb3bd199311d38f1f88cbd7f10}{modulewaterproperties\+::setfluxtowaterproperties}} (Water\+Properties\+ID, Property\+ID, Flux, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a829c556b5c2c23f02481f958f56e77b2}{modulewaterproperties\+::setlagrangiansinkssources}} (Water\+Properties\+ID, Property\+ID, Lag\+Mass, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a04f02aae382274eb3a7fb04e8be06e48}{modulewaterproperties\+::setmacroalgaeparameters}} (Water\+Properties\+ID, Shear\+Stress, S\+P\+M\+Flux, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a463922f7665f0f3507bff58df80af6f7}{modulewaterproperties\+::readlockexternalvar}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ac4ba6844cdc46e6fc258842be3a9e82b}{modulewaterproperties\+::readunlockexternalvar}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a3d2d1a142ceb72d246c0254f29e4595c}{modulewaterproperties\+::getwaterpropertiesidarray}} (Water\+Properties\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_afd2b779c6911ab6d6436d6d813a338c7}{modulewaterproperties\+::getwaterseqassimilation}} (Water\+Properties\+ID, Run\+Seq\+Assimilation, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a0e9ad0864f289819d005ffe929ac3f86}{modulewaterproperties\+::setdensity}} (Water\+Properties\+ID, Density, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a84c625b22d0fa0200b0f18fc38efb8e7}{modulewaterproperties\+::setsigma}} (Water\+Properties\+ID, Sigma\+Density, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_aea5dfa662931ed10a0e9543a5150c9b5}{modulewaterproperties\+::setconcentration}} (Water\+Properties\+ID, ConcentrationX, Property\+X\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_abc01d8d69bf69056b5ad8b7fc0ebb668}{modulewaterproperties\+::setwaterpropvirtualrun}} (Water\+Properties\+ID, Virtual\+Run, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_ac8f850628190d4096c329efc4d1880cc}{modulewaterproperties\+::resetdensity}} (Water\+Properties\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a09f49ce7e65baca37ff989dd6573e711}{modulewaterproperties\+::resetconcentration}} (Water\+Properties\+ID, Property\+X\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a923a45b4d978be815b69f1ca9bb63891}{modulewaterproperties\+::getwateroverlap}} (Water\+Properties\+ID, Overlap, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a485e6f75e05fccffb1b2eba1fc8c0226}{modulewaterproperties\+::setmodeloverlapwater}} (Water\+Properties\+ID, Overlap\+Water\+Properties\+ID, Overlap\+Cells, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a5bb74dfe4637836633ca6817a4a72758}{modulewaterproperties\+::closeallandstop}} (message)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaterproperties_a1b9de12d1335129516b68f6f80f85e49}{modulewaterproperties\+::killwaterproperties}} (Water\+Properties\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a75dba19ef36b16b901b8d7bab39b00bc}{modulewaterproperties\+::killdepthsmixing}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_afcf00b3b04c6e13ebfe955c7074bc924}{modulewaterproperties\+::deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a2893cea8ca427b1290aeb65593659aa0}{modulewaterproperties\+::write\+\_\+finalwaterproperties\+\_\+hdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_af1b9165b0e72747e4478868c7e5eff00}{modulewaterproperties\+::computeandlogtotalmasserror}} (Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa8cc31da812d7fc89d0dcc1d1fafac2f}{modulewaterproperties\+::killdensity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a801b2f175ad723ebc00e21ea2c6616cf}{modulewaterproperties\+::killspecificheat}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_a656b771bc1432d56a5e5701857e3c914}{modulewaterproperties\+::killsolarradiation}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_ad2bfc0be1f4f81fc71b67a511411698e}{modulewaterproperties\+::killnofluxinterior}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_a36c17f1a6e6a657a207beb63be984d2a}{modulewaterproperties\+::nullifydensitypointer}} (Water\+Properties\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaterproperties_aded20695e00a7e2a2792781914847187}{modulewaterproperties\+::nullifyconcentrationpointer}} (Water\+Properties\+ID, Property\+X\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ad54774dedce486739249cb10b4de21e2}{modulewaterproperties\+::ready}} (Water\+Properties\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_ae4516d6c7f3687b0293515314b0ade90}{modulewaterproperties\+::locateobjwaterproperties}} (Water\+Properties\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_aa9cca4cb017da12a540fca143edcc19f}{modulewaterproperties\+::locateobjson}} (Obj\+Water\+Properties\+ID, Obj\+Water\+Properties\+Son)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaterproperties_abe99a26b781f6af9708e4db390fcdcba}{modulewaterproperties\+::locateobjfather}} (Obj\+Water\+Properties\+Father, Obj\+Water\+Properties\+ID)
+\item 
+integer function \mbox{\hyperlink{namespacemodulewaterproperties_a958863880a028313765dd3c1c2b598e2}{modulewaterproperties\+::getnumberofproperties}} (Water\+Properties\+ID)
+\item 
+integer function \mbox{\hyperlink{namespacemodulewaterproperties_ab28fc6f29d4d9d76db5238daf0715caf}{modulewaterproperties\+::getwaterpropertiespropertyid}} (Water\+Properties\+ID, idx)
+\item 
+real(8) function \mbox{\hyperlink{namespacemodulewaterproperties_ad43cb3a8e776adc92efab9346992a581}{modulewaterproperties\+::getconcentrationatpoint}} (Water\+Properties\+ID, Property\+I\+D\+Number, i, j)
+\item 
+logical function \mbox{\hyperlink{namespacemodulewaterproperties_a07e476dc922e05a1476e0df171c1bd25}{modulewaterproperties\+::getconcentration1d}} (Water\+Properties\+ID, Property\+I\+D\+Number, n\+Compute\+Points, concentration1D)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_ad3d25ef03f7249eeb914147244f7ab21}{modulewaterproperties\+::apha}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_a29e2fbba778edc06bcf727039bbd9798}{modulewaterproperties\+::henry}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_a6bcd9e391a74b1ca62e61cc243476fdc}{modulewaterproperties\+::mortimer}} = 3
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulewaterproperties_a25034c41764dc77e32aba6c415fcc49d}{modulewaterproperties\+::minradiation}} = 0.\+001
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_ad679645e03dadde260138305d457c6b0}{modulewaterproperties\+::directionx}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_aaf6db3a146aad58618195cc2c0205df5}{modulewaterproperties\+::directiony}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_aff38a3e9a22cffe62976100b9a502857}{modulewaterproperties\+::nonudging}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_a11b343623ee8be4de6631eeaebc7960f}{modulewaterproperties\+::nudgingtoref}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_a5526d1183ef0c5a2ac7a8102b28c7d15}{modulewaterproperties\+::nudgingadvvert}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_aeb738ab690aa82280436c15d6500e8c3}{modulewaterproperties\+::hybrid}} = 3
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulewaterproperties_a116b016e9840d891b6aa364194ef54a4}{modulewaterproperties\+::prop\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulewaterproperties_a6ebea2163c7a405c3147a1c638cccd1f}{modulewaterproperties\+::prop\+\_\+block\+\_\+end}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulewaterproperties_afcb8158a31eb190cd761c4a78545fd9f}{modulewaterproperties\+::wqrateblock\+\_\+begin}} = \textquotesingle{}$<$beginwqrate$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulewaterproperties_a475ba576901500320a60416bf37b02af}{modulewaterproperties\+::wqrateblock\+\_\+end}} = \textquotesingle{}$<$endwqrate$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulewaterproperties_a51f1162211d338123e9ca464f61b794f}{modulewaterproperties\+::shading\+\_\+begin}} = \textquotesingle{}$<$begin\+\_\+shading$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulewaterproperties_acc1f3c2ffa2d7ca6898633c3278f42f9}{modulewaterproperties\+::shading\+\_\+end}} = \textquotesingle{}$<$end\+\_\+shading$>$\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_a3d943ea9e379be00013c408258074a74}{modulewaterproperties\+::canteras}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_a45723a4d6bb04441fb778f26465d7fcc}{modulewaterproperties\+::chapra}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_a3e35da380ab86aa705245e6d2a397bac}{modulewaterproperties\+::grazer}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaterproperties_ac58d0aa9a8e828393a35fe78e9a20048}{modulewaterproperties\+::grazed}} = 2
+\item 
+type(t\+\_\+waterproperties), pointer \mbox{\hyperlink{namespacemodulewaterproperties_a30f53fbac0d69722990af045f9fba578}{modulewaterproperties\+::firstobjwaterproperties}}
+\item 
+type(t\+\_\+waterproperties), pointer \mbox{\hyperlink{namespacemodulewaterproperties_abe019d24d7f8e105550a835095609fdb}{modulewaterproperties\+::me}}
+\end{DoxyCompactItemize}

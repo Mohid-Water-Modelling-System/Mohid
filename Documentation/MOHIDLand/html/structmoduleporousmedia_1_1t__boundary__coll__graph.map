@@ -1,0 +1,7 @@
+<map id="moduleporousmedia::t_boundary" name="moduleporousmedia::t_boundary">
+<area shape="rect" id="node2" href="$structmoduleporousmedia_1_1t__triangulation.html" title="{moduleporousmedia::\lt_triangulation\n|&#45; filloutsidepoints\l&#45; outputtriangles\l&#45; instant\l&#45; filename\l|}" alt="" coords="5,204,152,340"/>
+<area shape="rect" id="node3" href="$structmoduleporousmedia_1_1t__nodes.html" title="{moduleporousmedia::\lt_nodes\n|&#45; x\l&#45; y\l&#45; z\l|}" alt="" coords="5,5,152,127"/>
+<area shape="rect" id="node4" href="$structmoduleporousmedia_1_1t__inverseweight.html" title="{moduleporousmedia::\lt_inverseweight\n|&#45; maxdistance\l&#45; iwdn\l|}" alt="" coords="176,219,323,325"/>
+<area shape="rect" id="node5" href="$structmoduleporousmedia_1_1t__piezometer.html" title="{moduleporousmedia::\lt_piezometer\n|&#45; name\l&#45; location\l&#45; id\l&#45; defaultvalue\l&#45; valuetype\l&#45; timeseriehasdata\l|}" alt="" coords="347,189,493,355"/>
+<area shape="rect" id="node6" href="$structmoduleporousmedia_1_1t__fromtimeserie.html" title="{moduleporousmedia::\lt_fromtimeserie\n|&#45; objtimeserie\l&#45; filename\l&#45; datacolumn\l|}" alt="" coords="347,5,493,127"/>
+</map>

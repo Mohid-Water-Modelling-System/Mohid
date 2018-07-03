@@ -1,0 +1,158 @@
+\hypertarget{structmodulebasin_1_1t__scscnrunoffmodel}{}\section{modulebasin\+:\+:t\+\_\+scscnrunoffmodel Type Reference}
+\label{structmodulebasin_1_1t__scscnrunoffmodel}\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+
+
+Collaboration diagram for modulebasin\+:\+:t\+\_\+scscnrunoffmodel\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=241pt]{structmodulebasin_1_1t__scscnrunoffmodel__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+type(\mbox{\hyperlink{structmodulebasin_1_1t__propertyb}{t\+\_\+propertyb}}) \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_aef0580465ae5e750152c07c91484b145}{infrate}}
+\item 
+type(\mbox{\hyperlink{structmodulebasin_1_1t__propertyb}{t\+\_\+propertyb}}) \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a35a791e25261cfef55ed195630b51143}{curvenumber}}
+\item 
+real \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_aebb0c7283eda823b8991ecd023ca283c}{iafactor}} = 0.\+2
+\item 
+logical \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_ab00beaf2b4ee67b6a9cdcbfd2f085ce8}{convertiafactor}} = .false.
+\item 
+type(\mbox{\hyperlink{structmodulebasin_1_1t__propertyb}{t\+\_\+propertyb}}) \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a9b0f4f64978436f0a713bc7cdf4924b5}{veggrowthstage}}
+\item 
+type(\mbox{\hyperlink{structmodulebasin_1_1t__propertyb}{t\+\_\+propertyb}}) \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a341a81b00c9c0a38a80c9b76df4f205d}{impfrac}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a2b4d1aed25857030d84077c0b015bdd7}{last5daysaccrain}} =$>$ null ()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a3e66ba06bfc7f8291f213a316efa367a}{last5daysaccraintotal}} =$>$ null ()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_aa7c8a29a9bfa492e66ea979de83e4080}{dailyaccrain}} =$>$ null ()
+\item 
+real(8), dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a8c28ff12946398c880e15b8737eab876}{current5dayaccrain}} =$>$ null ()
+\item 
+real(8), dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a7f12a3b0673e016bf98f84d65cb8235a}{actualcurvenumber}} =$>$ null ()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a3c58781c4ed73cb5a86f8a37be61d0cc}{s}} =$>$ null ()
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a25219c6269e19046a7cd10ff70b7b9b0}{nextrainaccstart}}
+\item 
+real \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a559190f844a5d5dbb6c3dcbea75dc314}{cidormthreshold}} = 12.\+70
+\item 
+real \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a7dc9b0bcc92ceac580467b3756426766}{ciiidormthreshold}} = 27.\+94
+\item 
+real \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a18cd47d6766c5bd92242699dc9860eb7}{cigrowththreshold}} = 35.\+56
+\item 
+real \mbox{\hyperlink{structmodulebasin_1_1t__scscnrunoffmodel_a666203f3a94e70ee545099fa2ab5e765}{ciiigrowththreshold}} = 53.\+34
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a7f12a3b0673e016bf98f84d65cb8235a}\label{structmodulebasin_1_1t__scscnrunoffmodel_a7f12a3b0673e016bf98f84d65cb8235a}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!actualcurvenumber@{actualcurvenumber}}
+\index{actualcurvenumber@{actualcurvenumber}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{actualcurvenumber}{actualcurvenumber}}
+{\footnotesize\ttfamily real(8), dimension (\+:,\+:), pointer modulebasin\+::t\+\_\+scscnrunoffmodel\+::actualcurvenumber =$>$ null ()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a559190f844a5d5dbb6c3dcbea75dc314}\label{structmodulebasin_1_1t__scscnrunoffmodel_a559190f844a5d5dbb6c3dcbea75dc314}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!cidormthreshold@{cidormthreshold}}
+\index{cidormthreshold@{cidormthreshold}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{cidormthreshold}{cidormthreshold}}
+{\footnotesize\ttfamily real modulebasin\+::t\+\_\+scscnrunoffmodel\+::cidormthreshold = 12.\+70\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a18cd47d6766c5bd92242699dc9860eb7}\label{structmodulebasin_1_1t__scscnrunoffmodel_a18cd47d6766c5bd92242699dc9860eb7}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!cigrowththreshold@{cigrowththreshold}}
+\index{cigrowththreshold@{cigrowththreshold}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{cigrowththreshold}{cigrowththreshold}}
+{\footnotesize\ttfamily real modulebasin\+::t\+\_\+scscnrunoffmodel\+::cigrowththreshold = 35.\+56\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a7dc9b0bcc92ceac580467b3756426766}\label{structmodulebasin_1_1t__scscnrunoffmodel_a7dc9b0bcc92ceac580467b3756426766}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!ciiidormthreshold@{ciiidormthreshold}}
+\index{ciiidormthreshold@{ciiidormthreshold}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{ciiidormthreshold}{ciiidormthreshold}}
+{\footnotesize\ttfamily real modulebasin\+::t\+\_\+scscnrunoffmodel\+::ciiidormthreshold = 27.\+94\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a666203f3a94e70ee545099fa2ab5e765}\label{structmodulebasin_1_1t__scscnrunoffmodel_a666203f3a94e70ee545099fa2ab5e765}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!ciiigrowththreshold@{ciiigrowththreshold}}
+\index{ciiigrowththreshold@{ciiigrowththreshold}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{ciiigrowththreshold}{ciiigrowththreshold}}
+{\footnotesize\ttfamily real modulebasin\+::t\+\_\+scscnrunoffmodel\+::ciiigrowththreshold = 53.\+34\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_ab00beaf2b4ee67b6a9cdcbfd2f085ce8}\label{structmodulebasin_1_1t__scscnrunoffmodel_ab00beaf2b4ee67b6a9cdcbfd2f085ce8}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!convertiafactor@{convertiafactor}}
+\index{convertiafactor@{convertiafactor}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{convertiafactor}{convertiafactor}}
+{\footnotesize\ttfamily logical modulebasin\+::t\+\_\+scscnrunoffmodel\+::convertiafactor = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a8c28ff12946398c880e15b8737eab876}\label{structmodulebasin_1_1t__scscnrunoffmodel_a8c28ff12946398c880e15b8737eab876}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!current5dayaccrain@{current5dayaccrain}}
+\index{current5dayaccrain@{current5dayaccrain}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{current5dayaccrain}{current5dayaccrain}}
+{\footnotesize\ttfamily real(8), dimension (\+:,\+:), pointer modulebasin\+::t\+\_\+scscnrunoffmodel\+::current5dayaccrain =$>$ null ()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a35a791e25261cfef55ed195630b51143}\label{structmodulebasin_1_1t__scscnrunoffmodel_a35a791e25261cfef55ed195630b51143}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!curvenumber@{curvenumber}}
+\index{curvenumber@{curvenumber}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{curvenumber}{curvenumber}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulebasin_1_1t__propertyb}{t\+\_\+propertyb}}) modulebasin\+::t\+\_\+scscnrunoffmodel\+::curvenumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_aa7c8a29a9bfa492e66ea979de83e4080}\label{structmodulebasin_1_1t__scscnrunoffmodel_aa7c8a29a9bfa492e66ea979de83e4080}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!dailyaccrain@{dailyaccrain}}
+\index{dailyaccrain@{dailyaccrain}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{dailyaccrain}{dailyaccrain}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer modulebasin\+::t\+\_\+scscnrunoffmodel\+::dailyaccrain =$>$ null ()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_aebb0c7283eda823b8991ecd023ca283c}\label{structmodulebasin_1_1t__scscnrunoffmodel_aebb0c7283eda823b8991ecd023ca283c}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!iafactor@{iafactor}}
+\index{iafactor@{iafactor}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{iafactor}{iafactor}}
+{\footnotesize\ttfamily real modulebasin\+::t\+\_\+scscnrunoffmodel\+::iafactor = 0.\+2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a341a81b00c9c0a38a80c9b76df4f205d}\label{structmodulebasin_1_1t__scscnrunoffmodel_a341a81b00c9c0a38a80c9b76df4f205d}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!impfrac@{impfrac}}
+\index{impfrac@{impfrac}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{impfrac}{impfrac}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulebasin_1_1t__propertyb}{t\+\_\+propertyb}}) modulebasin\+::t\+\_\+scscnrunoffmodel\+::impfrac\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_aef0580465ae5e750152c07c91484b145}\label{structmodulebasin_1_1t__scscnrunoffmodel_aef0580465ae5e750152c07c91484b145}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!infrate@{infrate}}
+\index{infrate@{infrate}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{infrate}{infrate}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulebasin_1_1t__propertyb}{t\+\_\+propertyb}}) modulebasin\+::t\+\_\+scscnrunoffmodel\+::infrate\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a2b4d1aed25857030d84077c0b015bdd7}\label{structmodulebasin_1_1t__scscnrunoffmodel_a2b4d1aed25857030d84077c0b015bdd7}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!last5daysaccrain@{last5daysaccrain}}
+\index{last5daysaccrain@{last5daysaccrain}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{last5daysaccrain}{last5daysaccrain}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:,\+:), pointer modulebasin\+::t\+\_\+scscnrunoffmodel\+::last5daysaccrain =$>$ null ()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a3e66ba06bfc7f8291f213a316efa367a}\label{structmodulebasin_1_1t__scscnrunoffmodel_a3e66ba06bfc7f8291f213a316efa367a}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!last5daysaccraintotal@{last5daysaccraintotal}}
+\index{last5daysaccraintotal@{last5daysaccraintotal}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{last5daysaccraintotal}{last5daysaccraintotal}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer modulebasin\+::t\+\_\+scscnrunoffmodel\+::last5daysaccraintotal =$>$ null ()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a25219c6269e19046a7cd10ff70b7b9b0}\label{structmodulebasin_1_1t__scscnrunoffmodel_a25219c6269e19046a7cd10ff70b7b9b0}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!nextrainaccstart@{nextrainaccstart}}
+\index{nextrainaccstart@{nextrainaccstart}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{nextrainaccstart}{nextrainaccstart}}
+{\footnotesize\ttfamily type (t\+\_\+time) modulebasin\+::t\+\_\+scscnrunoffmodel\+::nextrainaccstart\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a3c58781c4ed73cb5a86f8a37be61d0cc}\label{structmodulebasin_1_1t__scscnrunoffmodel_a3c58781c4ed73cb5a86f8a37be61d0cc}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!s@{s}}
+\index{s@{s}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{s}{s}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer modulebasin\+::t\+\_\+scscnrunoffmodel\+::s =$>$ null ()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulebasin_1_1t__scscnrunoffmodel_a9b0f4f64978436f0a713bc7cdf4924b5}\label{structmodulebasin_1_1t__scscnrunoffmodel_a9b0f4f64978436f0a713bc7cdf4924b5}} 
+\index{modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}!veggrowthstage@{veggrowthstage}}
+\index{veggrowthstage@{veggrowthstage}!modulebasin\+::t\+\_\+scscnrunoffmodel@{modulebasin\+::t\+\_\+scscnrunoffmodel}}
+\subsubsection{\texorpdfstring{veggrowthstage}{veggrowthstage}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulebasin_1_1t__propertyb}{t\+\_\+propertyb}}) modulebasin\+::t\+\_\+scscnrunoffmodel\+::veggrowthstage\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\mbox{\hyperlink{_module_basin_8_f90}{Module\+Basin.\+F90}}\end{DoxyCompactItemize}

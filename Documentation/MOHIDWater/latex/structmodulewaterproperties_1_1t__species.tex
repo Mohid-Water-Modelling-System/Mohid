@@ -1,0 +1,286 @@
+\hypertarget{structmodulewaterproperties_1_1t__species}{}\section{modulewaterproperties\+:\+:t\+\_\+species Type Reference}
+\label{structmodulewaterproperties_1_1t__species}\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+
+
+Collaboration diagram for modulewaterproperties\+:\+:t\+\_\+species\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structmodulewaterproperties_1_1t__species__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__id}{t\+\_\+id}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a0107de7d2bc45845e89ce030a2845151}{id}}
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a9de2fa306c10692e5ebb0856b0849673}{old}} = .false.
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a19909437377dd2a392bae21519a93e23}{dtinterval}} = Fill\+Value\+Real
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_ab47198081a448e1da90dc8843755c021}{larvaetransport}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a6bb1e645b82e348b95780216b2410fc4}{warnonnegativevalues}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_ab08f32cf41a00416a965eef72fc9465d}{cohortoutputhdf}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a71e0fbb787e977b064d2bd2a5368b3c3}{cohortboxtimeserie}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a510e93ee790c2ca741359d7b004afd28}{cohortstatistics}} = .false.
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a91e001f7cb044aed4c85c108b7379067}{cohortstatisticsfile}}
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a231ca52ee8f510d400c7bb53731421b1}{populationhdf}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_adfa4da631e75b52f83e45791139f3144}{populationboxtimeserie}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a3b489e5a3d980efb766d4da79262cb16}{bysizeoutputhdf}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a46a8cb457191e90de750642c7177d7cf}{bysizeboxtimeserie}} = .false.
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a6635630a2a871c49aa42b86acec7ce0a}{ncohorts}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a65e7463fa720487c5818a457b18fb464}{lastcohortid}} = 0
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__cohort}{t\+\_\+cohort}}), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a5452b9a5c3559f1e16b45a707186ccb4}{firstcohort}} =$>$ null()
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a401f174de1fb8821a7d8e31715810a19}{m\+\_\+v0}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a82606e7bd78a769a33d0a98968903f4a}{m\+\_\+e0}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a755e69df70f423f4a9f55bceeac03939}{m\+\_\+h0}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a7e3ffe481a7c079994495f415dc81442}{m\+\_\+r0}} = 0.\+0
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_af3a9b3b063679db2517bd70192def41f}{l\+\_\+0}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a092f4215a83e8c3a65bed83d49e9ad51}{a\+\_\+0}} = 0.\+0
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_aadb1e9b319e88367ac697bed97f52d56}{minobslength}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_af1be3a8cd4d6e77c21560247332c7611}{larvaemaxsize}} = Fill\+Value\+Real
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a8c299ef9b71aad03d39ecdac55fdcc16}{totaldensity}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a58b590f56f4f2cc150693ac8544fe193}{fielddensity}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_ab202c0529b13c02a2c4ac1a3f8646a4e}{totalbiomass}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a7ad9b9ff5063f17f65b49a52f00151ee}{cohortsnumber}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_afa1f4fff4beba6bf6e8e96fc0fb7d555}{settlementprobability}}
+\item 
+type(t\+\_\+propertyid) \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a9c55a028d607fe114b0fec2d14773302}{settlementid}}
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_a5414f3eb4d5486104eeb5c066590d256}{numbersizeclasses}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__sizeclass}{t\+\_\+sizeclass}}), dimension(\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_ad331ade99a7027e9f170488b377e37ef}{sizeclasses}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__species}{t\+\_\+species}}), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__species_ad7eddd9f6192888993ce0d318f5fb74a}{next}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a092f4215a83e8c3a65bed83d49e9ad51}\label{structmodulewaterproperties_1_1t__species_a092f4215a83e8c3a65bed83d49e9ad51}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!a\+\_\+0@{a\+\_\+0}}
+\index{a\+\_\+0@{a\+\_\+0}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{a\+\_\+0}{a\_0}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+species\+::a\+\_\+0 = 0.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a46a8cb457191e90de750642c7177d7cf}\label{structmodulewaterproperties_1_1t__species_a46a8cb457191e90de750642c7177d7cf}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!bysizeboxtimeserie@{bysizeboxtimeserie}}
+\index{bysizeboxtimeserie@{bysizeboxtimeserie}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{bysizeboxtimeserie}{bysizeboxtimeserie}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::bysizeboxtimeserie = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a3b489e5a3d980efb766d4da79262cb16}\label{structmodulewaterproperties_1_1t__species_a3b489e5a3d980efb766d4da79262cb16}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!bysizeoutputhdf@{bysizeoutputhdf}}
+\index{bysizeoutputhdf@{bysizeoutputhdf}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{bysizeoutputhdf}{bysizeoutputhdf}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::bysizeoutputhdf = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a71e0fbb787e977b064d2bd2a5368b3c3}\label{structmodulewaterproperties_1_1t__species_a71e0fbb787e977b064d2bd2a5368b3c3}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!cohortboxtimeserie@{cohortboxtimeserie}}
+\index{cohortboxtimeserie@{cohortboxtimeserie}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{cohortboxtimeserie}{cohortboxtimeserie}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::cohortboxtimeserie = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_ab08f32cf41a00416a965eef72fc9465d}\label{structmodulewaterproperties_1_1t__species_ab08f32cf41a00416a965eef72fc9465d}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!cohortoutputhdf@{cohortoutputhdf}}
+\index{cohortoutputhdf@{cohortoutputhdf}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{cohortoutputhdf}{cohortoutputhdf}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::cohortoutputhdf = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a7ad9b9ff5063f17f65b49a52f00151ee}\label{structmodulewaterproperties_1_1t__species_a7ad9b9ff5063f17f65b49a52f00151ee}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!cohortsnumber@{cohortsnumber}}
+\index{cohortsnumber@{cohortsnumber}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{cohortsnumber}{cohortsnumber}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulewaterproperties\+::t\+\_\+species\+::cohortsnumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a510e93ee790c2ca741359d7b004afd28}\label{structmodulewaterproperties_1_1t__species_a510e93ee790c2ca741359d7b004afd28}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!cohortstatistics@{cohortstatistics}}
+\index{cohortstatistics@{cohortstatistics}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{cohortstatistics}{cohortstatistics}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::cohortstatistics = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a91e001f7cb044aed4c85c108b7379067}\label{structmodulewaterproperties_1_1t__species_a91e001f7cb044aed4c85c108b7379067}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!cohortstatisticsfile@{cohortstatisticsfile}}
+\index{cohortstatisticsfile@{cohortstatisticsfile}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{cohortstatisticsfile}{cohortstatisticsfile}}
+{\footnotesize\ttfamily character(len=pathlength) modulewaterproperties\+::t\+\_\+species\+::cohortstatisticsfile\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a19909437377dd2a392bae21519a93e23}\label{structmodulewaterproperties_1_1t__species_a19909437377dd2a392bae21519a93e23}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!dtinterval@{dtinterval}}
+\index{dtinterval@{dtinterval}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{dtinterval}{dtinterval}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+species\+::dtinterval = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a58b590f56f4f2cc150693ac8544fe193}\label{structmodulewaterproperties_1_1t__species_a58b590f56f4f2cc150693ac8544fe193}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!fielddensity@{fielddensity}}
+\index{fielddensity@{fielddensity}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{fielddensity}{fielddensity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulewaterproperties\+::t\+\_\+species\+::fielddensity\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a5452b9a5c3559f1e16b45a707186ccb4}\label{structmodulewaterproperties_1_1t__species_a5452b9a5c3559f1e16b45a707186ccb4}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!firstcohort@{firstcohort}}
+\index{firstcohort@{firstcohort}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{firstcohort}{firstcohort}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__cohort}{t\+\_\+cohort}}), pointer modulewaterproperties\+::t\+\_\+species\+::firstcohort =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a0107de7d2bc45845e89ce030a2845151}\label{structmodulewaterproperties_1_1t__species_a0107de7d2bc45845e89ce030a2845151}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!id@{id}}
+\index{id@{id}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{id}{id}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulewaterproperties_1_1t__id}{t\+\_\+id}}) modulewaterproperties\+::t\+\_\+species\+::id\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_af3a9b3b063679db2517bd70192def41f}\label{structmodulewaterproperties_1_1t__species_af3a9b3b063679db2517bd70192def41f}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!l\+\_\+0@{l\+\_\+0}}
+\index{l\+\_\+0@{l\+\_\+0}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{l\+\_\+0}{l\_0}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+species\+::l\+\_\+0 = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_af1be3a8cd4d6e77c21560247332c7611}\label{structmodulewaterproperties_1_1t__species_af1be3a8cd4d6e77c21560247332c7611}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!larvaemaxsize@{larvaemaxsize}}
+\index{larvaemaxsize@{larvaemaxsize}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{larvaemaxsize}{larvaemaxsize}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+species\+::larvaemaxsize = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_ab47198081a448e1da90dc8843755c021}\label{structmodulewaterproperties_1_1t__species_ab47198081a448e1da90dc8843755c021}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!larvaetransport@{larvaetransport}}
+\index{larvaetransport@{larvaetransport}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{larvaetransport}{larvaetransport}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::larvaetransport = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a65e7463fa720487c5818a457b18fb464}\label{structmodulewaterproperties_1_1t__species_a65e7463fa720487c5818a457b18fb464}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!lastcohortid@{lastcohortid}}
+\index{lastcohortid@{lastcohortid}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{lastcohortid}{lastcohortid}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+species\+::lastcohortid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a82606e7bd78a769a33d0a98968903f4a}\label{structmodulewaterproperties_1_1t__species_a82606e7bd78a769a33d0a98968903f4a}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!m\+\_\+e0@{m\+\_\+e0}}
+\index{m\+\_\+e0@{m\+\_\+e0}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{m\+\_\+e0}{m\_e0}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+species\+::m\+\_\+e0 = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a755e69df70f423f4a9f55bceeac03939}\label{structmodulewaterproperties_1_1t__species_a755e69df70f423f4a9f55bceeac03939}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!m\+\_\+h0@{m\+\_\+h0}}
+\index{m\+\_\+h0@{m\+\_\+h0}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{m\+\_\+h0}{m\_h0}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+species\+::m\+\_\+h0 = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a7e3ffe481a7c079994495f415dc81442}\label{structmodulewaterproperties_1_1t__species_a7e3ffe481a7c079994495f415dc81442}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!m\+\_\+r0@{m\+\_\+r0}}
+\index{m\+\_\+r0@{m\+\_\+r0}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{m\+\_\+r0}{m\_r0}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+species\+::m\+\_\+r0 = 0.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a401f174de1fb8821a7d8e31715810a19}\label{structmodulewaterproperties_1_1t__species_a401f174de1fb8821a7d8e31715810a19}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!m\+\_\+v0@{m\+\_\+v0}}
+\index{m\+\_\+v0@{m\+\_\+v0}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{m\+\_\+v0}{m\_v0}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+species\+::m\+\_\+v0 = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_aadb1e9b319e88367ac697bed97f52d56}\label{structmodulewaterproperties_1_1t__species_aadb1e9b319e88367ac697bed97f52d56}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!minobslength@{minobslength}}
+\index{minobslength@{minobslength}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{minobslength}{minobslength}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+species\+::minobslength = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a6635630a2a871c49aa42b86acec7ce0a}\label{structmodulewaterproperties_1_1t__species_a6635630a2a871c49aa42b86acec7ce0a}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!ncohorts@{ncohorts}}
+\index{ncohorts@{ncohorts}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{ncohorts}{ncohorts}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+species\+::ncohorts = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_ad7eddd9f6192888993ce0d318f5fb74a}\label{structmodulewaterproperties_1_1t__species_ad7eddd9f6192888993ce0d318f5fb74a}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!next@{next}}
+\index{next@{next}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__species}{t\+\_\+species}}), pointer modulewaterproperties\+::t\+\_\+species\+::next\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a5414f3eb4d5486104eeb5c066590d256}\label{structmodulewaterproperties_1_1t__species_a5414f3eb4d5486104eeb5c066590d256}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!numbersizeclasses@{numbersizeclasses}}
+\index{numbersizeclasses@{numbersizeclasses}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{numbersizeclasses}{numbersizeclasses}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+species\+::numbersizeclasses\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a9de2fa306c10692e5ebb0856b0849673}\label{structmodulewaterproperties_1_1t__species_a9de2fa306c10692e5ebb0856b0849673}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!old@{old}}
+\index{old@{old}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{old}{old}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::old = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_adfa4da631e75b52f83e45791139f3144}\label{structmodulewaterproperties_1_1t__species_adfa4da631e75b52f83e45791139f3144}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!populationboxtimeserie@{populationboxtimeserie}}
+\index{populationboxtimeserie@{populationboxtimeserie}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{populationboxtimeserie}{populationboxtimeserie}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::populationboxtimeserie = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a231ca52ee8f510d400c7bb53731421b1}\label{structmodulewaterproperties_1_1t__species_a231ca52ee8f510d400c7bb53731421b1}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!populationhdf@{populationhdf}}
+\index{populationhdf@{populationhdf}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{populationhdf}{populationhdf}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::populationhdf = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a9c55a028d607fe114b0fec2d14773302}\label{structmodulewaterproperties_1_1t__species_a9c55a028d607fe114b0fec2d14773302}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!settlementid@{settlementid}}
+\index{settlementid@{settlementid}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{settlementid}{settlementid}}
+{\footnotesize\ttfamily type (t\+\_\+propertyid) modulewaterproperties\+::t\+\_\+species\+::settlementid\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_afa1f4fff4beba6bf6e8e96fc0fb7d555}\label{structmodulewaterproperties_1_1t__species_afa1f4fff4beba6bf6e8e96fc0fb7d555}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!settlementprobability@{settlementprobability}}
+\index{settlementprobability@{settlementprobability}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{settlementprobability}{settlementprobability}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulewaterproperties\+::t\+\_\+species\+::settlementprobability\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_ad331ade99a7027e9f170488b377e37ef}\label{structmodulewaterproperties_1_1t__species_ad331ade99a7027e9f170488b377e37ef}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!sizeclasses@{sizeclasses}}
+\index{sizeclasses@{sizeclasses}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{sizeclasses}{sizeclasses}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__sizeclass}{t\+\_\+sizeclass}}), dimension(\+:), pointer modulewaterproperties\+::t\+\_\+species\+::sizeclasses\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_ab202c0529b13c02a2c4ac1a3f8646a4e}\label{structmodulewaterproperties_1_1t__species_ab202c0529b13c02a2c4ac1a3f8646a4e}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!totalbiomass@{totalbiomass}}
+\index{totalbiomass@{totalbiomass}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{totalbiomass}{totalbiomass}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulewaterproperties\+::t\+\_\+species\+::totalbiomass\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a8c299ef9b71aad03d39ecdac55fdcc16}\label{structmodulewaterproperties_1_1t__species_a8c299ef9b71aad03d39ecdac55fdcc16}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!totaldensity@{totaldensity}}
+\index{totaldensity@{totaldensity}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{totaldensity}{totaldensity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulewaterproperties\+::t\+\_\+species\+::totaldensity\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__species_a6bb1e645b82e348b95780216b2410fc4}\label{structmodulewaterproperties_1_1t__species_a6bb1e645b82e348b95780216b2410fc4}} 
+\index{modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}!warnonnegativevalues@{warnonnegativevalues}}
+\index{warnonnegativevalues@{warnonnegativevalues}!modulewaterproperties\+::t\+\_\+species@{modulewaterproperties\+::t\+\_\+species}}
+\subsubsection{\texorpdfstring{warnonnegativevalues}{warnonnegativevalues}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+species\+::warnonnegativevalues = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_water_properties_8_f90}{Module\+Water\+Properties.\+F90}}\end{DoxyCompactItemize}

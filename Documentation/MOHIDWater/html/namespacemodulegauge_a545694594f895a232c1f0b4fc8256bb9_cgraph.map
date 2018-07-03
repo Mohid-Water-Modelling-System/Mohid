@@ -1,0 +1,11 @@
+<map id="modulegauge::killgauge" name="modulegauge::killgauge">
+<area shape="rect" id="node2" href="$namespacemodulegauge.html#a8ece20a220d6beae6919846687d6fe8f" title="modulegauge::ready" alt="" coords="250,5,389,32"/>
+<area shape="rect" id="node4" href="$namespacemodulegauge.html#a773a918cd865d16ad9720682f4f76009" title="modulegauge::killgaugelist" alt="" coords="232,56,407,83"/>
+<area shape="rect" id="node10" href="$namespacemodulegauge.html#a9e3c4492d77966e5e963fad0f376379f" title="modulegauge::deallocateinstance" alt="" coords="212,107,427,133"/>
+<area shape="rect" id="node3" href="$namespacemodulegauge.html#ad450a5738058992462096cd7d19b5a94" title="modulegauge::locateobjgauge" alt="" coords="475,5,669,32"/>
+<area shape="rect" id="node5" href="$namespacemodulegauge.html#acb5358a89d47698a9abd5cea060b0cc8" title="modulegauge::killtidalwavelist" alt="" coords="476,56,668,83"/>
+<area shape="rect" id="node6" href="$namespacemoduletoga.html#a9aa03039890445420290aa3feba13a89" title="moduletoga::killtoga" alt="" coords="503,107,641,133"/>
+<area shape="rect" id="node7" href="$namespacemoduletoga.html#a62311ad918280d20f2f5383ab0a8dac4" title="moduletoga::ready" alt="" coords="755,81,885,108"/>
+<area shape="rect" id="node9" href="$namespacemoduletoga.html#a0c38f2a3f8f7a4b798bbc4b523196742" title="moduletoga::deallocateinstance" alt="" coords="717,132,923,159"/>
+<area shape="rect" id="node8" href="$namespacemoduletoga.html#a0dcf3a4301085371bb48ab041d1cec59" title="moduletoga::locateobjtoga" alt="" coords="971,81,1145,108"/>
+</map>

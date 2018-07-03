@@ -1,0 +1,996 @@
+\hypertarget{_module_hydrodynamic_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Hydrodynamic.F90 File Reference}
+\label{_module_hydrodynamic_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Hydrodynamic.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Hydrodynamic.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemodulehydrodynamic_1_1nullgradprop3d__w}{modulehydrodynamic\+::nullgradprop3d\+\_\+w}}
+\item 
+interface \mbox{\hyperlink{interfacemodulehydrodynamic_1_1ungethydrodynamic}{modulehydrodynamic\+::ungethydrodynamic}}
+\item 
+interface \mbox{\hyperlink{interfacemodulehydrodynamic_1_1pythag}{modulehydrodynamic\+::pythag}}
+\item 
+interface \mbox{\hyperlink{interfacemodulehydrodynamic_1_1hydropropassimilation}{modulehydrodynamic\+::hydropropassimilation}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__state}{modulehydrodynamic\+::t\+\_\+state}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__direction}{modulehydrodynamic\+::t\+\_\+direction}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__files}{modulehydrodynamic\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__ddecomp}{modulehydrodynamic\+::t\+\_\+ddecomp}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__generic4d}{modulehydrodynamic\+::t\+\_\+generic4d}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__nonhydrostatic}{modulehydrodynamic\+::t\+\_\+nonhydrostatic}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__waterlevel}{modulehydrodynamic\+::t\+\_\+waterlevel}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__vel__uv}{modulehydrodynamic\+::t\+\_\+vel\+\_\+uv}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__horizontal}{modulehydrodynamic\+::t\+\_\+horizontal}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__vertical}{modulehydrodynamic\+::t\+\_\+vertical}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__velocity}{modulehydrodynamic\+::t\+\_\+velocity}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__waterfluxes}{modulehydrodynamic\+::t\+\_\+waterfluxes}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__residual}{modulehydrodynamic\+::t\+\_\+residual}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__geostroph}{modulehydrodynamic\+::t\+\_\+geostroph}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__forces}{modulehydrodynamic\+::t\+\_\+forces}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__waverad3d}{modulehydrodynamic\+::t\+\_\+waverad3d}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__stokesvel}{modulehydrodynamic\+::t\+\_\+stokesvel}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__wavestress}{modulehydrodynamic\+::t\+\_\+wavestress}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__horadvection}{modulehydrodynamic\+::t\+\_\+horadvection}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__coef__1d}{modulehydrodynamic\+::t\+\_\+coef\+\_\+1d}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__coef__2d}{modulehydrodynamic\+::t\+\_\+coef\+\_\+2d}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__coef__3d}{modulehydrodynamic\+::t\+\_\+coef\+\_\+3d}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__coef__baroc}{modulehydrodynamic\+::t\+\_\+coef\+\_\+baroc}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__instantbound}{modulehydrodynamic\+::t\+\_\+instantbound}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__imposed}{modulehydrodynamic\+::t\+\_\+imposed}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__velbaroclinic}{modulehydrodynamic\+::t\+\_\+velbaroclinic}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__coefficients}{modulehydrodynamic\+::t\+\_\+coefficients}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__external}{modulehydrodynamic\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__drag}{modulehydrodynamic\+::t\+\_\+drag}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__scraper}{modulehydrodynamic\+::t\+\_\+scraper}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__thinwalls}{modulehydrodynamic\+::t\+\_\+thinwalls}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__windwaves}{modulehydrodynamic\+::t\+\_\+windwaves}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__hydrocoupling}{modulehydrodynamic\+::t\+\_\+hydrocoupling}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__hydrooptions}{modulehydrodynamic\+::t\+\_\+hydrooptions}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__landabsorption}{modulehydrodynamic\+::t\+\_\+landabsorption}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__output}{modulehydrodynamic\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__outw}{modulehydrodynamic\+::t\+\_\+outw}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__energy}{modulehydrodynamic\+::t\+\_\+energy}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__astro}{modulehydrodynamic\+::t\+\_\+astro}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__fault}{modulehydrodynamic\+::t\+\_\+fault}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__tsunami}{modulehydrodynamic\+::t\+\_\+tsunami}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__relaxation}{modulehydrodynamic\+::t\+\_\+relaxation}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__submodel}{modulehydrodynamic\+::t\+\_\+submodel}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__hydrostatistic}{modulehydrodynamic\+::t\+\_\+hydrostatistic}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__cyclicboundary}{modulehydrodynamic\+::t\+\_\+cyclicboundary}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__emersion}{modulehydrodynamic\+::t\+\_\+emersion}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamic_1_1t__hydrodynamic}{modulehydrodynamic\+::t\+\_\+hydrodynamic}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulehydrodynamic}{modulehydrodynamic}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a5f577b4eaf3f21452c288af53dcffb69}{modulehydrodynamic\+::starthydrodynamic}} (Model\+Name, Hydrodynamic\+ID, Grid\+Data\+ID, Horizontal\+Grid\+ID, Geometry\+ID, Horizontal\+Map\+ID, Map\+ID, Assimilation\+ID, Time\+ID, Turbulence\+ID, Discharges\+ID, Waves\+ID, ifdef \+\_\+\+E\+N\+A\+B\+L\+E\+\_\+\+C\+U\+DA
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aacffef10ed59e5eb96916e7a72dbff26}{modulehydrodynamic\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a71f29b5c93f202c8e783ecb892b1b497}{modulehydrodynamic\+::construct\+\_\+hydrodynamic}} (Discharges\+ID, Assimilation\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ac05ecc81fa8270b9ed0247f513b0c5d9}{modulehydrodynamic\+::constructddecomp}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a4627a0c2583b12e5490b0ddf81573972}{modulehydrodynamic\+::initialhydrodynamicfield}} (Discharges\+ID, Assimilation\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ab991fa8b939ae331f5361fbce83a2ed9}{modulehydrodynamic\+::constructhydro2way}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a1edb0b24590f8074445b2a82f3bf1daf}{modulehydrodynamic\+::generic4thdimension}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a8c1095168f036a4615b7ef4ad633717b}{modulehydrodynamic\+::readinitialimposedsolution}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ac4bc667c44ab1d14eaa3efa39b224aa1}{modulehydrodynamic\+::readinitialtidestate}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ae2c9c19e22a3490a8d02e575bf8dd5a7}{modulehydrodynamic\+::constructdragcoefficients}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aced773f111ad70fa9ce5069abbc8a7eb}{modulehydrodynamic\+::constructscraper}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a25b15c0ef46c1b48f735915c9ffdd9c2}{modulehydrodynamic\+::constructlandabsorptioncoef}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a072dc4d4b10aa4a8338fa245f13abfec}{modulehydrodynamic\+::constructthinwalls}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_acf1676d4429b32307257ed7006fc59e1}{modulehydrodynamic\+::constructwindwaves}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a4884a32bf5be45ca0a9b657f2998efa7}{modulehydrodynamic\+::constructtsunami}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_adacb48ce53fa202c94f8c282a714e069}{modulehydrodynamic\+::construct\+\_\+hydrodynamictime}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a1df79abd6d7bd327711cac635586b443}{modulehydrodynamic\+::actualize\+\_\+hydrodynamictimestep}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a38cc357414f891bddecb56ab805ed45b}{modulehydrodynamic\+::read\+\_\+hydrodynamic\+\_\+files\+\_\+name}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aec1826f2eaf93245fac759d36238b464}{modulehydrodynamic\+::construct\+\_\+numerical\+\_\+options}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a95bd184509c8f6ec79226d6c0d2fac28}{modulehydrodynamic\+::inicwavestressoptions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a2c1b59ad00ab5b15fcde63fd663d2f54}{modulehydrodynamic\+::construct\+\_\+radiabaroclinic}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a7c3dd39beec17720b08c54e61c02ecc8}{modulehydrodynamic\+::verify\+\_\+numerical\+\_\+options}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_afd2aaa7b8dac18e2bd28abcf31a9cb16}{modulehydrodynamic\+::constructblumbergkantha}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a0f6a249ae16b4abbfcead3fdc4641a89}{modulehydrodynamic\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_acaa5f838138b21f2c4d3c245177ae6bf}{modulehydrodynamic\+::construct\+\_\+sub\+\_\+modules}} (Discharges\+ID, Assimilation\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a144fedbdcc486e7eda6dcae5d0b49d78}{modulehydrodynamic\+::constructhydrooverlap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a03c47a8a1c14b9e6471a24944ad9aae5}{modulehydrodynamic\+::constructhydrostatistic}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ae7cd830108d9eacfb53fd458817db13d}{modulehydrodynamic\+::startoutputboxfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aea0ceff2b860562b897884814ae392d9}{modulehydrodynamic\+::construct\+\_\+outputtime}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af871717e205963c29069ba0ee23cd512}{modulehydrodynamic\+::constructhydrodynamicproperties}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a6cc306a7b1d6e64156d2df83e7ea6550}{modulehydrodynamic\+::initialreferencewaterfluxes}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_acc95ab35ad823a54bc0cab6a88e60830}{modulehydrodynamic\+::initialhydrodynamicfilevel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a00b05bd1a14d5fd621b3b3ab3463568b}{modulehydrodynamic\+::newequalsold}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aed12798a19237f32da3dbf20b90a6e41}{modulehydrodynamic\+::initial\+\_\+geometry}} (External\+Water\+Level)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a381b9a6e56cf40fbb60e681f7874c983}{modulehydrodynamic\+::open\+\_\+hdf5\+\_\+output\+\_\+file}} (iW)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a8cd8ea126b12cb779766bcdbe905b6b0}{modulehydrodynamic\+::open\+\_\+surface\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a50ddc8a159376915f9ee9328f388d4fe}{modulehydrodynamic\+::construct\+\_\+time\+\_\+serie}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ae0edf0b5ed199a732c27734b798443ab}{modulehydrodynamic\+::construct\+\_\+time\+\_\+serie\+\_\+discharge}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aa3b8aa943159cc40b65537cff1888b6e}{modulehydrodynamic\+::construct\+\_\+output\+\_\+profile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a40ae80918927a7eb25c954cec3bd2b40}{modulehydrodynamic\+::constructmatrixesoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a048299b4cfb1c4c013ad653ff9e85f70}{modulehydrodynamic\+::constructenergy}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a2a52e863aeb7df55203e4f6646d9b4a5}{modulehydrodynamic\+::constructtidepotential}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a2892f053e17fe9b586d237a8b6684326}{modulehydrodynamic\+::constructsubmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ac37871a130f9232cb11f29fc34327f44}{modulehydrodynamic\+::constructrelaxation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a6effd02220d9411965b29d5f27b26d92}{modulehydrodynamic\+::courantgh}}
+\item 
+real function, private \mbox{\hyperlink{namespacemodulehydrodynamic_a752353d6a88048109cbe1a037fe56ef7}{modulehydrodynamic\+::f\+\_\+courant}} (Velocity, DT, DX)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_afd382f82c852a1679b370aaa578e6ce2}{modulehydrodynamic\+::outputcourant}} (Courant, I, J)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a132ea2e90b030b8a52c174eec61093e2}{modulehydrodynamic\+::pointtohydrostate}} (Hydrodynamic\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a6a39453a1be66896cddce62126fa7bcc}{modulehydrodynamic\+::copywaterlevel}} (Hydrodynamic\+ID, Size2D, Water\+Level, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_af9f7b027775cfbeb5d359cec2be0b0ad}{modulehydrodynamic\+::copyhorizontalvelocity}} (Hydrodynamic\+ID, Size3D, Velocity\+\_\+U, Velocity\+\_\+V, Old\+Velocity\+\_\+U, Old\+Velocity\+\_\+V, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a8d99754e0f222c6f691a79e16a3b85b5}{modulehydrodynamic\+::copyverticalvelocity}} (Hydrodynamic\+ID, Size3D, Velocity\+\_\+W, Velocity\+\_\+\+Across, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a389c77d3103d5944ec90680d613d2e56}{modulehydrodynamic\+::copywaterfluxes}} (Hydrodynamic\+ID, Size3D, Water\+FluxX, Water\+FluxY, Water\+FluxZ, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a69bb56671a822946694acb66f9417d61}{modulehydrodynamic\+::copysubmodelfluxes}} (Hydrodynamic\+ID, Size3D, Sub\+ModelqX, Sub\+ModelqY, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a7f81263a032159db07514b5cfba12a65}{modulehydrodynamic\+::copychezyveluv}} (Hydrodynamic\+ID, Size2D, Chezy\+Vel\+UV, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_aaf6054c97ad6e684bd893e075b4d0641}{modulehydrodynamic\+::getdirection}} (Hydrodynamic\+ID, Implicit\+Direction, DirectionX, DirectionY, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_ab585744f4ba5d5552dabea7edb88d98b}{modulehydrodynamic\+::gethydrodynamicsource}} (Hydrodynamic\+ID, Hydrodynamic\+Source, Solve\+\_\+\+Equations, Read\+\_\+\+File, No\+\_\+hydrodynamic, Residual\+\_\+hydrodynamic, Run\+\_\+\+Off, Imposed\+Solution, Vertical1D, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a29f89183d9394468a6db08ec640599f1}{modulehydrodynamic\+::getwaterfluxes}} (Hydrodynamic\+ID, Water\+FluxX, Water\+FluxY, Water\+FluxZ, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_ae3e2525663a2551838685e1e108e3145}{modulehydrodynamic\+::getdischargesfluxes}} (Hydrodynamic\+ID, Discharges, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a40c227e3eb106f2eae640e8533ab5e3b}{modulehydrodynamic\+::getwavesstresson}} (Hydrodynamic\+ID, Waves\+Stress\+ON, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a6ebc590498ef2108834cad47a70d1f3a}{modulehydrodynamic\+::getpointdischargesstate}} (Hydrodynamic\+ID, Discharges\+ON, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_aba7eae61c437ef648710efabc4d39e36}{modulehydrodynamic\+::gethorizontalvelocity}} (Hydrodynamic\+ID, Velocity\+\_\+U, Velocity\+\_\+V, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a987751c28d42e91f65901a19ca158b03}{modulehydrodynamic\+::getresidualvelocityon}} (Hydrodynamic\+ID, Residual\+ON, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a5e97af02320deab67308d99bcf2745e1}{modulehydrodynamic\+::getresidualhorizontalvelocity}} (Hydrodynamic\+ID, Velocity\+Residual\+\_\+U, Velocity\+Residual\+\_\+V, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a64e767d6cd62ef19087fffd022d0ca4a}{modulehydrodynamic\+::get2wayauxvariables}} (Hydrodynamic\+ID, Son\+Volume\+In\+Father\+Cell, Aux\+Matrix, Corners, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a7161ffc34f27ea1c9e5f1f9bdc165d07}{modulehydrodynamic\+::getoldhorizontalvelocity}} (Hydrodynamic\+ID, Old\+Velocity\+\_\+U, Old\+Velocity\+\_\+V, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a898445cf253d8a76844408350387b376}{modulehydrodynamic\+::getvelocitymodulus}} (Hydrodynamic\+ID, Velocity\+Modulus, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a6f64fd12742f48039f81460df9c0cd42}{modulehydrodynamic\+::getverticalvelocity}} (Hydrodynamic\+ID, Velocity\+\_\+W, Velocity\+\_\+\+Across, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_ad29ca3143969ea453d432e0a8f2dde2d}{modulehydrodynamic\+::getwaterlevel}} (Hydrodynamic\+ID, Water\+Level, Water\+Level\+Old, DT, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a890cdf33bc8b461d93da82f9150c774e}{modulehydrodynamic\+::gethydrodynamicairoptions}} (Hydrodynamic\+ID, Surface\+Water\+Flux\+Yes, Wind\+Yes, Atm\+Pressure\+Yes, Mslp\+Yes, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a377c174d00228d8f36d2d1c5e10a7f32}{modulehydrodynamic\+::getchezy}} (Hydrodynamic\+ID, Chezy, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a391b4f9e43b2d5d986bedc666b00da4d}{modulehydrodynamic\+::gethydroneedsfather}} (Hydrodynamic\+ID, cdsub\+Model, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a4d4e017a80d72328f2cdd7b71420fbf3}{modulehydrodynamic\+::gethydroaltimassim}} (Assimilation\+ID, Altimetric\+Assimilation, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a384df1b51bd6ad1c528b5658c4414bae}{modulehydrodynamic\+::getvertical1d}} (Hydrodynamic\+ID, Vertical1D, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_af349d31454a6c7a674ed8d54430b0e52}{modulehydrodynamic\+::getxzflow}} (Hydrodynamic\+ID, X\+Z\+Flow, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ab2980a48cd10c0f2def3784cbf27608c}{modulehydrodynamic\+::gethydroseqassimilation}} (Hydrodynamic\+ID, Run\+Seq\+Assimilation, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a073f4ba07360a6b7522733db2651b41d}{modulehydrodynamic\+::getcyclicboundary}} (Hydrodynamic\+ID, Cyclic\+Boundary\+ON, Cyclic\+Boundary\+Direction, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a2b0f8d10e1768612e8bc67bcc2535ffe}{modulehydrodynamic\+::getsubmodelfluxes}} (Hydrodynamic\+ID, Sub\+ModelqX, Sub\+ModelqY, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a95c4b43f87d68ca27ecae9520c33f91f}{modulehydrodynamic\+::getchezyveluv}} (Hydrodynamic\+ID, Chezy\+Vel\+UV, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a624a2d0694d918e1923e5b6464802fce}{modulehydrodynamic\+::ungethydrodynamic3dreal4}} (Hydrodynamic\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a850463758a40d651e2c1a5de7adb45cc}{modulehydrodynamic\+::ungethydrodynamic2dinteger}} (Hydrodynamic\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a7c4ba25ca6d8985ff9fc7b27aebbf48e}{modulehydrodynamic\+::ungethydrodynamic2dreal4}} (Hydrodynamic\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a38b09b823496f823b15a0b020595a9c1}{modulehydrodynamic\+::ungethydrodynamic2dreal8}} (Hydrodynamic\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_afc2a72c29bd11cd7048168f6275a3938}{modulehydrodynamic\+::ungethydrodynamic3dreal8}} (Hydrodynamic\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aeb1abec5f84ff629b6a72c2c9955c7af}{modulehydrodynamic\+::ungethydrodynamic3dinteger}} (Hydrodynamic\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_afcbe369a4cc8b78bc18a290f3e05a412}{modulehydrodynamic\+::sethydrodynamicmanning}} (Hydrodynamic\+ID, Manning, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_aa753ccba1fb48238465631f89ecd8cb6}{modulehydrodynamic\+::sethydrodynamicchezy}} (Hydrodynamic\+ID, Chezy, Chezy\+Coef, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_abf6161f88fc2f65b07d9f8764a501633}{modulehydrodynamic\+::sethydrodynamicrugositymatrix}} (Hydrodynamic\+ID, Rugosity\+Matrix, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a9f134631e27c5fcbe9d6185409149bb5}{modulehydrodynamic\+::setsurfacewaterflux}} (Hydrodynamic\+ID, Surface\+Water\+Flux, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_ab2050ec05277d36366cce71907994973}{modulehydrodynamic\+::setbottomwaterflux}} (Hydrodynamic\+ID, Bottom\+Water\+Flux, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a9286159a46a146fe7713e10cda0bf636}{modulehydrodynamic\+::setwindstress}} (Hydrodynamic\+ID, Wind\+Stress\+\_\+X, Wind\+Stress\+\_\+Y, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_ab767a1bf58d41f86c6b2ab58684d962d}{modulehydrodynamic\+::setatmosphericpressure}} (Hydrodynamic\+ID, Atmospheric\+Pressure, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_ad7a33c322002783aeb2b7b50ed690a4b}{modulehydrodynamic\+::setwavechezyvel}} (Hydrodynamic\+ID, Wave\+Chezy\+Vel, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ac429c4fc2329d56d285f5389d5d57e55}{modulehydrodynamic\+::setwaterlevel}} (Hydrodynamic\+ID, Water\+Level, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a57dc7c696d4679f3a6d7f8f297145b63}{modulehydrodynamic\+::sethorizontalvelocity}} (Hydrodynamic\+ID, Velocity\+\_\+U, Velocity\+\_\+V, Old\+Velocity\+\_\+U, Old\+Velocity\+\_\+V, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a0ed7fd6441646298396381636f172534}{modulehydrodynamic\+::setverticalvelocity}} (Hydrodynamic\+ID, Velocity\+\_\+W, Velocity\+\_\+\+Across, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a6c2c32efe21be75b5ffccf7b9d4dbcdb}{modulehydrodynamic\+::setwaterfluxes}} (Hydrodynamic\+ID, Water\+FluxX, Water\+FluxY, Water\+FluxZ, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ab017d9a33e10a535dcc4b545900925de}{modulehydrodynamic\+::setsubmodelfluxes}} (Hydrodynamic\+ID, Sub\+ModelqX, Sub\+ModelqY, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a62a3231781314de8d69f6f4216245361}{modulehydrodynamic\+::setchezyveluv}} (Hydrodynamic\+ID, Chezy\+Vel\+UV, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a429223ac8f920fd2b743524bf353e8c1}{modulehydrodynamic\+::sethydrovirtualrun}} (Hydrodynamic\+ID, Virtual\+Run, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a81fe705d1430f64e261259b13a8b46f8}{modulehydrodynamic\+::resethydrodynamicproperties}} (Hydrodynamic\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_abc0b4b19014469e3102675a4dbffe103}{modulehydrodynamic\+::setshearstressmethod}} (Hydrodynamic\+ID, Shear\+Stress\+Method, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a820fb4f4565d7dc61e2cfa6517a1390f}{modulehydrodynamic\+::setwaveshearstress}} (Hydrodynamic\+ID, Wave\+Shear\+Stress, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a54656696e009a87a266514744beb5baa}{modulehydrodynamic\+::modify\+\_\+hydrodynamic}} (Hydrodynamic\+ID, Density, Sigma\+Dens, New\+DT, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a63b7d9d86f7746faae381352cdb4ceda}{modulehydrodynamic\+::calcnewdt}} (New\+DT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ab12f940af5dec2fe8ed4767b7a50fc07}{modulehydrodynamic\+::statistics\+\_\+output}} (CenterU, CenterV, CenterW, ModulusH, Water\+Level)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_abc9bf4137583800ad278abc052b5de37}{modulehydrodynamic\+::sethydrofather}} (Hydrodynamic\+ID, Hydrodynamic\+Father\+ID, Initial\+Field, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ab0672dab245838d200adce9cad0f729e}{modulehydrodynamic\+::testsubmodeloptionsconsistence}} (Father\+Continuous)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a6c99419ab0bd5db0c25f899c10d86020}{modulehydrodynamic\+::actualizesubmodelvalues}} (Initial\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a22559e3146696632ddf4733faac3f167}{modulehydrodynamic\+::actualizeson3dwithfather2d}} (Initial\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af75db98fe37a03b0a927c6e2799e2b13}{modulehydrodynamic\+::actualizeson3dwithfather3d}} (Initial\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aa08df6c812db6e473c13d11473d2c1ad}{modulehydrodynamic\+::removelowerspikes}} (Values2D, Water\+Points, Bathymetry, Min\+Water\+Column, Dead\+Zone\+Points, Dead\+Zone\+ON, I\+LB, I\+UB, J\+LB, J\+UB, K\+UB, Boundary\+Points)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af6d2413608971031e8650e99548abfc7}{modulehydrodynamic\+::readnextorinitialfield}} (U\+Father, V\+Father, D\+U\+Z\+Father, D\+V\+Z\+Father, Flux\+X\+Father, Flux\+Y\+Father, Z\+Father, Open3\+D\+Father, Faces3\+D\+\_\+\+U\+Father, Faces3\+D\+\_\+\+V\+Father, Wet\+Faces\+\_\+\+U\+Father, Wet\+Faces\+\_\+\+V\+Father, Initial\+Field, Father\+Horizontal\+Grid)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aab2200414765344d596b6ebaadc2fa4a}{modulehydrodynamic\+::addsubmodelwaterlevel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_afdbd6a69d8a99bcbad6b5c090639bc1b}{modulehydrodynamic\+::readlockfather}} (Obj\+Hydrodynamic\+Father, Flux\+X\+Father, Flux\+Y\+Father, Open3\+D\+Father, Faces3\+D\+\_\+\+U\+Father, Faces3\+D\+\_\+\+V\+Father, Wet\+Faces\+\_\+\+U\+Father, Wet\+Faces\+\_\+\+V\+Father, U\+Father, V\+Father, Z\+Father, D\+U\+Z\+Father, D\+V\+Z\+Father)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_afeaf24401841ea327d58dcaa1b45a92f}{modulehydrodynamic\+::readunlockfather}} (Obj\+Hydrodynamic\+Father, Flux\+X\+Father, Flux\+Y\+Father, Open3\+D\+Father, Faces3\+D\+\_\+\+U\+Father, Faces3\+D\+\_\+\+V\+Father, Wet\+Faces\+\_\+\+U\+Father, Wet\+Faces\+\_\+\+V\+Father, U\+Father, V\+Father, Z\+Father, D\+U\+Z\+Father, D\+V\+Z\+Father)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ad125ca32b530446bb6be8cbf582f792e}{modulehydrodynamic\+::readlockson}} (Imposed\+Tang\+Faces\+U\+Son, Imposed\+Tang\+Faces\+V\+Son, Imposed\+Norm\+Faces\+U\+Son, Imposed\+Norm\+Faces\+V\+Son, Water3\+D\+Son, Boundary2\+D\+Son, Faces3\+D\+\_\+\+U\+Son, Faces3\+D\+\_\+\+V\+Son, D\+U\+Z\+\_\+\+Son, D\+V\+Z\+\_\+\+Son, D\+X\+X\+\_\+\+Son, D\+Y\+Y\+\_\+\+Son)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a0f4e404d78ffa5a1fef104a6f662d68d}{modulehydrodynamic\+::readunlockson}} (Imposed\+Tang\+Faces\+U\+Son, Imposed\+Tang\+Faces\+V\+Son, Imposed\+Norm\+Faces\+U\+Son, Imposed\+Norm\+Faces\+V\+Son, Water3\+D\+Son, Boundary2\+D\+Son, Faces3\+D\+\_\+\+U\+Son, Faces3\+D\+\_\+\+V\+Son, D\+U\+Z\+\_\+\+Son, D\+V\+Z\+\_\+\+Son, D\+X\+X\+\_\+\+Son, D\+Y\+Y\+\_\+\+Son)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a49aef52cb34ad32b24871447f610a2a4}{modulehydrodynamic\+::constructtimeinterpolation}} (D\+T\+\_\+\+Father)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a106c8a097031ad23a85c1c2487284b7f}{modulehydrodynamic\+::actualises\+\_\+hydrodynamic}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a054b8ffaff698f4cc430c2f7f0bc0da9}{modulehydrodynamic\+::one\+\_\+iteration}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aeb9df81c7e232565cec18de1a51923d0}{modulehydrodynamic\+::readimposedsolution}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aa05a995dd1f1f6550d1ecdfb0a0bab47}{modulehydrodynamic\+::momentummassconservation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aa70939d9e325f64455a339e7369d5b4c}{modulehydrodynamic\+::verticalmomentum}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a7b6e382d0318b7799ad5228e8148e1ac}{modulehydrodynamic\+::verticalmomentumboundary}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a5ec24d04376be68e9e9be33881024200}{modulehydrodynamic\+::nullgradprop3d\+\_\+w\+\_\+r4}} (Prop)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a13ad3cb0f06fa1566caea1eedccae55a}{modulehydrodynamic\+::nullgradprop3d\+\_\+w\+\_\+r8}} (Prop)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_abc8e7cbc6bd77b58f41b41db117c979b}{modulehydrodynamic\+::nonhydrostaticcorrection}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a38e7a7184b963c8e5a55ddb911180c72}{modulehydrodynamic\+::szzgradients}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ae703b0f1de9b2461040ee74aa6867ff7}{modulehydrodynamic\+::thomas\+\_\+2d\+\_\+nonhydrocorrection}} (p, s, n, q, pc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aa8e7eaaf3d7106144fb138675637be7e}{modulehydrodynamic\+::nonhydroopenboundary}} (In\+Time)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a5a21356710281101f911022fe04dd47d}{modulehydrodynamic\+::nonhydrodischarges}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a40e6066d8e63726036522b3dcddee56a}{modulehydrodynamic\+::computecartesiannh}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a2b422929c9c1ce1f75858893e788082f}{modulehydrodynamic\+::readhydrodynamicfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a348f4fbd3311ec9fc2bcc611faaa34be}{modulehydrodynamic\+::new\+\_\+geometry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a9865dafdd7098ab67142ed4fe05d5548}{modulehydrodynamic\+::new\+\_\+verticalhydrodynamic}} (Grid)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a8ca7371a9688becd96976013be92880a}{modulehydrodynamic\+::leendertse\+\_\+scheme}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ab24f3a1aadd0e5ea548005ab690517a5}{modulehydrodynamic\+::abbott\+\_\+scheme}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aad271ff300fe974ab4d13ed6f1bd315d}{modulehydrodynamic\+::implicit\+\_\+1dscheme}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a21da40cf926fb3d12ccc40743a115da6}{modulehydrodynamic\+::changedirection}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a178f5e060ebc6d1ddcb0e70a9c9e95c2}{modulehydrodynamic\+::maintaindirection}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ad1dd8c0a50f0deaee0d084b9938b1361}{modulehydrodynamic\+::associatedirectiony}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a46e9869092f2ae2a7161f224fb8929e7}{modulehydrodynamic\+::associatedirectionx}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a43c5994c86b411881eec077d6376cb07}{modulehydrodynamic\+::nullifyauxiliarpointers}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aba4d9045d33fdc1b7b6011fd3fbb9c28}{modulehydrodynamic\+::compute\+\_\+velocity}} (Pressure\+Backward\+In\+Time)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a4ced11a2f90a07418b9497e7e9b068b7}{modulehydrodynamic\+::computebarotropicvelocity}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a2237f44be04f4c5aeac0890ddec1ce4b}{modulehydrodynamic\+::instantmixingsmalldepths}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a264a587e27769271754a3a3a8979a9b8}{modulehydrodynamic\+::compute\+\_\+velocityfromfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_abe745b3932a59db4111fe2798a0c335d}{modulehydrodynamic\+::compute\+\_\+waterlevel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a95f2fab061ef070b4278d48f1e7028e2}{modulehydrodynamic\+::dip\+\_\+slip}} (X2, Y1, Y2, DP, DD, F)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a38a2568403edbdf1d10000f553f39252}{modulehydrodynamic\+::strike\+\_\+slip}} (X2, Y1, Y2, DP, DD, F)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a1d685e489f857af3dd0c69835d0b081d}{modulehydrodynamic\+::stereo\+\_\+projection}} (X, Y, L\+O\+N\+IN, L\+A\+T\+IN, L\+O\+N0, L\+A\+T0)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_af90f1292b4b75aa67f18563e3030e056}{modulehydrodynamic\+::faultokada1985}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a639b9213d8587d0f1a43c4b8f842d43f}{modulehydrodynamic\+::faultinputfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af4cd55d170e7b64149a737b5bbe9951c}{modulehydrodynamic\+::waterlevel\+\_\+tsunami}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ac03117b3b11b92ebf56eb60fad884b0b}{modulehydrodynamic\+::thomas\+\_\+2d\+\_\+ddecomp}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a0d43e324a40d96741fa99e647c0d0e01}{modulehydrodynamic\+::aggregatesthomascoefs}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a3dc68350b123c83700a52b23bdbf8151}{modulehydrodynamic\+::broadcastthomasresult}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a080df16267de295975f460ddb4cba152}{modulehydrodynamic\+::copythomascoefs}} (D, F, Ti, E, Inner, Mapping)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a60fe8dcc9369b6f2caa9b97647a7f605}{modulehydrodynamic\+::receivesendvelocity3dmpi}} (Property3D, Vector)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a1adc02badc9c5130d372cfb28e43f796}{modulehydrodynamic\+::waterlevelcorrection}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a4c31b8fb87415bace90b12dd41376ef4}{modulehydrodynamic\+::waterlevelmaxmin}} (Water\+Level\+\_\+\+Max, Water\+Level\+\_\+\+Min)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_abc3f56e92d973f39a2bde89ee0ee561f}{modulehydrodynamic\+::waterlevel\+\_\+openboundary}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a3a81c2f0eddf64c038d5a82241029379}{modulehydrodynamic\+::waterlevel\+\_\+nullgrad}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a25549ff328b3933642ae5a9112a7d2ba}{modulehydrodynamic\+::waterlevel\+\_\+imposedwave}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a07cbcb571bac038116c36df1b277df63}{modulehydrodynamic\+::waterlevel\+\_\+cyclicboundary}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a51f796ba1d401f24370c5f9dd5ec71ae}{modulehydrodynamic\+::cycliccoef2d}} (Ti\+Coef\+\_\+2D, Ti\+Coef\+\_\+2\+D\+\_\+\+Aux, Aux\+Explicit, D\+T\+\_\+\+Area\+Cell1, D\+T\+\_\+\+Area\+Cell2, I, J, i\+South, j\+West, Dcoef\+\_\+2D, E\+Coef\+\_\+2D, E\+Coef\+\_\+2\+D\+\_\+\+Aux, F\+Coef\+\_\+2D, Aux\+Implicit, Direction)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ab70188c3f183ae7e6142adec6d3ea9fe}{modulehydrodynamic\+::cyclicboundvectnormal}} (Vector, VectorD)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a0d8c9bbfb63616e6ad93ba589923c7eb}{modulehydrodynamic\+::cyclicboundvecttangential}} (Vector, VectorD)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a700b6b9b38f8b3e2c1a84293c349c18a}{modulehydrodynamic\+::cyclicboundvertical}} (Vector, VectorD)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a31821bc82ef6a38083be92796ac733a3}{modulehydrodynamic\+::waterlevel\+\_\+flatherwindwave}} (Water\+Flux\+\_\+\+XY, Water\+Flux\+\_\+\+YX, Water\+Column\+UV, D\+U\+X\+\_\+\+VY, D\+V\+Y\+\_\+\+UX, D\+Y\+Y\+\_\+\+XX, Compute\+Faces3\+D\+\_\+\+UV, Compute\+Faces3\+D\+\_\+\+VU, Boundary\+Faces\+UV, kfloor\+\_\+\+UV, kfloor\+\_\+\+VU, di, dj, Implicit\+Faces)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ad3ece2178c3e256dbf915ccbe0b88599}{modulehydrodynamic\+::waterlevel\+\_\+flatherwindwavev2}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ae8536b67d3763d371e3025b09e7920a6}{modulehydrodynamic\+::waterlevel\+\_\+flatherwindwavev3}} (Water\+Flux\+\_\+\+XY, Water\+Flux\+\_\+\+YX, Water\+Column\+UV, D\+U\+X\+\_\+\+VY, D\+V\+Y\+\_\+\+UX, D\+Y\+Y\+\_\+\+XX, Compute\+Faces3\+D\+\_\+\+UV, Compute\+Faces3\+D\+\_\+\+VU, Boundary\+Faces\+UV, kfloor\+\_\+\+UV, kfloor\+\_\+\+VU, di, dj, Direction\+XY, Implicit\+Faces)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a9e27696e9df4a46aae637e4ecb5bb626}{modulehydrodynamic\+::waterlevel\+\_\+flatherlocalsolution}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a2cc7d18aae53734d8068f7a35a0fd029}{modulehydrodynamic\+::computelandabsorption}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ae5c38adbe04a8331efddb3eb147a9de3}{modulehydrodynamic\+::waterlevel\+\_\+blumbergkantha}}
+\item 
+real(4) function, private \mbox{\hyperlink{namespacemodulehydrodynamic_ad663f2d92092122d354c40c8e3be00b0}{modulehydrodynamic\+::spythag}} (a, b)
+\item 
+real(8) function, private \mbox{\hyperlink{namespacemodulehydrodynamic_a0f02ba5b0cd9a0eb64c1d50570398e36}{modulehydrodynamic\+::dpythag}} (a, b)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a678adb3cd056a0f44a4c7ba6b7ba8544}{modulehydrodynamic\+::velocity\+\_\+landboundaryglm}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ad3f40e56e615a729156e48c10775bde3}{modulehydrodynamic\+::velocity\+\_\+openboundary}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a52c5b67b475eb26914ed1a1975345d69}{modulehydrodynamic\+::veltangentialradiaopenboundary}} (Velocity\+\_\+\+U\+V\+\_\+\+New, Baroclinic\+UV, Barotropic\+UV)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a2ee641749eb16598ae6dfe7afd0e53ef}{modulehydrodynamic\+::velnormalradiaopenboundary}} (Velocity\+\_\+\+U\+V\+\_\+\+New, Baroclinic\+UV, Barotropic\+UV)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ab4a3acec600d04e2afbf5acc7f68b642}{modulehydrodynamic\+::masknonusedfaces}} (Velocity\+\_\+\+U\+V\+\_\+\+New)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af23df453cb52dbe604e896aba3b572aa}{modulehydrodynamic\+::velnormalopenboundary}} (Velocity\+\_\+\+U\+V\+\_\+\+New)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a0be051dfb2855eb7014145fceaa64075}{modulehydrodynamic\+::veltangentialopenboundary}} (Velocity\+\_\+\+U\+V\+\_\+\+New)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aca265830a6a43d55606480ef5abdb2af}{modulehydrodynamic\+::velsubmodelnormalob}} (Velocity\+\_\+\+U\+V\+\_\+\+New)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ac476fd6c2f59116c8cbcbed954fdbc5f}{modulehydrodynamic\+::velsubmodeltangentialob}} (Velocity\+\_\+\+U\+V\+\_\+\+New)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a5548f1e73131ae2e60c1386848706e83}{modulehydrodynamic\+::compute\+\_\+baroclinichorvelocity}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a1e87e450d8be8b7bee682d2ef22558f8}{modulehydrodynamic\+::boundaryinstantlist}} (Imposed\+XY, Current\+Time, Prop\+\_\+\+New, Prop\+\_\+\+Old, D\+T\+\_\+\+Prop, D\+T\+Wave, Wave\+CelerityX, i, j, k, ib, jb)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a560d4076559adb32fe2884f63e0b13da}{modulehydrodynamic\+::bottom\+\_\+boundary}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a4b8bde093197fe02063699036c456839}{modulehydrodynamic\+::modify\+\_\+chezyz}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a8e14732a1f66519f456c093908a3ee4b}{modulehydrodynamic\+::modify\+\_\+chezyveluv}}
+\item 
+real function \mbox{\hyperlink{namespacemodulehydrodynamic_a5465756a3c0bc0b2789b8cbffd16ec64}{modulehydrodynamic\+::cdm}} (AuxZ, Z0, UC, Ubw, Abw)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a789f1e7896025efc57bee4107cc31422}{modulehydrodynamic\+::explicit\+\_\+forces}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a4bfe52cf1e114fade20b4037cfdf542a}{modulehydrodynamic\+::modify\+\_\+horizontal\+\_\+transport}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a07085db86ddaf25769704243d0003e91}{modulehydrodynamic\+::modify\+\_\+advection\+\_\+bound}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af43a9493ede9bd9769c3084aeeb523f8}{modulehydrodynamic\+::modify\+\_\+advection\+\_\+ux\+\_\+vy}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ac84a050bb84449fb6c44f7788ee3ff4f}{modulehydrodynamic\+::modify\+\_\+advection\+\_\+uy\+\_\+vx}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aa9d607cb819115ecbd2eaade1767926c}{modulehydrodynamic\+::compute\+\_\+stokesdriftvelocity}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a4ecf50b9477e7ba12adebe7aef0435c9}{modulehydrodynamic\+::nullgradientnormalstokesvel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a0b72f75ffb8470f241904b141a68198e}{modulehydrodynamic\+::nullgradienttangentialstokesvel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aa6b040cc956589c18c71f8802c0239ed}{modulehydrodynamic\+::modify\+\_\+ux\+\_\+vy\+\_\+boundary}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a6396fb9a63198209bc95000bda6ab5fc}{modulehydrodynamic\+::modify\+\_\+ux\+\_\+vy\+\_\+submodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a39fedec790eef204c11688a4105fcfc1}{modulehydrodynamic\+::modify\+\_\+uy\+\_\+vx\+\_\+boundary}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_afcaf5434809b23ffd61b09505bfda4f4}{modulehydrodynamic\+::modify\+\_\+uy\+\_\+vx\+\_\+submodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_afb548a927ee2fd2189deebf674794975}{modulehydrodynamic\+::advectioninsmalldepths}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a1961c3204e40bc45322afca99ce797ea}{modulehydrodynamic\+::modify\+\_\+diffusion\+\_\+ux\+\_\+vy}} (Velocity\+\_\+\+U\+V\+\_\+\+Old, Biharmonic)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a8bf6e87d87f18ed2725786160a05e8d4}{modulehydrodynamic\+::modify\+\_\+diffusion\+\_\+uy\+\_\+vx}} (Velocity\+\_\+\+U\+V\+\_\+\+Old, Biharmonic)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ab381daa0e16a21aa8f474a88fc7d11b7}{modulehydrodynamic\+::diffusionalongnotcoveredfaces}} (Velocity\+\_\+\+U\+V\+\_\+\+Old, Compute\+Flux1, Compute\+Flux2, D\+Y\+Y\+\_\+\+XX, Volume\+\_\+\+UV, Face\+Flux\+\_\+\+South\+West1, Face\+Flux\+\_\+\+South\+West2, No\+Slip\+Face, Visc\+Aux, i\+\_\+\+West, j\+\_\+\+South, i, j, k)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a0a591d70830b196d88bbd8d05d6c86f9}{modulehydrodynamic\+::modifydiffsub\+\_\+ux\+\_\+vy}} (Velocity\+\_\+\+U\+V\+\_\+\+Old, Biharmonic)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aa24ecffdbf571df45437d89566a622ae}{modulehydrodynamic\+::modifydiffsub\+\_\+uy\+\_\+vx}} (Velocity\+\_\+\+U\+V\+\_\+\+Old, Biharmonic)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ace3608af017892be075e4a7361ccedb6}{modulehydrodynamic\+::laplacianxy}} (Velocity\+\_\+\+U\+V\+\_\+\+Old, Aux\+\_\+\+U\+X\+\_\+\+VY)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a24dd92fa72c14784cca1137f274f1cbd}{modulehydrodynamic\+::laplacianyx}} (Velocity\+\_\+\+U\+V\+\_\+\+Old, Aux\+\_\+\+U\+Y\+\_\+\+VX)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a4d5f643e0f8ee69139183ed0bd4a9482}{modulehydrodynamic\+::modifyvolumevariation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af3229a2d204d8a2f73afcb48b571d62e}{modulehydrodynamic\+::modifymomentumdischarge}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a3f760d4a01b6aa649a0bc54d3b96ff54}{modulehydrodynamic\+::modifymomentumdischargevert}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_af887912ae7453edc3375d52c4f6cdfc3}{modulehydrodynamic\+::dischargedistributionpercell}} (VectorI, VectorJ, n\+Cells, Spatial\+Emission, Mapping, Property, Interception\+Ratio, Distribution\+Coef)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a9f02295d5c7e337e76ec98febfebdc0b}{modulehydrodynamic\+::modify\+\_\+scrapereffect}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ae798ddafe12ad94cd6148f8e2658f074}{modulehydrodynamic\+::modifythinwallsdissipation}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a70e1f2e2a0b5b92df6a6003db5b51b60}{modulehydrodynamic\+::modifythinwallsmapping}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a0305b5a5c3b3ae37a5cbe73fd9fe29c6}{modulehydrodynamic\+::modify\+\_\+obstacledrag}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_abdc575076528a23bb728d486a9919cdf}{modulehydrodynamic\+::modify\+\_\+inertiaforces}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a2f55960a6b2fdca49570785ed31a7b97}{modulehydrodynamic\+::modifyrelaxaceleration}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aabfea672c59bdb0df6fb5e5dc5a72b20}{modulehydrodynamic\+::modifyrelaxacelerationvert}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ab02a05bbd39bd69a28f6f8f585e49eb4}{modulehydrodynamic\+::dumpingwavestress}} (Aux\+Tau\+Waves\+\_\+\+UV)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a56519157850cefc5f98f52914553161e}{modulehydrodynamic\+::modifyaltimaceleration}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a63098393e35b164bc5c6885e1473058f}{modulehydrodynamic\+::computegeostrophicvelocity}} (Water\+Level, Sigma\+Dens)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a8db443c5e63483726ac4ce8b9729bbfa}{modulehydrodynamic\+::computegeostpressgrad}} (Sigma\+Dens, Water\+Level, Geostrophic\+Pressure\+Gradient\+\_\+\+UV)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a6ed1d015329405f39d5cfdf5e7481273}{modulehydrodynamic\+::compute\+\_\+surfaceaceleration}} (Water\+Level, Geostrophic\+Pressure\+Gradient\+\_\+\+UV)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_abfad909cb27f7db4f12b0cd022a34937}{modulehydrodynamic\+::coriolisinterpolation}} (Geostrophic\+\_\+\+UV, Geostrophic\+\_\+\+U\+V\+\_\+\+New)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aec4110455ce119ce9bcf22264816f780}{modulehydrodynamic\+::modifyrelaxhorizadv}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_abb5a03f6dfc75e5c036b503550a4e315}{modulehydrodynamic\+::modify\+\_\+waveforces3d}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_adfd6bacb2def8a8594fec898fd389d7d}{modulehydrodynamic\+::compute\+\_\+radiationstressprofile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a0b29794a32cb2b809209708245963c8c}{modulehydrodynamic\+::compute\+\_\+waveinducedpressure}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ab36d10de7b5652c6443525b564c85d3b}{modulehydrodynamic\+::compute\+\_\+wavetooceanmomentum\+\_\+walstra}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a97eb0405fb1ce63e0caa5f1180b47593}{modulehydrodynamic\+::compute\+\_\+wavevortexforce}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a933fb31998f4ab5c221e487b96209deb}{modulehydrodynamic\+::compute\+\_\+wavevortexforce2}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af96ad695325003d3a6068df53933c723}{modulehydrodynamic\+::modifytidepotential}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a90cfb4d3462f345fb4c6da09ace1521d}{modulehydrodynamic\+::modify\+\_\+horizontalwaterflow}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a9f3d6185fb652a067c6f42b46723a9cc}{modulehydrodynamic\+::modify\+\_\+rox3}} (Sigma\+Dens, Rox3\+XY)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a1979e519c233cd0af0ad00eab566a414}{modulehydrodynamic\+::hydropropassimilationvelocity}} (Property\+ID, Prop\+Model, Prop\+Sub\+Model, Map3D, K\+Floor, DT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a310b0813e62bd6d4cb63d9e4acbf299d}{modulehydrodynamic\+::hydropropassimilation2d}} (Property\+ID, Prop\+Model, Prop\+Sub\+Model, Map3D, DT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a3011a9be54d29dbb8d387a2253b36ab3}{modulehydrodynamic\+::velocityrelaxation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af6e5fcf3d54f676a11ab22c650353cef}{modulehydrodynamic\+::waterlevelrelaxation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aaf7d95cf12308ea359a620a3f357b5c5}{modulehydrodynamic\+::waterlevelrelaxationaltimetry}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a3795523d3d6ec72b6a33735c32624ff2}{modulehydrodynamic\+::calc\+\_\+depth\+\_\+and\+\_\+hro}} (Hcenter, Hleft, Hright, Hro\+Left, Hro\+Right, Dens\+Right, Dens\+Left, D\+WZ, S\+ZZ, D\+U\+Z\+\_\+\+VZ, Sigma\+Dens, i, j, ileft, jleft, K\+UB, kbottom)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a6026ae01a3e1aa6a649387589a05431c}{modulehydrodynamic\+::calc\+\_\+depth\+\_\+integration}} (Hcenter, Hleft, Hright, Kleft, Kright, Depth\+\_\+integ, K\+UB, kbottom)
+\item 
+integer function, private \mbox{\hyperlink{namespacemodulehydrodynamic_a24a4da561094133e0ef8f2a5d350d8ac}{modulehydrodynamic\+::locate\+\_\+layer}} (K\+UB, kbottom, Zpoint, Zside)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a46041cae58ee2c4998a230bec6a29842}{modulehydrodynamic\+::modify\+\_\+verticalwaterflow}} (Grid)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a9de56e052f0a5f85cbbcbac9a2f0f95a}{modulehydrodynamic\+::filter\+\_\+3d\+\_\+fluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a08186b721c96e023d8a58a34dc22522f}{modulehydrodynamic\+::boundary\+\_\+verticalflow}} (Grid)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a6bae766b43109e13a0a6976d688327fe}{modulehydrodynamic\+::compute\+\_\+boundaryvertflux}} (Water\+Flux\+\_\+\+XY, Water\+Flux\+\_\+\+YX, i, j, di, dj, db)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a6063cff17a8575e5ea95e38e9a14da2d}{modulehydrodynamic\+::computecartesianvertvelocity}} (Grid, Mesh\+Slope)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a1d49415947b89ef0be84e9bdfbad90a0}{modulehydrodynamic\+::computebaroclinicvertvelocity}} (Grid)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a7cd2ef8de29d245b1298263b1facaaea}{modulehydrodynamic\+::compute\+\_\+bottomstokesvertvel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_abb245df1c1a4f6ca752bd7181e8c61e1}{modulehydrodynamic\+::compute\+\_\+stokescartvertvel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aced7b976b91c1f042518042a8b14bad5}{modulehydrodynamic\+::compute\+\_\+verticalvelocity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a2789c8c5f9e3e6838c5dda5c13dcd234}{modulehydrodynamic\+::velocity\+\_\+explicitforces}} (Pressure\+Backward\+In\+Time)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ac07b9cc801de5e329ae0bf6d2bc4783b}{modulehydrodynamic\+::velocity\+\_\+verticaladvection}}
+\item 
+real(8) function \mbox{\hyperlink{namespacemodulehydrodynamic_a514294a37adf9ce3b21a6817c7a86ae1}{modulehydrodynamic\+::vertadvectionsubmodel}} (Bottom\+Flux, DT, i, j, k)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_adb227f6b4fa5a958b2dd2061dbfcb22d}{modulehydrodynamic\+::velocity\+\_\+verticaldiffusion}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ad5e5fda7c09616794f5a3e2d1a317161}{modulehydrodynamic\+::velocity\+\_\+wavestress}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a7cadc35d4f0e4955a2d416039a2a2d18}{modulehydrodynamic\+::velocity\+\_\+waveforces3d}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a10da15941f53c4274a4bfa5fec56a6ad}{modulehydrodynamic\+::velverticaldiffusionboundaries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a5e6cdcb5121c8a2db4d545b07bfd4d73}{modulehydrodynamic\+::waterlevel\+\_\+barotropicpressure}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ae585f218a774bfbfdd6f830f47de4d2a}{modulehydrodynamic\+::waterlevel\+\_\+bottomfriction}}
+\item 
+real function, private \mbox{\hyperlink{namespacemodulehydrodynamic_aeaeab24d9e7539d66950b61105ead64f}{modulehydrodynamic\+::face\+\_\+interpolation}} (X, Y, DX, DY)
+\item 
+real function, private \mbox{\hyperlink{namespacemodulehydrodynamic_a59e16bb385ccdef967139d17eb850973}{modulehydrodynamic\+::face\+\_\+velocity\+\_\+modulus}} (Vel\+V\+U1, Vel\+V\+U2, Vel\+V\+U3, Vel\+V\+U4, D\+X\+Y1, D\+X\+Y2, D\+X\+Y3, D\+X\+Y4, Vel\+UV)
+\item 
+real function, private \mbox{\hyperlink{namespacemodulehydrodynamic_aa1565fcf41a2baafe5216a3a1a3a963f}{modulehydrodynamic\+::frictioncoefficient}} (Chezy1, Chezy2, D\+U\+V1, D\+U\+V2, Vel\+Mod, DT, D\+Z\+XY, D\+YX, Volume\+\_\+\+UV)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a8f55c0f844c6c92f25d99d0c16b764df}{modulehydrodynamic\+::waterlevel\+\_\+explicitforces}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a592aa79c419a6f5815c5df5a4b4548a9}{modulehydrodynamic\+::waterlevel\+\_\+waterfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a644daa49a5aa05490db0fd5dae3af00c}{modulehydrodynamic\+::waterleveldischarges}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a3efd394333f3dd01635ae28bbea6dd28}{modulehydrodynamic\+::modifywaterdischarges}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a60b8585327586b632ce2934f2676df87}{modulehydrodynamic\+::hydrodynamic\+\_\+output}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a89980d9805db3770c7583bdefe7730fa}{modulehydrodynamic\+::readyson}} (Hydrodynamic\+ID, Hydro\+Son, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a18824f0ade9c1b8a9140a405a5a343db}{modulehydrodynamic\+::updatefathermodel}} (Son\+Hydrodynamic\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a83eb2d1806304e7bfac59fbf155291e4}{modulehydrodynamic\+::computefeedbackson2father}} (Aux\+Hydrodynamic\+ID, Hydrodynamic\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a3ccbfcaea30af1d03bc8f158f2262081}{modulehydrodynamic\+::computefloodrisk}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a7eac8d5b6aff29b714f987f3bedd3a6a}{modulehydrodynamic\+::computeboxeswaterfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a8f5cfb7e074cb11c3c46454e53806111}{modulehydrodynamic\+::computeresidualflowproperties}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a15232a4b6e4a92f5147fcf1428ebe0c0}{modulehydrodynamic\+::computeemersiontime}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a5267d6e9c0f3efab032ca1f82881b5dd}{modulehydrodynamic\+::computesystemenergy}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a99c46c970a39feb3ece42b919ed01d08}{modulehydrodynamic\+::writeenergydatafile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_affc6eb8b5c260e1da6146c7a34c7849b}{modulehydrodynamic\+::write\+\_\+hdf5\+\_\+format}} (iW)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ae031a7cef6170ae4c1b13ffb602108a6}{modulehydrodynamic\+::write\+\_\+surface\+\_\+hdf5\+\_\+format}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a855667e612812156b0ef3370781b2665}{modulehydrodynamic\+::modifymatrixesoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a7bcb9032bfe7bf84ef03ab8c66f0f159}{modulehydrodynamic\+::centervelocity}} (CenterU, CenterV, Vector\+Type)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ab09a29c4bbdb3a0c03a3e8630b2d0829}{modulehydrodynamic\+::output\+\_\+timeseries}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aad9764fae86ae409938db759114d0a42}{modulehydrodynamic\+::output\+\_\+profile}}
+\item 
+real function, private \mbox{\hyperlink{namespacemodulehydrodynamic_a9df5dd894a61d9599540be689d68c03b}{modulehydrodynamic\+::tangentialvelinterpolation}} (Velocity\+\_\+\+V\+U\+\_\+\+New, Compute\+Faces3\+D\+\_\+\+VU, D\+X\+X\+\_\+\+YY, di, dj, I, J, K)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aaf559665e8122ee5d3cf650f45ac04fd}{modulehydrodynamic\+::gethydrooverlap}} (Hydrodynamic\+ID, Overlap, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_abd4cedd7ee17aecf0de70d7616270033}{modulehydrodynamic\+::setmodeloverlaphydro}} (Hydrodynamic\+ID, Overlap\+Hydrodynamic\+ID, Overlap\+Cells, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamic_a0f3d902c6ac5d0beab910d09d6037271}{modulehydrodynamic\+::killhydrodynamic}} (Hydrodynamic\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a633e5bd5e4240a071e45a505396056eb}{modulehydrodynamic\+::write\+\_\+final\+\_\+hydrodynamic\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a5bdef2c140ebc772066fbee498f4cccb}{modulehydrodynamic\+::write\+\_\+final\+\_\+bin}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af8baaec85d39b5b0c7ce04593a4ba674}{modulehydrodynamic\+::write\+\_\+final\+\_\+hdf5}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aac2dc91eeafc8e79ef7e6399aca89537}{modulehydrodynamic\+::read\+\_\+final\+\_\+hydrodynamic\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a24c75082fcb309f40ebc8ab0a0493fc8}{modulehydrodynamic\+::read\+\_\+final\+\_\+bin}} (Binary\+Format\+OK)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a7e3a53d388991f1cae4f042edd8cc7fb}{modulehydrodynamic\+::read\+\_\+final\+\_\+hdf5}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a98ea84afedb06cff0d55601f6e7b1494}{modulehydrodynamic\+::outputfloodrisk}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a9ab4535ec430fb9f040e8027eab7128d}{modulehydrodynamic\+::deassociate\+\_\+external\+\_\+modules}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ad33fcf640ab52de6097223c4aeb342c0}{modulehydrodynamic\+::kill\+\_\+sub\+\_\+modules}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a85ec37a513035b769326676058893ac1}{modulehydrodynamic\+::killenergy}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_ab35b45e7f241087188692a17e57b81fe}{modulehydrodynamic\+::killtidepotential}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a4ef7d15d1c97d54f708e71f1262485b0}{modulehydrodynamic\+::killhydrostatistics}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a9b2046e58cfbfc36752c1c596ac76085}{modulehydrodynamic\+::killsubmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a97e376130dedc4213ae9f7bd331d237a}{modulehydrodynamic\+::deallocatevariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a93dc7bf3dc53936a78e774fea543f5d9}{modulehydrodynamic\+::killthinwalls}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a8a24bb3b15a1b676c23a6ecd0a1defa8}{modulehydrodynamic\+::killmatrixesoutput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_afcb6ada5d2c8c5ce856cc9efcbb38077}{modulehydrodynamic\+::killddecomp}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_aabd13dda5e1f35caf879873becb922c4}{modulehydrodynamic\+::deallocateinstance}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a3c9ae88187f7c83938a730ba2aecc5b4}{modulehydrodynamic\+::nullifyhydrostatepointer}} (Hydrodynamic\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a541821548a44af36e71f5eddedae890e}{modulehydrodynamic\+::ready}} (Hydrodynamic\+ID, ready\+\_\+)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a3590684b189672df14d8ed25dc6e6156}{modulehydrodynamic\+::readyfather}} (Hydrodynamic\+ID, Hydro\+Father, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aca47e0fe75006cf9be3be10af982ba2c}{modulehydrodynamic\+::readlock\+\_\+moduleturbulence}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a894329be6f1d95af1f87b82950558271}{modulehydrodynamic\+::readunlock\+\_\+moduleturbulence}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af607bb807c6d67a54a48586646880d77}{modulehydrodynamic\+::readlock\+\_\+modulewaves}}
+\item 
+real function \mbox{\hyperlink{namespacemodulehydrodynamic_a5ac5205b827b25fab464de95d2c838bf}{modulehydrodynamic\+::timeserievalue}} (Obj\+Time\+Serie, Now, Time\+Serie\+Column)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a652c0bf5742de7f1bc1ccdd771297bbc}{modulehydrodynamic\+::readunlock\+\_\+modulewaves}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a87327c743a7173e47122b62474c77ea7}{modulehydrodynamic\+::readlock\+\_\+modulehorizontalgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aaf0ec07ca1129c3b8498e92e10e49f10}{modulehydrodynamic\+::readunlock\+\_\+modulehorizontalgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a2b7951ef8d3385a7141d22cbca764a93}{modulehydrodynamic\+::readlock\+\_\+modulehorizontalmap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_af77f71622ac304600bd312437b8af339}{modulehydrodynamic\+::readunlock\+\_\+modulehorizontalmap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a1a5e2244778fa6a2caa0ff13ec7eb67b}{modulehydrodynamic\+::readlock\+\_\+modulegeometry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a987bae5d3ffa9f3fc96e0dfa2ead01ad}{modulehydrodynamic\+::readunlock\+\_\+modulegeometry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_aefa0a7b600df8e249667d3541b45ecf1}{modulehydrodynamic\+::readlock\+\_\+modulemap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a5265f8f84b5dfafbb654e42da68f00af}{modulehydrodynamic\+::readunlock\+\_\+modulemap}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_ab5bfdd9c743fefaf135fd907892e5f17}{modulehydrodynamic\+::readlock\+\_\+moduleassimilation}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a758de1858d333cb26621ded54ff8be04}{modulehydrodynamic\+::readunlock\+\_\+moduleassimilation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a52fe0c61446c7eca188bf5a42867951b}{modulehydrodynamic\+::readlock\+\_\+external\+\_\+modules}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamic_a6bb278dc4ab8e6429e5d7e752bd6347a}{modulehydrodynamic\+::readunlock\+\_\+external\+\_\+modules}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a81c72f539c0330e132af0d9586b8a1b4}{modulehydrodynamic\+::sendhydrodynamicmpi}} (Hydrodynamic\+ID, Destination, Window, Initial\+Field, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a7093ab7e0b48d35daf4c523567c57d5a}{modulehydrodynamic\+::recvhydrodynamicmpi}} (Hydrodynamic\+ID, Source, Window, Initial\+Field, Father\+Grid\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamic_a0b6a544e894ede118ad20bf00d80fa39}{modulehydrodynamic\+::updatehydrompi}} (Hydrodynamic\+ID, Initial\+Field, S\+T\+AT)
+\item 
+real(8) function \mbox{\hyperlink{namespacemodulehydrodynamic_aed5f042412115b2fc0605a45374090fc}{modulehydrodynamic\+::getwaterlevelatpoint}} (Hydrodynamic\+ID, i, j)
+\item 
+logical function \mbox{\hyperlink{namespacemodulehydrodynamic_a904ffc2601f0d353ef41686c0912a17d}{modulehydrodynamic\+::getwaterlevel1d}} (Hydrodynamic\+ID, n\+Compute\+Points, waterlevels1D)
+\item 
+logical function \mbox{\hyperlink{namespacemodulehydrodynamic_a9b4a77f72b7a93ea81baa40e63f809a2}{modulehydrodynamic\+::getsurfacevelocityu}} (Hydrodynamic\+ID, n\+Compute\+Points, velocityU)
+\item 
+logical function \mbox{\hyperlink{namespacemodulehydrodynamic_a7b33d38f90e3b125d5fe454fd30c25b9}{modulehydrodynamic\+::getsurfacevelocityv}} (Hydrodynamic\+ID, n\+Compute\+Points, velocityV)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a67c3eb176a7e951a6d581c55fd3abe6b}{modulehydrodynamic\+::directionx\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a2f8213ce2a7db4198f421082f6047325}{modulehydrodynamic\+::directiony\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a1ad3170dbb160b604cb87024937cbb69}{modulehydrodynamic\+::directionxy\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_abfec894219e1481b4825496dc98bfcf2}{modulehydrodynamic\+::upwind\+\_\+scheme}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a2a271d48aec2bf3160e26e6c6f89c67c}{modulehydrodynamic\+::quick\+\_\+scheme}} = 2
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a828b31b29ee1dca289591bf9a36269e2}{modulehydrodynamic\+::char\+\_\+upwind\+\_\+scheme}} = trim(adjustl(\textquotesingle{}Upwind\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a4962eb3adfe61c30169233514394ab77}{modulehydrodynamic\+::char\+\_\+quick\+\_\+scheme}} = trim(adjustl(\textquotesingle{}Quick\textquotesingle{} ))
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a62654119689cd77c2b08514d7755b1b7}{modulehydrodynamic\+::abbott}} = 1.
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aeef650d7f61a5804ed5e66de705d43f1}{modulehydrodynamic\+::leendertse}} = 2.
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a867e0a4829c59e0b2e02ed581005a9f7}{modulehydrodynamic\+::currentvelocity}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a8e04bbcc49d7b72be4c3907153cd11c0}{modulehydrodynamic\+::residualvelocity}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a977ab324d6c78f9961e3b3498072be28}{modulehydrodynamic\+::residualflux}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_abf8de9c99f5fa9bed67982723ae76bcb}{modulehydrodynamic\+::residualfluxvel}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a6dff582748a31326ff3452989be5d686}{modulehydrodynamic\+::baroclinicvelocity}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aaf56db5dff4032bdc271e9661a1e7286}{modulehydrodynamic\+::altimgeostrophicvelocity}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_afca6e46bfa2d959d2be36aa37504de07}{modulehydrodynamic\+::baroclinicforce}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_ae4ed7c2aa878fe8600f68206a805e046}{modulehydrodynamic\+::submodelvelocity}} = 7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_ae80a767c90ef42046d7d809b02831b3f}{modulehydrodynamic\+::stokesdriftvelocity}} = 8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a85d4e406fa8803b563f2e18473cffd63}{modulehydrodynamic\+::wavebreakingforceaccel}} = 9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a828e8991e1580c3cfdd50607a446fbd8}{modulehydrodynamic\+::wavevortexforceaccel}} = 10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a3847705bc2f5eff4713dd7d73b599b05}{modulehydrodynamic\+::wavepressureforceaccel}} = 11
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a47408b2c066e95c9620e69f86d5938a6}{modulehydrodynamic\+::solve\+\_\+equations\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a25731915f5b023304f88829f36638ad6}{modulehydrodynamic\+::read\+\_\+file\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a3e95504ebcd5b1792533b2e3618b9771}{modulehydrodynamic\+::no\+\_\+hydrodynamic\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a01c55cb119451119e83b9ae24741b1b5}{modulehydrodynamic\+::residual\+\_\+hydrodynamic\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a2d9fe7271d7e4f545caa134ac3a37400}{modulehydrodynamic\+::run\+\_\+off\+\_\+}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a46f6dd5f0775b41bcb749a0798290b7b}{modulehydrodynamic\+::imposedsolution\+\_\+}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_ac66894bee5bb658a00ab389caf0b81f4}{modulehydrodynamic\+::vertical1d\+\_\+}} = 7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a2a1d1197dc5c88ac8bf0ba967de08f81}{modulehydrodynamic\+::harmonics\+\_\+}} = 8
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_ad779cdc3636c017857bfb215293de5f9}{modulehydrodynamic\+::char\+\_\+solve\+\_\+equations}} = trim(adjustl(\textquotesingle{}Solve\+\_\+\+Equations\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a712275d1c62e5a85f4d398124d404651}{modulehydrodynamic\+::char\+\_\+read\+\_\+file}} = trim(adjustl(\textquotesingle{}Read\+\_\+\+File\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a4e8da1a28740ccba137f2ec1d40baac0}{modulehydrodynamic\+::char\+\_\+no\+\_\+hydrodynamic}} = trim(adjustl(\textquotesingle{}No\+\_\+hydrodynamic\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_acb43993cccbfd0ba35d82ee368adf6fa}{modulehydrodynamic\+::char\+\_\+residual\+\_\+hydrodynamic}} = trim(adjustl(\textquotesingle{}Residual\+\_\+hydrodynamic\textquotesingle{}))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a594066c996ad89ed64e21d2401d31c92}{modulehydrodynamic\+::char\+\_\+run\+\_\+off}} = trim(adjustl(\textquotesingle{}Run\+\_\+\+Off\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a78cbfa7a6a863ae98d98b01e0ee6d7ae}{modulehydrodynamic\+::char\+\_\+imposedsolution}} = trim(adjustl(\textquotesingle{}Imposed Solution\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a2ea04eb9dae051db35d06bfca08f3814}{modulehydrodynamic\+::char\+\_\+vertical1d}} = trim(adjustl(\textquotesingle{}Vertical1D\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a67dadb80ec9687942a901acc6fb202af}{modulehydrodynamic\+::char\+\_\+harmonics}} = trim(adjustl(\textquotesingle{}Harmonics\textquotesingle{} ))
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a49aaf47fd883f68b02770ba74b7e1851}{modulehydrodynamic\+::null\+\_\+value}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a6421eb8c0ace0ea4db3925349c646611}{modulehydrodynamic\+::null\+\_\+gradient}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aa4ad740c2db59b8989dc3b2d36df55e1}{modulehydrodynamic\+::fileopen}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_ad6e8be842adda6d1ba720cb98e07c97c}{modulehydrodynamic\+::fileclose}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a1975a4833b98bfa1952ccaa94ff3aefd}{modulehydrodynamic\+::energybuffersize}} = 1000
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a5fa642d0dd66cf229c8006ada4b3b94f}{modulehydrodynamic\+::fix}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a51cc729c6be952db84e6f51bc75a59aa}{modulehydrodynamic\+::variable}} = 2
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_ab09faae6f85b0c6a4f7ac6ba7ca019eb}{modulehydrodynamic\+::boxes\+\_\+mindepth}} = 0.\+0
+\item 
+character(5), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a2d70746f75e0e069bb2d66e5960ae5ae}{modulehydrodynamic\+::char\+\_\+water}} = \textquotesingle{}water\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a73d0342a55e53e1134834b19e62e3930}{modulehydrodynamic\+::orlanski\+\_\+}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_ad91ecb74d9675d514a8723daee9edd08}{modulehydrodynamic\+::constant\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_adff8a3079675a9f7457aed3e2c500949}{modulehydrodynamic\+::oeyandchen\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_afbe1f8eb9cfc7c071c049f6ac349fd18}{modulehydrodynamic\+::longwaves\+\_\+}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a7b25a5daf5e06e631e33916152f8f8da}{modulehydrodynamic\+::analyticwaves\+\_\+}} = 3
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a3f051f5fd886733770b855f1afdda6f5}{modulehydrodynamic\+::maxinternalcelerity}} = 10.
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aefcd852a9a3726b9de7cc774ff3b63c4}{modulehydrodynamic\+::noradiation\+\_\+}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aff08683bf75b6e58f88d991bf6de6fc6}{modulehydrodynamic\+::horizontal\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_ab1157985a2a599fa0fe1de995f09acb0}{modulehydrodynamic\+::vertical\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_afe0c2581319a871292849ef0d657414f}{modulehydrodynamic\+::flatherwindwave\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a80d3e90e0672cce41d27250b2bd218c1}{modulehydrodynamic\+::flatherlocalsolution\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a1d590de331d3d84fae20e05e304bbd34}{modulehydrodynamic\+::blumbergkantha\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_acb9771c6b07326240c8f99f13011cdf9}{modulehydrodynamic\+::nolocalsolution\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a64e6442e629019f176edce6ad54346e0}{modulehydrodynamic\+::submodel\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a1440e2f034274469fdc93195249c9b56}{modulehydrodynamic\+::assimilationfield\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a50f71f62021125375c2ed0d192e573fa}{modulehydrodynamic\+::gauge\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aa3e99181d5aa9739fba1c4a38373b84c}{modulehydrodynamic\+::assimilaplussubmodel\+\_\+}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a28c716327ca5feea01660b87cd07832f}{modulehydrodynamic\+::gaugeplussubmodel\+\_\+}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a877761a178361bd0759b6eb504b4261b}{modulehydrodynamic\+::assimilagaugesubmodel\+\_\+}} = 7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a343f819d2ce13e5a48592e61480859e3}{modulehydrodynamic\+::explicit\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a80b5961d5720bcc727a4d9a385746fb4}{modulehydrodynamic\+::implicit\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a01481fb764815f271a203b9a3217a82b}{modulehydrodynamic\+::storewave\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a3817721a2c1e25ad61d2dc3d1e615d01}{modulehydrodynamic\+::totalvel\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_af69ee115e707ec60f646d5fc16cfec7d}{modulehydrodynamic\+::barotrvel\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a3537e1baf7f7e53403105b6b87782666}{modulehydrodynamic\+::baroclvel\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a248280a5bc3da1d659964d81eb43acee}{modulehydrodynamic\+::nowind\+\_\+}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a628900d53c3dc0e8656ea6a73ab48369}{modulehydrodynamic\+::withwind\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a43bf77c32807959996e9d30b8054ccfb}{modulehydrodynamic\+::initialsmoothwind\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aec21ace8f453043ef4fa34993ebc1805}{modulehydrodynamic\+::m2}} =1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aab740b482f765990a3baedfcdd5c7010}{modulehydrodynamic\+::s2}} =2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a6a549f15a585bad1d81626be37e5a2ee}{modulehydrodynamic\+::k2}} =3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_ad52f8d0ca42bda8666eb541a80a51811}{modulehydrodynamic\+::n2}} =4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a8d9b473a6e3cc46ce774fb7f2da43a3c}{modulehydrodynamic\+::k1}} =5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a9fde36bccaa577eb6b1066809bde6cba}{modulehydrodynamic\+::o1}} =6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a1ec23a4af80aafae4e087f9b5e363ef8}{modulehydrodynamic\+::p1}} =7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a374f80ca0e210e3d7443cae0d41863e4}{modulehydrodynamic\+::q1}} =8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a71be04b6d80f12710d26ec5aaacf1b1e}{modulehydrodynamic\+::ssa}} = 9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aa749f16ba28072624f0bf31e67115191}{modulehydrodynamic\+::mm}} =10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a14a180093abeed1a30ddebab114060f6}{modulehydrodynamic\+::mf}} = 11
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aa0588e2ae1eb1f5acf28a2925399061c}{modulehydrodynamic\+::m3}} =12
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a172edede8072ba59ab0880ae9ce4b128}{modulehydrodynamic\+::kantha}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a62625835225de0a2df2625e9f7639119}{modulehydrodynamic\+::lefevre}} =2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a35bdaf12b19ad1e6e7cc5a904f76f07e}{modulehydrodynamic\+::faultokada1985\+\_\+}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a22c3cb09207699a1cb89faf979baa68a}{modulehydrodynamic\+::faultfile\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a95ba96c7e6b2991a960242c61fc67d71}{modulehydrodynamic\+::mass\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aa2a5497af9ce00e73311b74d9612da51}{modulehydrodynamic\+::momentumhorizontal\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a0563947ca0b057d4dc7df6ac00e5b0bf}{modulehydrodynamic\+::momentumvertical\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_aa91ea572ae7bd08e541e522a32ed77a4}{modulehydrodynamic\+::nowave3d}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_abbbd4f40064713967aac1a39bfc4bf05}{modulehydrodynamic\+::expradiationstress}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a4e69c9379fc556ae0fc21a588195f0a0}{modulehydrodynamic\+::glm}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a892036fbc22375e1172b30c374287e1a}{modulehydrodynamic\+::tausurface}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamic_af093f4244521e685178dab331a9ef8a4}{modulehydrodynamic\+::tauwalstra}} = 2
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a359bae8796db1f4d86d53da366a97366}{modulehydrodynamic\+::relax\+\_\+wave\+\_\+stress\+\_\+begin}} = \textquotesingle{}$<$begin\+\_\+relax\+\_\+wave\+\_\+stress$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamic_a0aa6ff4d2a7a8beb497a742c1455435e}{modulehydrodynamic\+::relax\+\_\+wave\+\_\+stress\+\_\+end}} = \textquotesingle{}$<$end\+\_\+relax\+\_\+wave\+\_\+stress$>$\textquotesingle{}
+\item 
+type(t\+\_\+hydrodynamic), pointer \mbox{\hyperlink{namespacemodulehydrodynamic_ade799e46b48fe9cce4b1d0557b736f07}{modulehydrodynamic\+::firsthydrodynamic}} =$>$ null()
+\item 
+type(t\+\_\+hydrodynamic), pointer \mbox{\hyperlink{namespacemodulehydrodynamic_aa15498bfec419d54a902a53a6eaece07}{modulehydrodynamic\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

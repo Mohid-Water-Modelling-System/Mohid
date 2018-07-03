@@ -1,0 +1,7 @@
+<map id="modulehydrodynamic::waterlevel_openboundary" name="modulehydrodynamic::waterlevel_openboundary">
+<area shape="rect" id="node2" href="$namespacemodulehydrodynamic.html#a25549ff328b3933642ae5a9112a7d2ba" title="modulehydrodynamic\l::waterlevel_imposedwave" alt="" coords="243,5,413,47"/>
+<area shape="rect" id="node3" href="$namespacemodulehydrodynamic.html#ae8536b67d3763d371e3025b09e7920a6" title="modulehydrodynamic\l::waterlevel_flatherwindwavev3" alt="" coords="231,71,425,112"/>
+<area shape="rect" id="node4" href="$namespacemodulehydrodynamic.html#a9e27696e9df4a46aae637e4ecb5bb626" title="modulehydrodynamic\l::waterlevel_flatherlocalsolution" alt="" coords="228,136,428,177"/>
+<area shape="rect" id="node5" href="$namespacemodulehydrodynamic.html#ae5c38adbe04a8331efddb3eb147a9de3" title="modulehydrodynamic\l::waterlevel_blumbergkantha" alt="" coords="235,201,421,243"/>
+<area shape="rect" id="node6" href="$namespacemodulehydrodynamic.html#a3a81c2f0eddf64c038d5a82241029379" title="modulehydrodynamic\l::waterlevel_nullgrad" alt="" coords="255,267,401,308"/>
+</map>

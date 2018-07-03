@@ -1,0 +1,258 @@
+\hypertarget{_module_sediment_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Sediment.F90 File Reference}
+\label{_module_sediment_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Sediment.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Sediment.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemodulesediment_1_1readinitialfield}{modulesediment\+::readinitialfield}}
+\item 
+interface \mbox{\hyperlink{interfacemodulesediment_1_1ungetsediment}{modulesediment\+::ungetsediment}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__external}{modulesediment\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__residual}{modulesediment\+::t\+\_\+residual}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__output}{modulesediment\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__evolution}{modulesediment\+::t\+\_\+evolution}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__property}{modulesediment\+::t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__sand}{modulesediment\+::t\+\_\+sand}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__cohesive}{modulesediment\+::t\+\_\+cohesive}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__cohesivedrydensity}{modulesediment\+::t\+\_\+cohesivedrydensity}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__files}{modulesediment\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__discharges}{modulesediment\+::t\+\_\+discharges}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__boxes}{modulesediment\+::t\+\_\+boxes}}
+\item 
+type \mbox{\hyperlink{structmodulesediment_1_1t__sediment}{modulesediment\+::t\+\_\+sediment}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulesediment}{modulesediment}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a1a3b01f7483f6fefc6f2dac6a51d664c}{modulesediment\+::constructsediment}} (Obj\+Sediment\+ID, Obj\+Grid\+Data\+ID, Geometry\+ID, Obj\+Horizontal\+Grid\+ID, Obj\+Horizontal\+Map\+ID, Obj\+Time\+ID, Obj\+Waves\+ID, Sediment\+Grid\+Data\+ID, Sediment\+Horizontal\+Map\+ID, Sediment\+Map\+ID, Sed\+Geometry\+File, Sediment\+Geometry\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesediment_a4fcfee70467ab31177134369a945bf94}{modulesediment\+::constructsedimentgridandgeometry}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a7cf40ca051d012f054efecd59d7ffb97}{modulesediment\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a58c9978541dc90a336fa76f940b8061b}{modulesediment\+::constructglobalparameters}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a7feb9a14efb0c8cc97dfc870ff9804ce}{modulesediment\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ac07e155e923f9f500063126c9e4f7ede}{modulesediment\+::startoutputboxfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a65ecb7c9b87860dde4303791884a9956}{modulesediment\+::constructevolution}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_afe850b14e10e8db70a1bd5879fc5c2ea}{modulesediment\+::open\+\_\+hdf5\+\_\+output\+\_\+file}} (File\+Name)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ae14a9f4cd6513444502e3774b27d6f2e}{modulesediment\+::read\+\_\+sediment\+\_\+files\+\_\+name}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aafc201d260f566a644259cfca436de86}{modulesediment\+::constructtimeserie}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesediment_aacb4e3dc70adfbda3e0d8000b2088b3d}{modulesediment\+::constructoutputtime}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aab617a4a3f8db9a8c86241473054067d}{modulesediment\+::constructclasses}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ab89eafb956bc952759092de44da7a0b8}{modulesediment\+::checkpercentageconsistence}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_adc3a3328a47ba86ef363852158194846}{modulesediment\+::constructcohesivedrydensity}} (Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a595754027fca9b62be67b11dbad30185}{modulesediment\+::constructd50cell}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a8ad0bd3e4a8a8ea6fb423df13967b877}{modulesediment\+::constructporosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ae0fc128b081e1181c0df22dd4822b65d}{modulesediment\+::constructclassmass}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesediment_a816e46154f7c824c75be6572b099e18a}{modulesediment\+::constructcriticalshearstress}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a7df6a75fdbd4ab5caf95fe57492116fd}{modulesediment\+::constructpropertyvalue}} (New\+Property, Extract\+Type)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesediment_ade328a003b435bdea1339006c7c14db5}{modulesediment\+::checkfieldconsistence}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_adb9b138d3feb285796bc8580b24509db}{modulesediment\+::construct\+\_\+initial\+\_\+geometry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a03d5ef49dd68eafdac5c93dab6c4e8de}{modulesediment\+::readinitialfield2dr4}} (Field\+Name, Field2D)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a260a1cba073b46d204c52ec103eb9f30}{modulesediment\+::readinitialfield2dr8}} (Field\+Name, Field2D)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a3b0c5a0377f0ab98b49b4e9d86627278}{modulesediment\+::readinitialfield3dr4}} (Field\+Name, Field3D)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a546771f8f141f33b0a8d1aa803131737}{modulesediment\+::readinitialfield3dr8}} (Field\+Name, Field3D)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesediment_a6afc209e64c494c64bdded6011c28e6e}{modulesediment\+::readresidualstarttime}} ()
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_ac51110b9c285467a4e284c185a4a98b1}{modulesediment\+::gettopcriticalshear}} (Obj\+Sediment\+ID, Top\+Critical\+Shear, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_ae44dda471948f0f9a9a2e1c32fd50738}{modulesediment\+::getcohesivemass}} (Obj\+Sediment\+ID, Cohesive\+Mass, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a595e3a876982089ba4949f113b1a0580}{modulesediment\+::getcohesivecontent}} (Obj\+Sediment\+ID, Cohesive\+Class\+Run, Cohesive\+Content, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a7bb4238fb2af1033061fd9f1fdf674dc}{modulesediment\+::getsandmass}} (Obj\+Sediment\+ID, Sand\+Class\+ID, Sand\+Mass, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_ab155d890675462bce376e88c657ed0bb}{modulesediment\+::getsandcontent}} (Obj\+Sediment\+ID, Sand\+Class\+ID, Sand\+Content, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a8d9dd5db543a7e0c9baac18bef6dffcf}{modulesediment\+::getcriticalshearstress}} (Obj\+Sediment\+ID, Sand\+Class\+ID, Critical\+Shear\+Stress, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a1ace217828c80197497b60fcaad2f95b}{modulesediment\+::getconcref}} (Obj\+Sediment\+ID, Sand\+Class\+ID, Conc\+Ref, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_ad8d5d321d848d9df2cc84a9c53bc5ec1}{modulesediment\+::getreferencelevel}} (Obj\+Sediment\+ID, Sand\+Class\+ID, Reference\+Level, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_aa0d71895956b87280c4aa42094f08fdd}{modulesediment\+::getd50}} (Obj\+Sediment\+ID, D50, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_ac873ffbc4a1e0467d82815aeb2ad34cc}{modulesediment\+::getgrainroughness}} (Obj\+Sediment\+ID, Grain\+Roughness, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a1b6836cb590222a61d3ec36961ce22c2}{modulesediment\+::getnumberofclasses}} (Obj\+Sediment\+ID, Number\+Of\+Classes, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a283894d1d09fefa91f63082646eea486}{modulesediment\+::getsandparameters}} (Obj\+Sediment\+ID, Sand\+ID, Sand\+I\+D\+Number, Sand\+D50, Relative\+Density, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_ab6753fbc97e7e46e60797defc442a36e}{modulesediment\+::setcohesiveflux}} (Obj\+Sediment\+ID, Consolidation\+Flux, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_ad60212253ba034e9fe1db4ab0c2c8442}{modulesediment\+::setnoncohesiveflux}} (Obj\+Sediment\+ID, Sand\+Class\+ID, Flux\+To\+Sediment, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a8c48bc8f4d2f029c54181f59654feaa5}{modulesediment\+::setwaterpointsopenpoints2d}} (Obj\+Sediment\+ID, Water\+Points\+Open\+Points2D, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a7549a71a1a07687cb5225c5c8441cb72}{modulesediment\+::setwavetensionon}} (Obj\+Sediment\+ID, Wave\+Tension\+ON, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a12b3d28230917a2bca4471c82f39bdab}{modulesediment\+::ungetsediment2d\+\_\+i}} (Obj\+Sediment\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aea72603e1507bed2899b17d9e29b67c9}{modulesediment\+::ungetsediment2d\+\_\+r8}} (Obj\+Sediment\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_af3fda7dbc66fbbecc4cf8ca7d4fdf95d}{modulesediment\+::ungetsediment2d\+\_\+r4}} (Obj\+Sediment\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_abf1b5c58352a7fda2565c80929e6e099}{modulesediment\+::ungetsediment3dreal8}} (Obj\+Sediment\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aa228482586fe3192bde62eb98f474300}{modulesediment\+::ungetsediment3dreal4}} (Obj\+Sediment\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a8bd56ac218e3c51dd03eb2967d7e9398}{modulesediment\+::modifysediment}} (Obj\+Sediment\+ID, Shear\+Stress, Efficiency\+Factor\+Current, VelU, VelV, Vel\+Mod, Tau\+Wave, Shear\+Stress\+Mean, Cphi, C\+Wphi, Efficiency\+Factor\+Mean, Efficiency\+Factor\+Waves, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a3b7a3bb199cbac91d1df5c84bbd12194}{modulesediment\+::computeopensediment}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ad32ebe12f24cd2680e47efaeaf5c8e56}{modulesediment\+::computed50cell}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a9d78e985794a27f527367cd42c5dafb2}{modulesediment\+::computendshearstress}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a04e890023555f00803b6373c6f8934cc}{modulesediment\+::computecriticalshearstress}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesediment_a03f094fcbc01dd75c60a5a69ce5dde19}{modulesediment\+::computehidingexposure}} (i, j, n, D50)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ab4eb31a619673958de47a8eb42ca39fa}{modulesediment\+::computereferenceconcentration}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a621ed127ad378409a67e67c54993d3cb}{modulesediment\+::computebedload}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a099f230f690695fa4061449e8880d0e7}{modulesediment\+::currentonlybedload}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ab4e81d1c3c2244f9bb0f378491adbc1e}{modulesediment\+::currentpluswavesbedload}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ab75ac0182e2b11a8063dbb8027fa8d19}{modulesediment\+::wavesonlybedload}}
+\item 
+real function, private \mbox{\hyperlink{namespacemodulesediment_afbd767a170502bf18b5849039940895d}{modulesediment\+::cohesiveness\+\_\+adjust}} (Cohesive\+\_\+\+Percentage, P\+M1, P\+M2)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a7f0383935c0a22b77c959d32f6fa82e5}{modulesediment\+::computeasymmetryfactor}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a1e2e55857d3719dbc4a034eb10281e6c}{modulesediment\+::computefluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ab31a25d99dffd49784478e26814bbea5}{modulesediment\+::computebedslopeeffects}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesediment_a0fc734d1e2e7bacc8606e169d198ead5}{modulesediment\+::computeswashzonetransport}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a982ebf7fcffb2f4bd698f8ec31fea0d1}{modulesediment\+::fluxescorrection}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aba93d4f48399841f747d4c862880f365}{modulesediment\+::computeevolution}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aef98ab4e43c91c6528368e12b3bc5199}{modulesediment\+::computesedimentwaterfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a8f039d145535e96ceb83a4518f8f82a6}{modulesediment\+::computeerosiondrycells}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a299a31086ad8f844252db856c26e1ce7}{modulesediment\+::computedmdrycells}} (i, j, ii, jj)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aa82529eb8b689ee3ddf738441376e275}{modulesediment\+::adjuststeepness}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a3b2c4d5436d7504be300368e5a584c64}{modulesediment\+::boundarycondition}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a38f45fc06e83e0a40fda99cfc71c39ce}{modulesediment\+::computemass}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a967461a16889fe7be50495dad90a178a}{modulesediment\+::computepercentage}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a12a98e7d5cf87fedaf983b4eb24c1633}{modulesediment\+::computeporosity}} (i, j, k)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a9aa4c5d236de77268f5aa5b54dfdab36}{modulesediment\+::computetotaldz}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ae2d0c9fdf078f2fd81047486eb734a9d}{modulesediment\+::computeverticalcoordinate}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_acfebb5e32f4481cbb0199b98dc4ff545}{modulesediment\+::new\+\_\+layer}} (i, j, W\+K\+UB, Excess\+DZ)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aac53266b3dac9076f1df37c49e676383}{modulesediment\+::maxlayersexceeded}} (i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a2047f2985bf32ff5a12cbd0def21cf95}{modulesediment\+::activate\+\_\+layer}} (i, j, W\+K\+UB)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aba4245ac07452ebcf189f0cf9617d234}{modulesediment\+::layer\+\_\+eroded}} (i, j, W\+K\+UB, DZ, Excess\+DZ)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a513f33f980769b37c74ea34212fad388}{modulesediment\+::computeconsolidation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aa3fda34444f716aac00714d297af27d3}{modulesediment\+::new\+\_\+geometry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_ad51d2a28e0487a18346c78ef17c13307}{modulesediment\+::computeresidualevolution}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_abfa4d5937f78f3781b6b3108b8068185}{modulesediment\+::outputsedimenthdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a5763876f73ef752f30208f2fd9aba61e}{modulesediment\+::output\+\_\+timeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_abf7a07c3cdbe931d82c21146e433eaeb}{modulesediment\+::outputboxfluxes}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesediment_a3799836daf0cb05055644810de5e7fd0}{modulesediment\+::killsediment}} (Obj\+Sediment\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a1f674dbab21e666bea43953621c4cce3}{modulesediment\+::writefinalstate}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_aaca3b711a9cb64af8d2ec951a1338ddd}{modulesediment\+::deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a2427e7af36c908526797cc897f1dca07}{modulesediment\+::ready}} (Obj\+Sediment\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a3719cfe21de51d5aff6e236bffdbe06d}{modulesediment\+::locateobjsediment}} (Obj\+Sediment\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a94b876e44c6f435015c969c6a2f32978}{modulesediment\+::readlockexternalvar}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesediment_a8c3164236748ba94c8bef14c5dd430b9}{modulesediment\+::readunlockexternalvar}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesediment_af1006e09404ecf1262d3fe43df71f09c}{modulesediment\+::class\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$beginsandclass$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesediment_aeb889ae6f0f7e8a1b9c13869a959bd1b}{modulesediment\+::class\+\_\+block\+\_\+end}} = \textquotesingle{}$<$endsandclass$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesediment_a97728c336ac59fb7fa2d88989aa0f05a}{modulesediment\+::cohesive\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$begincohesive$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesediment_a6483adc6b7baa8b84f61b08324b816c6}{modulesediment\+::cohesive\+\_\+block\+\_\+end}} = \textquotesingle{}$<$endcohesive$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesediment_a8d61754f94665f221210ebc1bd20e115}{modulesediment\+::cohesivedensity\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$begindrydensity$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesediment_ac4c06599ecc092000b8f90f8c4eb9f07}{modulesediment\+::cohesivedensity\+\_\+block\+\_\+end}} = \textquotesingle{}$<$enddrydensity$>$\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesediment_aaf552a5be9caf9b6291f624b0a24fb3a}{modulesediment\+::notransport}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesediment_a3f144798ab083396919e5839e34e0bf8}{modulesediment\+::currentonly}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesediment_a1bd4574819c8845169f3b29052ce4e60}{modulesediment\+::currentpluswaves}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesediment_ac5c33200eb0ff8772d6e61ec1a22ce5e}{modulesediment\+::wavesonly}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesediment_a4d4d024c00a9eac5f794d6a0db4faafd}{modulesediment\+::nullgradient}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesediment_ac4670700ca82bb1af30c31085a5b45d4}{modulesediment\+::cyclic}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesediment_a43439a1d0c16bbfdb3623215dfa24102}{modulesediment\+::nullvalue}} = 3
+\item 
+type(t\+\_\+sediment), pointer \mbox{\hyperlink{namespacemodulesediment_ab81913d50f9323da1689b4d47d3c8d48}{modulesediment\+::firstobjsediment}} =$>$ null ()
+\item 
+type(t\+\_\+sediment), pointer \mbox{\hyperlink{namespacemodulesediment_af3acabb996ebbde62db3847cfe45099c}{modulesediment\+::me}} =$>$ null ()
+\end{DoxyCompactItemize}

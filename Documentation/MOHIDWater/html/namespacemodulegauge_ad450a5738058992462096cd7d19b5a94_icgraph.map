@@ -1,0 +1,29 @@
+<map id="modulegauge::locateobjgauge" name="modulegauge::locateobjgauge">
+<area shape="rect" id="node2" href="$namespacemodulegauge.html#a8ece20a220d6beae6919846687d6fe8f" title="modulegauge::ready" alt="" coords="248,651,387,678"/>
+<area shape="rect" id="node3" href="$namespacemodulegauge.html#a5f441d56f4c693dc4323df1e0d702ea6" title="modulegauge::constructgauges" alt="" coords="711,94,914,121"/>
+<area shape="rect" id="node4" href="$namespacemoduleopenboundary.html#a4de0cd486a833b86ff9e035de046ff81" title="moduleopenboundary\l::constructopenboundary" alt="" coords="981,163,1147,204"/>
+<area shape="rect" id="node5" href="$namespacemodulegauge.html#a7a4e1ac4c0d2468bf869594a8677a7d0" title="modulegauge::getngauges" alt="" coords="452,347,627,374"/>
+<area shape="rect" id="node7" href="$namespacemoduleopenboundary.html#ab4eb76c328f66777a2d624134933208e" title="moduleopenboundary\l::modify_openboundary" alt="" coords="735,391,891,432"/>
+<area shape="rect" id="node8" href="$namespacemoduleopenboundary.html#aff2a2f4ab16c35a036f9e00575fed103" title="moduleopenboundary\l::modify_alldomain" alt="" coords="740,492,885,533"/>
+<area shape="rect" id="node9" href="$namespacemodulegauge.html#adc2b7e3c857dc1649430eaa5a0fb1882" title="modulegauge::getncomponents" alt="" coords="438,601,641,627"/>
+<area shape="rect" id="node10" href="$namespacemodulegauge.html#af98cce9ae7ea92a6068724894d803842" title="modulegauge::getmetricgaugelocation" alt="" coords="692,145,933,171"/>
+<area shape="rect" id="node11" href="$namespacemodulegauge.html#a118b41963f151494a832cd94010c6282" title="modulegauge::getgaugelocation" alt="" coords="437,651,642,678"/>
+<area shape="rect" id="node12" href="$namespacemodulegauge.html#a9b801d4a79f8bfd52e8276c2b5525b5e" title="modulegauge::getijreferencelevel" alt="" coords="435,297,644,323"/>
+<area shape="rect" id="node13" href="$namespacemodulegauge.html#aa7b1b101cf558db427ad03b4a0e72f09" title="modulegauge::getijwaterlevel" alt="" coords="446,398,633,425"/>
+<area shape="rect" id="node14" href="$namespacemodulegauge.html#a0201de248a96f786a6ac1e9875435ba3" title="modulegauge::getwaterlevel" alt="" coords="449,702,630,729"/>
+<area shape="rect" id="node15" href="$namespacemodulegauge.html#a3f8df5ad4b3209ed0c1f3dda8945093f" title="modulegauge::getreferencelevel" alt="" coords="438,246,641,273"/>
+<area shape="rect" id="node16" href="$namespacemodulegauge.html#aeb445b9f9d227121a220ceafb472ec2c" title="modulegauge::getlevelevolution" alt="" coords="439,753,639,779"/>
+<area shape="rect" id="node17" href="$namespacemodulegauge.html#af4997d45043f601c961fd7d153c0b413" title="modulegauge::getvelevolution" alt="" coords="444,803,635,830"/>
+<area shape="rect" id="node18" href="$namespacemodulegauge.html#a0912cebda10faa15469d951016b5db0e" title="modulegauge::gettrianggaugeson" alt="" coords="706,195,919,222"/>
+<area shape="rect" id="node19" href="$namespacemodulegauge.html#a40e51c18500557c90968e17a5ec8a550" title="modulegauge::gaugelevel" alt="" coords="456,499,623,526"/>
+<area shape="rect" id="node20" href="$namespacemodulegauge.html#a545694594f895a232c1f0b4fc8256bb9" title="modulegauge::killgauge" alt="" coords="460,854,619,881"/>
+<area shape="rect" id="node21" href="$namespacemoduleopenboundary.html#aeb84e486854c5a1124aae3804680b09b" title="moduleopenboundary\l::killopenboundary" alt="" coords="740,872,885,913"/>
+<area shape="rect" id="node22" href="$namespacemoduleopenboundary.html#a620ec04ba9bf0bef4684a93c01e856e3" title="moduleopenboundary\l::getimposedelevation" alt="" coords="466,956,613,997"/>
+<area shape="rect" id="node23" href="$namespacemoduleopenboundary.html#a4770186a431ef5de9034a0b7eb410c43" title="moduleopenboundary\l::getimposedvelocity" alt="" coords="467,1021,612,1063"/>
+<area shape="rect" id="node24" href="$namespacemoduleopenboundary.html#af306d4464c6cbd29390136a8103d1a2e" title="moduleopenboundary\l::getopenboundparameter" alt="" coords="455,1087,624,1128"/>
+<area shape="rect" id="node25" href="$namespacemoduleopenboundary.html#a0388d8cc14f0fdd9f898ff4cf751b093" title="moduleopenboundary\l::getoldimposedelevation" alt="" coords="457,1152,621,1193"/>
+<area shape="rect" id="node26" href="$namespacemoduleopenboundary.html#a26e04e1ec6a8b2b4481ebb096e1c36b1" title="moduleopenboundary\l::getboundaryreferencelevel" alt="" coords="450,1217,629,1259"/>
+<area shape="rect" id="node27" href="$namespacemoduleopenboundary.html#a52848b363ed0632be0c32b49a6d17cd4" title="moduleopenboundary\l::getaverageimposedelevation" alt="" coords="444,1283,635,1324"/>
+<area shape="rect" id="node28" href="$namespacemoduleopenboundary.html#a601c9cebbb40986b76e9488a0af4dc3a" title="moduleopenboundary\l::ungetopenboundary2d" alt="" coords="461,1348,618,1389"/>
+<area shape="rect" id="node6" href="$namespacemoduleopenboundary.html#a4aaa938f269710f21fa7500a3501905a" title="moduleopenboundary\l::computereferencelevel" alt="" coords="733,253,892,295"/>
+</map>

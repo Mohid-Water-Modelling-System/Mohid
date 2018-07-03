@@ -1,0 +1,5 @@
+<map id="modulereservoirs::modifyoutput" name="modulereservoirs::modifyoutput">
+<area shape="rect" id="node2" href="$namespacemodulereservoirs.html#a8f4552bc7aa4adbe0bb04d768353a7b4" title="modulereservoirs::writetimeseries" alt="" coords="255,5,469,32"/>
+<area shape="rect" id="node3" href="$namespacemodulereservoirs.html#acfc5816f94fa9d8f10e180691ee50039" title="modulereservoirs::writeoutputhdf" alt="" coords="259,56,465,83"/>
+<area shape="rect" id="node4" href="$namespacemodulereservoirs.html#ab10c15bc98d09e4f38187f218fce8925" title="modulereservoirs::writefinalhdf" alt="" coords="265,107,459,133"/>
+</map>

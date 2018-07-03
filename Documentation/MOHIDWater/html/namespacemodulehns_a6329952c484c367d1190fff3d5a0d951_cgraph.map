@@ -1,0 +1,16 @@
+<map id="modulehns::hnsinternalprocesses" name="modulehns::hnsinternalprocesses">
+<area shape="rect" id="node2" href="$namespacemodulehns.html#a1b4bda03d346568b51278fca35b05366" title="modulehns::ready" alt="" coords="323,5,448,32"/>
+<area shape="rect" id="node4" href="$namespacemodulehns.html#a23256714b2ab17223f430aced19cdda8" title="modulehns::initializevariables" alt="" coords="290,56,481,83"/>
+<area shape="rect" id="node5" href="$namespacemodulehns.html#a42753d96607d5c8c88073bec5ee71084" title="modulehns::findhnsbehaviourclass" alt="" coords="276,107,495,133"/>
+<area shape="rect" id="node6" href="$namespacemodulehns.html#aea7fc4ad80f75c5e51fdf077a3c341c8" title="modulehns::evaporation" alt="" coords="306,157,465,184"/>
+<area shape="rect" id="node7" href="$namespacemodulehns.html#a13e99017fa3f908e775b29ff9c3fee14" title="modulehns::entrainment" alt="" coords="305,208,466,235"/>
+<area shape="rect" id="node8" href="$namespacemodulehns.html#a2b9b45c82fa5451490cda26d15845a31" title="modulehns::dissolution" alt="" coords="308,259,463,285"/>
+<area shape="rect" id="node11" href="$namespacemodulehns.html#ab96db95d39d4bc3d33b5266fe71250e6" title="modulehns::sedimentation" alt="" coords="298,309,473,336"/>
+<area shape="rect" id="node12" href="$namespacemodulehns.html#a837429821cbc45e6eb9a1c1aad7bef4e" title="modulehns::findinitialdropletdiameter" alt="" coords="269,360,501,387"/>
+<area shape="rect" id="node13" href="$namespacemodulehns.html#afbe73cf1017e84dcb207a4be7e224a29" title="modulehns::volatilization" alt="" coords="304,411,467,437"/>
+<area shape="rect" id="node14" href="$namespacemodulehns.html#a4966ebd0f80ed38b932eafaa93d15db4" title="modulehns::updatehnsparticlestate" alt="" coords="273,461,497,488"/>
+<area shape="rect" id="node15" href="$namespacemodulehns.html#a378c8e88593c5f512652c5189a9a9729" title="modulehns::degradation" alt="" coords="305,512,465,539"/>
+<area shape="rect" id="node3" href="$namespacemodulehns.html#aff869b6b5dffbe4b2d00b777a1c0455d" title="modulehns::locateobjhns" alt="" coords="573,5,739,32"/>
+<area shape="rect" id="node9" href="$namespacemodulehns.html#a1d67c72bdca52544f6736edf0babb013" title="modulehns::molarvolumelebas" alt="" coords="558,233,754,260"/>
+<area shape="rect" id="node10" href="$namespacemodulehns.html#a0b9d738b31afba3668603a21335882f9" title="modulehns::getwaterdynamicvisc" alt="" coords="549,284,763,311"/>
+</map>

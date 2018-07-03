@@ -1,0 +1,670 @@
+\hypertarget{structmodulewaterproperties_1_1t__waterproperties}{}\section{modulewaterproperties\+:\+:t\+\_\+waterproperties Type Reference}
+\label{structmodulewaterproperties_1_1t__waterproperties}\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+
+
+Collaboration diagram for modulewaterproperties\+:\+:t\+\_\+waterproperties\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structmodulewaterproperties_1_1t__waterproperties__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a3f75745572390b383bb5ced22a7ef38b}{instanceid}}
+\item 
+character(pathlength) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a74757c559a7841b278f2f6d50800e994}{modelname}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ae8d4deb8db890e98ed3bedb0070f2773}{size}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a052510c9cfa4d52db0bdebff22b0ff2b}{worksize}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__files}{t\+\_\+files}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a8737e3b0837792ca1001316fb7c11be6}{files}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__coupled}{t\+\_\+coupled}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a5934ea64ead6c2275c2a2c5b9171198f}{coupled}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a7bcf7b77ff453145c626397a0197691f}{begintime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ab7f0ad269320d5bac3f050f66f0666b8}{endtime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_aa50d26841dfca37cafad400e946607db}{lastiteration}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__density}{t\+\_\+density}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a897afcdf7e52c238e0759efe6a330811}{density}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__specificheat}{t\+\_\+specificheat}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a5044019ca6e7c73ceb551b2f7fdf3758}{specificheat}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__radiation}{t\+\_\+radiation}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a9f72670fa276210971cd36aa5f61fe2e}{solarradiation}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__external}{t\+\_\+external}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a1f7fbcdf306cc734b8aa3fb9027a8691}{externalvar}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__extsurface}{t\+\_\+extsurface}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a9be634f293c385eed744dc4b5fd8bef4}{extsurface}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__output}{t\+\_\+output}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a59644a65855a2e8d068c302aeef3b988}{output}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__outw}{t\+\_\+outw}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_aae2951f9ae7317e57c1e324afede9013}{outw}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__smalldepths}{t\+\_\+smalldepths}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a8f3f14296cf44bf9be62533637311867}{smalldepths}}
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a5b2a995a4032339f48b7b936247b9d18}{freeconvection}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ae7ae8cb63c61f26b91837e279d7024e8}{firstproperty}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_abd19b672c9d11946c6d500ed96567d23}{lastproperty}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__wqrate}{t\+\_\+wqrate}}), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_af297a6efbfa450105ddba154f67c7bc8}{firstwqrate}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__wqrate}{t\+\_\+wqrate}}), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a64ab1ef44b7c358bf7c950dc3c623a57}{lastwqrate}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__dischargetimeserie}{t\+\_\+dischargetimeserie}}), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_afcb3a9e0e6646a4ed89d7d5bfef69c6c}{firstdischargetimeserie}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__age}{t\+\_\+age}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a43599847567a366c3a74bdbd059d213a}{age}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__macroalgae}{t\+\_\+macroalgae}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a5edb9ab83eb42f011ea0c94989c055d4}{macroalgae}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__seagrassesleaves}{t\+\_\+seagrassesleaves}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a35744373c2b2299ffe964968609c2529}{seagrassesleaves}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__bivalve}{t\+\_\+bivalve}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_aa456a1ba106a9460d8315c1aa393a224}{bivalve}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__discharge}{t\+\_\+discharge}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a56ec27a067d72a56ff0802ad48a9441d}{discharge}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__hybridweights}{t\+\_\+hybridweights}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_afd7ee240f746ca0b4d3243212914a9de}{hybridweights}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__noflux}{t\+\_\+noflux}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a0d5c1b21ac6dddb817fcd30a20993953}{noflux}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__chemlinks}{t\+\_\+chemlinks}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a638519328ef7ef412425ed9d6ce92fe8}{chemlinks}}
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__ddecomp}{t\+\_\+ddecomp}}) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a4841e424fdc6c104aff6a2d07709cc87}{ddecomp}}
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a3ddb490e18afa7b0b759658e3844f01f}{propertiesnumber}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a356ea1fb52ed9c8457802e3b7e8a9440}{wqratesnumber}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ac38087d68cb923b65acd1c9815236051}{dosattype}}
+\item 
+real \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a2e6b8eb5dcfdef3132cbc141064e2c7b}{altitude}}
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a1ba31f63064313ddcfe31a7813686422}{massfluxesx}}
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_af385f406fee5343b513bfd359b87086d}{massfluxesy}}
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a0c63d1b5eb47d89074c1d605d977e1f8}{massfluxesz}}
+\item 
+real(8), dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_af25a74dadb8d25da49049eab29d8cf1e}{cellmass}}
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ae0351c34c606e3fc62c8d392ba44f0f4}{firstiteration}} = .true.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a0359e38690894db927f109d8acbebef3}{start2way}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a3fb14c0c6f0236dde822feaf8036c036}{writehdfreal4}} = .true.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ac8f08265ee4084517b699688e2e23e92}{oxygensaturation}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a4ffac99f661578e8967c10853210c016}{co2\+\_\+pp\+\_\+output}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a7fe804fb42ddca0559d2b69ef3547b25}{o2\+\_\+sat\+\_\+output}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a2090683c20a11f01cb25e9e5f22c4cb8}{chla\+\_\+wq\+\_\+output}} = .false.
+\item 
+real(8) \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_af946811c189644bd4405aced7533a82d}{c\+\_\+chla\+\_\+output}}
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_aa67acf3024e9f335316558033ccfeadc}{maxthreads}}
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a53a488544202cbcc2c1fe288aa3fbe79}{tempfirsttimewarning}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_aecae13314d44a88d4d6f019140c3a410}{muststartphreeqc}} = .true.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a79bd9405c1a680bc0e41d2135f9e6a79}{phreeqconlyforstart}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_abc70ad08582eb4b2c04394bd50e75cba}{continuous}} = .false.
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a92618e488c2f24f7bed92f65c061690c}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a4726591e12168428182866c1abcdd0aa}{objsurfacehdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a7946c140e1e4d674203b5a97c95b0b85}{objtimeserie}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ab184e3f5b74380f097601da822586be9}{objprofile}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ab6bfd2f3cc6f26d36999e748ebd7cac1}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a74996d4560dbf78881891305d5f02a4e}{objgriddata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a3823dadd67e3ac4c0b84ff41dbefad99}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a55cbb1eebb85cac62835e08b27f32be0}{objgeometry}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a958470370e3fe0a880ffba3271d734e0}{objhorizontalmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ac8f1d1a7808ab2859d7326faca598ba3}{objmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ad7a608c3e4deb3fbdb0a9f5b915ed0ae}{objhydrodynamic}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a6a782489211956c1ab4587a2aa080e11}{objturbulence}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a11be0162c4fbba7f5eeb9a3f05891c6a}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ae946e923d15be3cf094c8357ebefc093}{objlightextinction}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a33a29008fc0149fffe4bbc9a88bf61f5}{objadvectiondiffusion}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a1275644660f5e471e3a54045651b147a}{objfreeverticalmovement}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a82befa9a7df4c764ef11595cea063712}{objturbgotm}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a318338dcd17f0796b53c509fd68f967d}{objinterface}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a6112d0d4ac916cce1dcf9e02ebd9fd18}{objinterfacemacroalgae}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a534d523f3de0db4b0f044905f26b7cf3}{objinterfacebivalve}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_ad52d5702259d0c2501585d70b485e58e}{objbivalve}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a9ad746cf30d29f78327fc7523c42d96a}{objdischarges}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a0f6e7099c906437504baac0ce5bbb6e8}{objboxdif}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a555db2d23bab5fbd69a1df82c86343a4}{objhydrointegration}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a7d506429c8c523fda679db889840cb79}{objassimilation}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a2f423d314574fb9aad9d8f23497cfa10}{objseagrasswaterinteraction}} = 0
+\item 
+type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties}{t\+\_\+waterproperties}}), pointer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_a094d9471c28eed5b46b5745a8f96f6e5}{next}}
+\item 
+integer \mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties_acd27c32b66d9bef6c7c39663656a6d03}{wpfatherinstanceid}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a43599847567a366c3a74bdbd059d213a}\label{structmodulewaterproperties_1_1t__waterproperties_a43599847567a366c3a74bdbd059d213a}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!age@{age}}
+\index{age@{age}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{age}{age}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__age}{t\+\_\+age}}) modulewaterproperties\+::t\+\_\+waterproperties\+::age\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a2e6b8eb5dcfdef3132cbc141064e2c7b}\label{structmodulewaterproperties_1_1t__waterproperties_a2e6b8eb5dcfdef3132cbc141064e2c7b}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!altitude@{altitude}}
+\index{altitude@{altitude}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{altitude}{altitude}}
+{\footnotesize\ttfamily real modulewaterproperties\+::t\+\_\+waterproperties\+::altitude\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a7bcf7b77ff453145c626397a0197691f}\label{structmodulewaterproperties_1_1t__waterproperties_a7bcf7b77ff453145c626397a0197691f}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!begintime@{begintime}}
+\index{begintime@{begintime}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{begintime}{begintime}}
+{\footnotesize\ttfamily type(t\+\_\+time ) modulewaterproperties\+::t\+\_\+waterproperties\+::begintime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_aa456a1ba106a9460d8315c1aa393a224}\label{structmodulewaterproperties_1_1t__waterproperties_aa456a1ba106a9460d8315c1aa393a224}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!bivalve@{bivalve}}
+\index{bivalve@{bivalve}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{bivalve}{bivalve}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__bivalve}{t\+\_\+bivalve}}) modulewaterproperties\+::t\+\_\+waterproperties\+::bivalve\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_af946811c189644bd4405aced7533a82d}\label{structmodulewaterproperties_1_1t__waterproperties_af946811c189644bd4405aced7533a82d}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!c\+\_\+chla\+\_\+output@{c\+\_\+chla\+\_\+output}}
+\index{c\+\_\+chla\+\_\+output@{c\+\_\+chla\+\_\+output}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{c\+\_\+chla\+\_\+output}{c\_chla\_output}}
+{\footnotesize\ttfamily real(8) modulewaterproperties\+::t\+\_\+waterproperties\+::c\+\_\+chla\+\_\+output\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_af25a74dadb8d25da49049eab29d8cf1e}\label{structmodulewaterproperties_1_1t__waterproperties_af25a74dadb8d25da49049eab29d8cf1e}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!cellmass@{cellmass}}
+\index{cellmass@{cellmass}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{cellmass}{cellmass}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::cellmass\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a638519328ef7ef412425ed9d6ce92fe8}\label{structmodulewaterproperties_1_1t__waterproperties_a638519328ef7ef412425ed9d6ce92fe8}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!chemlinks@{chemlinks}}
+\index{chemlinks@{chemlinks}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{chemlinks}{chemlinks}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__chemlinks}{t\+\_\+chemlinks}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::chemlinks\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a2090683c20a11f01cb25e9e5f22c4cb8}\label{structmodulewaterproperties_1_1t__waterproperties_a2090683c20a11f01cb25e9e5f22c4cb8}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!chla\+\_\+wq\+\_\+output@{chla\+\_\+wq\+\_\+output}}
+\index{chla\+\_\+wq\+\_\+output@{chla\+\_\+wq\+\_\+output}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{chla\+\_\+wq\+\_\+output}{chla\_wq\_output}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::chla\+\_\+wq\+\_\+output = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a4ffac99f661578e8967c10853210c016}\label{structmodulewaterproperties_1_1t__waterproperties_a4ffac99f661578e8967c10853210c016}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!co2\+\_\+pp\+\_\+output@{co2\+\_\+pp\+\_\+output}}
+\index{co2\+\_\+pp\+\_\+output@{co2\+\_\+pp\+\_\+output}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{co2\+\_\+pp\+\_\+output}{co2\_pp\_output}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::co2\+\_\+pp\+\_\+output = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_abc70ad08582eb4b2c04394bd50e75cba}\label{structmodulewaterproperties_1_1t__waterproperties_abc70ad08582eb4b2c04394bd50e75cba}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!continuous@{continuous}}
+\index{continuous@{continuous}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{continuous}{continuous}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::continuous = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a5934ea64ead6c2275c2a2c5b9171198f}\label{structmodulewaterproperties_1_1t__waterproperties_a5934ea64ead6c2275c2a2c5b9171198f}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!coupled@{coupled}}
+\index{coupled@{coupled}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{coupled}{coupled}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__coupled}{t\+\_\+coupled}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::coupled\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a4841e424fdc6c104aff6a2d07709cc87}\label{structmodulewaterproperties_1_1t__waterproperties_a4841e424fdc6c104aff6a2d07709cc87}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!ddecomp@{ddecomp}}
+\index{ddecomp@{ddecomp}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{ddecomp}{ddecomp}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__ddecomp}{t\+\_\+ddecomp}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::ddecomp\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a897afcdf7e52c238e0759efe6a330811}\label{structmodulewaterproperties_1_1t__waterproperties_a897afcdf7e52c238e0759efe6a330811}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!density@{density}}
+\index{density@{density}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{density}{density}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__density}{t\+\_\+density}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::density\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a56ec27a067d72a56ff0802ad48a9441d}\label{structmodulewaterproperties_1_1t__waterproperties_a56ec27a067d72a56ff0802ad48a9441d}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!discharge@{discharge}}
+\index{discharge@{discharge}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{discharge}{discharge}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__discharge}{t\+\_\+discharge}}) modulewaterproperties\+::t\+\_\+waterproperties\+::discharge\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ac38087d68cb923b65acd1c9815236051}\label{structmodulewaterproperties_1_1t__waterproperties_ac38087d68cb923b65acd1c9815236051}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!dosattype@{dosattype}}
+\index{dosattype@{dosattype}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{dosattype}{dosattype}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::dosattype\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ab7f0ad269320d5bac3f050f66f0666b8}\label{structmodulewaterproperties_1_1t__waterproperties_ab7f0ad269320d5bac3f050f66f0666b8}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!endtime@{endtime}}
+\index{endtime@{endtime}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{endtime}{endtime}}
+{\footnotesize\ttfamily type(t\+\_\+time ) modulewaterproperties\+::t\+\_\+waterproperties\+::endtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a1f7fbcdf306cc734b8aa3fb9027a8691}\label{structmodulewaterproperties_1_1t__waterproperties_a1f7fbcdf306cc734b8aa3fb9027a8691}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!externalvar@{externalvar}}
+\index{externalvar@{externalvar}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{externalvar}{externalvar}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__external}{t\+\_\+external}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::externalvar\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a9be634f293c385eed744dc4b5fd8bef4}\label{structmodulewaterproperties_1_1t__waterproperties_a9be634f293c385eed744dc4b5fd8bef4}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!extsurface@{extsurface}}
+\index{extsurface@{extsurface}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{extsurface}{extsurface}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__extsurface}{t\+\_\+extsurface}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::extsurface\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a8737e3b0837792ca1001316fb7c11be6}\label{structmodulewaterproperties_1_1t__waterproperties_a8737e3b0837792ca1001316fb7c11be6}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!files@{files}}
+\index{files@{files}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{files}{files}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__files}{t\+\_\+files}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::files\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_afcb3a9e0e6646a4ed89d7d5bfef69c6c}\label{structmodulewaterproperties_1_1t__waterproperties_afcb3a9e0e6646a4ed89d7d5bfef69c6c}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!firstdischargetimeserie@{firstdischargetimeserie}}
+\index{firstdischargetimeserie@{firstdischargetimeserie}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{firstdischargetimeserie}{firstdischargetimeserie}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__dischargetimeserie}{t\+\_\+dischargetimeserie}}), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::firstdischargetimeserie\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ae0351c34c606e3fc62c8d392ba44f0f4}\label{structmodulewaterproperties_1_1t__waterproperties_ae0351c34c606e3fc62c8d392ba44f0f4}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!firstiteration@{firstiteration}}
+\index{firstiteration@{firstiteration}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{firstiteration}{firstiteration}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::firstiteration = .true.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ae7ae8cb63c61f26b91837e279d7024e8}\label{structmodulewaterproperties_1_1t__waterproperties_ae7ae8cb63c61f26b91837e279d7024e8}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!firstproperty@{firstproperty}}
+\index{firstproperty@{firstproperty}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{firstproperty}{firstproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__property}{t\+\_\+property}}), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::firstproperty\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_af297a6efbfa450105ddba154f67c7bc8}\label{structmodulewaterproperties_1_1t__waterproperties_af297a6efbfa450105ddba154f67c7bc8}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!firstwqrate@{firstwqrate}}
+\index{firstwqrate@{firstwqrate}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{firstwqrate}{firstwqrate}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__wqrate}{t\+\_\+wqrate}}), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::firstwqrate\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a5b2a995a4032339f48b7b936247b9d18}\label{structmodulewaterproperties_1_1t__waterproperties_a5b2a995a4032339f48b7b936247b9d18}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!freeconvection@{freeconvection}}
+\index{freeconvection@{freeconvection}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{freeconvection}{freeconvection}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::freeconvection\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_afd7ee240f746ca0b4d3243212914a9de}\label{structmodulewaterproperties_1_1t__waterproperties_afd7ee240f746ca0b4d3243212914a9de}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!hybridweights@{hybridweights}}
+\index{hybridweights@{hybridweights}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{hybridweights}{hybridweights}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__hybridweights}{t\+\_\+hybridweights}}) modulewaterproperties\+::t\+\_\+waterproperties\+::hybridweights\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a3f75745572390b383bb5ced22a7ef38b}\label{structmodulewaterproperties_1_1t__waterproperties_a3f75745572390b383bb5ced22a7ef38b}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!instanceid@{instanceid}}
+\index{instanceid@{instanceid}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{instanceid}{instanceid}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::instanceid\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_aa50d26841dfca37cafad400e946607db}\label{structmodulewaterproperties_1_1t__waterproperties_aa50d26841dfca37cafad400e946607db}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!lastiteration@{lastiteration}}
+\index{lastiteration@{lastiteration}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{lastiteration}{lastiteration}}
+{\footnotesize\ttfamily type(t\+\_\+time ) modulewaterproperties\+::t\+\_\+waterproperties\+::lastiteration\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_abd19b672c9d11946c6d500ed96567d23}\label{structmodulewaterproperties_1_1t__waterproperties_abd19b672c9d11946c6d500ed96567d23}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!lastproperty@{lastproperty}}
+\index{lastproperty@{lastproperty}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{lastproperty}{lastproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__property}{t\+\_\+property}}), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::lastproperty\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a64ab1ef44b7c358bf7c950dc3c623a57}\label{structmodulewaterproperties_1_1t__waterproperties_a64ab1ef44b7c358bf7c950dc3c623a57}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!lastwqrate@{lastwqrate}}
+\index{lastwqrate@{lastwqrate}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{lastwqrate}{lastwqrate}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__wqrate}{t\+\_\+wqrate}}), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::lastwqrate\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a5edb9ab83eb42f011ea0c94989c055d4}\label{structmodulewaterproperties_1_1t__waterproperties_a5edb9ab83eb42f011ea0c94989c055d4}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!macroalgae@{macroalgae}}
+\index{macroalgae@{macroalgae}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{macroalgae}{macroalgae}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__macroalgae}{t\+\_\+macroalgae}}) modulewaterproperties\+::t\+\_\+waterproperties\+::macroalgae\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a1ba31f63064313ddcfe31a7813686422}\label{structmodulewaterproperties_1_1t__waterproperties_a1ba31f63064313ddcfe31a7813686422}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!massfluxesx@{massfluxesx}}
+\index{massfluxesx@{massfluxesx}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{massfluxesx}{massfluxesx}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::massfluxesx\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_af385f406fee5343b513bfd359b87086d}\label{structmodulewaterproperties_1_1t__waterproperties_af385f406fee5343b513bfd359b87086d}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!massfluxesy@{massfluxesy}}
+\index{massfluxesy@{massfluxesy}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{massfluxesy}{massfluxesy}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::massfluxesy\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a0c63d1b5eb47d89074c1d605d977e1f8}\label{structmodulewaterproperties_1_1t__waterproperties_a0c63d1b5eb47d89074c1d605d977e1f8}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!massfluxesz@{massfluxesz}}
+\index{massfluxesz@{massfluxesz}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{massfluxesz}{massfluxesz}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:,\+:), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::massfluxesz\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_aa67acf3024e9f335316558033ccfeadc}\label{structmodulewaterproperties_1_1t__waterproperties_aa67acf3024e9f335316558033ccfeadc}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!maxthreads@{maxthreads}}
+\index{maxthreads@{maxthreads}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{maxthreads}{maxthreads}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::maxthreads\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a74757c559a7841b278f2f6d50800e994}\label{structmodulewaterproperties_1_1t__waterproperties_a74757c559a7841b278f2f6d50800e994}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!modelname@{modelname}}
+\index{modelname@{modelname}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{modelname}{modelname}}
+{\footnotesize\ttfamily character(pathlength) modulewaterproperties\+::t\+\_\+waterproperties\+::modelname\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_aecae13314d44a88d4d6f019140c3a410}\label{structmodulewaterproperties_1_1t__waterproperties_aecae13314d44a88d4d6f019140c3a410}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!muststartphreeqc@{muststartphreeqc}}
+\index{muststartphreeqc@{muststartphreeqc}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{muststartphreeqc}{muststartphreeqc}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::muststartphreeqc = .true.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a094d9471c28eed5b46b5745a8f96f6e5}\label{structmodulewaterproperties_1_1t__waterproperties_a094d9471c28eed5b46b5745a8f96f6e5}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!next@{next}}
+\index{next@{next}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__waterproperties}{t\+\_\+waterproperties}}), pointer modulewaterproperties\+::t\+\_\+waterproperties\+::next\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a0d5c1b21ac6dddb817fcd30a20993953}\label{structmodulewaterproperties_1_1t__waterproperties_a0d5c1b21ac6dddb817fcd30a20993953}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!noflux@{noflux}}
+\index{noflux@{noflux}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{noflux}{noflux}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__noflux}{t\+\_\+noflux}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::noflux\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a7fe804fb42ddca0559d2b69ef3547b25}\label{structmodulewaterproperties_1_1t__waterproperties_a7fe804fb42ddca0559d2b69ef3547b25}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!o2\+\_\+sat\+\_\+output@{o2\+\_\+sat\+\_\+output}}
+\index{o2\+\_\+sat\+\_\+output@{o2\+\_\+sat\+\_\+output}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{o2\+\_\+sat\+\_\+output}{o2\_sat\_output}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::o2\+\_\+sat\+\_\+output = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a33a29008fc0149fffe4bbc9a88bf61f5}\label{structmodulewaterproperties_1_1t__waterproperties_a33a29008fc0149fffe4bbc9a88bf61f5}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objadvectiondiffusion@{objadvectiondiffusion}}
+\index{objadvectiondiffusion@{objadvectiondiffusion}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objadvectiondiffusion}{objadvectiondiffusion}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objadvectiondiffusion = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a7d506429c8c523fda679db889840cb79}\label{structmodulewaterproperties_1_1t__waterproperties_a7d506429c8c523fda679db889840cb79}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objassimilation@{objassimilation}}
+\index{objassimilation@{objassimilation}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objassimilation}{objassimilation}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objassimilation = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ad52d5702259d0c2501585d70b485e58e}\label{structmodulewaterproperties_1_1t__waterproperties_ad52d5702259d0c2501585d70b485e58e}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objbivalve@{objbivalve}}
+\index{objbivalve@{objbivalve}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objbivalve}{objbivalve}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objbivalve = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a0f6e7099c906437504baac0ce5bbb6e8}\label{structmodulewaterproperties_1_1t__waterproperties_a0f6e7099c906437504baac0ce5bbb6e8}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objboxdif@{objboxdif}}
+\index{objboxdif@{objboxdif}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objboxdif}{objboxdif}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objboxdif = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a9ad746cf30d29f78327fc7523c42d96a}\label{structmodulewaterproperties_1_1t__waterproperties_a9ad746cf30d29f78327fc7523c42d96a}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objdischarges@{objdischarges}}
+\index{objdischarges@{objdischarges}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objdischarges}{objdischarges}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objdischarges = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ab6bfd2f3cc6f26d36999e748ebd7cac1}\label{structmodulewaterproperties_1_1t__waterproperties_ab6bfd2f3cc6f26d36999e748ebd7cac1}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a1275644660f5e471e3a54045651b147a}\label{structmodulewaterproperties_1_1t__waterproperties_a1275644660f5e471e3a54045651b147a}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objfreeverticalmovement@{objfreeverticalmovement}}
+\index{objfreeverticalmovement@{objfreeverticalmovement}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objfreeverticalmovement}{objfreeverticalmovement}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objfreeverticalmovement = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a55cbb1eebb85cac62835e08b27f32be0}\label{structmodulewaterproperties_1_1t__waterproperties_a55cbb1eebb85cac62835e08b27f32be0}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objgeometry@{objgeometry}}
+\index{objgeometry@{objgeometry}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objgeometry}{objgeometry}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objgeometry = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a74996d4560dbf78881891305d5f02a4e}\label{structmodulewaterproperties_1_1t__waterproperties_a74996d4560dbf78881891305d5f02a4e}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objgriddata@{objgriddata}}
+\index{objgriddata@{objgriddata}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objgriddata}{objgriddata}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objgriddata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a92618e488c2f24f7bed92f65c061690c}\label{structmodulewaterproperties_1_1t__waterproperties_a92618e488c2f24f7bed92f65c061690c}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a3823dadd67e3ac4c0b84ff41dbefad99}\label{structmodulewaterproperties_1_1t__waterproperties_a3823dadd67e3ac4c0b84ff41dbefad99}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a958470370e3fe0a880ffba3271d734e0}\label{structmodulewaterproperties_1_1t__waterproperties_a958470370e3fe0a880ffba3271d734e0}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objhorizontalmap@{objhorizontalmap}}
+\index{objhorizontalmap@{objhorizontalmap}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objhorizontalmap}{objhorizontalmap}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objhorizontalmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ad7a608c3e4deb3fbdb0a9f5b915ed0ae}\label{structmodulewaterproperties_1_1t__waterproperties_ad7a608c3e4deb3fbdb0a9f5b915ed0ae}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objhydrodynamic@{objhydrodynamic}}
+\index{objhydrodynamic@{objhydrodynamic}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objhydrodynamic}{objhydrodynamic}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objhydrodynamic = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a555db2d23bab5fbd69a1df82c86343a4}\label{structmodulewaterproperties_1_1t__waterproperties_a555db2d23bab5fbd69a1df82c86343a4}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objhydrointegration@{objhydrointegration}}
+\index{objhydrointegration@{objhydrointegration}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objhydrointegration}{objhydrointegration}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objhydrointegration = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a318338dcd17f0796b53c509fd68f967d}\label{structmodulewaterproperties_1_1t__waterproperties_a318338dcd17f0796b53c509fd68f967d}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objinterface@{objinterface}}
+\index{objinterface@{objinterface}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objinterface}{objinterface}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objinterface = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a534d523f3de0db4b0f044905f26b7cf3}\label{structmodulewaterproperties_1_1t__waterproperties_a534d523f3de0db4b0f044905f26b7cf3}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objinterfacebivalve@{objinterfacebivalve}}
+\index{objinterfacebivalve@{objinterfacebivalve}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objinterfacebivalve}{objinterfacebivalve}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objinterfacebivalve = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a6112d0d4ac916cce1dcf9e02ebd9fd18}\label{structmodulewaterproperties_1_1t__waterproperties_a6112d0d4ac916cce1dcf9e02ebd9fd18}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objinterfacemacroalgae@{objinterfacemacroalgae}}
+\index{objinterfacemacroalgae@{objinterfacemacroalgae}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objinterfacemacroalgae}{objinterfacemacroalgae}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objinterfacemacroalgae = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ae946e923d15be3cf094c8357ebefc093}\label{structmodulewaterproperties_1_1t__waterproperties_ae946e923d15be3cf094c8357ebefc093}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objlightextinction@{objlightextinction}}
+\index{objlightextinction@{objlightextinction}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objlightextinction}{objlightextinction}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objlightextinction = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ac8f1d1a7808ab2859d7326faca598ba3}\label{structmodulewaterproperties_1_1t__waterproperties_ac8f1d1a7808ab2859d7326faca598ba3}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objmap@{objmap}}
+\index{objmap@{objmap}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objmap}{objmap}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ab184e3f5b74380f097601da822586be9}\label{structmodulewaterproperties_1_1t__waterproperties_ab184e3f5b74380f097601da822586be9}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objprofile@{objprofile}}
+\index{objprofile@{objprofile}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objprofile}{objprofile}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objprofile = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a2f423d314574fb9aad9d8f23497cfa10}\label{structmodulewaterproperties_1_1t__waterproperties_a2f423d314574fb9aad9d8f23497cfa10}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objseagrasswaterinteraction@{objseagrasswaterinteraction}}
+\index{objseagrasswaterinteraction@{objseagrasswaterinteraction}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objseagrasswaterinteraction}{objseagrasswaterinteraction}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objseagrasswaterinteraction = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a4726591e12168428182866c1abcdd0aa}\label{structmodulewaterproperties_1_1t__waterproperties_a4726591e12168428182866c1abcdd0aa}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objsurfacehdf5@{objsurfacehdf5}}
+\index{objsurfacehdf5@{objsurfacehdf5}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objsurfacehdf5}{objsurfacehdf5}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objsurfacehdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a11be0162c4fbba7f5eeb9a3f05891c6a}\label{structmodulewaterproperties_1_1t__waterproperties_a11be0162c4fbba7f5eeb9a3f05891c6a}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objtime@{objtime}}
+\index{objtime@{objtime}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a7946c140e1e4d674203b5a97c95b0b85}\label{structmodulewaterproperties_1_1t__waterproperties_a7946c140e1e4d674203b5a97c95b0b85}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objtimeserie@{objtimeserie}}
+\index{objtimeserie@{objtimeserie}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objtimeserie}{objtimeserie}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objtimeserie = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a82befa9a7df4c764ef11595cea063712}\label{structmodulewaterproperties_1_1t__waterproperties_a82befa9a7df4c764ef11595cea063712}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objturbgotm@{objturbgotm}}
+\index{objturbgotm@{objturbgotm}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objturbgotm}{objturbgotm}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objturbgotm = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a6a782489211956c1ab4587a2aa080e11}\label{structmodulewaterproperties_1_1t__waterproperties_a6a782489211956c1ab4587a2aa080e11}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!objturbulence@{objturbulence}}
+\index{objturbulence@{objturbulence}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{objturbulence}{objturbulence}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::objturbulence = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a59644a65855a2e8d068c302aeef3b988}\label{structmodulewaterproperties_1_1t__waterproperties_a59644a65855a2e8d068c302aeef3b988}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!output@{output}}
+\index{output@{output}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{output}{output}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__output}{t\+\_\+output}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::output\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_aae2951f9ae7317e57c1e324afede9013}\label{structmodulewaterproperties_1_1t__waterproperties_aae2951f9ae7317e57c1e324afede9013}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!outw@{outw}}
+\index{outw@{outw}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{outw}{outw}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__outw}{t\+\_\+outw}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::outw\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ac8f08265ee4084517b699688e2e23e92}\label{structmodulewaterproperties_1_1t__waterproperties_ac8f08265ee4084517b699688e2e23e92}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!oxygensaturation@{oxygensaturation}}
+\index{oxygensaturation@{oxygensaturation}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{oxygensaturation}{oxygensaturation}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::oxygensaturation = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a79bd9405c1a680bc0e41d2135f9e6a79}\label{structmodulewaterproperties_1_1t__waterproperties_a79bd9405c1a680bc0e41d2135f9e6a79}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!phreeqconlyforstart@{phreeqconlyforstart}}
+\index{phreeqconlyforstart@{phreeqconlyforstart}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{phreeqconlyforstart}{phreeqconlyforstart}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::phreeqconlyforstart = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a3ddb490e18afa7b0b759658e3844f01f}\label{structmodulewaterproperties_1_1t__waterproperties_a3ddb490e18afa7b0b759658e3844f01f}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!propertiesnumber@{propertiesnumber}}
+\index{propertiesnumber@{propertiesnumber}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{propertiesnumber}{propertiesnumber}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::propertiesnumber = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a35744373c2b2299ffe964968609c2529}\label{structmodulewaterproperties_1_1t__waterproperties_a35744373c2b2299ffe964968609c2529}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!seagrassesleaves@{seagrassesleaves}}
+\index{seagrassesleaves@{seagrassesleaves}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{seagrassesleaves}{seagrassesleaves}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__seagrassesleaves}{t\+\_\+seagrassesleaves}}) modulewaterproperties\+::t\+\_\+waterproperties\+::seagrassesleaves\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_ae8d4deb8db890e98ed3bedb0070f2773}\label{structmodulewaterproperties_1_1t__waterproperties_ae8d4deb8db890e98ed3bedb0070f2773}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!size@{size}}
+\index{size@{size}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size3d ) modulewaterproperties\+::t\+\_\+waterproperties\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a8f3f14296cf44bf9be62533637311867}\label{structmodulewaterproperties_1_1t__waterproperties_a8f3f14296cf44bf9be62533637311867}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!smalldepths@{smalldepths}}
+\index{smalldepths@{smalldepths}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{smalldepths}{smalldepths}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__smalldepths}{t\+\_\+smalldepths}}) modulewaterproperties\+::t\+\_\+waterproperties\+::smalldepths\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a9f72670fa276210971cd36aa5f61fe2e}\label{structmodulewaterproperties_1_1t__waterproperties_a9f72670fa276210971cd36aa5f61fe2e}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!solarradiation@{solarradiation}}
+\index{solarradiation@{solarradiation}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{solarradiation}{solarradiation}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__radiation}{t\+\_\+radiation}}) modulewaterproperties\+::t\+\_\+waterproperties\+::solarradiation\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a5044019ca6e7c73ceb551b2f7fdf3758}\label{structmodulewaterproperties_1_1t__waterproperties_a5044019ca6e7c73ceb551b2f7fdf3758}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!specificheat@{specificheat}}
+\index{specificheat@{specificheat}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{specificheat}{specificheat}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewaterproperties_1_1t__specificheat}{t\+\_\+specificheat}} ) modulewaterproperties\+::t\+\_\+waterproperties\+::specificheat\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a0359e38690894db927f109d8acbebef3}\label{structmodulewaterproperties_1_1t__waterproperties_a0359e38690894db927f109d8acbebef3}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!start2way@{start2way}}
+\index{start2way@{start2way}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{start2way}{start2way}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::start2way = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a53a488544202cbcc2c1fe288aa3fbe79}\label{structmodulewaterproperties_1_1t__waterproperties_a53a488544202cbcc2c1fe288aa3fbe79}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!tempfirsttimewarning@{tempfirsttimewarning}}
+\index{tempfirsttimewarning@{tempfirsttimewarning}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{tempfirsttimewarning}{tempfirsttimewarning}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::tempfirsttimewarning = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a052510c9cfa4d52db0bdebff22b0ff2b}\label{structmodulewaterproperties_1_1t__waterproperties_a052510c9cfa4d52db0bdebff22b0ff2b}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!worksize@{worksize}}
+\index{worksize@{worksize}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size3d ) modulewaterproperties\+::t\+\_\+waterproperties\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_acd27c32b66d9bef6c7c39663656a6d03}\label{structmodulewaterproperties_1_1t__waterproperties_acd27c32b66d9bef6c7c39663656a6d03}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!wpfatherinstanceid@{wpfatherinstanceid}}
+\index{wpfatherinstanceid@{wpfatherinstanceid}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{wpfatherinstanceid}{wpfatherinstanceid}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::wpfatherinstanceid\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a356ea1fb52ed9c8457802e3b7e8a9440}\label{structmodulewaterproperties_1_1t__waterproperties_a356ea1fb52ed9c8457802e3b7e8a9440}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!wqratesnumber@{wqratesnumber}}
+\index{wqratesnumber@{wqratesnumber}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{wqratesnumber}{wqratesnumber}}
+{\footnotesize\ttfamily integer modulewaterproperties\+::t\+\_\+waterproperties\+::wqratesnumber = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewaterproperties_1_1t__waterproperties_a3fb14c0c6f0236dde822feaf8036c036}\label{structmodulewaterproperties_1_1t__waterproperties_a3fb14c0c6f0236dde822feaf8036c036}} 
+\index{modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}!writehdfreal4@{writehdfreal4}}
+\index{writehdfreal4@{writehdfreal4}!modulewaterproperties\+::t\+\_\+waterproperties@{modulewaterproperties\+::t\+\_\+waterproperties}}
+\subsubsection{\texorpdfstring{writehdfreal4}{writehdfreal4}}
+{\footnotesize\ttfamily logical modulewaterproperties\+::t\+\_\+waterproperties\+::writehdfreal4 = .true.\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_water_properties_8_f90}{Module\+Water\+Properties.\+F90}}\end{DoxyCompactItemize}

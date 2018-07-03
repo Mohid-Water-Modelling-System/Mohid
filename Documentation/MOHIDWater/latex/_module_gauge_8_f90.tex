@@ -1,0 +1,204 @@
+\hypertarget{_module_gauge_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Gauge.F90 File Reference}
+\label{_module_gauge_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Gauge.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Gauge.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulegauge_1_1t__tidalwave}{modulegauge\+::t\+\_\+tidalwave}}
+\item 
+type \mbox{\hyperlink{structmodulegauge_1_1t__tidalvelocity}{modulegauge\+::t\+\_\+tidalvelocity}}
+\item 
+type \mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{modulegauge\+::t\+\_\+tidegauge}}
+\item 
+type \mbox{\hyperlink{structmodulegauge_1_1t__gauge}{modulegauge\+::t\+\_\+gauge}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulegauge}{modulegauge}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a5f441d56f4c693dc4323df1e0d702ea6}{modulegauge\+::constructgauges}} (Gauge\+ID, Horizontal\+Grid\+ID, Horizontal\+Map\+ID, Time\+ID, Gauge\+File, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a6f6a7638c9e37ab7f5461866ec475f03}{modulegauge\+::readgaugedataascii}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a26f00d7d5cd5edd1ce28da62855cb19f}{modulegauge\+::readgaugedatahdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a473e631b98b7b3cb869f4ede62f77425}{modulegauge\+::writegaugedatahdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a986286ef5f7c779896aa9d9797f840cd}{modulegauge\+::creategaugefromhdfdata}} (X, Y, n, i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a672a5d3f45d4bf6b413012a0705ca328}{modulegauge\+::addgauge2list}} (Present\+Gauge)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a1aea609b0bda24026589e2d67bf3e0ab}{modulegauge\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_adb09b4f645d53ae4da6e979cbda1d5ea}{modulegauge\+::calc\+\_\+decimal\+\_\+geo\+\_\+coord}} (Present\+Gauge)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a6be887d8098d9844b158ef75048c3473}{modulegauge\+::readgaugedata}} (Present\+Gauge, From\+Block, Read\+Harmonics\+Ok)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a9095cfa51e7b4150e1d3889efe30b265}{modulegauge\+::readharmonics}} (Present\+Gauge)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_ad253767480082a0c9e00cc725e85786e}{modulegauge\+::newwave}} (Present\+Gauge, Wave\+Name, Amplitude, Phase)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a046651f5fe7a0df46688f6d3467b09b5}{modulegauge\+::readoldform}} (Block\+Found, Present\+Gauge)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a5143391f003e2c838204ca20768435a4}{modulegauge\+::verifygaugelocation}} (Gauge, Horizontal\+Grid\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a3c28cc048b2b01fde65fb7a5fc9f7213}{modulegauge\+::locationconsistence}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a3e3b74ba912595c577820445ad14cb64}{modulegauge\+::getnumberwaves}} (Present\+Gauge, N\+Waves)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a0e2dffbc5ada081dc537e80f461ae0eb}{modulegauge\+::getwave}} (Present\+Gauge, Wave\+Name, Wave\+Exists, Wave\+Out)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_af6c96743755f8c096eb5335e0993e175}{modulegauge\+::getwavei}} (Wave\+Name\+List, N\+Waves, Wave\+Name, Wave\+Exists, Wave\+Out)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a7a4e1ac4c0d2468bf869594a8677a7d0}{modulegauge\+::getngauges}} (Gauge\+ID, N\+Gauges, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_adc2b7e3c857dc1649430eaa5a0fb1882}{modulegauge\+::getncomponents}} (Gauge\+ID, Number\+Comp, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_af98cce9ae7ea92a6068724894d803842}{modulegauge\+::getmetricgaugelocation}} (Gauge\+ID, X\+Location, Y\+Location, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a118b41963f151494a832cd94010c6282}{modulegauge\+::getgaugelocation}} (Gauge\+ID, X\+Location, Y\+Location, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a9b801d4a79f8bfd52e8276c2b5525b5e}{modulegauge\+::getijreferencelevel}} (Gauge\+ID, Imposed\+Elevation, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_aa7b1b101cf558db427ad03b4a0e72f09}{modulegauge\+::getijwaterlevel}} (Gauge\+ID, Imposed\+Elevation, Coef, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a0201de248a96f786a6ac1e9875435ba3}{modulegauge\+::getwaterlevel}} (Gauge\+ID, Water\+Level, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a3f8df5ad4b3209ed0c1f3dda8945093f}{modulegauge\+::getreferencelevel}} (Gauge\+ID, Reference\+Level, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_aeb445b9f9d227121a220ceafb472ec2c}{modulegauge\+::getlevelevolution}} (Gauge\+ID, Level\+Evolution, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_af4997d45043f601c961fd7d153c0b413}{modulegauge\+::getvelevolution}} (Gauge\+ID, Vel\+Evolution, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a0912cebda10faa15469d951016b5db0e}{modulegauge\+::gettrianggaugeson}} (Gauge\+ID, Triangulation\+ON, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a40e51c18500557c90968e17a5ec8a550}{modulegauge\+::gaugelevel}} (Gauge\+ID, Water\+Level, Open\+Points, Time, Reference\+Level, VelocityU, VelocityV, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a7de5a32e5ee02eaed3c8a598bbb65cb9}{modulegauge\+::harmonicswaterlevel}} (Present\+Gauge, Water\+Level, Time\+In)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_ae7a26f230136e4737c871ba19b1d1529}{modulegauge\+::timeserievalue}} (Present\+Gauge, Value, Column, Time)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a3570d6ed4834d7d873f7b068c99c9ef5}{modulegauge\+::real2q1\+\_\+comp}} (real\+Q1, real\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ab71fe2294ae9095789c94992c6add8bf}{modulegauge\+::imag2q1\+\_\+comp}} (Imag\+Q1, Imag\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a639e6e7756ddc09a7f1410460b232db1}{modulegauge\+::realsigma1\+\_\+comp}} (real\+Q1, real\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_af07cc0a3df0d15cac79f031de3fb79a7}{modulegauge\+::imagsigma1\+\_\+comp}} (Imag\+Q1, Imag\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aa1a4b7af3abfc8dfce0801b6c016f928}{modulegauge\+::realrho1\+\_\+comp}} (real\+Q1, real\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ab3aa99d6bca64d01ca7e09d41c9bd6f9}{modulegauge\+::imagrho1\+\_\+comp}} (Imag\+Q1, Imag\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a50f7735172ff499a2539356846ac25a7}{modulegauge\+::realm11\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a7beaca7c4aa86b03edc166fe413a4f48}{modulegauge\+::imagm11\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ae46da4813d3e3f271dc78267bee39db6}{modulegauge\+::realm12\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aa6945b552551befe5db497d61883c814}{modulegauge\+::imagm12\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ab5f77ac1ee7d3ccaa97fe4e99a711bdb}{modulegauge\+::realchi1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a681cb9c3664a268964c3c3d9e1aaccfd}{modulegauge\+::imagchi1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a09dbdb08ae03c360a014f9a99d18930d}{modulegauge\+::realpi1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a71b5d5333c564a3344645bef85a9e75b}{modulegauge\+::imagpi1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aa6ea15f43448899f9b29ff0b1dfc29db}{modulegauge\+::realphi1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a0d65a34744a9e60a2568d7e627a69831}{modulegauge\+::imagphi1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ad2e8899353e8c890c82e852038be05f9}{modulegauge\+::realtheta1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a2e204b866f8da90453f9d7af3fd23ec6}{modulegauge\+::imagtheta1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a48b5405cff2ce5a1d7821cc09cd69260}{modulegauge\+::realj1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_af198ff90d25c103ae0c6ea8dc688ac4f}{modulegauge\+::imagj1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a993e1ea45365954809031bb57945219b}{modulegauge\+::realoo1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a2916ed439bb6cf0eacf5070d3fc179d7}{modulegauge\+::imagoo1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a21ce68783e04b0fd7b9b57cc33bb1117}{modulegauge\+::realepsilon2\+\_\+comp}} (real2\+N2, real\+N2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a28b6b5b37157cb9ca35800eacb09e7fc}{modulegauge\+::imagepsilon2\+\_\+comp}} (Imag2\+N2, Imag\+N2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a56eb9e88f9dfa7360cdf57474d0371d0}{modulegauge\+::realeta2\+\_\+comp}} (real\+M2, real\+K2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a86cfe6d4e8801b4ade2414988f7586a7}{modulegauge\+::imageta2\+\_\+comp}} (Imag\+M2, Imag\+K2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a063b6192aa0376262853a2161d0f21da}{modulegauge\+::realp1\+\_\+comp}} (real\+Q1, real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a45d6d9badd92c973e90b945525d4c23e}{modulegauge\+::imagp1\+\_\+comp}} (Imag\+Q1, Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aba58a8476e1ed7afa1d32b6ec5119be3}{modulegauge\+::realmu2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_acb26f834d34705945913d60c75c3ce71}{modulegauge\+::imagmu2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a3fe2f51cb87bda2360ce6930edea74fd}{modulegauge\+::realnu2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a63b14124c79ff7d860721610832a3ef5}{modulegauge\+::imagnu2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aa12106b28d4813b546feb45a0408ffa0}{modulegauge\+::reallda2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a0f06a83482f5b7e22cfbc40e9f7e89f4}{modulegauge\+::imaglda2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ae24e18d5af2b616f42c314149246cef5}{modulegauge\+::reall2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aed10e532f405cfa750b753e960e5a8dc}{modulegauge\+::imagl2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a5708a7eceb753eedf87d41d40a3a619a}{modulegauge\+::realt2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a2dcd9bdfab5c9c98762f6cc509efd8ae}{modulegauge\+::imagt2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+integer function \mbox{\hyperlink{namespacemodulegauge_ab1a6acb6664eeba72c5a5d3487c6b4e6}{modulegauge\+::searchname}} (Wave\+Name, n, Name)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a595eb00804040bb46c4684d46b5ed2eb}{modulegauge\+::newcomponentsbyadmittance}} (Present\+Gauge, N\+Waves, Wave\+Amplitude, Wave\+Phase, Wave\+Name, Admit\+N\+Waves)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_ac754b86d90578ff131adeb4a3ac03dc5}{modulegauge\+::newcomponentsbyadmittancev2}} (N\+Waves, Wave\+Amplitude, Wave\+Phase, Wave\+Name, Admit\+N\+Waves)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a545694594f895a232c1f0b4fc8256bb9}{modulegauge\+::killgauge}} (Gauge\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a9e3c4492d77966e5e963fad0f376379f}{modulegauge\+::deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_acb5358a89d47698a9abd5cea060b0cc8}{modulegauge\+::killtidalwavelist}} (First\+Wave, Last\+Wave)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a773a918cd865d16ad9720682f4f76009}{modulegauge\+::killgaugelist}} (First\+Gauge, Last\+Gauge)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a8ece20a220d6beae6919846687d6fe8f}{modulegauge\+::ready}} (Obj\+Gauge\+\_\+\+ID, ready\+\_\+)
+\item 
+type(t\+\_\+gauge) function, pointer \mbox{\hyperlink{namespacemodulegauge_a758cb1de5348d750b81f0adbb711363f}{modulegauge\+::ready\+\_\+threadsafe}} (Obj\+Gauge\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_ad450a5738058992462096cd7d19b5a94}{modulegauge\+::locateobjgauge}} (Obj\+Gauge\+ID)
+\item 
+type(t\+\_\+gauge) function, pointer \mbox{\hyperlink{namespacemodulegauge_a40155a54ed9673433a35e0eb72673928}{modulegauge\+::locateobjgauge\+\_\+threadsafe}} (Obj\+Gauge\+ID)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegauge_a94bb84dcdbe9bf7dec1cb0f6b3bffb5d}{modulegauge\+::char\+\_\+harmonics}} = \textquotesingle{}Harmonics\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegauge_ada4bd7e74d44c2a75f7fd3dabdaec4f6}{modulegauge\+::char\+\_\+timeserie}} = \textquotesingle{}Time Serie\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegauge_a6ba029f1e08fcbbbd5908ec2ae512c23}{modulegauge\+::char\+\_\+noevolution}} = \textquotesingle{}No\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegauge_ac3b02dcb0550cc2e7f9db1a1674271ff}{modulegauge\+::char\+\_\+constant}} = \textquotesingle{}Constant\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegauge_ae88c58ad24b474ec3b88eca9f0cfd3e1}{modulegauge\+::constant}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegauge_a3f8a746c3c0ad5da35fdd078a57a5cbb}{modulegauge\+::harmonics}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegauge_a44762d942d0bc35a4d1481c829c717ff}{modulegauge\+::timeserie}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegauge_a7fd89ac8c515f3952a0d3a804cbf6391}{modulegauge\+::noevolution}} = 3
+\item 
+type(t\+\_\+gauge), pointer \mbox{\hyperlink{namespacemodulegauge_a128d19f6ffe523671f625c16c81ba96a}{modulegauge\+::firstgauge}}
+\item 
+type(t\+\_\+gauge), pointer \mbox{\hyperlink{namespacemodulegauge_a6350897b91533283cb8bab27165a71fe}{modulegauge\+::me}}
+\end{DoxyCompactItemize}
