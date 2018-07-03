@@ -334,11 +334,13 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: StormWaterCenterFlowY    => null() !Output
         real,    dimension(:,:), pointer            :: StormWaterCenterModulus  => null() !Output 
         real,    dimension(:,:), pointer            :: BuildingsHeight          => null() !Height of building in cell
-        real,    dimension(:,:), pointer            :: StormWaterInteraction    => null() !Points where interaction with SWMM 
-                                                                                          !occurs
-        real,    dimension(:,:), pointer            :: StormWaterGutterInteraction  => null() !Points where gutter interaction with
-                                                                                              !SWMM occurs (default is the same as 
-                                                                                              !StormWaterInteraction)
+        real,    dimension(:,:), pointer            :: NumberOfSewerStormWaterNodes => null() !Number of total SWMM nodes
+                                                                                              !(sewer + storm water) per grid cell
+                                                                                              !that interact with MOHID
+        real,    dimension(:,:), pointer            :: NumberOfStormWaterNodes  => null() !Number of SWMM storm water only nodes
+                                                                                          !per grid cell that interact 
+                                                                                          !with MOHID (default is the same as 
+                                                                                          !NumberOfSewerStormWaterNodes)
         real,    dimension(:,:), pointer            :: StreetGutterLength       => null() !Length of Stret Gutter in a given cell
         real,    dimension(:,:), pointer            :: MassError                => null() !Contains mass error
         real,    dimension(:,:), pointer            :: CenterFlowX              => null()
@@ -352,15 +354,15 @@ Module ModuleRunOff
         integer, dimension(:,:), pointer            :: DFourSinkPoint           => null() !Point which can't drain with in X/Y only
         integer, dimension(:,:), pointer            :: StabilityPoints          => null() !Points where models check stability
         type(T_PropertyID)                          :: OverLandCoefficientID
-        logical                                     :: StormWaterModel          = .false.          !If connected to SWMM
-        real,    dimension(:,:), pointer            :: StormWaterModelFlow      => null() !Flow from SWMM (inflow + outflow)
-        real,    dimension(:,:), pointer            :: StreetGutterFlow         => null() !Inflow at street gutters (per target 
-                                                                                          !junction)
-        real,    dimension(:,:), pointer            :: SewerInflow              => null() !Integrated inflow at sewer manholes 
-                                                                                          !(per junction)
-                                                                                          !(potential)
-        real,    dimension(:,:), pointer            :: StormInteractionFlow     => null() !Interaction Flow 
-                                                                                          !(at gutters + sewer manholes) (real)
+        logical                                     :: StormWaterModel          = .false. !If connected to SWMM
+        real,    dimension(:,:), pointer            :: StormWaterEffectiveFlow  => null() !Flow from SWMM (inflow + outflow)
+        real,    dimension(:,:), pointer            :: StreetGutterPotentialFlow=> null() !Potential flow to street gutters 
+                                                                                          !in grid cells with street gutters
+        real,    dimension(:,:), pointer            :: StormWaterPotentialFlow  => null() !Sum of all potential flows
+                                                                                          !from street gutters draining to  
+                                                                                          !grid cells with storm water nodes                                                                                          
+        real,    dimension(:,:), pointer            :: StreetGutterEffectiveFlow=> null() !Effective flow to street gutters 
+                                                                                          !in grid cells with street gutters
         integer, dimension(:,:), pointer            :: StreetGutterTargetI      => null() !Sewer interaction point...
         integer, dimension(:,:), pointer            :: StreetGutterTargetJ      => null() !...where street gutter drains to
         real                                        :: MinSlope              = null_real
@@ -653,8 +655,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         type(T_PropertyID)                          :: OverLandCoefficientDeltaID
         type(T_PropertyID)                          :: StormWaterDrainageID
         type(T_PropertyID)                          :: BuildingsHeightID
-        type(T_PropertyID)                          :: StormWaterInteractionID
-        type(T_PropertyID)                          :: StormWaterGutterInteractionID
+        type(T_PropertyID)                          :: NumberOfSewerStormWaterNodesID
+        type(T_PropertyID)                          :: NumberOfStormWaterNodesID
         type(T_PropertyID)                          :: StreetGutterLengthID
         integer                                     :: ObjEnterDataGutterInteraction = 0
         character(len=StringLength)                 :: InitializationMethod, Filename
@@ -1599,9 +1601,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Looks for StormWater Interaction Point
         if (Me%StormWaterModel) then
         
-            allocate(Me%StormWaterInteraction(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%NumberOfSewerStormWaterNodes(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%StreetGutterLength   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%StormWaterGutterInteraction (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%NumberOfStormWaterNodes (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
             call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR680'
@@ -1611,25 +1613,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !or MOHID Land street gutter inflow to SWMM - directed to nearest manhole)
             !The cell value is number of manholes in each cell  
             !If this field is zero everywhere, there wil be no SWMM-MOHIDLand interaction
-            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                       &
                                         '<BeginStormWaterInteraction>',                      &
                                         '<EndStormWaterInteraction>', BlockFound,            &
                                         STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR690'
 
             if (BlockFound) then                                                              
-                call ConstructFillMatrix  ( PropertyID       = StormWaterInteractionID,      &
+                call ConstructFillMatrix  ( PropertyID       = NumberOfSewerStormWaterNodesID,  &
                                             EnterDataID      = Me%ObjEnterData,                 &
-                                            TimeID           = Me%ObjTime,                   &
-                                            HorizontalGridID = Me%ObjHorizontalGrid,         &
-                                            ExtractType      = FromBlock,                    &
-                                            PointsToFill2D   = Me%ExtVar%BasinPoints,        &
-                                            Matrix2D         = Me%StormWaterInteraction,     &
-                                            TypeZUV          = TypeZ_,                       &
+                                            TimeID           = Me%ObjTime,                      &
+                                            HorizontalGridID = Me%ObjHorizontalGrid,            &
+                                            ExtractType      = FromBlock,                       &
+                                            PointsToFill2D   = Me%ExtVar%BasinPoints,           &
+                                            Matrix2D         = Me%NumberOfSewerStormWaterNodes, &
+                                            TypeZUV          = TypeZ_,                          &
                                             STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR691'
 
-                call KillFillMatrix(StormWaterInteractionID%ObjFillMatrix, STAT = STAT_CALL)
+                call KillFillMatrix(NumberOfSewerStormWaterNodesID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR692'
 
             else
@@ -1654,7 +1656,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleRunoff - ERR694.5'              
             
             !Gets Sewer Points that can interact with street gutter
-            !By default these are the same points as StormWaterInteraction (all points can recieve street gutter)
+            !By default these are the same points as NumberOfSewerStormWaterNodes (all points can recieve street gutter)
             !This exists to individualize SWMM junctions (manholes) that can recieve gutter flow (eg. pluvial junctions)
             !It is only used to find for each gutter the closer cell that can have gutter inflow (avoid the ones that can't)
             !If this field is zero everywhere, it cant find SWMM junctions to discharge gutter flow and will return error
@@ -1665,14 +1667,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR694'
 
             if (BlockFound) then                                
-                call ConstructFillMatrix  ( PropertyID       = StormWaterGutterInteractionID, &
-                                            EnterDataID      = Me%ObjEnterData,              &
-                                            TimeID           = Me%ObjTime,                   &
-                                            HorizontalGridID = Me%ObjHorizontalGrid,         &
-                                            ExtractType      = FromBlock,                    &
-                                            PointsToFill2D   = Me%ExtVar%BasinPoints,        &
-                                            Matrix2D         = Me%StormWaterGutterInteraction, &
-                                            TypeZUV          = TypeZ_,                       &
+                call ConstructFillMatrix  ( PropertyID       = NumberOfStormWaterNodesID,       &
+                                            EnterDataID      = Me%ObjEnterData,                 &
+                                            TimeID           = Me%ObjTime,                      &
+                                            HorizontalGridID = Me%ObjHorizontalGrid,            &
+                                            ExtractType      = FromBlock,                       &
+                                            PointsToFill2D   = Me%ExtVar%BasinPoints,           &
+                                            Matrix2D         = Me%NumberOfStormWaterNodes,      &
+                                            TypeZUV          = TypeZ_,                          &
                                             STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadDataFi le - ModuleRunOff - ERR695'
                 
@@ -1734,10 +1736,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     end select
                 endif
                 
-                call KillFillMatrix(StormWaterGutterInteractionID%ObjFillMatrix, STAT = STAT_CALL)
+                call KillFillMatrix(NumberOfStormWaterNodesID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR696'
                 
-                !StormWaterGutterInteraction points can only e <= StormWaterInteraction points
+                !NumberOfStormWaterNodes points can only be <= NumberOfSewerStormWaterNodes points
                 call VerifyStreetGutterInteraction
 
             else
@@ -1750,8 +1752,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     stop 'ReadDataFile - ModuleRunOff - ERR0696.5'     
                 endif
                 
-                !If not defined in file it will be the same as StormWaterInteraction
-                call SetMatrixValue(Me%StormWaterGutterInteraction, Me%Size, Me%StormWaterInteraction)
+                !If not defined in file it will be the same as NumberOfSewerStormWaterNodes
+                call SetMatrixValue(Me%NumberOfStormWaterNodes, Me%Size, Me%NumberOfSewerStormWaterNodes)
             endif            
             
             call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
@@ -1978,10 +1980,10 @@ do2:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 !there cant be more gutter interaction points than all interaction points
                 !since gutter interaction is only going to be used to drive gutter flow to the cells
                 !that have eligible points (e.g. only discharge gutter in pluvial nodes)
-                if (Me%StormWaterGutterInteraction(i,j) > Me%StormWaterInteraction(i,j)) then
+                if (Me%NumberOfStormWaterNodes(i,j) > Me%NumberOfSewerStormWaterNodes(i,j)) then
                     write(*,*)
-                    write(*,*) 'Error: StormWaterGutterInteraction nº of points is higher than'
-                    write(*,*) 'all StormWaterInteraction points in cell: ', i, j
+                    write(*,*) 'Error: Number Of Storm Water Nodes is higher than'
+                    write(*,*) 'Number Of Sewer Storm WaterNodes in cell: ', i, j
                     stop 'VerifyStreetGutterInteraction - Module Runoff - ERR01'
                 endif
                 
@@ -3267,19 +3269,19 @@ do4:            do di = -1, 1
         !Model link like SMWM
         if (Me%StormWaterModel) then
         
-            allocate(Me%StormWaterModelFlow    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%StreetGutterFlow       (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%SewerInflow            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%StreetGutterTargetI    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%StreetGutterTargetJ    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(Me%StormInteractionFlow   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            Me%StormWaterModelFlow    = 0.0
-            Me%StreetGutterFlow       = 0.0
-            Me%SewerInflow            = 0.0
-            Me%StormInteractionFlow   = 0.0
+            allocate(Me%StormWaterEffectiveFlow     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StreetGutterPotentialFlow   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StormWaterPotentialFlow     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StreetGutterTargetI         (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StreetGutterTargetJ         (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%StreetGutterEffectiveFlow   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%StormWaterEffectiveFlow      = 0.0
+            Me%StreetGutterPotentialFlow    = 0.0
+            Me%StormWaterPotentialFlow      = 0.0
+            Me%StreetGutterEffectiveFlow    = 0.0
             
-            Me%StreetGutterTargetI    = null_int
-            Me%StreetGutterTargetJ    = null_int
+            Me%StreetGutterTargetI          = null_int
+            Me%StreetGutterTargetJ          = null_int
             
             !Algorithm to find the nearest sewer interaction point near the street gutter. 
             !Point must be lower equal current point
@@ -3305,7 +3307,7 @@ do4:            do di = -1, 1
 
                             if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
                                 if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
-                                     Me%StormWaterGutterInteraction(iAux, jAux) > AllmostZero) then
+                                     Me%NumberOfStormWaterNodes(iAux, jAux) > AllmostZero) then
                                     nearestfound = .true.
                                     if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
                                         lowestValue = Me%ExtVar%Topography(iAux, jAux)
@@ -3323,7 +3325,7 @@ do4:            do di = -1, 1
 
                             if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
                                 if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
-                                    Me%StormWaterGutterInteraction(iAux, jAux) > AllmostZero) then
+                                    Me%NumberOfStormWaterNodes(iAux, jAux) > AllmostZero) then
                                     nearestfound = .true.
                                     if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
                                         lowestValue = Me%ExtVar%Topography(iAux, jAux)
@@ -3341,7 +3343,7 @@ do4:            do di = -1, 1
 
                             if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
                                 if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
-                                     Me%StormWaterGutterInteraction(iAux, jAux) > AllmostZero) then
+                                     Me%NumberOfStormWaterNodes(iAux, jAux) > AllmostZero) then
                                     nearestfound = .true.
                                     if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
                                         lowestValue = Me%ExtVar%Topography(iAux, jAux)
@@ -3358,7 +3360,7 @@ do4:            do di = -1, 1
 
                             if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
                                 if ((IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j)) .and. &
-                                    Me%StormWaterGutterInteraction(iAux, jAux) > AllmostZero) then
+                                    Me%NumberOfStormWaterNodes(iAux, jAux) > AllmostZero) then
                                     nearestfound = .true.
                                     if (IgnoreTopography .or. Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
                                         lowestValue = Me%ExtVar%Topography(iAux, jAux)
@@ -3377,7 +3379,7 @@ do4:            do di = -1, 1
 !
 !                            if (Me%ExtVar%BasinPoints(iAux, jAux) == OpenPoint) then
 !                                if (Me%ExtVar%Topography(iAux, jAux) <= Me%ExtVar%Topography(i, j) .and. &
-!                                    Me%StormWaterInteraction(iAux, jAux) > AllmostZero) then
+!                                    Me%NumberOfSewerStormWaterNodes(iAux, jAux) > AllmostZero) then
 !                                    nearestfound = .true.
 !                                    if (Me%ExtVar%Topography(iAux, jAux) <= lowestValue) then
 !                                        lowestValue = Me%ExtVar%Topography(iAux, jAux)
@@ -3510,10 +3512,10 @@ do4:            do di = -1, 1
         PropertyList(8) = trim(GetPropertyName (VelocityModulus_))
       
         if(Me%StormWaterModel)then
-            PropertyList(9)  = "storm water model flow"
-            PropertyList(10) = "street gutter flow"
-            PropertyList(11) = "sewer potential inflow"
-            PropertyList(12) = "storm water real flow"
+            PropertyList(9)  = "storm water potential flow"
+            PropertyList(10) = "storm water effective flow"
+            PropertyList(11) = "street gutter potential flow"
+            PropertyList(12) = "street gutter effective flow"
         endif
         
         call GetData (TimeSerieLocationFile,                  &
@@ -4867,7 +4869,7 @@ doIter:         do while (iter <= Niter)
 
             !Flow through street gutter
             if (Me%StormWaterModel) then
-                call StreetGutterFlow
+                call ComputeStreetGutterPotentialFlow
             endif
                     
             !StormWater Drainage
@@ -7067,7 +7069,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
     !--------------------------------------------------------------------------
     
-    subroutine StreetGutterFlow
+    subroutine ComputeStreetGutterPotentialFlow
     
         !Arguments-------------------------------------------------------------
         
@@ -7121,12 +7123,12 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 
                 !Flow Rate into street Gutter - needs to be per gutter interaction points because the cell value
                 !will be passed to all SWMM gutter interaction junctions
-                Me%StreetGutterFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT) / &
-                    Me%StormWaterGutterInteraction(targetI, targetJ)
+                Me%StreetGutterPotentialFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT) / &
+                    Me%NumberOfStormWaterNodes(targetI, targetJ)
                 
             else
             
-                Me%StreetGutterFlow(i, j) = 0.0
+                Me%StreetGutterPotentialFlow(i, j) = 0.0
             
             endif
 
@@ -7138,8 +7140,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%StormWaterInteraction(i, j) > AllmostZero) then
-                Me%SewerInflow(i, j) = 0.0
+            if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
+                Me%StormWaterPotentialFlow(i, j) = 0.0
             endif
         enddo
         enddo    
@@ -7155,13 +7157,14 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 targetI = Me%StreetGutterTargetI(i, j)
                 targetJ = Me%StreetGutterTargetJ(i, j)
                 
-                Me%SewerInflow(targetI, targetJ) = Me%SewerInflow(targetI, targetJ) + Me%StreetGutterFlow(i, j)  
+                Me%StormWaterPotentialFlow(targetI, targetJ) = Me%StormWaterPotentialFlow(targetI, targetJ) + & 
+                                                               Me%StreetGutterPotentialFlow(i, j)  
             endif
         enddo
         enddo                
         
         
-    end subroutine StreetGutterFlow
+    end subroutine ComputeStreetGutterPotentialFlow
         
     !--------------------------------------------------------------------------
         
@@ -7187,20 +7190,20 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         
         !The algorithm below has the following assumptions
         !1. MOHID Land calculates the POTENTIAL inflow into the sewer system through the street gutters. values per target gutter 
-        !points (matrix StreetGutterFlow)
-        !2. The values of the StreetGutterFlow are integrated at the nearest StormWaterInteraction points. values per gutter points
-        !(matrix SewerInflow)
-        !3. This matrix (SewerInflow) is provide to SWMM
+        !points (matrix StreetGutterPotentialFlow)
+        !2. The values of the StreetGutterPotentialFlow are integrated at the nearest "NumberOfSewerStormWaterNodes" grid cells. values per gutter points
+        !(matrix StormWaterPotentialFlow)
+        !3. This matrix (StormWaterPotentialFlow) is provided to SWMM
         !4. Swmm calculates the EFFECTIVE inflow and returns the efective flow (inflow or outflow) at each interaction point 
-        !(matrix StormWaterModelFlow)
+        !(matrix StormWaterEffectiveFlow)
         !5. The algorithm below calculates the efective flow in each cell
         !5a  - if the flow in the gutter target point is negative (inflow into the sewer system) the flow at each gutter will be 
         !affected 
-        !      by the ratio of StormWaterModelFlow/SewerInflow (will be reduced in the same ratio as EFFECTIVE/POTENTIAL inflow)
+        !      by the ratio of StormWaterEffectiveFlow/StormWaterPotentialFlow (will be reduced in the same ratio as EFFECTIVE/POTENTIAL inflow)
         !5b  - if the flow in the cell is positive (outflow from the sewer system), the flow flows out ("saltam as tampas"). 
         !6. The Water Column is reduced/increased due to the final flow
-        !Remark: as StormWaterModelFlow is inflow or outflow at each cell the two processes below can be separated and 
-        !2nd evaluation of StormInteractionFlow does not need to be summed to first evaluation
+        !Remark: as StormWaterEffectiveFlow is inflow or outflow at each cell the two processes below can be separated and 
+        !2nd evaluation of StreetGutterEffectiveFlow does not need to be summed to first evaluation
 
 
         !Algorithm which calculates the real inflow in each point
@@ -7210,7 +7213,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
 
-                Me%StormInteractionFlow(i, j) = 0.0
+                Me%StreetGutterEffectiveFlow(i, j) = 0.0
 
                 !If the point is a street gutter point
                 !we have to reduce the volume by the total number of associated inlets
@@ -7219,21 +7222,23 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     targetI = Me%StreetGutterTargetI(i, j)
                     targetJ = Me%StreetGutterTargetJ(i, j)
 
-                    if (Me%StormWaterModelFlow(targetI, targetJ) < 0.0 .and. Me%SewerInflow(targetI, targetJ) > AllmostZero) then
+                    if (Me%StormWaterEffectiveFlow(targetI, targetJ) < 0.0 .and. &
+                        Me%StormWaterPotentialFlow(targetI, targetJ) > AllmostZero) then
                         !Distribute real / potential
                         !sewer inflow and street gutter flow is per gutter junction. 
                         !it would need to * per number of gutter junctions to have total flow but because number of gutter junctions
                         !appear both in numerator and denominator is not needed
-                        Me%StormInteractionFlow(i, j) = -1.0 * Me%StreetGutterFlow(i, j) * &
-                                                        Me%StormWaterModelFlow(targetI, targetJ) / Me%SewerInflow(targetI, targetJ) 
+                        Me%StreetGutterEffectiveFlow(i, j) = -1.0 * Me%StreetGutterPotentialFlow(i, j)      * &
+                                                             Me%StormWaterEffectiveFlow(targetI, targetJ)   / &
+                                                             Me%StormWaterPotentialFlow(targetI, targetJ) 
                                                                
                     endif
                     
                 endif
                 
                 !Overflow of the sewer system
-                if (Me%StormWaterInteraction(i, j) > AllmostZero .and. Me%StormWaterModelFlow(i, j) > 0) then
-                    Me%StormInteractionFlow(i, j) = -1.0 * Me%StormWaterModelFlow(i, j)
+                if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero .and. Me%StormWaterEffectiveFlow(i, j) > 0) then
+                    Me%StreetGutterEffectiveFlow(i, j) = -1.0 * Me%StormWaterEffectiveFlow(i, j)
                 endif
                 
             endif
@@ -7249,9 +7254,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
 
-                Me%myWaterColumnOld   (i, j)  = Me%myWaterColumnOld   (i, j)  -         &
-                                                Me%StormInteractionFlow(i, j) *         &
-                                                Me%ExtVar%DT /                          &
+                Me%myWaterColumnOld   (i, j)  = Me%myWaterColumnOld(i, j)           - &
+                                                Me%StreetGutterEffectiveFlow(i, j)  * &
+                                                Me%ExtVar%DT                        / &
                                                 Me%ExtVar%GridCellArea(i, j)
                                              
                 if (Me%myWaterColumnOld(i, j) < 0.0) then
@@ -9363,36 +9368,37 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             endif
             
             if (Me%StormWaterModel) then
+                
+                !sum of potential street gutter flow from all street gutters draining to 
+                !a grid cell with a storm water SWMM node
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water potential inflow", &
+                                      "storm water potential inflow", "m3/s",               &
+                                      Array2D      = Me%StormWaterPotentialFlow,            &
+                                      OutputNumber = Me%OutPut%NextOutPut,                  &
+                                      STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR160'         
             
                 !result from SWMM (effective inflow or outflow)
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water model flow",   &
-                                      "storm water model flow", "m3/s",                 &
-                                      Array2D      = Me%StormWaterModelFlow,            &
-                                      OutputNumber = Me%OutPut%NextOutPut,              &
-                                      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR160'
-                
-                !street gutter flow per gutter junction (at gutter location)
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/street gutter flow",       &
-                                      "street gutter flow", "m3/s",                     &
-                                      Array2D      = Me%StreetGutterFlow,               &
-                                      OutputNumber = Me%OutPut%NextOutPut,              &
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water effective flow",   &
+                                      "storm water effective flow", "m3/s",                 &
+                                      Array2D      = Me%StormWaterEffectiveFlow,            &
+                                      OutputNumber = Me%OutPut%NextOutPut,                  &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR170'
                 
-                !street gutter target flow per gutter junction (potential manhole inflow for SWMM)
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/sewer potential inflow",   &
-                                      "sewer potential inflow", "m3/s",                 &
-                                      Array2D      = Me%SewerInflow,                    &
-                                      OutputNumber = Me%OutPut%NextOutPut,              &
+                !potential street gutter flow per grid cell where there are street gutters
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/street gutter potential flow", &
+                                      "street gutter potential flow", "m3/s",               &
+                                      Array2D      = Me%StreetGutterPotentialFlow,          &
+                                      OutputNumber = Me%OutPut%NextOutPut,                  &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR180'                
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR180'
                 
                 !storm interaction effective inflows (at gutter location) and outflows (at manholes)
-                call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water real flow",    &
-                                      "storm water real flow", "m3/s",                  &
-                                      Array2D      = Me%StormInteractionFlow,           &
-                                      OutputNumber = Me%OutPut%NextOutPut,              &
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/street gutter effective flow", &
+                                      "street gutter effective flow", "m3/s",               &
+                                      Array2D      = Me%StreetGutterEffectiveFlow,          &
+                                      OutputNumber = Me%OutPut%NextOutPut,                  &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR190'
            
@@ -9451,61 +9457,61 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%MyWaterColumn,                                  &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR02'
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%CenterFlowX,                                    &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR03'
 
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%CenterFlowY,                                    &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR04'
 
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%FlowModulus,                                    &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR05'
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%CenterVelocityX,                                &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR06'
 
         
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%CenterVelocityY,                                &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR07'
 
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%VelocityModulus,                                &
                             STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR08'
         
         if(Me%StormWaterModel)then
             
             call WriteTimeSerie(Me%ObjTimeSerie,                                        &
-                                Data2D = Me%StormWaterModelFlow,                        &
+                                Data2D = Me%StormWaterPotentialFlow,                    &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
-
-            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
-                                Data2D = Me%StreetGutterFlow,                           &
-                                STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR09'
 
             
             call WriteTimeSerie(Me%ObjTimeSerie,                                        &
-                                Data2D = Me%SewerInflow,                                &
+                                Data2D = Me%StormWaterEffectiveFlow,                    &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR10'
 
             call WriteTimeSerie(Me%ObjTimeSerie,                                        &
-                                Data2D = Me%StormInteractionFlow,                       &
+                                Data2D = Me%StreetGutterPotentialFlow,                  &
                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR11'            
+
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%StreetGutterEffectiveFlow,                  &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR12'
             
         endif
    
@@ -10482,7 +10488,7 @@ cd1:    if (RunOffID > 0) then
         call Ready(RunOffID, ready_)    
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-            if (Me%StormWaterInteraction(i, j) > AllmostZero) then        
+            if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then        
                 IsUrbanDrainagePoint = .true.
             else
                 IsUrbanDrainagePoint = .false.
@@ -10521,7 +10527,7 @@ cd1:    if (RunOffID > 0) then
             idx = 1
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%StormWaterInteraction(i, j) > AllmostZero) then
+                if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
                     waterColumn(idx) = Max(Me%MyWaterColumn(i, j) - Me%MinimumWaterColumn, 0.0)
                     idx = idx + 1
                 endif
@@ -10564,10 +10570,10 @@ cd1:    if (RunOffID > 0) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
-                if (Me%StormWaterInteraction (i, j) > AllmostZero) then 
+                if (Me%NumberOfSewerStormWaterNodes (i, j) > AllmostZero) then 
                 
                     !inlet Flow rate min between 
-                    inletInflow(idx) = Me%SewerInflow(i, j)
+                    inletInflow(idx) = Me%StormWaterPotentialFlow(i, j)
                     idx = idx + 1
                 endif
                     
@@ -10608,8 +10614,8 @@ cd1:    if (RunOffID > 0) then
             idx = 1
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%StormWaterInteraction(i, j) > AllmostZero) then
-                    Me%StormWaterModelFlow(i, j) = overlandToSewerFlow(idx)
+                if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
+                    Me%StormWaterEffectiveFlow(i, j) = overlandToSewerFlow(idx)
                     idx = idx + 1
                 endif
             enddo
