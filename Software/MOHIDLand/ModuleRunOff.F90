@@ -7237,7 +7237,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 endif
                 
                 !Overflow of the sewer system
-                if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero .and. Me%StormWaterEffectiveFlow(i, j) > 0) then
+                if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
                     Me%StreetGutterEffectiveFlow(i, j) = -1.0 * Me%StormWaterEffectiveFlow(i, j)
                 endif
                 
@@ -7265,6 +7265,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     
                     Me%myWaterColumnOld (i, j)  = 0.0
                 endif
+                
                 
             endif
 
