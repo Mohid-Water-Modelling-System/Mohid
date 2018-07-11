@@ -86,6 +86,7 @@ Module ModuleRunOff
     private ::      AllocateVariables
     private ::      ConstructOverLandCoefficient
     private ::      ConstructStormWaterDrainage
+    private ::          WriteStreetGutterLinksFile
     private ::      ConstructHDF5Output
     private ::      ConstructTimeSeries
 
@@ -3413,12 +3414,56 @@ do4:            do di = -1, 1
                 endif
 
             enddo
-            enddo                
+            enddo      
             
+            call WriteStreetGutterLinksFile
             
         endif            
 
     end subroutine
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine WriteStreetGutterLinksFile
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: STAT_CALL, UnitNumber, i, j, targetI, targetJ
+        character(len=PathLength)                           :: StreetGutterLinksFileName = "StreetGutterLinks.lin"
+
+        !Begin-----------------------------------------------------------------
+      
+        call ReadFileName("ROOT_SRT", StreetGutterLinksFileName, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteStreetGutterLinksFile - ModuleRunOff - ERR01'
+        StreetGutterLinksFileName = trim(adjustl(StreetGutterLinksFileName))//"StreetGutterLinks.lin"
+        
+        call UnitsManager (UnitNumber, OPEN_FILE, STAT = STAT_CALL)
+        open (unit=UnitNumber, status = 'unknown', file = StreetGutterLinksFileName)
+        
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            
+            if (Me%StreetGutterLength(i, j) > AllmostZero) then
+            
+                !SEWER interaction point
+                targetI = Me%StreetGutterTargetI(i, j)
+                targetJ = Me%StreetGutterTargetJ(i, j)
+                
+                write(UnitNumber,*)'<begin_line>'
+                write(UnitNumber,*) Me%ExtVar%XX2D_Z(      i,       j), Me%ExtVar%YY2D_Z(      i,       j)
+                write(UnitNumber,*) Me%ExtVar%XX2D_Z(targetI, targetJ), Me%ExtVar%YY2D_Z(targetI, targetJ)
+                write(UnitNumber,*)'<end_line>'
+                
+            endif
+            
+        enddo
+        enddo
+ 
+        call UnitsManager (UnitNumber, CLOSE_FILE, STAT = STAT_CALL)
+    
+    
+    end subroutine WriteStreetGutterLinksFile
 
     !--------------------------------------------------------------------------
 
