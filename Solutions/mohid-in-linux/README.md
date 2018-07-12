@@ -14,12 +14,12 @@ Install the following softwares:
 * mohid src
 
 or
-run ``./install_req.sh -opt1 -opt2 ...``
-**Install intel compiler first!** `install_req.sh` will download and install all libraries required to compile MOHID. **You must respect the instalation order**. For more information or see all option available, run:
+**Install intel compiler first!** and after use ``./install_req.sh -opt1 -opt2 ...`` to install library requirements
+`install_req.sh` will download and install all libraries required to compile MOHID. **You must respect the instalation order**. To see help menu run:
 ```
 ./install_req.sh -h
 ```
-Update all paths in script to fit your setup.
+**Update all paths in script to fit your setup.**
 
 ## Compile
 To compile MOHID Water and/or MOHID Land, you must compile first MOHID Base 1 and MOHID Base 2. This will create all .mod files used to compile MOHID.
@@ -39,6 +39,17 @@ For more information or see all option available, run:
 ./compile.sh -h
 ```
 Update all paths in script to fit your setup.
+
+## Test the installation: ##
+Inside test directory there are two test cases, one for mohid water and another one for mohid land. Just execute `mohid-in-linux/test/mohidwater/25m_deep/exe/MohidWater.exe` or `mohid-in-linux/test/mohidland/schematicWatershed/exe/MohidLand.exe` to see if there's no errors.
+
+If you see `Program Mohid Water successfully terminated` or `Program Mohid Land successfully terminated`, your installation was sucessfull.
+
+If you want to run your own project, make a link for `bin/MohidWater.exe` or `bin/MohidLand.exe`
+
+```
+ln -s <MOHID_INSTALLATION_PATH>/Mohid/Solutions/mohid-in-linux/bin/MohidWater.exe <YOUR_PROJECT_PATH>/exe/MohidWater.exe
+```
 
 ## Notes: ##
 * You must download and install intel compiler C and Fortran first, before run scripts. intel compiler free for 30 days. You can do it here: <https://software.intel.com/en-us/intel-parallel-studio-xe>
