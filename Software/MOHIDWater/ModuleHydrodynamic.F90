@@ -147,6 +147,9 @@ Module ModuleHydrodynamic
                                        GetGridOutBorderPolygon,                          &
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
                                        GetCellRotation, GetGridCellArea
+    use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
+                                       Allocate2WayAuxiliars_Hydrodynamic, PrepTwoWay,   &
+                                       UngetTwoWayExternalVars
 #ifdef _USE_MPI                                                  
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -396,14 +399,7 @@ Module ModuleHydrodynamic
     private ::      ComputeSystemEnergy
     private ::          WriteEnergyDataFile
     private ::      Hydrodynamic_OutPut
-    
-    private ::      ReadySon          !João Sobrinho
-    private ::      UpdateFatherModel !João Sobrinho
-    private ::      ComputeFeedbackSon2Father !João Sobrinho
-    private ::      GetExternal2WayAuxVariables  ! João Sobrinho
-    private ::      UnGetExternal2WayAuxVariables ! João Sobrinho
-    private ::      UpdateMatrixes2Way !João Sobrinho
-    private ::      UpdateMatrixes2Way2D !" Joao Sobrinho
+    private ::      ComputeTwoWay
     
     private ::          Write_HDF5_Format
     private ::          Write_Surface_HDF5_Format
@@ -446,7 +442,6 @@ Module ModuleHydrodynamic
     public  :: GetVelocityModulus
     public  :: GetResidualVelocityON
     public  :: GetResidualHorizontalVelocity
-    public  :: Get2WayAuxVariables  !João Sobrinho
 
 #ifdef _USE_SEQASSIMILATION
     public  :: GetHydroSeqAssimilation
@@ -464,8 +459,7 @@ Module ModuleHydrodynamic
     public  :: SetHydroFather
     public  :: GetModelHasTwoWay !Joao Sobrinho
     private ::      ConstructTimeInterpolation
-    private ::      TestSubModelOptionsConsistence
-    private ::      Allocate2WayVariables !João Sobrinho    
+    private ::      TestSubModelOptionsConsistence  
     private ::      ReadNextOrInitialField
     private ::      AddSubmodelWaterLevel
     private ::          ReadLockFather
@@ -844,7 +838,6 @@ Module ModuleHydrodynamic
         real, dimension (:, :), pointer :: Mini          => null()
         type(T_PropertyID)              :: TideStateID        
         real, dimension (:, :), pointer :: TideState     => null()        
-        real, dimension (:, :), pointer :: Copy2Way      => null() !João Sobrinho 
         real                            :: DT      = null_real 
         real                            :: Default = null_real 
         logical                         :: InitalizedByFile = .false.
@@ -1429,7 +1422,7 @@ Module ModuleHydrodynamic
                                            !AtmospherePeriod: This period will substitute the SmoothInitial period                                                    
                                            AtmospherePeriod         = null_real, &
                                            TwoWayWaitPeriod         = null_real, &
-                                           AssimCoef                = null_real   
+                                           TimeDecay                = null_real   
                                            !Calibration coefficent of the inverted barometer solution                                      
         real                            :: InvertBaroCoef      
                                            !Reference atmospheric pressure to be used in the inverted barometer solution
@@ -1465,8 +1458,6 @@ Module ModuleHydrodynamic
                                            NullWaterLevelGradI  = .false., &                                           
                                            NullWaterLevelGradJ  = .false., &
                                            TwoWay               = .false., &  ! João Sobrinho
-                                           KillAuxiliar2Way     = .false., &  ! João Sobrinho
-                                           KillAuxiliar2Way2D   = .false.     ! João Sobrinho
         real, pointer, dimension(:,:)   :: InvertBarometerCells => null()
                                                       
         integer                         :: Wind                 = null_int  
@@ -1594,8 +1585,8 @@ Module ModuleHydrodynamic
                                                      ModulusUVaux   => null(), &
                                                      CenterWaux     => null()
                                                      
-         real(4),       dimension(:,:,:), pointer :: AuxReal4       => null()  ! Teste João Sobrinho
-         real(4),       dimension(:,:  ), pointer :: Aux2DReal4     => null()  ! Teste João Sobrinho
+         real(4),       dimension(:,:,:), pointer :: AuxReal4       => null()  ! João Sobrinho
+         real(4),       dimension(:,:  ), pointer :: Aux2DReal4     => null()  ! João Sobrinho
          
   
          real,          dimension(:,:),   pointer :: Aux2D          => null(), &
@@ -1916,13 +1907,6 @@ Module ModuleHydrodynamic
         
         !Auxiliar flux properties
         real(8), pointer, dimension(:,:,:) :: Aux3DFlux => null()    
-
-        !Auxiliar 2Way matrixes
-        real, dimension(:,:,:), pointer    :: TotSonVolInFather    => null() !João Sobrinho
-        real, dimension(:,:), pointer      :: TotSonVolInFather2D  => null() !Joao Sobrinho
-        real, dimension(:,:), pointer      :: Corners              => null() !João Sobrinho
-        real, dimension (:,:,:), pointer   :: Aux2Way              => null() !João Sobrinho
-        real, dimension(:,:), pointer      :: AuxWaterLevel        => null() !João Sobrinho
         
         !Instance of ModuleGridData
         integer :: ObjGridData              = 0
@@ -2296,7 +2280,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR03.'
             
         !To let the model take access to the Mapping and geometry variables
-        call ReadLock_External_Modules  
+        call ReadLock_External_Modules
+        
+        if (Me%ComputeOptions%TwoWay) then
+            !Gives TwoWay module parametrizations from user Keywords
+            call ConstructTwoWayHydrodynamic(TwoWayID       = Me%InstantID,                          &
+                                             WaitPeriod     = Me%ComputeOptions%TwoWayWaitPeriod,    &
+                                             TimeDecay      = Me%ComputeOptions%TimeDecay,           &
+                                             IntMethod      = Me%ComputeOptions%TwoWayInterpolMethod,&
+                                             VelDT          = Me%Velocity%DT,                        &
+                                             DT             = Me%WaterLevel%DT,                      &
+                                             STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR04.'          
+        endif
+        
 
         !Call this subroutine to actualize the variabel DUZ_VY 
         !Only this way the subroutine ModifyChezyVelUV nows the 
@@ -2528,60 +2526,11 @@ cd11:   if (Me%ComputeOptions%Recording) then
             call NewEqualsOld
 
 
-
     End Subroutine InitialHydrodynamicField
 
-    !End----------------------------------------------------------------
+    !End-----------------------------------------------------------------------
 
-    Subroutine Allocate2WayVariables
-        !Arguments-------------------------------------------------------------
-
-
-        !Local-----------------------------------------------------------------
-
-        integer                            :: ILBFather, IUBFather, JLBFather, JUBFather
-        integer                            :: KLBFather, KUBFather, ready_, AuxInstanceID
-
-        !----------------------------------------------------------------------
-        !Allocate auxiliar matrixes for 2way. João Sobrinho
-        if(Me%ComputeOptions%TwoWay)then
-            
-            AuxInstanceID = Me%InstanceID
-            call Ready (Me%FatherInstanceID, ready_) ! Change Pointers to father
-            
-            ILBFather = Me%Size%ILB 
-            IUBFather = Me%Size%IUB 
-
-            JLBFather = Me%Size%JLB 
-            JUBFather = Me%Size%JUB 
-
-            KLBFather = Me%Size%KLB 
-            KUBFather = Me%Size%KUB
-            
-            allocate(Me%TotSonVolInFather(ILBFather:IUBFather, JLBFather:JUBFather, KLBFather:KUBFather))
-            Me%TotSonVolInFather(:,:,:) = 0.0
-            Me%ComputeOptions%KillAuxiliar2Way2D = .true.
-            
-            allocate(Me%TotSonVolInFather2D(ILBFather:IUBFather, JLBFather:JUBFather))
-            Me%TotSonVolInFather2D(:,:) = 0.0
-                
-            allocate(Me%Aux2Way(ILBFather:IUBFather, JLBFather:JUBFather, KLBFather:KUBFather))
-            Me%Aux2Way(:,:,:) = 0.0
-                
-            allocate(Me%AuxWaterLevel(ILBFather:IUBFather, JLBFather:JUBFather))
-            Me%AuxWaterLevel(:,:) = 0.0
-                
-            allocate(Me%Corners(0:5, KLBFather:KUBFather))
-            Me%Corners(:,:) = 0.0
-            
-            Me%ComputeOptions%KillAuxiliar2Way = .true.
-            
-            call Ready (AuxInstanceID, ready_) ! change back to son pointers
-        endif        
-    
-    end Subroutine Allocate2WayVariables
-
-   !----------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
     subroutine Generic4thDimension
 
@@ -7848,38 +7797,44 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                     &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1220')
         
-        if (Me%ComputeOptions%TwoWay .and. .not. Me%SubModel%ON) then   !João Sobrinho
+        if (Me%ComputeOptions%TwoWay) then
             
-            write(*,*) 'Keyword TWO_WAY must ONLY be defined in son domains'            
-            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1230')
+            if (Me%SubModel%ON) then
+                
+                !Period during which the two way is not computed
+                call GetData(Me%ComputeOptions%TwoWayWaitPeriod,                               &
+                            Me%ObjEnterData, iflag,                                            &
+                            Keyword      = 'TWO_WAY_WAIT_PERIOD',                              &
+                            Default      = 0.,                                                 &
+                            SearchType   = FromFile,                                           &
+                            ClientModule ='ModuleHydrodynamic',                                &
+                            STAT         = STAT_CALL)            
+
+                if (STAT_CALL /= SUCCESS_)                                                      &
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1230')
+                
+                if (Me%ComputeOptions%Continuous) then
+                    Me%ComputeOptions%TwoWayWaitPeriod = 0.
+                endif
+                
+                call GetData(Me%ComputeOptions%TimeDecay,                                      &
+                            Me%ObjEnterData, iflag,                                            &
+                            Keyword      = 'TWO_WAY_TIME_DECAY',                               &
+                            Default      = 86400.,                                             &
+                            SearchType   = FromFile,                                           &
+                            ClientModule ='ModuleHydrodynamic',                                &
+                            STAT         = STAT_CALL)            
+
+                if (STAT_CALL /= SUCCESS_)                                                      &
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1240')     
+                
+            else
+                write(*,*) 'Keyword TWO_WAY must ONLY be defined in son domains'            
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1250')                
+            endif
         
         endif
-    
-        if (Me%ComputeOptions%TwoWay)then
-    
-            !Period during which the two way is not computed (to avoid assimilation of instabilities) João Sobrinho
-            call GetData(Me%ComputeOptions%TwoWayWaitPeriod,                               &
-                        Me%ObjEnterData, iflag,                                            &
-                        Keyword      = 'TWO_WAY_WAIT_PERIOD',                              &
-                        Default      = 0.,                                                 &
-                        SearchType   = FromFile,                                           &
-                        ClientModule ='ModuleHydrodynamic',                                &
-                        STAT         = STAT_CALL)            
 
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1240')
-
-            call GetData(Me%ComputeOptions%AssimCoef,                                      &
-                        Me%ObjEnterData, iflag,                                            &
-                        Keyword      = 'TWO_WAY_COEF',                                     &
-                        Default      = 86400.,                                             &
-                        SearchType   = FromFile,                                           &
-                        ClientModule ='ModuleHydrodynamic',                                &
-                        STAT         = STAT_CALL)            
-
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1250')
-        endif
         ! Increases the water level provided by the parent domain.
         if (Me%SubModel%ON) then
             call GetData(Me%Submodel%WaterLevelIncrease,                                   &
@@ -9835,8 +9790,7 @@ i7:             if (.not. ContinuousGOTM)  then
             Me%Statistics%ID(:) = 0
 
             do i=1, Me%Statistics%NProp
-!João Sobrinho
-!Output_R4 = Me%Output%Real4                
+             
                 call ConstructStatistic (Me%Statistics%ID(i),                               &
                                          Me%ObjTime,                                        &
                                          Me%ObjHDF5,                                        &
@@ -13549,62 +13503,6 @@ cd3 :       if (present(VelocityResidual_V)) then
     end subroutine GetResidualHorizontalVelocity
 
     !--------------------------------------------------------------------------
-    !--------------------------------------------------------------------------
-    subroutine Get2WayAuxVariables(HydrodynamicID, SonVolumeInFatherCell, SonVolumeInFatherCell2D, &
-                                   AuxMatrix, Corners, STAT)
-    
-        !Arguments-------------------------------------------------------------
-        integer,           intent(IN )              :: HydrodynamicID   
-        real, dimension(:,:,:), pointer, optional   :: SonVolumeInFatherCell
-        real, dimension(:,:),   pointer, optional   :: SonVolumeInFatherCell2D
-        real, dimension(:,:,:), pointer             :: AuxMatrix
-        real, dimension(:,:),   pointer             :: Corners
-        integer, optional, intent(OUT)              :: STAT
-        
-        !External -------------------------------------------------------------
-        integer :: ready_        
-
-        !Local-----------------------------------------------------------------
-
-        integer :: STAT_              !Auxiliar local variable
-        
-        !Begin-----------------------------------------------------------------
-        STAT_ = UNKNOWN_
-
-        call Ready(HydrodynamicID, ready_) 
-        
-cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-            
-            if (present(SonVolumeInFatherCell))then
-                call Read_Lock(mHydrodynamic_, Me%InstanceID)
-                SonVolumeInFatherCell => Me%TotSonVolInFather
-            endif
-            if (present(SonVolumeInFatherCell2D))then
-                call Read_Lock(mHydrodynamic_, Me%InstanceID)
-                SonVolumeInFatherCell2D => Me%TotSonVolInFather2D
-            endif
-            
-            call Read_Lock(mHydrodynamic_, Me%InstanceID)
-            call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
-            AuxMatrix => Me%Aux2Way
-            
-            call Read_Lock(mHydrodynamic_, Me%InstanceID)
-            Corners => Me%Corners
-
-            STAT_ = SUCCESS_
-        else 
-            STAT_ = ready_
-        end if cd1
-
-
-        if (present(STAT))                                                    &
-            STAT = STAT_
-
-        !----------------------------------------------------------------------        
-        
-    end subroutine Get2WayAuxVariables
-    !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
 
@@ -14478,21 +14376,13 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     subroutine UngetHydrodynamic3Dinteger(HydrodynamicID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
-
         integer,               intent(IN ) :: HydrodynamicID
         integer, pointer, dimension(:,:,:) :: Array
         integer, optional,    intent (OUT) :: STAT
-   
-        
-
         !External--------------------------------------------------------------
-
         integer :: ready_   
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -14513,6 +14403,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
     !----------------------------------------------------------------------
     end subroutine UngetHydrodynamic3Dinteger
+    
     !--------------------------------------------------------------------------
     subroutine SetHydrodynamicManning (HydrodynamicID, Manning, STAT)
 
@@ -15349,15 +15240,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (Me%ComputeOptions%Energy)                                   &
                 call ComputeSystemEnergy
 
+            
             if (.not. associated(Me%Next))then
             
                     if (Me%ComputeOptions%TwoWay) then
-                
-                        if (Me%CurrentTime - Me%BeginTime > Me%ComputeOptions%TwoWayWaitPeriod)then
-                            
-                            call ComputeFeedbackSon2Father(AuxHydrodynamicID, HydrodynamicID)
                         
-                        endif
+                        call ComputeTwoWay(AuxHydrodynamicID, HydrodynamicID)
                 
                     endif
                 
@@ -15795,7 +15683,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
  
                 call TestSubModelOptionsConsistence (ObjHydrodynamicFather%ComputeOptions%Continuous)
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
-                call Allocate2WayVariables
+                
+                if (Me%ComputeOptions%TwoWay)then
+                    call Allocate2WayAuxiliars_Hydrodynamic(HydrodynamicFatherID, HydrodynamicID)
+                endif
+                
                 
                 !Ang: new implementation
                 Me%SubModel%FatherKLB = ObjHydrodynamicFather%WorkSize%KLB
@@ -15893,19 +15785,37 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
     end subroutine SetHydroFather
 
     !--------------------------------------------------------------------------
-    !Joao Sobrinho
-    subroutine GetModelHasTwoWay(HydrodynamicID, TwoWay) 
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Gets logical variable TwoWay
+    !>@param[in] HydrodynamicID, TwoWayOn, STAT
+    subroutine GetModelHasTwoWay(HydrodynamicID, TwoWayOn, STAT) 
     
         !Arguments-------------------------------------------------------------
-        logical, intent(OUT)                        :: TwoWay
-        integer                                     :: HydrodynamicID
+        logical, intent(OUT)                        :: TwoWayOn
+        integer                                     :: HydrodynamicID, STAT
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_
+        integer                                     :: ready_, STAT_
 
         !-----------------------------------------------------------------------
-        call Ready      (HydrodynamicID, ready_)
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_) 
         
-        TwoWay = Me%ComputeOptions%TwoWay
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            TwoWayOn = Me%ComputeOptions%TwoWay
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                               &
+            STAT = STAT_     
     
     end subroutine GetModelHasTwoWay    
     
@@ -21291,13 +21201,13 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
         call GetWaterPoints2D(Me%ObjHorizontalMap, &
 					          Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-	        stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'			  
+	        stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'
+        
         !Paralelizar! João Sobrinho
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%External_Var%WaterPoints2D(i, j) == 1)then
-                    Me%Submodel%Z_Next(i, j) = Me%Submodel%Z_Next(i, j) + Me%Submodel%WaterLevelIncrease
-                endif
+                    (Me%Submodel%Z_Next(i, j) = Me%Submodel%Z_Next(i, j) + Me%Submodel%WaterLevelIncrease) * &
+                    (Me%External_Var%WaterPoints2D(i, j))
         enddo
         enddo
 
@@ -48933,330 +48843,98 @@ do5:            do i = ILB, IUB
 
     end subroutine Hydrodynamic_OutPut
 
-    subroutine ReadySon(HydrodynamicID, HydroSon, ready_)   !João Sobrinho
-    
-        !Arguments------------------------------------------------------------
-        type (T_Hydrodynamic), pointer              :: HydroSon
-        integer                                     :: ready_, HydrodynamicID
-    
-        !Begin----------------------------------------------------------------
-        nullify (HydroSon)
-    
-        if (HydrodynamicID > 0) then
-            HydroSon => FirstHydrodynamic
-            do while (associated (HydroSon))
-                if (HydroSon%InstanceID == HydrodynamicID) exit
-                HydroSon => HydroSon%Next
-            enddo
-            if (.not. associated(HydroSon))                                                    &
-                stop 'ModuleHydrodynamic - ReadySon - ERR01'
-    
-            ready_ = VerifyReadLock (mHYDRODYNAMIC_, HydroSon%InstanceID)
-    
-        else
-            ready_ = OFF_ERR_
-        end if
-    
-    end subroutine ReadySon
-    
-    !João Sobrinho - takes submodel variables and updates father domain
-    subroutine UpdateFatherModel(SonHydrodynamicID, STAT)
-        !Arguments------------------------------------------------------------------------------------------------
-        integer, intent(IN)                               :: SonHydrodynamicID        
-        !Locals---------------------------------------------------------------------------------------------------
-        integer,    dimension(:,:),   pointer             :: IV, JV, IU, JU, IZ, JZ
-        integer,    dimension(:,:,:), pointer             :: Open3DFather, Open3DSon
-        real,       dimension(:,:,:), pointer             :: VolumeZFather, VolumeUSon, VolumeUFather
-        real,       dimension(:,:,:), pointer             :: VolumeVSon, VolumeVFather, VolumeZSon
-        real,       dimension(:,:),   pointer             :: VolumeZFather_2D, VolumeZSon_2D
-        type (T_Hydrodynamic),     pointer                :: ObjHydrodynamicSon
-        integer                                           :: status, STAT_, ready_son, i, j, k, AuxHydrodynamicID
-        integer, intent(OUT)                              :: STAT
-        !Begin----------------------------------------------------------------------------------------------------
-        
-        STAT_ = UNKNOWN_
-        AuxHydrodynamicID = SonHydrodynamicID
-        call ReadySon(AuxHydrodynamicID, ObjHydrodynamicSon, ready_son) !Gets son object
-        
-cd1 :   if (ready_son .EQ. IDLE_ERR_) then
-
-            if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")
-            
-            !Get 3Dvolumes, openPoints and areas
-            call GetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeUSon,       &
-                                           VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather,&
-                                           VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D)
-            !Zeros matrixes and compute total volume of son cells in each father cell
-            call UpdateMatrixes2Way(ObjHydrodynamicSon%WorkSize, Open3DSon, VolumeUSon, IU, JU)
-            !update Velocity U
-            !2D and 3D cases to improve cycle paralelization
-            if ((Me%WorkSize%KUB == 1) .or. (ObjHydrodynamicSon%WorkSize%KUB == 1))then
-                      
-                call TwoWayAssimilation2D(Me%Velocity%Horizontal%U%New, ObjHydrodynamicSon%Velocity%Horizontal%U%New, &
-                                        Open3DFather, Open3DSon, Me%WorkSize, ObjHydrodynamicSon%WorkSize, IU, JU,    &
-                                        ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,                &
-                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeUSon, VolumeUFather)
-            else
-                call TwoWayAssimilation3D(Me%Velocity%Horizontal%U%New, ObjHydrodynamicSon%Velocity%Horizontal%U%New, &
-                                        Open3DFather, Open3DSon, Me%WorkSize, ObjHydrodynamicSon%WorkSize, IU, JU,    &
-                                        ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,                &
-                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeUSon, VolumeUFather)              
-            endif
-        
-            call UpdateMatrixes2Way(ObjHydrodynamicSon%WorkSize, Open3DSon, VolumeVSon, IV, JV)            
-            
-            !update Velocity V
-            !2D and 3D cases to improve cycle paralelization
-            if ((Me%WorkSize%KUB == 1) .or. (ObjHydrodynamicSon%WorkSize%KUB == 1))then            
-                call TwoWayAssimilation2D(Me%Velocity%Horizontal%V%New, ObjHydrodynamicSon%Velocity%Horizontal%V%New, &
-                                        Open3DFather, Open3DSon, Me%WorkSize, ObjHydrodynamicSon%WorkSize, IV, JV,    &
-                                        ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,                &
-                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeVSon, VolumeVFather)
-            else
-                call TwoWayAssimilation3D(Me%Velocity%Horizontal%V%New, ObjHydrodynamicSon%Velocity%Horizontal%V%New, &
-                                        Open3DFather, Open3DSon, Me%WorkSize, ObjHydrodynamicSon%WorkSize, IV, JV,    &
-                                        ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,                &
-                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeVSon, VolumeVFather)              
-            endif
-            
-            call UpdateMatrixes2Way(ObjHydrodynamicSon%WorkSize, Open3DSon, VolumeZSon, IZ, JZ)
-
-            !Update vertical geometry
-            !2D and 3D cases to improve cycle paralelization
-            if ((Me%WorkSize%KUB == 1) .or. (ObjHydrodynamicSon%WorkSize%KUB == 1))then  
-                call TwoWayAssimilation2D(Me%Velocity%Vertical%Cartesian,                                             &
-                                        ObjHydrodynamicSon%Velocity%Vertical%Cartesian, Open3DFather, Open3DSon,      &
-                                        Me%WorkSize, ObjHydrodynamicSon%WorkSize, IZ, JZ,                             &
-                                        ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,                &
-                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon, VolumeZFather)
-            else
-                call TwoWayAssimilation3D(Me%Velocity%Vertical%Cartesian,                                             &
-                                        ObjHydrodynamicSon%Velocity%Vertical%Cartesian, Open3DFather, Open3DSon,      &
-                                        Me%WorkSize, ObjHydrodynamicSon%WorkSize, IZ, JZ,                             &
-                                        ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,                &
-                                        Me%TotSonVolInFather, Me%Aux2Way, Me%Corners, VolumeZSon, VolumeZFather)
-            endif
-                       
-            !Calculation of volume 2D because volumes are allocated in 3D and waterLevel is always 2D
-            call UpdateMatrixes2Way2D(ObjHydrodynamicSon%WorkSize, Open3DSon, VolumeZSon_2D, IZ, JZ)
-            
-            !update Water level
-            !Different routine for water level, as it is always a 2D matrix
-            call TwoWayAssimilationWaterLevel(Me%WaterLevel%New, ObjHydrodynamicSon%WaterLevel%New, Open3DFather,     &
-                                        Open3DSon, Me%WorkSize, ObjHydrodynamicSon%WorkSize, IZ, JZ,                  &
-                                        ObjHydrodynamicSon%ComputeOptions%AssimCoef, Me%WaterLevel%DT,                &
-                                        Me%TotSonVolInFather2D, Me%AuxWaterLevel, Me%Corners, VolumeZSon_2D,          &
-                                        VolumeZFather_2D)
-            !Prep for WaterProperties use
-            call UpdateMatrixes2Way(ObjHydrodynamicSon%WorkSize, Open3DSon, VolumeZSon, IZ, JZ)
-           
-            AuxHydrodynamicID = SonHydrodynamicID        ! Change ID to Son
-            
-            call UnGetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeUSon,         &
-                                               VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather,&
-                                               VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D)
-            
-            if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")           
-           
-            STAT_ = SUCCESS_
-        else
-            STAT_ = ready_son   
-        end if cd1
-        
-        STAT = STAT_
-        
-    end subroutine UpdateFatherModel
-
     !End------------------------------------------------------------------------------
-    subroutine GetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeUSon,          &
-                                           VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather, &
-                                           VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D)
-        !Argumets ------------------------------------------------------------------------------------------
-        integer, intent(INOUT)                            :: AuxHydrodynamicID
-        integer, dimension(:,:),   pointer, intent(OUT)   :: IV, JV, IU, JU, IZ, JZ
-        integer, dimension(:,:,:), pointer, intent(OUT)   :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer, intent(OUT)   :: VolumeZFather, VolumeUSon, VolumeUFather, &
-                                                             VolumeVSon, VolumeVFather, VolumeZSon
-        real,    dimension(:,:  ), pointer, intent(OUT)   :: VolumeZSon_2D, VolumeZFather_2D
-        !Locals ------------------------------------------------------------------------------------------------------
-        integer                                           :: status
     
-        call GetHorizontalGrid(AuxHydrodynamicID, IV = IV, &
-                                                  JV = JV, &
-                                                  IU = IU, &
-                                                  JU = JU, &
-                                                  IZ = IZ, &
-                                                  JZ = JZ, &
-                                                  STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetExternal2WayAuxVariables - Hydrodynamic - ERR01")
-            
-        call GetGeometryVolumes(AuxHydrodynamicID, VolumeU    = VolumeUSon,    &
-                                                   VolumeV    = VolumeVSon,    &
-                                                   VolumeZ    = VolumeZSon,    &
-                                                   VolumeZ_2D = VolumeZSon_2D, &
-                                                   STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetExternal2WayAuxVariables - Hydrodynamic - ERR02")
-            
-        call GetOpenPoints3D(AuxHydrodynamicID, Open3DSon, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetExternal2WayAuxVariables - Hydrodynamic - ERR03")
-                           
-        AuxHydrodynamicID = Me%InstanceID         ! Change ID to Father  
-            
-        call GetOpenPoints3D(AuxHydrodynamicID, Open3DFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetExternal2WayAuxVariables - Hydrodynamic - ERR04")
-        
-        call GetGeometryVolumes(AuxHydrodynamicID, VolumeU    = VolumeUFather,    &
-                                                   VolumeV    = VolumeVFather,    &
-                                                   VolumeZ    = VolumeZFather,    &
-                                                   VolumeZ_2D = VolumeZFather_2D, &
-                                                   STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetExternal2WayAuxVariables - Hydrodynamic - ERR05")
-            
-    end subroutine GetExternal2WayAuxVariables
-    !----------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Checks and starts TwoWay nesting
+    !>@param[in] HydrodynamicID
+    subroutine ComputeTwoWay(HydrodynamicID)
     
-    subroutine UnGetExternal2WayAuxVariables(AuxHydrodynamicID, IV, JV, IU, JU, IZ, JZ, VolumeUSon,          &
-                                             VolumeVSon, VolumeZSon, Open3DSon, Open3DFather, VolumeZFather, &
-                                             VolumeUFather, VolumeVFather, VolumeZSon_2D, VolumeZFather_2D)
-    
-        !Argumets ------------------------------------------------------------------------------------------
-        integer, intent(INOUT)                           :: AuxHydrodynamicID
-        integer, dimension(:,:),   pointer               :: IV, JV, IU, JU, IZ, JZ
-        integer, dimension(:,:,:), pointer               :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer               :: VolumeZFather, VolumeUSon, VolumeUFather, &
-                                                            VolumeVSon, VolumeVFather, VolumeZSon
-        real,    dimension(:,:  ), pointer               :: VolumeZSon_2D, VolumeZFather_2D
-        !Locals ------------------------------------------------------------------------------------------------------
-        integer                                           :: status
-        
-        call UngetHorizontalGrid(AuxHydrodynamicID, IV, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR01")
-        call UngetHorizontalGrid(AuxHydrodynamicID, JV, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR02")
-        call UngetHorizontalGrid(AuxHydrodynamicID, IU, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR03")
-        call UngetHorizontalGrid(AuxHydrodynamicID, JU, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR04")
-        call UngetHorizontalGrid(AuxHydrodynamicID, IZ, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR05")
-        call UngetHorizontalGrid(AuxHydrodynamicID, JZ, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR06")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeUSon, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR07")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeVSon, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR08")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeZSon, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR09")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeZSon_2D, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR10")
-        call UnGetMap(AuxHydrodynamicID, Open3DSon, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR11")
-            
-        AuxHydrodynamicID = Me%InstanceID  ! Change ID to Father
-            
-        call UnGetMap(AuxHydrodynamicID, Open3DFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR12")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeZFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR13")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeUFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR14")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeVFather, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR15")
-        call UnGetGeometry(AuxHydrodynamicID, VolumeZFather_2D, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "UnGetExternal2WayAuxVariables-Hydrodynamic-ERR16")  
-    
-    end subroutine UnGetExternal2WayAuxVariables
-    
-    !----------------------------------------------------------------------------
-    subroutine ComputeFeedbackSon2Father(AuxHydrodynamicID, HydrodynamicID)
-    
-    
+    !Arguments------------------------------------------------------------------------------
+        integer, intent(IN)                               :: HydrodynamicID        
     !Externals------------------------------------------------------------------------------
         type (T_Hydrodynamic), pointer                    :: ObjHydrodynamicFather
-    !Locals----------------------------------------------------------------
-        integer, intent(IN)                               :: HydrodynamicID
-        integer                                           :: ready_, readyFather_, STAT_, STAT_CALL, i, AuxHydrodynamicID
-        
+    !Locals---------------------------------------------------------------------------------
+        integer                                           :: ready_, readyFather_, STAT_CALL, i, CallerID      
     !Begin------------------------------------------------------------------------------
         
-        do i = HydrodynamicID, 2, -1
+        if (Me%CurrentTime - Me%BeginTime > Me%ComputeOptions%TwoWayWaitPeriod)then
+            
+            !Cicle to go over all domains starting from the last nested one
+            do i = HydrodynamicID, 2, -1
                     
-            if(i == HydrodynamicID)then
-                !does nothing
-            else
+                if(i == HydrodynamicID)then
+                    !does nothing
+                else
                         
-                call Ready (i, ready_) ! points Me% to current domain i
-                    
-            endif
-                
-            AuxHydrodynamicID = Me%FatherInstanceID    ! Changes ID to Father
-               
-            call ReadyFather(AuxHydrodynamicID, ObjHydrodynamicFather, readyFather_) ! getsFather
-                
-            if (ObjHydrodynamicFather%LastIteration == Me%CurrentTime)then
+                    call Ready (i, ready_) ! points Me% to current domain i
 
-                call Ready (AuxHydrodynamicID, ready_) ! switches Me% from Son to Father
+                endif
+                
+                AuxHydrodynamicID = Me%FatherInstanceID    ! Changes ID to Father
+               
+                call ReadyFather(AuxHydrodynamicID, ObjHydrodynamicFather, readyFather_) ! gets Father object
+                
+                if (ObjHydrodynamicFather%LastIteration == Me%CurrentTime)then
                                         
-                AuxHydrodynamicID = i    !Changes back to Son ID
+                    AuxHydrodynamicID = i    !Changes back to Son ID
                     
-                call UpdateFatherModel(AuxHydrodynamicID, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                stop 'Subroutine ComputeFeedBackSon2Father - ModuleHydrodynamic. ERR01' 
+                    !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
+                    call PrepTwoWay (SonID             = AuxHydrodynamicID,   &
+                                     FatherID          = Me%FatherInstanceID, &
+                                     CallerID          = mHydrodynamic_,      &
+                                     STAT              = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
                     
-            endif
-                                
-        enddo
+                    !Updates father matrixes with son information. For now, hard coded.
+                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+                                       FatherMatrix     = ObjHydrodynamicFather%Velocity%Horizontal%U%New,   &
+                                       SonMatrix        = Me%Velocity%Horizontal%U%New,                      &
+                                       CallerID         = mHydrodynamic_,                                    &
+                                       VelocityID       = VelocityU_,                                        &
+                                       STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
+                    
+                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+                                       FatherMatrix     = ObjHydrodynamicFather%Velocity%Horizontal%V%New,   &
+                                       SonMatrix        = Me%Velocity%Horizontal%V%New,                      &
+                                       CallerID         = mHydrodynamic_,                                    &
+                                       VelocityID       = VelocityV_,                                        &
+                                       STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
+                    
+                    call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
+                                       FatherMatrix     = ObjHydrodynamicFather%Velocity%Vertical%Cartesian, &
+                                       SonMatrix        = Me%Velocity%Vertical%Cartesian,                    &
+                                       CallerID         = mHydrodynamic_,                                    &
+                                       STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
+                    
+                    call ModifyTwoWay2D(SonID           = AuxHydrodynamicID,                                 &
+                                       FatherMatrix2D   = ObjHydrodynamicFather%WaterLevel%New,              &
+                                       SonMatrix2D      = Me%WaterLevel%New,                                 &
+                                       CallerID         = mHydrodynamic_,                                    &
+                                       STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
+                    
+                    call UngetTwoWayExternalVars(SonID             = AuxHydrodynamicID,   &
+                                                 FatherID          = Me%FatherInstanceID, &
+                                                 CallerID          = mHydrodynamic_,      &
+                                                 STAT              = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
+                    
+                endif
+          
+            enddo
                             
-        call Ready (HydrodynamicID, ready_) ! swithes back to the last nested Domain
+            call Ready (HydrodynamicID, ready_) ! swithes back to the last nested Domain
+            
+        endif
         
-        
-    end subroutine ComputeFeedbackSon2Father
+    end subroutine ComputeTwoWay
     
-    !--------------------------------------------------------------------------------------------------------------------
-    subroutine UpdateMatrixes2Way(WorkSize, OpenPoints, Matrix, ILink, JLink)
-        !Arguments--------------------------------------------------------------------------------
-        type(T_Size3D)                          :: WorkSize
-        integer, dimension(:,:,:), pointer      :: OpenPoints
-        real,    dimension(:,:,:), pointer      :: Matrix
-        integer, dimension(:,:   ), pointer     :: ILink, JLink
-        !Local variables--------------------------------------------------------------------------
-        integer                                 :: i, j, k
-        !Begin------------------------------------------------------------------------------------
-        call SetMatrixValue( Me%TotSonVolInFather, Me%WorkSize, 0.0)
-        call SetMatrixValue( Me%Aux2Way, Me%WorkSize, 0.0)
-        
-        do k = WorkSize%KLB, WorkSize%KUB
-        do j = WorkSize%JLB, WorkSize%JUB
-        do i = WorkSize%ILB, WorkSize%IUB
-                Me%TotSonVolInFather(ILink(i, j)+1, JLink(i, j)+1, k) = &
-                Me%TotSonVolInFather(ILink(i, j)+1, JLink(i, j)+1, k) + Matrix(i, j, k) * OpenPoints(i, j, k)
-        enddo        
-        enddo
-        enddo  
-        
-    end subroutine UpdateMatrixes2Way
-    
-    !------------------------------------------------------------------------------------------------------------------
-    subroutine UpdateMatrixes2Way2D(WorkSize, OpenPoints, Matrix, ILink, JLink)
-        !Arguments--------------------------------------------------------------------------------
-        type(T_Size3D)                          :: WorkSize
-        integer, dimension(:,:, :), pointer     :: OpenPoints
-        real,    dimension(:,:   ), pointer     :: Matrix
-        integer, dimension(:,:   ), pointer     :: ILink, JLink
-        !Local variables--------------------------------------------------------------------------
-        integer                                 :: i, j
-        !Begin------------------------------------------------------------------------------------
-        call SetMatrixValue( Me%AuxWaterLevel, Me%WorkSize2D, 0.0)
-        call SetMatrixValue( Me%TotSonVolInFather2D, Me%WorkSize2D, 0.0)
-        
-        do j = WorkSize%JLB, WorkSize%JUB
-        do i = WorkSize%ILB, WorkSize%IUB
-            Me%TotSonVolInFather2D(ILink(i, j)+1, JLink(i, j)+1) = &
-            Me%TotSonVolInFather2D(ILink(i, j)+1, JLink(i, j)+1) + Matrix(i, j) * OpenPoints(i, j, WorkSize%KUB)
-        enddo        
-        enddo
-        
-    end subroutine UpdateMatrixes2Way2D
+    !-------------------------------------------------------------------------------------------------------------------
     
     !-------------------------------------------------------------------------------------------------------------------    
     
@@ -55766,21 +55444,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
             nullify (Me%Forces%Wave3DExplicit_Acceleration) 
 
-        endif
-        
-        !Kill auxiliar variables used in 2way. João Sobrinho
-        if (Me%ComputeOptions%KillAuxiliar2Way)then
-        
-            deallocate(Me%Aux2Way)
-            nullify(Me%Aux2Way)
-            deallocate(Me%TotSonVolInFather)
-            nullify(Me%TotSonVolInFather)
-            deallocate(Me%TotSonVolInFather2D)
-            nullify(Me%TotSonVolInFather2D)
-            deallocate(Me%AuxWaterLevel)
-            nullify(Me%AuxWaterLevel)
-            deallocate(Me%Corners)
-            nullify(Me%Corners)
         endif
         
         

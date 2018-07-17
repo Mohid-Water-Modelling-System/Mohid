@@ -98,7 +98,7 @@ program MohidWater
 #ifdef _USE_MPI
     use ModuleHydrodynamic,     only : GetHydroNeedsFather, SetHydroFather,              &
                                        SendHydrodynamicMPI, RecvHydrodynamicMPI,         &
-                                       UpdateHydroMPI, GetModelHasTwoWay
+                                       UpdateHydroMPI
     use ModuleWaterproperties,  only : GetWaterNeedsFather, GetPropListNeedsFather,      &
                                        SetWaterPropFather, SendWaterPropertiesMPI,       &
                                        RecvWaterPropertiesMPI, UpdateWaterMPI
@@ -113,7 +113,7 @@ program MohidWater
                                        SetWaterPropFather,  GetWaterOverlap,             &
                                        SetModelOverlapWater
 #else  OVERLAP
-    use ModuleHydrodynamic,     only : GetHydroNeedsFather, SetHydroFather, GetModelHasTwoWay
+    use ModuleHydrodynamic,     only : GetHydroNeedsFather, SetHydroFather
     use ModuleWaterproperties,  only : GetWaterNeedsFather, GetPropListNeedsFather,      &
                                        SetWaterPropFather
 #endif  OVERLAP
@@ -163,7 +163,6 @@ program MohidWater
         integer                                             :: OverlapWaterPropertiesID = 0
 #endif OVERLAP
         
-        logical                                             :: TwoWayOn                 = .false.
         integer                                             :: FatherGridID             = null_int
         type (T_MohidWater), pointer                        :: FatherModel              => null()
         type (T_MohidWater), pointer                        :: Next                     => null()
@@ -369,13 +368,10 @@ program MohidWater
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR100'
                     
                 endif 
-!Joao  Sobrinho
-                call GetModelHasTwoWay(CurrentModel%HydrodynamicID, CurrentModel%TwoWayOn)
-                !Joao Sobrinho
+
                 call ConstructFatherGridLocation(CurrentModel%HorizontalGridID,             &
                                                  CurrentModel%FatherModel%HorizontalGridID, &
                                                  Window = CurrentModel%FatherLink%Window,   &
-                                                 TwoWay = CurrentModel%TwoWayOn,            &
                                                  STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR110'
 

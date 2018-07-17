@@ -179,9 +179,9 @@ Module ModuleFunctions
     public  :: FillMatrix3D
     
     !Assimilation - TwoWay   João Sobrinho
-    public  :: TwoWayAssimilation3D
-    public  :: TwoWayAssimilationWaterLevel
-    public  :: TwoWayAssimilation2D
+    public  :: FeedBack_Nudging3D
+    public  :: FeedBack_NudgingWaterLevel
+    public  :: FeedBack_Nudging2D
     
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
@@ -5730,7 +5730,7 @@ d5:     do k = klast + 1,KUB
                                     
     !--------------------------------------------------------------------------------------------------------------
                                     
-    subroutine TwoWayAssimilation3D(FatherProperty, SonProperty, Open3DFather, Open3DSon, SizeFather, SizeSon, &
+    subroutine FeedBack_Nudging3D(FatherProperty, SonProperty, Open3DFather, Open3DSon, SizeFather, SizeSon, &
                                     ILink, JLink, DecayTime, DT, TotSonVolInFather, AuxMatrix, FatherCorners,  &
                                     VolumeSon, VolumeFather) 
         !Arguments---------------------------------------------------------------------------------
@@ -5754,19 +5754,7 @@ d5:     do k = klast + 1,KUB
         KUBSon = SizeSon%KUB
         KLBFather = SizeFather%KLB
         KUBFather = SizeFather%KUB
-        !Copies Values of FatherProperty coincident with the corners of the Son domain (because the son domain does
-        ! not compute them).
-        !do k = KLBFather, KUBFather
-        !    !left lower corner
-        !    FatherCorners(1, k) = FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, k)
-        !    !left upper corner
-        !    FatherCorners(2, k) = FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, k)
-        !    !Right lower corner
-        !    FatherCorners(3, k) = FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, k)
-        !    !Right upper corner
-        !    FatherCorners(4, k) = FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, k)
-        !enddo
-        
+        ! This function will have to be changed if the son domain is allowed to have cells ouscide the father domain
         !Paralelizar! João Sobrinho
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
@@ -5793,32 +5781,8 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-        !!Paralelizar! João Sobrinho
-        !do k = KLBFather, KUBFather
-        !do j = JLink(1, 1)+1, JLink(IUBSon, JUBSon)+1
-        !do i = ILink(1, 1)+1, ILink(IUBSon, JUBSon)+1
-        !    if (Open3DFather(i, j, k) == 1 .and. TotSonVolInFather(i, j, k) > 0. )then
-        !        FatherProperty(i, j, k) = FatherProperty(i, j, k) + (AuxMatrix(i, j, k) / TotSonVolInFather(i, j, k) -&
-        !                                  FatherProperty(i, j, k)) * (DT / DecayTime) * (TotSonVolInFather(i, j, k) / &
-        !                                  VolumeFather(i, j, k))
-        !    endif
-        !        
-        !enddo
-        !enddo
-        !enddo
     
-        !do k = KLBFather, KUBFather
-        !    !left lower corner
-        !    FatherProperty(ILink(ILBSon, JLBSon)+1, JLink(ILBSon, JLBSon)+1, k) = FatherCorners(1, k) 
-        !    !left upper corner
-        !    FatherProperty(ILink(IUBSon, JLBSon)+1, JLink(IUBSon, JLBSon)+1, k) = FatherCorners(2, k)
-        !    !Right lower corner
-        !    FatherProperty(ILink(ILBSon, JUBSon)+1, JLink(ILBSon, JUBSon)+1, k) = FatherCorners(3, k)
-        !    !Right upper corner
-        !    FatherProperty(ILink(IUBSon, JUBSon)+1, JLink(IUBSon, JUBSon)+1, k) = FatherCorners(4, k)
-        !enddo
-    
-    end subroutine TwoWayAssimilation3D    
+    end subroutine FeedBack_Nudging3D    
     
     !-------------------------------------------------------------------------------------
                                     

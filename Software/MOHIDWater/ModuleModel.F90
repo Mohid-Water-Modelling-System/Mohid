@@ -47,9 +47,8 @@ Module ModuleModel
                                                
     use ModuleHydrodynamic,             only : StartHydrodynamic, GetWaterLevel,         &
                                                GetHorizontalVelocity, GetChezy,          &
-                                               GetVerticalVelocity, GetModelHasTwoWay,   &
-                                               Modify_Hydrodynamic, UnGetHydrodynamic,   &
-                                               KillHydrodynamic
+                                               GetVerticalVelocity, Modify_Hydrodynamic, &
+                                               UnGetHydrodynamic, KillHydrodynamic
 
     use ModuleWaterProperties,          only : Construct_WaterProperties,                &
                                                GetDensity, GetSigmaNoPressure, GetSigma, &
@@ -114,14 +113,14 @@ Module ModuleModel
                                                KillSequentialAssimilation,               &
                                                GetSeqAssimilationOptions
 #endif _USE_SEQASSIMILATION
-    use ModuleStopWatch,            only: StartWatch, StopWatch
+    use ModuleStopWatch,                only: StartWatch, StopWatch
     
 #ifdef _ENABLE_CUDA
     ! JPW, CUDA support
     use ModuleCuda
 #endif
 
-	use ModuleTwoWay
+	use ModuleTwoWay,                   only : ConstructTwoWay
     !$ use omp_lib
 
 
@@ -812,6 +811,11 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          TimeID           = Me%ObjTime,                 &
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
+            
+			call ConstructTwoWay	    (ModelName	  = trim(Me%ModelName), &
+									     TwoWayID     = Me%ObjTwoWay,       &
+									     STAT		  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - 250'	            
 
             !Constructs hydrodynamic
             call StartHydrodynamic      (ModelName        = trim(Me%ModelName),         &  
@@ -1072,12 +1076,7 @@ il:         if (Me%RunLagrangian) then
                                             Me%SeqAssimilationTime, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR530'
             endif
-#endif _USE_SEQASSIMILATION
-
-			call ConstructTwoWay	(ModelName	  = trim(Me%ModelName), &
-									 TwoWayID     = Me%ObjTwoWay,       &
-									 STAT		  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - 535'			
+#endif _USE_SEQASSIMILATION		
 			
             !nullify(Me%ModelNames )
             !nullify(Me%LagInstance)
@@ -1690,14 +1689,6 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             call SetInitialModelTime (Me%ObjTime, InitialModelTime, STAT_)            
             call CPU_TIME(Me%LastCPUTime)
-		endif
-		
-		call GetModelHasTwoWay(Me%ObjHydrodynamic, TwoWay)	
-		
-		!Son domain calls modify_TwoWay
-		if (TwoWay) then
-			call Modify_TwoWay (HydrodynamicID = Me%ObjHydrodynamic, &
-				                STAT           = STAT_CALL)
 		endif
 		
         
