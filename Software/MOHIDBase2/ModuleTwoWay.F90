@@ -19,9 +19,10 @@
 Module ModuleTwoWay
 
     use ModuleGlobalData
-    use ModuleGeometry
-    use ModuleHorizontalGrid
+    use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry
+    use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid
     use ModuleFuntions
+    use ModuleMap,              only : GetComputeFaces3D, GetOpenPoints3D, UnGetMap
     use ModuleStopWatch,        only : StartWatch, StopWatch
     
     implicit none
@@ -56,7 +57,7 @@ Module ModuleTwoWay
     private ::  Nudging_average
     private ::  Nudging_IWD
     public  :: PrepTwoWay
-    public  :: UngetTwoWayExternalVars
+    public  :: UngetTwoWayExternal_Vars
  
 
     !Destructor
@@ -107,7 +108,7 @@ Module ModuleTwoWay
     private :: T_FatherDomain
     type       T_FatherDomain
         type (T_Size3D)                             :: Size, WorkSize
-        type (T_External)                           :: ExternalVar
+        type (T_External)                           :: External_Var
         integer                                     :: InstanceID
         real, dimension (:, :, :), pointer          :: TotSonVolIn          => null()
         real, dimension (:, :   ), pointer          :: TotSonVolIn2D        => null()
@@ -117,17 +118,19 @@ Module ModuleTwoWay
     
     private :: T_External
     type       T_External
-        integer, dimension(:, :   ), pointer        :: IV
-        integer, dimension(:, :   ), pointer        :: JV
-        integer, dimension(:, :   ), pointer        :: IU
-        integer, dimension(:, :   ), pointer        :: JU
-        integer, dimension(:, :   ), pointer        :: IZ
-        integer, dimension(:, :   ), pointer        :: JZ
-        real,    dimension(:, :, :), pointer        :: VolumeU
-        real,    dimension(:, :, :), pointer        :: VolumeV
-        real,    dimension(:, :, :), pointer        :: VolumeZ
-        real,    dimension(:, :, :), pointer        :: VolumeZ_2D
-        real,    dimension(:, :, :), pointer        :: Open3D
+        integer, dimension(:, :   ), pointer        :: IV               => null()
+        integer, dimension(:, :   ), pointer        :: JV               => null()
+        integer, dimension(:, :   ), pointer        :: IU               => null()
+        integer, dimension(:, :   ), pointer        :: JU               => null()
+        integer, dimension(:, :   ), pointer        :: IZ               => null()
+        integer, dimension(:, :   ), pointer        :: JZ               => null()
+        real,    dimension(:, :, :), pointer        :: VolumeU          => null()
+        real,    dimension(:, :, :), pointer        :: VolumeV          => null()
+        real,    dimension(:, :, :), pointer        :: VolumeZ          => null()
+        real,    dimension(:, :, :), pointer        :: VolumeZ_2D       => null()
+        integer, dimension(:, :, :), pointer        :: Open3D           => null()
+        integer, dimension(:, :, :), pointer        :: ComputeFaces3D_U => null()
+        integer, dimension(:, :, :), pointer        :: ComputeFaces3D_V => null()
     end type T_External
     
     
@@ -137,7 +140,7 @@ Module ModuleTwoWay
         character(PathLength)                       :: ModelName
         real(8), dimension(:, :, :),  pointer       :: Matrix
 
-        type(T_ExternalVar)                         :: ExternalVar
+        type(T_External_Var)                         :: External_Var
         type(T_Property), pointer                   :: FirstProperty
         type(T_Property), pointer                   :: LastProperty
         type (T_Hydro)                              :: Hydro
@@ -205,7 +208,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
-            
+            Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
             !Returns ID
             ObjTwoWayID          = Me%InstanceID
             
@@ -310,7 +313,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                            :: FatherTwoWayID, TwoWayID, IntMethod
         !Local-----------------------------------------------------------------
 
-        integer                            :: ready_, VarType
+        integer                            :: ready_
 
         !----------------------------------------------------------------------
             
@@ -319,12 +322,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (ready_ .EQ. OFF_ERR_)then
             Me%Father%InstanceID = FatherID
             
-        call GetGeometrySize(FatherTwoWayID,                   &
-                                Size     = Me%Father%Size,     &
-                                WorkSize = Me%Father%WorkSize, &
-                                STAT     = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                  &
-            stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR01'  
+            call GetGeometrySize(FatherTwoWayID,                   &
+                                    Size     = Me%Father%Size,     &
+                                    WorkSize = Me%Father%WorkSize, &
+                                    STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                  &
+                stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR01'  
             
             ILB = Me%WorkSize%ILB 
             IUB = Me%WorkSize%IUB 
@@ -347,8 +350,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 allocate(Me%Father%TotSonVolIn2D(ILB:IUB, JLB:JUB))
                 Me%Father%TotSonVolIn2D(:,:) = 0.0
             else
-                VarType = 2 !One day will a user can define this
-                call ConstructIWDTwoWay (FatherID, TwoWayID, VarType)         
+                call ConstructIWDTwoWay (FatherID, TwoWayID)         
             endif
 
         else
@@ -626,16 +628,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                  FatherMatrix     = FatherMatrix,      &
                                                  SonMatrix        = SonMatrix,         &
                                                  InterpolMethod   = InterpolMethod,    &
-                                                 Ilink            = Me%ExternalVar%IU, &
-                                                 Jlink            = Me%ExternalVar%JU)
+                                                 Ilink            = Me%External_Var%IU, &
+                                                 Jlink            = Me%External_Var%JU)
                     else
                         
                         call ComputeAuxMatrixes (SonID            = SonID,             &
                                                  FatherMatrix     = FatherMatrix,      &
                                                  SonMatrix        = SonMatrix,         &
                                                  InterpolMethod   = InterpolMethod,    &
-                                                 Ilink            = Me%ExternalVar%IV, &
-                                                 Jlink            = Me%ExternalVar%JV)
+                                                 Ilink            = Me%External_Var%IV, &
+                                                 Jlink            = Me%External_Var%JV)
                     endif
                 else
                     
@@ -643,8 +645,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                              FatherMatrix     = FatherMatrix,      &
                                              SonMatrix        = SonMatrix,         &
                                              InterpolMethod   = InterpolMethod,    &
-                                             Ilink            = Me%ExternalVar%IZ, &
-                                             Jlink            = Me%ExternalVar%JZ)
+                                             Ilink            = Me%External_Var%IZ, &
+                                             Jlink            = Me%External_Var%JZ)
                 endif
                 
             else
@@ -653,8 +655,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                          FatherMatrix2D   = FatherMatrix2D,    &
                                          SonMatrix2D      = SonMatrix2D,       &
                                          InterpolMethod   = InterpolMethod,    &
-                                         Ilink            = Me%ExternalVar%IZ, &
-                                         Jlink            = Me%ExternalVar%JZ)   
+                                         Ilink            = Me%External_Var%IZ, &
+                                         Jlink            = Me%External_Var%JZ)   
             endif
             !Mandar esta parte para outra routina
             if (InterpolMethod == 1) then
@@ -697,42 +699,54 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             call GetHorizontalGrid (HorizontalGridID = SonID,                         &
-                                    IV            = Me%ExternalVar%IV,                &
-                                    JV            = Me%ExternalVar%JV,                &
-                                    IU            = Me%ExternalVar%IU,                &
-                                    JU            = Me%ExternalVar%JU,                &
-                                    IZ            = Me%ExternalVar%IZ,                &
-                                    JZ            = Me%ExternalVar%JZ,                &
+                                    IV            = Me%External_Var%IV,                &
+                                    JV            = Me%External_Var%JV,                &
+                                    IU            = Me%External_Var%IU,                &
+                                    JU            = Me%External_Var%JU,                &
+                                    IZ            = Me%External_Var%IZ,                &
+                                    JZ            = Me%External_Var%JZ,                &
                                     STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR01'
             
             call GetGeometryVolumes(GeometryID    = SonID,                            &
-                                    VolumeU       = Me%ExternalVar%VolumeU,           &
-                                    VolumeV       = Me%ExternalVar%VolumeV,           &
-                                    VolumeZ       = Me%ExternalVar%VolumeZ,           &
-                                    VolumeZ_2D    = Me%ExternalVar%VolumeZ_2D,        &
+                                    VolumeU       = Me%External_Var%VolumeU,           &
+                                    VolumeV       = Me%External_Var%VolumeV,           &
+                                    VolumeZ       = Me%External_Var%VolumeZ,           &
+                                    VolumeZ_2D    = Me%External_Var%VolumeZ_2D,        &
                                     STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR02'
             
             call GetOpenPoints3D   (Map_ID        = SonID,                            &
-                                    OpenPoint3D   = Me%ExternalVar%Open3D,            &
+                                    OpenPoint3D   = Me%External_Var%Open3D,            &
                                     STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR03'
+            
+            call GetComputeFaces3D(Map_ID          = SonID,                           &
+                                   ComputeFacesU3D = Me%External_Var%ComputeFaces3D_U, &
+                                   ComputeFacesV3D = Me%External_Var%ComputeFaces3D_V, &
+                                   STAT            = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR04'
                            
 
             
             call GetOpenPoints3D   (Map_ID        = FatherID,                         &
-                                    OpenPoint3D   = Me%Father%ExternalVar%Open3D,     &
+                                    OpenPoint3D   = Me%Father%External_Var%Open3D,     &
                                     STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR05'
         
-            call GetGeometryVolumes(GeometryID    = SonID, &
-                                    VolumeU       = Me%Father%ExternalVar%VolumeU,    &
-                                    VolumeV       = Me%Father%ExternalVar%VolumeV,    &
-                                    VolumeZ       = Me%Father%ExternalVar%VolumeZ,    &
-                                    VolumeZ_2D    = Me%Father%ExternalVar%VolumeZ_2D, &
+            call GetGeometryVolumes(GeometryID    = FatherID,                         &
+                                    VolumeU       = Me%Father%External_Var%VolumeU,    &
+                                    VolumeV       = Me%Father%External_Var%VolumeV,    &
+                                    VolumeZ       = Me%Father%External_Var%VolumeZ,    &
+                                    VolumeZ_2D    = Me%Father%External_Var%VolumeZ_2D, &
                                     STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR05'           
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR06'
+            
+            call GetComputeFaces3D(Map_ID          = FatherID,                               &
+                                   ComputeFacesU3D = Me%Father%External_Var%ComputeFaces3D_U, &
+                                   ComputeFacesV3D = Me%Father%External_Var%ComputeFaces3D_V, &
+                                   STAT            = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR07'
         else
             STAT_ = ready_
         endif
@@ -765,8 +779,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Goes for 3D
             if     (interpolMethod == 1)then
-                
-                call SetMatrixValue (Me%Father%TotSonVolIn, Me%WorkSize, 0.0)
+                ! set the matrix to 0.001 so it can be divided without giving an error
+                call SetMatrixValue (Me%Father%TotSonVolIn, Me%WorkSize, 0.001)
                 
                 ! Volume Weighted average
                 call ComputeSonVolInFather   (FatherMatrix   = FatherMatrix,   &
@@ -787,8 +801,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call SetMatrixValue (Me%Father%AuxMatrix2D, Me%WorkSize, 0.0)
             
             if     (interpolMethod == 1)then
-                
-                call SetMatrixValue (Me%Father%TotSonVolIn2D, Me%WorkSize, 0.0)
+                ! set the matrix to 0.001 so it can be divided without giving an error
+                call SetMatrixValue (Me%Father%TotSonVolIn2D, Me%WorkSize, 0.001)
                 
                 ! Volume Weighted average
                 call ComputeSonVolInFather   (FatherMatrix2D = FatherMatrix2D,  &
@@ -830,7 +844,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Me%Father%TotSonVolIn(ILink(i, j)+1, JLink(i, j)+1, k) =                   &
                     Me%Father%TotSonVolIn(ILink(i, j)+1, JLink(i, j)+1, k) + Matrix(i, j, k) * &
-                    Me%ExternalVar%Open3D(i, j, k)
+                    Me%External_Var%Open3D(i, j, k)
             enddo        
             enddo
             enddo
@@ -841,7 +855,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 Me%Father%TotSonVolIn2D(ILink(i, j)+1, JLink(i, j)+1) = &
                 Me%Father%TotSonVolIn2D(ILink(i, j)+1, JLink(i, j)+1) + Matrix(i, j) * &
-                Me%ExternalVar%Open3D(i, j, WorkSize%KUB)
+                Me%External_Var%Open3D(i, j, WorkSize%KUB)
             enddo        
             enddo            
             
@@ -864,70 +878,74 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(VelocityID))then
                 !If velocity U
                 if (VelocityID == VelocityU_)then
-                    call FeedBack_Avrg (FatherMatrix   = FatherMatrix,                 &
-                                        SonMatrix      = SonMatrix,                    &
-                                        Open3DFather   = Me%Father%ExternalVar%Open3D, &
-                                        Open3DSon      = Me%ExternalVar%Open3D,        &
-                                        SizeFather     = Me%Father%WorkSize,           &
-                                        SonWorkSize    = Me%WorkSize,                  &
-                                        Ilink          = Me%ExternalVar%IU,            &
-                                        Jlink          = Me%ExternalVar%JU,            &
-                                        DecayTime      = LocalTimeDecay,               &
-                                        DT             = Me%Hydro%VelDT,               &
-                                        SonVolInFather = Me%Father%TotSonVolIn,        &
-                                        AuxMatrix      = Me%Father%AuxMatrix,          &
-                                        VolumeSon      = Me%ExternalVar%VolumeU,       &
-                                        VolumeFather   = Me%Father%ExternalVar%VolumeU)
+                    call FeedBack_Avrg_UV (FatherMatrix         = FatherMatrix,                           &
+                                           SonMatrix            = SonMatrix,                              &
+                                           Open3DFather         = Me%Father%External_Var%Open3D,           &
+                                           Open3DSon            = Me%External_Var%Open3D,                  &
+                                           FatherComputeFaces3D = Me%Father%External_Var%ComputeFaces3D_U, &
+                                           SonComputeFaces3D    = Me%External_Var%ComputeFaces3D_U,        &
+                                           SizeFather           = Me%Father%WorkSize,                     &
+                                           SonWorkSize          = Me%WorkSize,                            &
+                                           Ilink                = Me%External_Var%IU,                      &
+                                           Jlink                = Me%External_Var%JU,                      &
+                                           DecayTime            = LocalTimeDecay,                         &
+                                           DT                   = Me%Hydro%VelDT,                         &
+                                           SonVolInFather       = Me%Father%TotSonVolIn,                  &
+                                           AuxMatrix            = Me%Father%AuxMatrix,                    &
+                                           VolumeSon            = Me%External_Var%VolumeU,                 &
+                                           VolumeFather         = Me%Father%External_Var%VolumeU)
                 !If velocity V    
                 else
-                    call FeedBack_Avrg (FatherMatrix   = FatherMatrix,                 &
-                                        SonMatrix      = SonMatrix,                    &
-                                        Open3DFather   = Me%Father%ExternalVar%Open3D, &
-                                        Open3DSon      = Me%ExternalVar%Open3D,        &
-                                        SizeFather     = Me%Father%WorkSize,           &
-                                        SonWorkSize    = Me%WorkSize,                  &
-                                        Ilink          = Me%ExternalVar%IV,            &
-                                        Jlink          = Me%ExternalVar%JV,            &
-                                        DecayTime      = LocalTimeDecay,               &
-                                        DT             = Me%Hydro%VelDT,               &
-                                        SonVolInFather = Me%Father%TotSonVolIn,        &
-                                        AuxMatrix      = Me%Father%AuxMatrix,          &
-                                        VolumeSon      = Me%ExternalVar%VolumeV,       &
-                                        VolumeFather   = Me%Father%ExternalVar%VolumeV)                        
+                    call FeedBack_Avrg_UV (FatherMatrix         = FatherMatrix,                           &
+                                           SonMatrix            = SonMatrix,                              &
+                                           Open3DFather         = Me%Father%External_Var%Open3D,           &
+                                           Open3DSon            = Me%External_Var%Open3D,                  &
+                                           FatherComputeFaces3D = Me%Father%External_Var%ComputeFaces3D_V, &
+                                           SonComputeFaces3D    = Me%External_Var%ComputeFaces3D_V,        &
+                                           SizeFather           = Me%Father%WorkSize,                     &
+                                           SonWorkSize          = Me%WorkSize,                            &
+                                           Ilink                = Me%External_Var%IV,                      &
+                                           Jlink                = Me%External_Var%JV,                      &
+                                           DecayTime            = LocalTimeDecay,                         &
+                                           DT                   = Me%Hydro%VelDT,                         &
+                                           SonVolInFather       = Me%Father%TotSonVolIn,                  &
+                                           AuxMatrix            = Me%Father%AuxMatrix,                    &
+                                           VolumeSon            = Me%External_Var%VolumeV,                 &
+                                           VolumeFather         = Me%Father%External_Var%VolumeV)                      
                 endif
             endif
             !compute nudging Z type cell
             call FeedBack_Avrg   (FatherMatrix     = FatherMatrix,                    &
                                   SonMatrix        = SonMatrix,                       &
-                                  Open3DFather     = Me%Father%ExternalVar%Open3D,    &
-                                  Open3DSon        = Me%ExternalVar%Open3D,           &
+                                  Open3DFather     = Me%Father%External_Var%Open3D,    &
+                                  Open3DSon        = Me%External_Var%Open3D,           &
                                   SizeFather       = Me%Father%WorkSize,              &
                                   SonWorkSize      = Me%WorkSize,                     &
-                                  Ilink            = Me%ExternalVar%IZ,               &
-                                  Jlink            = Me%ExternalVar%JZ,               &
+                                  Ilink            = Me%External_Var%IZ,               &
+                                  Jlink            = Me%External_Var%JZ,               &
                                   DecayTime        = LocalTimeDecay,                  &
                                   DT               = Me%Hydro%DT,                     &
                                   SonVolInFather   = Me%Father%TotSonVolIn,           &
                                   AuxMatrix        = Me%Father%AuxMatrix,             &
-                                  VolumeSon        = Me%ExternalVar%VolumeZ,          &
-                                  VolumeFather     = Me%Father%ExternalVar%VolumeZ)
+                                  VolumeSon        = Me%External_Var%VolumeZ,          &
+                                  VolumeFather     = Me%Father%External_Var%VolumeZ)
                 
         else
                 
             call FeedBack_AvrgWL (FatherMatrix2D   = FatherMatrix2D,                  &
                                   SonMatrix2D      = SonMatrix2D,                     &
-                                  Open3DFather     = Me%Father%ExternalVar%Open3D,    &
-                                  Open3DSon        = Me%ExternalVar%Open3D,           &
+                                  Open3DFather     = Me%Father%External_Var%Open3D,    &
+                                  Open3DSon        = Me%External_Var%Open3D,           &
                                   SizeFather       = Me%Father%WorkSize,              &
                                   SonWorkSize      = Me%WorkSize,                     &
-                                  Ilink            = Me%ExternalVar%IZ,               &
-                                  Jlink            = Me%ExternalVar%JZ,               &
+                                  Ilink            = Me%External_Var%IZ,               &
+                                  Jlink            = Me%External_Var%JZ,               &
                                   DecayTime        = LocalTimeDecay,                  &
                                   DT               = Me%Hydro%DT,                     &
                                   SonVolInFather   = Me%Father%TotSonVolIn_2D,        &
                                   AuxMatrix2D      = Me%Father%AuxMatrix2D,           &
-                                  VolumeSon2D      = Me%ExternalVar%VolumeZ_2D,       &
-                                  VolumeFather2D   = Me%Father%ExternalVar%VolumeZ_2D)               
+                                  VolumeSon2D      = Me%External_Var%VolumeZ_2D,       &
+                                  VolumeFather2D   = Me%Father%External_Var%VolumeZ_2D)               
                 
         endif
 
@@ -939,7 +957,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Ungets all external vars
     !>@param[in] SonID, FatherID, CallerID, STAT    
-    subroutine UngetTwoWayExternalVars(SonID, FatherID, CallerID, STAT)
+    subroutine UngetTwoWayExternal_Vars(SonID, FatherID, CallerID, STAT)
     
         !Arguments--------------------------------------------------------------
         integer, intent(IN)                         :: SonID, FatherID, CallerID
@@ -955,40 +973,48 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (ready_ .EQ. IDLE_ERR_) then 
             
             !Unget son
-            call UngetHorizontalGrid(SonID, Me%ExternalVar%IV,   STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR01'
-            call UngetHorizontalGrid(SonID, Me%ExternalVar%JV,   STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR02'
-            call UngetHorizontalGrid(SonID, Me%ExternalVar%IU,   STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR03'
-            call UngetHorizontalGrid(SonID, Me%ExternalVar%JU,   STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR04'
-            call UngetHorizontalGrid(SonID, Me%ExternalVar%IZ,   STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR05'
-            call UngetHorizontalGrid(SonID, Me%ExternalVar%JZ,   STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR06'
-            call UnGetGeometry(SonID, Me%ExternalVar%VolumeU,    STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR07'
-            call UnGetGeometry(SonID, Me%ExternalVar%VolumeV,    STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR08'
-            call UnGetGeometry(SonID, Me%ExternalVar%VolumeZ,    STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR09'
-            call UnGetGeometry(SonID, Me%ExternalVar%VolumeZ_2D, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR10'
-            call UnGetMap(SonID, Me%ExternalVar%Open3D,          STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternalVars-TwoWay-ERR11'
+            call UngetHorizontalGrid(SonID, Me%External_Var%IV,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR01'
+            call UngetHorizontalGrid(SonID, Me%External_Var%JV,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR02'
+            call UngetHorizontalGrid(SonID, Me%External_Var%IU,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR03'
+            call UngetHorizontalGrid(SonID, Me%External_Var%JU,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR04'
+            call UngetHorizontalGrid(SonID, Me%External_Var%IZ,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR05'
+            call UngetHorizontalGrid(SonID, Me%External_Var%JZ,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR06'
+            call UnGetGeometry(SonID, Me%External_Var%VolumeU,     STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR07'
+            call UnGetGeometry(SonID, Me%External_Var%VolumeV,     STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR08'
+            call UnGetGeometry(SonID, Me%External_Var%VolumeZ,     STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR09'
+            call UnGetGeometry(SonID, Me%External_Var%VolumeZ_2D,  STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR10'
+            call UnGetMap(SonID, Me%External_Var%Open3D,           STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR11'
+            call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_U, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR12'
+            call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_V, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR13'
             
             !Unget father
-            call UnGetMap(FatherID, Me%Father%ExternalVar%Open3D,          STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR12'
-            call UnGetGeometry(FatherID, Me%Father%ExternalVar%VolumeZ,    STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR13'
-            call UnGetGeometry(FatherID, Me%Father%ExternalVar%VolumeU,    STAT = status)
+            call UnGetMap(FatherID, Me%Father%External_Var%Open3D,           STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR14'
-            call UnGetGeometry(FatherID, Me%Father%ExternalVar%VolumeV,    STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR15'
-            call UnGetGeometry(FatherID, Me%Father%ExternalVar%VolumeZ_2D, STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeU,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR16'
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeV,     STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR17'
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR18'
+            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_U, STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR19'
+            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR20'
         else
             STAT_ = ready_
         endif
