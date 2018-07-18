@@ -11822,7 +11822,7 @@ D2:     do I=imax-1,2,-1
            MohidTidalName = 'NU2' 
         endif
 
-        if (TidalName(1:il) == 'La2' .or. TidalName(1:il) == 'LAMDA2') then
+        if (TidalName(1:il) == 'La2' .or. TidalName(1:il) == 'LAMDA2' .or. TidalName(1:il) == 'LA2') then
            MohidTidalName = 'LDA2' 
         endif
 

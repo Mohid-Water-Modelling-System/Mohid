@@ -8127,7 +8127,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         iFN = len_trim(Filename)
                         ipath = 0
                         do i = iFN, 1, -1
-                            if (Filename(i:i) == '/' .or. Filename(i:i) == '\') then
+                            if (Filename(i:i) == '/' .or. Filename(i:i) == "\") then
                                 ipath = i
                                 exit
                             endif
@@ -12938,7 +12938,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         iFile = 1
                         ilen  = len_trim(FileName)
                         do i = ilen,1,-1
-                            if (FileName(i:i) == '/' .or. FileName(i:i) == '\') then
+                            if (FileName(i:i) == '/' .or. FileName(i:i) == "\") then
                                 iFile = i+1 
                                 exit
                             endif                                
@@ -13162,7 +13162,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     iFile = 1
                     ilen  = len_trim(FileName)
                     do i = ilen,1,-1
-                        if (FileName(i:i) == '/' .or. FileName(i:i) == '\') then
+                        if (FileName(i:i) == '/' .or. FileName(i:i) == "\") then
                             iFile = i+1 
                             exit
                         endif                                
