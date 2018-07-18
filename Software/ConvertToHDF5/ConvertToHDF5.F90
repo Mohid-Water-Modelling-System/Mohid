@@ -67,6 +67,7 @@ program ConvertToHDF5
     use ModuleMOG2DFormat
     use ModuleIHRadarFormat
 #endif
+    use ModuleDelft3D_2_Mohid
 
     implicit none
 
@@ -109,6 +110,8 @@ program ConvertToHDF5
     character(len = StringLength), parameter:: GluesHD5Files                = 'GLUES HDF5 FILES'
     character(len = StringLength), parameter:: PatchHD5Files                = 'PATCH HDF5 FILES'
     character(len = StringLength), parameter:: ConvertIHRadarFormatToHDF5   = 'CONVERT IH RADAR FORMAT'
+    
+    character(len = StringLength), parameter:: ConvertDelft3DFormatToHDF5   = 'CONVERT DELFT3D FORMAT'    
 
     logical               :: WatchPassedAsArgument = .false.
     logical               :: Watch     = .false.
@@ -263,7 +266,7 @@ program ConvertToHDF5
         if (DataFile == null_str) then
         
             !Read input file name from nomfich file
-            call ReadFileName('IN_MODEL', DataFile, "Convert2netcdf", STAT = STAT_CALL)
+            call ReadFileName('IN_MODEL', DataFile, "ConvertToHDF5", STAT = STAT_CALL)
             
             if     (STAT_CALL == FILE_NOT_FOUND_ERR_) then
                 DataFile = 'ConvertToHDF5Action.dat'    
@@ -525,6 +528,10 @@ if2 :           if (BlockFound) then
                             call ConvertIHRadarFormat(ObjEnterData, ClientNumber, STAT = STAT_CALL)
                             if(STAT_CALL .ne. SUCCESS_) stop 'ReadOptions - ConvertToHDF5 - ERR270'
 #endif                  
+
+                        case (ConvertDelft3DFormatToHDF5)
+                        
+                            call ConvertDelft3D_2_Mohid(ObjEnterData, ClientNumber, STAT = STAT_CALL)                        
                         
                         case default
                             
