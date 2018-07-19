@@ -4471,7 +4471,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
                      keyword    = 'READ_CONTINUOUS_FORMAT',                             &
-                     Default    = DefaultFormat,                                        &                                           
+                     Default    = HDF5_,                                                &                                           
                      ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -4495,7 +4495,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
                      keyword    = 'WRITE_CONTINUOUS_FORMAT',                            &
-                     Default    = DefaultFormat,                                        &                                           
+                     Default    = HDF5_,                                                &
                      ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -4520,7 +4520,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      Me%ObjEnterData, iflag,                                            &
                      SearchType = FromFile,                                             &
                      keyword    = 'CONTINUOUS_FORMAT',                                  &
-                     Default    = DefaultFormat,                                        &                                           
+                     Default    = HDF5_,                                                &
                      ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
