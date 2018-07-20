@@ -1694,7 +1694,7 @@ do1:        do i=2,StringLength
         LenName          = LenName-4
         ModelName        = ModelName(1:LenName)
         do i =  LenName, 1, -1
-            if (ModelName(i:i) ==backslash .or. ModelName(i:i) =='/') then
+            if (ModelName(i:i) =='\' .or. ModelName(i:i) =='/') then
                 ModelName = ModelName(i+1:LenName)
                 exit
             endif
@@ -2402,6 +2402,6 @@ end program MohidWater
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Tï¿½cnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
 

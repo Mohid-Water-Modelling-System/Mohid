@@ -1,8 +1,0 @@
-<map id="moduleturbulence::inichorizontalmodels" name="moduleturbulence::inichorizontalmodels">
-<area shape="rect" id="node2" href="$namespacemoduleturbulence.html#af876648dc22afb9f49305a2d9c2f1be4" title="moduleturbulence::inicfilehorizontalmodel" alt="" coords="327,5,585,32"/>
-<area shape="rect" id="node3" href="$namespacemoduleturbulence.html#a1d7775ffdad42a39e0e66a78b56f8faf" title="moduleturbulence::inicconstanthorizontalmodel" alt="" coords="309,56,603,83"/>
-<area shape="rect" id="node4" href="$namespacemoduleturbulence.html#a7dcc612b541b2355f6ee7df80ef63634" title="moduleturbulence::inicestuarysmagorinskymodel" alt="" coords="304,107,608,133"/>
-<area shape="rect" id="node5" href="$namespacemoduleturbulence.html#ad65bc066b505edcac467325fc067aa87" title="moduleturbulence::inicestuarymodel" alt="" coords="341,157,571,184"/>
-<area shape="rect" id="node6" href="$namespacemoduleturbulence.html#a3ccb54fdbe649b382ed14de6135fd7b9" title="moduleturbulence::inicsmagorinskymodel" alt="" coords="325,208,587,235"/>
-<area shape="rect" id="node7" href="$namespacemoduleturbulence.html#ab7894e5b2120544a23a97a5dec146823" title="moduleturbulence::turbulentviscosity\l_cellcorner" alt="" coords="340,259,572,301"/>
-</map>

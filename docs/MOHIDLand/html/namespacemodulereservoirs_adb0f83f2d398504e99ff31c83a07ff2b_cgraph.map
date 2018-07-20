@@ -1,7 +1,0 @@
-<map id="modulereservoirs::constructreservoir" name="modulereservoirs::constructreservoir">
-<area shape="rect" id="node2" href="$namespacemodulereservoirs.html#af78ebbee661caa48931d2c60385bda27" title="modulereservoirs::getvolumeacccurve" alt="" coords="298,5,534,32"/>
-<area shape="rect" id="node3" href="$namespacemodulereservoirs.html#a22d1b1d83488cecbdcf52565d3aa4e99" title="modulereservoirs::getimposedreservoirlevel" alt="" coords="283,56,549,83"/>
-<area shape="rect" id="node6" href="$namespacemodulereservoirs.html#aa1e3cf305f3f33775d706fde19afd2c6" title="modulereservoirs::getmanagementoptions" alt="" coords="285,107,547,133"/>
-<area shape="rect" id="node4" href="$namespacemodulereservoirs.html#afabb38607932bfaede946ccbce22734d" title="modulereservoirs::getreservoirvolume" alt="" coords="597,56,831,83"/>
-<area shape="rect" id="node5" href="$namespacemodulereservoirs.html#a5482b1f1fc7530ca5302b5dc3352566f" title="modulereservoirs::computereservoirvolume" alt="" coords="879,56,1144,83"/>
-</map>

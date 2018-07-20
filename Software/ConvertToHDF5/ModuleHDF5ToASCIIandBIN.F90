@@ -1021,7 +1021,7 @@ cd2 :           if (.not. BlockFound) then
             if (len_trim(Me%OutputListFolderName) == 0) then
                 write(Me%UnitProps(p),'(A30)') Filename
             else
-                aux = trim(Me%OutputListFolderName) //backslash// trim(Filename)
+                aux = trim(Me%OutputListFolderName) // "\" // trim(Filename)
                 write(Me%UnitProps(p),'(A100)') aux
             endif
             
@@ -1239,7 +1239,7 @@ dw1:    do while (NextTime >= Me%Output%OutTime(n))
                     if (len_trim(Me%OutputListFolderName) == 0) then
                         write(Me%UnitProps(p),'(A30)') Filename
                     else
-                        aux = trim(Me%OutputListFolderName) //backslash// trim(Filename)
+                        aux = trim(Me%OutputListFolderName) // "\" // trim(Filename)
                         write(Me%UnitProps(p),'(A100)') aux
                     endif
             

@@ -1,7 +1,0 @@
-<map id="modulesnow::t_snow" name="modulesnow::t_snow">
-<area shape="rect" id="node2" href="$structmodulesnow_1_1t__property.html" title="{modulesnow::t_property\n|&#45; id\l&#45; old\l&#45; timeserie\l&#45; outputhdf\l&#45; valueold\l&#45; value\l|}" alt="" coords="7,197,167,347"/>
-<area shape="rect" id="node3" href="$structmodulesnow_1_1t__evolution.html" title="{modulesnow::t_evolution\n|&#45; lastcompute\l&#45; nextcompute\l|}" alt="" coords="5,5,168,97"/>
-<area shape="rect" id="node4" href="$structmodulesnow_1_1t__files.html" title="{modulesnow::t_files\n|&#45; datafile\l&#45; initialfile\l&#45; finalfile\l&#45; transienthdf\l|}" alt="" coords="247,211,383,333"/>
-<area shape="rect" id="node5" href="$structmodulesnow_1_1t__output.html" title="{modulesnow::t_output\n|&#45; outtime\l&#45; nextoutput\l&#45; yes\l&#45; restartouttime\l&#45; writerestartfile\l&#45; restartoverwrite\l&#45; nextrestartoutput\l&#45; boxfluxes\l&#45; timeserie_on\l&#45; hdf_on\l&#45; number\l|}" alt="" coords="407,160,556,384"/>
-<area shape="rect" id="node6" href="$structmodulesnow_1_1t__extvar.html" title="{modulesnow::t_extvar\n|&#45; basinpoints\l&#45; topography\l&#45; riverpoints\l&#45; now\l&#45; dt\l|}" alt="" coords="580,204,727,340"/>
-</map>

@@ -1,8 +1,0 @@
-<map id="modulehydrodynamic::modify_horizontalwaterflow" name="modulehydrodynamic::modify_horizontalwaterflow">
-<area shape="rect" id="node2" href="$namespacemodulehydrodynamic.html#a054b8ffaff698f4cc430c2f7f0bc0da9" title="modulehydrodynamic\l::one_iteration" alt="" coords="677,5,823,47"/>
-<area shape="rect" id="node4" href="$namespacemodulehydrodynamic.html#aa05a995dd1f1f6550d1ecdfb0a0bab47" title="modulehydrodynamic\l::momentummassconservation" alt="" coords="431,60,629,101"/>
-<area shape="rect" id="node5" href="$namespacemodulehydrodynamic.html#a8ca7371a9688becd96976013be92880a" title="modulehydrodynamic\l::leendertse_scheme" alt="" coords="237,60,383,101"/>
-<area shape="rect" id="node6" href="$namespacemodulehydrodynamic.html#ab24f3a1aadd0e5ea548005ab690517a5" title="modulehydrodynamic\l::abbott_scheme" alt="" coords="237,125,383,167"/>
-<area shape="rect" id="node7" href="$namespacemodulehydrodynamic.html#aad271ff300fe974ab4d13ed6f1bd315d" title="modulehydrodynamic\l::implicit_1dscheme" alt="" coords="237,191,383,232"/>
-<area shape="rect" id="node3" href="$namespacemodulehydrodynamic.html#a54656696e009a87a266514744beb5baa" title="modulehydrodynamic\l::modify_hydrodynamic" alt="" coords="871,5,1027,47"/>
-</map>

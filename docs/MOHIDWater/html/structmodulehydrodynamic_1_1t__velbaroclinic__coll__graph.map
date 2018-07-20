@@ -1,5 +1,0 @@
-<map id="modulehydrodynamic::t_velbaroclinic" name="modulehydrodynamic::t_velbaroclinic">
-<area shape="rect" id="node2" href="$structmodulehydrodynamic_1_1t__imposed.html" title="{modulehydrodynamic\l::t_imposed\n|&#45; number\l&#45; dtinterval\l|}" alt="" coords="5,211,151,318"/>
-<area shape="rect" id="node3" href="$structmodulehydrodynamic_1_1t__instantbound.html" title="{modulehydrodynamic\l::t_instantbound\n|&#45; timeb\l&#45; baroclvel\l|}" alt="" coords="5,5,151,112"/>
-<area shape="rect" id="node4" href="$structmodulehydrodynamic_1_1t__vel__uv.html" title="{modulehydrodynamic\l::t_vel_uv\n|&#45; id\l&#45; new\l&#45; old\l&#45; default\l&#45; intypezuv\l|}" alt="" coords="175,189,320,340"/>
-</map>

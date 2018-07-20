@@ -795,7 +795,7 @@ cd5 :               if (flag .EQ. 0) then
                             iFN = len_trim(FILE_NAME)
                             ipath = 0
                             do i = iFN, 1, -1
-                                if (FILE_NAME(i:i) == '/' .or. FILE_NAME(i:i) == backslash) then
+                                if (FILE_NAME(i:i) == '/' .or. FILE_NAME(i:i) == "\") then
                                     ipath = i
                                     exit
                                 endif
@@ -4854,7 +4854,7 @@ end module ModuleEnterData
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior TÃ©cnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
 
 

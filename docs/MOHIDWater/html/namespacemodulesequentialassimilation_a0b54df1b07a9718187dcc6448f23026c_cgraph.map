@@ -1,7 +1,0 @@
-<map id="modulesequentialassimilation::setmodelinitialstate" name="modulesequentialassimilation::setmodelinitialstate">
-<area shape="rect" id="node2" href="$namespacemodulesequentialassimilation.html#a1a5a1be9fa72ef3b8fe621128b7e3759" title="modulesequentialassimilation\l::copymodelresulttofs" alt="" coords="249,5,441,47"/>
-<area shape="rect" id="node3" href="$namespacemodulesequentialassimilation.html#a19283cb361ee6cdaa626fd20bad85d11" title="modulesequentialassimilation\l::copyfullmodelstate" alt="" coords="249,71,441,112"/>
-<area shape="rect" id="node4" href="$namespacemodulesequentialassimilation.html#a30f7a4267c0bcf30928733c782104389" title="modulesequentialassimilation\l::disturbfullmodelstate" alt="" coords="249,136,441,177"/>
-<area shape="rect" id="node5" href="$namespacemodulesequentialassimilation.html#a063e8f5d94cc80db103c79a0ec38a127" title="modulesequentialassimilation\l::setdisturbedstateinmodel" alt="" coords="249,201,441,243"/>
-<area shape="rect" id="node6" href="$namespacemodulesequentialassimilation.html#ad07159048364faf26c59ebffd5b246a3" title="modulesequentialassimilation\l::copyundisturbedstatetomodel" alt="" coords="245,267,445,308"/>
-</map>

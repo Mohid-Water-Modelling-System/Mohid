@@ -1,5 +1,3 @@
-       !<@cond mpif
-       
        INTEGER MPI_SOURCE, MPI_TAG, MPI_ERROR
        PARAMETER (MPI_SOURCE=3,MPI_TAG=4,MPI_ERROR=5)
        INTEGER MPI_STATUS_SIZE
@@ -417,5 +415,3 @@
 
        COMMON /MPIPRIVC/ MPI_ARGVS_NULL, MPI_ARGV_NULL
        SAVE   /MPIPRIVC/
-
-       !<@endcond

@@ -1,8 +1,0 @@
-<map id="modulelagrangian::emissionaccident" name="modulelagrangian::emissionaccident">
-<area shape="rect" id="node2" href="$namespacemodulelagrangian.html#aaf265958f7abd87e754e7ff44745bdf0" title="modulelagrangian::allocatenewparticle" alt="" coords="285,5,527,32"/>
-<area shape="rect" id="node3" href="$namespacemodulelagrangian.html#a96b3fbaf01697148bac38553d6198dc3" title="modulelagrangian::insertparticletolist" alt="" coords="289,56,523,83"/>
-<area shape="rect" id="node4" href="$namespacemodulelagrangian.html#ac9070324e55670920f08443dd42938d9" title="modulelagrangian::convert\l_xy_cellij" alt="" coords="320,107,492,149"/>
-<area shape="rect" id="node5" href="$namespacemodulelagrangian.html#acf4d2d03d6e5a08dbd6f22a256ca3d91" title="modulelagrangian::convert\l_cellij_ij" alt="" coords="320,173,492,214"/>
-<area shape="rect" id="node6" href="$namespacemodulelagrangian.html#a457d6182588e8e1d9cc86c35a53690f7" title="modulelagrangian::convert\l_z_cellk" alt="" coords="320,238,492,279"/>
-<area shape="rect" id="node7" href="$namespacemodulelagrangian.html#ab49d9104b72e09c3e511a3c37180d96b" title="modulelagrangian::convert\l_cellk_k" alt="" coords="320,303,492,345"/>
-</map>

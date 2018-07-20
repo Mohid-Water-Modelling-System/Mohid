@@ -1,8 +1,0 @@
-<map id="modulesediment::t_sediment" name="modulesediment::t_sediment">
-<area shape="rect" id="node2" href="$structmodulesediment_1_1t__evolution.html" title="{modulesediment::t_evolution\n|&#45; old\l&#45; sedimentdt\l&#45; bathymdt\l&#45; nextsediment\l&#45; nextbatim\l&#45; bathym\l&#45; geometry\l|}" alt="" coords="5,35,192,200"/>
-<area shape="rect" id="node3" href="$structmodulesediment_1_1t__boxes.html" title="{modulesediment::t_boxes\n|&#45; yes\l&#45; file\l&#45; mass\l&#45; bedloadu\l&#45; bedloadv\l|}" alt="" coords="216,49,387,185"/>
-<area shape="rect" id="node4" href="$structmodulesediment_1_1t__output.html" title="{modulesediment::t_output\n|&#45; outtime\l&#45; nextoutput\l&#45; yes\l|}" alt="" coords="411,64,583,171"/>
-<area shape="rect" id="node5" href="$structmodulesediment_1_1t__residual.html" title="{modulesediment::t_residual\n|&#45; on\l&#45; lastrun\l&#45; starttime\l&#45; bedloadu\l&#45; bedloadv\l|}" alt="" coords="608,49,789,185"/>
-<area shape="rect" id="node6" href="$structmodulesediment_1_1t__files.html" title="{modulesediment::t_files\n|&#45; constructdata\l&#45; initial\l&#45; outputfields\l&#45; final\l|}" alt="" coords="814,57,973,178"/>
-<area shape="rect" id="node7" href="$structmodulesediment_1_1t__external.html" title="{modulesediment::t_external\n|&#45; now\l&#45; dux\l&#45; dvy\l&#45; dxx\l&#45; dyy\l&#45; dzx\l&#45; dzy\l&#45; computefacesu2d\l&#45; computefacesv2d\l&#45; openpoints2d\land 31 more...\l|}" alt="" coords="997,5,1179,229"/>
-</map>

@@ -1,9 +1,0 @@
-<map id="moduleassimilation::killassimilation" name="moduleassimilation::killassimilation">
-<area shape="rect" id="node2" href="$namespacemoduleassimilation.html#a7c7eb17646a26837c5dfb9acc963b010" title="moduleassimilation\l::ready" alt="" coords="204,5,337,47"/>
-<area shape="rect" id="node4" href="$namespacemoduleassimilation.html#a68cb52758df87c362f43dd3e9690121b" title="moduleassimilation\l::writefinalhdfoutput" alt="" coords="204,71,337,112"/>
-<area shape="rect" id="node6" href="$namespacemoduleassimilation.html#a457aa90cd01b96e0e4a625d41ea9ba78" title="moduleassimilation\l::killaltimetricassimilation" alt="" coords="187,136,355,177"/>
-<area shape="rect" id="node7" href="$namespacemoduleassimilation.html#a92631d1b5885e157d6d4ef36379213e9" title="moduleassimilation\l::deallocatevariables" alt="" coords="201,201,340,243"/>
-<area shape="rect" id="node8" href="$namespacemoduleassimilation.html#a90d72337a9f9a14b03745d53d1bb201f" title="moduleassimilation\l::deallocateinstance" alt="" coords="201,267,340,308"/>
-<area shape="rect" id="node3" href="$namespacemoduleassimilation.html#acb3e0bb143f8372bac2b99052ba4943d" title="moduleassimilation\l::locateobjassimilation" alt="" coords="403,5,553,47"/>
-<area shape="rect" id="node5" href="$namespacemoduleassimilation.html#a48b30161fd16a556f8e54eeaf6b054e3" title="moduleassimilation\l::outputresultshdf" alt="" coords="411,71,545,112"/>
-</map>

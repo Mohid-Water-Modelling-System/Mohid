@@ -1,7 +1,0 @@
-<map id="modulehydrodynamicfile::starthydrodynamicfileinput" name="modulehydrodynamicfile::starthydrodynamicfileinput">
-<area shape="rect" id="node2" href="$namespacemodulehydrodynamicfile.html#ac67e9023c973dadd99ed3b893b1cc9ad" title="modulehydrodynamicfile\l::allocatevariablesinput" alt="" coords="235,5,396,47"/>
-<area shape="rect" id="node3" href="$namespacemodulehydrodynamicfile.html#a6d9975e28fbe49117eab154fe46cdeca" title="modulehydrodynamicfile\l::readheader" alt="" coords="235,71,396,112"/>
-<area shape="rect" id="node4" href="$namespacemodulehydrodynamicfile.html#a51ac7b78492e92f6633e4889f1a47052" title="modulehydrodynamicfile\l::readsblock" alt="" coords="444,159,605,200"/>
-<area shape="rect" id="node5" href="$namespacemodulehydrodynamicfile.html#a45b05c777eb42ae5c5d23981ba6256da" title="modulehydrodynamicfile\l::startencoding" alt="" coords="235,188,396,229"/>
-<area shape="rect" id="node6" href="$namespacemodulehydrodynamicfile.html#a5a3a54142c84c39924e24d98da9014ae" title="modulehydrodynamicfile\l::m2_iteration" alt="" coords="235,253,396,295"/>
-</map>

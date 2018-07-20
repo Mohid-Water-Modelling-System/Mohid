@@ -1,8 +1,0 @@
-<map id="modulereservoirs::getreservoirvolume" name="modulereservoirs::getreservoirvolume">
-<area shape="rect" id="node2" href="$namespacemodulereservoirs.html#a22d1b1d83488cecbdcf52565d3aa4e99" title="modulereservoirs::getimposedreservoirlevel" alt="" coords="287,31,553,57"/>
-<area shape="rect" id="node3" href="$namespacemodulereservoirs.html#adb0f83f2d398504e99ff31c83a07ff2b" title="modulereservoirs::constructreservoir" alt="" coords="601,5,831,32"/>
-<area shape="rect" id="node6" href="$namespacemodulereservoirs.html#a7e40106c12c54cc753164ac30f0fbf04" title="modulereservoirs::getimposedlevel" alt="" coords="607,56,825,83"/>
-<area shape="rect" id="node4" href="$namespacemodulereservoirs.html#ac7bcb5beebaa4c557e558719e9656911" title="modulereservoirs::constructreservoirlist" alt="" coords="879,5,1125,32"/>
-<area shape="rect" id="node5" href="$namespacemodulereservoirs.html#a8356f95662b41d91816350cf3f3c6113" title="modulereservoirs::constructreservoirs" alt="" coords="1173,5,1409,32"/>
-<area shape="rect" id="node7" href="$namespacemodulereservoirs.html#a65da9561acff8444f90db1ccde975201" title="modulereservoirs::modifyreservoirs" alt="" coords="892,56,1112,83"/>
-</map>

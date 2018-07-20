@@ -1,8 +1,0 @@
-<map id="moduleconsolidation::killconsolidation" name="moduleconsolidation::killconsolidation">
-<area shape="rect" id="node2" href="$namespacemoduleconsolidation.html#ab6b8d86bedc5c2870f1fb998c297005e" title="moduleconsolidation\l::ready" alt="" coords="221,5,361,47"/>
-<area shape="rect" id="node4" href="$namespacemoduleconsolidation.html#abab71f3745fefbe658e80b47d85e3662" title="moduleconsolidation\l::write_final_consolidation_hdf" alt="" coords="193,71,388,112"/>
-<area shape="rect" id="node7" href="$namespacemoduleconsolidation.html#ac59ee6a9bf70ef4f2f509cc55bb5b242" title="moduleconsolidation\l::deallocateinstance" alt="" coords="221,136,361,177"/>
-<area shape="rect" id="node3" href="$namespacemoduleconsolidation.html#a782ed1b2a1870dc38bceeca90e360669" title="moduleconsolidation\l::locateobjconsolidation" alt="" coords="451,5,609,47"/>
-<area shape="rect" id="node5" href="$namespacemoduleconsolidation.html#a5157e525fb069b7984e826def43a4dfc" title="moduleconsolidation\l::readlockexternalmodules" alt="" coords="443,71,617,112"/>
-<area shape="rect" id="node6" href="$namespacemoduleconsolidation.html#a146c8502b0f191abd1664acdcd22a4c4" title="moduleconsolidation\l::readunlockexternalmodules" alt="" coords="436,136,624,177"/>
-</map>

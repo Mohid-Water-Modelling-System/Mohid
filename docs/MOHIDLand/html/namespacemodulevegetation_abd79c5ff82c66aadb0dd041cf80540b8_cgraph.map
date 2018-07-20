@@ -1,8 +1,0 @@
-<map id="modulevegetation::killvegetation" name="modulevegetation::killvegetation">
-<area shape="rect" id="node2" href="$namespacemodulevegetation.html#a7bff2743f33908bdf727831d101dc37a" title="modulevegetation::ready" alt="" coords="295,5,458,32"/>
-<area shape="rect" id="node4" href="$namespacemodulevegetation.html#ad1ed23055b336a8f8253483f2289121b" title="modulevegetation::write\l_finalvegetation_hdf" alt="" coords="298,57,455,98"/>
-<area shape="rect" id="node6" href="$namespacemodulevegetation.html#a4208f430811c220efd414cd21312b73d" title="modulevegetation::deallocatevariables" alt="" coords="257,123,496,149"/>
-<area shape="rect" id="node7" href="$namespacemodulevegetation.html#a6be2722d95215f594c5f964837e1e955" title="modulevegetation::deallocateinstance" alt="" coords="257,173,496,200"/>
-<area shape="rect" id="node3" href="$namespacemodulevegetation.html#ac457b656dd70c067c1609578542d0d16" title="modulevegetation::locateobjvegetation" alt="" coords="547,5,787,32"/>
-<area shape="rect" id="node5" href="$namespacemodulevegetation.html#af795c019d50bbacd6767423599de5ea5" title="modulevegetation::convertlogicalinteger" alt="" coords="544,64,791,91"/>
-</map>

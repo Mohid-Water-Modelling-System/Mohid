@@ -1,9 +1,0 @@
-<map id="moduleinterfacewaterair::computecoaresurfacefluxes" name="moduleinterfacewaterair::computecoaresurfacefluxes">
-<area shape="rect" id="node2" href="$namespacemoduleinterfacewaterair.html#adc7a37061f983410896c39bb15a20517" title="moduleinterfacewaterair\l::airviscosity" alt="" coords="241,5,400,47"/>
-<area shape="rect" id="node3" href="$namespacemoduleinterfacewaterair.html#ae6acdb7a76bd3e0edd25e31a74d3ab48" title="moduleinterfacewaterair\l::firstguess" alt="" coords="241,136,400,177"/>
-<area shape="rect" id="node6" href="$namespacemoduleinterfacewaterair.html#adca22635eac17186131c131155bfb929" title="moduleinterfacewaterair\l::bulkloop" alt="" coords="241,71,400,112"/>
-<area shape="rect" id="node7" href="$namespacemoduleinterfacewaterair.html#ad635dbe2d03621ece4e4eeb32fc65bb6" title="moduleinterfacewaterair\l::watervapourdiffusivity" alt="" coords="241,201,400,243"/>
-<area shape="rect" id="node8" href="$namespacemoduleinterfacewaterair.html#ab0d1bf1d73b112083b7be11d6c22aebc" title="moduleinterfacewaterair\l::heatdiffusivity" alt="" coords="241,267,400,308"/>
-<area shape="rect" id="node4" href="$namespacemoduleinterfacewaterair.html#af976a3b281048d4f32222b16621b556a" title="moduleinterfacewaterair\l::psiu" alt="" coords="448,71,607,112"/>
-<area shape="rect" id="node5" href="$namespacemoduleinterfacewaterair.html#a65968d6dee9f2e512ec37dd5d4fe8fe1" title="moduleinterfacewaterair\l::psit" alt="" coords="448,136,607,177"/>
-</map>
