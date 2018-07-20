@@ -1220,7 +1220,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetData(Me%RunSwan%BatchFile,                                          &
                          Me%ObjEnterData, iflag,                                        &
                          Keyword        = 'SWAN_BATCH_FILE',                            &
-                         default        = 'Swan\RunSwan.bat',                           &
+                         default        = 'Swan'//backslash//'RunSwan.bat',                           &
                          SearchType     = FromFile,                                     &
                          ClientModule   ='ModuleWave',                                  &
                          STAT           = STAT_CALL)            
@@ -1230,7 +1230,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetData(Me%RunSwan%FileOutSwan,                                        &                
                          Me%ObjEnterData, iflag,                                        &
                          Keyword        = 'SWAN_OUTPUT_FILE',                           &
-                         default        = 'Swan\FileOut.dat',                           &
+                         default        = 'Swan'//backslash//'FileOut.dat',                           &
                          SearchType     = FromFile,                                     &
                          ClientModule   ='ModuleWave',                                  &
                          STAT           = STAT_CALL)            
@@ -3913,7 +3913,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (VariableBathym) then           
 
-            call WriteBatimSwan(FileBatimSwan = 'Swan\FileBatimIn.dat')
+            call WriteBatimSwan(FileBatimSwan = 'Swan'//backslash//'FileBatimIn.dat')
             
         endif
                             

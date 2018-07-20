@@ -1,0 +1,58 @@
+\hypertarget{_module_model_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Model.F90 File Reference}
+\label{_module_model_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Model.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Model.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulemodel_1_1t__externalvar}{modulemodel\+::t\+\_\+externalvar}}
+\item 
+type \mbox{\hyperlink{structmodulemodel_1_1t__column}{modulemodel\+::t\+\_\+column}}
+\item 
+type \mbox{\hyperlink{structmodulemodel_1_1t__model}{modulemodel\+::t\+\_\+model}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulemodel}{modulemodel}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a26ba9ff74ca1066f7a87bd019c76b1ed}{modulemodel\+::constructmodel}} (Lag\+Instance, Model\+Names, Number\+Of\+Models, Obj\+Lagrangian\+Global, Model\+ID, Initial\+System\+Time, M\+P\+I\+\_\+\+ID, Master\+ID, Last\+Slave\+ID, Model\+Path, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemodel_a5bbc8de2114f1ac7367a9db6d923e85a}{modulemodel\+::allocateinstance}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a4273c6982391135a62686fbcf6a0861c}{modulemodel\+::getmodeltimelimits}} (Model\+ID, Begin\+Time, End\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a548beb7d8ae7799facee13efde759d64}{modulemodel\+::getmodeltimestep}} (Model\+ID, DT, Variable, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a61debfb6b3b629e1cd4bbdfe3c1c1ad1}{modulemodel\+::getsubmodelwindow}} (Model\+ID, Sub\+Model\+Window, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a2bb34f8b006f66681bc7e7276eb4579e}{modulemodel\+::getsubmodelwindowon}} (Model\+ID, Sub\+Model\+Window\+ON, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a16524bfd3d2f97fbf9b45e5e99e495e8}{modulemodel\+::getmodelcurrenttime}} (Model\+ID, Current\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a542c4b413e51723c7c3826e7a1e3b8a6}{modulemodel\+::getmodelinstanceids}} (Model\+ID, Horizontal\+Grid\+ID, Hydrodynamic\+ID, Water\+Properties\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a4eb372bc7bfa08656aec97c250f8cf7b}{modulemodel\+::updatetimeandmapping}} (Model\+ID, Global\+\_\+\+Current\+Time, Do\+Next\+Step, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a16a07d5b28a4877790acec46aed111b6}{modulemodel\+::runmodel}} (Model\+ID, D\+T\+\_\+\+Father, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemodel_ab22d85061a595a03c83c11766cba5587}{modulemodel\+::runonemodel}} (Predicted\+DT, D\+T\+\_\+\+Father)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a23647852257627fb606f6868bc295162}{modulemodel\+::killmodel}} (Model\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemodel_aa1baf5876ac43380b98e011bcf1517da}{modulemodel\+::deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemodel_af5d93bbd065add89f5cd52475a40e7fc}{modulemodel\+::ready}} (Model\+ID, ready\+\_\+)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulemodel_a9d28e193fe25ac78b7f97d328ea3d7f4}{modulemodel\+::readquerystring\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulemodel_a58d33da3b782f55628340bd21722de76}{modulemodel\+::readcommandline\+\_\+}} = 2
+\item 
+type(t\+\_\+model), pointer \mbox{\hyperlink{namespacemodulemodel_ac561b0a5644fa2248aaefbf844e5a4aa}{modulemodel\+::firstmodel}} =$>$ null()
+\item 
+type(t\+\_\+model), pointer \mbox{\hyperlink{namespacemodulemodel_a98337e796a74b39490b015ac045f4570}{modulemodel\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

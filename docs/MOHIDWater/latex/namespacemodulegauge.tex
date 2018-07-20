@@ -1,0 +1,1431 @@
+\hypertarget{namespacemodulegauge}{}\section{modulegauge Module Reference}
+\label{namespacemodulegauge}\index{modulegauge@{modulegauge}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulegauge_1_1t__gauge}{t\+\_\+gauge}}
+\item 
+type \mbox{\hyperlink{structmodulegauge_1_1t__tidalvelocity}{t\+\_\+tidalvelocity}}
+\item 
+type \mbox{\hyperlink{structmodulegauge_1_1t__tidalwave}{t\+\_\+tidalwave}}
+\item 
+type \mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a5f441d56f4c693dc4323df1e0d702ea6}{constructgauges}} (Gauge\+ID, Horizontal\+Grid\+ID, Horizontal\+Map\+ID, Time\+ID, Gauge\+File, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a6f6a7638c9e37ab7f5461866ec475f03}{readgaugedataascii}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a26f00d7d5cd5edd1ce28da62855cb19f}{readgaugedatahdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a473e631b98b7b3cb869f4ede62f77425}{writegaugedatahdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a986286ef5f7c779896aa9d9797f840cd}{creategaugefromhdfdata}} (X, Y, n, i, j)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a672a5d3f45d4bf6b413012a0705ca328}{addgauge2list}} (Present\+Gauge)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a1aea609b0bda24026589e2d67bf3e0ab}{allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_adb09b4f645d53ae4da6e979cbda1d5ea}{calc\+\_\+decimal\+\_\+geo\+\_\+coord}} (Present\+Gauge)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a6be887d8098d9844b158ef75048c3473}{readgaugedata}} (Present\+Gauge, From\+Block, Read\+Harmonics\+Ok)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a9095cfa51e7b4150e1d3889efe30b265}{readharmonics}} (Present\+Gauge)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_ad253767480082a0c9e00cc725e85786e}{newwave}} (Present\+Gauge, Wave\+Name, Amplitude, Phase)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a046651f5fe7a0df46688f6d3467b09b5}{readoldform}} (Block\+Found, Present\+Gauge)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a5143391f003e2c838204ca20768435a4}{verifygaugelocation}} (Gauge, Horizontal\+Grid\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a3c28cc048b2b01fde65fb7a5fc9f7213}{locationconsistence}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a3e3b74ba912595c577820445ad14cb64}{getnumberwaves}} (Present\+Gauge, N\+Waves)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a0e2dffbc5ada081dc537e80f461ae0eb}{getwave}} (Present\+Gauge, Wave\+Name, Wave\+Exists, Wave\+Out)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_af6c96743755f8c096eb5335e0993e175}{getwavei}} (Wave\+Name\+List, N\+Waves, Wave\+Name, Wave\+Exists, Wave\+Out)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a7a4e1ac4c0d2468bf869594a8677a7d0}{getngauges}} (Gauge\+ID, N\+Gauges, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_adc2b7e3c857dc1649430eaa5a0fb1882}{getncomponents}} (Gauge\+ID, Number\+Comp, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_af98cce9ae7ea92a6068724894d803842}{getmetricgaugelocation}} (Gauge\+ID, X\+Location, Y\+Location, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a118b41963f151494a832cd94010c6282}{getgaugelocation}} (Gauge\+ID, X\+Location, Y\+Location, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a9b801d4a79f8bfd52e8276c2b5525b5e}{getijreferencelevel}} (Gauge\+ID, Imposed\+Elevation, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_aa7b1b101cf558db427ad03b4a0e72f09}{getijwaterlevel}} (Gauge\+ID, Imposed\+Elevation, Coef, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a0201de248a96f786a6ac1e9875435ba3}{getwaterlevel}} (Gauge\+ID, Water\+Level, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a3f8df5ad4b3209ed0c1f3dda8945093f}{getreferencelevel}} (Gauge\+ID, Reference\+Level, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_aeb445b9f9d227121a220ceafb472ec2c}{getlevelevolution}} (Gauge\+ID, Level\+Evolution, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_af4997d45043f601c961fd7d153c0b413}{getvelevolution}} (Gauge\+ID, Vel\+Evolution, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a0912cebda10faa15469d951016b5db0e}{gettrianggaugeson}} (Gauge\+ID, Triangulation\+ON, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a40e51c18500557c90968e17a5ec8a550}{gaugelevel}} (Gauge\+ID, Water\+Level, Open\+Points, Time, Reference\+Level, VelocityU, VelocityV, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a7de5a32e5ee02eaed3c8a598bbb65cb9}{harmonicswaterlevel}} (Present\+Gauge, Water\+Level, Time\+In)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_ae7a26f230136e4737c871ba19b1d1529}{timeserievalue}} (Present\+Gauge, Value, Column, Time)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a3570d6ed4834d7d873f7b068c99c9ef5}{real2q1\+\_\+comp}} (real\+Q1, real\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ab71fe2294ae9095789c94992c6add8bf}{imag2q1\+\_\+comp}} (Imag\+Q1, Imag\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a639e6e7756ddc09a7f1410460b232db1}{realsigma1\+\_\+comp}} (real\+Q1, real\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_af07cc0a3df0d15cac79f031de3fb79a7}{imagsigma1\+\_\+comp}} (Imag\+Q1, Imag\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aa1a4b7af3abfc8dfce0801b6c016f928}{realrho1\+\_\+comp}} (real\+Q1, real\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ab3aa99d6bca64d01ca7e09d41c9bd6f9}{imagrho1\+\_\+comp}} (Imag\+Q1, Imag\+O1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a50f7735172ff499a2539356846ac25a7}{realm11\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a7beaca7c4aa86b03edc166fe413a4f48}{imagm11\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ae46da4813d3e3f271dc78267bee39db6}{realm12\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aa6945b552551befe5db497d61883c814}{imagm12\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ab5f77ac1ee7d3ccaa97fe4e99a711bdb}{realchi1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a681cb9c3664a268964c3c3d9e1aaccfd}{imagchi1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a09dbdb08ae03c360a014f9a99d18930d}{realpi1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a71b5d5333c564a3344645bef85a9e75b}{imagpi1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aa6ea15f43448899f9b29ff0b1dfc29db}{realphi1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a0d65a34744a9e60a2568d7e627a69831}{imagphi1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ad2e8899353e8c890c82e852038be05f9}{realtheta1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a2e204b866f8da90453f9d7af3fd23ec6}{imagtheta1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a48b5405cff2ce5a1d7821cc09cd69260}{realj1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_af198ff90d25c103ae0c6ea8dc688ac4f}{imagj1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a993e1ea45365954809031bb57945219b}{realoo1\+\_\+comp}} (real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a2916ed439bb6cf0eacf5070d3fc179d7}{imagoo1\+\_\+comp}} (Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a21ce68783e04b0fd7b9b57cc33bb1117}{realepsilon2\+\_\+comp}} (real2\+N2, real\+N2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a28b6b5b37157cb9ca35800eacb09e7fc}{imagepsilon2\+\_\+comp}} (Imag2\+N2, Imag\+N2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a56eb9e88f9dfa7360cdf57474d0371d0}{realeta2\+\_\+comp}} (real\+M2, real\+K2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a86cfe6d4e8801b4ade2414988f7586a7}{imageta2\+\_\+comp}} (Imag\+M2, Imag\+K2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a063b6192aa0376262853a2161d0f21da}{realp1\+\_\+comp}} (real\+Q1, real\+O1, real\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a45d6d9badd92c973e90b945525d4c23e}{imagp1\+\_\+comp}} (Imag\+Q1, Imag\+O1, Imag\+K1)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aba58a8476e1ed7afa1d32b6ec5119be3}{realmu2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_acb26f834d34705945913d60c75c3ce71}{imagmu2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a3fe2f51cb87bda2360ce6930edea74fd}{realnu2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a63b14124c79ff7d860721610832a3ef5}{imagnu2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aa12106b28d4813b546feb45a0408ffa0}{reallda2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a0f06a83482f5b7e22cfbc40e9f7e89f4}{imaglda2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_ae24e18d5af2b616f42c314149246cef5}{reall2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_aed10e532f405cfa750b753e960e5a8dc}{imagl2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a5708a7eceb753eedf87d41d40a3a619a}{realt2\+\_\+comp}} (real\+K2, real\+N2, real\+M2)
+\item 
+real function \mbox{\hyperlink{namespacemodulegauge_a2dcd9bdfab5c9c98762f6cc509efd8ae}{imagt2\+\_\+comp}} (Imag\+K2, Imag\+N2, Imag\+M2)
+\item 
+integer function \mbox{\hyperlink{namespacemodulegauge_ab1a6acb6664eeba72c5a5d3487c6b4e6}{searchname}} (Wave\+Name, n, Name)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a595eb00804040bb46c4684d46b5ed2eb}{newcomponentsbyadmittance}} (Present\+Gauge, N\+Waves, Wave\+Amplitude, Wave\+Phase, Wave\+Name, Admit\+N\+Waves)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_ac754b86d90578ff131adeb4a3ac03dc5}{newcomponentsbyadmittancev2}} (N\+Waves, Wave\+Amplitude, Wave\+Phase, Wave\+Name, Admit\+N\+Waves)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegauge_a545694594f895a232c1f0b4fc8256bb9}{killgauge}} (Gauge\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegauge_a9e3c4492d77966e5e963fad0f376379f}{deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_acb5358a89d47698a9abd5cea060b0cc8}{killtidalwavelist}} (First\+Wave, Last\+Wave)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a773a918cd865d16ad9720682f4f76009}{killgaugelist}} (First\+Gauge, Last\+Gauge)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_a8ece20a220d6beae6919846687d6fe8f}{ready}} (Obj\+Gauge\+\_\+\+ID, ready\+\_\+)
+\item 
+type(\mbox{\hyperlink{structmodulegauge_1_1t__gauge}{t\+\_\+gauge}}) function, pointer \mbox{\hyperlink{namespacemodulegauge_a758cb1de5348d750b81f0adbb711363f}{ready\+\_\+threadsafe}} (Obj\+Gauge\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegauge_ad450a5738058992462096cd7d19b5a94}{locateobjgauge}} (Obj\+Gauge\+ID)
+\item 
+type(\mbox{\hyperlink{structmodulegauge_1_1t__gauge}{t\+\_\+gauge}}) function, pointer \mbox{\hyperlink{namespacemodulegauge_a40155a54ed9673433a35e0eb72673928}{locateobjgauge\+\_\+threadsafe}} (Obj\+Gauge\+ID)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegauge_a94bb84dcdbe9bf7dec1cb0f6b3bffb5d}{char\+\_\+harmonics}} = \textquotesingle{}Harmonics\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegauge_ada4bd7e74d44c2a75f7fd3dabdaec4f6}{char\+\_\+timeserie}} = \textquotesingle{}Time Serie\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegauge_a6ba029f1e08fcbbbd5908ec2ae512c23}{char\+\_\+noevolution}} = \textquotesingle{}No\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegauge_ac3b02dcb0550cc2e7f9db1a1674271ff}{char\+\_\+constant}} = \textquotesingle{}Constant\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegauge_ae88c58ad24b474ec3b88eca9f0cfd3e1}{constant}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegauge_a3f8a746c3c0ad5da35fdd078a57a5cbb}{harmonics}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegauge_a44762d942d0bc35a4d1481c829c717ff}{timeserie}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegauge_a7fd89ac8c515f3952a0d3a804cbf6391}{noevolution}} = 3
+\item 
+type(\mbox{\hyperlink{structmodulegauge_1_1t__gauge}{t\+\_\+gauge}}), pointer \mbox{\hyperlink{namespacemodulegauge_a128d19f6ffe523671f625c16c81ba96a}{firstgauge}}
+\item 
+type(\mbox{\hyperlink{structmodulegauge_1_1t__gauge}{t\+\_\+gauge}}), pointer \mbox{\hyperlink{namespacemodulegauge_a6350897b91533283cb8bab27165a71fe}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulegauge_a672a5d3f45d4bf6b413012a0705ca328}\label{namespacemodulegauge_a672a5d3f45d4bf6b413012a0705ca328}} 
+\index{modulegauge@{modulegauge}!addgauge2list@{addgauge2list}}
+\index{addgauge2list@{addgauge2list}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{addgauge2list()}{addgauge2list()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::addgauge2list (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a672a5d3f45d4bf6b413012a0705ca328_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a1aea609b0bda24026589e2d67bf3e0ab}\label{namespacemodulegauge_a1aea609b0bda24026589e2d67bf3e0ab}} 
+\index{modulegauge@{modulegauge}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a1aea609b0bda24026589e2d67bf3e0ab_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_adb09b4f645d53ae4da6e979cbda1d5ea}\label{namespacemodulegauge_adb09b4f645d53ae4da6e979cbda1d5ea}} 
+\index{modulegauge@{modulegauge}!calc\+\_\+decimal\+\_\+geo\+\_\+coord@{calc\+\_\+decimal\+\_\+geo\+\_\+coord}}
+\index{calc\+\_\+decimal\+\_\+geo\+\_\+coord@{calc\+\_\+decimal\+\_\+geo\+\_\+coord}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{calc\+\_\+decimal\+\_\+geo\+\_\+coord()}{calc\_decimal\_geo\_coord()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::calc\+\_\+decimal\+\_\+geo\+\_\+coord (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_adb09b4f645d53ae4da6e979cbda1d5ea_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a5f441d56f4c693dc4323df1e0d702ea6}\label{namespacemodulegauge_a5f441d56f4c693dc4323df1e0d702ea6}} 
+\index{modulegauge@{modulegauge}!constructgauges@{constructgauges}}
+\index{constructgauges@{constructgauges}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{constructgauges()}{constructgauges()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::constructgauges (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{integer, intent(in), optional}]{Horizontal\+Grid\+ID,  }\item[{integer, intent(in), optional}]{Horizontal\+Map\+ID,  }\item[{integer}]{Time\+ID,  }\item[{character(len=$\ast$), intent(in), optional}]{Gauge\+File,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a5f441d56f4c693dc4323df1e0d702ea6_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a5f441d56f4c693dc4323df1e0d702ea6_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a986286ef5f7c779896aa9d9797f840cd}\label{namespacemodulegauge_a986286ef5f7c779896aa9d9797f840cd}} 
+\index{modulegauge@{modulegauge}!creategaugefromhdfdata@{creategaugefromhdfdata}}
+\index{creategaugefromhdfdata@{creategaugefromhdfdata}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{creategaugefromhdfdata()}{creategaugefromhdfdata()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::creategaugefromhdfdata (\begin{DoxyParamCaption}\item[{real}]{X,  }\item[{real}]{Y,  }\item[{integer}]{n,  }\item[{integer}]{i,  }\item[{integer}]{j }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a986286ef5f7c779896aa9d9797f840cd_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a986286ef5f7c779896aa9d9797f840cd_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a9e3c4492d77966e5e963fad0f376379f}\label{namespacemodulegauge_a9e3c4492d77966e5e963fad0f376379f}} 
+\index{modulegauge@{modulegauge}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a9e3c4492d77966e5e963fad0f376379f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a40e51c18500557c90968e17a5ec8a550}\label{namespacemodulegauge_a40e51c18500557c90968e17a5ec8a550}} 
+\index{modulegauge@{modulegauge}!gaugelevel@{gaugelevel}}
+\index{gaugelevel@{gaugelevel}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{gaugelevel()}{gaugelevel()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::gaugelevel (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{real, dimension(\+:), pointer}]{Water\+Level,  }\item[{real, dimension(\+:), pointer}]{Open\+Points,  }\item[{type(t\+\_\+time), intent(in)}]{Time,  }\item[{real, dimension(\+:), optional, pointer}]{Reference\+Level,  }\item[{real, dimension(\+:), optional, pointer}]{VelocityU,  }\item[{real, dimension(\+:), optional, pointer}]{VelocityV,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a40e51c18500557c90968e17a5ec8a550_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a40e51c18500557c90968e17a5ec8a550_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a118b41963f151494a832cd94010c6282}\label{namespacemodulegauge_a118b41963f151494a832cd94010c6282}} 
+\index{modulegauge@{modulegauge}!getgaugelocation@{getgaugelocation}}
+\index{getgaugelocation@{getgaugelocation}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getgaugelocation()}{getgaugelocation()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::getgaugelocation (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{real, dimension(\+:), pointer}]{X\+Location,  }\item[{real, dimension(\+:), pointer}]{Y\+Location,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a118b41963f151494a832cd94010c6282_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a9b801d4a79f8bfd52e8276c2b5525b5e}\label{namespacemodulegauge_a9b801d4a79f8bfd52e8276c2b5525b5e}} 
+\index{modulegauge@{modulegauge}!getijreferencelevel@{getijreferencelevel}}
+\index{getijreferencelevel@{getijreferencelevel}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getijreferencelevel()}{getijreferencelevel()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::getijreferencelevel (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Gauge\+ID,  }\item[{real, dimension(\+:,\+:), intent(inout), pointer}]{Imposed\+Elevation,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a9b801d4a79f8bfd52e8276c2b5525b5e_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a9b801d4a79f8bfd52e8276c2b5525b5e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_aa7b1b101cf558db427ad03b4a0e72f09}\label{namespacemodulegauge_aa7b1b101cf558db427ad03b4a0e72f09}} 
+\index{modulegauge@{modulegauge}!getijwaterlevel@{getijwaterlevel}}
+\index{getijwaterlevel@{getijwaterlevel}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getijwaterlevel()}{getijwaterlevel()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::getijwaterlevel (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Gauge\+ID,  }\item[{real, dimension(\+:,\+:), intent(inout), pointer}]{Imposed\+Elevation,  }\item[{real, intent(in)}]{Coef,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_aa7b1b101cf558db427ad03b4a0e72f09_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_aa7b1b101cf558db427ad03b4a0e72f09_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_aeb445b9f9d227121a220ceafb472ec2c}\label{namespacemodulegauge_aeb445b9f9d227121a220ceafb472ec2c}} 
+\index{modulegauge@{modulegauge}!getlevelevolution@{getlevelevolution}}
+\index{getlevelevolution@{getlevelevolution}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getlevelevolution()}{getlevelevolution()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::getlevelevolution (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{integer, dimension(\+:), pointer}]{Level\+Evolution,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_aeb445b9f9d227121a220ceafb472ec2c_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_af98cce9ae7ea92a6068724894d803842}\label{namespacemodulegauge_af98cce9ae7ea92a6068724894d803842}} 
+\index{modulegauge@{modulegauge}!getmetricgaugelocation@{getmetricgaugelocation}}
+\index{getmetricgaugelocation@{getmetricgaugelocation}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getmetricgaugelocation()}{getmetricgaugelocation()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::getmetricgaugelocation (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{real, dimension(\+:), pointer}]{X\+Location,  }\item[{real, dimension(\+:), pointer}]{Y\+Location,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_af98cce9ae7ea92a6068724894d803842_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_af98cce9ae7ea92a6068724894d803842_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_adc2b7e3c857dc1649430eaa5a0fb1882}\label{namespacemodulegauge_adc2b7e3c857dc1649430eaa5a0fb1882}} 
+\index{modulegauge@{modulegauge}!getncomponents@{getncomponents}}
+\index{getncomponents@{getncomponents}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getncomponents()}{getncomponents()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::getncomponents (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{integer, intent(out)}]{Number\+Comp,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_adc2b7e3c857dc1649430eaa5a0fb1882_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a7a4e1ac4c0d2468bf869594a8677a7d0}\label{namespacemodulegauge_a7a4e1ac4c0d2468bf869594a8677a7d0}} 
+\index{modulegauge@{modulegauge}!getngauges@{getngauges}}
+\index{getngauges@{getngauges}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getngauges()}{getngauges()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::getngauges (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{integer, intent(out)}]{N\+Gauges,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a7a4e1ac4c0d2468bf869594a8677a7d0_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a7a4e1ac4c0d2468bf869594a8677a7d0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a3e3b74ba912595c577820445ad14cb64}\label{namespacemodulegauge_a3e3b74ba912595c577820445ad14cb64}} 
+\index{modulegauge@{modulegauge}!getnumberwaves@{getnumberwaves}}
+\index{getnumberwaves@{getnumberwaves}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getnumberwaves()}{getnumberwaves()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::getnumberwaves (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge,  }\item[{integer, intent(out)}]{N\+Waves }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a3e3b74ba912595c577820445ad14cb64_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a3f8df5ad4b3209ed0c1f3dda8945093f}\label{namespacemodulegauge_a3f8df5ad4b3209ed0c1f3dda8945093f}} 
+\index{modulegauge@{modulegauge}!getreferencelevel@{getreferencelevel}}
+\index{getreferencelevel@{getreferencelevel}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getreferencelevel()}{getreferencelevel()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::getreferencelevel (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{real, dimension(\+:), pointer}]{Reference\+Level,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a3f8df5ad4b3209ed0c1f3dda8945093f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a3f8df5ad4b3209ed0c1f3dda8945093f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a0912cebda10faa15469d951016b5db0e}\label{namespacemodulegauge_a0912cebda10faa15469d951016b5db0e}} 
+\index{modulegauge@{modulegauge}!gettrianggaugeson@{gettrianggaugeson}}
+\index{gettrianggaugeson@{gettrianggaugeson}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{gettrianggaugeson()}{gettrianggaugeson()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::gettrianggaugeson (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{logical, intent(out)}]{Triangulation\+ON,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a0912cebda10faa15469d951016b5db0e_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a0912cebda10faa15469d951016b5db0e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_af4997d45043f601c961fd7d153c0b413}\label{namespacemodulegauge_af4997d45043f601c961fd7d153c0b413}} 
+\index{modulegauge@{modulegauge}!getvelevolution@{getvelevolution}}
+\index{getvelevolution@{getvelevolution}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getvelevolution()}{getvelevolution()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::getvelevolution (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{integer, dimension(\+:), pointer}]{Vel\+Evolution,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_af4997d45043f601c961fd7d153c0b413_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a0201de248a96f786a6ac1e9875435ba3}\label{namespacemodulegauge_a0201de248a96f786a6ac1e9875435ba3}} 
+\index{modulegauge@{modulegauge}!getwaterlevel@{getwaterlevel}}
+\index{getwaterlevel@{getwaterlevel}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getwaterlevel()}{getwaterlevel()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::getwaterlevel (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{real, dimension(\+:), pointer}]{Water\+Level,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a0201de248a96f786a6ac1e9875435ba3_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a0e2dffbc5ada081dc537e80f461ae0eb}\label{namespacemodulegauge_a0e2dffbc5ada081dc537e80f461ae0eb}} 
+\index{modulegauge@{modulegauge}!getwave@{getwave}}
+\index{getwave@{getwave}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getwave()}{getwave()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::getwave (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge,  }\item[{character(len=$\ast$), intent(in)}]{Wave\+Name,  }\item[{logical, intent(out)}]{Wave\+Exists,  }\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidalwave}{t\+\_\+tidalwave}}), pointer}]{Wave\+Out }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a0e2dffbc5ada081dc537e80f461ae0eb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_af6c96743755f8c096eb5335e0993e175}\label{namespacemodulegauge_af6c96743755f8c096eb5335e0993e175}} 
+\index{modulegauge@{modulegauge}!getwavei@{getwavei}}
+\index{getwavei@{getwavei}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{getwavei()}{getwavei()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::getwavei (\begin{DoxyParamCaption}\item[{character(len=$\ast$), dimension(\+:), pointer}]{Wave\+Name\+List,  }\item[{integer, intent(in)}]{N\+Waves,  }\item[{character(len=$\ast$), intent(in)}]{Wave\+Name,  }\item[{logical, intent(out)}]{Wave\+Exists,  }\item[{integer, intent(out)}]{Wave\+Out }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_af6c96743755f8c096eb5335e0993e175_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a7de5a32e5ee02eaed3c8a598bbb65cb9}\label{namespacemodulegauge_a7de5a32e5ee02eaed3c8a598bbb65cb9}} 
+\index{modulegauge@{modulegauge}!harmonicswaterlevel@{harmonicswaterlevel}}
+\index{harmonicswaterlevel@{harmonicswaterlevel}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{harmonicswaterlevel()}{harmonicswaterlevel()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::harmonicswaterlevel (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge,  }\item[{real}]{Water\+Level,  }\item[{type(t\+\_\+time), intent(in)}]{Time\+In }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulegauge_a7de5a32e5ee02eaed3c8a598bbb65cb9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a7de5a32e5ee02eaed3c8a598bbb65cb9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_ab71fe2294ae9095789c94992c6add8bf}\label{namespacemodulegauge_ab71fe2294ae9095789c94992c6add8bf}} 
+\index{modulegauge@{modulegauge}!imag2q1\+\_\+comp@{imag2q1\+\_\+comp}}
+\index{imag2q1\+\_\+comp@{imag2q1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imag2q1\+\_\+comp()}{imag2q1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imag2q1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+Q1,  }\item[{real}]{Imag\+O1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ab71fe2294ae9095789c94992c6add8bf_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a681cb9c3664a268964c3c3d9e1aaccfd}\label{namespacemodulegauge_a681cb9c3664a268964c3c3d9e1aaccfd}} 
+\index{modulegauge@{modulegauge}!imagchi1\+\_\+comp@{imagchi1\+\_\+comp}}
+\index{imagchi1\+\_\+comp@{imagchi1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagchi1\+\_\+comp()}{imagchi1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagchi1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+O1,  }\item[{real}]{Imag\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a681cb9c3664a268964c3c3d9e1aaccfd_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a28b6b5b37157cb9ca35800eacb09e7fc}\label{namespacemodulegauge_a28b6b5b37157cb9ca35800eacb09e7fc}} 
+\index{modulegauge@{modulegauge}!imagepsilon2\+\_\+comp@{imagepsilon2\+\_\+comp}}
+\index{imagepsilon2\+\_\+comp@{imagepsilon2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagepsilon2\+\_\+comp()}{imagepsilon2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagepsilon2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag2\+N2,  }\item[{real}]{Imag\+N2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a28b6b5b37157cb9ca35800eacb09e7fc_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a86cfe6d4e8801b4ade2414988f7586a7}\label{namespacemodulegauge_a86cfe6d4e8801b4ade2414988f7586a7}} 
+\index{modulegauge@{modulegauge}!imageta2\+\_\+comp@{imageta2\+\_\+comp}}
+\index{imageta2\+\_\+comp@{imageta2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imageta2\+\_\+comp()}{imageta2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imageta2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+M2,  }\item[{real}]{Imag\+K2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a86cfe6d4e8801b4ade2414988f7586a7_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_af198ff90d25c103ae0c6ea8dc688ac4f}\label{namespacemodulegauge_af198ff90d25c103ae0c6ea8dc688ac4f}} 
+\index{modulegauge@{modulegauge}!imagj1\+\_\+comp@{imagj1\+\_\+comp}}
+\index{imagj1\+\_\+comp@{imagj1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagj1\+\_\+comp()}{imagj1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagj1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+O1,  }\item[{real}]{Imag\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_af198ff90d25c103ae0c6ea8dc688ac4f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_aed10e532f405cfa750b753e960e5a8dc}\label{namespacemodulegauge_aed10e532f405cfa750b753e960e5a8dc}} 
+\index{modulegauge@{modulegauge}!imagl2\+\_\+comp@{imagl2\+\_\+comp}}
+\index{imagl2\+\_\+comp@{imagl2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagl2\+\_\+comp()}{imagl2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagl2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+K2,  }\item[{real}]{Imag\+N2,  }\item[{real}]{Imag\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_aed10e532f405cfa750b753e960e5a8dc_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a0f06a83482f5b7e22cfbc40e9f7e89f4}\label{namespacemodulegauge_a0f06a83482f5b7e22cfbc40e9f7e89f4}} 
+\index{modulegauge@{modulegauge}!imaglda2\+\_\+comp@{imaglda2\+\_\+comp}}
+\index{imaglda2\+\_\+comp@{imaglda2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imaglda2\+\_\+comp()}{imaglda2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imaglda2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+K2,  }\item[{real}]{Imag\+N2,  }\item[{real}]{Imag\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a0f06a83482f5b7e22cfbc40e9f7e89f4_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a7beaca7c4aa86b03edc166fe413a4f48}\label{namespacemodulegauge_a7beaca7c4aa86b03edc166fe413a4f48}} 
+\index{modulegauge@{modulegauge}!imagm11\+\_\+comp@{imagm11\+\_\+comp}}
+\index{imagm11\+\_\+comp@{imagm11\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagm11\+\_\+comp()}{imagm11\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagm11\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+O1,  }\item[{real}]{Imag\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_aa6945b552551befe5db497d61883c814}\label{namespacemodulegauge_aa6945b552551befe5db497d61883c814}} 
+\index{modulegauge@{modulegauge}!imagm12\+\_\+comp@{imagm12\+\_\+comp}}
+\index{imagm12\+\_\+comp@{imagm12\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagm12\+\_\+comp()}{imagm12\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagm12\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+O1,  }\item[{real}]{Imag\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_aa6945b552551befe5db497d61883c814_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_acb26f834d34705945913d60c75c3ce71}\label{namespacemodulegauge_acb26f834d34705945913d60c75c3ce71}} 
+\index{modulegauge@{modulegauge}!imagmu2\+\_\+comp@{imagmu2\+\_\+comp}}
+\index{imagmu2\+\_\+comp@{imagmu2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagmu2\+\_\+comp()}{imagmu2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagmu2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+K2,  }\item[{real}]{Imag\+N2,  }\item[{real}]{Imag\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_acb26f834d34705945913d60c75c3ce71_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a63b14124c79ff7d860721610832a3ef5}\label{namespacemodulegauge_a63b14124c79ff7d860721610832a3ef5}} 
+\index{modulegauge@{modulegauge}!imagnu2\+\_\+comp@{imagnu2\+\_\+comp}}
+\index{imagnu2\+\_\+comp@{imagnu2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagnu2\+\_\+comp()}{imagnu2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagnu2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+K2,  }\item[{real}]{Imag\+N2,  }\item[{real}]{Imag\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a63b14124c79ff7d860721610832a3ef5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a2916ed439bb6cf0eacf5070d3fc179d7}\label{namespacemodulegauge_a2916ed439bb6cf0eacf5070d3fc179d7}} 
+\index{modulegauge@{modulegauge}!imagoo1\+\_\+comp@{imagoo1\+\_\+comp}}
+\index{imagoo1\+\_\+comp@{imagoo1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagoo1\+\_\+comp()}{imagoo1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagoo1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+O1,  }\item[{real}]{Imag\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a2916ed439bb6cf0eacf5070d3fc179d7_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a45d6d9badd92c973e90b945525d4c23e}\label{namespacemodulegauge_a45d6d9badd92c973e90b945525d4c23e}} 
+\index{modulegauge@{modulegauge}!imagp1\+\_\+comp@{imagp1\+\_\+comp}}
+\index{imagp1\+\_\+comp@{imagp1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagp1\+\_\+comp()}{imagp1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagp1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+Q1,  }\item[{real}]{Imag\+O1,  }\item[{real}]{Imag\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a45d6d9badd92c973e90b945525d4c23e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a0d65a34744a9e60a2568d7e627a69831}\label{namespacemodulegauge_a0d65a34744a9e60a2568d7e627a69831}} 
+\index{modulegauge@{modulegauge}!imagphi1\+\_\+comp@{imagphi1\+\_\+comp}}
+\index{imagphi1\+\_\+comp@{imagphi1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagphi1\+\_\+comp()}{imagphi1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagphi1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+O1,  }\item[{real}]{Imag\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a0d65a34744a9e60a2568d7e627a69831_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a71b5d5333c564a3344645bef85a9e75b}\label{namespacemodulegauge_a71b5d5333c564a3344645bef85a9e75b}} 
+\index{modulegauge@{modulegauge}!imagpi1\+\_\+comp@{imagpi1\+\_\+comp}}
+\index{imagpi1\+\_\+comp@{imagpi1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagpi1\+\_\+comp()}{imagpi1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagpi1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+O1,  }\item[{real}]{Imag\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a71b5d5333c564a3344645bef85a9e75b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_ab3aa99d6bca64d01ca7e09d41c9bd6f9}\label{namespacemodulegauge_ab3aa99d6bca64d01ca7e09d41c9bd6f9}} 
+\index{modulegauge@{modulegauge}!imagrho1\+\_\+comp@{imagrho1\+\_\+comp}}
+\index{imagrho1\+\_\+comp@{imagrho1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagrho1\+\_\+comp()}{imagrho1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagrho1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+Q1,  }\item[{real}]{Imag\+O1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ab3aa99d6bca64d01ca7e09d41c9bd6f9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_af07cc0a3df0d15cac79f031de3fb79a7}\label{namespacemodulegauge_af07cc0a3df0d15cac79f031de3fb79a7}} 
+\index{modulegauge@{modulegauge}!imagsigma1\+\_\+comp@{imagsigma1\+\_\+comp}}
+\index{imagsigma1\+\_\+comp@{imagsigma1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagsigma1\+\_\+comp()}{imagsigma1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagsigma1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+Q1,  }\item[{real}]{Imag\+O1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_af07cc0a3df0d15cac79f031de3fb79a7_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a2dcd9bdfab5c9c98762f6cc509efd8ae}\label{namespacemodulegauge_a2dcd9bdfab5c9c98762f6cc509efd8ae}} 
+\index{modulegauge@{modulegauge}!imagt2\+\_\+comp@{imagt2\+\_\+comp}}
+\index{imagt2\+\_\+comp@{imagt2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagt2\+\_\+comp()}{imagt2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagt2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+K2,  }\item[{real}]{Imag\+N2,  }\item[{real}]{Imag\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a2dcd9bdfab5c9c98762f6cc509efd8ae_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a2e204b866f8da90453f9d7af3fd23ec6}\label{namespacemodulegauge_a2e204b866f8da90453f9d7af3fd23ec6}} 
+\index{modulegauge@{modulegauge}!imagtheta1\+\_\+comp@{imagtheta1\+\_\+comp}}
+\index{imagtheta1\+\_\+comp@{imagtheta1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{imagtheta1\+\_\+comp()}{imagtheta1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::imagtheta1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{Imag\+O1,  }\item[{real}]{Imag\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a2e204b866f8da90453f9d7af3fd23ec6_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a545694594f895a232c1f0b4fc8256bb9}\label{namespacemodulegauge_a545694594f895a232c1f0b4fc8256bb9}} 
+\index{modulegauge@{modulegauge}!killgauge@{killgauge}}
+\index{killgauge@{killgauge}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{killgauge()}{killgauge()}}
+{\footnotesize\ttfamily subroutine, public modulegauge\+::killgauge (\begin{DoxyParamCaption}\item[{integer}]{Gauge\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a545694594f895a232c1f0b4fc8256bb9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=344pt]{namespacemodulegauge_a545694594f895a232c1f0b4fc8256bb9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a773a918cd865d16ad9720682f4f76009}\label{namespacemodulegauge_a773a918cd865d16ad9720682f4f76009}} 
+\index{modulegauge@{modulegauge}!killgaugelist@{killgaugelist}}
+\index{killgaugelist@{killgaugelist}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{killgaugelist()}{killgaugelist()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::killgaugelist (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{First\+Gauge,  }\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Last\+Gauge }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a773a918cd865d16ad9720682f4f76009_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a773a918cd865d16ad9720682f4f76009_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_acb5358a89d47698a9abd5cea060b0cc8}\label{namespacemodulegauge_acb5358a89d47698a9abd5cea060b0cc8}} 
+\index{modulegauge@{modulegauge}!killtidalwavelist@{killtidalwavelist}}
+\index{killtidalwavelist@{killtidalwavelist}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{killtidalwavelist()}{killtidalwavelist()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::killtidalwavelist (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidalwave}{t\+\_\+tidalwave}}), pointer}]{First\+Wave,  }\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidalwave}{t\+\_\+tidalwave}}), pointer}]{Last\+Wave }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_acb5358a89d47698a9abd5cea060b0cc8_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_ad450a5738058992462096cd7d19b5a94}\label{namespacemodulegauge_ad450a5738058992462096cd7d19b5a94}} 
+\index{modulegauge@{modulegauge}!locateobjgauge@{locateobjgauge}}
+\index{locateobjgauge@{locateobjgauge}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{locateobjgauge()}{locateobjgauge()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::locateobjgauge (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Gauge\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ad450a5738058992462096cd7d19b5a94_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a40155a54ed9673433a35e0eb72673928}\label{namespacemodulegauge_a40155a54ed9673433a35e0eb72673928}} 
+\index{modulegauge@{modulegauge}!locateobjgauge\+\_\+threadsafe@{locateobjgauge\+\_\+threadsafe}}
+\index{locateobjgauge\+\_\+threadsafe@{locateobjgauge\+\_\+threadsafe}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{locateobjgauge\+\_\+threadsafe()}{locateobjgauge\_threadsafe()}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulegauge_1_1t__gauge}{t\+\_\+gauge}}) function, pointer modulegauge\+::locateobjgauge\+\_\+threadsafe (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Obj\+Gauge\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a40155a54ed9673433a35e0eb72673928_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a3c28cc048b2b01fde65fb7a5fc9f7213}\label{namespacemodulegauge_a3c28cc048b2b01fde65fb7a5fc9f7213}} 
+\index{modulegauge@{modulegauge}!locationconsistence@{locationconsistence}}
+\index{locationconsistence@{locationconsistence}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{locationconsistence()}{locationconsistence()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::locationconsistence (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a3c28cc048b2b01fde65fb7a5fc9f7213_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a595eb00804040bb46c4684d46b5ed2eb}\label{namespacemodulegauge_a595eb00804040bb46c4684d46b5ed2eb}} 
+\index{modulegauge@{modulegauge}!newcomponentsbyadmittance@{newcomponentsbyadmittance}}
+\index{newcomponentsbyadmittance@{newcomponentsbyadmittance}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{newcomponentsbyadmittance()}{newcomponentsbyadmittance()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::newcomponentsbyadmittance (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge,  }\item[{integer, intent(in)}]{N\+Waves,  }\item[{real, dimension(\+:), pointer}]{Wave\+Amplitude,  }\item[{real, dimension(\+:), pointer}]{Wave\+Phase,  }\item[{character(len=$\ast$), dimension(\+:), pointer}]{Wave\+Name,  }\item[{integer, intent(out)}]{Admit\+N\+Waves }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulegauge_a595eb00804040bb46c4684d46b5ed2eb_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a595eb00804040bb46c4684d46b5ed2eb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_ac754b86d90578ff131adeb4a3ac03dc5}\label{namespacemodulegauge_ac754b86d90578ff131adeb4a3ac03dc5}} 
+\index{modulegauge@{modulegauge}!newcomponentsbyadmittancev2@{newcomponentsbyadmittancev2}}
+\index{newcomponentsbyadmittancev2@{newcomponentsbyadmittancev2}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{newcomponentsbyadmittancev2()}{newcomponentsbyadmittancev2()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::newcomponentsbyadmittancev2 (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{N\+Waves,  }\item[{real, dimension(\+:), pointer}]{Wave\+Amplitude,  }\item[{real, dimension(\+:), pointer}]{Wave\+Phase,  }\item[{character(len=$\ast$), dimension(\+:), pointer}]{Wave\+Name,  }\item[{integer, intent(out)}]{Admit\+N\+Waves }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulegauge_ac754b86d90578ff131adeb4a3ac03dc5_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ac754b86d90578ff131adeb4a3ac03dc5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_ad253767480082a0c9e00cc725e85786e}\label{namespacemodulegauge_ad253767480082a0c9e00cc725e85786e}} 
+\index{modulegauge@{modulegauge}!newwave@{newwave}}
+\index{newwave@{newwave}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{newwave()}{newwave()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::newwave (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge,  }\item[{character(len = $\ast$), intent(in)}]{Wave\+Name,  }\item[{real, intent(in)}]{Amplitude,  }\item[{real, intent(in)}]{Phase }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ad253767480082a0c9e00cc725e85786e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a6be887d8098d9844b158ef75048c3473}\label{namespacemodulegauge_a6be887d8098d9844b158ef75048c3473}} 
+\index{modulegauge@{modulegauge}!readgaugedata@{readgaugedata}}
+\index{readgaugedata@{readgaugedata}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{readgaugedata()}{readgaugedata()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::readgaugedata (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge,  }\item[{integer}]{From\+Block,  }\item[{logical, optional}]{Read\+Harmonics\+Ok }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a6be887d8098d9844b158ef75048c3473_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a6be887d8098d9844b158ef75048c3473_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a6f6a7638c9e37ab7f5461866ec475f03}\label{namespacemodulegauge_a6f6a7638c9e37ab7f5461866ec475f03}} 
+\index{modulegauge@{modulegauge}!readgaugedataascii@{readgaugedataascii}}
+\index{readgaugedataascii@{readgaugedataascii}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{readgaugedataascii()}{readgaugedataascii()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::readgaugedataascii (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a6f6a7638c9e37ab7f5461866ec475f03_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a6f6a7638c9e37ab7f5461866ec475f03_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a26f00d7d5cd5edd1ce28da62855cb19f}\label{namespacemodulegauge_a26f00d7d5cd5edd1ce28da62855cb19f}} 
+\index{modulegauge@{modulegauge}!readgaugedatahdf@{readgaugedatahdf}}
+\index{readgaugedatahdf@{readgaugedatahdf}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{readgaugedatahdf()}{readgaugedatahdf()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::readgaugedatahdf (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a26f00d7d5cd5edd1ce28da62855cb19f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a26f00d7d5cd5edd1ce28da62855cb19f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a9095cfa51e7b4150e1d3889efe30b265}\label{namespacemodulegauge_a9095cfa51e7b4150e1d3889efe30b265}} 
+\index{modulegauge@{modulegauge}!readharmonics@{readharmonics}}
+\index{readharmonics@{readharmonics}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{readharmonics()}{readharmonics()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::readharmonics (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a9095cfa51e7b4150e1d3889efe30b265_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a9095cfa51e7b4150e1d3889efe30b265_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a046651f5fe7a0df46688f6d3467b09b5}\label{namespacemodulegauge_a046651f5fe7a0df46688f6d3467b09b5}} 
+\index{modulegauge@{modulegauge}!readoldform@{readoldform}}
+\index{readoldform@{readoldform}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{readoldform()}{readoldform()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::readoldform (\begin{DoxyParamCaption}\item[{logical, intent(out)}]{Block\+Found,  }\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a046651f5fe7a0df46688f6d3467b09b5_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a046651f5fe7a0df46688f6d3467b09b5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a8ece20a220d6beae6919846687d6fe8f}\label{namespacemodulegauge_a8ece20a220d6beae6919846687d6fe8f}} 
+\index{modulegauge@{modulegauge}!ready@{ready}}
+\index{ready@{ready}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Gauge\+\_\+\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a8ece20a220d6beae6919846687d6fe8f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a8ece20a220d6beae6919846687d6fe8f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a758cb1de5348d750b81f0adbb711363f}\label{namespacemodulegauge_a758cb1de5348d750b81f0adbb711363f}} 
+\index{modulegauge@{modulegauge}!ready\+\_\+threadsafe@{ready\+\_\+threadsafe}}
+\index{ready\+\_\+threadsafe@{ready\+\_\+threadsafe}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{ready\+\_\+threadsafe()}{ready\_threadsafe()}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulegauge_1_1t__gauge}{t\+\_\+gauge}}) function, pointer modulegauge\+::ready\+\_\+threadsafe (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Obj\+Gauge\+\_\+\+ID,  }\item[{integer, intent(out)}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a758cb1de5348d750b81f0adbb711363f_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a3570d6ed4834d7d873f7b068c99c9ef5}\label{namespacemodulegauge_a3570d6ed4834d7d873f7b068c99c9ef5}} 
+\index{modulegauge@{modulegauge}!real2q1\+\_\+comp@{real2q1\+\_\+comp}}
+\index{real2q1\+\_\+comp@{real2q1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{real2q1\+\_\+comp()}{real2q1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::real2q1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+Q1,  }\item[{real}]{real\+O1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a3570d6ed4834d7d873f7b068c99c9ef5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_ab5f77ac1ee7d3ccaa97fe4e99a711bdb}\label{namespacemodulegauge_ab5f77ac1ee7d3ccaa97fe4e99a711bdb}} 
+\index{modulegauge@{modulegauge}!realchi1\+\_\+comp@{realchi1\+\_\+comp}}
+\index{realchi1\+\_\+comp@{realchi1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realchi1\+\_\+comp()}{realchi1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realchi1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+O1,  }\item[{real}]{real\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ab5f77ac1ee7d3ccaa97fe4e99a711bdb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a21ce68783e04b0fd7b9b57cc33bb1117}\label{namespacemodulegauge_a21ce68783e04b0fd7b9b57cc33bb1117}} 
+\index{modulegauge@{modulegauge}!realepsilon2\+\_\+comp@{realepsilon2\+\_\+comp}}
+\index{realepsilon2\+\_\+comp@{realepsilon2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realepsilon2\+\_\+comp()}{realepsilon2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realepsilon2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real2\+N2,  }\item[{real}]{real\+N2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a21ce68783e04b0fd7b9b57cc33bb1117_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a56eb9e88f9dfa7360cdf57474d0371d0}\label{namespacemodulegauge_a56eb9e88f9dfa7360cdf57474d0371d0}} 
+\index{modulegauge@{modulegauge}!realeta2\+\_\+comp@{realeta2\+\_\+comp}}
+\index{realeta2\+\_\+comp@{realeta2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realeta2\+\_\+comp()}{realeta2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realeta2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+M2,  }\item[{real}]{real\+K2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a56eb9e88f9dfa7360cdf57474d0371d0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a48b5405cff2ce5a1d7821cc09cd69260}\label{namespacemodulegauge_a48b5405cff2ce5a1d7821cc09cd69260}} 
+\index{modulegauge@{modulegauge}!realj1\+\_\+comp@{realj1\+\_\+comp}}
+\index{realj1\+\_\+comp@{realj1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realj1\+\_\+comp()}{realj1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realj1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+O1,  }\item[{real}]{real\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a48b5405cff2ce5a1d7821cc09cd69260_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_ae24e18d5af2b616f42c314149246cef5}\label{namespacemodulegauge_ae24e18d5af2b616f42c314149246cef5}} 
+\index{modulegauge@{modulegauge}!reall2\+\_\+comp@{reall2\+\_\+comp}}
+\index{reall2\+\_\+comp@{reall2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{reall2\+\_\+comp()}{reall2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::reall2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+K2,  }\item[{real}]{real\+N2,  }\item[{real}]{real\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ae24e18d5af2b616f42c314149246cef5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_aa12106b28d4813b546feb45a0408ffa0}\label{namespacemodulegauge_aa12106b28d4813b546feb45a0408ffa0}} 
+\index{modulegauge@{modulegauge}!reallda2\+\_\+comp@{reallda2\+\_\+comp}}
+\index{reallda2\+\_\+comp@{reallda2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{reallda2\+\_\+comp()}{reallda2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::reallda2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+K2,  }\item[{real}]{real\+N2,  }\item[{real}]{real\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_aa12106b28d4813b546feb45a0408ffa0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a50f7735172ff499a2539356846ac25a7}\label{namespacemodulegauge_a50f7735172ff499a2539356846ac25a7}} 
+\index{modulegauge@{modulegauge}!realm11\+\_\+comp@{realm11\+\_\+comp}}
+\index{realm11\+\_\+comp@{realm11\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realm11\+\_\+comp()}{realm11\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realm11\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+O1,  }\item[{real}]{real\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_ae46da4813d3e3f271dc78267bee39db6}\label{namespacemodulegauge_ae46da4813d3e3f271dc78267bee39db6}} 
+\index{modulegauge@{modulegauge}!realm12\+\_\+comp@{realm12\+\_\+comp}}
+\index{realm12\+\_\+comp@{realm12\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realm12\+\_\+comp()}{realm12\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realm12\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+O1,  }\item[{real}]{real\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ae46da4813d3e3f271dc78267bee39db6_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_aba58a8476e1ed7afa1d32b6ec5119be3}\label{namespacemodulegauge_aba58a8476e1ed7afa1d32b6ec5119be3}} 
+\index{modulegauge@{modulegauge}!realmu2\+\_\+comp@{realmu2\+\_\+comp}}
+\index{realmu2\+\_\+comp@{realmu2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realmu2\+\_\+comp()}{realmu2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realmu2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+K2,  }\item[{real}]{real\+N2,  }\item[{real}]{real\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_aba58a8476e1ed7afa1d32b6ec5119be3_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a3fe2f51cb87bda2360ce6930edea74fd}\label{namespacemodulegauge_a3fe2f51cb87bda2360ce6930edea74fd}} 
+\index{modulegauge@{modulegauge}!realnu2\+\_\+comp@{realnu2\+\_\+comp}}
+\index{realnu2\+\_\+comp@{realnu2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realnu2\+\_\+comp()}{realnu2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realnu2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+K2,  }\item[{real}]{real\+N2,  }\item[{real}]{real\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a3fe2f51cb87bda2360ce6930edea74fd_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a993e1ea45365954809031bb57945219b}\label{namespacemodulegauge_a993e1ea45365954809031bb57945219b}} 
+\index{modulegauge@{modulegauge}!realoo1\+\_\+comp@{realoo1\+\_\+comp}}
+\index{realoo1\+\_\+comp@{realoo1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realoo1\+\_\+comp()}{realoo1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realoo1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+O1,  }\item[{real}]{real\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a993e1ea45365954809031bb57945219b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a063b6192aa0376262853a2161d0f21da}\label{namespacemodulegauge_a063b6192aa0376262853a2161d0f21da}} 
+\index{modulegauge@{modulegauge}!realp1\+\_\+comp@{realp1\+\_\+comp}}
+\index{realp1\+\_\+comp@{realp1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realp1\+\_\+comp()}{realp1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realp1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+Q1,  }\item[{real}]{real\+O1,  }\item[{real}]{real\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a063b6192aa0376262853a2161d0f21da_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_aa6ea15f43448899f9b29ff0b1dfc29db}\label{namespacemodulegauge_aa6ea15f43448899f9b29ff0b1dfc29db}} 
+\index{modulegauge@{modulegauge}!realphi1\+\_\+comp@{realphi1\+\_\+comp}}
+\index{realphi1\+\_\+comp@{realphi1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realphi1\+\_\+comp()}{realphi1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realphi1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+O1,  }\item[{real}]{real\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_aa6ea15f43448899f9b29ff0b1dfc29db_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a09dbdb08ae03c360a014f9a99d18930d}\label{namespacemodulegauge_a09dbdb08ae03c360a014f9a99d18930d}} 
+\index{modulegauge@{modulegauge}!realpi1\+\_\+comp@{realpi1\+\_\+comp}}
+\index{realpi1\+\_\+comp@{realpi1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realpi1\+\_\+comp()}{realpi1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realpi1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+O1,  }\item[{real}]{real\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a09dbdb08ae03c360a014f9a99d18930d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_aa1a4b7af3abfc8dfce0801b6c016f928}\label{namespacemodulegauge_aa1a4b7af3abfc8dfce0801b6c016f928}} 
+\index{modulegauge@{modulegauge}!realrho1\+\_\+comp@{realrho1\+\_\+comp}}
+\index{realrho1\+\_\+comp@{realrho1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realrho1\+\_\+comp()}{realrho1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realrho1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+Q1,  }\item[{real}]{real\+O1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_aa1a4b7af3abfc8dfce0801b6c016f928_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a639e6e7756ddc09a7f1410460b232db1}\label{namespacemodulegauge_a639e6e7756ddc09a7f1410460b232db1}} 
+\index{modulegauge@{modulegauge}!realsigma1\+\_\+comp@{realsigma1\+\_\+comp}}
+\index{realsigma1\+\_\+comp@{realsigma1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realsigma1\+\_\+comp()}{realsigma1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realsigma1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+Q1,  }\item[{real}]{real\+O1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a639e6e7756ddc09a7f1410460b232db1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a5708a7eceb753eedf87d41d40a3a619a}\label{namespacemodulegauge_a5708a7eceb753eedf87d41d40a3a619a}} 
+\index{modulegauge@{modulegauge}!realt2\+\_\+comp@{realt2\+\_\+comp}}
+\index{realt2\+\_\+comp@{realt2\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realt2\+\_\+comp()}{realt2\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realt2\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+K2,  }\item[{real}]{real\+N2,  }\item[{real}]{real\+M2 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a5708a7eceb753eedf87d41d40a3a619a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_ad2e8899353e8c890c82e852038be05f9}\label{namespacemodulegauge_ad2e8899353e8c890c82e852038be05f9}} 
+\index{modulegauge@{modulegauge}!realtheta1\+\_\+comp@{realtheta1\+\_\+comp}}
+\index{realtheta1\+\_\+comp@{realtheta1\+\_\+comp}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{realtheta1\+\_\+comp()}{realtheta1\_comp()}}
+{\footnotesize\ttfamily real function modulegauge\+::realtheta1\+\_\+comp (\begin{DoxyParamCaption}\item[{real}]{real\+O1,  }\item[{real}]{real\+K1 }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ad2e8899353e8c890c82e852038be05f9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_ab1a6acb6664eeba72c5a5d3487c6b4e6}\label{namespacemodulegauge_ab1a6acb6664eeba72c5a5d3487c6b4e6}} 
+\index{modulegauge@{modulegauge}!searchname@{searchname}}
+\index{searchname@{searchname}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{searchname()}{searchname()}}
+{\footnotesize\ttfamily integer function modulegauge\+::searchname (\begin{DoxyParamCaption}\item[{character(stringlength), dimension(\+:)}]{Wave\+Name,  }\item[{integer}]{n,  }\item[{character($\ast$)}]{Name }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_ae7a26f230136e4737c871ba19b1d1529}\label{namespacemodulegauge_ae7a26f230136e4737c871ba19b1d1529}} 
+\index{modulegauge@{modulegauge}!timeserievalue@{timeserievalue}}
+\index{timeserievalue@{timeserievalue}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{timeserievalue()}{timeserievalue()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::timeserievalue (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Present\+Gauge,  }\item[{real}]{Value,  }\item[{integer}]{Column,  }\item[{type(t\+\_\+time)}]{Time }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_ae7a26f230136e4737c871ba19b1d1529_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a5143391f003e2c838204ca20768435a4}\label{namespacemodulegauge_a5143391f003e2c838204ca20768435a4}} 
+\index{modulegauge@{modulegauge}!verifygaugelocation@{verifygaugelocation}}
+\index{verifygaugelocation@{verifygaugelocation}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{verifygaugelocation()}{verifygaugelocation()}}
+{\footnotesize\ttfamily subroutine, private modulegauge\+::verifygaugelocation (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulegauge_1_1t__tidegauge}{t\+\_\+tidegauge}}), pointer}]{Gauge,  }\item[{integer}]{Horizontal\+Grid\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a5143391f003e2c838204ca20768435a4_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegauge_a473e631b98b7b3cb869f4ede62f77425}\label{namespacemodulegauge_a473e631b98b7b3cb869f4ede62f77425}} 
+\index{modulegauge@{modulegauge}!writegaugedatahdf@{writegaugedatahdf}}
+\index{writegaugedatahdf@{writegaugedatahdf}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{writegaugedatahdf()}{writegaugedatahdf()}}
+{\footnotesize\ttfamily subroutine modulegauge\+::writegaugedatahdf (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulegauge_a473e631b98b7b3cb869f4ede62f77425_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegauge_a473e631b98b7b3cb869f4ede62f77425_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulegauge_ac3b02dcb0550cc2e7f9db1a1674271ff}\label{namespacemodulegauge_ac3b02dcb0550cc2e7f9db1a1674271ff}} 
+\index{modulegauge@{modulegauge}!char\+\_\+constant@{char\+\_\+constant}}
+\index{char\+\_\+constant@{char\+\_\+constant}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{char\+\_\+constant}{char\_constant}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegauge\+::char\+\_\+constant = \textquotesingle{}Constant\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_a94bb84dcdbe9bf7dec1cb0f6b3bffb5d}\label{namespacemodulegauge_a94bb84dcdbe9bf7dec1cb0f6b3bffb5d}} 
+\index{modulegauge@{modulegauge}!char\+\_\+harmonics@{char\+\_\+harmonics}}
+\index{char\+\_\+harmonics@{char\+\_\+harmonics}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{char\+\_\+harmonics}{char\_harmonics}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegauge\+::char\+\_\+harmonics = \textquotesingle{}Harmonics\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_a6ba029f1e08fcbbbd5908ec2ae512c23}\label{namespacemodulegauge_a6ba029f1e08fcbbbd5908ec2ae512c23}} 
+\index{modulegauge@{modulegauge}!char\+\_\+noevolution@{char\+\_\+noevolution}}
+\index{char\+\_\+noevolution@{char\+\_\+noevolution}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{char\+\_\+noevolution}{char\_noevolution}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegauge\+::char\+\_\+noevolution = \textquotesingle{}No\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_ada4bd7e74d44c2a75f7fd3dabdaec4f6}\label{namespacemodulegauge_ada4bd7e74d44c2a75f7fd3dabdaec4f6}} 
+\index{modulegauge@{modulegauge}!char\+\_\+timeserie@{char\+\_\+timeserie}}
+\index{char\+\_\+timeserie@{char\+\_\+timeserie}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{char\+\_\+timeserie}{char\_timeserie}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegauge\+::char\+\_\+timeserie = \textquotesingle{}Time Serie\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_ae88c58ad24b474ec3b88eca9f0cfd3e1}\label{namespacemodulegauge_ae88c58ad24b474ec3b88eca9f0cfd3e1}} 
+\index{modulegauge@{modulegauge}!constant@{constant}}
+\index{constant@{constant}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{constant}{constant}}
+{\footnotesize\ttfamily integer, parameter modulegauge\+::constant = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_a128d19f6ffe523671f625c16c81ba96a}\label{namespacemodulegauge_a128d19f6ffe523671f625c16c81ba96a}} 
+\index{modulegauge@{modulegauge}!firstgauge@{firstgauge}}
+\index{firstgauge@{firstgauge}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{firstgauge}{firstgauge}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulegauge_1_1t__gauge}{t\+\_\+gauge}}), pointer modulegauge\+::firstgauge\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_a3f8a746c3c0ad5da35fdd078a57a5cbb}\label{namespacemodulegauge_a3f8a746c3c0ad5da35fdd078a57a5cbb}} 
+\index{modulegauge@{modulegauge}!harmonics@{harmonics}}
+\index{harmonics@{harmonics}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{harmonics}{harmonics}}
+{\footnotesize\ttfamily integer, parameter modulegauge\+::harmonics = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_a6350897b91533283cb8bab27165a71fe}\label{namespacemodulegauge_a6350897b91533283cb8bab27165a71fe}} 
+\index{modulegauge@{modulegauge}!me@{me}}
+\index{me@{me}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulegauge_1_1t__gauge}{t\+\_\+gauge}}), pointer modulegauge\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_a7fd89ac8c515f3952a0d3a804cbf6391}\label{namespacemodulegauge_a7fd89ac8c515f3952a0d3a804cbf6391}} 
+\index{modulegauge@{modulegauge}!noevolution@{noevolution}}
+\index{noevolution@{noevolution}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{noevolution}{noevolution}}
+{\footnotesize\ttfamily integer, parameter modulegauge\+::noevolution = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegauge_a44762d942d0bc35a4d1481c829c717ff}\label{namespacemodulegauge_a44762d942d0bc35a4d1481c829c717ff}} 
+\index{modulegauge@{modulegauge}!timeserie@{timeserie}}
+\index{timeserie@{timeserie}!modulegauge@{modulegauge}}
+\subsubsection{\texorpdfstring{timeserie}{timeserie}}
+{\footnotesize\ttfamily integer, parameter modulegauge\+::timeserie = 2\hspace{0.3cm}{\ttfamily [private]}}
+

@@ -1,0 +1,7 @@
+<map id="modulesedimentproperties::t_property" name="modulesedimentproperties::t_property">
+<area shape="rect" id="node2" href="$structmodulesedimentproperties_1_1t__evolution.html" title="{modulesedimentproperties\l::t_evolution\n|&#45; variable\l&#45; sedimentquality\l&#45; partitioning\l&#45; advectiondiffusion\l&#45; computebioturbation\l&#45; surfacefluxes\l&#45; minconcentration\l&#45; seagrassesroots\l&#45; lastcompute\l&#45; nextcompute\l&#45; dtinterval\l|}" alt="" coords="204,403,379,641"/>
+<area shape="rect" id="node3" href="$structmodulesedimentproperties_1_1t__partition.html" title="{modulesedimentproperties\l::t_partition\n|&#45; couple\l&#45; couple_id\l|}" alt="" coords="5,219,180,325"/>
+<area shape="rect" id="node4" href="$structmodulesedimentproperties_1_1t__property__3d.html" title="{modulesedimentproperties\l::t_property_3d\n|&#45; id\l&#45; scalar\l&#45; field\l|}" alt="" coords="5,5,180,127"/>
+<area shape="rect" id="node5" href="$structmodulesedimentproperties_1_1t__bioturbation.html" title="{modulesedimentproperties\l::t_bioturbation\n|&#45; defaultcoef\l&#45; biodepth\l&#45; decaycoef\l&#45; coef\l|}" alt="" coords="204,204,379,340"/>
+<area shape="rect" id="node6" href="$structmodulesedimentproperties_1_1t__advectiondiffusion__parameters.html" title="{modulesedimentproperties\l::t_advectiondiffusion\l_parameters\n|&#45; boundarycondition\l&#45; diffusion_method\l&#45; molecular_diff_coef\l|}" alt="" coords="403,204,577,340"/>
+</map>

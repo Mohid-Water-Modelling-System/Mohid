@@ -1,0 +1,6 @@
+<map id="moduleporousmedia::condutivity_face" name="moduleporousmedia::condutivity_face">
+<area shape="rect" id="node2" href="$namespacemoduleporousmedia.html#af9319c9dde3c764e53801191ae902220" title="moduleporousmedia::\lcondutivityaverage" alt="" coords="219,5,365,47"/>
+<area shape="rect" id="node3" href="$namespacemoduleporousmedia.html#ae2e67be2f15dbdf148268d5b0fe82c68" title="moduleporousmedia::\lcondutivitymaximum" alt="" coords="219,71,365,112"/>
+<area shape="rect" id="node4" href="$namespacemoduleporousmedia.html#acd65a0f6af171e6aea2cd5784f58fcc3" title="moduleporousmedia::\lcondutivityminimum" alt="" coords="219,136,365,177"/>
+<area shape="rect" id="node5" href="$namespacemoduleporousmedia.html#addae947f6fd1fa818093524bef8b0716" title="moduleporousmedia::\lcondutivitygeometricaverage" alt="" coords="200,201,384,243"/>
+</map>

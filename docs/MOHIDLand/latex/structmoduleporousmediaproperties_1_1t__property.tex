@@ -1,0 +1,342 @@
+\hypertarget{structmoduleporousmediaproperties_1_1t__property}{}\section{moduleporousmediaproperties\+:\+:t\+\_\+property Type Reference}
+\label{structmoduleporousmediaproperties_1_1t__property}\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+
+
+Collaboration diagram for moduleporousmediaproperties\+:\+:t\+\_\+property\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structmoduleporousmediaproperties_1_1t__property__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+type(t\+\_\+propertyid) \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a3019ee54dc705aea8c8606934f0e88b7}{id}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a3683d5b3064fc40f863c6fb41cc9c32c}{concentration}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_aec24bc1dc57a41799a93e2c232bc12fd}{concentrationold}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a398b40f0062a766b0b4a2a27c9c242d7}{concentrationoninfcolumn}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a969065920512d1f9346b539f045eef09}{concentrationdn}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_afadc62072ebc9852af22dd4152632289}{concininterfacedn}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a9997ceba7b0ee41a18d24a5a834c8281}{concinboundary}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_aed01ce2ed0739958be83d9d1086b9180}{averageaquiferconc}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_aea31afd951e04b4910e4b12135d055f0}{averagevadozeconc}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a5f990bea8f0a6e22bfc75e5c68f5da29}{averageaquiferdecay}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a2f0b30b28fceefb3bb33f8ceabbeae64}{averagevadozedecay}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a6c2c4e573e968aafc18bb12e45c887f8}{integrateddecay}} =$>$ null()
+\item 
+character(pathlength) \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a6a92d5eed7afb5bcf9c22e0962407223}{integrateddecayfile}} = null\+\_\+str
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a12f61bbf3466c0d0928699aa8331ad91}{pesticideflux}} =$>$ null()
+\item 
+logical, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a8a1ff05be79de1aec9b2e61ee36a1d02}{uptakeactive}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_abf95506446f736e5488c62f14c63ef72}{mass\+\_\+created}} =$>$ null()
+\item 
+real(8) \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a05a1aa16f77afa518efb1a068eed0ec1}{totalstoredmass}} = null\+\_\+real
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a061ffe9e369e7cdb8af384f259aa1d4d}{viscosityu}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a4c169f67509343978c53c8feaa6b6c61}{viscosityv}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_aa5f725052fd68492cc374238cebdb937}{next}}
+\item 
+type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_afd6f099038b1cc03fe6ee88136647b12}{prev}} =$>$ null()
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a9f8e57f7bc302bb3f1a0d6a1692180cb}{pesticide}} = .false.
+\item 
+type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__evolution}{t\+\_\+evolution}}) \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a2e8fac411d7d705740944bd96bbb5a97}{evolution}}
+\item 
+type(\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__massbalance}{t\+\_\+massbalance}}) \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a53b28a67af1b81a35d2b58eb00eacab9}{mb}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a9772be32924489b6a991a71729dd283b}{diffusivity}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a26778def88b24541921dc25869c5f4d1}{diff\+\_\+turbulence\+\_\+h}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_aac2fc14d72ad4844498ffeb6b4b68f1c}{diff\+\_\+turbulence\+\_\+v}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_ae69f37999655a64f02b320ab199e9439}{viscosity}} =$>$ null()
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a5bd68ae276a8fc0d65f2b654231f6c8f}{old}} = .false.
+\item 
+real \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a8ed3a7c7ddeef62fd82996db1135c12f}{minvalue}} = Fill\+Value\+Real
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a1343a00e5e3a528cf3475e12d9edc88d}{timeserie}} = .false.
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a292959bc536ff70be8b3f2faee8fa95e}{boxtimeserie}} = .false.
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a14b6a211a3cba13ac52945a563a890ba}{boxtimeserie2d}} = .false.
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a9a40d9ca56149f4de967444d284ea4ee}{outputhdf}} = .false.
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_adaa5c22594e0b6fc6f3136ff99d30172}{outputaverageconc}} = .false.
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_ae5e9674a8244bea502823a44ced95b05}{outputaveragedecay}} = .false.
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a31ea5e7cc66c6b41b6c50bb7374a6199}{outputintegrateddecay}} = .false.
+\item 
+logical \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a098e7baee66e21aec4624dea02447076}{usetocalcecw}} = .false.
+\item 
+real \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_a15c1ff5553269d555e03fbfa187b6295}{ecwfactor}} = 0.\+0
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property_aa6920bbd5377cf7499b54e132bf9ccae}{propertydecay}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_aed01ce2ed0739958be83d9d1086b9180}\label{structmoduleporousmediaproperties_1_1t__property_aed01ce2ed0739958be83d9d1086b9180}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!averageaquiferconc@{averageaquiferconc}}
+\index{averageaquiferconc@{averageaquiferconc}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{averageaquiferconc}{averageaquiferconc}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleporousmediaproperties\+::t\+\_\+property\+::averageaquiferconc =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a5f990bea8f0a6e22bfc75e5c68f5da29}\label{structmoduleporousmediaproperties_1_1t__property_a5f990bea8f0a6e22bfc75e5c68f5da29}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!averageaquiferdecay@{averageaquiferdecay}}
+\index{averageaquiferdecay@{averageaquiferdecay}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{averageaquiferdecay}{averageaquiferdecay}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleporousmediaproperties\+::t\+\_\+property\+::averageaquiferdecay =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_aea31afd951e04b4910e4b12135d055f0}\label{structmoduleporousmediaproperties_1_1t__property_aea31afd951e04b4910e4b12135d055f0}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!averagevadozeconc@{averagevadozeconc}}
+\index{averagevadozeconc@{averagevadozeconc}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{averagevadozeconc}{averagevadozeconc}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleporousmediaproperties\+::t\+\_\+property\+::averagevadozeconc =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a2f0b30b28fceefb3bb33f8ceabbeae64}\label{structmoduleporousmediaproperties_1_1t__property_a2f0b30b28fceefb3bb33f8ceabbeae64}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!averagevadozedecay@{averagevadozedecay}}
+\index{averagevadozedecay@{averagevadozedecay}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{averagevadozedecay}{averagevadozedecay}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleporousmediaproperties\+::t\+\_\+property\+::averagevadozedecay =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a292959bc536ff70be8b3f2faee8fa95e}\label{structmoduleporousmediaproperties_1_1t__property_a292959bc536ff70be8b3f2faee8fa95e}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!boxtimeserie@{boxtimeserie}}
+\index{boxtimeserie@{boxtimeserie}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{boxtimeserie}{boxtimeserie}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::boxtimeserie = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a14b6a211a3cba13ac52945a563a890ba}\label{structmoduleporousmediaproperties_1_1t__property_a14b6a211a3cba13ac52945a563a890ba}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!boxtimeserie2d@{boxtimeserie2d}}
+\index{boxtimeserie2d@{boxtimeserie2d}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{boxtimeserie2d}{boxtimeserie2d}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::boxtimeserie2d = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a3683d5b3064fc40f863c6fb41cc9c32c}\label{structmoduleporousmediaproperties_1_1t__property_a3683d5b3064fc40f863c6fb41cc9c32c}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!concentration@{concentration}}
+\index{concentration@{concentration}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{concentration}{concentration}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::concentration =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a969065920512d1f9346b539f045eef09}\label{structmoduleporousmediaproperties_1_1t__property_a969065920512d1f9346b539f045eef09}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!concentrationdn@{concentrationdn}}
+\index{concentrationdn@{concentrationdn}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{concentrationdn}{concentrationdn}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::concentrationdn =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_aec24bc1dc57a41799a93e2c232bc12fd}\label{structmoduleporousmediaproperties_1_1t__property_aec24bc1dc57a41799a93e2c232bc12fd}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!concentrationold@{concentrationold}}
+\index{concentrationold@{concentrationold}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{concentrationold}{concentrationold}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::concentrationold =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a398b40f0062a766b0b4a2a27c9c242d7}\label{structmoduleporousmediaproperties_1_1t__property_a398b40f0062a766b0b4a2a27c9c242d7}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!concentrationoninfcolumn@{concentrationoninfcolumn}}
+\index{concentrationoninfcolumn@{concentrationoninfcolumn}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{concentrationoninfcolumn}{concentrationoninfcolumn}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::concentrationoninfcolumn =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a9997ceba7b0ee41a18d24a5a834c8281}\label{structmoduleporousmediaproperties_1_1t__property_a9997ceba7b0ee41a18d24a5a834c8281}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!concinboundary@{concinboundary}}
+\index{concinboundary@{concinboundary}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{concinboundary}{concinboundary}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::concinboundary =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_afadc62072ebc9852af22dd4152632289}\label{structmoduleporousmediaproperties_1_1t__property_afadc62072ebc9852af22dd4152632289}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!concininterfacedn@{concininterfacedn}}
+\index{concininterfacedn@{concininterfacedn}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{concininterfacedn}{concininterfacedn}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::concininterfacedn =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a26778def88b24541921dc25869c5f4d1}\label{structmoduleporousmediaproperties_1_1t__property_a26778def88b24541921dc25869c5f4d1}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!diff\+\_\+turbulence\+\_\+h@{diff\+\_\+turbulence\+\_\+h}}
+\index{diff\+\_\+turbulence\+\_\+h@{diff\+\_\+turbulence\+\_\+h}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{diff\+\_\+turbulence\+\_\+h}{diff\_turbulence\_h}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::diff\+\_\+turbulence\+\_\+h =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_aac2fc14d72ad4844498ffeb6b4b68f1c}\label{structmoduleporousmediaproperties_1_1t__property_aac2fc14d72ad4844498ffeb6b4b68f1c}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!diff\+\_\+turbulence\+\_\+v@{diff\+\_\+turbulence\+\_\+v}}
+\index{diff\+\_\+turbulence\+\_\+v@{diff\+\_\+turbulence\+\_\+v}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{diff\+\_\+turbulence\+\_\+v}{diff\_turbulence\_v}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::diff\+\_\+turbulence\+\_\+v =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a9772be32924489b6a991a71729dd283b}\label{structmoduleporousmediaproperties_1_1t__property_a9772be32924489b6a991a71729dd283b}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!diffusivity@{diffusivity}}
+\index{diffusivity@{diffusivity}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{diffusivity}{diffusivity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::diffusivity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a15c1ff5553269d555e03fbfa187b6295}\label{structmoduleporousmediaproperties_1_1t__property_a15c1ff5553269d555e03fbfa187b6295}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!ecwfactor@{ecwfactor}}
+\index{ecwfactor@{ecwfactor}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{ecwfactor}{ecwfactor}}
+{\footnotesize\ttfamily real moduleporousmediaproperties\+::t\+\_\+property\+::ecwfactor = 0.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a2e8fac411d7d705740944bd96bbb5a97}\label{structmoduleporousmediaproperties_1_1t__property_a2e8fac411d7d705740944bd96bbb5a97}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!evolution@{evolution}}
+\index{evolution@{evolution}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{evolution}{evolution}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__evolution}{t\+\_\+evolution}}) moduleporousmediaproperties\+::t\+\_\+property\+::evolution\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a3019ee54dc705aea8c8606934f0e88b7}\label{structmoduleporousmediaproperties_1_1t__property_a3019ee54dc705aea8c8606934f0e88b7}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!id@{id}}
+\index{id@{id}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{id}{id}}
+{\footnotesize\ttfamily type (t\+\_\+propertyid) moduleporousmediaproperties\+::t\+\_\+property\+::id\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a6c2c4e573e968aafc18bb12e45c887f8}\label{structmoduleporousmediaproperties_1_1t__property_a6c2c4e573e968aafc18bb12e45c887f8}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!integrateddecay@{integrateddecay}}
+\index{integrateddecay@{integrateddecay}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{integrateddecay}{integrateddecay}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleporousmediaproperties\+::t\+\_\+property\+::integrateddecay =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a6a92d5eed7afb5bcf9c22e0962407223}\label{structmoduleporousmediaproperties_1_1t__property_a6a92d5eed7afb5bcf9c22e0962407223}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!integrateddecayfile@{integrateddecayfile}}
+\index{integrateddecayfile@{integrateddecayfile}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{integrateddecayfile}{integrateddecayfile}}
+{\footnotesize\ttfamily character(pathlength) moduleporousmediaproperties\+::t\+\_\+property\+::integrateddecayfile = null\+\_\+str\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_abf95506446f736e5488c62f14c63ef72}\label{structmoduleporousmediaproperties_1_1t__property_abf95506446f736e5488c62f14c63ef72}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!mass\+\_\+created@{mass\+\_\+created}}
+\index{mass\+\_\+created@{mass\+\_\+created}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{mass\+\_\+created}{mass\_created}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::mass\+\_\+created =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a53b28a67af1b81a35d2b58eb00eacab9}\label{structmoduleporousmediaproperties_1_1t__property_a53b28a67af1b81a35d2b58eb00eacab9}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!mb@{mb}}
+\index{mb@{mb}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{mb}{mb}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__massbalance}{t\+\_\+massbalance}}) moduleporousmediaproperties\+::t\+\_\+property\+::mb\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a8ed3a7c7ddeef62fd82996db1135c12f}\label{structmoduleporousmediaproperties_1_1t__property_a8ed3a7c7ddeef62fd82996db1135c12f}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!minvalue@{minvalue}}
+\index{minvalue@{minvalue}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{minvalue}{minvalue}}
+{\footnotesize\ttfamily real moduleporousmediaproperties\+::t\+\_\+property\+::minvalue = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_aa5f725052fd68492cc374238cebdb937}\label{structmoduleporousmediaproperties_1_1t__property_aa5f725052fd68492cc374238cebdb937}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!next@{next}}
+\index{next@{next}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer moduleporousmediaproperties\+::t\+\_\+property\+::next\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a5bd68ae276a8fc0d65f2b654231f6c8f}\label{structmoduleporousmediaproperties_1_1t__property_a5bd68ae276a8fc0d65f2b654231f6c8f}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!old@{old}}
+\index{old@{old}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{old}{old}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::old = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_adaa5c22594e0b6fc6f3136ff99d30172}\label{structmoduleporousmediaproperties_1_1t__property_adaa5c22594e0b6fc6f3136ff99d30172}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!outputaverageconc@{outputaverageconc}}
+\index{outputaverageconc@{outputaverageconc}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{outputaverageconc}{outputaverageconc}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::outputaverageconc = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_ae5e9674a8244bea502823a44ced95b05}\label{structmoduleporousmediaproperties_1_1t__property_ae5e9674a8244bea502823a44ced95b05}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!outputaveragedecay@{outputaveragedecay}}
+\index{outputaveragedecay@{outputaveragedecay}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{outputaveragedecay}{outputaveragedecay}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::outputaveragedecay = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a9a40d9ca56149f4de967444d284ea4ee}\label{structmoduleporousmediaproperties_1_1t__property_a9a40d9ca56149f4de967444d284ea4ee}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!outputhdf@{outputhdf}}
+\index{outputhdf@{outputhdf}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{outputhdf}{outputhdf}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::outputhdf = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a31ea5e7cc66c6b41b6c50bb7374a6199}\label{structmoduleporousmediaproperties_1_1t__property_a31ea5e7cc66c6b41b6c50bb7374a6199}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!outputintegrateddecay@{outputintegrateddecay}}
+\index{outputintegrateddecay@{outputintegrateddecay}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{outputintegrateddecay}{outputintegrateddecay}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::outputintegrateddecay = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a9f8e57f7bc302bb3f1a0d6a1692180cb}\label{structmoduleporousmediaproperties_1_1t__property_a9f8e57f7bc302bb3f1a0d6a1692180cb}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!pesticide@{pesticide}}
+\index{pesticide@{pesticide}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{pesticide}{pesticide}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::pesticide = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a12f61bbf3466c0d0928699aa8331ad91}\label{structmoduleporousmediaproperties_1_1t__property_a12f61bbf3466c0d0928699aa8331ad91}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!pesticideflux@{pesticideflux}}
+\index{pesticideflux@{pesticideflux}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{pesticideflux}{pesticideflux}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::pesticideflux =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_afd6f099038b1cc03fe6ee88136647b12}\label{structmoduleporousmediaproperties_1_1t__property_afd6f099038b1cc03fe6ee88136647b12}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!prev@{prev}}
+\index{prev@{prev}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{prev}{prev}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleporousmediaproperties_1_1t__property}{t\+\_\+property}}), pointer moduleporousmediaproperties\+::t\+\_\+property\+::prev =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_aa6920bbd5377cf7499b54e132bf9ccae}\label{structmoduleporousmediaproperties_1_1t__property_aa6920bbd5377cf7499b54e132bf9ccae}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!propertydecay@{propertydecay}}
+\index{propertydecay@{propertydecay}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{propertydecay}{propertydecay}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::propertydecay =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a1343a00e5e3a528cf3475e12d9edc88d}\label{structmoduleporousmediaproperties_1_1t__property_a1343a00e5e3a528cf3475e12d9edc88d}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!timeserie@{timeserie}}
+\index{timeserie@{timeserie}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{timeserie}{timeserie}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::timeserie = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a05a1aa16f77afa518efb1a068eed0ec1}\label{structmoduleporousmediaproperties_1_1t__property_a05a1aa16f77afa518efb1a068eed0ec1}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!totalstoredmass@{totalstoredmass}}
+\index{totalstoredmass@{totalstoredmass}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{totalstoredmass}{totalstoredmass}}
+{\footnotesize\ttfamily real(8) moduleporousmediaproperties\+::t\+\_\+property\+::totalstoredmass = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a8a1ff05be79de1aec9b2e61ee36a1d02}\label{structmoduleporousmediaproperties_1_1t__property_a8a1ff05be79de1aec9b2e61ee36a1d02}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!uptakeactive@{uptakeactive}}
+\index{uptakeactive@{uptakeactive}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{uptakeactive}{uptakeactive}}
+{\footnotesize\ttfamily logical, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::uptakeactive =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a098e7baee66e21aec4624dea02447076}\label{structmoduleporousmediaproperties_1_1t__property_a098e7baee66e21aec4624dea02447076}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!usetocalcecw@{usetocalcecw}}
+\index{usetocalcecw@{usetocalcecw}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{usetocalcecw}{usetocalcecw}}
+{\footnotesize\ttfamily logical moduleporousmediaproperties\+::t\+\_\+property\+::usetocalcecw = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_ae69f37999655a64f02b320ab199e9439}\label{structmoduleporousmediaproperties_1_1t__property_ae69f37999655a64f02b320ab199e9439}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!viscosity@{viscosity}}
+\index{viscosity@{viscosity}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{viscosity}{viscosity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::viscosity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a061ffe9e369e7cdb8af384f259aa1d4d}\label{structmoduleporousmediaproperties_1_1t__property_a061ffe9e369e7cdb8af384f259aa1d4d}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!viscosityu@{viscosityu}}
+\index{viscosityu@{viscosityu}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{viscosityu}{viscosityu}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::viscosityu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleporousmediaproperties_1_1t__property_a4c169f67509343978c53c8feaa6b6c61}\label{structmoduleporousmediaproperties_1_1t__property_a4c169f67509343978c53c8feaa6b6c61}} 
+\index{moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}!viscosityv@{viscosityv}}
+\index{viscosityv@{viscosityv}!moduleporousmediaproperties\+::t\+\_\+property@{moduleporousmediaproperties\+::t\+\_\+property}}
+\subsubsection{\texorpdfstring{viscosityv}{viscosityv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleporousmediaproperties\+::t\+\_\+property\+::viscosityv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Land/\mbox{\hyperlink{_module_porous_media_properties_8_f90}{Module\+Porous\+Media\+Properties.\+F90}}\end{DoxyCompactItemize}

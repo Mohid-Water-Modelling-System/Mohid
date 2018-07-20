@@ -1,0 +1,7 @@
+<map id="moduleinterfacesedimentwater::modifyshearstress" name="moduleinterfacesedimentwater::modifyshearstress">
+<area shape="rect" id="node2" href="$namespacemoduleinterfacesedimentwater.html#a25379264e67d8f64f1b5eb254353c22f" title="moduleinterfacesedimentwater\l::computewaverugosity" alt="" coords="251,5,448,47"/>
+<area shape="rect" id="node3" href="$namespacemoduleinterfacesedimentwater.html#a8334efc0d8743e6adfd52831e97bb260" title="moduleinterfacesedimentwater\l::computewavetension" alt="" coords="251,71,448,112"/>
+<area shape="rect" id="node4" href="$namespacemoduleinterfacesedimentwater.html#ab7293afe1dc4a5090663cd0d773d6e88" title="moduleinterfacesedimentwater\l::compute_dragcoef" alt="" coords="251,136,448,177"/>
+<area shape="rect" id="node5" href="$namespacemoduleinterfacesedimentwater.html#ab99914cb84ad28c9ff3848ff2f65536b" title="moduleinterfacesedimentwater\l::shearstresslimitation" alt="" coords="251,201,448,243"/>
+<area shape="rect" id="node6" href="$namespacemoduleinterfacesedimentwater.html#aa57d7b6cd225347d61e24202cb55d26b" title="moduleinterfacesedimentwater\l::output_statistics" alt="" coords="251,267,448,308"/>
+</map>

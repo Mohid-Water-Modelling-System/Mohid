@@ -1,0 +1,15 @@
+<map id="moduleassimilation::modifyassimilation" name="moduleassimilation::modifyassimilation">
+<area shape="rect" id="node2" href="$namespacemoduleassimilation.html#a7c7eb17646a26837c5dfb9acc963b010" title="moduleassimilation\l::ready" alt="" coords="201,5,335,47"/>
+<area shape="rect" id="node4" href="$namespacemoduleassimilation.html#ad7f96fa745bdccdc0281d15675836a9b" title="moduleassimilation\l::readlockexternalvar" alt="" coords="197,71,339,112"/>
+<area shape="rect" id="node5" href="$namespacemoduleassimilation.html#a25c18cab5d2d7615f696e5f0ebfbada0" title="moduleassimilation\l::searchproperty" alt="" coords="201,136,335,177"/>
+<area shape="rect" id="node9" href="$namespacemoduleassimilation.html#af392c1f06d8b730776cfb5680aaf95cb" title="moduleassimilation\l::altimetricassimilation" alt="" coords="192,201,344,243"/>
+<area shape="rect" id="node14" href="$namespacemoduleassimilation.html#a3215402dbc1d7602c94ca05f33ce52a7" title="moduleassimilation\l::readunlockexternalvar" alt="" coords="191,267,345,308"/>
+<area shape="rect" id="node3" href="$namespacemoduleassimilation.html#acb3e0bb143f8372bac2b99052ba4943d" title="moduleassimilation\l::locateobjassimilation" alt="" coords="393,5,544,47"/>
+<area shape="rect" id="node6" href="$namespacemoduleassimilation.html#ac07092b01bbf318f77800bb88c9f12bf" title="moduleassimilation\l::assimilationfromfile" alt="" coords="399,136,539,177"/>
+<area shape="rect" id="node7" href="$namespacemoduleassimilation.html#a48b30161fd16a556f8e54eeaf6b054e3" title="moduleassimilation\l::outputresultshdf" alt="" coords="617,71,750,112"/>
+<area shape="rect" id="node8" href="$namespacemoduleassimilation.html#a4802b71b408a488941f1becab34042ec" title="moduleassimilation\l::output_timeseries" alt="" coords="617,136,750,177"/>
+<area shape="rect" id="node10" href="$namespacemoduleassimilation.html#adb4698b9b7aa680222581e31452094dc" title="moduleassimilation\l::loweringlifting" alt="" coords="402,201,535,243"/>
+<area shape="rect" id="node11" href="$namespacemoduleassimilation.html#a689487c17f9fdb64311b351530c9244a" title="moduleassimilation\l::changetemperaturesalinity" alt="" coords="592,201,775,243"/>
+<area shape="rect" id="node12" href="$namespacemoduleassimilation.html#a4473000cecbde1abb63d63fc9a6f5858" title="moduleassimilation\l::spline_alt" alt="" coords="823,168,956,209"/>
+<area shape="rect" id="node13" href="$namespacemoduleassimilation.html#a5db3c59220db22267e7e1e7eca84a356" title="moduleassimilation\l::splint" alt="" coords="823,233,956,275"/>
+</map>

@@ -1,0 +1,144 @@
+\hypertarget{_module_g_o_t_m_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+G\+O\+TM.F90 File Reference}
+\label{_module_g_o_t_m_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+G\+O\+T\+M.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+G\+O\+T\+M.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotmexport}{modulegotm\+::t\+\_\+gotmexport}}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotmparameters}{modulegotm\+::t\+\_\+gotmparameters}}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotmtrid}{modulegotm\+::t\+\_\+gotmtrid}}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotmimport}{modulegotm\+::t\+\_\+gotmimport}}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotm}{modulegotm\+::t\+\_\+gotm}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulegotm}{modulegotm}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_acc6ad2c4bea63b4d44a941b81fcbf402}{modulegotm\+::clear\+\_\+turbulence\+\_\+parameters}} (Obj\+Gotmparameters)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_af408ddba849a968ba4867373805e4b3b}{modulegotm\+::copy\+\_\+turbulence\+\_\+parameters}} (targetP, sourceP)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_a88820406e3c80bbfc120dbf96b66424b}{modulegotm\+::init\+\_\+turbulence\+\_\+parameters}} (Obj\+Gotmparameters, namlst, fn, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_a2bcdea4da65e0575591794282ca6ba41}{modulegotm\+::init\+\_\+turbulence}} (Obj\+Gotm, Obj\+G\+O\+T\+M\+Parameters, K\+LB, K\+UB, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_a52589088a0366839f7e6684a9917a71a}{modulegotm\+::kill\+\_\+turbulence}} (Obj\+Gotm, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_a4ca35153e188114f4f02fe276d302d14}{modulegotm\+::do\+\_\+turbulence}} (Obj\+G\+O\+TM, nlev, dt, depth, u\+\_\+taus, u\+\_\+taub, z0s, z0b, h, NN, SS, P, B, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a0e2f0ad43d12c00ed95b6fdef24dc5eb}{modulegotm\+::stabilityfunctions}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_ae39109acd910c29deba62e83a6edce50}{modulegotm\+::do\+\_\+tke}} (Obj\+G\+O\+TM, nlev, dt, u\+\_\+taus, u\+\_\+taub, z0s, h, NN, SS, P, B, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a2d9e32d408a390b64575234c5dd95f62}{modulegotm\+::lengthscale}} (Obj\+G\+O\+TM, nlev, dt, z0b, z0s, u\+\_\+taus, u\+\_\+taub, depth, h, NN, P, B, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_ac05dd8d50f9ddc2c286122142f8a400e}{modulegotm\+::dissipationeq}} (Obj\+G\+O\+TM, nlev, dt, z0b, z0s, u\+\_\+taus, u\+\_\+taub, h, NN, P, B, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a91db88191066626042c7b8aba8a116ab}{modulegotm\+::algebraiclength}} (Obj\+G\+O\+TM, method, nlev, z0b, z0s, depth, h, NN)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a8afda9608a508419c6574b11765db424}{modulegotm\+::ispralength}} (Obj\+G\+O\+TM, nlev, NN, h, depth)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a4287a5fde4824d73e35ee66bf90b5f3b}{modulegotm\+::internal\+\_\+wave}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a41a284016e83d9fe85740b08ed8abdc2}{modulegotm\+::kolpran}} (Obj\+G\+O\+TM, nlev, u\+\_\+taub, u\+\_\+taus, z0b, z0s)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a82edc4e2eec49fb4f24fc31918908aef}{modulegotm\+::lengthscaleeq}} (Obj\+G\+O\+TM, nlev, dt, z0b, z0s, depth, h, NN, P, B, numtke)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a2ac21e06e59e99b089466cd065b15ca3}{modulegotm\+::potentialml}} (Obj\+G\+O\+TM, nlev, z0b, z0s, h, depth, NN)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_afc07b47188fabbcdd572769fce2e7e97}{modulegotm\+::tkealgebraic}} (Obj\+G\+O\+TM, nlev, u\+\_\+taus, u\+\_\+taub, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_aa2677c2275ef6e84a615765d4db0772c}{modulegotm\+::tkeeq}} (Obj\+G\+O\+TM, N, dt, u\+\_\+taus, u\+\_\+taub, z0s, h, P, B, numtke, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a8f3eabf069e4530d9ca2df0e3228c074}{modulegotm\+::cmue\+\_\+ca}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a38a0c42b81c2a8bae8ae60d20ed0df23}{modulegotm\+::cmue\+\_\+caqe}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a2b38e80c2393abb45f25640cd3fda481}{modulegotm\+::cmue\+\_\+cb}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_ab183ae0777bf5a1d3c5b4ebbb9c2b9b5}{modulegotm\+::cmue\+\_\+cbqe}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a39841630271ec0cdc9e21a9bc1bfc289}{modulegotm\+::cmue\+\_\+kc}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_ab365e1ebbb95df9750427f6340cac165}{modulegotm\+::cmue\+\_\+kcqe}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a35d3226a2d10d64e249360320b18c8a4}{modulegotm\+::cmue\+\_\+ma}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a9f8f0a6e92610182a87816932d096a5a}{modulegotm\+::cmue\+\_\+rf}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a532d05762eb6990a602d72c0cf825f66}{modulegotm\+::cmue\+\_\+sg}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegotm_a95c763a61ad96de7516848ea4a686fdb}{modulegotm\+::tridiagonal}} (Obj\+G\+O\+TM, N, fi, lt, value)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a0f598f7a7591ef502047d7bf9b41d8c4}{modulegotm\+::unknown\+\_\+}} =-\/99
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_adb6c42c1323d939b70b00c98f2106d11}{modulegotm\+::success\+\_\+}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_af65e84e018f76a3a2d29f65589808c9d}{modulegotm\+::off\+\_\+err\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a97522a5857d2ea9ecdacaa45e530f142}{modulegotm\+::on\+\_\+err\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_ac9524a6d32be82ce6528becff10d08ff}{modulegotm\+::read\+\_\+lock\+\_\+err\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_ae9156b93cafbf0c50087599b64ff3d3d}{modulegotm\+::write\+\_\+lock\+\_\+err\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a39953f54bbdc8da782f3b50feef9d448}{modulegotm\+::idle\+\_\+err\+\_\+}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a98f0c25fc8853b787887f1ed35c706ad}{modulegotm\+::nbusers\+\_\+err\+\_\+}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a2e888b1f33eea5d6198b2b74c27aa11d}{modulegotm\+::null\+\_\+int}} = -\/9999
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulegotm_a89fe021c998471f10e1252fbabba387c}{modulegotm\+::null\+\_\+real}} = -\/9.\+999\+E+15
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulegotm_a2faf16339e8c12fe4c7d39478460810f}{modulegotm\+::fillvaluereal}} =-\/9.\+9e15
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a6843f6d6c95d7d5cbd9b92d5b399bd7c}{modulegotm\+::fillvalueint}} =-\/9999999
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_ac70f3cf4ffada602b184d8ccf56aea81}{modulegotm\+::tke\+\_\+local\+\_\+eq}} =1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_af7d3b24a327afe4fa750141548a9e5f8}{modulegotm\+::tke\+\_\+keps}} =2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_aed350ab9bde0bdf934d954e5c261a039}{modulegotm\+::tke\+\_\+my}} =3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_abce18d4dc4ce96034c9b581092bd7970}{modulegotm\+::kanclay}} =1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a9ee68515a5fff9c9166a6b82ed456933}{modulegotm\+::burbaum}} =2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a08f200dfeb5a1b203cdf3f9887ec48f0}{modulegotm\+::canutoa}} =3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_ac0ab48f659edad60f836fc9e986a8fec}{modulegotm\+::canutob}} =4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a2b67d69c6a8ac1632483b71fcbc9c20a}{modulegotm\+::kanclayqe}} =5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_acc6f8d4ca9ecc05782e1e5fe37b2a4ea}{modulegotm\+::burbaumqe}} =6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a91892f852a1a0e7dbdd26d799d01d3c2}{modulegotm\+::canutoaqe}} =7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a1adf4ea0176bd82b7aa9864f7d8aaf83}{modulegotm\+::canutobqe}} =8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a4d0033e085531c87c93b030f6591c704}{modulegotm\+::constant}} =9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_aefc13e1296f71005638e19eff270dd6a}{modulegotm\+::munkanderson}} =10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a8b80733c09f1d2f777468f16b9df9563}{modulegotm\+::schumgerz}} =11
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a1844fb45e0887b6144045352f62f1af5}{modulegotm\+::fluxrich}} =12
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a4403b4cce1e34ad86c1aa0e705d4222c}{modulegotm\+::diss\+\_\+eq}} =8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a090551467cbb9673b88edf6c5db10b2b}{modulegotm\+::length\+\_\+eq}} =9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a55510aacb7d64ac380e762ba61964376}{modulegotm\+::bougeaultandre}} =6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a8de26216ba29e73b224d20ca6cb44664}{modulegotm\+::ispra\+\_\+length}} =6
+\end{DoxyCompactItemize}

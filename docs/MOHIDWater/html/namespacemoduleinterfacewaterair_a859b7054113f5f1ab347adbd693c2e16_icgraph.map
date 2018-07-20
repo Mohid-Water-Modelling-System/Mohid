@@ -1,0 +1,11 @@
+<map id="moduleinterfacewaterair::readlockexternalglobal" name="moduleinterfacewaterair::readlockexternalglobal">
+<area shape="rect" id="node2" href="$namespacemoduleinterfacewaterair.html#a1d15121ff2d6a7ec0e45dffd0506037a" title="moduleinterfacewaterair\l::startinterfacewaterair" alt="" coords="214,49,373,90"/>
+<area shape="rect" id="node10" href="$namespacemoduleinterfacewaterair.html#ad372fa1a038ce383360d4422cc25923d" title="moduleinterfacewaterair\l::modifyinterfacewaterair" alt="" coords="212,114,375,155"/>
+<area shape="rect" id="node3" href="$namespacemodulemodel.html#a26ba9ff74ca1066f7a87bd019c76b1ed" title="modulemodel::constructmodel" alt="" coords="423,56,619,83"/>
+<area shape="rect" id="node4" href="$_main_8_f90.html#a22cacab418d9e36dcaa8c3aef44b4185" title="mohidwater" alt="" coords="704,5,792,32"/>
+<area shape="rect" id="node5" href="$_main_8_f90.html#abc6cfc7bca3f0c4dda032a34b9690319" title="constructmohidwater" alt="" coords="677,56,819,83"/>
+<area shape="rect" id="node9" href="$_main_8_f90.html#a364d1a7b4621ef3a56c71daf2af5147e" title="constructmohidwatermpi" alt="" coords="667,107,829,133"/>
+<area shape="rect" id="node6" href="$_main_8_f90.html#a4c5ecbd810307fa557d4b4e6719c7fd1" title="updatesubmodelvalues" alt="" coords="877,56,1031,83"/>
+<area shape="rect" id="node7" href="$_main_8_f90.html#a5a877f32d8c35a58c7bd824a65b07dba" title="doonetimestep" alt="" coords="1079,56,1185,83"/>
+<area shape="rect" id="node8" href="$_main_8_f90.html#a98b6185e00bdaa093569c6645482e68b" title="modifymohidwater" alt="" coords="1233,81,1360,108"/>
+</map>

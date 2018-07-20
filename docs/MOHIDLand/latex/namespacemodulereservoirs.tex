@@ -1,0 +1,1191 @@
+\hypertarget{namespacemodulereservoirs}{}\section{modulereservoirs Module Reference}
+\label{namespacemodulereservoirs}\index{modulereservoirs@{modulereservoirs}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__computeoptions}{t\+\_\+computeoptions}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__extvar}{t\+\_\+extvar}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__files}{t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__flowover}{t\+\_\+flowover}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__management}{t\+\_\+management}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__output}{t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__property}{t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__reservoirs}{t\+\_\+reservoirs}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__timeserie}{t\+\_\+timeserie}}
+\item 
+type \mbox{\hyperlink{structmodulereservoirs_1_1t__timeserieimposed}{t\+\_\+timeserieimposed}}
+\item 
+interface \mbox{\hyperlink{interfacemodulereservoirs_1_1ungetreservoirs}{ungetreservoirs}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_a8356f95662b41d91816350cf3f3c6113}{constructreservoirs}} (Model\+Name, Obj\+Reservoirs\+ID, Time\+ID, Topographic\+File, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a9ca6b6f1b29d44a299bd0cd902b875bd}{readfilenames}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereservoirs_a3bbdfd18a9b8de49cb39c9c2e60824f5}{allocateinstance}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_ac7bcb5beebaa4c557e558719e9656911}{constructreservoirlist}}
+\item 
+real function \mbox{\hyperlink{namespacemodulereservoirs_ac5bf14d3b0efa223e5c19855bb2380f2}{counttotalreservoirs}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_adb0f83f2d398504e99ff31c83a07ff2b}{constructreservoir}} (New\+Reservoir, Client\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_aa1e3cf305f3f33775d706fde19afd2c6}{getmanagementoptions}} (New\+Reservoir, Client\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_af78ebbee661caa48931d2c60385bda27}{getvolumeacccurve}} (New\+Reservoir, Client\+ID)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a720deae8cfb3dc32643ce6afdfa4d187}{constructdischarges}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_aaff88903c37ba70d4b309e252229107b}{findreservoir}} (Reservoir\+ID, Reservoir, Found)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a96a0b204df7b8cbf62057d7868d8aaa1}{constructpropertylist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a67e585ed4eb36afe43471887a3a9744c}{constructproperty}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a45a6c59f07c2eaae456d1a07476b8b6c}{constructpropertyvalues}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a211f03dad795e61e39d0f58b7002bb26}{readinitialconc}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_adb9f7b2b418dc95e774855d03c82b302}{constructglobalvariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a22d1b1d83488cecbdcf52565d3aa4e99}{getimposedreservoirlevel}} (New\+Reservoir, Client\+ID, Construct)
+\item 
+real function \mbox{\hyperlink{namespacemodulereservoirs_afabb38607932bfaede946ccbce22734d}{getreservoirvolume}} (Curr\+Reservoir, Time)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_af13cf54fd0c086fab90e6f36d294bc57}{verifyoptions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_aae6c3ff2990d073d614eb9e50d1658b9}{addreservoir}} (New\+Reservoir)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a2452a1e02e4d13c0c920c8d181bf2e79}{addproperty}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a1e658ea45a1665c254648477f576c633}{initializevariables}} (Constructing)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a392b0a0c6b8aeaf0e9cd41b21b155341}{readinitialvolume}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a3194d2a617c1c30dfa86442b6dbe1c31}{initializereservoirsvolume}} ()
+\item 
+real function \mbox{\hyperlink{namespacemodulereservoirs_a473bf29bfb29eda6a398dead645aec5a}{computereservoirlevel}} (Current\+Reservoir)
+\item 
+real function \mbox{\hyperlink{namespacemodulereservoirs_a5482b1f1fc7530ca5302b5dc3352566f}{computereservoirvolume}} (Current\+Reservoir, Reservoir\+Level)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a43db2f4830b1c886cf024e34a2682edb}{constructoutput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a24436967478aa33f4288a6cec5b2bb59}{readtimeseriereservoirlist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a8922a19edc4b29fdfa9899431548dabc}{constructtimeserielist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a8cfdd387909b50145910c908f6e129f0}{constructtimeseries}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a4297360b11f2cc348b2bb6524d4307b9}{fillpropnamevector}} (Prop\+Vector)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_aa1585e14b10abec0e0a86d6b4674be9c}{constructhdf5output}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_a6c97c189244107e76016a8e045715d94}{getnumberofreservoirs}} (Obj\+Reservoirs\+ID, n\+Reservoirs, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_a1af4820153560697135a4b5289ffefb9}{getreservoirsnodeids}} (Obj\+Reservoirs\+ID, Matrix, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_af7840621e7e8765fc75f7a8c81f0b054}{setreservoirsinflow}} (Obj\+Reservoirs\+ID, Reservoir\+Inflow, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_a92177000a842b34a96a2edc6b49e3128}{getreservoirsoutflow}} (Obj\+Reservoirs\+ID, Matrix, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_a947f8bf80536f49287e59c0f5d008f17}{setdnconcreservoirs}} (Obj\+Reservoirs\+ID, ConcentrationX, Property\+X\+I\+D\+Number, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_af97fb114c425ea04bf826d452e6d075f}{getreservoirsconcentration}} (Obj\+Reservoirs\+ID, ConcentrationX, Property\+X\+I\+D\+Number, Property\+X\+Units, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_ae639ba85f34ad23b758837c7842e91ed}{checkreservoirproperty}} (Obj\+Reservoirs\+ID, Property\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_a53b63e6050bd055646e8d248c77b9d39}{getreservoirsnproperties}} (Obj\+Reservoirs\+ID, n\+Properties, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_ac84a64521bf81b419760543bd55c1439}{getreservoirspropertiesidbyidx}} (Obj\+Reservoirs\+ID, Idx, ID, Particulate, Output\+Name, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_ae21cb91c7b00a7c56ed8f0d763dd75a2}{searchproperty}} (PropertyX, Property\+X\+I\+D\+Number, Print\+Warning, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereservoirs_aef049b96a145e57423b0b2da90a0a934}{ungetreservoirs1d\+\_\+i}} (Obj\+Reservoirs\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereservoirs_abf51c8915a730bb078066132f1085b94}{ungetreservoirs1d\+\_\+r8}} (Obj\+Reservoirs\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_a65da9561acff8444f90db1ccde975201}{modifyreservoirs}} (Obj\+Reservoirs\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a7e40106c12c54cc753164ac30f0fbf04}{getimposedlevel}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a8a99c19b113e1731bd473173c164300a}{computereservoirdischarges}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_ae746634227400b0849469114a5dc5c3f}{computereservoirsurfacefluxes}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_af226bfc3156ffdd375d5b81401036b46}{computereservoirbottomfluxes}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a2c3bef9b0aaebe8a9cfd93bc27290e82}{updatereservoirstatevariables}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a2af994aa3f7d8318c768f2960bb34e06}{updatevolumes}} ()
+\item 
+real function \mbox{\hyperlink{namespacemodulereservoirs_ad77a25bc54ff54f0753ca4576febd9fb}{dischargeproperty}} (Discharge\+Flow, Discharge\+Conc, Reservoir, Property, I\+S\+Coef, Accumulate)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a20b9abb4646405dacdb0a0927de2ec9b}{computereservoiroutflows}} ()
+\item 
+real function \mbox{\hyperlink{namespacemodulereservoirs_afd25bc9bcd078252383e6f67ef148826}{computeweirflow}} (Current\+Reservoir)
+\item 
+real function \mbox{\hyperlink{namespacemodulereservoirs_ac1692cb00cb68968ee7099ff5bf14ed0}{getoutflowfromoperation}} (Current\+Reservoir)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a72a469df722e5436ce882168e7d1c0bb}{modifyoutput}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_a8f4552bc7aa4adbe0bb04d768353a7b4}{writetimeseries}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_acfc5816f94fa9d8f10e180691ee50039}{writeoutputhdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereservoirs_ab10c15bc98d09e4f38187f218fce8925}{writefinalhdf}} (Is\+Final\+File)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereservoirs_a7b14b20d3da20267f728eae98a202e5e}{killreservoirs}} (Obj\+Reservoirs\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereservoirs_a8f177c238d3cfcadea634aef11e22772}{deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereservoirs_a5aff53aba3466a0410c29761e37a55a5}{ready}} (Obj\+Reservoirs\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereservoirs_a777d3a0c23fa5c2ea11ed589e1d23711}{locateobjreservoirs}} (Obj\+Reservoirs\+\_\+\+ID)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulereservoirs_a19b393dc0624488197fbecad37587566}{operation\+\_\+level\+\_\+outflow\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulereservoirs_af9fabeb6c84ab0b9a68fff20028bd317}{operation\+\_\+level\+\_\+percinflow\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulereservoirs_a34788723d1f6ba791d0344811d1907bc}{operation\+\_\+percvol\+\_\+outflow\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulereservoirs_ab76bcba6606b22f86a6e7a9ca61fa934}{operation\+\_\+percvol\+\_\+percinflow\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulereservoirs_a5b1a48d491a0ed184c0a3ae8af4140af}{operation\+\_\+percvol\+\_\+percmaxoutflow\+\_\+}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulereservoirs_af656754da8b9984c6c96e6c670f23d02}{startpercentagefull\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulereservoirs_a0ab14e4de96cf34622fde6a0957a5313}{instantmixing\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulereservoirs_a75087a570e215ca36c369207496fd7a7}{retentiontimemixing\+\_\+}} = 2
+\item 
+type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoirs}{t\+\_\+reservoirs}}), pointer \mbox{\hyperlink{namespacemodulereservoirs_a2579611f53e15ae9991a82aefe41a57f}{firstobjreservoirs}}
+\item 
+type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoirs}{t\+\_\+reservoirs}}), pointer \mbox{\hyperlink{namespacemodulereservoirs_a1c6b704e6fc6d68170696d5d668502ba}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulereservoirs_a2452a1e02e4d13c0c920c8d181bf2e79}\label{namespacemodulereservoirs_a2452a1e02e4d13c0c920c8d181bf2e79}} 
+\index{modulereservoirs@{modulereservoirs}!addproperty@{addproperty}}
+\index{addproperty@{addproperty}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{addproperty()}{addproperty()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::addproperty (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a2452a1e02e4d13c0c920c8d181bf2e79_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_aae6c3ff2990d073d614eb9e50d1658b9}\label{namespacemodulereservoirs_aae6c3ff2990d073d614eb9e50d1658b9}} 
+\index{modulereservoirs@{modulereservoirs}!addreservoir@{addreservoir}}
+\index{addreservoir@{addreservoir}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{addreservoir()}{addreservoir()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::addreservoir (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{New\+Reservoir }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_aae6c3ff2990d073d614eb9e50d1658b9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a3bbdfd18a9b8de49cb39c9c2e60824f5}\label{namespacemodulereservoirs_a3bbdfd18a9b8de49cb39c9c2e60824f5}} 
+\index{modulereservoirs@{modulereservoirs}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine, private modulereservoirs\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a3bbdfd18a9b8de49cb39c9c2e60824f5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_ae639ba85f34ad23b758837c7842e91ed}\label{namespacemodulereservoirs_ae639ba85f34ad23b758837c7842e91ed}} 
+\index{modulereservoirs@{modulereservoirs}!checkreservoirproperty@{checkreservoirproperty}}
+\index{checkreservoirproperty@{checkreservoirproperty}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{checkreservoirproperty()}{checkreservoirproperty()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::checkreservoirproperty (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{integer}]{Property\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ae639ba85f34ad23b758837c7842e91ed_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_af226bfc3156ffdd375d5b81401036b46}\label{namespacemodulereservoirs_af226bfc3156ffdd375d5b81401036b46}} 
+\index{modulereservoirs@{modulereservoirs}!computereservoirbottomfluxes@{computereservoirbottomfluxes}}
+\index{computereservoirbottomfluxes@{computereservoirbottomfluxes}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{computereservoirbottomfluxes()}{computereservoirbottomfluxes()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::computereservoirbottomfluxes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_af226bfc3156ffdd375d5b81401036b46_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a8a99c19b113e1731bd473173c164300a}\label{namespacemodulereservoirs_a8a99c19b113e1731bd473173c164300a}} 
+\index{modulereservoirs@{modulereservoirs}!computereservoirdischarges@{computereservoirdischarges}}
+\index{computereservoirdischarges@{computereservoirdischarges}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{computereservoirdischarges()}{computereservoirdischarges()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::computereservoirdischarges (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a8a99c19b113e1731bd473173c164300a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a8a99c19b113e1731bd473173c164300a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a473bf29bfb29eda6a398dead645aec5a}\label{namespacemodulereservoirs_a473bf29bfb29eda6a398dead645aec5a}} 
+\index{modulereservoirs@{modulereservoirs}!computereservoirlevel@{computereservoirlevel}}
+\index{computereservoirlevel@{computereservoirlevel}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{computereservoirlevel()}{computereservoirlevel()}}
+{\footnotesize\ttfamily real function modulereservoirs\+::computereservoirlevel (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{Current\+Reservoir }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a473bf29bfb29eda6a398dead645aec5a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a20b9abb4646405dacdb0a0927de2ec9b}\label{namespacemodulereservoirs_a20b9abb4646405dacdb0a0927de2ec9b}} 
+\index{modulereservoirs@{modulereservoirs}!computereservoiroutflows@{computereservoiroutflows}}
+\index{computereservoiroutflows@{computereservoiroutflows}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{computereservoiroutflows()}{computereservoiroutflows()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::computereservoiroutflows (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a20b9abb4646405dacdb0a0927de2ec9b_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a20b9abb4646405dacdb0a0927de2ec9b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_ae746634227400b0849469114a5dc5c3f}\label{namespacemodulereservoirs_ae746634227400b0849469114a5dc5c3f}} 
+\index{modulereservoirs@{modulereservoirs}!computereservoirsurfacefluxes@{computereservoirsurfacefluxes}}
+\index{computereservoirsurfacefluxes@{computereservoirsurfacefluxes}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{computereservoirsurfacefluxes()}{computereservoirsurfacefluxes()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::computereservoirsurfacefluxes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ae746634227400b0849469114a5dc5c3f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a5482b1f1fc7530ca5302b5dc3352566f}\label{namespacemodulereservoirs_a5482b1f1fc7530ca5302b5dc3352566f}} 
+\index{modulereservoirs@{modulereservoirs}!computereservoirvolume@{computereservoirvolume}}
+\index{computereservoirvolume@{computereservoirvolume}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{computereservoirvolume()}{computereservoirvolume()}}
+{\footnotesize\ttfamily real function modulereservoirs\+::computereservoirvolume (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{Current\+Reservoir,  }\item[{real}]{Reservoir\+Level }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a5482b1f1fc7530ca5302b5dc3352566f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_afd25bc9bcd078252383e6f67ef148826}\label{namespacemodulereservoirs_afd25bc9bcd078252383e6f67ef148826}} 
+\index{modulereservoirs@{modulereservoirs}!computeweirflow@{computeweirflow}}
+\index{computeweirflow@{computeweirflow}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{computeweirflow()}{computeweirflow()}}
+{\footnotesize\ttfamily real function modulereservoirs\+::computeweirflow (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{Current\+Reservoir }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_afd25bc9bcd078252383e6f67ef148826_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a720deae8cfb3dc32643ce6afdfa4d187}\label{namespacemodulereservoirs_a720deae8cfb3dc32643ce6afdfa4d187}} 
+\index{modulereservoirs@{modulereservoirs}!constructdischarges@{constructdischarges}}
+\index{constructdischarges@{constructdischarges}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructdischarges()}{constructdischarges()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructdischarges (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a720deae8cfb3dc32643ce6afdfa4d187_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a720deae8cfb3dc32643ce6afdfa4d187_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_adb9f7b2b418dc95e774855d03c82b302}\label{namespacemodulereservoirs_adb9f7b2b418dc95e774855d03c82b302}} 
+\index{modulereservoirs@{modulereservoirs}!constructglobalvariables@{constructglobalvariables}}
+\index{constructglobalvariables@{constructglobalvariables}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructglobalvariables()}{constructglobalvariables()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructglobalvariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_adb9f7b2b418dc95e774855d03c82b302_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_aa1585e14b10abec0e0a86d6b4674be9c}\label{namespacemodulereservoirs_aa1585e14b10abec0e0a86d6b4674be9c}} 
+\index{modulereservoirs@{modulereservoirs}!constructhdf5output@{constructhdf5output}}
+\index{constructhdf5output@{constructhdf5output}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructhdf5output()}{constructhdf5output()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructhdf5output (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_aa1585e14b10abec0e0a86d6b4674be9c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a43db2f4830b1c886cf024e34a2682edb}\label{namespacemodulereservoirs_a43db2f4830b1c886cf024e34a2682edb}} 
+\index{modulereservoirs@{modulereservoirs}!constructoutput@{constructoutput}}
+\index{constructoutput@{constructoutput}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructoutput()}{constructoutput()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a43db2f4830b1c886cf024e34a2682edb_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a43db2f4830b1c886cf024e34a2682edb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a67e585ed4eb36afe43471887a3a9744c}\label{namespacemodulereservoirs_a67e585ed4eb36afe43471887a3a9744c}} 
+\index{modulereservoirs@{modulereservoirs}!constructproperty@{constructproperty}}
+\index{constructproperty@{constructproperty}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructproperty()}{constructproperty()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructproperty (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a67e585ed4eb36afe43471887a3a9744c_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a67e585ed4eb36afe43471887a3a9744c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a96a0b204df7b8cbf62057d7868d8aaa1}\label{namespacemodulereservoirs_a96a0b204df7b8cbf62057d7868d8aaa1}} 
+\index{modulereservoirs@{modulereservoirs}!constructpropertylist@{constructpropertylist}}
+\index{constructpropertylist@{constructpropertylist}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructpropertylist()}{constructpropertylist()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructpropertylist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a96a0b204df7b8cbf62057d7868d8aaa1_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a96a0b204df7b8cbf62057d7868d8aaa1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a45a6c59f07c2eaae456d1a07476b8b6c}\label{namespacemodulereservoirs_a45a6c59f07c2eaae456d1a07476b8b6c}} 
+\index{modulereservoirs@{modulereservoirs}!constructpropertyvalues@{constructpropertyvalues}}
+\index{constructpropertyvalues@{constructpropertyvalues}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructpropertyvalues()}{constructpropertyvalues()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructpropertyvalues (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a45a6c59f07c2eaae456d1a07476b8b6c_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a45a6c59f07c2eaae456d1a07476b8b6c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_adb0f83f2d398504e99ff31c83a07ff2b}\label{namespacemodulereservoirs_adb0f83f2d398504e99ff31c83a07ff2b}} 
+\index{modulereservoirs@{modulereservoirs}!constructreservoir@{constructreservoir}}
+\index{constructreservoir@{constructreservoir}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructreservoir()}{constructreservoir()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructreservoir (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{New\+Reservoir,  }\item[{integer}]{Client\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_adb0f83f2d398504e99ff31c83a07ff2b_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_adb0f83f2d398504e99ff31c83a07ff2b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_ac7bcb5beebaa4c557e558719e9656911}\label{namespacemodulereservoirs_ac7bcb5beebaa4c557e558719e9656911}} 
+\index{modulereservoirs@{modulereservoirs}!constructreservoirlist@{constructreservoirlist}}
+\index{constructreservoirlist@{constructreservoirlist}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructreservoirlist()}{constructreservoirlist()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructreservoirlist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ac7bcb5beebaa4c557e558719e9656911_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ac7bcb5beebaa4c557e558719e9656911_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a8356f95662b41d91816350cf3f3c6113}\label{namespacemodulereservoirs_a8356f95662b41d91816350cf3f3c6113}} 
+\index{modulereservoirs@{modulereservoirs}!constructreservoirs@{constructreservoirs}}
+\index{constructreservoirs@{constructreservoirs}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructreservoirs()}{constructreservoirs()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::constructreservoirs (\begin{DoxyParamCaption}\item[{character(len=$\ast$)}]{Model\+Name,  }\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{integer}]{Time\+ID,  }\item[{character(len=pathlength), optional}]{Topographic\+File,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a8356f95662b41d91816350cf3f3c6113_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a8922a19edc4b29fdfa9899431548dabc}\label{namespacemodulereservoirs_a8922a19edc4b29fdfa9899431548dabc}} 
+\index{modulereservoirs@{modulereservoirs}!constructtimeserielist@{constructtimeserielist}}
+\index{constructtimeserielist@{constructtimeserielist}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructtimeserielist()}{constructtimeserielist()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructtimeserielist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a8922a19edc4b29fdfa9899431548dabc_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a8cfdd387909b50145910c908f6e129f0}\label{namespacemodulereservoirs_a8cfdd387909b50145910c908f6e129f0}} 
+\index{modulereservoirs@{modulereservoirs}!constructtimeseries@{constructtimeseries}}
+\index{constructtimeseries@{constructtimeseries}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{constructtimeseries()}{constructtimeseries()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::constructtimeseries (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a8cfdd387909b50145910c908f6e129f0_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a8cfdd387909b50145910c908f6e129f0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_ac5bf14d3b0efa223e5c19855bb2380f2}\label{namespacemodulereservoirs_ac5bf14d3b0efa223e5c19855bb2380f2}} 
+\index{modulereservoirs@{modulereservoirs}!counttotalreservoirs@{counttotalreservoirs}}
+\index{counttotalreservoirs@{counttotalreservoirs}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{counttotalreservoirs()}{counttotalreservoirs()}}
+{\footnotesize\ttfamily real function modulereservoirs\+::counttotalreservoirs (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ac5bf14d3b0efa223e5c19855bb2380f2_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a8f177c238d3cfcadea634aef11e22772}\label{namespacemodulereservoirs_a8f177c238d3cfcadea634aef11e22772}} 
+\index{modulereservoirs@{modulereservoirs}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine, private modulereservoirs\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a8f177c238d3cfcadea634aef11e22772_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_ad77a25bc54ff54f0753ca4576febd9fb}\label{namespacemodulereservoirs_ad77a25bc54ff54f0753ca4576febd9fb}} 
+\index{modulereservoirs@{modulereservoirs}!dischargeproperty@{dischargeproperty}}
+\index{dischargeproperty@{dischargeproperty}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{dischargeproperty()}{dischargeproperty()}}
+{\footnotesize\ttfamily real function modulereservoirs\+::dischargeproperty (\begin{DoxyParamCaption}\item[{real}]{Discharge\+Flow,  }\item[{real}]{Discharge\+Conc,  }\item[{type (\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{Reservoir,  }\item[{type (\mbox{\hyperlink{structmodulereservoirs_1_1t__property}{t\+\_\+property}}), pointer}]{Property,  }\item[{real}]{I\+S\+Coef,  }\item[{logical}]{Accumulate }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ad77a25bc54ff54f0753ca4576febd9fb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a4297360b11f2cc348b2bb6524d4307b9}\label{namespacemodulereservoirs_a4297360b11f2cc348b2bb6524d4307b9}} 
+\index{modulereservoirs@{modulereservoirs}!fillpropnamevector@{fillpropnamevector}}
+\index{fillpropnamevector@{fillpropnamevector}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{fillpropnamevector()}{fillpropnamevector()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::fillpropnamevector (\begin{DoxyParamCaption}\item[{character(stringlength), dimension (\+:), pointer}]{Prop\+Vector }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a4297360b11f2cc348b2bb6524d4307b9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_aaff88903c37ba70d4b309e252229107b}\label{namespacemodulereservoirs_aaff88903c37ba70d4b309e252229107b}} 
+\index{modulereservoirs@{modulereservoirs}!findreservoir@{findreservoir}}
+\index{findreservoir@{findreservoir}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{findreservoir()}{findreservoir()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::findreservoir (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Reservoir\+ID,  }\item[{type (\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), intent(out), pointer}]{Reservoir,  }\item[{logical, intent(out)}]{Found }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_aaff88903c37ba70d4b309e252229107b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a7e40106c12c54cc753164ac30f0fbf04}\label{namespacemodulereservoirs_a7e40106c12c54cc753164ac30f0fbf04}} 
+\index{modulereservoirs@{modulereservoirs}!getimposedlevel@{getimposedlevel}}
+\index{getimposedlevel@{getimposedlevel}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getimposedlevel()}{getimposedlevel()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::getimposedlevel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a7e40106c12c54cc753164ac30f0fbf04_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a7e40106c12c54cc753164ac30f0fbf04_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a22d1b1d83488cecbdcf52565d3aa4e99}\label{namespacemodulereservoirs_a22d1b1d83488cecbdcf52565d3aa4e99}} 
+\index{modulereservoirs@{modulereservoirs}!getimposedreservoirlevel@{getimposedreservoirlevel}}
+\index{getimposedreservoirlevel@{getimposedreservoirlevel}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getimposedreservoirlevel()}{getimposedreservoirlevel()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::getimposedreservoirlevel (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{New\+Reservoir,  }\item[{integer, optional}]{Client\+ID,  }\item[{logical}]{Construct }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a22d1b1d83488cecbdcf52565d3aa4e99_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a22d1b1d83488cecbdcf52565d3aa4e99_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_aa1e3cf305f3f33775d706fde19afd2c6}\label{namespacemodulereservoirs_aa1e3cf305f3f33775d706fde19afd2c6}} 
+\index{modulereservoirs@{modulereservoirs}!getmanagementoptions@{getmanagementoptions}}
+\index{getmanagementoptions@{getmanagementoptions}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getmanagementoptions()}{getmanagementoptions()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::getmanagementoptions (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{New\+Reservoir,  }\item[{integer}]{Client\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_aa1e3cf305f3f33775d706fde19afd2c6_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a6c97c189244107e76016a8e045715d94}\label{namespacemodulereservoirs_a6c97c189244107e76016a8e045715d94}} 
+\index{modulereservoirs@{modulereservoirs}!getnumberofreservoirs@{getnumberofreservoirs}}
+\index{getnumberofreservoirs@{getnumberofreservoirs}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getnumberofreservoirs()}{getnumberofreservoirs()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::getnumberofreservoirs (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{integer}]{n\+Reservoirs,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a6c97c189244107e76016a8e045715d94_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_ac1692cb00cb68968ee7099ff5bf14ed0}\label{namespacemodulereservoirs_ac1692cb00cb68968ee7099ff5bf14ed0}} 
+\index{modulereservoirs@{modulereservoirs}!getoutflowfromoperation@{getoutflowfromoperation}}
+\index{getoutflowfromoperation@{getoutflowfromoperation}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getoutflowfromoperation()}{getoutflowfromoperation()}}
+{\footnotesize\ttfamily real function modulereservoirs\+::getoutflowfromoperation (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{Current\+Reservoir }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ac1692cb00cb68968ee7099ff5bf14ed0_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ac1692cb00cb68968ee7099ff5bf14ed0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_af97fb114c425ea04bf826d452e6d075f}\label{namespacemodulereservoirs_af97fb114c425ea04bf826d452e6d075f}} 
+\index{modulereservoirs@{modulereservoirs}!getreservoirsconcentration@{getreservoirsconcentration}}
+\index{getreservoirsconcentration@{getreservoirsconcentration}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getreservoirsconcentration()}{getreservoirsconcentration()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::getreservoirsconcentration (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{real, dimension(\+:), pointer}]{ConcentrationX,  }\item[{integer, intent(in)}]{Property\+X\+I\+D\+Number,  }\item[{character(len = $\ast$), intent(out), optional}]{Property\+X\+Units,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_af97fb114c425ea04bf826d452e6d075f_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a1af4820153560697135a4b5289ffefb9}\label{namespacemodulereservoirs_a1af4820153560697135a4b5289ffefb9}} 
+\index{modulereservoirs@{modulereservoirs}!getreservoirsnodeids@{getreservoirsnodeids}}
+\index{getreservoirsnodeids@{getreservoirsnodeids}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getreservoirsnodeids()}{getreservoirsnodeids()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::getreservoirsnodeids (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{integer, dimension(\+:), pointer}]{Matrix,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a1af4820153560697135a4b5289ffefb9_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a53b63e6050bd055646e8d248c77b9d39}\label{namespacemodulereservoirs_a53b63e6050bd055646e8d248c77b9d39}} 
+\index{modulereservoirs@{modulereservoirs}!getreservoirsnproperties@{getreservoirsnproperties}}
+\index{getreservoirsnproperties@{getreservoirsnproperties}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getreservoirsnproperties()}{getreservoirsnproperties()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::getreservoirsnproperties (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{integer}]{n\+Properties,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a53b63e6050bd055646e8d248c77b9d39_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a92177000a842b34a96a2edc6b49e3128}\label{namespacemodulereservoirs_a92177000a842b34a96a2edc6b49e3128}} 
+\index{modulereservoirs@{modulereservoirs}!getreservoirsoutflow@{getreservoirsoutflow}}
+\index{getreservoirsoutflow@{getreservoirsoutflow}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getreservoirsoutflow()}{getreservoirsoutflow()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::getreservoirsoutflow (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{real, dimension(\+:), pointer}]{Matrix,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a92177000a842b34a96a2edc6b49e3128_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_ac84a64521bf81b419760543bd55c1439}\label{namespacemodulereservoirs_ac84a64521bf81b419760543bd55c1439}} 
+\index{modulereservoirs@{modulereservoirs}!getreservoirspropertiesidbyidx@{getreservoirspropertiesidbyidx}}
+\index{getreservoirspropertiesidbyidx@{getreservoirspropertiesidbyidx}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getreservoirspropertiesidbyidx()}{getreservoirspropertiesidbyidx()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::getreservoirspropertiesidbyidx (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{integer, intent(in)}]{Idx,  }\item[{integer, intent(out)}]{ID,  }\item[{logical, intent(out), optional}]{Particulate,  }\item[{character (len = stringlength), optional}]{Output\+Name,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ac84a64521bf81b419760543bd55c1439_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_afabb38607932bfaede946ccbce22734d}\label{namespacemodulereservoirs_afabb38607932bfaede946ccbce22734d}} 
+\index{modulereservoirs@{modulereservoirs}!getreservoirvolume@{getreservoirvolume}}
+\index{getreservoirvolume@{getreservoirvolume}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getreservoirvolume()}{getreservoirvolume()}}
+{\footnotesize\ttfamily real function modulereservoirs\+::getreservoirvolume (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{Curr\+Reservoir,  }\item[{type(t\+\_\+time)}]{Time }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_afabb38607932bfaede946ccbce22734d_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_afabb38607932bfaede946ccbce22734d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_af78ebbee661caa48931d2c60385bda27}\label{namespacemodulereservoirs_af78ebbee661caa48931d2c60385bda27}} 
+\index{modulereservoirs@{modulereservoirs}!getvolumeacccurve@{getvolumeacccurve}}
+\index{getvolumeacccurve@{getvolumeacccurve}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{getvolumeacccurve()}{getvolumeacccurve()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::getvolumeacccurve (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoir}{t\+\_\+reservoir}}), pointer}]{New\+Reservoir,  }\item[{integer}]{Client\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_af78ebbee661caa48931d2c60385bda27_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a3194d2a617c1c30dfa86442b6dbe1c31}\label{namespacemodulereservoirs_a3194d2a617c1c30dfa86442b6dbe1c31}} 
+\index{modulereservoirs@{modulereservoirs}!initializereservoirsvolume@{initializereservoirsvolume}}
+\index{initializereservoirsvolume@{initializereservoirsvolume}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{initializereservoirsvolume()}{initializereservoirsvolume()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::initializereservoirsvolume (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a3194d2a617c1c30dfa86442b6dbe1c31_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a3194d2a617c1c30dfa86442b6dbe1c31_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a1e658ea45a1665c254648477f576c633}\label{namespacemodulereservoirs_a1e658ea45a1665c254648477f576c633}} 
+\index{modulereservoirs@{modulereservoirs}!initializevariables@{initializevariables}}
+\index{initializevariables@{initializevariables}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{initializevariables()}{initializevariables()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::initializevariables (\begin{DoxyParamCaption}\item[{logical}]{Constructing }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a1e658ea45a1665c254648477f576c633_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a7b14b20d3da20267f728eae98a202e5e}\label{namespacemodulereservoirs_a7b14b20d3da20267f728eae98a202e5e}} 
+\index{modulereservoirs@{modulereservoirs}!killreservoirs@{killreservoirs}}
+\index{killreservoirs@{killreservoirs}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{killreservoirs()}{killreservoirs()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::killreservoirs (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a7b14b20d3da20267f728eae98a202e5e_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a777d3a0c23fa5c2ea11ed589e1d23711}\label{namespacemodulereservoirs_a777d3a0c23fa5c2ea11ed589e1d23711}} 
+\index{modulereservoirs@{modulereservoirs}!locateobjreservoirs@{locateobjreservoirs}}
+\index{locateobjreservoirs@{locateobjreservoirs}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{locateobjreservoirs()}{locateobjreservoirs()}}
+{\footnotesize\ttfamily subroutine, private modulereservoirs\+::locateobjreservoirs (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+\_\+\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a777d3a0c23fa5c2ea11ed589e1d23711_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a72a469df722e5436ce882168e7d1c0bb}\label{namespacemodulereservoirs_a72a469df722e5436ce882168e7d1c0bb}} 
+\index{modulereservoirs@{modulereservoirs}!modifyoutput@{modifyoutput}}
+\index{modifyoutput@{modifyoutput}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{modifyoutput()}{modifyoutput()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::modifyoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a72a469df722e5436ce882168e7d1c0bb_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a72a469df722e5436ce882168e7d1c0bb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a65da9561acff8444f90db1ccde975201}\label{namespacemodulereservoirs_a65da9561acff8444f90db1ccde975201}} 
+\index{modulereservoirs@{modulereservoirs}!modifyreservoirs@{modifyreservoirs}}
+\index{modifyreservoirs@{modifyreservoirs}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{modifyreservoirs()}{modifyreservoirs()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::modifyreservoirs (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a65da9561acff8444f90db1ccde975201_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a9ca6b6f1b29d44a299bd0cd902b875bd}\label{namespacemodulereservoirs_a9ca6b6f1b29d44a299bd0cd902b875bd}} 
+\index{modulereservoirs@{modulereservoirs}!readfilenames@{readfilenames}}
+\index{readfilenames@{readfilenames}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{readfilenames()}{readfilenames()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::readfilenames (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a9ca6b6f1b29d44a299bd0cd902b875bd_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a211f03dad795e61e39d0f58b7002bb26}\label{namespacemodulereservoirs_a211f03dad795e61e39d0f58b7002bb26}} 
+\index{modulereservoirs@{modulereservoirs}!readinitialconc@{readinitialconc}}
+\index{readinitialconc@{readinitialconc}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{readinitialconc()}{readinitialconc()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::readinitialconc (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulereservoirs_1_1t__property}{t\+\_\+property}})}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a211f03dad795e61e39d0f58b7002bb26_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a392b0a0c6b8aeaf0e9cd41b21b155341}\label{namespacemodulereservoirs_a392b0a0c6b8aeaf0e9cd41b21b155341}} 
+\index{modulereservoirs@{modulereservoirs}!readinitialvolume@{readinitialvolume}}
+\index{readinitialvolume@{readinitialvolume}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{readinitialvolume()}{readinitialvolume()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::readinitialvolume (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a392b0a0c6b8aeaf0e9cd41b21b155341_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a24436967478aa33f4288a6cec5b2bb59}\label{namespacemodulereservoirs_a24436967478aa33f4288a6cec5b2bb59}} 
+\index{modulereservoirs@{modulereservoirs}!readtimeseriereservoirlist@{readtimeseriereservoirlist}}
+\index{readtimeseriereservoirlist@{readtimeseriereservoirlist}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{readtimeseriereservoirlist()}{readtimeseriereservoirlist()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::readtimeseriereservoirlist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a24436967478aa33f4288a6cec5b2bb59_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a24436967478aa33f4288a6cec5b2bb59_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a5aff53aba3466a0410c29761e37a55a5}\label{namespacemodulereservoirs_a5aff53aba3466a0410c29761e37a55a5}} 
+\index{modulereservoirs@{modulereservoirs}!ready@{ready}}
+\index{ready@{ready}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private modulereservoirs\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+\_\+\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a5aff53aba3466a0410c29761e37a55a5_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a5aff53aba3466a0410c29761e37a55a5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_ae21cb91c7b00a7c56ed8f0d763dd75a2}\label{namespacemodulereservoirs_ae21cb91c7b00a7c56ed8f0d763dd75a2}} 
+\index{modulereservoirs@{modulereservoirs}!searchproperty@{searchproperty}}
+\index{searchproperty@{searchproperty}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{searchproperty()}{searchproperty()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::searchproperty (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulereservoirs_1_1t__property}{t\+\_\+property}}), optional, pointer}]{PropertyX,  }\item[{integer, intent(in), optional}]{Property\+X\+I\+D\+Number,  }\item[{logical, intent(in), optional}]{Print\+Warning,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ae21cb91c7b00a7c56ed8f0d763dd75a2_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a947f8bf80536f49287e59c0f5d008f17}\label{namespacemodulereservoirs_a947f8bf80536f49287e59c0f5d008f17}} 
+\index{modulereservoirs@{modulereservoirs}!setdnconcreservoirs@{setdnconcreservoirs}}
+\index{setdnconcreservoirs@{setdnconcreservoirs}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{setdnconcreservoirs()}{setdnconcreservoirs()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::setdnconcreservoirs (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{real, dimension(\+:), pointer}]{ConcentrationX,  }\item[{integer}]{Property\+X\+I\+D\+Number,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a947f8bf80536f49287e59c0f5d008f17_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_af7840621e7e8765fc75f7a8c81f0b054}\label{namespacemodulereservoirs_af7840621e7e8765fc75f7a8c81f0b054}} 
+\index{modulereservoirs@{modulereservoirs}!setreservoirsinflow@{setreservoirsinflow}}
+\index{setreservoirsinflow@{setreservoirsinflow}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{setreservoirsinflow()}{setreservoirsinflow()}}
+{\footnotesize\ttfamily subroutine, public modulereservoirs\+::setreservoirsinflow (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{real, dimension(\+:), pointer}]{Reservoir\+Inflow,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_af7840621e7e8765fc75f7a8c81f0b054_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_aef049b96a145e57423b0b2da90a0a934}\label{namespacemodulereservoirs_aef049b96a145e57423b0b2da90a0a934}} 
+\index{modulereservoirs@{modulereservoirs}!ungetreservoirs1d\+\_\+i@{ungetreservoirs1d\+\_\+i}}
+\index{ungetreservoirs1d\+\_\+i@{ungetreservoirs1d\+\_\+i}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{ungetreservoirs1d\+\_\+i()}{ungetreservoirs1d\_i()}}
+{\footnotesize\ttfamily subroutine, private modulereservoirs\+::ungetreservoirs1d\+\_\+i (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{integer, dimension(\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_aef049b96a145e57423b0b2da90a0a934_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_abf51c8915a730bb078066132f1085b94}\label{namespacemodulereservoirs_abf51c8915a730bb078066132f1085b94}} 
+\index{modulereservoirs@{modulereservoirs}!ungetreservoirs1d\+\_\+r8@{ungetreservoirs1d\+\_\+r8}}
+\index{ungetreservoirs1d\+\_\+r8@{ungetreservoirs1d\+\_\+r8}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{ungetreservoirs1d\+\_\+r8()}{ungetreservoirs1d\_r8()}}
+{\footnotesize\ttfamily subroutine, private modulereservoirs\+::ungetreservoirs1d\+\_\+r8 (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Reservoirs\+ID,  }\item[{real, dimension(\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_abf51c8915a730bb078066132f1085b94_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a2c3bef9b0aaebe8a9cfd93bc27290e82}\label{namespacemodulereservoirs_a2c3bef9b0aaebe8a9cfd93bc27290e82}} 
+\index{modulereservoirs@{modulereservoirs}!updatereservoirstatevariables@{updatereservoirstatevariables}}
+\index{updatereservoirstatevariables@{updatereservoirstatevariables}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{updatereservoirstatevariables()}{updatereservoirstatevariables()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::updatereservoirstatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a2c3bef9b0aaebe8a9cfd93bc27290e82_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a2c3bef9b0aaebe8a9cfd93bc27290e82_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a2af994aa3f7d8318c768f2960bb34e06}\label{namespacemodulereservoirs_a2af994aa3f7d8318c768f2960bb34e06}} 
+\index{modulereservoirs@{modulereservoirs}!updatevolumes@{updatevolumes}}
+\index{updatevolumes@{updatevolumes}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{updatevolumes()}{updatevolumes()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::updatevolumes (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a2af994aa3f7d8318c768f2960bb34e06_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a2af994aa3f7d8318c768f2960bb34e06_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_af13cf54fd0c086fab90e6f36d294bc57}\label{namespacemodulereservoirs_af13cf54fd0c086fab90e6f36d294bc57}} 
+\index{modulereservoirs@{modulereservoirs}!verifyoptions@{verifyoptions}}
+\index{verifyoptions@{verifyoptions}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{verifyoptions()}{verifyoptions()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::verifyoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_af13cf54fd0c086fab90e6f36d294bc57_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_ab10c15bc98d09e4f38187f218fce8925}\label{namespacemodulereservoirs_ab10c15bc98d09e4f38187f218fce8925}} 
+\index{modulereservoirs@{modulereservoirs}!writefinalhdf@{writefinalhdf}}
+\index{writefinalhdf@{writefinalhdf}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{writefinalhdf()}{writefinalhdf()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::writefinalhdf (\begin{DoxyParamCaption}\item[{logical}]{Is\+Final\+File }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_ab10c15bc98d09e4f38187f218fce8925_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_acfc5816f94fa9d8f10e180691ee50039}\label{namespacemodulereservoirs_acfc5816f94fa9d8f10e180691ee50039}} 
+\index{modulereservoirs@{modulereservoirs}!writeoutputhdf@{writeoutputhdf}}
+\index{writeoutputhdf@{writeoutputhdf}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{writeoutputhdf()}{writeoutputhdf()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::writeoutputhdf (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_acfc5816f94fa9d8f10e180691ee50039_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulereservoirs_a8f4552bc7aa4adbe0bb04d768353a7b4}\label{namespacemodulereservoirs_a8f4552bc7aa4adbe0bb04d768353a7b4}} 
+\index{modulereservoirs@{modulereservoirs}!writetimeseries@{writetimeseries}}
+\index{writetimeseries@{writetimeseries}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{writetimeseries()}{writetimeseries()}}
+{\footnotesize\ttfamily subroutine modulereservoirs\+::writetimeseries (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulereservoirs_a8f4552bc7aa4adbe0bb04d768353a7b4_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulereservoirs_a2579611f53e15ae9991a82aefe41a57f}\label{namespacemodulereservoirs_a2579611f53e15ae9991a82aefe41a57f}} 
+\index{modulereservoirs@{modulereservoirs}!firstobjreservoirs@{firstobjreservoirs}}
+\index{firstobjreservoirs@{firstobjreservoirs}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{firstobjreservoirs}{firstobjreservoirs}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoirs}{t\+\_\+reservoirs}}), pointer modulereservoirs\+::firstobjreservoirs\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulereservoirs_a0ab14e4de96cf34622fde6a0957a5313}\label{namespacemodulereservoirs_a0ab14e4de96cf34622fde6a0957a5313}} 
+\index{modulereservoirs@{modulereservoirs}!instantmixing\+\_\+@{instantmixing\+\_\+}}
+\index{instantmixing\+\_\+@{instantmixing\+\_\+}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{instantmixing\+\_\+}{instantmixing\_}}
+{\footnotesize\ttfamily integer, parameter modulereservoirs\+::instantmixing\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulereservoirs_a1c6b704e6fc6d68170696d5d668502ba}\label{namespacemodulereservoirs_a1c6b704e6fc6d68170696d5d668502ba}} 
+\index{modulereservoirs@{modulereservoirs}!me@{me}}
+\index{me@{me}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulereservoirs_1_1t__reservoirs}{t\+\_\+reservoirs}}), pointer modulereservoirs\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulereservoirs_a19b393dc0624488197fbecad37587566}\label{namespacemodulereservoirs_a19b393dc0624488197fbecad37587566}} 
+\index{modulereservoirs@{modulereservoirs}!operation\+\_\+level\+\_\+outflow\+\_\+@{operation\+\_\+level\+\_\+outflow\+\_\+}}
+\index{operation\+\_\+level\+\_\+outflow\+\_\+@{operation\+\_\+level\+\_\+outflow\+\_\+}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{operation\+\_\+level\+\_\+outflow\+\_\+}{operation\_level\_outflow\_}}
+{\footnotesize\ttfamily integer, parameter modulereservoirs\+::operation\+\_\+level\+\_\+outflow\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulereservoirs_af9fabeb6c84ab0b9a68fff20028bd317}\label{namespacemodulereservoirs_af9fabeb6c84ab0b9a68fff20028bd317}} 
+\index{modulereservoirs@{modulereservoirs}!operation\+\_\+level\+\_\+percinflow\+\_\+@{operation\+\_\+level\+\_\+percinflow\+\_\+}}
+\index{operation\+\_\+level\+\_\+percinflow\+\_\+@{operation\+\_\+level\+\_\+percinflow\+\_\+}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{operation\+\_\+level\+\_\+percinflow\+\_\+}{operation\_level\_percinflow\_}}
+{\footnotesize\ttfamily integer, parameter modulereservoirs\+::operation\+\_\+level\+\_\+percinflow\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulereservoirs_a34788723d1f6ba791d0344811d1907bc}\label{namespacemodulereservoirs_a34788723d1f6ba791d0344811d1907bc}} 
+\index{modulereservoirs@{modulereservoirs}!operation\+\_\+percvol\+\_\+outflow\+\_\+@{operation\+\_\+percvol\+\_\+outflow\+\_\+}}
+\index{operation\+\_\+percvol\+\_\+outflow\+\_\+@{operation\+\_\+percvol\+\_\+outflow\+\_\+}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{operation\+\_\+percvol\+\_\+outflow\+\_\+}{operation\_percvol\_outflow\_}}
+{\footnotesize\ttfamily integer, parameter modulereservoirs\+::operation\+\_\+percvol\+\_\+outflow\+\_\+ = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulereservoirs_ab76bcba6606b22f86a6e7a9ca61fa934}\label{namespacemodulereservoirs_ab76bcba6606b22f86a6e7a9ca61fa934}} 
+\index{modulereservoirs@{modulereservoirs}!operation\+\_\+percvol\+\_\+percinflow\+\_\+@{operation\+\_\+percvol\+\_\+percinflow\+\_\+}}
+\index{operation\+\_\+percvol\+\_\+percinflow\+\_\+@{operation\+\_\+percvol\+\_\+percinflow\+\_\+}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{operation\+\_\+percvol\+\_\+percinflow\+\_\+}{operation\_percvol\_percinflow\_}}
+{\footnotesize\ttfamily integer, parameter modulereservoirs\+::operation\+\_\+percvol\+\_\+percinflow\+\_\+ = 4\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulereservoirs_a5b1a48d491a0ed184c0a3ae8af4140af}\label{namespacemodulereservoirs_a5b1a48d491a0ed184c0a3ae8af4140af}} 
+\index{modulereservoirs@{modulereservoirs}!operation\+\_\+percvol\+\_\+percmaxoutflow\+\_\+@{operation\+\_\+percvol\+\_\+percmaxoutflow\+\_\+}}
+\index{operation\+\_\+percvol\+\_\+percmaxoutflow\+\_\+@{operation\+\_\+percvol\+\_\+percmaxoutflow\+\_\+}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{operation\+\_\+percvol\+\_\+percmaxoutflow\+\_\+}{operation\_percvol\_percmaxoutflow\_}}
+{\footnotesize\ttfamily integer, parameter modulereservoirs\+::operation\+\_\+percvol\+\_\+percmaxoutflow\+\_\+ = 5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulereservoirs_a75087a570e215ca36c369207496fd7a7}\label{namespacemodulereservoirs_a75087a570e215ca36c369207496fd7a7}} 
+\index{modulereservoirs@{modulereservoirs}!retentiontimemixing\+\_\+@{retentiontimemixing\+\_\+}}
+\index{retentiontimemixing\+\_\+@{retentiontimemixing\+\_\+}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{retentiontimemixing\+\_\+}{retentiontimemixing\_}}
+{\footnotesize\ttfamily integer, parameter modulereservoirs\+::retentiontimemixing\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulereservoirs_af656754da8b9984c6c96e6c670f23d02}\label{namespacemodulereservoirs_af656754da8b9984c6c96e6c670f23d02}} 
+\index{modulereservoirs@{modulereservoirs}!startpercentagefull\+\_\+@{startpercentagefull\+\_\+}}
+\index{startpercentagefull\+\_\+@{startpercentagefull\+\_\+}!modulereservoirs@{modulereservoirs}}
+\subsubsection{\texorpdfstring{startpercentagefull\+\_\+}{startpercentagefull\_}}
+{\footnotesize\ttfamily integer, parameter modulereservoirs\+::startpercentagefull\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+

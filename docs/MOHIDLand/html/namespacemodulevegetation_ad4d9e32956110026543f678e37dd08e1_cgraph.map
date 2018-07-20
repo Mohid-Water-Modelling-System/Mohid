@@ -1,0 +1,9 @@
+<map id="modulevegetation::updateglobalplantproperties" name="modulevegetation::updateglobalplantproperties">
+<area shape="rect" id="node2" href="$namespacemodulevegetation.html#a61c5cc19d5b5fe894bc935b7365563cb" title="modulevegetation::nitrogenuptake" alt="" coords="352,64,567,91"/>
+<area shape="rect" id="node6" href="$namespacemodulevegetation.html#a8ecdc6f2c513a0f8920f448525858005" title="modulevegetation::phosphorusuptake" alt="" coords="341,123,577,149"/>
+<area shape="rect" id="node3" href="$namespacemodulevegetation.html#a5c30bda27fd79a69f45cc6fd35a2f0af" title="modulevegetation::nitrogenuptakeswat" alt="" coords="635,5,878,32"/>
+<area shape="rect" id="node5" href="$namespacemodulevegetation.html#a1a53d3932ef020aaa3e0656050c15ee3" title="modulevegetation::nitrogenuptake\l_transpconc" alt="" coords="649,57,864,98"/>
+<area shape="rect" id="node4" href="$namespacemodulevegetation.html#abdb0b0a9e6c19d706d25ff42b84611d2" title="modulevegetation::computenutrientstress" alt="" coords="936,93,1195,120"/>
+<area shape="rect" id="node7" href="$namespacemodulevegetation.html#a4d0b983635068517bf0b541f0784430a" title="modulevegetation::phosphorusuptakeswat" alt="" coords="625,123,888,149"/>
+<area shape="rect" id="node8" href="$namespacemodulevegetation.html#a00089a428473ea96d0f567289aabe4f8" title="modulevegetation::phosphorusuptake\l_transpconc" alt="" coords="639,174,875,215"/>
+</map>
